@@ -1,0 +1,1 @@
+<span class="badge badge-{{ ['ok' => 'green', 'due' => 'amber', 'overdue' => 'red', 'defective' => 'red', 'expired' => 'red', 'retired' => 'slate'][$s] ?? 'slate' }}">{{ ['ok' => 'In order', 'due' => 'Due soon', 'overdue' => 'Overdue', 'defective' => 'Defective', 'expired' => 'Expired', 'retired' => 'Retired'][$s] ?? $s }}</span>

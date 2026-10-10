@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared-hosting fallback.
+#
+# Use this file only when you CANNOT point the domain's document root at
+# /public (which is the recommended setup on cPanel — see docs/INSTALL-CPANEL.md).
+# Upload the whole project and this file forwards every request into /public,
+# so the application, its .env and its dependencies are never served directly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+<IfModule mod_autoindex.c>
+    # Never hand out a directory listing of the project (build/, storage/, …).
+    Options -Indexes
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ── Never serve these, whatever else happens ─────────────────────────────
+    # Patterns are matched against the path RELATIVE to the folder holding this
+    # file, so they work both at the domain root and in a subfolder.
+    #
+    # bootstrap/ matters most: bootstrap/cache/config.php is the compiled
+    # configuration and contains APP_KEY and the database password in clear
+    # text. storage/ holds logs, sessions and backups. build/ is the Composer
+    # package tree — large, and never meant to be fetched over HTTP.
+    #
+    # The (?:/|$) boundary means "storage" blocks /storage and /storage/... but
+    # not a legitimate page such as /storage-locations.
+    RewriteRule ^(?:\.env(?:\..*)?|\.git(?:\..*)?|\.htaccess|\.htpasswd|\.gitignore|\.gitattributes|composer\.(?:json|lock)|artisan|phpunit\.xml|bootstrap|build|storage|vendor|database|tests|deploy|docs|README\.md)(?:/|$) - [F,L,NC]
+
+    # ── Send everything else into /public ────────────────────────────────────
+    # The condition is deliberately unanchored: REQUEST_URI may or may not
+    # begin with the subfolder the project lives in. Guarding with /public(/|$)
+    # stops a second pass from rewriting "public/…" into "public/public/…".
+    RewriteCond %{REQUEST_URI} !/public(/|$)
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Belt and braces for hosts where the rewrite block above is skipped.
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>

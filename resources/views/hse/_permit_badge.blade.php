@@ -1,0 +1,1 @@
+@if($p->isOverdue())<span class="badge badge-red">Past end – close out</span>@else<span class="badge badge-{{ ['requested' => 'amber', 'issued' => 'blue', 'closed' => 'green', 'cancelled' => 'slate'][$p->status] ?? 'slate' }}">{{ ['requested' => 'Requested', 'issued' => 'Issued', 'closed' => 'Closed', 'cancelled' => 'Cancelled'][$p->status] ?? $p->status }}</span>@endif

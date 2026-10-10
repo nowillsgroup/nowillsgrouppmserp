@@ -1,0 +1,2 @@
+@php $tone = ['active' => 'green', 'frozen' => 'blue', 'expired' => 'amber', 'cancelled' => 'slate'][$m->status] ?? 'slate'; @endphp
+<span class="badge badge-{{ $tone }}" data-status="{{ $m->status }}">{{ \App\Models\ClubMembership::STATUSES[$m->status] ?? $m->status }}</span>@if($m->cancel_mode === 'term_end' && $m->status !== 'cancelled') <span class="badge badge-amber" title="Will not renew">notice</span>@endif

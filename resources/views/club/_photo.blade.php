@@ -1,0 +1,1 @@
+@if($p->photo_path)<img class="club-photo {{ $size ?? '' }}" src="{{ route('club.persons.photo.show', $p) }}?v={{ $p->updated_at?->timestamp }}" alt="{{ $p->name }}">@else<div class="club-photo {{ $size ?? '' }}">{{ $p->initials() }}</div>@endif

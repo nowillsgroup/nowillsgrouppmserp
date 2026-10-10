@@ -1,0 +1,1 @@
+<span class="badge badge-{{ ['near_miss' => 'slate', 'first_aid' => 'blue', 'medical' => 'amber', 'lost_time' => 'red', 'fatal' => 'red'][$a->severity] ?? 'slate' }}">{{ $a->severityLabel() }}</span>@if($a->reportable) <span class="badge {{ $a->notified_on ? 'badge-green' : 'badge-red' }}" title="Act 328 notice">{{ $a->notified_on ? 'notified' : 'notify!' }}</span>@endif

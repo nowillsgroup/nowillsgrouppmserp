@@ -1,0 +1,39 @@
+/* Offline-first workspace and connection status */
+.offline-indicator{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--c-text-2);white-space:nowrap;padding:.35rem .5rem;border:1px solid var(--c-border);border-radius:999px;background:var(--c-surface)}
+.offline-indicator-dot{width:.45rem;height:.45rem;border-radius:50%;background:var(--c-green);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-green) 16%,transparent)}
+.offline-indicator-dot.offline{background:var(--c-amber);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-amber) 16%,transparent)}
+.offline-indicator-pending{color:var(--c-amber);font-weight:700}
+.offline-workspace-banner{border-left:4px solid var(--c-blue)}
+.offline-workspace-state{font-size:.78rem;color:var(--c-text-2);align-self:center;white-space:nowrap}
+.offline-room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.75rem}
+.offline-room-card{border:1px solid var(--c-border);border-radius:10px;padding:.8rem;background:var(--c-surface);box-shadow:var(--shadow-sm)}
+.offline-room-card .badge{white-space:nowrap}
+.offline-room-actions{display:flex;gap:.35rem;flex-wrap:wrap}
+.offline-room-actions .btn{text-transform:capitalize}
+.offline-task-list{display:flex;flex-direction:column;gap:.65rem}
+.offline-task-card{border:1px solid var(--c-border);border-radius:10px;padding:.8rem;background:var(--c-surface)}
+.offline-task-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.offline-task-checklist{margin-top:.7rem;border-top:1px solid var(--c-border);padding-top:.55rem;font-size:.8rem}
+.offline-task-checklist summary{cursor:pointer;color:var(--c-text-2);font-weight:700}
+.offline-task-checklist>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.35rem;margin-top:.55rem}
+.offline-task-checklist label{display:flex;gap:.35rem;align-items:flex-start;color:var(--c-text-2)}
+.offline-issue-form{margin-top:.65rem;border-top:1px solid var(--c-border);padding-top:.55rem;font-size:.8rem}
+.offline-issue-form summary{cursor:pointer;color:var(--c-text-2);font-weight:700}
+.offline-issue-fields{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:.4rem;margin-top:.55rem}
+.offline-issue-fields input,.offline-issue-fields select{min-width:0;padding:.42rem .5rem;border:1px solid var(--c-border);border-radius:6px;background:var(--c-surface);color:var(--c-text)}
+.offline-inspection{margin-top:.65rem;border-top:1px solid var(--c-border);padding-top:.55rem;font-size:.8rem;color:var(--c-text-2)}
+.offline-inspection-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-top:.45rem}
+.offline-inspection-actions input{flex:1;min-width:160px;padding:.42rem .5rem;border:1px solid var(--c-border);border-radius:6px;background:var(--c-surface);color:var(--c-text)}
+.offline-request-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:1rem;align-items:start}
+.offline-request-form-card{margin-bottom:0}
+.offline-request-form-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--c-border)}
+.offline-request-list{display:flex;flex-direction:column;gap:.65rem}
+.offline-request-card{border:1px solid var(--c-border);border-radius:10px;padding:.8rem;background:var(--c-surface);box-shadow:var(--shadow-sm)}
+.offline-request-card .badge{white-space:nowrap}
+@media(max-width:900px){.offline-request-layout{grid-template-columns:1fr}.offline-request-form-card{margin-bottom:1rem}}
+.offline-notice{position:fixed;right:1.25rem;bottom:1.25rem;z-index:1000;max-width: min(420px, calc(100vw - 2rem));padding:.75rem 1rem;border-radius:9px;background:var(--c-slate-900);color:#fff;box-shadow:var(--shadow-lg);font-size:.85rem}
+.offline-notice.error{background:var(--c-red)}
+.offline-notice.info{background:var(--c-blue)}
+.offline-notice[hidden]{display:none}
+body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber) 45%,var(--c-border));color:var(--c-amber)}
+@media(max-width:860px){.offline-indicator{font-size:0;padding:.42rem}.offline-indicator-dot{width:.55rem;height:.55rem}.offline-workspace-state{white-space:normal;text-align:right}.offline-room-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}.offline-issue-fields{grid-template-columns:1fr 1fr}.offline-issue-fields input,.offline-issue-fields button{grid-column:1 / -1}}

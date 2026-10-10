@@ -1,0 +1,1 @@
+@php $tone = ['draft' => 'purple', 'active' => 'green', 'notice' => 'amber', 'ended' => 'slate', 'terminated' => 'red', 'cancelled' => 'slate'][$l->status] ?? 'slate'; @endphp<span class="badge badge-{{ $tone }}" data-status="{{ $l->status }}">{{ \App\Models\Lease::STATUSES[$l->status] }}</span>

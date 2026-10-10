@@ -1,0 +1,43 @@
+Nowills PMS 7.34.0 — cPanel installation
+Built from commit 103c96a
+
+This folder (nowills-pms) is the project root.
+Point the domain's Document Root at nowills-pms/public.
+
+cPanel → Domains → your domain → Document Root.
+
+If the Document Root cannot be changed, leave the upload where it is: the
+.htaccess in this folder forwards everything into public/ instead.
+
+--------------------------------------------------------------------
+1. Create the database
+   cPanel → MySQL Databases
+     - create a database
+     - create a user with a strong password
+     - add the user to the database with ALL PRIVILEGES
+   Copy the FULL prefixed names (e.g. myacct_pms) — not what you typed.
+
+2. Set permissions
+   storage/            (and everything inside)   755
+   bootstrap/cache/                              755
+   public/uploads/                               755
+
+3. Open the installer
+   https://your-domain.com/install.php
+   Fill in the database details, your property and your admin account.
+
+4. Delete the installer
+   Remove public/install.php when it finishes. It is not needed again.
+
+5. Add the cron entry
+   cPanel → Cron Jobs → Once Per Minute:
+     /usr/local/bin/php /home/YOURUSER/nowills-pms/artisan schedule:run >> /dev/null 2>&1
+   Replace the path with where you uploaded this, and /usr/local/bin/php with
+   your host's real CLI PHP if it differs. The installer prints the exact line.
+
+--------------------------------------------------------------------
+Full guide:  docs/INSTALL-CPANEL.md
+Module list: docs/MODULES.md
+
+You do NOT need Composer — the packages are in build/vendor.
+You do NOT need SSH — the installer does what artisan would.

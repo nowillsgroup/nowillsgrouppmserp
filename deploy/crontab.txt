@@ -1,0 +1,18 @@
+# Laravel scheduler — one line runs everything: nightly SQL backup at 02:30, log/model pruning,
+# OTA iCal sync every 15 min, GRA E-VAT retries, pre-arrival e-mails, webhooks, and the
+# night-audit / general-ledger safety nets. See routes/console.php for the full list.
+
+# ── VPS / dedicated server (SSH available) ───────────────────────────────────
+# You can rely on the shell's PATH, so bare "php" is fine:
+* * * * * cd /var/www/nowills-pms && php artisan schedule:run >> /dev/null 2>&1
+
+# ── cPanel / shared hosting (no SSH) ─────────────────────────────────────────
+# Add this in the cPanel "Cron Jobs" screen, set to "Once Per Minute".
+# Cron does NOT load your shell profile, so "php" alone usually resolves to the
+# wrong binary or to nothing at all — always give the absolute path to the CLI
+# PHP. On EasyApache 4 it is typically one of:
+#     /usr/local/bin/php
+#     /opt/cpanel/ea-php83/root/usr/bin/php
+#     /opt/cpanel/ea-php84/root/usr/bin/php
+# Ask your host if none of those exist.
+# * * * * * /usr/local/bin/php /home/YOURUSER/pms/artisan schedule:run >> /dev/null 2>&1

@@ -1,0 +1,2 @@
+<div class="tabs sa-owner" id="ownerTabs">@foreach(['' => 'Whole team', 'me' => 'Mine'] as $k => $l)<a href="?{{ http_build_query(array_merge(request()->except('page', 'owner'), $k ? ['owner' => $k] : [])) }}" class="{{ (string) request('owner') === $k ? 'active' : '' }}">{{ $l }}</a>@endforeach
+@foreach($sellers as $u)@continue($u->id === auth()->id())<a href="?{{ http_build_query(array_merge(request()->except('page', 'owner'), ['owner' => $u->id])) }}" class="{{ request('owner') == $u->id ? 'active' : '' }}">{{ $u->name }}</a>@endforeach</div>

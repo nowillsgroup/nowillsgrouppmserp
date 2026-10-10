@@ -1,0 +1,1 @@
+<span class="badge {{ ['done' => 'badge-green', 'signed' => 'badge-green', 'failed' => 'badge-red', 'overdue' => 'badge-red', 'due' => 'badge-amber'][$state] ?? 'badge-slate' }}" data-state="{{ $state }}">{{ ['done' => 'Done', 'signed' => 'Signed off', 'failed' => 'Failed – sign-off', 'overdue' => 'Overdue', 'due' => 'Due'][$state] ?? $state }}</span>
