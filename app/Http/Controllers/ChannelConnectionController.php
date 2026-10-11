@@ -287,6 +287,22 @@ class ChannelConnectionController extends Controller
         return back()->with('warning', 'New shared secret generated – update it at the channel now; messages signed with the old secret are refused.');
     }
 
+    /** v7.39 Pull-mode sync — fetch new/changed/cancelled bookings from pull channels (Booking.com EPS). */
+    public function pull(ChannelConnection $chconn)
+    {
+        try {
+            $s = \App\Services\ChannelService::pull($chconn->fresh());
+        } catch (\Throwable $e) {
+            return redirect()->route('cm.connections.show', $chconn)->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('cm.connections.show', $chconn)->with($s['rejected'] ? 'warning' : 'success',
+            "Pull complete: {$s['pulled']} message(s) – {$s['applied']} applied"
+            .($s['duplicates'] ? ", {$s['duplicates']} duplicate(s)" : '')
+            .($s['rejected'] ? ", {$s['rejected']} rejected" : '')
+            .($s['reservations'] ? ' → '.implode(', ', $s['reservations']) : '').'.');
+    }
+
     public function simulate(Request $request, ChannelConnection $chconn)
     {
         abort_unless($chconn->isSimulator(), 403, 'The simulator is only available on the built-in test channel.');

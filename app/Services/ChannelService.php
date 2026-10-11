@@ -717,6 +717,61 @@ class ChannelService
     // ------------------------------------------------------------------ simulator & stats
 
     /** Build a realistic channel message for the built-in test channel and feed it through the normal inbound path. */
+    /**
+     * v7.39 Pull-mode sync (Booking.com EPS and other pull adapters): fetch the
+     * channel's new / modified / cancelled bookings and feed each one through
+     * receive() so the mapping pipeline applies it idempotently.
+     */
+    public static function pull(ChannelConnection $c): array
+    {
+        $since = $c->last_booking_at ?: now()->subDays(30);
+        $rows = self::driverFor($c)->pullBookings($c, $since);
+        $summary = ['pulled' => count($rows), 'applied' => 0, 'duplicates' => 0, 'rejected' => 0, 'reservations' => []];
+        foreach ($rows as $row) {
+            [$code, $body] = self::receive($c, self::canonicalRow($row));
+            if ($code === 200 && ($body['status'] ?? '') === 'duplicate') {
+                $summary['duplicates']++;
+            } elseif ($code === 200) {
+                $summary['applied']++;
+                if (! empty($body['reservation_no'])) {
+                    $summary['reservations'][] = $body['reservation_no'];
+                }
+            } else {
+                $summary['rejected']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    /** Raw driver rows → the canonical message shape receive() validates. Canonical rows pass through untouched. */
+    public static function canonicalRow(array $row): array
+    {
+        if (isset($row['event'], $row['booking_id'], $row['guest'])) {
+            return $row;
+        }
+        $name = trim((string) ($row['guest'] ?? ''));
+        $parts = preg_split('/\s+/', $name, 2) ?: ['Guest'];
+
+        return [
+            'event' => in_array($row['event'] ?? null, ['new', 'modify', 'cancel'], true) ? $row['event'] : 'new',
+            'booking_id' => (string) ($row['ref'] ?? $row['booking_id'] ?? ''),
+            'arrival' => $row['arrival'] ?? null,
+            'departure' => $row['departure'] ?? null,
+            'currency' => $row['currency'] ?? (Tenant::hotel()?->currency ?: 'GHS'),
+            'guest' => ['first_name' => $parts[0], 'last_name' => $parts[1] ?? null,
+                'email' => $row['email'] ?? null, 'phone' => $row['phone'] ?? null, 'country' => $row['country'] ?? null],
+            'rooms' => [[
+                'room_code' => (string) ($row['room_type'] ?? $row['room_code'] ?? ''),
+                'rate_code' => $row['rate_code'] ?? null,
+                'adults' => (int) ($row['adults'] ?? 2),
+                'children' => (int) ($row['children'] ?? 0),
+                'amount' => (float) ($row['rate'] ?? $row['amount'] ?? 0),
+            ]],
+            'total' => $row['rate'] ?? $row['total'] ?? null,
+        ];
+    }
+
     public static function simulate(ChannelConnection $c, array $in): array
     {
         if ($in['event'] === 'cancel') {

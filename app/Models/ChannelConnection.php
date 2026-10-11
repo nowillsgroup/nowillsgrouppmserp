@@ -13,7 +13,7 @@ class ChannelConnection extends Model
 {
     use BelongsToHotel;
 
-    public const PROVIDERS = ['hub' => 'Channel hub / OTA API (signed JSON)', 'simulator' => 'Built-in test channel (simulator)', 'mirror' => 'Mirror feed (HTTP JSON/XML adapter)'];
+    public const PROVIDERS = ['hub' => 'Channel hub / OTA API (signed JSON)', 'simulator' => 'Built-in test channel (simulator)', 'mirror' => 'Mirror feed (HTTP JSON/XML adapter)', 'booking' => 'Booking.com EPS (External Connectivity Standard)'];
 
     public const PAYMENT_MODELS = ['hotel_collect' => 'Hotel collect – guest pays at the hotel', 'channel_collect' => 'Channel collect – prepaid to the OTA, bill the OTA'];
 

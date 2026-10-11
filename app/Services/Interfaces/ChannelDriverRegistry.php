@@ -20,6 +20,7 @@ class ChannelDriverRegistry
         'hub' => HubChannelDriver::class,
         'simulator' => SimulatorChannelDriver::class,
         'mirror' => MirrorChannelDriver::class,
+        'booking' => \App\Services\Interfaces\Drivers\BookingEpsChannelDriver::class,
     ];
 
     /** @param  class-string<ChannelDriver>  $class */

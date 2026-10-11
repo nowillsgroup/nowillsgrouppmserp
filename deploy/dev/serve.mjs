@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Channel manager — Booking.com EPS adapter (pull-mode reservations)',
+    detail: 'New booking channel driver speaks Booking.com EPS messages: handshake, OTA availability/rate push, OTA_HotelResNotif pull (new/modified/cancelled) and channel-side cancellation. ChannelService::pull() feeds pulled rows through the idempotent mapping pipeline; connections gain a Pull bookings button. E2E proven against a local EPS simulator (docs/BOOKING-EPS.md).',
+    screens: [['Channel manager', '/channel-manager'], ['Connections', '/channel-manager/connections'], ['OTA inbox', '/channel-manager/inbox']],
+  },
+  {
     title: 'Tax settings — price entry: tax-inclusive or tax-exclusive',
     detail: 'GST & Tax → Settings gains a Price entry switch: tax-exclusive (prices net of tax, tax added at the till — the default, nothing changes) or tax-inclusive (VAT/NHIL/GETFund/Tourism Levy extracted from the price). POS, the recreation outlet, club day passes and membership charges all honour it; room rates keep their per-rate-plan flag.',
     screens: [['Tax settings (Price entry)', '/vat/settings'], ['Recreation outlet', '/recreation/outlet'], ['Club day passes', '/club/passes']],

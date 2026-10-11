@@ -489,6 +489,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/{chconn}/push', 'push')->name('push');
             Route::post('/{chconn}/rotate', 'rotate')->name('rotate');
             Route::post('/{chconn}/simulate', 'simulate')->name('simulate');
+            Route::post('/{chconn}/pull', 'pull')->name('pull');
         });
     });
 
