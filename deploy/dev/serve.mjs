@@ -44,7 +44,7 @@ const DEV_CHANGES = [
   {
     title: 'GRA E-VAT — live adapter proven end-to-end (docs/GRA-EVAT.md)',
     detail: 'The certified GRA driver (POST {url} + security_key, GRA invoice schema, ysdc* stamp response incl. the mesaage typo) is proven against a local VSDC protocol simulator: INV-00071 stamped live (VSDC-0001-LIVE, receipt 2/2 NS, QR), duplicate resubmission returns the same stamp, refund without reference rejected B19. Private/loopback endpoints now allowed via Developer settings or PMS_CHANNEL_ALLOW_PRIVATE.',
-    screens: [['GRA VAT settings', '/vat/settings'], ['E-invoices', '/vat/einvoices'], ['VAT return', '/vat/vat-return']],
+    screens: [['GRA VAT settings', '/vat/settings'], ['E-invoices (E-VAT)', '/vat/e-vat'], ['VAT return', '/vat/return']],
   },
   {
     title: 'Channel manager — Booking.com EPS adapter (pull-mode reservations)',
