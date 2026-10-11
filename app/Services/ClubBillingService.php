@@ -412,14 +412,36 @@ class ClubBillingService
 
     public static function forDayPass(ClubDayPass $d): ?array
     {
-        if ($d->cancelled_at || $d->reservation_room_id || ! $d->payment_mode_id || (float) $d->total <= 0) {
-            return null; // room charges reach the ledger through the folio
+        if ($d->cancelled_at || $d->reservation_room_id || $d->sale_id || ! $d->payment_mode_id || (float) $d->total <= 0) {
+            return null; // room charges reach the ledger through the folio; outlet passes post via their sale
         }
 
         return ['date' => $d->date->toDateString(), 'reference' => $d->pass_no, 'narration' => 'Health club day pass – '.$d->name,
             'lines' => [[LedgerService::modeAccount($d->payment_mode_id, 'cash'), (float) $d->total, $d->paymentMode?->name],
                 [AccountHead::sys('rev_club_other'), -(float) $d->amount, ClubDayPass::KINDS[$d->kind] ?? 'Day pass'],
                 ...LedgerService::taxLines((float) $d->tax, 'club', (float) $d->tax_rate)]];
+    }
+
+    /** v7.38 Recreation outlet sale taken over the counter (split tenders). Room charges reach the ledger through the folio. */
+    public static function forTicketSale(\App\Models\ClubTicketSale $s): ?array
+    {
+        if ($s->status === 'void' || $s->reservation_room_id || (float) $s->total <= 0) {
+            return null;
+        }
+        $lines = [];
+        foreach ($s->payments as $pay) {
+            $lines[] = [LedgerService::modeAccount($pay->payment_mode_id, 'cash'), (float) $pay->amount, $pay->paymentMode?->name];
+        }
+        if ((float) $s->change_due > 0 && ($first = $s->payments->first())) {
+            $lines[] = [LedgerService::modeAccount($first->payment_mode_id, 'cash'), -(float) $s->change_due, 'Change given'];
+        }
+        foreach ($s->items as $it) {
+            $lines[] = [AccountHead::sys('rev_club_other'), -(float) $it->line_total, $it->description.' ('.$s->sale_no.')'];
+            $lines = array_merge($lines, LedgerService::taxLines((float) $it->tax, 'club', (float) $it->tax_rate));
+        }
+
+        return ['date' => ($s->business_date ?? $s->sold_at)->toDateString(), 'reference' => $s->sale_no,
+            'narration' => 'Recreation outlet '.$s->sale_no.($s->guest_name ? ' – '.$s->guest_name : ''), 'lines' => $lines];
     }
 
     /** Members receivable per the sub-ledger at the end of $asOf. */

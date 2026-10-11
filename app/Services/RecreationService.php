@@ -141,6 +141,7 @@ class RecreationService
             $sale = ClubTicketSale::create([
                 'sale_no' => Numbering::next('club_tsale'),
                 'sold_at' => Carbon::now(),
+                'business_date' => $date,
                 'guest_name' => mb_substr(trim((string) ($d['guest_name'] ?? '')), 0, 120) ?: null,
                 'phone' => trim((string) ($d['phone'] ?? '')) ?: null,
                 'host_member_id' => $hostId,
@@ -232,8 +233,8 @@ class RecreationService
         if ($sale->isVoid()) {
             throw ValidationException::withMessages(['reason' => 'This sale is already void.']);
         }
-        if ($sale->sold_at->toDateString() !== bdate()->toDateString()) {
-            throw ValidationException::withMessages(['reason' => 'An outlet sale can only be voided on the day it was rung up.']);
+        if (($sale->business_date?->toDateString() ?? $sale->sold_at->toDateString()) !== bdate()->toDateString()) {
+            throw ValidationException::withMessages(['reason' => 'An outlet sale can only be voided on the business day it was rung up.']);
         }
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'Give a reason for the void.']);
@@ -253,6 +254,19 @@ class RecreationService
         ActivityLogger::log('club', 'ticket_sale_voided', "Ticket outlet {$sale->sale_no} voided – {$reason}", $sale);
     }
 
+    /** Counter takings for the day-close: desk day passes + outlet sales not charged to a room (folio covers those). */
+    public static function counterTakings(string $date): array
+    {
+        $passes = ClubDayPass::whereNull('cancelled_at')->whereNull('reservation_room_id')->whereNull('sale_id')->whereDate('date', $date)->get(['amount', 'tax', 'total']);
+        $sales = ClubTicketSale::where('status', 'paid')->whereNull('reservation_room_id')->whereDate('business_date', $date)->get(['subtotal', 'tax', 'total']);
+
+        return [
+            'revenue' => round((float) $passes->sum('amount') + (float) $sales->sum('subtotal'), 2),
+            'tax' => round((float) $passes->sum('tax') + (float) $sales->sum('tax'), 2),
+            'collections' => round((float) $passes->sum('total') + (float) $sales->sum('total'), 2),
+        ];
+    }
+
     public static function todayStats(): array
     {
         $today = bdate()->toDateString();
@@ -261,7 +275,7 @@ class RecreationService
         return [
             'sales' => (clone $sales)->count(),
             'total' => (clone $sales)->sum('total'),
-            'tickets' => ClubDayPass::whereNull('cancelled_at')->where('date', $today)->whereNotNull('sale_id')->sum(DB::raw('adults + children')),
+            'tickets' => ClubDayPass::whereNull('cancelled_at')->whereDate('date', $today)->whereNotNull('sale_id')->sum(DB::raw('adults + children')),
             'items' => ClubTicketSaleItem::whereHas('sale', fn ($q) => $q->where('status', 'paid')->whereDate('sold_at', $today))->sum('qty'),
         ];
     }

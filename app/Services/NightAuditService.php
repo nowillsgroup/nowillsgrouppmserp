@@ -240,9 +240,10 @@ class NightAuditService
             $roomRev = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount');
             $otherRev = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount');
             $posDirect = PosOrder::where('business_date', $date->toDateString())->where('status', 'settled')->where('settlement', 'payment')->get();
-            $otherRev += $posDirect->sum(fn ($o) => $o->total - $o->tax);
-            $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax');
-            $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total');
+            $otherRev += $posDirect->sum(fn ($o) => $o->total - $o->tax) + $counter['revenue'];
+            $counter = \App\Services\RecreationService::counterTakings($date->toDateString()); // v7.38 desk passes + outlet takings
+            $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax') + $counter['tax'];
+            $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total') + $counter['collections'];
 
             $totalRooms = Room::where('is_active', true)->count();
             $occupied = $stays->count();

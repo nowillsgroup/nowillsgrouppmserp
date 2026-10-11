@@ -14,7 +14,7 @@ class ClubTicketSale extends Model
 
     protected function casts(): array
     {
-        return ['sold_at' => 'datetime', 'cancelled_at' => 'datetime', 'subtotal' => 'decimal:2', 'tax' => 'decimal:2',
+        return ['sold_at' => 'datetime', 'business_date' => 'date', 'cancelled_at' => 'datetime', 'subtotal' => 'decimal:2', 'tax' => 'decimal:2',
             'total' => 'decimal:2', 'paid' => 'decimal:2', 'change_due' => 'decimal:2'];
     }
 

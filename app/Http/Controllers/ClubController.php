@@ -343,8 +343,8 @@ class ClubController extends Controller
     public function passes(Request $request)
     {
         $date = $request->query('date');
-        $rows = ClubDayPass::with('paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->where('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
-        $today = ClubDayPass::whereNull('cancelled_at')->where('date', bdate()->toDateString());
+        $rows = ClubDayPass::with('paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->whereDate('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
+        $today = ClubDayPass::whereNull('cancelled_at')->whereDate('date', bdate()->toDateString());
 
         return view('club.passes', ['rows' => $rows, 'date' => $date, 'modes' => $this->modes(),
             'todayCount' => (clone $today)->sum(\DB::raw('adults + children')), 'todayTotal' => (clone $today)->sum('total'),

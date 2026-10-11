@@ -7,7 +7,7 @@
 */
 
 return [
-    'version' => '7.37.0',
+    'version' => '7.38.0',
 
     'banquet_service_categories' => ['av' => 'Audio-visual', 'decor' => 'Décor & flowers', 'entertainment' => 'Entertainment', 'equipment' => 'Equipment & furniture', 'staffing' => 'Staffing', 'other' => 'Other'],
 

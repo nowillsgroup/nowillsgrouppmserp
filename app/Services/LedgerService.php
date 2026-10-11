@@ -443,6 +443,7 @@ class LedgerService
             'club_chg' => ($c = \App\Models\ClubCharge::with('membership', 'creditOf')->find($key)) ? ClubBillingService::forCharge($c) : null, // v5.1
             'club_pay' => ($p = \App\Models\ClubPayment::with('membership', 'paymentMode')->find($key)) ? ClubBillingService::forPayment($p) : null,
             'club_dp' => ($d = \App\Models\ClubDayPass::with('paymentMode')->find($key)) ? ClubBillingService::forDayPass($d) : null,
+            'club_tsale' => ($s = \App\Models\ClubTicketSale::with(['payments.paymentMode', 'items'])->find($key)) ? ClubBillingService::forTicketSale($s) : null, // v7.38
             'club_recog' => ClubBillingService::forRecognition($key),
             'lease_chg' => ($c = \App\Models\LeaseCharge::with('lease', 'creditOf')->find($key)) ? LeaseBillingService::forCharge($c) : null, // v5.2
             'lease_pay' => ($p = \App\Models\LeasePayment::with('lease', 'paymentMode')->find($key)) ? LeaseBillingService::forPayment($p) : null,
@@ -696,6 +697,8 @@ class LedgerService
                 ->each(fn ($p) => $run('club_pay', (string) $p->id, fn () => ClubBillingService::forPayment($p)));
             $scope(\App\Models\ClubDayPass::with('paymentMode'), 'date')->orderBy('id')->get()
                 ->each(fn ($d) => $run('club_dp', (string) $d->id, fn () => ClubBillingService::forDayPass($d)));
+            $scope(\App\Models\ClubTicketSale::with(['payments.paymentMode', 'items']), 'business_date')->orderBy('id')->get()
+                ->each(fn ($s) => $run('club_tsale', (string) $s->id, fn () => ClubBillingService::forTicketSale($s)));
             foreach (ClubBillingService::recognitionMonths($cutoff, $floor) as $mo) {
                 $run('club_recog', $mo, fn () => ClubBillingService::forRecognition($mo));
             }

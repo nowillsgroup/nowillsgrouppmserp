@@ -148,11 +148,12 @@ class IncomeAuditService
         $tx = FolioTransaction::where('business_date', $date)->where('is_void', false)->get(['type', 'category', 'amount', 'tax_amount']);
         $pos = PosOrder::where('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get(['total', 'tax']);
         $charges = $tx->where('type', 'charge');
+        $counter = \App\Services\RecreationService::counterTakings($date); // v7.38 desk passes + outlet takings
         $now = [
             'room' => round((float) $charges->whereIn('category', ['room', 'extra_bed'])->sum('amount'), 2),
-            'other' => round((float) $charges->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + (float) $pos->sum(fn ($o) => $o->total - $o->tax), 2),
-            'tax' => round((float) $charges->sum('tax_amount') + (float) $pos->sum('tax'), 2),
-            'collections' => round((float) $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + (float) $pos->sum('total'), 2),
+            'other' => round((float) $charges->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + (float) $pos->sum(fn ($o) => $o->total - $o->tax) + $counter['revenue'], 2),
+            'tax' => round((float) $charges->sum('tax_amount') + (float) $pos->sum('tax') + $counter['tax'], 2),
+            'collections' => round((float) $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + (float) $pos->sum('total') + $counter['collections'], 2),
         ];
         $na = NightAudit::where('business_date', $date)->first();
         $reported = $na ? ['room' => (float) $na->room_revenue, 'other' => (float) $na->other_revenue, 'tax' => (float) $na->tax_collected, 'collections' => (float) $na->collections] : null;
