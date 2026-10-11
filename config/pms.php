@@ -7,7 +7,7 @@
 */
 
 return [
-    'version' => '7.34.0',
+    'version' => '7.36.0',
 
     'banquet_service_categories' => ['av' => 'Audio-visual', 'decor' => 'Décor & flowers', 'entertainment' => 'Entertainment', 'equipment' => 'Equipment & furniture', 'staffing' => 'Staffing', 'other' => 'Other'],
 
@@ -707,6 +707,7 @@ return [
                 ['label' => 'SMS / WhatsApp Log', 'route' => 'messages.index', 'perm' => 'logs.view'],
                 ['label' => 'API & Webhooks', 'route' => 'developers.index', 'perm' => 'api.view', 'badge' => 'api_attention'],
                 ['label' => 'Database Backup', 'route' => 'settings.backup', 'perm' => 'settings.manage'],
+                ['label' => 'Data Migration', 'route' => 'migration.index', 'perm' => 'settings.manage'],
             ]],
         ]],
     ],

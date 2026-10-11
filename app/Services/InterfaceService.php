@@ -31,6 +31,17 @@ class InterfaceService
         'pbx_mask_digits' => '1',                       // hide the last 4 digits of the number on the guest bill
         'pbx_default_cos' => 'full',                    // class of service given at check-in
         'pbx_token' => '',                              // push endpoint token (generated)
+        // live TCP driver (v7.36) – command link to the PABX + SMDR capture source
+        'pbx_tcp_host' => '',                           // command link host (pcap / vendor gateway / PBX)
+        'pbx_tcp_port' => '0',
+        'pbx_tcp_timeout' => '5',                       // seconds to wait for the command reply
+        'pbx_tcp_ok' => '\b(OK|ACK|SUCCESS)\b',         // reply regex (case-insensitive); blank = accept any reply
+        'pbx_smdr_host' => '',                          // pms:pbx:listen connects here for the call-detail stream
+        'pbx_smdr_port' => '0',
+        'pbx_cmd_checkin' => '',                        // command templates – placeholders: payload keys + {date} {time} {datetime}
+        'pbx_cmd_checkout' => '',
+        'pbx_cmd_cos' => '',
+        'pbx_cmd_move' => '',
         // door locks
         'lock_enabled' => '1',
         'lock_driver' => 'demo',                        // demo | offline
@@ -64,7 +75,7 @@ class InterfaceService
         foreach (self::DEFAULTS as $k => $v) {
             $s[$k] = (string) setting($k, $v);
         }
-        foreach (['pbx_min_secs', 'lock_max_cards', 'lock_grace_minutes', 'lock_auto_issue', 'lock_master_hours'] as $k) {
+        foreach (['pbx_min_secs', 'lock_max_cards', 'lock_grace_minutes', 'lock_auto_issue', 'lock_master_hours', 'pbx_tcp_port', 'pbx_tcp_timeout', 'pbx_smdr_port'] as $k) {
             $s[$k] = max(0, (int) $s[$k]);
         }
         $s['lock_max_cards'] = max(1, $s['lock_max_cards']);
@@ -93,12 +104,31 @@ class InterfaceService
         if ($bad = array_diff($cols, ['date', 'time', 'datetime', 'ext', 'trunk', 'number', 'duration', 'skip'])) {
             throw new RuntimeException('Unknown SMDR column(s): '.implode(', ', $bad).'. Use date, time, datetime, ext, trunk, number, duration or skip.');
         }
+        $okPattern = trim((string) ($d['pbx_tcp_ok'] ?? self::DEFAULTS['pbx_tcp_ok']));
+        if ($okPattern !== '' && @preg_match('~'.$okPattern.'~iu', '') === false) {
+            throw new RuntimeException('The TCP success pattern is not a valid regular expression.');
+        }
+        foreach (['pbx_cmd_checkin', 'pbx_cmd_checkout', 'pbx_cmd_cos', 'pbx_cmd_move'] as $k) {
+            if (mb_strlen(trim((string) ($d[$k] ?? ''))) > 200) {
+                throw new RuntimeException('Command templates must be at most 200 characters.');
+            }
+        }
         $free = implode(',', array_filter(array_map(fn ($n) => preg_replace('/[^0-9*+]/', '', $n), explode(',', (string) ($d['pbx_free_numbers'] ?? '')))));
         $areas = implode(',', array_unique(array_filter(array_map(fn ($a) => mb_substr(trim($a), 0, 20), explode(',', (string) ($d['lock_areas'] ?? ''))))));
         $defaults = implode(',', array_intersect((array) ($d['lock_default_areas'] ?? []), explode(',', $areas)));
         $values = [
             'pbx_enabled' => ! empty($d['pbx_enabled']) ? '1' : '0',
-            'pbx_driver' => in_array($d['pbx_driver'] ?? '', ['demo', 'offline'], true) ? $d['pbx_driver'] : 'demo',
+            'pbx_driver' => in_array($d['pbx_driver'] ?? '', ['demo', 'offline', 'tcp'], true) ? $d['pbx_driver'] : 'demo',
+            'pbx_tcp_host' => mb_substr(trim((string) ($d['pbx_tcp_host'] ?? '')), 0, 190),
+            'pbx_tcp_port' => (string) max(0, min(65535, (int) ($d['pbx_tcp_port'] ?? 0))),
+            'pbx_tcp_timeout' => (string) max(1, min(60, (int) ($d['pbx_tcp_timeout'] ?? 5))),
+            'pbx_tcp_ok' => mb_substr($okPattern, 0, 120),
+            'pbx_smdr_host' => mb_substr(trim((string) ($d['pbx_smdr_host'] ?? '')), 0, 190),
+            'pbx_smdr_port' => (string) max(0, min(65535, (int) ($d['pbx_smdr_port'] ?? 0))),
+            'pbx_cmd_checkin' => trim((string) ($d['pbx_cmd_checkin'] ?? '')),
+            'pbx_cmd_checkout' => trim((string) ($d['pbx_cmd_checkout'] ?? '')),
+            'pbx_cmd_cos' => trim((string) ($d['pbx_cmd_cos'] ?? '')),
+            'pbx_cmd_move' => trim((string) ($d['pbx_cmd_move'] ?? '')),
             'pbx_auto_post' => ! empty($d['pbx_auto_post']) ? '1' : '0',
             'pbx_min_secs' => (string) max(0, min(60, (int) ($d['pbx_min_secs'] ?? 5))),
             'pbx_free_numbers' => $free,
@@ -165,6 +195,10 @@ class InterfaceService
             $cmd->fill(['status' => 'failed', 'response' => strtoupper($cmd->system).' interface is switched off']);
         } elseif ($driver === 'offline') {
             $cmd->fill(['status' => 'failed', 'response' => ($cmd->system === 'lock' ? 'Encoder' : 'PABX').' not reachable – check the interface PC / cable and retry']);
+        } elseif ($driver === 'tcp') {
+            // live template-driven link (pbx only – the lock whitelist stays demo|offline)
+            [$ok, $response] = \App\Services\Interfaces\TcpPbxDriver::send($c, $cmd);
+            $cmd->fill(['status' => $ok ? 'done' : 'failed', 'response' => $response]);
         } else {
             $payload = $cmd->payload ?? [];
             if ($cmd->system === 'lock' && in_array($cmd->command, ['issue', 'duplicate'], true)) {

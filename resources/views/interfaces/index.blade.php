@@ -9,8 +9,8 @@
 @if($c['commands_failed'])<div class="alert alert-error" id="failedCommands"><x-icon name="alert"/><div><b>{{ $c['commands_failed'] }}</b> command(s) to the PABX / lock system failed in the last 24 hours. Check the interface connection, then retry.
   <form method="post" action="{{ route('interfaces.retry_all') }}" style="display:inline">@csrf<button class="btn btn-sm" id="retryAllBtn">Retry PABX commands</button></form></div></div>@endif
 <div class="grid g-2">
-  <div class="card" id="pbxStatus"><div class="card-head"><h3><x-icon name="phone" size="sm"/> PABX / call accounting</h3><span class="badge badge-{{ $on('pbx') ? ($cfg['pbx_driver'] === 'offline' ? 'amber' : 'green') : 'slate' }}">{{ $on('pbx') ? ($cfg['pbx_driver'] === 'offline' ? 'Offline' : 'Connected') : 'Off' }}</span></div><div class="card-body"><dl class="kv">
-    <dt>Driver</dt><dd>{{ $cfg['pbx_driver'] === 'demo' ? 'Demo (acknowledges at once)' : 'Offline – commands queue' }}</dd>
+  <div class="card" id="pbxStatus"><div class="card-head"><h3><x-icon name="phone" size="sm"/> PABX / call accounting</h3><span class="badge badge-{{ $on('pbx') ? ($cfg['pbx_driver'] === 'offline' ? 'amber' : 'green') : 'slate' }}">{{ $on('pbx') ? ($cfg['pbx_driver'] === 'offline' ? 'Offline' : ($cfg['pbx_driver'] === 'tcp' ? 'Live (TCP)' : 'Connected')) : 'Off' }}</span></div><div class="card-body"><dl class="kv">
+    <dt>Driver</dt><dd>{{ ['demo' => 'Demo (acknowledges at once)', 'offline' => 'Offline – commands queue', 'tcp' => 'TCP template (live PABX)'][$cfg['pbx_driver']] ?? $cfg['pbx_driver'] }}</dd>
     <dt>Auto-post to folio</dt><dd>{{ $cfg['pbx_auto_post'] === '1' ? 'Yes' : 'No – every call goes to review' }}</dd>
     <dt>Last call record</dt><dd>{{ $lastCall ? $lastCall->created_at->diffForHumans().' (ext '.$lastCall->extension.')' : 'none yet' }}</dd>
     <dt>Last PBX push</dt><dd>{{ $lastPush ? \Illuminate\Support\Carbon::parse($lastPush)->diffForHumans() : 'never' }}</dd>
@@ -57,13 +57,26 @@
     <div class="form-grid">
       <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="pbx_enabled" value="1" @checked($cfg['pbx_enabled'] === '1')> PABX interface on</label>
       <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="pbx_auto_post" value="1" @checked($cfg['pbx_auto_post'] === '1')> Post guest calls automatically</label>
-      <x-field name="pbx_driver" label="Driver" type="select" :options="['demo' => 'Demo', 'offline' => 'Offline (queue commands)']" :value="$cfg['pbx_driver']" :placeholder="false"/>
+      <x-field name="pbx_driver" label="Driver" type="select" :options="['demo' => 'Demo', 'offline' => 'Offline (queue commands)', 'tcp' => 'TCP template (live PABX)']" :value="$cfg['pbx_driver']" :placeholder="false"/>
       <x-field name="pbx_default_cos" label="Class of service at check-in" type="select" :options="$cosOptions" :value="$cfg['pbx_default_cos']" :placeholder="false"/>
       <x-field name="pbx_min_secs" label="Unanswered below (s)" type="number" min="0" max="60" :value="$cfg['pbx_min_secs']" required/>
       <x-field name="pbx_strip_prefix" label="Outside-line digit to strip" :value="$cfg['pbx_strip_prefix']" placeholder="e.g. 9"/>
       <x-field name="pbx_free_numbers" label="Free numbers (* = prefix)" class="span-2" :value="$cfg['pbx_free_numbers']"/>
       <x-field name="pbx_format" label="SMDR column order" class="span-2" :value="$cfg['pbx_format']" hint="date, time, datetime, ext, trunk, number, duration, skip"/>
       <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="pbx_mask_digits" value="1" @checked($cfg['pbx_mask_digits'] === '1')> Mask last 4 digits on the bill</label>
+    </div>
+    <h4 style="margin:1rem 0 .4rem">TCP command link &amp; SMDR capture <span class="small muted">(live driver)</span></h4>
+    <div class="form-grid">
+      <x-field name="pbx_tcp_host" label="Command host" :value="$cfg['pbx_tcp_host']" placeholder="e.g. 192.168.1.20"/>
+      <x-field name="pbx_tcp_port" label="Command port" type="number" min="0" max="65535" :value="$cfg['pbx_tcp_port']"/>
+      <x-field name="pbx_tcp_timeout" label="Reply timeout (s)" type="number" min="1" max="60" :value="$cfg['pbx_tcp_timeout']"/>
+      <x-field name="pbx_tcp_ok" label="Success pattern" :value="$cfg['pbx_tcp_ok']" hint="regex on the reply; blank = PBX does not answer"/>
+      <x-field name="pbx_smdr_host" label="SMDR host" :value="$cfg['pbx_smdr_host']" hint="pms:pbx:listen connects here"/>
+      <x-field name="pbx_smdr_port" label="SMDR port" type="number" min="0" max="65535" :value="$cfg['pbx_smdr_port']" hint="0 = capture off"/>
+      <x-field name="pbx_cmd_checkin" label="Command · check-in" class="span-2" :value="$cfg['pbx_cmd_checkin']" placeholder="e.g. CMD CHECKIN {extension} {name} {cos}" hint="placeholders: {extension} {name} {cos} {language} {date} {time} {datetime}"/>
+      <x-field name="pbx_cmd_checkout" label="Command · check-out" class="span-2" :value="$cfg['pbx_cmd_checkout']" placeholder="e.g. COS {extension} BARRED" hint="{extension} {cos} {date} {time} {datetime}"/>
+      <x-field name="pbx_cmd_cos" label="Command · class of service" class="span-2" :value="$cfg['pbx_cmd_cos']" placeholder="e.g. COS {extension} {cos}" hint="{extension} {cos} {date} {time} {datetime}"/>
+      <x-field name="pbx_cmd_move" label="Command · room move" class="span-2" :value="$cfg['pbx_cmd_move']" placeholder="e.g. MOVE {from} {to}" hint="{from} {to} {cos} {date} {time} {datetime}"/>
     </div>
     <h4 style="margin:1rem 0 .4rem">Door locks</h4>
     <div class="form-grid">
