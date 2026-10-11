@@ -120,6 +120,25 @@ class OnlinePaymentController extends Controller
     }
 
     /** Ask the gateway for the latest status (e.g. a missed webhook). */
+    /** v7.37 – request a Mobile Money collection from the guest's phone. */
+    public function collect(Request $request)
+    {
+        $data = $request->validate([
+            'reservation_id' => 'nullable|integer|owned:reservations', 'folio_id' => 'nullable|integer|owned:folios',
+            'amount' => 'required|numeric|min:1|max:10000000', 'description' => 'nullable|string|max:190',
+            'phone' => 'required|string|max:30', 'network' => 'required|in:MTN,Telecel,AirtelTigo',
+        ]);
+        $r = ! empty($data['reservation_id']) ? Reservation::find($data['reservation_id']) : null;
+        $f = ! empty($data['folio_id']) ? Folio::find($data['folio_id']) : null;
+        $p = Svc::create($data, $r, $f);
+        $p = Svc::collect($p, $data['phone'], $data['network']);
+
+        return redirect()->route('payments.show', $p)->with($p->status === 'paid' ? 'success' : 'success',
+            $p->status === 'paid'
+                ? 'MoMo payment received: '.money($p->amount_received ?: $p->amount).' – posted to the folio.'
+                : 'MoMo collection '.$p->pay_no.' sent to '.$data['phone'].' ('.$data['network'].') – the payment posts automatically when the guest approves. Watch it on this page or press Check status.');
+    }
+
     public function check(OnlinePayment $olp)
     {
         abort_unless($olp->status === 'pending' && $olp->provider_ref, 422, 'Nothing to check.');

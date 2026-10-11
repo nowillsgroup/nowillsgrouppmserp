@@ -42,6 +42,15 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'v7.37 — Mobile Money collections (request-to-pay)',
+    detail: 'Split settlements just got automated MoMo: send a payment prompt to the guest phone (MTN/Telecel/AirtelTigo), the payment posts to the folio on approval via webhook or Check status. Webhook loop proven against the sandbox provider simulator (auto-posted folio transaction).',
+    screens: [
+      ['Folio — Request MoMo button + prompt modal', '/folios/159'],
+      ['Payments — collection monitor (pending → paid)', '/payments'],
+      ['MoMo provider simulator', '/'],
+    ],
+  },
+  {
     title: 'v7.37 — OTA/channel driver layer (in progress)',
     detail: 'ChannelDriver contract + registry + Hub/Simulator/Mirror drivers. Test connection button on every connection; signed-JSON hub protocol proven end-to-end against the sandbox simulator (240 room-nights pushed over HTTP 200, booking pull works). Real OTA adapters plug in next.',
     screens: [

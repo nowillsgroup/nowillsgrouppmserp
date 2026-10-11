@@ -6,7 +6,8 @@
   @if($folio->status === 'open')
     @if(can_do('folio.post'))<button class="btn btn-primary" data-modal="chargeModal"><x-icon name="plus"/> Post Charge</button>@endif
     @if(can_do('folio.payment'))<button class="btn btn-success" data-modal="payModal"><x-icon name="money"/> Payment</button>@endif
-    @if(can_do('payments.request') && $totals['balance'] > 0)<button class="btn" data-modal="payLinkModal"><x-icon name="link"/> Payment link</button>@endif
+    @if(can_do('payments.request') && $totals['balance'] > 0)<button class="btn" data-modal="payLinkModal"><x-icon name="link"/> Payment link</button>
+  <button class="btn" data-modal="momoModal"><x-icon name="wallet"/> Request MoMo</button>@endif
     @if(can_do('folio.discount'))<button class="btn" data-modal="discModal">Discount</button>@endif
     @if(can_do('folio.payment') && $totals['balance'] > 0)<button class="btn" data-modal="transferModal"><x-icon name="building"/> City Ledger</button>@endif
     @if(can_do('folio.payment') && !($folio->stay && $folio->stay->status === 'checked_in'))<form method="post" action="{{ route('folios.close', $folio) }}" data-confirm="Settle and close this folio?">@csrf<button class="btn btn-warning">Settle & Close</button></form>@endif
@@ -118,6 +119,18 @@
     <x-cheque-fields/>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Save</button></div>
+</form></div></div>
+
+<div class="modal" id="momoModal"><div class="modal-box"><form method="post" action="{{ route('payments.collect') }}">@csrf
+  <div class="modal-head"><h3>Request MoMo payment</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-body form-grid">
+    <input type="hidden" name="folio_id" value="{{ $folio->id }}">
+    <x-field name="amount" label="Amount" type="number" step="0.01" min="1" :value="$totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
+    <x-field name="network" label="Network" type="select" :options="['MTN'=>'MTN MoMo','Telecel'=>'Telecel Cash','AirtelTigo'=>'AirtelTigo Money']" :placeholder="false" required/>
+    <x-field name="phone" label="Guest phone" value="{{ $folio->guest?->phone }}" required placeholder="0244 123 456" hint="The payment prompt is sent to this number"/>
+    <x-field name="description" label="Note" value="MoMo settlement {{ $folio->folio_no }}" class="span-2"/>
+  </div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-success"><x-icon name="wallet"/> Send prompt</button></div>
 </form></div></div>
 
 @if($folio->status === 'open' && can_do('folio.split'))

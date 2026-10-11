@@ -565,6 +565,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('payments')->name('payments.')->controller(Controllers\OnlinePaymentController::class)->group(function () {
         Route::get('/', 'index')->middleware('perm:payments.view')->name('index');
         Route::post('/', 'store')->middleware('perm:payments.request')->name('store');
+        Route::post('/collect', 'collect')->middleware('perm:payments.request')->name('collect');
         Route::get('/payouts', 'payouts')->middleware('perm:payments.settle')->name('payouts');
         Route::post('/payouts', 'storePayout')->middleware('perm:payments.settle')->name('payouts.store');
         Route::post('/payouts/{gpo}/delete', 'destroyPayout')->middleware('perm:payments.settle')->whereNumber('gpo')->name('payouts.destroy');
