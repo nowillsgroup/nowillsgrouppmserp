@@ -34,7 +34,6 @@
       @if(can_do('gl.view'))<a class="btn btn-sm" href="{{ route('gl.index') }}">Ledger</a>@endif
       @if(can_do('logs.view'))<a class="btn btn-sm" href="{{ route('logs.index') }}">Audit log</a>@endif
       @if(can_do('users.manage'))<a class="btn btn-sm" href="{{ route('roles.index') }}">Permissions</a>@endif
-      <button type="button" class="btn btn-sm" id="theme-btn">Dark / light</button>
     </div>
   </header>
 
@@ -570,16 +569,8 @@
   const apply = mode => {
     desk.classList.toggle('dark', mode === 'dark');
     document.body.classList.toggle('dark', mode === 'dark');
-    const appBtn = document.getElementById('app-theme');
-    if (appBtn) appBtn.textContent = mode === 'dark' ? 'Light' : 'Dark';
   };
   apply(localStorage.getItem(key) || localStorage.getItem('nowills-desk-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-  document.getElementById('theme-btn').addEventListener('click', () => {
-    const next = desk.classList.contains('dark') ? 'light' : 'dark';
-    localStorage.setItem(key, next);
-    localStorage.setItem('nowills-desk-theme', next);
-    apply(next);
-  });
   document.getElementById('print-btn').addEventListener('click', () => window.print());
   function jsonPost(url, body) {
     return fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }, body: body })
