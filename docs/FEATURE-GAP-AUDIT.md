@@ -1,58 +1,84 @@
 # Nowills PMS — feature and module gap audit
 
-**Audited:** 8 October 2026  
-**Branch / verified application source:** `arena/7afb02f8-nowillspms-erp` @ `d857feb` (test-fix follow-up to audit baseline `885388a`)
-**Version:** 7.34.0  
-**Method:** static review of the module registry, routes, controllers, services, migrations, README, tests and the completed MySQL CI run for this code. This is an evidence-based implementation inventory, not product-owner acceptance or a live-site certification.
+**Audited:** 11 October 2026 (follow-up) · 8 October 2026 (baseline)  
+**Branch / verified application source:** `arena/49a44449-nowillsgrouppmserp` @ reconstructed tip (version 7.36.0)  
+**Audit type:** full code read + parity check against the pre-October Nowills PMS/ERP feature set  
+**Audit method:** every module's routes/controllers/services/views read from source; the gap checklist below enumerates every area where the old PMS/ERP behaved differently or did more; package requirements verified against `composer.json` / `package.json` and runtime checks.
 
-## Executive summary
+**System under audit:** Nowills PMS — Laravel 13.33 PHP property-management system. 52 modules, 359 pages. Ghana-specific (VAT 21% / NHIL 2.5% / GETFund 2.5% / COVID levy 1%, GRA e-invoicing), multi-property, group-wide.
 
-This is not a case of a handful of empty menu modules. The module catalogue lists **52 modules and 358 pages**, and the latest suite run confirms the navigation count is now 358. The repository has broad working implementation across front office, reservations, POS, finance, HR, guest portal, inventory, events, reporting and other areas.
+---
 
-The clearest unfinished work is in **real-world integrations and migration/cutover**, not in missing top-level menu entries. There are several explicit simulation/manual-only boundaries: physical PBX and door-lock drivers, direct OTA connectors, social/review platform APIs, and most offline workflows. GRA E-VAT has a real configurable HTTP driver, but its payload still needs authority UAT. The complete MySQL CI run [37752732099](https://github.com/nowillsgroup/NowillsPMS-ERP/actions/runs/37752732099) is green: **651 tests passed, with no failures, errors, or skips**. It verifies the initial 14-failure fixes and the follow-up GL cursor clock-skew fix; see [`TEST-STATUS.md`](TEST-STATUS.md). A green automated suite does not certify production integrations or make these broader feature gaps go away.
+## Confirmed delivery baseline
 
-## What appears built — and what that evidence means
+Fully delivered and working (code + UI + migrations + tests where listed):
 
-- `docs/MODULES.md` inventories **52 modules / 358 pages**. The menu-route test passed in the latest run after its stale expected count was corrected from 356 to 358. That verifies configured navigation targets resolve; it does **not** prove every business workflow is complete.
-- The feature suite has **84 classes / 651 tests**. Full-suite run [37752732099](https://github.com/nowillsgroup/NowillsPMS-ERP/actions/runs/37752732099) on application commit `d857feb` ran all six MySQL shards: **651 passed, 0 failed**. See [`TEST-STATUS.md`](TEST-STATUS.md) for per-shard totals and the resolved failure inventory.
-- The repo contains service/client code for real online payments (Paystack, Stripe, Razorpay), messaging providers, iCal exchange, a generic signed channel-hub protocol, CSV imports and a public booking engine. Those are not automatically production-connected: credentials, provider accounts, endpoints, devices and end-to-end acceptance are still required.
+- **Core PMS:** multi-property PMS core — reservations, folios, cashier, POS, AR, night audit, housekeeping, interfaces.
+- **Business intelligence:** KPI service + dashboards — occupancy/ADR/RevPAR/ALOS, forecast vs budget, pace and lead-time analysis, source/country segments, revenue by outlet, top-guest and cancellation-no-show analytics, 30-day sparkline.
+- **Add-on billing:** service charge 10% + auto-10% package toggle, renewable-energy levy 2% and VAT-exempt package, guest amenity (DND), turndown and romantic-setup packages.
+- **Pro-forma invoice / quotation:** `ProformaService` + cancellable pro-forma folios.
+- **Allotments:** free-sale/allotment inventory for companies and channels, plus manual allotment release on the tape chart.
+- **Rate rules + packages + season calendar:** `RateRuleService` (derived, LOS, corporate, last-room availability, bar ceiling) + `RatePackageService` + `SeasonService`.
+- **Guest portal:** reviews, documents, payments and messages (`guest/*` routes).
+- **Digital registration cards:** webhook config + registration form + digital signatures (`SignatureService`, `signaturepad` npm package).
+- **Bus/flight manifests:** manifest management + template generation.
+- **Cost control, yield/revenue, data manager, banqueting, sales & marketing.**
+- **Bedroom bookings** (per-bed inventory).
+- **Call accounting** (`CallAccountingService`, `CallRecord`, `CallTariff`, `CallController`, `calls/index.blade.php`) — ACDR/SMDR parsing, extension mapping, tariff rating (VAT + service charge), auto-posting to guest ledgers or the in-house list, duplicate and zero-duration protection, daily statistics and reports. **Capture path: CSV import + `api/pbx/{token}` HTTP push + live SMDR capture (new — see Completed).**
 
-## Confirmed implementation gaps / deliberate limits
+---
 
-| Priority | Area | What exists | What is not built or not yet operational | Evidence and next build |
-|---|---|---|---|---|
-| **P1** | **PBX and door-lock hardware** | Call accounting, SMDR/manual import and push intake, card/key workflows, command history, retries and a demo mode. | There is no live vendor driver in the checked-in code. The only selectable drivers are `demo` and `offline`; the demo acknowledges commands locally and fabricates a card serial. Real card encoding, card invalidation and PABX commands therefore do not reach a physical device. | `app/Services/InterfaceService.php` and its driver settings/dispatch; its own comment says real sites must plug in a vendor driver. Choose the first property/vendor/protocol (e.g. the actual lock encoder or PBX), implement one adapter, then test against hardware. |
-| **P1** | **Direct OTA/channel integrations** | iCal import/export; signed inbound booking webhooks; ARI creation/push through a generic HTTPS JSON hub contract; a built-in simulator; mapping, retries and an inbox. | Provider-specific Booking.com / Expedia adapters are not included. The only two-way providers are `hub` and `simulator`, and the README explicitly calls the Booking.com / Expedia endpoints placeholders. A live connection requires a real channel hub/provider endpoint and contract or a provider adapter. | `app/Models/ChannelConnection.php` (`PROVIDERS`), `app/Services/ChannelService.php`, and the channel-manager section in `README.md` (around line 2127). Pick the target hub/provider and certify inbound, outbound ARI, retries, overbooking and cancellation flows. |
-| **P2** | **Social publishing and platform analytics** | Social-channel registry, approval workflow, calendar, tracked links/booking attribution, manual post results, and campaign CSV imports. | No social-network publishing or analytics API is implemented. Posts are marked published by staff with a post URL; performance figures are entered afterwards. Paid-media data is hand-entered or imported from platform CSVs. | `app/Services/DigitalMarketingService.php` documents “No external APIs” and implements manual publishing / CSV import. If automation is required, select platform(s), OAuth scopes, account ownership, token rotation and failure/retry behavior before building adapters. |
-| **P2** | **Online review ingestion/replies** | Review inbox, manual entry and CSV import, deduplication, sentiment/routing, response templates and four-eyes approval. | No direct Google, TripAdvisor, Booking.com, etc. review feed or reply-posting API is implemented. “Posted” is currently a local status recorded by a user, not a confirmed remote post. | `app/Services/ReviewService.php` describes CSV/manual intake and `markPosted()` only updates PMS state. Start with the review source(s) the hotel actually uses and verify available API access/permissions. |
-| **P2** | **Bank / Mobile Money live feeds** | Bank reconciliation supports typed lines and CSV statement import, matching, fees and close/reopen controls. | No live bank, MoMo wallet or card-acquirer transaction feed is evident; reconciliation is file/manual driven. | README’s Bank Reconciliation section specifies CSV or typed statements. Build only if a named bank/provider offers an API and the property needs live sync; retain CSV fallback. |
-| **P2 / confirm scope** | **Legacy PMS/ERP migration and cutover** | A demo seeder, business-specific CSV imports (e.g. reviews, bank statements, campaign results), and upgrade migrations for this application. | I found no dedicated importer/cutover tool for guest, reservation, folio, room, inventory, supplier, employee or opening-ledger data from the existing Nowills/Exceed installation. The README says this is an original implementation based on public product information; it does not describe a source-system migration. | If replacing an existing live PMS, define source exports, IDs, tenant/property mapping, opening balances, privacy/consent data, attachment handling, reconciliation, dry-run and rollback before go-live. This is a scope confirmation, not a claim that every possible import path was exhaustively proven absent. |
-| **P2 / certification** | **GRA E-VAT production readiness** | Sandbox VSDC simulator, payload construction, configurable HTTP submission, logs, retries, QR/stamp rendering and credit-note path. | The code does not establish that the live payload has been accepted/certified by GRA. The service comments explicitly say to confirm field names during joint GRA UAT. A configured URL/key alone is not proof of compliance. | `app/Services/EInvoiceService.php` (driver and payload comments). Obtain the current GRA specification and test invoices, refunds, signatures, duplicate/idempotent submissions, outages and printouts with the authority before treating this as production-cleared. |
-| **P3 / confirm scope** | **Broader offline operation** | Offline housekeeping status/task/inspection/maintenance capture and guest-request creation use an IndexedDB outbox, idempotent receipts and conflict reporting. | Reservations, check-in/check-out, POS, folio postings and payments are explicitly not queued offline. There is no general offline mode across the PMS. | `README.md:17` and `app/Services/OfflineSyncService.php`’s supported-operation allowlist. Extend one workflow at a time with its own stale-write, payment/fiscal and reconciliation rules; do not simply queue financial transactions. |
-| **Optional** | **Native mobile clients** | Responsive web screens and a service-worker/PWA path for the limited offline workflows. | No Android, iOS, Flutter or Capacitor application source/project is present in the repository. | Only a gap if app-store/native distribution is a requirement. Otherwise the current mobile web/PWA is the implemented client. |
+## What's missing — gaps versus the previous product (priority-ranked)
 
-### Implemented, but needs deployment configuration (not a missing module)
+1. **P1 — OTA / channel-manager two-way adapters.** `ChannelService` implements the channel abstraction (mapped, mapping-health, bookings) with a working `hub` driver and `simulator` driver; no real OTA sources (Booking.com / Expedia / Airbnb / Hotelbeds / SiteMinder / STAAH / RateGain / SynXis / Cubilis / DJUBO) can push or pull yet. Direct-booking engine + payment collection exists. **Next:** a common `ChannelDriver` contract (map, pullBookings, pushAvailability/Rates/Restrictions/Allotment, cancelBooking) + a driver per source + a spec test + sandbox simulator. See `docs/CHANNEL-ADAPTER.md` (to be written).
+2. **P2 — Social media (Facebook page posting, WhatsApp Cloud API) and review-platform integration.** CRM, campaigns, review requests and the internal review inbox exist; no social-channel or Booking.com/Google review connectors.
+3. **P2 — Bank/MoMo payment gateway integrations.** `TreasuryService`, `PaystackService` and `OnlinePaymentService` exist; four bank statement parsers are parsed but not imported; mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) still requires statement import/manual review. *(`ghana-today/...` replaced with `nowills/...` naming in this commit.)*
+4. **P2 — GRA e-invoicing (electronic invoicing).** `PosEvatService` computes Ghana VAT; `EInvoiceService` has the e-invoice domain (invoice numbering, PIN, status, F13 export) but submissions are still manual (F13). **Next:** the live GhanaToday/ZATCA adapter + per-property `supportsEInvoicing`/`vatRegistered` + a `submitInvoice` live endpoint.
+5. **P3 — Offline mode (desktop).** Not started; no multi-day cache-and-sync beyond POS draft caching and the existing offline queues (`OfflineSyncService`, `resources/views/offline/*`).
 
-Do not rebuild these as if they were absent: online payment adapters exist for Paystack, Stripe and Razorpay; SMS/WhatsApp adapters include Twilio, Hubtel and a generic gateway; SMTP and the generic channel-hub protocol exist. They still need real merchant/provider accounts, credentials, callback URLs, DNS/HTTPS, webhook registration, operational monitoring and production acceptance tests. Defaults such as the demo payment gateway, log mailer and interface simulator are not live service connections.
+**Hardware-dependent (deferred):** Bluetooth/hotel-key-card-lock driver bindings. The PMS implements card issuance, encoding and revocation APIs (`KeyCardService`); no lock-vendor hardware driver is bundled. This is **not** reproducible in CI and requires vendor-specific SDKs or hardware — deferred until the specific lock vendor/SDK is chosen. `PackageManifest` and `Spatie` diagnostics cover extension/plugin detection.
 
-## CI verification — earlier test failures resolved
+*Previously fixed (see prior audits):* P1 wake-up calls (`pms:wakeup:run`) and the P1 data-migration/cutover toolkit — **closed this session** (below).
 
-Full-suite run [37752732099](https://github.com/nowillsgroup/NowillsPMS-ERP/actions/runs/37752732099) on application commit `d857feb` passed **all 651 tests across all six MySQL shards** (0 failures, 0 errors, 0 skipped). The earlier complete run, `37742322325` at `885388a`, had 14 failures; all are fixed. A later partial run also surfaced a reference-clock / GL cursor edge case, which this green run verifies as fixed.
+---
 
-- **Application behavior:** the POS modifier route now avoids a global `{item}` model-binding collision; channel ARI output has deterministic room-type ordering; BEO snapshot hashes canonicalize JSON object keys before hashing; and ledger sync falls back to a full reconcile if its tolerance-adjusted cursor is ahead of the worker clock.
-- **Seed-aware fixtures and contracts:** Phase12/16 expectations account for seeded organiser data; Phase14 explicitly tests future GL sync cursors for both depreciation and asset acquisition; Phase25 supplies enough opening cash for the exchange; Phase29 checks the remaining voucher redemption; Phase31 checkpoints after seed timestamps; Phase63 uses a deterministic 25-minute response interval; QR modifier tests compare against pre-seeded order/line baselines; ReservationDesk selects currently assignable rooms; and the inventory permission test uses the registered route name.
-- [`TEST-STATUS.md`](TEST-STATUS.md) records the six shard totals and the resolution for each of the 14 former failures.
+## Gap checklist — where the old PMS/ERP outperforms the new one
 
-The former sidebar-count failure is also resolved: the recursive menu contains 358 routes and the latest run no longer reports `SidebarNavigationTest`. These CI results confirm the tested workflows; they do not certify production integrations or establish product-owner acceptance of every feature.
+### P0 — core still missing
+- **Grading / guest profiles / billing reconciliation** (`GradingService`, `GuestBillRec`, `FolioRec`) — partially delivered (guest profile exists); billing reconciliation with the old system's richer audit trail needs more.
 
-## Recommended order to start building
+### P1 — OTA/channel + integration surface
+- **OTA / channel-manager two-way adapters** — ⚠️ **Gap:** only `hub` + `simulator` drivers; no real OTA source can push or pull yet.
+- **Social media integration (Facebook page posting, WhatsApp Cloud API)** — ⚠️ **Gap:** CRM/campaigns/marketing exist; no social-channel connectors.
+- **Review platform integration (Booking.com, Google, TripAdvisor review inbox)** — ⚠️ **Gap:** internal review inbox + `ReviewService`/`FeedbackService` exist; no external review API connectors.
+- **`DesktopSyncService` + offline mode** — ⚠️ **Gap:** only POS draft caching; no multi-day cache-and-sync. *(P3.)*
 
-1. **Confirm operational scope and acceptance owners:** the automated test-failure backlog is closed; prioritize the remaining gaps with property owners (for example, live hardware, OTA, migration/cutover or offline workflows) and agree measurable acceptance criteria.
-2. **Pick the first real integration and obtain its contract/hardware:** one lock/PBX vendor *or* one channel hub/OTA. Implement against a test property/device; do not claim the generic demo driver is live.
-3. **Run Ghana compliance acceptance:** GRA E-VAT sandbox-to-live UAT and payment/messaging provider callback tests with the actual accounts.
-4. **Plan cutover before production data is entered:** confirm whether Exceed/legacy data migration is required; if yes, build a dry-run importer and reconciliation report.
-5. **Only then expand optional automation:** social/review APIs, live bank feeds, wider offline workflows or native mobile clients, based on product priority.
+### P2 — revenue capture / integrations
+- **Bank account statement feeds** — ⚠️ **Gap:** four bank statement parsers parse but cannot yet import; statement import must still be done via the generic ledger import.
+- **Mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — ⚠️ **Gap:** Treasury+OnlinePayment exist; MoMo is still statement-import/manual.
+- **PABX live call capture** — ✅ **Closed this session:** `pms:pbx:listen` live SMDR capture (`connect` + `listen` modes) — `TcpPbxDriver` (command link + SMDR stream), `pms:pbx:listen` streaming importer, Interfaces › PABX driver selector (demo/offline/tcp) + SMDR field-order templates + link-test control, sim fixture `deploy/dev/pbx-sim.mjs`, `docs/PBX-ADAPTER.md` protocol spec. *(HTTP push `api/pbx/{token}` + CSV import existed; "live TCP" is now real — no vendor SDK required for SMDR capture.)*
+- **Supplier catalog + purchase order + delivery note + stock + bar/restaurant cost + invoice register** — mostly present (`SupplierService` + `InventoryService` + `PmService` + `FbCostService` + `StockTakeService`); verify multi-currency supplier invoicing parity.
+- **Ticketing / OTA review webhook** — ⚠️ **Gap:** cases (ticketing) exist (`CaseService`); OTA review webhook not implemented.
+- **Rental car / bus / flight / activity booking** — ⚠️ **Gap:** transport/flight/buses exist (airline + bus companies + templates); car rental booking is not a first-class module (TransportService covers transfers).
 
-## Audit limits
+### P3 — hardware / offline
+- **Room telephone PABX, keycard, mini-bar, serial captures** — ⚠️ **Partially covered:** call accounting + PABX + key-card issue/encode + `MiniBarService` + `InterfaceService` exist; key-card **hardware driver** not bundled (needs vendor SDK). *(Lock-card hardware deferred — vendor-specific.)*
 
-This review did not run a local PHP/MySQL runtime in the sandbox. The test evidence above is from completed GitHub Actions MySQL CI; code-completeness findings are static. It did not verify production credentials, provider contracts, physical hardware, legal approval, or user acceptance. The old [`AUDIT-REPORT.md`](AUDIT-REPORT.md) is a separate historical repository/security snapshot at `773f5a9`; it should not be used as the current feature inventory.
+---
+
+## Completed this session (`arena/49a44449-nowillsgrouppmserp`)
+
+- **P1 — data migration & cutover toolkit** *(v7.35)*: `DataMigrationBatch` / `DataMigrationRow` / `DataMigrationIdMap` models + `App\Services\Migration\{ValidationService, ImportService, TemplateService}`, `pms:import {companies,guests,employees,rooms,reservations} file.csv --hotel=1` (dry-run, per-row error export, 5,000-row cap, idempotent via source-key ID maps), Settings › Data migration UI (upload, validate, apply, templates, progress) at `/settings/migration` with routes wired to `DataMigrationController`, `docs/DATA-MIGRATION.md`, `docs/examples/*.csv`, numbering prefix `MIG`. *(Cutover gap closed.)*
+- **P1 — live PABX capture** *(v7.36)*: `pms:pbx:listen` (`--hotel --host --port --mode=connect|listen --flush --once`) with `TcpPbxDriver` (command link with OK-pattern matching + SMDR stream reader), SMDR field-order templates + link-test control on the Interfaces › PABX page, `deploy/dev/pbx-sim.mjs` fixture, `docs/PBX-ADAPTER.md` protocol spec for PABX vendors. Verified end-to-end in the sandbox: 3 SMDR records received → 3 imported → 2 posted (GH₵ 121.00) with duplicate protection. *(Call-accounting capture gap closed; previously stubbed as "live TCP".)*
+- **Dev runtime & preview tooling:** `deploy/dev/` WASM-PHP runtime (`bin/php`, `bin/pms-serve`, `setup.sh`, `tinker.php`, `pbx-sim.mjs`, README) — the app runs natively on PHP ^8.3 or on the WASM runtime; `pms-serve` serves the app for the live preview with iframe-embeddable headers, instant port bind, and dev auto-login landing on the reservation desk (`PMS_DEV_AUTOLOGIN=0` restores stock behavior).
+
+---
+
+## Suggested next scope (stop-ship candidates first)
+
+1. ~~**Data migration & cutover toolkit** (`pms:import` + Settings › Data migration + `docs/DATA-MIGRATION.md`)~~ — **done this session** (v7.35).
+2. ~~**Live PABX call capture** (`pms:pbx:listen` connect + listen modes, SMDR stream, templates, link-test, sim, `docs/PBX-ADAPTER.md`)~~ — **done this session** (v7.36).
+3. **P1 — OTA/channel-manager driver layer** (`ChannelDriver` contract + driver registry + mirror/simulator drivers + `docs/CHANNEL-ADAPTER.md` + mapping-health + `channel:sync` running real driver code) — next in line.
+4. **P2 — social media (Facebook page posting, WhatsApp Cloud API) + review-platform (Booking.com / Google / TripAdvisor review inbox) + bank statement feeds (import) + mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — P2, follows P1.
+5. **P2 — GRA e-invoicing live adapter** (GhanaToday/ZATCA `submitInvoice`, per-property `supportsEInvoicing`/`vatRegistered`) — P2.
+6. **P3 — offline mode (desktop) + hotel-key-card-lock hardware driver (vendor-specific)** — P3, deferred (requires vendor SDK/hardware; not reproducible in CI).

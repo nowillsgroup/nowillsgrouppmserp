@@ -22,6 +22,50 @@
 | 6 | 109 | 109 | 0 / 0 / 0 |
 | **Total** | **651** | **651** | **0 / 0 / 0** |
 
+## Live PABX adapter (v7.36) — runtime verification (11 October 2026)
+
+Feature: first live PABX driver — template-driven TCP command link + `pms:pbx:listen`
+SMDR stream capture (`docs/PBX-ADAPTER.md`), verified end-to-end against the
+`deploy/dev/pbx-sim.mjs` TCP PBX simulator (WASM PHP runtime, demo seed NOWILLS).
+
+| Check | Result |
+|---|---|
+| SMDR capture (connect mode) → rate → auto-post to in-house folio | pass (2 calls posted, GH₵ 121, masked numbers on the bill) |
+| Free / internal numbers not charged | pass (1 call imported as free) |
+| Duplicate suppression on re-capture (raw_hash) | pass (2 duplicates, 0 double-posted) |
+| Parse failure isolation (future call time reported, stream continues) | pass |
+| TCP commands `cos` / `checkin` / `move` with template substitution | pass (`OK …` replies recorded in the command log) |
+| Unconfigured template → failed command with actionable message | pass |
+| Unreachable PABX → failed command, retryable from the command log | pass |
+| `InterfaceService::saveSettings()` round-trip + invalid success-regex rejection | pass |
+| Interfaces UI renders TCP fields (settings modal) | pass |
+
+## Legacy data migration toolkit — runtime verification (11 October 2026)
+
+Feature: legacy Exceed/Nowills → PMS data migration & cutover tooling (`pms:import`,
+`DataMigrationController`, `docs/DATA-MIGRATION.md`), verified end-to-end on the
+`deploy/dev/` WASM runtime (PHP 8.5 / sqlite), demo seed data (NOWILLS hotel 1).
+
+| Check | Result |
+|---|---|
+| `migrate` incl. `2026_10_11_000100_create_data_migration_tables` | pass |
+| `db:seed` full demo rebuild | pass |
+| `php -l` on all new/edited PHP | pass |
+| companies import — create + update paths (`docs/examples/migration/companies.csv`) | pass (1 create, 1 update, 0 fail) |
+| guests import + idempotent re-run | pass (3 create; re-run 3 unchanged, no duplicates) |
+| employees import | pass (2 create) |
+| rooms import — create/update/unchanged + validation failure path | pass (2 valid rows; 2 misaligned fixture rows rejected with actionable messages) |
+| reservations import — create + failure path (`G-9999` unknown guest) | pass (3 create; row fails with "import the guests file first") |
+| reservation idempotent re-run (`Already imported` skip) | pass (0 duplicates) |
+| dry-run mode (would_create / would_update, no writes) | pass |
+| CLI reconciliation block per dataset | pass |
+| UI: login → `/settings/migration` → batch show → CSV template download | pass (badges green/red correct) |
+
+Known fixture notes: `docs/examples/migration/*.csv` are the reference example set
+(also served by the in-app template route). The rooms example intentionally shows
+column-count validation — rows 101/901 in an early draft had a shifted column;
+corrected form has 12 columns matching the header.
+
 ## Previously identified failures — resolved
 
 These are the 14 failures from full run `37742322325` on `885388a`. The fixes and fixture/assertion corrections below are covered by the fully green run above.

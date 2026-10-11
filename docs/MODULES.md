@@ -1,7 +1,7 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.34.0.**
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.36.0.**
 
 > Every entry carries a `perm` key checked by `RequirePermission` middleware, so what a
 > given user sees depends on their role. Some entries also carry a `badge` for live counts.
@@ -11,7 +11,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 | **5** | sections |
 | **12** | top-level groups |
 | **52** | modules |
-| **358** | pages |
+| **359** | pages |
 
 ---
 
@@ -174,5 +174,5 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 - **Masters** — 8 pages
   - Room Types · Rooms · Floors · Rate Plans · Taxes · Business Sources · Payment Modes · Item Categories
-- **Administration** — 10 pages
-  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup
+- **Administration** — 11 pages
+  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Data Migration
