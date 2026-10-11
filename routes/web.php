@@ -483,6 +483,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::put('/{chconn}', 'update')->name('update');
             Route::delete('/{chconn}', 'destroy')->name('destroy');
             Route::post('/{chconn}/mapping', 'mapping')->name('mapping');
+            Route::post('/{chconn}/test', 'test')->name('test');
             Route::post('/{chconn}/restrictions', 'restrict')->name('restrict');
             Route::delete('/{chconn}/restrictions/{chrestr}', 'unrestrict')->name('unrestrict');
             Route::post('/{chconn}/push', 'push')->name('push');

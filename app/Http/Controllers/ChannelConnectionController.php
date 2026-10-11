@@ -271,6 +271,14 @@ class ChannelConnectionController extends Controller
             : "Push failed: {$p->error} – it will be retried automatically.");
     }
 
+    /** Probe the channel endpoint through its driver (v7.37 – no state changes). */
+    public function test(ChannelConnection $chconn)
+    {
+        $res = ChannelService::testConnection($chconn);
+
+        return back()->with($res['ok'] ? 'success' : 'error', ($res['ok'] ? 'Connection test passed. ' : 'Connection test failed. ').$res['message']);
+    }
+
     public function rotate(ChannelConnection $chconn)
     {
         $chconn->rotateSecret();

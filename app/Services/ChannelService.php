@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\ChannelAriState;
 use App\Models\ChannelConnection;
+use App\Services\Interfaces\ChannelDriver;
+use App\Services\Interfaces\ChannelDriverRegistry;
 use App\Models\ChannelMessage;
 use App\Models\ChannelPush;
 use App\Models\ChannelRateMap;
@@ -279,6 +281,22 @@ class ChannelService
      * Push pending ARI changes (or a full refresh) to one connection. Returns the push log row, or null when there was
      * nothing to send.
      */
+    /** The transport driver for this connection (hub / simulator / mirror / vendor adapters). */
+    public static function driverFor(ChannelConnection $c): ChannelDriver
+    {
+        return ChannelDriverRegistry::for($c);
+    }
+
+    /** Probe the channel endpoint through its driver — no state changes. */
+    public static function testConnection(ChannelConnection $c): array
+    {
+        $res = self::driverFor($c)->test($c);
+        ActivityLogger::log('channels', $res['ok'] ? 'test_ok' : 'test_failed',
+            'Connection test '.($res['ok'] ? 'OK' : 'failed').' ('.self::driverFor($c)->id().'): '.$res['message'], $c);
+
+        return $res;
+    }
+
     public static function push(ChannelConnection $c, bool $full = false, ?int $userId = null): ?ChannelPush
     {
         if (! $c->is_active) {
@@ -324,31 +342,9 @@ class ChannelService
         $requests = 0;
         $chunks = self::chunks($ari);
         try {
-            if ($c->isSimulator()) {
-                $requests = count($chunks);
-                self::saveStates($c, $ari);
-            } else {
-                if (! $c->endpoint_url) {
-                    throw new RuntimeException('No ARI endpoint URL configured.');
-                }
-                IcalService::assertSafeUrl($c->endpoint_url);
-                foreach ($chunks as $chunk) {
-                    $body = json_encode(self::payload($c, $chunk, $kind), JSON_UNESCAPED_SLASHES);
-                    $ts = (string) time();
-                    $headers = ['X-Nowills-Timestamp' => $ts, 'X-Nowills-Signature' => 'sha256='.self::sign($c->secret, $ts, $body), 'User-Agent' => 'NowillsPMS-Channel/1.0', 'Accept' => 'application/json'];
-                    if ($c->api_key) {
-                        $headers['Authorization'] = 'Bearer '.$c->api_key;
-                    }
-                    $res = Http::timeout(20)->withHeaders($headers)->withBody($body, 'application/json')->post($c->endpoint_url);
-                    $requests++;
-                    $http = $res->status();
-                    if (! $res->successful()) {
-                        $detail = rescue(fn () => $res->json('error') ?? $res->json('message'), null, false);
-                        throw new RuntimeException('Channel returned HTTP '.$res->status().($detail ? ': '.mb_substr(is_string($detail) ? $detail : json_encode($detail), 0, 200) : ''));
-                    }
-                    self::saveStates($c, $chunk);   // chunks delivered before a failure stay acknowledged
-                }
-            }
+            $result = self::driverFor($c)->pushAri($c, $chunks, $kind, fn (array $chunk) => self::saveStates($c, $chunk));
+            $requests = $result['requests'];
+            $http = $result['http'] ?? null;
         } catch (Throwable $e) {
             $status = 'failed';
             $error = mb_substr($e->getMessage(), 0, 500);

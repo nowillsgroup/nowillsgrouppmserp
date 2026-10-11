@@ -14,6 +14,9 @@ return [
     // CSP frame-ancestors: "'self'" in production; "*" only when embedding in a preview iframe.
     'frame_ancestors' => env('PMS_FRAME_ANCESTORS', "'self'"),
 
+    // v7.37 – allow channel/test endpoints on private addresses (dev sandboxes only!)
+    'channel_allow_private' => (bool) env('PMS_CHANNEL_ALLOW_PRIVATE', false),
+
     'permissions' => [
         'Dashboard' => ['dashboard.view' => 'View dashboard'],
         'Reservations' => [

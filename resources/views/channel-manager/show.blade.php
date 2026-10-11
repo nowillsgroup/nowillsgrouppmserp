@@ -7,6 +7,7 @@
   @if($c->is_active)
   <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline">@csrf<button class="btn" id="pushBtn"><x-icon name="refresh"/> Push changes</button></form>
   <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline" data-confirm="Send the full {{ $c->push_days }}-day availability, rates and restrictions to {{ $c->name }}?">@csrf<input type="hidden" name="full" value="1"><button class="btn" id="fullSyncBtn"><x-icon name="download"/> Full sync</button></form>
+  <form method="post" action="{{ route('cm.connections.test', $c) }}" class="inline">@csrf<button class="btn" id="testConnBtn"><x-icon name="globe"/> Test connection</button></form>
   @endif
   <a class="btn" href="{{ route('cm.connections.edit', $c) }}" id="editConn"><x-icon name="edit"/> Edit</a>
   @if(! $c->reservations()->exists())<form method="post" action="{{ route('cm.connections.destroy', $c) }}" class="inline" data-confirm="Delete connection {{ $c->name }} with its mappings and logs?">@csrf @method('DELETE')<button class="btn btn-ghost btn-icon" title="Delete"><x-icon name="trash"/></button></form>@endif

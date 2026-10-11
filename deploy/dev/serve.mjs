@@ -42,6 +42,15 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'v7.37 — OTA/channel driver layer (in progress)',
+    detail: 'ChannelDriver contract + registry + Hub/Simulator/Mirror drivers. Test connection button on every connection; signed-JSON hub protocol proven end-to-end against the sandbox simulator (240 room-nights pushed over HTTP 200, booking pull works). Real OTA adapters plug in next.',
+    screens: [
+      ['Channel manager', '/channel-manager'],
+      ['Connection: Sandbox Hub — Test / Push / Full sync', '/channel-manager/connections/6'],
+      ['Connection: Sandbox Simulator', '/channel-manager/connections/5'],
+    ],
+  },
+  {
     title: 'Preview delivery system',
     detail: 'Live preview auto-signs in and lands on the app; pages ship styled (inline CSS); iframe-embeddable; this changes index.',
     screens: [
