@@ -179,10 +179,30 @@ function flattenHeaders(hdrs) {
 // The Arena live preview embeds this server in a cross-site iframe on an
 // https://{port}-{sandbox}.e2b.app origin. Loosen exactly what blocks that:
 // CSP frame-ancestors, X-Frame-Options, and SameSite on session cookies.
+let cssCache = null;
+async function inlineStylesheets(html) {
+  if (!cssCache) {
+    cssCache = {
+      'app.css': await Bun.file(`${PUBLIC_DIR}/css/app.css`).text(),
+      'offline.css': await Bun.file(`${PUBLIC_DIR}/css/offline.css`).text(),
+    };
+  }
+  return html.replace(/<link\b[^>]*href="[^"]*\/css\/(app|offline)\.css[^"]*"[^>]*>/g, (_m, name) => `<style>${cssCache[name + '.css']}</style>`);
+}
+
 function previewFriendly(h) {
   const csp = h.get('content-security-policy');
   if (csp) {
-    h.set('content-security-policy', csp.replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https://*.e2b.app"));
+    h.set('content-security-policy', csp
+      .replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https://*.e2b.app")
+      // Sandboxed preview iframes get an opaque origin, where 'self' matches
+      // nothing — allow the preview host explicitly so styles/images/scripts load.
+      .replace(/default-src 'self'/i, "default-src 'self' https://*.e2b.app data: blob:")
+      .replace(/style-src 'self'/i, "style-src 'self' https://*.e2b.app")
+      .replace(/img-src 'self'/i, "img-src 'self' https://*.e2b.app")
+      .replace(/script-src 'self'/i, "script-src 'self' https://*.e2b.app")
+      .replace(/font-src 'self'/i, "font-src 'self' https://*.e2b.app")
+      .replace(/connect-src 'self'/i, "connect-src 'self' https://*.e2b.app"));
   }
   h.delete('x-frame-options');
   const cookies = typeof h.getSetCookie === 'function' ? h.getSetCookie() : (h.get('set-cookie') ? [h.get('set-cookie')] : []);
@@ -264,7 +284,16 @@ const server = Bun.serve({
       );
       const head = previewFriendly(flattenHeaders(resp.headers));
       const status = resp.httpStatusCode || 200;
-      return new Response(method === 'HEAD' ? null : resp.bytes, { status, headers: head });
+      let body = method === 'HEAD' ? null : resp.bytes;
+      // Inline the stylesheets so the page is styled even when subresource
+      // fetches are blocked (sandboxed iframes / strict CSP on the preview side).
+      if (body && (head.get('content-type') ?? '').toLowerCase().includes('text/html')) {
+        const html = await inlineStylesheets(new TextDecoder().decode(resp.bytes));
+        head.delete('content-length');
+        head.delete('transfer-encoding');
+        body = new TextEncoder().encode(html);
+      }
+      return new Response(body, { status, headers: head });
     } catch (err) {
       process.stderr.write(`[pms-serve] ${method} ${url.pathname} -> ${String(err?.stack ?? err)}\n`);
       return new Response('Internal Server Error', { status: 500 });
