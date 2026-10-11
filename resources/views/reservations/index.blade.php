@@ -35,7 +35,6 @@
       @if(can_do('logs.view'))<a class="btn btn-sm" href="{{ route('logs.index') }}">Audit log</a>@endif
       @if(can_do('users.manage'))<a class="btn btn-sm" href="{{ route('roles.index') }}">Permissions</a>@endif
       <button type="button" class="btn btn-sm" id="theme-btn">Dark / light</button>
-      <button type="button" class="btn btn-sm" id="full-btn">Fullscreen</button>
     </div>
   </header>
 
@@ -580,9 +579,6 @@
     localStorage.setItem(key, next);
     localStorage.setItem('nowills-desk-theme', next);
     apply(next);
-  });
-  document.getElementById('full-btn').addEventListener('click', () => {
-    if (!document.fullscreenElement) desk.requestFullscreen(); else document.exitFullscreen();
   });
   document.getElementById('print-btn').addEventListener('click', () => window.print());
   function jsonPost(url, body) {
