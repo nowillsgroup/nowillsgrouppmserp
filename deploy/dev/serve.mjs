@@ -330,11 +330,11 @@ const server = Bun.serve({
     const url = new URL(req.url);
     const method = req.method.toUpperCase();
 
-    // Dev preview entry: skip the marketing landing page, open the app home.
-    if (DEV_LOGIN && url.pathname === '/') {
-      const target = new URL(DEV_HOME, url);
-      target.protocol = 'https:';
-      return Response.redirect(target.toString(), 302);
+    // Dev preview entry: skip the marketing landing page and serve the app
+    // home DIRECTLY (no redirect — some preview proxies do not follow 302s
+    // inside the iframe, which shows up as a blank preview).
+    if (DEV_LOGIN && (url.pathname === '/' || url.pathname === '')) {
+      url.pathname = DEV_HOME;
     }
 
     // Development changes index (dev server only — not part of the product).
