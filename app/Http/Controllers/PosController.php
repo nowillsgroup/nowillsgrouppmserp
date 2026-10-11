@@ -289,14 +289,17 @@ class PosController extends Controller
             foreach ($menuLines as $k => $line) {
                 $m = MenuItem::findOrFail($line['id']);
                 $rate = round((float) $m->price + (float) ($modifierAmounts[$k] ?? 0), 2);
+                $rate = TaxService::splitPrice($rate, (float) $m->tax_rate, 'fnb')['net']; // v7.39 tax-inclusive support
                 $order->items()->create(['menu_item_id' => $m->id, 'item_name' => $m->name, 'qty' => $line['qty'], 'rate' => $rate, 'modifier_amount' => $modifierAmounts[$k] ?? 0, 'modifiers' => $modifierSnapshots[$k] ?? [], 'tax_rate' => $m->tax_rate, 'amount' => round($rate * $line['qty'], 2), 'kot_no' => $kot, 'notes' => $line['notes'] ?? null, 'allergy_flag' => $flags[$k], 'kitchen_status' => ! empty($line['hold']) ? 'held' : 'new']);
             }
             foreach ($openLines as $line) {
                 $rate = round((float) $line['price'], 2);
                 $qty = (float) $line['qty'];
+                $openRate = TaxService::rateFor('fnb', $rate);
+                $rate = TaxService::splitPrice($rate, $openRate, 'fnb')['net']; // v7.39 tax-inclusive support
                 $order->items()->create([
                     'menu_item_id' => null, 'item_name' => $line['name'], 'qty' => $qty, 'rate' => $rate,
-                    'tax_rate' => TaxService::rateFor('fnb', $rate), 'amount' => round($rate * $qty, 2), 'kot_no' => $kot,
+                    'tax_rate' => $openRate, 'amount' => round($rate * $qty, 2), 'kot_no' => $kot,
                     'notes' => $line['notes'], 'allergy_flag' => $openFlags['text'] ?? null, 'is_open' => true,
                     'kitchen_station' => $line['station'], 'food_type' => $line['food_type'],
                     'kitchen_status' => ! empty($line['hold']) ? 'held' : 'new',

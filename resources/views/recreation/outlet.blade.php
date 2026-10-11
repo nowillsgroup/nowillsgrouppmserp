@@ -65,7 +65,7 @@
       </div>
       <p class="tiny text-red mt-1" id="tillMsg" hidden></p>
       <button type="button" class="btn btn-primary mt-2" id="completeSale" style="width:100%;height:46px;font-size:16px">Complete sale</button>
-      <p class="tiny muted mt-1">Walk-ins buy tickets here — members keep using their membership at the check-in desk. Prices exclude VAT/NHIL/GETFund/Tourism Levy ({{ rtrim(rtrim(number_format($rate, 2), '0'), '.') }}%).</p>
+      <p class="tiny muted mt-1">Walk-ins buy tickets here — members keep using their membership at the check-in desk. Prices are {{ \App\Services\TaxService::pricesInclusive() ? 'tax-inclusive — VAT, NHIL, GETFund and the Tourism Levy are extracted from the price' : 'exclusive of VAT/NHIL/GETFund/Tourism Levy ('.rtrim(rtrim(number_format($rate, 2), '0'), '.').'%)' }}.</p>
     </div>
   </div>
 </div>

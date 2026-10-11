@@ -23,14 +23,13 @@ use RuntimeException;
  */
 class ClubBillingService
 {
-    public static function tax(float $net, ?float $rate = null): array
+    public static function tax(float $amount, ?float $rate = null): array
     {
         if ($rate === null) {
-            $rate = (float) TaxService::forCategory('club', abs($net))['rate'];
+            $rate = (float) TaxService::forCategory('club', abs($amount))['rate'];
         }
-        $tax = round($net * $rate / 100, 2);
-
-        return ['rate' => $rate, 'tax' => $tax, 'total' => round($net + $tax, 2)];
+        // v7.39 honours the Tax-settings inclusive/exclusive switch ($amount is the entered price).
+        return TaxService::splitPrice($amount, $rate, 'club');
     }
 
     /** Raise a charge on a membership. $o: date, period_start, period_end, due_date, credit_of_id, tax_rate. */
@@ -54,7 +53,7 @@ class ClubBillingService
             'description' => mb_substr($description, 0, 160),
             'period_start' => $o['period_start'] ?? null,
             'period_end' => $o['period_end'] ?? null,
-            'amount' => round($net, 2),
+            'amount' => $t['net'],
             'tax_rate' => $t['rate'],
             'tax' => $t['tax'],
             'total' => $t['total'],

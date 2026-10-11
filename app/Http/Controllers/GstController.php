@@ -140,6 +140,7 @@ class GstController extends Controller
         $data = $request->validate([
             'gst_einvoice_enabled' => 'boolean', 'gst_einvoice_auto' => 'boolean', 'gst_evat_pos' => 'boolean', 'gst_einvoice_driver' => 'required|in:sandbox,gra',
             'gst_evat_url' => 'nullable|url|max:255|required_if:gst_einvoice_driver,gra', 'gst_evat_key' => 'nullable|string|max:500', 'gst_evat_username' => 'nullable|string|max:60',
+            'tax_prices_inclusive' => 'required|in:0,1',
         ]);
         if ($data['gst_evat_url'] ?? null) {
             try {
@@ -152,7 +153,7 @@ class GstController extends Controller
             return back()->withInput()->withErrors(['gst_einvoice_enabled' => 'Set a valid hotel TIN in Hotel settings before switching on E-VAT.']);
         }
         $vals = ['gst_einvoice_enabled' => ! empty($data['gst_einvoice_enabled']) ? '1' : '0', 'gst_einvoice_auto' => ! empty($data['gst_einvoice_auto']) ? '1' : '0', 'gst_evat_pos' => ! empty($data['gst_evat_pos']) ? '1' : '0',
-            'gst_einvoice_driver' => $data['gst_einvoice_driver'], 'gst_evat_url' => (string) ($data['gst_evat_url'] ?? ''), 'gst_evat_username' => (string) ($data['gst_evat_username'] ?? '')];
+            'gst_einvoice_driver' => $data['gst_einvoice_driver'], 'gst_evat_url' => (string) ($data['gst_evat_url'] ?? ''), 'gst_evat_username' => (string) ($data['gst_evat_username'] ?? ''), 'tax_prices_inclusive' => $data['tax_prices_inclusive']];
         if (filled($data['gst_evat_key'] ?? null)) { // secret: blank keeps the stored value
             $vals['gst_evat_key'] = $data['gst_evat_key'];
         }

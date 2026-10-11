@@ -31,6 +31,11 @@
     </div></div>
   </div>
   <div>
+    <div class="card mt-1"><div class="card-head"><h3><x-icon name="money"/> Price entry</h3></div><div class="card-body">
+      <label class="check span-all"><input type="radio" name="tax_prices_inclusive" value="0" @checked(old('tax_prices_inclusive', $s['tax_prices_inclusive'] ?? '0') !== '1')> <span><b>Tax-exclusive</b> — prices are entered net of tax and the tax is added at the till (current behaviour)</span></label>
+      <label class="check span-all"><input type="radio" name="tax_prices_inclusive" value="1" @checked(old('tax_prices_inclusive', $s['tax_prices_inclusive'] ?? '0') === '1')> <span><b>Tax-inclusive</b> — prices include tax; the till extracts VAT, NHIL, GETFund and the Tourism Levy from the price</span></label>
+      <p class="tiny muted span-all">Applies to POS outlets, the recreation ticket outlet, club day passes and membership charges. Room rates keep their own per-rate-plan tax-inclusive setting.</p>
+    </div></div>
     <div class="card flush"><div class="card-head"><h3><x-icon name="layers"/> Tax components</h3>@if(can_do('masters.manage'))<a class="small" href="{{ route('masters.index', 'taxes') }}">Edit in Masters →</a>@endif</div>
       <div class="card-body table-wrap"><table class="table" id="taxTable"><thead><tr><th>Tax</th><th>Code</th><th>Authority</th><th class="num">Rate</th><th>Applies to</th><th>Status</th></tr></thead><tbody>
       @forelse($taxes as $t)<tr><td>{{ $t->name }}</td><td class="mono small">{{ $t->code ?? '—' }}</td><td class="small">{{ $t->authority ?? '—' }}</td><td class="num">{{ rtrim(rtrim(number_format($t->rate, 2), '0'), '.') }}%</td><td class="small">{{ ucfirst($t->applies_to) }}</td>

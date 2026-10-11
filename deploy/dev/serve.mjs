@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Tax settings — price entry: tax-inclusive or tax-exclusive',
+    detail: 'GST & Tax → Settings gains a Price entry switch: tax-exclusive (prices net of tax, tax added at the till — the default, nothing changes) or tax-inclusive (VAT/NHIL/GETFund/Tourism Levy extracted from the price). POS, the recreation outlet, club day passes and membership charges all honour it; room rates keep their per-rate-plan flag.',
+    screens: [['Tax settings (Price entry)', '/gst/settings'], ['Recreation outlet', '/recreation/outlet'], ['Club day passes', '/club/passes']],
+  },
+  {
     title: 'Recreation accounting — counter takings in GL & day close (v7.38.0)',
     detail: 'Outlet sales now post to the general ledger (split tenders debit their cash/bank/wallet accounts, change returns to the tender, revenue lands in club revenue + tax heads). Night audit and income audit count desk day-pass and outlet takings in other revenue, tax and collections — with a business_date so after-midnight sales roll to the right day. Outlet passes post once via their sale (no double count).',
     screens: [['Income audit', '/income-audit'], ['Ticket sales', '/recreation/sales'], ['Night audit', '/nightaudit']],

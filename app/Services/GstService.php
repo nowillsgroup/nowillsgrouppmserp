@@ -36,7 +36,7 @@ class GstService
 {
     public const DEFAULTS = [
         'gst_einvoice_enabled' => '0', 'gst_einvoice_driver' => 'sandbox', 'gst_einvoice_auto' => '1', 'gst_evat_pos' => '1',
-        'gst_evat_url' => '', 'gst_evat_key' => '', 'gst_evat_username' => '',
+        'gst_evat_url' => '', 'gst_evat_key' => '', 'gst_evat_username' => '', 'tax_prices_inclusive' => '0',
     ];
 
     /** TIN used on E-VAT for buyers without one (walk-in / cash customers). */

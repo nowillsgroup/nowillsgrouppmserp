@@ -747,6 +747,7 @@ class ClubService
             }
         }
         $t = ClubBillingService::tax($net);
+        $net = $t['net']; // v7.39 tax-inclusive prices are split into net + tax here
         $date = $asOf ?? self::today();
 
         return DB::transaction(function () use ($d, $u, $facility, $log, $name, $adults, $children, $kind, $net, $stay, $t, $date) {

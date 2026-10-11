@@ -95,10 +95,10 @@ class RecreationService
             if ($unit < 0) {
                 throw ValidationException::withMessages(['items' => 'Line '.($i + 1).': price cannot be negative.']);
             }
-            $net = round($unit * $qty, 2);
-            $t = ClubBillingService::tax($net, $type->tax_rate !== null ? (float) $type->tax_rate : null);
-            $lines[] = ['type' => $type, 'qty' => $qty, 'unit' => $unit, 'net' => $net] + $t;
-            $subtotal += $net;
+            $entered = round($unit * $qty, 2);
+            $t = ClubBillingService::tax($entered, $type->tax_rate !== null ? (float) $type->tax_rate : null);
+            $lines[] = ['type' => $type, 'qty' => $qty, 'unit' => $unit, 'net' => $t['net']] + $t;
+            $subtotal += $t['net'];
             $taxSum += $t['tax'];
         }
         $total = round($subtotal + $taxSum, 2);
@@ -192,7 +192,7 @@ class RecreationService
                     foreach ($chunks as $n => $chunk) {
                         $pax = count($chunk);
                         $share = $n === 0 ? $line['net'] : 0.0; // price stays on the first pass; the rest are pax-only
-                        $pt = ClubBillingService::tax($share, $type->tax_rate !== null ? (float) $type->tax_rate : null);
+                        $shareTax = $n === 0 ? $line['tax'] : 0.0; // the line is already split into net + tax
                         $pass = ClubDayPass::create([
                             'pass_no' => Numbering::next('club_daypass'),
                             'date' => $date,
@@ -203,9 +203,9 @@ class RecreationService
                             'children' => $type->pax_type === 'child' ? $pax : 0,
                             'host_member_id' => $hostId,
                             'amount' => $share,
-                            'tax_rate' => $pt['rate'],
-                            'tax' => $pt['tax'],
-                            'total' => $pt['total'],
+                            'tax_rate' => $line['rate'],
+                            'tax' => $shareTax,
+                            'total' => round($share + $shareTax, 2),
                             'payment_mode_id' => $stay ? null : ($payments[0]['mode']->id ?? null),
                             'reservation_room_id' => $stay?->id,
                             'folio_transaction_id' => $tx?->id,

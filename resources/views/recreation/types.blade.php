@@ -7,7 +7,7 @@
 @endsection
 @section('content')
 <div class="card flush"><div class="card-body table-wrap"><table class="table">
-  <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Pax</th><th class="num">Price (excl. tax)</th><th>Tickets</th><th>Order</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Pax</th><th class="num">Price ({{ \App\Services\TaxService::pricesInclusive() ? 'incl' : 'excl' }}. tax)</th><th>Tickets</th><th>Order</th><th>Status</th><th></th></tr></thead>
   <tbody>@forelse($rows as $t)
     <tr class="{{ $t->is_active ? '' : 'muted' }}">
       <td class="bold">{{ $t->code }}</td>
@@ -32,7 +32,7 @@
     <x-field name="name" label="Name" required placeholder="Adult day pass" class="span-2"/>
     <x-field name="category" label="Category" type="select" :options="\App\Models\ClubTicketType::CATEGORIES" required/>
     <x-field name="pax_type" label="Ticket covers" type="select" :options="\App\Models\ClubTicketType::PAX_TYPES" required/>
-    <x-field name="price" label="Price (excl. tax)" type="number" step="0.01" min="0" required/>
+    <x-field name="price" label="Price ({{ \App\Services\TaxService::pricesInclusive() ? 'incl' : 'excl' }}. tax)" type="number" step="0.01" min="0" required/>
     <x-field name="tax_rate" label="Tax rate % (blank = standard)" type="number" step="0.01" min="0" max="100"/>
     <x-field name="sort" label="Sort order" type="number" value="0" min="0"/>
     <div class="field"><label>Options</label>
