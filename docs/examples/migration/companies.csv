@@ -1,0 +1,3 @@
+external_id,name,type,contact_person,phone,email,address,tax_number,credit_limit,discount_pct,is_active
+C-1001,Sahara Events Ltd,corporate,Efua Adu,+233 30 277 5140,accounts@sahara.example,12 Ridge Rd Accra,C0001234567,50000,10,1
+C-1002,Volta Travel Agency,travel_agent,Kofi Anane,+233 30 111 2233,bookings@volta.example,4 Ring Rd East,C0007654321,25000,15,1

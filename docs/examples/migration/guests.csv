@@ -1,0 +1,4 @@
+external_id,first_name,last_name,title,gender,dob,phone,email,nationality,id_type,id_number,company_external_id,is_vip,preferences,notes,loyalty_points
+G-2001,Ama,Mensah,Ms,female,1988-04-12,+233 24 555 0102,ama@example.com,Ghanaian,passport,G1234567,C-1001,0,High floor quiet room,Repeat corporate guest,250
+G-2002,Kwesi,Owusu,Mr,male,12/06/1979,+233 24 555 0103,kwesi@example.com,Ghanaian,national_id,GHA-123456789-0,,1,Twin beds,,0
+G-2003,Helena,Bauer,Dr,female,1975-11-30,+49 170 5550104,helena@example.de,German,passport,C4T88912,,0,Late check-out,VAT refund paperwork,120

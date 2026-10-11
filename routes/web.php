@@ -2598,6 +2598,15 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/settings', [Controllers\SettingController::class, 'update'])->name('settings.update');
         Route::get('/settings/backup', [Controllers\SettingController::class, 'backup'])->name('settings.backup');
         Route::post('/settings/backup', [Controllers\SettingController::class, 'download'])->name('settings.backup.download');
+        // ---- v7.35 Data migration & cutover
+        Route::prefix('settings/migration')->name('migration.')->controller(Controllers\DataMigrationController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/template/{dataset}', 'template')->name('template');
+            Route::get('/{batch}', 'show')->whereNumber('batch')->name('show');
+            Route::post('/{batch}/validate', 'validate')->whereNumber('batch')->name('validate');
+            Route::post('/{batch}/apply', 'apply')->whereNumber('batch')->name('apply');
+        });
         Route::post('/settings/properties', [Controllers\SettingController::class, 'storeHotel'])->name('settings.hotels.store');
         Route::get('/settings/messaging', [Controllers\MessageController::class, 'settings'])->name('messages.settings');
         Route::post('/settings/messaging', [Controllers\MessageController::class, 'saveSettings'])->name('messages.settings.save');

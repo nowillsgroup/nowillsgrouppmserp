@@ -1,0 +1,4 @@
+external_id,room_no,room_type_code,room_type_name,base_rate,floor,extension,status,hk_status,is_smoking,notes,is_active
+101,101,STD,,,Ground Floor,1101,vacant,clean,0,,1
+901,901,STD,,,Fourth Floor,1901,vacant,inspected,0,Converted from store room,1
+902,902,PKD,Penthouse Deluxe,9800,Fourth Floor,1902,vacant,clean,1,New luxury product,1

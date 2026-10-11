@@ -1,0 +1,5 @@
+external_id,guest_external_id,arrival_date,departure_date,room_type_code,room_no,rate,status,adults,children,reservation_no,company_external_id,billing_instruction,purpose,checked_in_at,checked_out_at
+R-9001,G-2001,2026-12-24,2026-12-27,STD,101,2800,confirmed,2,0,,C-1001,company,Corporate retreat,,
+R-9002,G-2002,2026-10-10,2026-10-14,STD,901,2800,checked_in,1,1,RES-00421,,,Leisure,2026-10-10 15:10,
+R-9003,G-2003,2026-09-20,2026-09-23,PKD,902,9800,checked_out,2,0,,,guest,Business,2026-09-20 14:00,2026-09-23 11:02
+R-9004,G-9999,2026-11-01,2026-11-03,STD,,2800,confirmed,1,0,,,,Leisure,,
