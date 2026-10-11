@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Bank/MoMo statements — one-click fee booking + settlement review',
+    detail: 'MoMo merchant exports split every service charge into its own fee line; booking each by hand was the slow part. New "Book fee lines" on a statement batch-books every fee/charge line to Mobile Money Charges (wallet accounts) or Bank Charges (banks), matches them with the entry, and reports anything left past the ledger cutoff. Proven on the seeded MoMo settlement: 2 open fee lines booked (GH₵348.73), statement 14/14 matched.',
+    screens: [['Bank reconciliation', '/accounts/bank-reconciliation'], ['Statement BST-00003 (MoMo)', '/accounts/bank-reconciliation/3']],
+  },
+  {
     title: 'GRA E-VAT — live adapter proven end-to-end (docs/GRA-EVAT.md)',
     detail: 'The certified GRA driver (POST {url} + security_key, GRA invoice schema, ysdc* stamp response incl. the mesaage typo) is proven against a local VSDC protocol simulator: INV-00071 stamped live (VSDC-0001-LIVE, receipt 2/2 NS, QR), duplicate resubmission returns the same stamp, refund without reference rejected B19. Private/loopback endpoints now allowed via Developer settings or PMS_CHANNEL_ALLOW_PRIVATE.',
     screens: [['GRA VAT settings', '/vat/settings'], ['E-invoices (E-VAT)', '/vat/e-vat'], ['VAT return', '/vat/return']],

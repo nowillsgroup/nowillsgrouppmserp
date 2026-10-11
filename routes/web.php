@@ -1628,6 +1628,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/{bstmt}', 'show')->whereNumber('bstmt')->name('show');
         Route::get('/{bstmt}/print', 'print')->whereNumber('bstmt')->name('print');
         Route::post('/{bstmt}/auto-match', 'autoMatch')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('automatch');
+        Route::post('/{bstmt}/book-fees', 'bookFees')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('bookfees');
         Route::post('/{bstmt}/match', 'match')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('match');
         Route::post('/{bstmt}/lines', 'addLine')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('lines.add');
         Route::post('/{bstmt}/closing', 'closing')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('closing');

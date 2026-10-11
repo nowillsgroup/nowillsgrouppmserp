@@ -150,6 +150,19 @@ class BankRecController extends Controller
         });
     }
 
+    /** v7.39 Batch-book the statement's fee / charge lines (MoMo settlement exports). */
+    public function bookFees(BankStatement $bstmt)
+    {
+        return $this->attempt(fn () => Rec::bookFees($bstmt), function ($r) {
+            if (! $r['booked']) {
+                return 'No unbooked fee lines on this statement.';
+            }
+            $label = $r['kind'] === 'momo_fees' ? 'Mobile Money charges' : 'Bank charges & commissions';
+
+            return "Booked {$r['booked']} fee line(s) as {$label} – ".money($r['total']).' and matched them.'.($r['failed'] ? " {$r['failed']} left for after the night audit." : '');
+        });
+    }
+
     public function addLine(Request $request, BankStatement $bstmt)
     {
         $d = $request->validate(['date' => 'required|date', 'description' => 'nullable|string|max:255', 'reference' => 'nullable|string|max:80', 'amount' => 'required|numeric|between:-1000000000,1000000000']);

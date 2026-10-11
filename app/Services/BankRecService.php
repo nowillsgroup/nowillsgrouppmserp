@@ -641,6 +641,36 @@ class BankRecService
         return $accountId;
     }
 
+    /**
+     * v7.39 Batch-book every fee / charge line on the statement. A MoMo export carries
+     * one fee line per transaction (the parser splits them out); booking each by hand is
+     * the slow part of the settlement review. Fee lines are booked to Mobile Money Charges
+     * on a wallet account, Bank Charges & Commissions otherwise, and matched with the entry.
+     */
+    public static function bookFees(BankStatement $s): array
+    {
+        self::assertDraft($s);
+        $hay = (string) ($s->account->name ?? '').' '.(string) ($s->account->code ?? '');
+        $kind = preg_match('/momo|mobile money|wallet|telecel|airteltigo|tigo cash|mtn/i', $hay) ? 'momo_fees' : 'bank_charges';
+        $booked = 0; $failed = 0; $sum = 0.0;
+        foreach ($s->lines()->where('status', 'unmatched')->whereNull('entry_kind')->orderBy('date')->orderBy('line_no')->get() as $line) {
+            $desc = (string) $line->description;
+            if ((float) $line->amount >= 0 || ! preg_match('/fee|charges?|commission|levy/i', $desc)) {
+                continue;
+            }
+            try {
+                self::createEntry($line, $kind, null, mb_substr(trim($desc), 0, 150) ?: null);
+                $booked++;
+                $sum += abs((float) $line->amount);
+            } catch (\RuntimeException $e) {
+                $failed++; // after the ledger cutoff, etc. — leave for the per-line flow
+            }
+        }
+        ActivityLogger::log('bankrec', 'book_fees', "Booked {$booked} fee line(s) on {$s->statement_no} as ".self::ENTRY_KINDS[$kind][0].' – '.money($sum), $s);
+
+        return ['booked' => $booked, 'failed' => $failed, 'kind' => $kind, 'total' => round($sum, 2)];
+    }
+
     /** Book a bank-only item (charges, interest, MoMo fees …) from the statement line and clear the line with it. */
     public static function createEntry(BankStatementLine $line, string $kind, ?int $accountId = null, ?string $memo = null): GlJournal
     {

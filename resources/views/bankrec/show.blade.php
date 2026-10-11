@@ -12,6 +12,7 @@
 @section('actions')
 {!! status_badge($s->status) !!}
 @if($manage)<form method="post" action="{{ route('bankrec.automatch', $s) }}" class="inline">@csrf<button class="btn" id="autoMatchBtn"><x-icon name="refresh"/> Auto-match</button></form>@endif
+@if($manage)<form method="post" action="{{ route('bankrec.bookfees', $s) }}" class="inline" data-confirm="Book every fee / charge line on this statement to the charges account and match it?">@csrf<button class="btn" id="bookFeesBtn"><x-icon name="book"/> Book fee lines</button></form>@endif
 <a class="btn" href="{{ route('bankrec.print', $s) }}" target="_blank" id="printBrs"><x-icon name="print"/> Reconciliation statement</a>
 @if($draft && can_do('bankrec.approve'))<form method="post" action="{{ route('bankrec.finalise', $s) }}" class="inline" data-confirm="Finalise {{ $s->statement_no }}? The statement and its matches are locked.">@csrf<button class="btn btn-success" id="finaliseBtn" @disabled($blockers) title="{{ $blockers ? implode(' ', $blockers) : '' }}"><x-icon name="check"/> Finalise</button></form>@endif
 @if(! $draft && $isLatest && can_do('bankrec.approve'))<button class="btn" data-modal="reopenModal" id="reopenBtn"><x-icon name="edit"/> Reopen</button>@endif
