@@ -35,6 +35,95 @@ const DEV_HOTEL = process.env.PMS_DEV_HOTEL ?? 'NOWILLS';
 const DEV_HOME = process.env.PMS_DEV_HOME ?? '/reservations';
 let devCookies = null;
 
+// ── /__dev — development changes index ────────────────────────────────────
+// Standing workflow: EVERY development change is recorded here with deep
+// links to the screens where it can be seen in the live preview. Newest
+// first. A small "dev changes" chip is injected into previewed pages so
+// this index is always one click away.
+const DEV_CHANGES = [
+  {
+    title: 'Preview delivery system',
+    detail: 'Live preview auto-signs in and lands on the app; pages ship styled (inline CSS); iframe-embeddable; this changes index.',
+    screens: [
+      ['Development changes index', '/__dev'],
+      ['Reservation desk (preview home)', '/reservations'],
+    ],
+  },
+  {
+    title: 'v7.36 — Live PABX capture',
+    detail: 'pms:pbx:listen streams SMDR call records from the PABX (connect + listen modes) via a TCP driver, with command-link templates and a link test.',
+    screens: [
+      ['Interfaces › PABX settings', '/interfaces'],
+      ['Call accounting records', '/calls'],
+    ],
+  },
+  {
+    title: 'v7.35 — Data migration & cutover toolkit',
+    detail: 'Upload → validate → apply legacy data (companies, guests, employees, rooms, reservations) with dry-run, per-row errors, and CSV templates.',
+    screens: [['Settings › Data migration', '/settings/migration']],
+  },
+];
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function devChangesPage() {
+  let commits = '';
+  try {
+    const g = Bun.spawnSync(['git', '-C', REPO_ROOT, 'log', '--oneline', '-25'], { stdout: 'pipe' });
+    commits = new TextDecoder().decode(g.stdout ?? new Uint8Array())
+      .trim().split('\n').filter(Boolean)
+      .map((l) => {
+        const m = /^([0-9a-f]{7,40})\s+(.*)$/.exec(l);
+        return m ? `<li><code>${m[1]}</code> ${esc(m[2])}</li>` : `<li>${esc(l)}</li>`;
+      }).join('\n');
+  } catch {
+    commits = '<li>git log unavailable</li>';
+  }
+  const cards = DEV_CHANGES.map(
+    (c) => `<article class="card"><h2>${esc(c.title)}</h2><p>${esc(c.detail)}</p>
+      <p class="links">${c.screens.map(([label, path]) => `<a class="btn" href="${esc(path)}">${esc(label)}</a>`).join('')}</p></article>`
+  ).join('\n');
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nowills PMS — development changes</title><style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 14px/1.55 system-ui, sans-serif; background: #0b1220; color: #e6edf7; }
+  header { padding: 22px 26px 10px; border-bottom: 1px solid #1d2a44; }
+  h1 { margin: 0 0 4px; font-size: 19px; }
+  .sub { color: #8db9ff; margin: 0; }
+  main { padding: 18px 26px 40px; max-width: 880px; }
+  .card { background: #111b2e; border: 1px solid #1d2a44; border-radius: 10px; padding: 14px 16px; margin: 0 0 14px; }
+  .card h2 { margin: 0 0 6px; font-size: 15px; color: #bcd6ff; }
+  .card p { margin: 0 0 10px; color: #aebdd4; }
+  .links a.btn { display: inline-block; margin: 0 8px 8px 0; padding: 7px 12px; background: #1b64f2; color: #fff;
+    border-radius: 7px; text-decoration: none; font-weight: 600; font-size: 13px; }
+  .links a.btn:hover { background: #2c74ff; }
+  h3 { margin: 22px 0 8px; font-size: 14px; color: #8db9ff; }
+  ul { margin: 0; padding-left: 20px; color: #9fb0c8; }
+  li code { color: #7dd3fc; }
+  footer { padding: 0 26px 30px; color: #5b6b85; font-size: 12px; }
+</style></head><body>
+<header><h1>Development changes</h1>
+  <p class="sub">Every development change, with deep links to see it in the live app.</p></header>
+<main>
+${cards}
+  <h3>Recent commits</h3>
+  <ul>
+${commits}
+  </ul>
+</main>
+<footer>Preview server · <a href="${DEV_HOME}" style="color:#8db9ff">open the app</a> · disable auto-login with PMS_DEV_AUTOLOGIN=0</footer>
+</body></html>`,
+    { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' } }
+  );
+}
+
+// Persistent corner chip on previewed app pages → the changes index above.
+const DEV_CHIP = `<a href="/__dev" style="position:fixed;right:12px;bottom:12px;z-index:2147483647;padding:7px 12px;border-radius:999px;background:#1b64f2;color:#fff;font:600 12px/1 system-ui,sans-serif;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.35);opacity:.92">⚡ dev changes</a>`;
+
 async function phpRequest(method, path, { cookies = '', body = null, host = `localhost:${PORT}` } = {}) {
   await phpReady;
   const enc = body ? new TextEncoder().encode(body) : new Uint8Array(0);
@@ -230,6 +319,9 @@ const server = Bun.serve({
       return Response.redirect(target.toString(), 302);
     }
 
+    // Development changes index (dev server only — not part of the product).
+    if (url.pathname === '/__dev') return devChangesPage();
+
     // Static files (mirrors the rewrite rules in public/.htaccess).
     if (method === 'GET' || method === 'HEAD') {
       const f = hostFileFor(url.pathname);
@@ -288,7 +380,10 @@ const server = Bun.serve({
       // Inline the stylesheets so the page is styled even when subresource
       // fetches are blocked (sandboxed iframes / strict CSP on the preview side).
       if (body && (head.get('content-type') ?? '').toLowerCase().includes('text/html')) {
-        const html = await inlineStylesheets(new TextDecoder().decode(resp.bytes));
+        let html = await inlineStylesheets(new TextDecoder().decode(resp.bytes));
+        if (DEV_LOGIN && !html.includes('/__dev')) {
+          html = html.replace(/<\/body>/i, `${DEV_CHIP}</body>`);
+        }
         head.delete('content-length');
         head.delete('transfer-encoding');
         body = new TextEncoder().encode(html);
