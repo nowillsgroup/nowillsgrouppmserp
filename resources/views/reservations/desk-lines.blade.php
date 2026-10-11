@@ -26,7 +26,7 @@
         <td class="nowrap">{{ $s->arrival_date->format('d M') }} – {{ $s->departure_date->format('d M') }}</td>
         <td>{!! status_badge($s->status) !!}</td>
         <td class="nowrap">
-          <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Open</a>
+          <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a>
           @if($mode === 'arrival' && $s->status === 'reserved' && $s->room_id && can_do('frontdesk.checkin'))
             <a class="btn btn-sm btn-primary" href="{{ route('frontdesk.checkin', $s) }}">Check in</a>
           @endif

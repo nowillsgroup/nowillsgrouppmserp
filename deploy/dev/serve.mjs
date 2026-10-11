@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'UI — reservation desk: Details drawer removed',
+    detail: 'The fixed Details panel that overlaid the reservation desk is removed (it rendered on top of the page). Stay and room clicks now open the full record page directly.',
+    screens: [['Reservation desk', '/reservations']],
+  },
+  {
     title: 'v7.37 — Mobile Money collections (request-to-pay)',
     detail: 'Split settlements just got automated MoMo: send a payment prompt to the guest phone (MTN/Telecel/AirtelTigo), the payment posts to the folio on approval via webhook or Check status. Webhook loop proven against the sandbox provider simulator (auto-posted folio transaction).',
     screens: [

@@ -177,7 +177,7 @@
       <div class="loose">
         <strong>Unassigned in this window</strong>
         @foreach($loose as $s)
-          <a href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">{{ $s->reservation->reservation_no }} {{ $s->reservation->guest->full_name }} · {{ $s->roomType->code }} · {{ $s->arrival_date->format('d M') }}</a>
+          <a href="{{ route('reservations.stay', $s) }}">{{ $s->reservation->reservation_no }} {{ $s->reservation->guest->full_name }} · {{ $s->roomType->code }} · {{ $s->arrival_date->format('d M') }}</a>
         @endforeach
       </div>
     @endif
@@ -196,7 +196,7 @@
             $names = \App\Services\ReservationDeskService::amenityNames($room);
           @endphp
           <div class="room-row {{ $room->status }}" data-room="{{ $room->id }}" style="--days:{{ $days }}">
-            <a class="room-label" href="{{ route('reservations.room', $room) }}" data-drawer="{{ route('reservations.room', $room) }}">
+            <a class="room-label" href="{{ route('reservations.room', $room) }}">
               @if($photo)<img src="{{ asset($photo->path) }}" alt="">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
               <span>
                 <b>{{ $room->room_no }}</b>
@@ -221,7 +221,7 @@
                   if ($flag && $flag['balance'] > 0.009) $marks .= ' · balance '.money($flag['balance']);
                   if ($s->reservation->special_request) $marks .= ' · request';
                 @endphp
-                <a class="stay-bar {{ $cls }}" draggable="{{ $s->status !== 'checked_out' && (can_do('frontdesk.roommove') || can_do('reservations.edit')) ? 'true' : 'false' }}" data-stay="{{ $s->id }}" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}" style="grid-column: {{ $offset + 2 }} / span {{ $len }}" title="{{ $s->reservation->guest->full_name }} · {{ $s->reservation->reservation_no }} · {{ $marks }}">
+                <a class="stay-bar {{ $cls }}" draggable="{{ $s->status !== 'checked_out' && (can_do('frontdesk.roommove') || can_do('reservations.edit')) ? 'true' : 'false' }}" data-stay="{{ $s->id }}" href="{{ route('reservations.stay', $s) }}" style="grid-column: {{ $offset + 2 }} / span {{ $len }}" title="{{ $s->reservation->guest->full_name }} · {{ $s->reservation->reservation_no }} · {{ $marks }}">
                   <b>{{ $s->reservation->guest->full_name }}</b>
                   <small>{{ $barLabel }} · {{ money($s->rate) }}{{ $s->reservation->special_request ? ' · request' : '' }}{{ $flag && $flag['deposit'] !== 'none' ? ' · dep' : '' }}</small>
                 </a>
@@ -249,7 +249,7 @@
               $occ = ($byRoom[$room->id] ?? collect())->first(fn ($s) => $s->status === 'checked_in') ?? ($byRoom[$room->id] ?? collect())->first();
               $photo = \App\Services\ReservationDeskService::photo($room);
             @endphp
-            <a class="board-card {{ $room->status }} {{ $room->hk_status }}" href="{{ route('reservations.room', $room) }}" data-drawer="{{ route('reservations.room', $room) }}">
+            <a class="board-card {{ $room->status }} {{ $room->hk_status }}" href="{{ route('reservations.room', $room) }}">
               @if($photo)<img src="{{ asset($photo->path) }}" alt="{{ $photo->caption ?: 'Room '.$room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
               <b>{{ $room->room_no }}</b>
               <span>{{ $room->roomType->code }} · {{ ucfirst(str_replace('_', ' ', $room->hk_status)) }}</span>
@@ -302,7 +302,7 @@
             <td>{!! status_badge($r->status) !!}</td>
             <td class="nowrap">
               @php $openStay = $r->rooms->first(fn ($s) => in_array($s->status, ['reserved', 'checked_in'], true)); @endphp
-              @if($openStay)<a class="btn btn-sm" href="{{ route('reservations.stay', $openStay) }}" data-drawer="{{ route('reservations.stay', $openStay) }}">Open</a>@endif
+              @if($openStay)<a class="btn btn-sm" href="{{ route('reservations.stay', $openStay) }}">Open</a>@endif
               <a class="btn btn-sm" href="{{ route('reservations.show', $r) }}"><x-icon name="eye" size="sm"/></a>
             </td>
           </tr>
@@ -416,10 +416,6 @@
     @endforeach
   </nav>
 </div>
-<aside id="drawer" class="drawer" hidden>
-  <div class="drawer-bar"><strong>Details</strong><button type="button" id="drawer-close" class="btn btn-sm">Close</button></div>
-  <div id="drawer-body" class="drawer-body"></div>
-</aside>
 @endsection
 @push('head')
 <style>
@@ -481,10 +477,6 @@
 .board-card.out_of_order,.board-card.out_of_service{background:#fef2f2}
 .board-card.dirty{box-shadow:inset 0 -3px 0 #f59e0b}
 .board-card em{font-style:normal;font-size:.75rem;color:var(--c-text-2)}
-.drawer{position:fixed;top:0;right:0;height:100vh;width:min(440px,100%);background:#fff;z-index:60;box-shadow:-12px 0 40px rgba(15,23,42,.18);display:flex;flex-direction:column}
-.desk.dark .drawer,.desk.dark .drawer-body,body.dark .drawer,body.dark .drawer-body{background:#132033;color:#e8eef8}
-.drawer-bar{display:flex;justify-content:space-between;align-items:center;padding:.7rem .9rem;background:var(--navy);color:#fff}
-.drawer-body{overflow:auto;padding:1rem}
 .desk-form{margin:.8rem 0;padding-top:.6rem;border-top:1px solid var(--c-border)}
 .desk-form h3{font-size:.9rem;margin-bottom:.35rem}
 .desk-toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#0b1b3a;color:#fff;padding:.6rem 1rem;border-radius:10px;z-index:70}
@@ -514,14 +506,13 @@
 }
 @media(max-width:900px){
   .kpi-group{grid-template-columns:1fr}
-  .drawer{width:100%}
   .room-label{width:140px}
   .tape-head,.room-row{grid-template-columns:140px repeat(var(--days),minmax(var(--day),1fr))}
   .desk{padding-bottom:3.2rem}
   .mobile-tabs{display:flex}
 }
 @media print{
-  .sidebar,.topbar,.mobile-tabs,.drawer,.desk-toast,.desk-head .btn,#print-btn{display:none !important}
+  .sidebar,.topbar,.mobile-tabs,.desk-toast,.desk-head .btn,#print-btn{display:none !important}
   .main{margin:0}
   .desk{box-shadow:none;border:0}
 }
@@ -546,26 +537,10 @@
 <script>
 (function () {
   const desk = document.getElementById('desk');
-  const drawer = document.getElementById('drawer');
-  const body = document.getElementById('drawer-body');
   const toast = document.getElementById('desk-toast');
   const dropUrl = @json(route('frontdesk.tapechart.drop'));
   const csrf = @json(csrf_token());
   function say(msg) { toast.hidden = false; toast.textContent = msg; setTimeout(() => toast.hidden = true, 5000); }
-  function openCard(url) {
-    drawer.hidden = false;
-    body.innerHTML = '<p class="muted">Loading the live record…</p>';
-    const sep = url.indexOf('?') >= 0 ? '&' : '?';
-    fetch(url + sep + 'partial=1', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
-      .then(r => { if (!r.ok) throw new Error('refused'); return r.text(); })
-      .then(html => { body.innerHTML = html; })
-      .catch(() => { body.innerHTML = '<p>Could not open the panel. <a href="' + url + '">Open the full page</a>.</p>'; });
-  }
-  document.querySelectorAll('[data-drawer]').forEach(el => {
-    el.addEventListener('click', e => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); openCard(el.getAttribute('data-drawer')); });
-  });
-  document.getElementById('drawer-close').addEventListener('click', () => { drawer.hidden = true; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') drawer.hidden = true; });
   let stayId = null;
   document.querySelectorAll('.stay-bar[draggable="true"]').forEach(bar => {
     bar.addEventListener('dragstart', e => { stayId = bar.dataset.stay; e.dataTransfer.setData('text/plain', stayId); });

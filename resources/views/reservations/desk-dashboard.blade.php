@@ -28,7 +28,7 @@
   <div class="card-body" style="padding-top:.4rem">
     <div class="room-strip">
       @foreach($rooms as $room)
-        <a class="room-thumb {{ $room->status }}" href="{{ route('reservations.room', $room) }}" data-drawer="{{ route('reservations.room', $room) }}" title="{{ $room->room_no }} · {{ ucwords(str_replace('_', ' ', $room->status)) }} · {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}">
+        <a class="room-thumb {{ $room->status }}" href="{{ route('reservations.room', $room) }}" title="{{ $room->room_no }} · {{ ucwords(str_replace('_', ' ', $room->status)) }} · {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}">
           @if($photoByRoom[$room->id] ?? null)<img src="{{ asset($photoByRoom[$room->id]->path) }}" alt="Room {{ $room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
           <span class="rt-no">{{ $room->room_no }}</span>
         </a>
@@ -90,7 +90,7 @@
         @forelse($lateArrivals->take(6) as $s)
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>@if($s->reservation->guest->is_vip) <span class="badge badge-purple">VIP</span>@endif
             <div class="tiny muted">{{ $s->reservation->reservation_no }} · ETA {{ substr((string) $s->reservation->eta, 0, 5) }} · {{ $s->room->room_no ?? 'Unassigned' }}</div></div>
-            <div class="flex gap-1"><a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Open</a>
+            <div class="flex gap-1"><a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a>
             @if($s->room_id && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}">Check in</a>@endif</div></li>
         @empty
           <li class="muted">No arrivals past their ETA.</li>
@@ -111,7 +111,7 @@
           @php $eta = $s->reservation->eta ? substr((string) $s->reservation->eta, 0, 5) : '—'; @endphp
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>@if($s->reservation->guest->is_vip) <span class="badge badge-purple">VIP</span>@endif
             <div class="tiny muted">{{ $s->reservation->reservation_no }} · @if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]->path) }}" alt="">@endif {{ $s->room->room_no ?? 'Unassigned' }} · ETA {{ $eta }} · {{ \App\Services\StayService::checkInReady($s) }}</div></div>
-            <div class="flex gap-1"><a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Open</a>
+            <div class="flex gap-1"><a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a>
             @if($s->status === 'reserved' && $s->room_id && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}">Check in</a>@endif</div></li>
         @empty
           <li class="muted">No arrivals on file for this date.</li>
@@ -164,7 +164,7 @@
       <ul class="list">
         @forelse($unassigned->take(8) as $s)
           <li><div><b>{{ $s->reservation->guest->full_name }}</b><div class="tiny muted">{{ $s->reservation->reservation_no }} · {{ $s->roomType->name }} · arrives {{ $s->arrival_date->format('d M Y') }}</div></div>
-            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Assign</a></li>
+            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Assign</a></li>
         @empty
           <li class="muted">Every reserved stay has a room.</li>
         @endforelse
@@ -194,7 +194,7 @@
         @forelse($compStays as $s)
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>
             <div class="tiny muted">{{ $s->room->room_no ?? 'Unassigned' }} · {{ \App\Services\ReservationDeskService::stayLabel($s, $date) }}</div></div>
-            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Open</a></li>
+            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a></li>
         @empty
           <li class="muted">No complimentary or house-use stays tonight.</li>
         @endforelse
@@ -246,7 +246,7 @@
         @forelse($vipArrivals as $s)
           <li><div><b>{{ $s->reservation->guest->full_name }}</b> <span class="badge badge-purple">VIP</span>
             <div class="tiny muted">{{ $s->reservation->reservation_no }} · {{ $s->arrival_date->format('d M Y') }} · {{ $s->room->room_no ?? 'Unassigned' }}@if($s->reservation->eta) · ETA {{ substr((string) $s->reservation->eta, 0, 5) }} @endif</div></div>
-            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" data-drawer="{{ route('reservations.stay', $s) }}">Open</a></li>
+            <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a></li>
         @empty
           <li class="muted">No VIP arrivals in the next 7 days.</li>
         @endforelse
