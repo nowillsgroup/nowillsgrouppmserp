@@ -601,6 +601,11 @@ return [
                 ['label' => 'Day Passes', 'route' => 'club.passes', 'perm' => 'club.view'],
                 ['label' => 'Plans & Settings', 'route' => 'club.plans', 'perm' => 'club.view'],
             ]],
+            ['label' => 'Recreation Outlet', 'icon' => 'spa', 'children' => [ // v7.38 POS ticketing for walk-ins
+                ['label' => 'Ticket Outlet', 'route' => 'recreation.outlet', 'perm' => 'club.desk'],
+                ['label' => 'Ticket Sales', 'route' => 'recreation.sales', 'perm' => 'club.view'],
+                ['label' => 'Ticket Types', 'route' => 'recreation.types', 'perm' => 'club.manage'],
+            ]],
             ['label' => 'Spa & Activities', 'icon' => 'spa', 'children' => [
                 ['label' => 'Appointments', 'route' => 'spa.index', 'perm' => 'spa.view'],
                 ['label' => 'Services & Activities', 'route' => 'masters.index', 'params' => ['spa-services'], 'perm' => 'masters.manage'],

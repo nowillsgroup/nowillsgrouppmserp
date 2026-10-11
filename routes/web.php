@@ -2705,6 +2705,20 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         });
     });
 
+    // ---- v7.38 Recreation ticketing (POS-style outlet, Wellness & Recreation)
+    Route::prefix('recreation')->name('recreation.')->group(function () {
+        Route::controller(Controllers\RecreationController::class)->group(function () {
+            Route::get('/outlet', 'outlet')->middleware('perm:club.desk')->name('outlet');
+            Route::post('/outlet/sell', 'sell')->middleware('perm:club.desk')->name('sell');
+            Route::get('/sales', 'sales')->middleware('perm:club.view')->name('sales');
+            Route::get('/sales/{sale}/receipt', 'receipt')->middleware('perm:club.view')->name('receipt');
+            Route::post('/sales/{sale}/void', 'void')->middleware('perm:club.manage')->name('void');
+            Route::get('/types', 'types')->middleware('perm:club.manage')->name('types');
+            Route::post('/types', 'saveType')->middleware('perm:club.manage')->name('types.store');
+            Route::put('/types/{type}', 'saveType')->middleware('perm:club.manage')->name('types.update');
+        });
+    });
+
     // ---- v5.3 Income Audit & Revenue Integrity
     Route::prefix('income-audit')->name('audit.')->group(function () {
         Route::controller(Controllers\IncomeAuditController::class)->group(function () {
