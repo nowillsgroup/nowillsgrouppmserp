@@ -43,8 +43,8 @@ let devCookies = null;
 const DEV_CHANGES = [
   {
     title: 'Recreation — POS ticket outlet (walk-ins) + memberships kept',
-    detail: 'Wellness & Recreation gains a full Recreation Outlet: POS-style till with ticket-type catalog (access tickets, rentals, services), split-tender payments (cash/card/MoMo/room/company), and printed entry tickets that ride the existing day-pass check-in. Club membership, billing, classes and the check-in desk are untouched — members scan membership, walk-ins buy tickets.',
-    screens: [['Ticket outlet (POS)', '/recreation/outlet'], ['Ticket sales', '/recreation/sales'], ['Ticket types', '/recreation/types'], ['Check-in desk', '/club/desk'], ['Members (kept)', '/club/members']],
+    detail: 'Wellness & Recreation gains a full Recreation Outlet: POS-style till with ticket-type catalog (access tickets, rentals, services), split-tender payments (cash/card/MoMo/room/company), and printed entry tickets redeemed at the the new Walk-in Ticket panel on the check-in desk (scan the code on the receipt). Club membership, billing, classes and the check-in desk are untouched — members scan membership, walk-ins buy tickets.',
+    screens: [['Ticket outlet (POS)', '/recreation/outlet'], ['Ticket sales', '/recreation/sales'], ['Ticket types', '/recreation/types'], ['Check-in desk + ticket scan', '/club/desk'], ['Members (kept)', '/club/members']],
   },
   {
     title: 'UI — reservation desk: Details drawer removed',

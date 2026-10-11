@@ -2654,6 +2654,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/desk/check-in', 'checkIn')->middleware('perm:club.desk')->name('checkin');
             Route::post('/desk/guest', 'guest')->middleware('perm:club.desk')->name('guest');
             Route::post('/desk/resident', 'resident')->middleware('perm:club.desk')->name('resident');
+            Route::post('/desk/ticket', 'ticket')->middleware('perm:club.desk')->name('ticket');
             Route::post('/visits/{clubvisit}/check-out', 'checkOut')->middleware('perm:club.desk')->name('checkout');
             Route::get('/visits', 'visits')->middleware('perm:club.view')->name('visits');
             Route::get('/members', 'members')->middleware('perm:club.view')->name('members');

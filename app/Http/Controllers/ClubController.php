@@ -126,6 +126,25 @@ class ClubController extends Controller
             fn ($v) => "{$v->name} checked in at the ".strtolower(ClubPlan::FACILITIES[$v->facility]).($v->pax > 1 ? " ({$v->pax} people)" : '').'.');
     }
 
+    /** v7.38 Walk-in ticket redemption — scan / type the code printed on the outlet receipt. */
+    public function ticket(Request $request)
+    {
+        $d = $request->validate(['code' => 'required|string|max:20', 'facility' => ['required', Rule::in(array_keys(ClubPlan::FACILITIES))], 'override' => 'nullable|string|max:200']);
+        $pass = ClubDayPass::where('pass_no', strtoupper(trim($d['code'])))->first();
+        if (! $pass) {
+            return back()->with('error', 'No ticket or pass with that code.');
+        }
+
+        try {
+            $v = ClubService::checkInPass($pass, $d['facility'], $request->user(), $d['override'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('club.desk', ['facility' => $d['facility']])
+            ->with('success', "Ticket {$pass->pass_no} ({$pass->name}, {$v->pax} pax) checked in at the ".strtolower(ClubPlan::FACILITIES[$v->facility]).'.');
+    }
+
     public function checkOut(ClubVisit $clubvisit)
     {
         return $this->attempt(fn () => ClubService::checkOut($clubvisit), "{$clubvisit->name} checked out.");

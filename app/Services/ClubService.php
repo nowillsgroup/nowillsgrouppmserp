@@ -675,6 +675,44 @@ class ClubService
         $v->update(['checked_out_at' => $at ?? now()]);
     }
 
+    // ───────────────────────── ticket redemption ─────────────────────────
+
+    /**
+     * v7.38 Check in a walk-in on a ticket / day pass sold at the recreation outlet or the desk.
+     * Members use their card as before; walk-ins scan the ticket code from the receipt.
+     */
+    public static function checkInPass(ClubDayPass $pass, string $facility, ?User $u = null, ?string $override = null, ?Carbon $at = null): ClubVisit
+    {
+        if ($pass->cancelled_at) {
+            throw new RuntimeException("Ticket {$pass->pass_no} is cancelled.");
+        }
+        if ($pass->date->toDateString() !== self::today()) {
+            throw new RuntimeException("Ticket {$pass->pass_no} is for {$pass->date->format('d M Y')} — not today.");
+        }
+        if (self::openVisits()->where('club_day_pass_id', $pass->id)->exists()) {
+            throw new RuntimeException("Ticket {$pass->pass_no} is already checked in — look under “In now”.");
+        }
+        if (! array_key_exists($facility, ClubPlan::FACILITIES)) {
+            throw new RuntimeException('Choose a facility.');
+        }
+        $pax = (int) $pass->adults + (int) $pass->children;
+        $no = [];
+        $occ = self::occupancy()[$facility];
+        if ($occ['cap'] > 0 && $occ['in'] + $pax > $occ['cap']) {
+            $no[] = ClubPlan::FACILITIES[$facility]." is full ({$occ['in']}/{$occ['cap']}).";
+        }
+        $attrs = ['visitor_type' => 'day_pass', 'club_day_pass_id' => $pass->id, 'host_member_id' => $pass->host_member_id,
+            'name' => $pass->name, 'facility' => $facility, 'pax' => $pax];
+        if ($no && (! $override || ! $u?->hasPermission('club.manage'))) {
+            self::denied($attrs, $no, $u);
+        }
+        $v = ClubVisit::create(array_merge($attrs, ['checked_in_at' => $at ?? now(), 'user_id' => $u?->id,
+            'override_reason' => $no ? mb_substr(trim($override), 0, 200) : null, 'override_by' => $no ? $u?->id : null]));
+        ActivityLogger::log('club', 'ticket_checkin', "Ticket {$pass->pass_no} – {$pass->name} ({$pax} pax) checked in at the ".strtolower(ClubPlan::FACILITIES[$facility]), $v);
+
+        return $v;
+    }
+
     // ───────────────────────── day passes ─────────────────────────
 
     /**

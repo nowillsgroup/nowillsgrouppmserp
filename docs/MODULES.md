@@ -10,8 +10,8 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **52** | modules |
-| **359** | pages |
+| **53** | modules |
+| **363** | pages |
 
 ---
 
@@ -139,10 +139,12 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Wellness & Recreation
 
-`OPERATIONS` section · **2 modules**
+`OPERATIONS` section · **3 modules**
 
 - **Health Club** — 7 pages
   - Club Dashboard · Check-in Desk · Members · Billing & Renewals · Class Timetable · Day Passes · Plans & Settings
+- **Recreation Outlet** — 4 pages · v7.38
+  - Ticket Outlet · Ticket Sales · Ticket Types · Sale Receipt (POS ticketing for walk-ins; memberships untouched)
 - **Spa & Activities** — 3 pages
   - Appointments · Services & Activities · Treatment Rooms
 
