@@ -44,7 +44,7 @@ const DEV_CHANGES = [
   {
     title: 'Tax settings — price entry: tax-inclusive or tax-exclusive',
     detail: 'GST & Tax → Settings gains a Price entry switch: tax-exclusive (prices net of tax, tax added at the till — the default, nothing changes) or tax-inclusive (VAT/NHIL/GETFund/Tourism Levy extracted from the price). POS, the recreation outlet, club day passes and membership charges all honour it; room rates keep their per-rate-plan flag.',
-    screens: [['Tax settings (Price entry)', '/gst/settings'], ['Recreation outlet', '/recreation/outlet'], ['Club day passes', '/club/passes']],
+    screens: [['Tax settings (Price entry)', '/vat/settings'], ['Recreation outlet', '/recreation/outlet'], ['Club day passes', '/club/passes']],
   },
   {
     title: 'Recreation accounting — counter takings in GL & day close (v7.38.0)',
