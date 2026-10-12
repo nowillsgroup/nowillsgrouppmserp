@@ -2,7 +2,8 @@
 @section('title', 'Reservation Workspace')
 
 @section('actions')
-<a class="btn" href="{{ route('reservations.daysummary') }}"><x-icon name="chart"/> Reports</a>
+<a class="btn" href="{{ route('reservations.workspace.report') }}" target="_blank"><x-icon name="chart"/> Reports</a>
+<a class="btn btn-ghost" href="{{ route('reservations.daysummary') }}">Day summary</a>
 <a class="btn btn-primary" href="{{ route('frontdesk.walkin') }}" style="background:#16a34a"><x-icon name="login"/> Walk-In</a>
 <a class="btn" href="{{ route('blocks.create') }}" style="background:#2563eb;color:#fff"><x-icon name="users"/> Group</a>
 <a class="btn" href="{{ route('reservations.create') }}" style="background:#7c3aed;color:#fff"><x-icon name="building"/> Corporate</a>

@@ -14,4 +14,12 @@ class ReservationWorkspaceController extends Controller
 
         return view('reservations.workspace', $snap);
     }
+
+    /** v7.41 — the printable Day Report for the workspace board. */
+    public function report()
+    {
+        $snap = ReservationWorkspaceService::snapshot(Carbon::today());
+
+        return view('reservations.workspace-report', $snap);
+    }
 }

@@ -742,6 +742,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('reservations')->name('reservations.')->controller(Controllers\ReservationController::class)->group(function () {
         // v7.41 Reservation Workspace — the room board
         Route::get('/workspace', [Controllers\ReservationWorkspaceController::class, 'index'])->middleware('perm:reservations.view')->name('workspace');
+        Route::get('/workspace/report', [Controllers\ReservationWorkspaceController::class, 'report'])->middleware('perm:reservations.view')->name('workspace.report');
         Route::get('/', 'index')->middleware('perm:reservations.view')->name('index');
         Route::get('/availability', 'availability')->middleware('perm:reservations.view')->name('availability');
         Route::get('/api/rates', 'apiRates')->middleware('perm:reservations.view')->name('api.rates');
