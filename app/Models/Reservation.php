@@ -82,6 +82,11 @@ class Reservation extends Model
         return $this->belongsTo(MarketingJourney::class, 'journey_id');
     }
 
+    public function businessSource()
+    {
+        return $this->belongsTo(BusinessSource::class);
+    }
+
     public function guest()
     {
         return $this->belongsTo(Guest::class);

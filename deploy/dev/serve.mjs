@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Reservation Workspace — room board sub-module (new)',
+    detail: 'A workspace under Reservations, placed before New Reservation in the side menu: a 9-tile KPI strip with sparklines (occupancy, revenue today, available/occupied/reserved, arrivals, departures, in-house, VIP), a room board with photo cards (status, arriving-today tag, stay panel with guest, source, dates, rate and running balance, or the rack rate with Reserve Room), live filters (room status / type / floor / source), and a right rail (mini calendar with arrival and departure dots, room status summary, todays arrivals and departures, VIP guests, waiting list, housekeeping). Every room opens a detail modal with room facts, the current reservation, facilities chips and 16 quick actions wired to the real front-desk, folio, GRC and messaging flows. Buttons: Walk-In, Group, Corporate, OTA.',
+    screens: [['Reservation Workspace', '/reservations/workspace'], ['Side menu: Reservations > Reservation Workspace', '/Dashboard']],
+  },
+  {
     title: 'Dashboard: amenity filter tabs removed',
     detail: 'The Amenity filter card (AC, Bathtub, City view, Dining area, Jacuzzi, Living area, Lounge access, Minibar, Private butler, Smart TV, Tea/Coffee maker, TV) is removed from the dashboard entirely — the quick links that jumped to the reservations timeline with an amenity preset are gone; the timeline amenity dropdown in the reservations filter itself is unchanged.',
     screens: [['Dashboard', '/Dashboard'], ['Reservations timeline (amenity dropdown still here)', '/reservations?view=timeline']],

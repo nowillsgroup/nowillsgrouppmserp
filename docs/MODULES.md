@@ -11,7 +11,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 | **5** | sections |
 | **12** | top-level groups |
 | **54** | modules |
-| **370** | pages |
+| **371** | pages |
 
 ---
 
@@ -34,8 +34,8 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
   - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync (Offline Mode)
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
-- **Reservations** — 7 pages
-  - New Reservation · Reservation List · Availability · Group Blocks · Rate Calendar · Channel Manager · iCal Feeds
+- **Reservations** — 8 pages
+  - Reservation Workspace · New Reservation · Reservation List · Availability · Group Blocks · Rate Calendar · Channel Manager · iCal Feeds
 - **Central Reservations** — 6 pages
   - CRO Desk · Enquiries · Guest Lookup · Lost Business · CRO Performance · CRO Settings
 - **Concierge** — 6 pages
