@@ -10,8 +10,8 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **53** | modules |
-| **368** | pages |
+| **54** | modules |
+| **370** | pages |
 
 ---
 
@@ -88,6 +88,11 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
   - Cash Position · Banking & Transfers · Cheque Registers · 13-week Cash Forecast · Cash-flow Statement · Bank Accounts
 - **Owner Reporting** — 6 pages
   - Owner Dashboard · USALI Statement · Monthly Owner Packs · Management Fees · FF&E Reserve & Capex · Agreement & Mapping
+
+### Car Rental (`OPERATIONS`)
+
+- **Car Rental** — 2 pages
+  - Rental Desk · Rental Fleet
 
 ## Housekeeping & Laundry
 

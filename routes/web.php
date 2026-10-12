@@ -1690,6 +1690,21 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/count/{pcount}/approve', 'approveCount')->whereNumber('pcount')->middleware('perm:petty.approve')->name('count.approve');
         Route::post('/count/{pcount}/reject', 'rejectCount')->whereNumber('pcount')->middleware('perm:petty.approve')->name('count.reject');
     });
+    // v7.40 Car Rental — self-drive fleet + booking desk
+    Route::prefix('rentals')->name('rentals.')->controller(Controllers\RentalController::class)->group(function () {
+        Route::get('/', 'index')->middleware('perm:rentals.view')->name('index');
+        Route::get('/fleet', 'fleet')->middleware('perm:rentals.view')->name('fleet');
+        Route::middleware('perm:rentals.manage')->group(function () {
+            Route::post('/', 'store')->name('store');
+            Route::post('/vehicles', 'vehicleStore')->name('vehicles.store');
+            Route::post('/vehicles/{vehicle}', 'vehicleUpdate')->whereNumber('vehicle')->name('vehicles.update');
+            Route::post('/{rental}/pickup', 'pickup')->whereNumber('rental')->name('pickup');
+            Route::post('/{rental}/return', 'return')->whereNumber('rental')->name('return');
+            Route::post('/{rental}/cancel', 'cancel')->whereNumber('rental')->name('cancel');
+            Route::post('/{rental}/bill', 'bill')->whereNumber('rental')->name('bill');
+        });
+    });
+
     Route::prefix('accounts/expense-claims')->name('claims.')->controller(Controllers\ExpenseClaimController::class)->middleware('perm:claims.submit,claims.approve,claims.pay')->group(function () {
         Route::get('/', 'index')->middleware('perm:claims.approve,claims.pay')->name('index');
         Route::get('/mine', 'mine')->name('mine');

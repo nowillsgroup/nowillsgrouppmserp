@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Car Rental — self-drive fleet and booking desk (new module)',
+    detail: 'A first-class car rental module: rental fleet with classes, rates and deposits; bookings with clash detection per vehicle and weekly-rate pricing; the desk drives pick-up and return with odometer and tank readings — late returns, tank shortfalls and mileage beyond the free allowance compute automatic adjustments at return; rentals bill straight to an in-house guest folio or settle directly. Permissions rentals.view / rentals.manage.',
+    screens: [['Rental desk', '/rentals'], ['Rental fleet', '/rentals/fleet']],
+  },
+  {
     title: 'Employee self-service: My Profile, My Documents, Announcements + HR review desk',
     detail: 'Staff can now request changes to their own contact, bank and tax details (old vs new kept per field — the employee record updates only after HR approves), upload ID/certificate/contract documents (PDF/JPEG/PNG up to 10 MB) for HR verification, and read pinned staff/department announcements. The HR Self-Service Desk reviews the queue: approve/reject profile requests and documents with notes, publish announcements to staff, a department, or everyone. Every action also notifies by SMS/WhatsApp through the message gateway (profile request and document uploads reach the manager and the HR managers; approvals, rejections and verification results reach the employee) - best-effort, logged when no gateway is configured. Demo link: the preview admin login is linked to employee #2 so the pages open.',
     screens: [['My Profile', '/me/profile'], ['My Documents', '/me/documents'], ['Announcements', '/me/announcements'], ['HR Self-Service Desk', '/hr/ess']],

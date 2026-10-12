@@ -100,6 +100,7 @@ return [
             'club.members' => 'Enrol & edit memberships, card holders & photos, take member payments, renew, freeze', 'club.manage' => 'Plans & club settings, cancel memberships & charges, credit notes, refunds, override entry refusals'], // v5.1
         'Banquet' => ['banquet.view' => 'View events, diary, function sheets (BEO) & proposals', 'banquet.manage' => 'Create & edit events, holds, confirm, lost, cancel, attendance',
             'banquet.billing' => 'Take / refund deposits, bill events, waive cancellation fees', 'banquet.setup' => 'Venues, menu packages, services & banquet settings'],
+        'Car Rental' => ['rentals.view' => 'View the rental desk, fleet and bookings', 'rentals.manage' => 'Book, pick up and return vehicles, edit the fleet, cancel rentals'], // v7.40
         'Inventory' => ['inventory.view' => 'View stock', 'inventory.manage' => 'Purchase / issue / adjust stock'],
         'Food Safety' => ['foodsafety.view' => 'View HACCP records, the allergen matrix and food-safety dashboard', 'foodsafety.record' => 'Record temperatures, complete checklists, log food waste, print prep labels',
             'foodsafety.manage' => 'Equipment & critical limits, checklist templates, allergen declarations, review breaches, sign off checklists, cancel waste', 'foodsafety.certs' => 'Maintain food handler medical / hygiene certificates'], // v5.0

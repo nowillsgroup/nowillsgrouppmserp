@@ -48,18 +48,18 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 - **Grading / guest profiles / billing reconciliation** (`GradingService`, `GuestBillRec`, `FolioRec`) — partially delivered (guest profile exists); billing reconciliation with the old system's richer audit trail needs more.
 
 ### P1 — OTA/channel + integration surface
-- **OTA / channel-manager two-way adapters** — ⚠️ **Gap:** only `hub` + `simulator` drivers; no real OTA source can push or pull yet.
-- **Social media integration (Facebook page posting, WhatsApp Cloud API)** — ⚠️ **Gap:** CRM/campaigns/marketing exist; no social-channel connectors.
-- **Review platform integration (Booking.com, Google, TripAdvisor review inbox)** — ⚠️ **Gap:** internal review inbox + `ReviewService`/`FeedbackService` exist; no external review API connectors.
+- **OTA / channel-manager two-way adapters** — partially closed: `hub`, `simulator`, mirror and **Booking.com EPS** drivers ship (`docs/BOOKING-EPS.md`); other OTAs still driver-less.
+- **Social media integration (Facebook page posting, WhatsApp Cloud API)** — ✅ **Closed:** `SocialPublishService` Graph/Cloud connectors (`docs/SOCIAL-REVIEWS.md`).
+- **Review platform integration (Booking.com, Google, TripAdvisor review inbox)** — ✅ **Closed:** feed pulls into the review inbox (`docs/SOCIAL-REVIEWS.md`).
 - **`DesktopSyncService` + offline mode** — ✅ **Closed this session:** multi-day pack + operation sync + delta refresh (`docs/OFFLINE-DESKTOP.md`).
 
 ### P2 — revenue capture / integrations
-- **Bank account statement feeds** — ⚠️ **Gap:** four bank statement parsers parse but cannot yet import; statement import must still be done via the generic ledger import.
-- **Mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — ⚠️ **Gap:** Treasury+OnlinePayment exist; MoMo is still statement-import/manual.
+- **Bank account statement feeds** — ✅ **Closed:** `BankRecService::import/parse` imports bank + MoMo CSVs with running-balance checks; fee booking in one action.
+- **Mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — ✅ **Closed:** MoMo pay-in + webhook simulation and settlement through bank reconciliation.
 - **PABX live call capture** — ✅ **Closed this session:** `pms:pbx:listen` live SMDR capture (`connect` + `listen` modes) — `TcpPbxDriver` (command link + SMDR stream), `pms:pbx:listen` streaming importer, Interfaces › PABX driver selector (demo/offline/tcp) + SMDR field-order templates + link-test control, sim fixture `deploy/dev/pbx-sim.mjs`, `docs/PBX-ADAPTER.md` protocol spec. *(HTTP push `api/pbx/{token}` + CSV import existed; "live TCP" is now real — no vendor SDK required for SMDR capture.)*
 - **Supplier catalog + purchase order + delivery note + stock + bar/restaurant cost + invoice register** — mostly present (`SupplierService` + `InventoryService` + `PmService` + `FbCostService` + `StockTakeService`); verify multi-currency supplier invoicing parity.
 - **Ticketing / OTA review webhook** — ⚠️ **Gap:** cases (ticketing) exist (`CaseService`); OTA review webhook not implemented.
-- **Rental car / bus / flight / activity booking** — ⚠️ **Gap:** transport/flight/buses exist (airline + bus companies + templates); car rental booking is not a first-class module (TransportService covers transfers).
+- **Rental car / bus / flight / activity booking** — car rental now a first-class module (fleet, bookings, pick-up/return desk with fuel/mileage/late adjustments, folio billing); bus/flight/activity remain template-driven in transport.
 
 ### P3 — hardware / offline
 - **Room telephone PABX, keycard, mini-bar, serial captures** — ⚠️ **Partially covered:** call accounting + PABX + key-card issue/encode + `MiniBarService` + `InterfaceService` exist; key-card **hardware driver** not bundled (needs vendor SDK). *(Lock-card hardware deferred — vendor-specific.)*
