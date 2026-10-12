@@ -42,8 +42,8 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
-    title: 'Reservation Workspace — room board sub-module (new)',
-    detail: 'A workspace under Reservations, placed before New Reservation in the side menu: a 9-tile KPI strip with sparklines (occupancy, revenue today, available/occupied/reserved, arrivals, departures, in-house, VIP), a room board with photo cards (status, arriving-today tag, stay panel with guest, source, dates, rate and running balance, or the rack rate with Reserve Room), live filters (room status / type / floor / source), and a right rail (mini calendar with arrival and departure dots, room status summary, todays arrivals and departures, VIP guests, waiting list, housekeeping). Every room opens a detail modal with room facts, the current reservation, facilities chips and 16 quick actions wired to the real front-desk, folio, GRC and messaging flows. Buttons: Walk-In, Group, Corporate, OTA.',
+    title: 'Reservation Workspace — room board sub-module (new, with room photos & sizes)',
+    detail: 'A workspace under Reservations, placed before New Reservation in the side menu: a 9-tile KPI strip with sparklines (occupancy, revenue today, available/occupied/reserved, arrivals, departures, in-house, VIP), a room board with photo cards (status, arriving-today tag, stay panel with guest, source, dates, rate and running balance, or the rack rate with Reserve Room), live filters (room status / type / floor / source), and a right rail (mini calendar with arrival and departure dots, room status summary, todays arrivals and departures, VIP guests, waiting list, housekeeping). Every room opens a detail modal with room facts, the current reservation, facilities chips and 16 quick actions wired to the real front-desk, folio, GRC and messaging flows. Buttons: Walk-In, Group, Corporate, OTA. Room types now carry size (m²) and a photo (public/images/rooms) — the board photo blocks, the size chip and the modal Room Facts show real values.',
     screens: [['Reservation Workspace', '/reservations/workspace'], ['Side menu: Reservations > Reservation Workspace', '/Dashboard']],
   },
   {

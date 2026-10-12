@@ -87,12 +87,12 @@
           </div>
         </div>
 
-        <div class="ws-photo" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
+        <div class="ws-photo" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%)){{ $room->roomType->image ? ' ,url('.asset($room->roomType->image).') center/cover no-repeat' : '' }}">
           <span class="ws-photo-tag">{{ strtoupper($room->roomType->code ?? $room->roomType->name ?? 'ROOM') }}</span>
           <span class="ws-photo-rate">GH₵{{ number_format($c['rate']) }} <small>/ night</small></span>
         </div>
         <div class="ws-room-meta small muted">
-          <span><x-icon name="home" /> {{ $room->roomType->code ?? '—' }}</span>
+          <span><x-icon name="home" /> {{ $room->roomType->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType->code ?? '—') }}</span>
           <span><x-icon name="user"/> {{ $room->roomType->max_adults ?? 2 }}</span>
           <span><x-icon name="shield"/> {{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
         </div>
@@ -272,13 +272,13 @@
 
 @foreach ($cards as $c)
 @php $room = $c['room']; $stay = $c['stay']; $facts = [
-  ['Size', ($room->roomType->code ?? '—').' class'],
+  ['Size', $room->roomType->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType->code ?? '—')],
   ['Max Occupancy', ($room->roomType->max_adults ?? 2).' guests'],
   ['Configuration', $room->roomType->name ?? '—'],
   ['Smoking', $room->is_smoking ? 'Smoking' : 'Non-Smoking'],
 ]; @endphp
 <div class="modal ws-modal" id="roomModal{{ $room->id }}"><div class="modal-box wide">
-  <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,24%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},26%,38%))">
+  <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,24%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},26%,38%)){{ $room->roomType->image ? ' ,url('.asset($room->roomType->image).') center/cover no-repeat' : '' }}">
     <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close><x-icon name="x"/></button>
     <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">{{ $room->room_no }}</span>
