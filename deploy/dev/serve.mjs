@@ -44,7 +44,7 @@ const DEV_CHANGES = [
   {
     title: 'Social connectors & review feeds — Facebook posting, WhatsApp Cloud, live review pull',
     detail: 'Marking an approved calendar post published now delivers it live: Facebook page feed (Graph v20.0 /feed) and WhatsApp Cloud (/messages) per channel, with per-channel results on the post and the Facebook URL auto-attached; other platforms stay recorded-only. Reputation inbox gains Pull from feeds — Booking/Google/TripAdvisor/Expedia/Agoda/MakeMyTrip rows flow through the existing analyse/match/case pipeline with dedupe. Proven vs the local social simulator (docs/SOCIAL-REVIEWS.md).',
-    screens: [['Review inbox', '/reputation/reviews'], ['Content calendar', '/digital/social'], ['Digital dashboard', '/digital']],
+    screens: [['Review inbox', '/reputation/reviews'], ['Content calendar', '/digital/calendar'], ['Digital dashboard', '/digital']],
   },
   {
     title: 'Bank/MoMo statements — one-click fee booking + settlement review',
