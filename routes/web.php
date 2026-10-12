@@ -1518,6 +1518,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/hr/attendance', [Controllers\HrController::class, 'attendance'])->middleware('perm:hr.manage')->name('hr.attendance');
     Route::post('/hr/attendance', [Controllers\HrController::class, 'saveAttendance'])->middleware('perm:hr.manage')->name('hr.attendance.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
+    // v7.40 ESS review desk
+    Route::controller(Controllers\EssController::class)->middleware('perm:hr.manage')->group(function () {
+        Route::get('/hr/ess', 'desk')->name('hr.ess');
+        Route::post('/hr/ess/requests/{req}', 'decide')->whereNumber('req')->name('hr.ess.decide');
+        Route::post('/hr/ess/documents/{doc}', 'reviewDoc')->whereNumber('doc')->name('hr.ess.doc');
+        Route::post('/hr/ess/announce', 'announce')->name('hr.ess.announce');
+    });
 
     // v2.0 leave & payroll
     Route::prefix('hr/leave')->name('leave.')->controller(Controllers\LeaveController::class)->middleware('perm:hr.leave')->group(function () {
@@ -1568,6 +1575,14 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/swaps/{swap}/respond', 'respondSwap')->whereNumber('swap')->name('swap.respond');
         Route::post('/swaps/{swap}/cancel', 'cancelSwap')->whereNumber('swap')->name('swap.cancel');
         Route::post('/pin', 'pin')->middleware('throttle:5,1')->name('pin');
+    });
+    // v7.40 employee self-service: profile change requests, documents, announcements
+    Route::prefix('me')->name('me.')->controller(Controllers\EssController::class)->middleware('perm:hr.self')->group(function () {
+        Route::get('/profile', 'profile')->name('profile');
+        Route::post('/profile', 'profileUpdate')->middleware('throttle:20,1')->name('profile.update');
+        Route::get('/documents', 'documents')->name('documents');
+        Route::post('/documents', 'documentUpload')->middleware('throttle:20,1')->name('documents.upload');
+        Route::get('/announcements', 'announcements')->name('announcements');
     });
 
     // v4.9 duty roster & time clock

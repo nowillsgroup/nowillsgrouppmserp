@@ -11,7 +11,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 | **5** | sections |
 | **12** | top-level groups |
 | **53** | modules |
-| **364** | pages |
+| **368** | pages |
 
 ---
 
@@ -154,8 +154,8 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
-- **HR & Payroll** — 19 pages
-  - Employees · Attendance · Monthly Register · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+- **HR & Payroll** — 23 pages
+  - Employees · Attendance · Monthly Register · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims · My Profile · My Documents · My Announcements · Self-Service Desk
 - **Learning & SOPs** — 7 pages
   - L&D Dashboard · Training Matrix · Training Sessions · Training Records · Courses & Requirements · SOP Library · L&D Settings
 
