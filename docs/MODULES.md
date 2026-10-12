@@ -11,7 +11,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 | **5** | sections |
 | **12** | top-level groups |
 | **53** | modules |
-| **363** | pages |
+| **364** | pages |
 
 ---
 
@@ -30,8 +30,8 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 `OPERATIONS` section · **10 modules**
 
-- **Front Office** — 8 pages
-  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture
+- **Front Office** — 9 pages
+  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync (Offline Mode)
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
 - **Reservations** — 7 pages

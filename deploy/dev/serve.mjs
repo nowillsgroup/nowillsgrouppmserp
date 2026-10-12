@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Desktop offline mode — multi-day cache-and-sync',
+    detail: 'Front desks can work offline for days: download a 7-day operating pack (rooms, reservations, stays, rates, payment modes, guests, folios), queue desk operations with the date they happened (check-in, check-out, folio charges, payments, night posting), then sync the queue back — retries are idempotent (applied/duplicate/rejected with real reasons such as room-not-vacant or folio-not-zero) and an incremental delta refreshes the cache. Workspace page packs it together with the recent sync log; pms:offline:pack builds packs from cron. See docs/OFFLINE-DESKTOP.md.',
+    screens: [['Desktop sync workspace', '/offline/desktop'], ['Front desk arrivals', '/front-office']],
+  },
+  {
     title: 'Social connectors & review feeds — Facebook posting, WhatsApp Cloud, live review pull',
     detail: 'Marking an approved calendar post published now delivers it live: Facebook page feed (Graph v20.0 /feed) and WhatsApp Cloud (/messages) per channel, with per-channel results on the post and the Facebook URL auto-attached; other platforms stay recorded-only. Reputation inbox gains Pull from feeds — Booking/Google/TripAdvisor/Expedia/Agoda/MakeMyTrip rows flow through the existing analyse/match/case pipeline with dedupe. Proven vs the local social simulator (docs/SOCIAL-REVIEWS.md).',
     screens: [['Review inbox', '/reputation/reviews'], ['Content calendar', '/digital/calendar'], ['Digital dashboard', '/digital']],

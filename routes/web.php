@@ -1248,6 +1248,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/guest-requests', 'guestRequests')->middleware('perm:requests.view,requests.manage')->name('guest_requests');
         Route::get('/guest-requests/snapshot', 'guestRequestSnapshot')->middleware('perm:requests.view,requests.manage')->name('guest_requests.snapshot');
         Route::post('/sync', 'sync')->middleware('perm:housekeeping.manage,housekeeping.attendant,requests.manage')->name('sync');
+        // v7.39 desktop offline mode — multi-day cache-and-sync
+        Route::prefix('desktop')->name('desktop.')->controller(Controllers\DesktopSyncController::class)->group(function () {
+            Route::get('/', 'workspace')->middleware('perm:frontoffice.view,frontoffice.manage')->name('workspace');
+            Route::get('/pack', 'pack')->middleware('perm:frontoffice.view,frontoffice.manage')->name('pack');
+            Route::get('/delta', 'delta')->middleware('perm:frontoffice.view,frontoffice.manage')->name('delta');
+            Route::post('/sync', 'sync')->middleware('perm:frontoffice.manage')->name('sync');
+        });
     });
 
     // ---- Housekeeping / Maintenance / Lost & Found

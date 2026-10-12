@@ -34,7 +34,7 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 2. **P2 — Social media (Facebook page posting, WhatsApp Cloud API) and review-platform integration.** CRM, campaigns, review requests and the internal review inbox exist; no social-channel or Booking.com/Google review connectors.
 3. **P2 — Bank/MoMo payment gateway integrations.** `TreasuryService`, `PaystackService` and `OnlinePaymentService` exist; four bank statement parsers are parsed but not imported; mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) still requires statement import/manual review. *(`ghana-today/...` replaced with `nowills/...` naming in this commit.)*
 4. **P2 — GRA e-invoicing (electronic invoicing).** `PosEvatService` computes Ghana VAT; `EInvoiceService` has the e-invoice domain (invoice numbering, PIN, status, F13 export) but submissions are still manual (F13). **Next:** the live GhanaToday/ZATCA adapter + per-property `supportsEInvoicing`/`vatRegistered` + a `submitInvoice` live endpoint.
-5. **P3 — Offline mode (desktop).** Not started; no multi-day cache-and-sync beyond POS draft caching and the existing offline queues (`OfflineSyncService`, `resources/views/offline/*`).
+5. **P3 — Offline mode (desktop).** ✅ **Closed this session:** `DesktopSyncService` multi-day cache-and-sync — pack export (7-day desk dataset + delta cursor), `desk.*` operation queue (check-in/out, charge, payment, night posting) with occurred_at back-dating and applied/duplicate/rejected results, `delta` incremental refresh, `/offline/desktop` workspace + `pms:offline:pack` command. See `docs/OFFLINE-DESKTOP.md`. *(POS draft caching and the housekeeping/guest-request queues are unchanged.)*
 
 **Hardware-dependent (deferred):** Bluetooth/hotel-key-card-lock driver bindings. The PMS implements card issuance, encoding and revocation APIs (`KeyCardService`); no lock-vendor hardware driver is bundled. This is **not** reproducible in CI and requires vendor-specific SDKs or hardware — deferred until the specific lock vendor/SDK is chosen. `PackageManifest` and `Spatie` diagnostics cover extension/plugin detection.
 
@@ -51,7 +51,7 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 - **OTA / channel-manager two-way adapters** — ⚠️ **Gap:** only `hub` + `simulator` drivers; no real OTA source can push or pull yet.
 - **Social media integration (Facebook page posting, WhatsApp Cloud API)** — ⚠️ **Gap:** CRM/campaigns/marketing exist; no social-channel connectors.
 - **Review platform integration (Booking.com, Google, TripAdvisor review inbox)** — ⚠️ **Gap:** internal review inbox + `ReviewService`/`FeedbackService` exist; no external review API connectors.
-- **`DesktopSyncService` + offline mode** — ⚠️ **Gap:** only POS draft caching; no multi-day cache-and-sync. *(P3.)*
+- **`DesktopSyncService` + offline mode** — ✅ **Closed this session:** multi-day pack + operation sync + delta refresh (`docs/OFFLINE-DESKTOP.md`).
 
 ### P2 — revenue capture / integrations
 - **Bank account statement feeds** — ⚠️ **Gap:** four bank statement parsers parse but cannot yet import; statement import must still be done via the generic ledger import.
@@ -81,4 +81,4 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 3. **P1 — OTA/channel-manager driver layer** (`ChannelDriver` contract + driver registry + mirror/simulator drivers + `docs/CHANNEL-ADAPTER.md` + mapping-health + `channel:sync` running real driver code) — next in line.
 4. **P2 — social media (Facebook page posting, WhatsApp Cloud API) + review-platform (Booking.com / Google / TripAdvisor review inbox) + bank statement feeds (import) + mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — P2, follows P1.
 5. **P2 — GRA e-invoicing live adapter** (GhanaToday/ZATCA `submitInvoice`, per-property `supportsEInvoicing`/`vatRegistered`) — P2.
-6. **P3 — offline mode (desktop) + hotel-key-card-lock hardware driver (vendor-specific)** — P3, deferred (requires vendor SDK/hardware; not reproducible in CI).
+6. **P3 — hotel-key-card-lock hardware driver (vendor-specific)** — deferred (requires vendor SDK/hardware; not reproducible in CI). *(Offline mode itself is closed — see item 5.)*
