@@ -48,7 +48,7 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 - **Grading / guest profiles / billing reconciliation** (`GradingService`, `GuestBillRec`, `FolioRec`) — partially delivered (guest profile exists); billing reconciliation with the old system's richer audit trail needs more.
 
 ### P1 — OTA/channel + integration surface
-- **OTA / channel-manager two-way adapters** — partially closed: `hub`, `simulator`, mirror and **Booking.com EPS** drivers ship (`docs/BOOKING-EPS.md`); other OTAs still driver-less.
+- **OTA / channel-manager two-way adapters** — partially closed: `hub`, `simulator`, mirror, **Booking.com EPS** and **Expedia Rapid** (HMAC-SHA512 signing) drivers ship (`docs/BOOKING-EPS.md`, `docs/EXPEDIA-RAPID.md`); other OTAs still driver-less.
 - **Social media integration (Facebook page posting, WhatsApp Cloud API)** — ✅ **Closed:** `SocialPublishService` Graph/Cloud connectors (`docs/SOCIAL-REVIEWS.md`).
 - **Review platform integration (Booking.com, Google, TripAdvisor review inbox)** — ✅ **Closed:** feed pulls into the review inbox (`docs/SOCIAL-REVIEWS.md`).
 - **`DesktopSyncService` + offline mode** — ✅ **Closed this session:** multi-day pack + operation sync + delta refresh (`docs/OFFLINE-DESKTOP.md`).

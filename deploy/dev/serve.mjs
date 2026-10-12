@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Expedia Rapid channel adapter — second real OTA driver',
+    detail: 'The channel framework now speaks a second protocol end to end: Expedia Rapid-style JSON with Rapid request signing (base64 HMAC-SHA512 of path+body, Authorization key:signature). Connection test, booking retrieval (new/modify/cancel mapping), signed ARI push and supplier-cancel all run against the local simulator, which REJECTS bad signatures — an e2e pass proves the signing. Bookings flow through the same receive pipeline as every channel (room-mapping gate, rate-mismatch warnings, idempotent duplicates). See docs/EXPEDIA-RAPID.md.',
+    screens: [['Channel connections', '/channel-manager'], ['Connections detail', '/channel-manager/connections']],
+  },
+  {
     title: 'Car Rental — self-drive fleet and booking desk (new module)',
     detail: 'A first-class car rental module: rental fleet with classes, rates and deposits; bookings with clash detection per vehicle and weekly-rate pricing; the desk drives pick-up and return with odometer and tank readings — late returns, tank shortfalls and mileage beyond the free allowance compute automatic adjustments at return; rentals bill straight to an in-house guest folio or settle directly. Permissions rentals.view / rentals.manage.',
     screens: [['Rental desk', '/rentals'], ['Rental fleet', '/rentals/fleet']],
