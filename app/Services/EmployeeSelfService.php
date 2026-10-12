@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\HrAnnouncement;
 use App\Models\HrDocument;
 use App\Models\HrProfileUpdate;
+use App\Models\MessageLog;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,7 @@ class EmployeeSelfService
         $req->hotel_id = $e->hotel_id; // guarded — set explicitly
         $req->save();
         ActivityLogger::log('hr', 'profile_request', "Profile change requested by {$e->name} (".implode(', ', array_keys($changes)).")", $req);
+        self::tellHr($e, "ESS: {$e->name} requested a profile change (".implode(', ', array_keys($changes))."). Review at /hr/ess", 'ess_request', $req);
 
         return $req;
     }
@@ -85,7 +87,9 @@ class EmployeeSelfService
             $e->save();
             $r->update(['status' => 'approved', 'reviewed_by' => $u->id, 'reviewed_at' => now(), 'review_note' => $note ? mb_substr($note, 0, 500) : null]);
         });
-        ActivityLogger::log('hr', 'profile_request', 'Profile change approved for '.Employee::find($r->employee_id)->name, $r);
+        $e = Employee::find($r->employee_id);
+        ActivityLogger::log('hr', 'profile_request', 'Profile change approved for '.$e->name, $r);
+        self::notify($e->phone, 'Your profile change request was approved'.($note ? ' - '.mb_substr($note, 0, 80) : '').'.', 'ess_approved', $r);
 
         return $r->fresh();
     }
@@ -94,7 +98,9 @@ class EmployeeSelfService
     {
         self::needPending($r);
         $r->update(['status' => 'rejected', 'reviewed_by' => $u->id, 'reviewed_at' => now(), 'review_note' => $note ? mb_substr($note, 0, 500) : null]);
-        ActivityLogger::log('hr', 'profile_request', 'Profile change rejected for '.Employee::find($r->employee_id)->name, $r);
+        $e = Employee::find($r->employee_id);
+        ActivityLogger::log('hr', 'profile_request', 'Profile change rejected for '.$e->name, $r);
+        self::notify($e->phone, 'Your profile change request was rejected'.($note ? ' - '.mb_substr($note, 0, 80) : '').'.', 'ess_rejected', $r);
 
         return $r->fresh();
     }
@@ -129,6 +135,7 @@ class EmployeeSelfService
         ]);
         $doc->hotel_id = $e->hotel_id; // guarded — set explicitly
         $doc->save();
+        self::tellHr($e, "ESS: {$e->name} uploaded a document ({$doc->title}). Review at /hr/ess", 'ess_doc_uploaded', $doc);
 
         return $doc;
     }
@@ -139,7 +146,9 @@ class EmployeeSelfService
             throw ValidationException::withMessages(['status' => ['Choose verified or rejected.']]);
         }
         $d->update(['status' => $status, 'review_note' => $note ? mb_substr($note, 0, 500) : null, 'reviewed_by' => $u->id, 'reviewed_at' => now()]);
-        ActivityLogger::log('hr', 'document', "Document “{$d->title}” {$status} (".Employee::find($d->employee_id)->name.")", $d);
+        $e = Employee::find($d->employee_id);
+        ActivityLogger::log('hr', 'document', "Document “{$d->title}” {$status} (".$e->name.")", $d);
+        self::notify($e->phone, "Your document “{$d->title}” was {$status}.", 'ess_doc_reviewed', $d);
 
         return $d;
     }
@@ -176,5 +185,52 @@ class EmployeeSelfService
     {
         return HrAnnouncement::visibleTo($e)
             ->orderByDesc('is_pinned')->orderByDesc('publish_at')->limit(50)->get();
+    }
+
+    // ------------------------------------------------------------------ notifications
+
+    /** Best-effort notice - the workflow never fails because a gateway is down. */
+    protected static function notify(?string $to, string $body, string $template, ?\Illuminate\Database\Eloquent\Model $related = null): void
+    {
+        try {
+            if ($to = MessageService::normalise($to)) {
+                MessageService::send($to, $body, MessageService::defaultChannel(), $template, $related);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** The employee's manager plus everyone holding hr.manage on the property. */
+    protected static function hrRecipients(Employee $e): array
+    {
+        $ids = [];
+        if ($e->manager_user_id) {
+            $ids[] = (int) $e->manager_user_id;
+        }
+        foreach (User::where('hotel_id', $e->hotel_id)->get() as $u) {
+            if ($u->hasPermission('hr.manage')) {
+                $ids[] = $u->id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    protected static function phoneForUser(int $userId): ?string
+    {
+        $u = User::find($userId);
+        if (! $u) {
+            return null;
+        }
+
+        return $u->phone ?: Employee::where('user_id', $u->id)->value('phone');
+    }
+
+    protected static function tellHr(Employee $e, string $body, string $template, $related = null): void
+    {
+        foreach (self::hrRecipients($e) as $uid) {
+            self::notify(self::phoneForUser($uid), $body, $template, $related);
+        }
     }
 }

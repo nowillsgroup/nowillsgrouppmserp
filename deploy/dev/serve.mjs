@@ -43,7 +43,7 @@ let devCookies = null;
 const DEV_CHANGES = [
   {
     title: 'Employee self-service: My Profile, My Documents, Announcements + HR review desk',
-    detail: 'Staff can now request changes to their own contact, bank and tax details (old vs new kept per field — the employee record updates only after HR approves), upload ID/certificate/contract documents (PDF/JPEG/PNG up to 10 MB) for HR verification, and read pinned staff/department announcements. The HR Self-Service Desk reviews the queue: approve/reject profile requests and documents with notes, publish announcements to staff, a department, or everyone. Demo link: the preview admin login is linked to employee #2 so the pages open.',
+    detail: 'Staff can now request changes to their own contact, bank and tax details (old vs new kept per field — the employee record updates only after HR approves), upload ID/certificate/contract documents (PDF/JPEG/PNG up to 10 MB) for HR verification, and read pinned staff/department announcements. The HR Self-Service Desk reviews the queue: approve/reject profile requests and documents with notes, publish announcements to staff, a department, or everyone. Every action also notifies by SMS/WhatsApp through the message gateway (profile request and document uploads reach the manager and the HR managers; approvals, rejections and verification results reach the employee) - best-effort, logged when no gateway is configured. Demo link: the preview admin login is linked to employee #2 so the pages open.',
     screens: [['My Profile', '/me/profile'], ['My Documents', '/me/documents'], ['Announcements', '/me/announcements'], ['HR Self-Service Desk', '/hr/ess']],
   },
   {
