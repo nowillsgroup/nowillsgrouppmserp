@@ -5,7 +5,9 @@
 <a class="btn btn-primary" id="downloadPack" href="{{ route('offline.desktop.pack', ['days' => $window, 'device' => 'desk-01']) }}"><x-icon name="download"/> Download {{ $window }}-day pack</a>
 @endsection
 
-<x-flash />
+@if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+@if (session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
+@if (session('warning'))<div class="alert alert-warning">{{ session('warning') }}</div>@endif
 
 <div class="grid grid-2">
   <div class="card">
@@ -55,7 +57,7 @@
           <td class="mono small">{{ $o->operation_id }}</td>
           <td>{{ $o->operation }}</td>
           <td class="small">{{ $o->device_id ?: '—' }}</td>
-          <td><x-badge :tone="$o->status === 'applied' ? 'green' : ($o->status === 'duplicate' ? 'slate' : 'red')" :text="$o->status"/></td>
+          <td><span class="badge badge-{{ $o->status === 'applied' ? 'green' : ($o->status === 'duplicate' ? 'slate' : 'red') }}">{{ $o->status }}</span></td>
           <td class="small">{{ $o->applied_at?->format('D j M H:i') }}</td>
           <td class="small" style="max-width:320px">{{ \Illuminate\Support\Str::limit($o->error, 70) }}</td>
         </tr>
