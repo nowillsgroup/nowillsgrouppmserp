@@ -58,7 +58,7 @@ Fully delivered and working (code + UI + migrations + tests where listed):
 - **Mobile-money (MTN MoMo / Telecel Cash / AirtelTigo Money) payments** — ✅ **Closed:** MoMo pay-in + webhook simulation and settlement through bank reconciliation.
 - **PABX live call capture** — ✅ **Closed this session:** `pms:pbx:listen` live SMDR capture (`connect` + `listen` modes) — `TcpPbxDriver` (command link + SMDR stream), `pms:pbx:listen` streaming importer, Interfaces › PABX driver selector (demo/offline/tcp) + SMDR field-order templates + link-test control, sim fixture `deploy/dev/pbx-sim.mjs`, `docs/PBX-ADAPTER.md` protocol spec. *(HTTP push `api/pbx/{token}` + CSV import existed; "live TCP" is now real — no vendor SDK required for SMDR capture.)*
 - **Supplier catalog + purchase order + delivery note + stock + bar/restaurant cost + invoice register** — mostly present (`SupplierService` + `InventoryService` + `PmService` + `FbCostService` + `StockTakeService`); verify multi-currency supplier invoicing parity.
-- **Ticketing / OTA review webhook** — ⚠️ **Gap:** cases (ticketing) exist (`CaseService`); OTA review webhook not implemented.
+- **Ticketing / OTA review webhook** — cases (ticketing) exist (`CaseService`); OTA review webhook ✅ **Closed:** `POST /api/reviews/{token}` per-hotel push endpoint feeding the review inbox (`docs/SOCIAL-REVIEWS.md`).
 - **Rental car / bus / flight / activity booking** — car rental now a first-class module (fleet, bookings, pick-up/return desk with fuel/mileage/late adjustments, folio billing); bus/flight/activity remain template-driven in transport.
 
 ### P3 — hardware / offline

@@ -68,6 +68,29 @@ class ReviewController extends Controller
             : 'This review is already in the inbox.');
     }
 
+    /**
+     * v7.40 Inbound review webhook — platforms POST review rows here (the push
+     * twin of the feed pulls). Stateless: the per-hotel 40-character token in
+     * the URL identifies the property, mirroring the PBX push endpoint.
+     */
+    public function webhook(Request $request, string $token): \Illuminate\Http\JsonResponse
+    {
+        $row = \App\Models\Setting::withoutGlobalScope('hotel')->where('key', 'review_webhook_token')->where('value', $token)->first();
+        if (! $row || ! hash_equals((string) $row->value, $token) || ! ($hotel = \App\Models\Hotel::find($row->hotel_id))) {
+            return response()->json(['ok' => false, 'error' => 'Unknown token'], 401);
+        }
+        \App\Support\Tenant::set($hotel);
+        $body = $request->all(); // json or form
+        $rows = isset($body['reviews']) ? (array) $body['reviews'] : [ $body ];
+        $rows = array_values(array_filter($rows, 'is_array'));
+        if (! $rows) {
+            return response()->json(['ok' => false, 'error' => 'Send a review object or a {reviews: [...]} batch.'], 422);
+        }
+        $s = \App\Services\ReviewService::ingestWebhook($rows);
+
+        return response()->json(['ok' => true] + $s);
+    }
+
     /** v7.39 Pull new reviews from the platform feeds (Booking.com / Google / TripAdvisor …). */
     public function pull()
     {

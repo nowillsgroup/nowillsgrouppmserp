@@ -56,3 +56,15 @@ channel. WhatsApp: a Cloud API token with `whatsapp_business_messaging` +
 phone-number id. Review feeds: point `review_feed` at your review aggregator
 export endpoint (or a nightly extractor) — the row shape is documented in
 `SocialPublishService::pullReviews()`.
+
+## Review webhook (push)
+
+The pull feeds have a push twin: `POST /api/reviews/{token}` accepts one
+review or a `{reviews: [...]}` batch in the `importCsv` field names
+(source, external_id, reviewer_name, reviewer_location, review_date,
+rating, rating_scale, title, body, url, trip_type). The stateless
+per-hotel token lives on **Reputation -> Reviews -> Review webhook**;
+responses are `{ok, received, new, duplicates, errors}` and every row
+runs the full store() pipeline (dedupe, analysis, guest matching, case
+escalation). Unknown token -> 401; malformed rows are reported per row
+without blocking the rest of the batch.

@@ -61,6 +61,11 @@ Route::post('/api/pbx/{token}', [Controllers\InterfaceController::class, 'push']
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('pbx.api.push');
+// v7.40 review-platform webhook – platforms push review rows; stateless, per-hotel 40-character token (Reputation > Reviews)
+Route::post('/api/reviews/{token}', [Controllers\ReviewController::class, 'webhook'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:120,1')
+    ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('reviews.webhook');
 // v4.0 REST API v1 – stateless JSON (bearer key per client; scopes, IP allow-list, per-key rate limit – see ApiAuthenticate)
 Route::prefix('api/v1')->name('apiv1.')->controller(Controllers\Api\V1Controller::class)
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
