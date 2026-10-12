@@ -53,11 +53,12 @@
       <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>Balance</th></tr></thead>
       <tbody>
         @forelse ($departures as $s)
+        @php $bal = 0.0; try { $bal = (float) (\App\Services\StayService::quoteCheckoutFigures($s)['balance'] ?? 0); } catch (\Throwable) {} @endphp
         <tr>
           <td>{{ $s->room?->room_no ?? '—' }}</td>
           <td>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</td>
           <td>{{ $s->reservation->businessSource->name ?? 'Direct' }}</td>
-          <td class="{{ ($s->rate ?? 0) > 0 ? '' : 'text-2' }}">—</td>
+          <td class="{{ $bal > 0 ? 'neg' : 'text-2' }}">{{ $bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled' }}</td>
         </tr>
         @empty
         <tr><td colspan="4" class="text-2">No departures today.</td></tr>
