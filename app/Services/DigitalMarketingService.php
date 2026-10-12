@@ -344,7 +344,11 @@ class DigitalMarketingService
         self::need(self::canContent($u));
         self::need($p->status === 'approved', 'Only approved posts can be marked as published.');
         $p->update(['status' => 'published', 'published_at' => now(), 'post_url' => self::url($url, 'The post link')]);
-        ActivityLogger::log('digital', 'publish', "Post “{$p->title}” published", $p);
+        $log = \App\Services\SocialPublishService::publish($p->fresh()); // v7.39 live Facebook / WhatsApp delivery
+        $p->update(['publish_log' => $log]);
+        $live = collect($log)->where('mode', 'live');
+        ActivityLogger::log('digital', 'publish', "Post “{$p->title}” published".($live->count()
+            ? ' – '.implode(', ', $live->map(fn ($r) => $r['channel'].': '.($r['ok'] ? 'posted' : 'FAILED'))->all()) : ''), $p);
     }
 
     public static function recordPostStats(DmPost $p, array $d, User $u): void

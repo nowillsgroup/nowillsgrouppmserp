@@ -4,6 +4,7 @@
 @section('actions')
 @if(can_do('reports.view'))<a class="btn" href="{{ route('reports.show', 'online_reviews') }}"><x-icon name="chart"/> Review register</a>@endif
 @if(can_do('feedback.manage'))
+<form method="post" action="{{ route('rep.reviews.pull') }}" class="inline" data-confirm="Pull new reviews from the configured platform feeds (Booking.com / Google / TripAdvisor …)?">@csrf<button class="btn" id="pullFeedBtn"><x-icon name="refresh"/> Pull from feeds</button></form>
 <a class="btn" href="#" data-modal="importModal" id="importBtn"><x-icon name="download"/> Import CSV</a>
 <a class="btn btn-primary" href="#" data-modal="addReview" id="addReviewBtn"><x-icon name="plus"/> Add review</a>
 @endif

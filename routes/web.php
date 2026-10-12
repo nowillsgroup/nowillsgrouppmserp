@@ -1196,6 +1196,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::middleware('perm:feedback.manage')->group(function () {
                 Route::post('/', 'store')->name('store');
                 Route::post('/import', 'import')->name('import');
+            Route::post('/pull', 'pull')->name('pull');
             });
             Route::middleware('perm:feedback.respond')->group(function () {
                 Route::post('/{review}/draft', 'draft')->name('draft');

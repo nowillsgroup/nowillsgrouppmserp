@@ -68,6 +68,20 @@ class ReviewController extends Controller
             : 'This review is already in the inbox.');
     }
 
+    /** v7.39 Pull new reviews from the platform feeds (Booking.com / Google / TripAdvisor …). */
+    public function pull()
+    {
+        try {
+            $s = \App\Services\SocialPublishService::pullReviews();
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with($s['errors'] ? 'warning' : 'success',
+            "Feed pull: {$s['pulled']} review(s) seen – {$s['new']} new, {$s['duplicates']} already in the inbox."
+            .($s['errors'] ? ' Problems: '.implode('; ', $s['errors']) : ''));
+    }
+
     public function import(Request $request)
     {
         $request->validate(['file' => 'required|file|max:4096|mimes:csv,txt', 'source' => 'required|in:'.implode(',', array_keys(OnlineReview::SOURCES))]);

@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Social connectors & review feeds — Facebook posting, WhatsApp Cloud, live review pull',
+    detail: 'Marking an approved calendar post published now delivers it live: Facebook page feed (Graph v20.0 /feed) and WhatsApp Cloud (/messages) per channel, with per-channel results on the post and the Facebook URL auto-attached; other platforms stay recorded-only. Reputation inbox gains Pull from feeds — Booking/Google/TripAdvisor/Expedia/Agoda/MakeMyTrip rows flow through the existing analyse/match/case pipeline with dedupe. Proven vs the local social simulator (docs/SOCIAL-REVIEWS.md).',
+    screens: [['Review inbox', '/reputation/reviews'], ['Content calendar', '/digital/social'], ['Digital dashboard', '/digital']],
+  },
+  {
     title: 'Bank/MoMo statements — one-click fee booking + settlement review',
     detail: 'MoMo merchant exports split every service charge into its own fee line; booking each by hand was the slow part. New "Book fee lines" on a statement batch-books every fee/charge line to Mobile Money Charges (wallet accounts) or Bank Charges (banks), matches them with the entry, and reports anything left past the ledger cutoff. Proven on the seeded MoMo settlement: 2 open fee lines booked (GH₵348.73), statement 14/14 matched.',
     screens: [['Bank reconciliation', '/accounts/bank-reconciliation'], ['Statement BST-00003 (MoMo)', '/accounts/bank-reconciliation/3']],
