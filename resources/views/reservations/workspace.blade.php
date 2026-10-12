@@ -22,18 +22,29 @@
 {{-- ── KPI strip ── --}}
 @php
   use App\Services\ReservationWorkspaceService as WS;
-  $kpis = [
-    ['label' => 'Occupancy', 'value' => $kpis['occupancy'].'%', 'delta' => '+4.2%', 'tone' => 'green'],
-    ['label' => 'Revenue today', 'value' => 'GH₵ '.number_format($kpis['revenue']), 'delta' => '+8.7%', 'tone' => 'green'],
-    ['label' => 'Available', 'value' => $kpis['available'], 'delta' => '-2.1%', 'tone' => 'red'],
-    ['label' => 'Occupied', 'value' => $kpis['occupied'], 'delta' => '+3.4%', 'tone' => 'green'],
-    ['label' => 'Reserved', 'value' => $kpis['reserved'], 'delta' => '+1.2%', 'tone' => 'green'],
-    ['label' => 'Arrivals today', 'value' => $kpis['arrivals'], 'delta' => '+12.5%', 'tone' => 'green'],
-    ['label' => 'Departures', 'value' => $kpis['departures'], 'delta' => '-5.0%', 'tone' => 'red'],
-    ['label' => 'In-house guests', 'value' => $kpis['inhouse'], 'delta' => '+6.1%', 'tone' => 'green'],
-    ['label' => 'VIP guests', 'value' => $kpis['vips'], 'delta' => '+0.0%', 'tone' => 'green'],
+  $tile = [
+    'occupancy' => ['Occupancy', fn ($v) => $v.'%'],
+    'revenue' => ['Revenue today', fn ($v) => 'GH₵ '.number_format($v)],
+    'available' => ['Available', fn ($v) => $v],
+    'occupied' => ['Occupied', fn ($v) => $v],
+    'reserved' => ['Reserved', fn ($v) => $v],
+    'arrivals' => ['Arrivals today', fn ($v) => $v],
+    'departures' => ['Departures', fn ($v) => $v],
+    'inhouse' => ['In-house guests', fn ($v) => $v],
+    'vips' => ['VIP guests', fn ($v) => $v],
   ];
-  $series = [[4,5,4,6,5,7,6,8],[2,3,3,4,4,5,6,6],[8,7,7,6,6,5,5,4],[1,1,2,2,3,3,4,4],[2,2,2,3,3,3,3,4],[1,2,1,3,2,4,3,5],[3,3,2,2,1,1,1,0],[2,2,3,3,4,4,5,5],[0,0,1,0,1,1,0,1]];
+  $kpis = [];
+  foreach ($tile as $key => [$label, $fmt]) {
+      $delta = $deltas[$key] ?? null;
+      $tone = $delta === null || $delta == 0 ? 'green' : ($delta > 0 ? 'green' : 'red');
+      $kpis[] = [
+          'label' => $label,
+          'value' => $fmt($trend[$key][count($trend[$key]) - 1]),
+          'delta' => $delta === null ? '—' : ($delta > 0 ? '+' : '').$delta.'%',
+          'tone' => $delta !== null && $delta == 0 ? 'green' : $tone,
+          'series' => $trend[$key],
+      ];
+  }
 @endphp
 <div class="ws-kpis">
   @foreach ($kpis as $i => $k)
@@ -41,7 +52,7 @@
     <div class="flex gap">
       <span class="ws-kpi-delta {{ $k['tone'] === 'red' ? 'down' : 'up' }}">{{ $k['delta'] }}</span>
     </div>
-    {!! WS::spark($series[$i] ?? [1,2,3,2,3], $k['tone']) !!}
+    {!! WS::spark($k['series'], $k['tone']) !!}
     <div class="ws-kpi-value">{{ $k['value'] }}</div>
     <div class="ws-kpi-label">{{ $k['label'] }}</div>
   </div>

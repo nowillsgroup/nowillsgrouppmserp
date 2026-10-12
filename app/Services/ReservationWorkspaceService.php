@@ -16,6 +16,42 @@ use Illuminate\Support\Carbon;
  */
 class ReservationWorkspaceService
 {
+    /** KPI values for one date (history: on-the-books; today: live statuses). */
+    protected static function dayStats(\Illuminate\Support\Carbon $date, $rooms, bool $history = false): array
+    {
+        $d = $date->toDateString();
+        $ids = $rooms->pluck('id');
+        $q = ReservationRoom::whereIn('room_id', $ids)
+            ->where('arrival_date', '<=', $d)->where('departure_date', '>', $d);
+        $q = $history
+            ? (clone $q)->whereNotIn('status', ['cancelled', 'no_show'])
+            : (clone $q)->whereIn('status', ['reserved', 'checked_in']);
+        $covering = $q->get();
+        $sold = $covering->where('status', '!=', 'reserved')->count() ?: $covering->count();
+        $reserved = $covering->where('status', 'reserved')->count();
+
+        $arrQ = ReservationRoom::whereIn('room_id', $ids)->where('arrival_date', $d);
+        $depQ = ReservationRoom::whereIn('room_id', $ids)->where('departure_date', $d);
+        $arrivals = ($history ? (clone $arrQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $arrQ)->whereIn('status', ['reserved', 'checked_in']))->count();
+        $departures = ($history ? (clone $depQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $depQ)->whereIn('status', ['checked_in', 'checked_out']))->count();
+
+        $total = max(1, $rooms->count());
+        $blocked = $rooms->whereIn('status', ['out_of_order', 'maintenance', 'house_use'])->count();
+        $occupied = $sold;
+
+        return [
+            'occupancy' => round(100 * $occupied / $total),
+            'revenue' => (float) $covering->sum('rate'),
+            'available' => max(0, $total - $occupied - $reserved - $blocked),
+            'occupied' => $occupied,
+            'reserved' => $reserved,
+            'arrivals' => $arrivals,
+            'departures' => $departures,
+            'inhouse' => (int) $covering->sum(fn ($s) => (int) ($s->reservation->adults ?? 1) + (int) ($s->reservation->children ?? 0)),
+            'vips' => (int) $covering->filter(fn ($s) => $s->guest?->is_vip ?? $s->reservation->guest?->is_vip ?? false)->count(),
+        ];
+    }
+
     /** amenity name (lowercased substring) => icon sprite name */
     public const AMENITY_ICONS = [
         'air condition' => 'thermo', 'a/c' => 'thermo', 'ac' => 'thermo', 'wi-fi' => 'wifi', 'wifi' => 'wifi',
@@ -156,8 +192,38 @@ class ReservationWorkspaceService
         $houseUse = $rooms->where('status', 'house_use')->count();
         $ooo = $rooms->whereIn('status', ['out_of_order', 'maintenance'])->count();
 
+        // 7-day trend + day-over-day deltas: history (t-6..t-1) computed on
+        // the books as of each date (stays not cancelled/no-show), today live.
+        $history = [];
+        for ($i = 6; $i >= 1; $i--) {
+            $history[] = self::dayStats($date->copy()->subDays($i), $rooms, true);
+        }
+        $todayStats = [
+            'occupancy' => round(100 * $sold / $total),
+            'revenue' => $revenue,
+            'available' => $rooms->count() - $sold - $reservedCount - $houseUse - $ooo,
+            'occupied' => $sold,
+            'reserved' => $reservedCount,
+            'arrivals' => count($arrivals),
+            'departures' => $departures->count(),
+            'inhouse' => $inHouseGuests,
+            'vips' => count($vip),
+        ];
+        $history[] = $todayStats;
+        $keys = array_keys($todayStats);
+        $trend = [];
+        $deltas = [];
+        foreach ($keys as $k) {
+            $trend[$k] = array_map(fn ($d) => $d[$k], $history);
+            $prev = (float) $history[count($history) - 2][$k];
+            $now = (float) $todayStats[$k];
+            $deltas[$k] = $prev <= 0 ? null : round(100 * ($now - $prev) / $prev, 1);
+        }
+
         return [
             'date' => $date,
+            'trend' => $trend,
+            'deltas' => $deltas,
             'kpis' => [
                 'occupancy' => round(100 * $sold / $total),
                 'revenue' => $revenue,
