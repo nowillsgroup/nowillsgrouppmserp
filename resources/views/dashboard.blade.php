@@ -2,19 +2,7 @@
 @section('title', 'Dashboard')
 @section('crumbs') Welcome back, {{ auth()->user()->name }} · {{ $currentHotel->name }} @endsection
 @section('actions')
-  @if(can_do('reservations.view'))<a href="{{ route('reservations.index') }}" class="btn">Reservation desk</a>@endif
-  @if(can_do('reservations.create'))<a href="{{ route('reservations.create') }}" class="btn btn-primary"><x-icon name="plus"/> New Reservation</a>@endif
-  @if(can_do('frontdesk.checkin'))<a href="{{ route('frontdesk.walkin') }}" class="btn btn-accent"><x-icon name="login"/> Walk-in</a>@endif
-@endsection
-@section('content')
-@if(can_do('reservations.view'))
-  @php \App\Services\ReservationDeskService::syncAmenities(); $deskAmenities = \App\Models\RoomAmenity::where('is_active', true)->orderBy('name')->limit(12)->get(); @endphp
-  @if($deskAmenities->isNotEmpty())
-  <div class="card"><div class="card-body flex gap-1 wrap" style="align-items:center"><span class="small muted">Amenity filter</span>
-    @foreach($deskAmenities as $a)<a class="btn btn-sm" href="{{ route('reservations.index', ['view' => 'timeline', 'amenity' => $a->id]) }}">{{ $a->name }}</a>@endforeach
-  </div></div>
-  @endif
-@endif
+  
 <div class="stats">
   <x-stat label="Occupancy ({{ $occupied }}/{{ $total }} rooms)" :value="$occPct.'%'" icon="bed" tone="blue" :href="route('frontdesk.rooms')"/>
   <x-stat label="Arrivals Today" :value="$arrivals->count().' / '.($arrivals->count() + $checkedInToday)" icon="login" tone="green" :href="route('frontdesk.arrivals')"/>

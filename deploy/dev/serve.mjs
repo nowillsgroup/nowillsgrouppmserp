@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Dashboard: amenity filter tabs removed',
+    detail: 'The Amenity filter card (AC, Bathtub, City view, Dining area, Jacuzzi, Living area, Lounge access, Minibar, Private butler, Smart TV, Tea/Coffee maker, TV) is removed from the dashboard entirely — the quick links that jumped to the reservations timeline with an amenity preset are gone; the timeline amenity dropdown in the reservations filter itself is unchanged.',
+    screens: [['Dashboard', '/Dashboard'], ['Reservations timeline (amenity dropdown still here)', '/reservations?view=timeline']],
+  },
+  {
     title: 'Expedia Rapid channel adapter — second real OTA driver',
     detail: 'The channel framework now speaks a second protocol end to end: Expedia Rapid-style JSON with Rapid request signing (base64 HMAC-SHA512 of path+body, Authorization key:signature). Connection test, booking retrieval (new/modify/cancel mapping), signed ARI push and supplier-cancel all run against the local simulator, which REJECTS bad signatures — an e2e pass proves the signing. Bookings flow through the same receive pipeline as every channel (room-mapping gate, rate-mismatch warnings, idempotent duplicates). See docs/EXPEDIA-RAPID.md.',
     screens: [['Channel connections', '/channel-manager'], ['Connections detail', '/channel-manager/connections']],
