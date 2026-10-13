@@ -203,7 +203,7 @@ class PackageService
         $grace = (int) setting('pkg_grace_days', '0');
 
         return PackageEntitlement::query()->whereIn('status', ['open', 'partial'])->where('is_allowance', true)
-            ->whereBetween('service_date', [$on->copy()->subDays($grace)->toDateString(), $on->toDateString()]);
+            ->whereDate('service_date', '>=', $on->copy()->subDays($grace)->toDateString())->whereDate('service_date', '<=', $on->toDateString());
     }
 
     /**

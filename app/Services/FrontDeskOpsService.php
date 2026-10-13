@@ -168,7 +168,7 @@ class FrontDeskOpsService
 
         return ReservationRoom::with('room', 'guest', 'reservation.guest')
             ->where(fn ($q) => $q->where('status', 'checked_in')->when($withArrivals, fn ($q) => $q->orWhere(fn ($q) => $q->where('status', 'reserved')
-                ->whereBetween('arrival_date', [$today, bdate()->copy()->addDays(7)->toDateString()])
+                ->whereDate('arrival_date', '>=', $today)->whereDate('arrival_date', '<=', bdate()->copy()->addDays(7)->toDateString())
                 ->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative'])))))
             ->get()->sortBy(fn ($s) => [$s->status === 'checked_in' ? 0 : 1, $s->room?->room_no ?? 'zzz', $s->arrival_date->toDateString()])
             ->mapWithKeys(fn ($s) => [$s->id => ($s->room?->room_no ?? 'Unassigned').' · '.(($s->guest ?? $s->reservation?->guest)?->full_name ?? 'Guest')

@@ -590,7 +590,7 @@ class ProcurementService
      */
     public static function scorecard(string $from, string $to, ?int $supplierId = null): Collection
     {
-        $pos = PurchaseOrder::with('items', 'receipts')->whereBetween('po_date', [$from, $to])->whereNotIn('status', ['draft', 'cancelled'])
+        $pos = PurchaseOrder::with('items', 'receipts')->whereDate('po_date', '>=', $from)->whereDate('po_date', '<=', $to)->whereNotIn('status', ['draft', 'cancelled'])
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->groupBy('supplier_id');
         $grns = GoodsReceipt::with('order', 'lines')->whereBetween('date', [$from, $to])->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->groupBy('supplier_id');
         $legacy = PurchaseOrder::where('status', 'received')->whereBetween('received_at', [$from.' 00:00:00', $to.' 23:59:59'])

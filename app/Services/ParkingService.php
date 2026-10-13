@@ -629,7 +629,7 @@ class ParkingService
                 'in_today' => ParkingSession::where('status', '!=', 'cancelled')->where('entered_at', '>=', $dayStart)->count(),
                 'out_today' => ParkingSession::where('status', 'out')->where('exited_at', '>=', $dayStart)->count(),
                 'revenue_today' => (float) ParkingCharge::whereDate('business_date', $b)->sum('amount'),
-                'revenue_mtd' => (float) ParkingCharge::whereBetween('business_date', [bdate()->copy()->startOfMonth()->toDateString(), $b])->sum('amount'),
+                'revenue_mtd' => (float) ParkingCharge::whereDate('business_date', '>=', bdate()->copy()->startOfMonth()->toDateString())->whereDate('business_date', '<=', $b)->sum('amount'),
                 'avg_wait' => $waits->count() ? round($waits->avg(), 1) : null, 'within_sla' => $waits->count() ? round($waits->filter(fn ($w) => $w <= $sla)->count() / $waits->count() * 100, 1) : null,
                 'retrievals' => $waits->count()];
         })();
@@ -638,7 +638,7 @@ class ParkingService
     public static function revenueTrend(int $days = 14): array
     {
         $from = bdate()->copy()->subDays($days - 1);
-        $rows = ParkingCharge::selectRaw('business_date d, kind, sum(amount) a')->whereBetween('business_date', [$from->toDateString(), bdate()->toDateString()])->groupBy('business_date', 'kind')->get();
+        $rows = ParkingCharge::selectRaw('business_date d, kind, sum(amount) a')->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', bdate()->toDateString())->groupBy('business_date', 'kind')->get();
         $out = [];
         for ($d = $from->copy(); $d->lte(bdate()); $d->addDay()) {
             $k = $d->toDateString();

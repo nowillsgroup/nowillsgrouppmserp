@@ -125,7 +125,7 @@ class ReviewService
             return false;
         }
         $res = Reservation::with('guest')->where('status', 'checked_out')
-            ->whereBetween('departure_date', [$r->review_date->copy()->subDays(60)->toDateString(), $r->review_date->copy()->addDays(3)->toDateString()])
+            ->whereDate('departure_date', '>=', $r->review_date->copy()->subDays(60)->toDateString())->whereDate('departure_date', '<=', $r->review_date->copy()->addDays(3)->toDateString())
             ->whereHas('guest', fn ($q) => $q->whereNull('privacy_status')->whereRaw("lower(concat(first_name, ' ', coalesce(last_name, ''))) = ?", [$name]))
             ->get();
         if ($res->pluck('guest_id')->unique()->count() !== 1) {

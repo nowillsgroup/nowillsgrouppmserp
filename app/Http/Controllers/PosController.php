@@ -810,7 +810,7 @@ class PosController extends Controller
         $to = $request->input('to', bdate()->toDateString());
         $search = trim((string) $request->input('q', ''));
         $orders = PosOrder::with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')
-            ->whereBetween('business_date', [$from, $to])
+            ->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(function ($match) use ($like) {

@@ -507,7 +507,7 @@ class FbCostService
             };
             $out[$d][$c][$bucket] += $value;
         }
-        foreach (FbStaffMeal::whereBetween('business_date', [$from, $to])->get() as $sm) {
+        foreach (FbStaffMeal::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get() as $sm) {
             $d = $sm->business_date->toDateString();
             $out[$d]['food'] ??= $blank();
             $out[$d]['food']['staff_meals'] += $sm->total;

@@ -309,7 +309,7 @@ class UtilityService
     /** per meter: consumption, cost, readings, anomalies in a date range */
     public static function consumption(string $from, string $to, bool $mainOnly = false): Collection
     {
-        $agg = MeterReading::whereBetween('reading_date', [$from, $to])->groupBy('utility_meter_id')
+        $agg = MeterReading::whereDate('reading_date', '>=', $from)->whereDate('reading_date', '<=', $to)->groupBy('utility_meter_id')
             ->selectRaw('utility_meter_id, SUM(consumption) cons, SUM(cost) cost, SUM(days) days, COUNT(*) n, SUM(anomaly IS NOT NULL) flags, SUM(is_estimated) est')
             ->get()->keyBy('utility_meter_id');
 
@@ -339,7 +339,7 @@ class UtilityService
     /** occupied room-nights, guest-nights and revenue per business date – night audit figures where the day is closed */
     public static function occupancy(string $from, string $to): array
     {
-        $audits = NightAudit::whereBetween('business_date', [$from, $to])->get()->keyBy(fn ($a) => $a->business_date->toDateString());
+        $audits = NightAudit::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()->keyBy(fn ($a) => $a->business_date->toDateString());
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $to)->where('departure_date', '>', $from)
             ->get(['arrival_date', 'departure_date', 'adults', 'children']);
         $out = [];

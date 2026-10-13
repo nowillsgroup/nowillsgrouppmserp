@@ -609,7 +609,7 @@ class CroService
     {
         return self::$memo['alerts'.Tenant::id()] ??= [
             'follow_ups' => CroEnquiry::where('status', 'open')->whereNotNull('follow_up_at')->where('follow_up_at', '<=', now())->count(),
-            'arriving' => CroEnquiry::where('status', 'open')->whereBetween('arrival_date', [bdate()->toDateString(), bdate()->copy()->addDays(3)->toDateString()])->count(),
+            'arriving' => CroEnquiry::where('status', 'open')->whereDate('arrival_date', '>=', bdate()->toDateString())->whereDate('arrival_date', '<=', bdate()->copy()->addDays(3)->toDateString())->count(),
         ];
     }
 

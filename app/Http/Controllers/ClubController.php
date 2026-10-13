@@ -55,7 +55,7 @@ class ClubController extends Controller
             's' => ClubService::stats(),
             'occ' => ClubService::occupancy(),
             'arrears' => ClubBillingService::arrears()->take(8),
-            'expiring' => ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->whereBetween('end_date', [$today, Carbon::parse($today)->addDays(14)->toDateString()])
+            'expiring' => ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(14)->toDateString())
                 ->orderBy('end_date')->take(10)->get(),
             'inNow' => ClubService::openVisits()->with('member.membership')->latest('checked_in_at')->take(12)->get(),
             'denied' => ClubVisit::where('denied', true)->where('checked_in_at', '>=', now()->subDays(7))->latest('checked_in_at')->take(6)->get(),

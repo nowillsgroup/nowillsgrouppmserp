@@ -922,7 +922,7 @@ class TreasuryService
         }
         $arr = (float) self::cfg('treasury_arrival_pct') / 100;
         $byWeek = [];
-        foreach (ReservationRoom::with('reservation')->where('status', 'reserved')->whereHas('reservation', fn ($q) => $q->where('status', 'confirmed'))->whereBetween('arrival_date', [$T, $E])->get() as $rr) {
+        foreach (ReservationRoom::with('reservation')->where('status', 'reserved')->whereHas('reservation', fn ($q) => $q->where('status', 'confirmed'))->whereDate('arrival_date', '>=', $T)->whereDate('arrival_date', '<=', $E)->get() as $rr) {
             if (($rr->reservation?->billing_instruction ?? 'guest') !== 'guest') {
                 continue;
             }

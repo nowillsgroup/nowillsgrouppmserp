@@ -31,11 +31,11 @@ class ManagementReportService
         // Load the whole YTD window once, then slice per period in memory.
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $date)->where('departure_date', '>', $yStart)
             ->get(['arrival_date', 'departure_date', 'adults', 'children', 'status', 'checked_out_at']);
-        $tx = FolioTransaction::where('is_void', false)->whereBetween('business_date', [$yStart, $date])
+        $tx = FolioTransaction::where('is_void', false)->whereDate('business_date', '>=', $yStart)->whereDate('business_date', '<=', $date)
             ->get(['business_date', 'type', 'category', 'amount', 'tax_amount']);
-        $pos = PosOrder::where('status', 'settled')->whereBetween('business_date', [$yStart, $date])
+        $pos = PosOrder::where('status', 'settled')->whereDate('business_date', '>=', $yStart)->whereDate('business_date', '<=', $date)
             ->get(['business_date', 'settlement', 'subtotal', 'discount', 'service_charge', 'tax', 'total']);
-        $res = Reservation::where(fn ($q) => $q->whereBetween('arrival_date', [$yStart, $date])->orWhereBetween('cancelled_at', [$yStart, $date->copy()->endOfDay()]))
+        $res = Reservation::where(fn ($q) => $q->whereDate('arrival_date', '>=', $yStart)->whereDate('arrival_date', '<=', $date)->orWhereBetween('cancelled_at', [$yStart, $date->copy()->endOfDay()]))
             ->get(['arrival_date', 'status', 'cancelled_at']);
 
         $m = [];

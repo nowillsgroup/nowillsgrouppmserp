@@ -822,7 +822,7 @@ class ClubService
             'frozen' => $active->where('status', 'frozen')->count(),
             'cards' => ClubMember::where('is_active', true)->whereIn('club_membership_id', $active->pluck('id'))->count(),
             'mrr' => round($mrr, 2),
-            'expiring' => ClubMembership::whereIn('status', ['active', 'frozen'])->whereBetween('end_date', [$today, Carbon::parse($today)->addDays(30)->toDateString()])
+            'expiring' => ClubMembership::whereIn('status', ['active', 'frozen'])->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())
                 ->where(fn ($q) => $q->where('auto_renew', false)->orWhereNotNull('cancel_mode'))->count(),
             'arrears_count' => $arrears->count(),
             'arrears_amount' => round($arrears->sum('amount'), 2),
@@ -863,7 +863,7 @@ class ClubService
         $today = self::today();
 
         return ClubBillingService::arrears()->count()
-            + ClubMembership::where('status', 'active')->whereBetween('end_date', [$today, Carbon::parse($today)->addDays(7)->toDateString()])
+            + ClubMembership::where('status', 'active')->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(7)->toDateString())
                 ->where(fn ($q) => $q->where('auto_renew', false)->orWhereNotNull('cancel_mode'))->count();
     }
 }

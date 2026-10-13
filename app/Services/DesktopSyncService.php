@@ -64,9 +64,9 @@ class DesktopSyncService
             ->whereHas('room', fn ($q) => $q->where('hotel_id', $hotelId))
             ->where(function ($q) use ($from, $until) {
                 // anything touching the window: in house now, arriving or departing inside it
-                $q->whereBetween('arrival_date', [$from->copy()->subDays(3), $until])
-                    ->orWhereBetween('departure_date', [$from, $until->copy()->addDays(3)])
-                    ->orWhere(fn ($w) => $w->where('arrival_date', '<=', now())->where('departure_date', '>=', now()));
+                $q->whereDate('arrival_date', '>=', $from->copy()->subDays(3))->whereDate('arrival_date', '<=', $until)
+                    ->orWhere(fn ($b) => $b->whereDate('departure_date', '>=', $from)->whereDate('departure_date', '<=', $until->copy()->addDays(3)))
+                    ->orWhere(fn ($w) => $w->whereDate('arrival_date', '<=', now())->whereDate('departure_date', '>=', now()));
             })
             ->orderBy('arrival_date')->get();
 

@@ -112,7 +112,7 @@ class TransportController extends Controller
     protected function formData(): array
     {
         $stays = ReservationRoom::with('room', 'reservation.guest', 'guest')->where(fn ($q) => $q->where('status', 'checked_in')
-            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereBetween('arrival_date', [bdate()->toDateString(), bdate()->copy()->addDays(30)->toDateString()])))
+            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '>=', bdate()->toDateString())->whereDate('arrival_date', '<=', bdate()->copy()->addDays(30)->toDateString())))
             ->orderByRaw("CASE status WHEN 'checked_in' THEN 0 ELSE 1 END")->orderBy('arrival_date')->limit(300)->get();
 
         return [

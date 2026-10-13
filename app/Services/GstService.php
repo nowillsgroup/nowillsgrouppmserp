@@ -358,7 +358,7 @@ class GstService
         [$from, $to] = self::monthRange($period);
 
         return Folio::with('original:id,invoice_no,invoice_date')->where('status', 'closed')->whereNotNull('invoice_no')
-            ->whereBetween('invoice_date', [$from, $to])->orderBy('invoice_date')->orderBy('id')->get();
+            ->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->orderBy('invoice_date')->orderBy('id')->get();
     }
 
     /** Direct-settled POS bills of the month split by tax rate (B2C receipts). */
@@ -370,7 +370,7 @@ class GstService
     public static function posLinesBetween(string $from, string $to): Collection
     {
         $out = collect();
-        foreach (PosOrder::with('items')->where('status', 'settled')->where('settlement', 'payment')->whereBetween('business_date', [$from, $to])->get() as $o) {
+        foreach (PosOrder::with('items')->where('status', 'settled')->where('settlement', 'payment')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get() as $o) {
             $items = $o->items->where('is_cancelled', false);
             $sub = (float) $items->sum('amount');
             $weighted = (float) $items->sum(fn ($i) => $i->amount * $i->tax_rate);
@@ -483,14 +483,14 @@ class GstService
             return ['label' => $label, 'from' => $all->first(), 'to' => $all->last(), 'total' => $all->count(), 'cancelled' => $cancelled->unique()->count(),
                 'net' => $all->count() - $cancelled->unique()->count(), 'gaps' => $gaps];
         };
-        $cx = GstCancelledDoc::whereBetween('doc_date', [$from, $to])->get();
+        $cx = GstCancelledDoc::whereDate('doc_date', '>=', $from)->whereDate('doc_date', '<=', $to)->get();
 
         return array_values(array_filter([
-            $series('Tax invoices', Folio::where('type', '!=', 'credit_note')->whereNotNull('invoice_no')->where('status', 'closed')->whereBetween('invoice_date', [$from, $to])->pluck('invoice_no'),
+            $series('Tax invoices', Folio::where('type', '!=', 'credit_note')->whereNotNull('invoice_no')->where('status', 'closed')->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->pluck('invoice_no'),
                 $cx->where('doc_type', 'invoice')->pluck('doc_no')),
-            $series('Restaurant receipts (POS)', PosOrder::whereNotNull('bill_no')->where('status', '!=', 'void')->whereBetween('business_date', [$from, $to])->pluck('bill_no'),
-                PosOrder::whereNotNull('bill_no')->where('status', 'void')->whereBetween('business_date', [$from, $to])->pluck('bill_no')),
-            $series('Credit notes', Folio::where('type', 'credit_note')->where('status', 'closed')->whereBetween('invoice_date', [$from, $to])->pluck('invoice_no'),
+            $series('Restaurant receipts (POS)', PosOrder::whereNotNull('bill_no')->where('status', '!=', 'void')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('bill_no'),
+                PosOrder::whereNotNull('bill_no')->where('status', 'void')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('bill_no')),
+            $series('Credit notes', Folio::where('type', 'credit_note')->where('status', 'closed')->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->pluck('invoice_no'),
                 $cx->where('doc_type', 'credit_note')->pluck('doc_no')),
         ]));
     }
@@ -580,7 +580,7 @@ class GstService
     public static function alerts(): array
     {
         $prev = bdate()->copy()->startOfMonth()->subMonth();
-        $unfiled = ! GstPeriod::where('period', $prev->format('Y-m'))->exists() && Folio::whereNotNull('invoice_no')->whereBetween('invoice_date', [$prev->toDateString(), $prev->copy()->endOfMonth()->toDateString()])->exists();
+        $unfiled = ! GstPeriod::where('period', $prev->format('Y-m'))->exists() && Folio::whereNotNull('invoice_no')->whereDate('invoice_date', '>=', $prev->toDateString())->whereDate('invoice_date', '<=', $prev->copy()->endOfMonth()->toDateString())->exists();
         $due = self::returnDue($prev->format('Y-m'));
 
         return ['failed' => Folio::where('irn_status', 'failed')->where('status', 'closed')->count(), 'pending' => Folio::where('irn_status', 'pending')->where('status', 'closed')->count(),

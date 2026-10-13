@@ -37,7 +37,7 @@ class ConciergeController extends Controller
     protected function stays()
     {
         return ReservationRoom::with('guest', 'room', 'reservation.guest')->where(fn ($q) => $q->where('status', 'checked_in')
-            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereBetween('arrival_date', [bdate()->toDateString(), bdate()->copy()->addDays(7)->toDateString()])))
+            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '>=', bdate()->toDateString())->whereDate('arrival_date', '<=', bdate()->copy()->addDays(7)->toDateString())))
             ->get()->sortBy(fn ($s) => [$s->status === 'checked_in' ? 0 : 1, $s->room?->room_no ?? 'zzz'])->values();
     }
 

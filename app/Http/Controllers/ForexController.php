@@ -22,7 +22,7 @@ class ForexController extends Controller
         $from = $request->date('from') ?? bdate()->copy()->subDays(6);
         $to = $request->date('to') ?? bdate()->copy();
         $q = ForexExchange::with('currency', 'stay.room', 'creator')
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())
             ->when($request->filled('currency'), fn ($w) => $w->where('currency_id', $request->currency))
             ->when($request->filled('payout'), fn ($w) => $w->where('payout', $request->payout))
             ->when($request->filled('q'), fn ($w) => $w->where(fn ($x) => $x->where('exchange_no', 'like', '%'.$request->q.'%')->orWhere('guest_name', 'like', '%'.$request->q.'%')

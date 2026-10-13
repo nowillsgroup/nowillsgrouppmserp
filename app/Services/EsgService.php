@@ -493,7 +493,7 @@ class EsgService
             foreach ($stays as $s) {
                 $lines[] = $roomLine($s);
             }
-            foreach (BanquetEvent::where('company_id', $co->id)->whereIn('status', ['definite', 'completed'])->whereBetween('event_date', [$from, $to])->get() as $e) {
+            foreach (BanquetEvent::where('company_id', $co->id)->whereIn('status', ['definite', 'completed'])->whereDate('event_date', '>=', $from)->whereDate('event_date', '<=', $to)->get() as $e) {
                 foreach (self::meetingUse($e->event_date->toDateString(), ($e->end_date ?? $e->event_date)->toDateString(), $e->id)['rows'] as $u) {
                     $lines[] = $fnLine($u);
                 }
@@ -947,7 +947,7 @@ class EsgService
     /** supplier spend by local / non-local supplier (posted bills less debit notes) */
     public static function localSpend(string $from, string $to): array
     {
-        $bills = SupplierInvoice::with('supplier')->where('status', '!=', 'cancelled')->whereBetween('doc_date', [$from, $to])->get();
+        $bills = SupplierInvoice::with('supplier')->where('status', '!=', 'cancelled')->whereDate('doc_date', '>=', $from)->whereDate('doc_date', '<=', $to)->get();
         $sum = fn ($g) => round($g->sum(fn ($b) => ($b->type === 'debit_note' ? -1 : 1) * (float) $b->subtotal), 2);
         $local = $sum($bills->filter(fn ($b) => $b->supplier?->is_local));
         $total = $sum($bills);
@@ -1041,7 +1041,7 @@ class EsgService
 
     public static function greenStats(string $from, string $to): array
     {
-        $l = EsgGreenNight::whereBetween('business_date', [$from, $to])->get();
+        $l = EsgGreenNight::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get();
         $rooms = array_sum(array_column(UtilityService::occupancy($from, $to), 'rooms'));
 
         return ['nights' => $l->count(), 'points' => (int) $l->sum('points'), 'kwh' => round($l->sum('kwh'), 1), 'litres' => round($l->sum('litres'), 0), 'co2' => round($l->sum('co2_kg'), 1),
@@ -1105,7 +1105,7 @@ class EsgService
         $from = "{$year}-01-01";
         $to = min("{$year}-12-31", Carbon::parse(self::today())->subDay()->toDateString());
         self::need($to >= $from, 'That year has not started yet.');
-        $first = MeterReading::whereBetween('reading_date', [$from, $to])->min('reading_date');
+        $first = MeterReading::whereDate('reading_date', '>=', $from)->whereDate('reading_date', '<=', $to)->min('reading_date');
         $envFrom = $first ? max($from, Carbon::parse($first)->toDateString()) : $from;
 
         return ['year' => $year, 'from' => $from, 'to' => $to, 'env_from' => $envFrom, 'carbon' => self::carbon($envFrom, $to), 'hcmi' => self::hcmi($envFrom, $to),

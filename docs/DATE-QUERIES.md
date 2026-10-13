@@ -60,7 +60,7 @@ against either.
 
 ## What was converted
 
-285 call sites, in three passes:
+419 call sites, in five passes — 291 equality comparisons and 128 range comparisons:
 
 1. **Reservation Workspace** (`ReservationWorkspaceService`,
    `ReservationWorkspaceController`, the `ws_arrivals` side-menu badge) — the
@@ -88,6 +88,43 @@ against either.
 
 Cumulative totals: `IncomeAuditService` 18, `ReportController` 18,
 `RevenueService` 9, `UtilityService` 8, `FbCostService` 6.
+
+5. **Range pass** (40 files, 128 sites) — `whereBetween()` on a `*_date`
+   column is the same defect with a sharper edge, because the upper bound
+   drops the **whole last day** of the range:
+
+   ```php
+   // '2026-10-13 00:00:00' BETWEEN '2026-10-13' AND '2026-10-13' is FALSE
+   FolioTransaction::whereBetween('business_date', [$d, $d])->count();          //  3
+   FolioTransaction::whereDate('business_date', '>=', $d)
+                   ->whereDate('business_date', '<=', $d)->count();             // 42
+   ```
+
+   Measured on the dev database: a single-day revenue range returned **3 of 42
+   rows**, and a 30-day charge total was understated by **GH₵ 62,570**
+   (1,162,687.39 → 1,225,257.39). This affected `ReportController` hardest (58
+   sites — most of the report library), plus `GstService` (8),
+   `PackageController` (6), `EsgService` (4).
+
+   There is no `whereDateBetween()`, so a range becomes two comparisons:
+
+   ```php
+   $q->whereDate('business_date', '>=', $from)
+     ->whereDate('business_date', '<=', $to);
+   ```
+
+   An `orWhereBetween()` must keep its grouping, so it becomes a nested
+   closure rather than two flat conditions:
+
+   ```php
+   ->orWhere(fn ($b) => $b->whereDate('departure_date', '>=', $from)
+                          ->whereDate('departure_date', '<=', $to));
+   ```
+
+   The same time-component flaw applies to a range tested against `now()`:
+   `where('departure_date', '>=', now())` excludes a guest departing today,
+   because midnight is before the current clock time. `DesktopSyncService`'s
+   "in house now" window was converted for that reason.
 
 Also fixed while sweeping: `GREATEST()` is not a SQLite function, so
 `/inventory/reorder` and `/transport/fleet` returned 500. Replaced with

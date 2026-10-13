@@ -50,10 +50,10 @@ class GroupDashboardController extends Controller
 
     protected function revenue(string $from, string $to): array
     {
-        $tx = FolioTransaction::whereBetween('business_date', [$from, $to])->where('is_void', false)->where('type', 'charge')
+        $tx = FolioTransaction::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('is_void', false)->where('type', 'charge')
             ->selectRaw("business_date, SUM(CASE WHEN category IN ('room','extra_bed') THEN amount ELSE 0 END) AS room, SUM(CASE WHEN category NOT IN ('room','extra_bed') THEN amount ELSE 0 END) AS other")
             ->groupBy('business_date')->get()->keyBy(fn ($r) => Carbon::parse($r->business_date)->toDateString());
-        $pos = PosOrder::whereBetween('business_date', [$from, $to])->where('status', 'settled')->where('settlement', 'payment')
+        $pos = PosOrder::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('status', 'settled')->where('settlement', 'payment')
             ->selectRaw('business_date, SUM(total - tax) AS net')->groupBy('business_date')->get()->keyBy(fn ($r) => Carbon::parse($r->business_date)->toDateString());
         $out = [];
         foreach ($tx->keys()->merge($pos->keys())->unique() as $d) {

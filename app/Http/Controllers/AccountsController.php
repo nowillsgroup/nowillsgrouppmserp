@@ -117,11 +117,11 @@ class AccountsController extends Controller
     {
         $from = $request->input('from', bdate()->copy()->startOfMonth()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
-        $tx = FolioTransaction::whereBetween('business_date', [$from, $to])->where('is_void', false)->get();
+        $tx = FolioTransaction::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('is_void', false)->get();
         $charges = $tx->where('type', 'charge');
         $income = collect(config('pms.charge_categories'))->map(fn ($label, $cat) => $charges->where('category', $cat)->sum('amount'))->filter();
         $income['discounts'] = -$tx->whereIn('type', ['discount', 'allowance'])->sum('amount');
-        $posDirect = PosOrder::whereBetween('business_date', [$from, $to])->where('status', 'settled')->where('settlement', 'payment')->get();
+        $posDirect = PosOrder::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('status', 'settled')->where('settlement', 'payment')->get();
         $income['pos_direct'] = $posDirect->sum(fn ($o) => $o->total - $o->tax);
         $otherIncome = Voucher::with('head')->where('type', 'receipt')->whereNull('company_id')->whereBetween('date', [$from, $to])->get()->groupBy('head.name')->map->sum('amount');
         $expenses = Voucher::with('head')->where('type', 'payment')->whereBetween('date', [$from, $to])->get()->groupBy('head.name')->map->sum('amount');

@@ -130,7 +130,7 @@ class SecurityService
         $d = now()->toDateString();
 
         return BanquetEvent::whereIn('status', ['tentative', 'confirmed', 'completed'])
-            ->whereBetween('event_date', [Carbon::parse($d)->subDay()->toDateString(), Carbon::parse($d)->addDay()->toDateString()])->orderBy('event_date')->orderBy('start_time');
+            ->whereDate('event_date', '>=', Carbon::parse($d)->subDay()->toDateString())->whereDate('event_date', '<=', Carbon::parse($d)->addDay()->toDateString())->orderBy('event_date')->orderBy('start_time');
     }
 
     protected static function mayOverride(): bool

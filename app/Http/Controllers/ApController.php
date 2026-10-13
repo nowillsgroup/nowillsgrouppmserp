@@ -46,7 +46,7 @@ class ApController extends Controller
             'kpi' => [
                 'outstanding' => (float) (clone $open)->sum('total') - (float) (clone $open)->sum('allocated'),
                 'overdue' => (float) (clone $open)->whereDate('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
-                'due7' => (float) (clone $open)->whereBetween('due_date', [$asOf, Carbon::parse($asOf)->addDays(7)->toDateString()])->get()->sum(fn ($b) => $b->outstanding()),
+                'due7' => (float) (clone $open)->whereDate('due_date', '>=', $asOf)->whereDate('due_date', '<=', Carbon::parse($asOf)->addDays(7)->toDateString())->get()->sum(fn ($b) => $b->outstanding()),
                 'hold' => SupplierInvoice::where('status', 'on_hold')->count(),
                 'unbilled' => ApService::unbilledReceipts(),
             ],

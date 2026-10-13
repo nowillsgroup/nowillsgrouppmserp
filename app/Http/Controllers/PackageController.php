@@ -38,12 +38,12 @@ class PackageController extends Controller
             'covers_today' => (int) $today->sum('qty'),
             'served_today' => (int) $today->sum('consumed_qty'),
             'liability' => PS::openLiability(),
-            'allocated_mtd' => (float) PackageEntitlement::whereBetween('night_date', $mtd)->where('status', '!=', 'cancelled')->sum('amount'),
-            'breakage_mtd' => (float) PackageEntitlement::whereBetween('expired_date', $mtd)->sum('breakage_amount'),
-            'extras_mtd' => (float) PackageRedemption::whereBetween('business_date', $mtd)->whereNull('voided_at')->where('overage_mode', 'folio')->sum('extra_amount'),
+            'allocated_mtd' => (float) PackageEntitlement::whereDate('night_date', '>=', $mtd[0])->whereDate('night_date', '<=', $mtd[1])->where('status', '!=', 'cancelled')->sum('amount'),
+            'breakage_mtd' => (float) PackageEntitlement::whereDate('expired_date', '>=', $mtd[0])->whereDate('expired_date', '<=', $mtd[1])->sum('breakage_amount'),
+            'extras_mtd' => (float) PackageRedemption::whereDate('business_date', '>=', $mtd[0])->whereDate('business_date', '<=', $mtd[1])->whereNull('voided_at')->where('overage_mode', 'folio')->sum('extra_amount'),
         ];
         $recent = PackageRedemption::with('package', 'stay.room', 'stay.guest', 'recorder')->orderByDesc('id')->limit(12)->get();
-        $byPkg = PackageEntitlement::whereBetween('night_date', $mtd)->where('status', '!=', 'cancelled')
+        $byPkg = PackageEntitlement::whereDate('night_date', '>=', $mtd[0])->whereDate('night_date', '<=', $mtd[1])->where('status', '!=', 'cancelled')
             ->selectRaw('package_id, SUM(amount) allocated, SUM(consumed_amount) consumed, SUM(breakage_amount) breakage, SUM(qty) covers, SUM(consumed_qty) used')
             ->groupBy('package_id')->get()->keyBy('package_id');
 
@@ -110,12 +110,12 @@ class PackageController extends Controller
         $from = $request->date('from') ?? bdate()->copy()->subDays(6);
         $to = $request->date('to') ?? bdate()->copy()->addDay();
         $rows = PackageEntitlement::with('package', 'stay.room', 'stay.guest')
-            ->whereBetween('service_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('service_date', '>=', $from->toDateString())->whereDate('service_date', '<=', $to->toDateString())
             ->when($request->filled('package'), fn ($q) => $q->where('package_id', (int) $request->input('package')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('source'), fn ($q) => $q->where('source', $request->input('source')))
             ->orderByDesc('service_date')->orderBy('id')->paginate(50)->withQueryString();
-        $tot = PackageEntitlement::whereBetween('service_date', [$from->toDateString(), $to->toDateString()])
+        $tot = PackageEntitlement::whereDate('service_date', '>=', $from->toDateString())->whereDate('service_date', '<=', $to->toDateString())
             ->when($request->filled('package'), fn ($q) => $q->where('package_id', (int) $request->input('package')))
             ->when($request->filled('source'), fn ($q) => $q->where('source', $request->input('source')))
             ->where('status', '!=', 'cancelled')

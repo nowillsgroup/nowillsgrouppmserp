@@ -71,7 +71,7 @@ class UtilityController extends Controller
     public function meter(Request $request, UtilityMeter $umeter)
     {
         [$from, $to] = $this->range($request, 60);
-        $readings = MeterReading::with('user')->where('utility_meter_id', $umeter->id)->whereBetween('reading_date', [$from, $to])->orderByDesc('reading_date')->get();
+        $readings = MeterReading::with('user')->where('utility_meter_id', $umeter->id)->whereDate('reading_date', '>=', $from)->whereDate('reading_date', '<=', $to)->orderByDesc('reading_date')->get();
         $sum = ['cons' => $readings->sum('consumption'), 'cost' => $readings->sum('cost'), 'days' => $readings->sum('days')];
 
         return view('utilities.meter', ['m' => $umeter->load('parent', 'children', 'lastReading'), 'readings' => $readings, 'from' => $from, 'to' => $to, 'sum' => $sum,

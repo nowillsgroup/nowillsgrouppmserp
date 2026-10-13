@@ -228,7 +228,7 @@ class FbCostController extends Controller
         }
         [$from, $to] = $this->period($r, 31);
         $to = min($to, bdate()->toDateString());
-        $rows = FbStaffMeal::with('user')->whereBetween('business_date', [$from, $to])->orderByDesc('business_date')->orderBy('meal')->get();
+        $rows = FbStaffMeal::with('user')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderByDesc('business_date')->orderBy('meal')->get();
 
         return view('fbc.meals', ['rows' => $rows, 'from' => $from, 'to' => $to, 'cfg' => FC::cfg(),
             'total' => $rows->sum('total'), 'covers' => $rows->sum('covers'), 'days' => $rows->pluck('business_date')->map(fn ($d) => $d->toDateString())->unique()->count()]);

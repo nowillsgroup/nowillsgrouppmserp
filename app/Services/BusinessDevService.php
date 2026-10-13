@@ -258,14 +258,14 @@ class BusinessDevService
     /** date => shop (with lines) for a window, one channel */
     public static function shopGrid(Carbon $from, int $days, string $channel): Collection
     {
-        return BdRateShop::with('lines')->where('channel', $channel)->whereBetween('stay_date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])
+        return BdRateShop::with('lines')->where('channel', $channel)->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())
             ->get()->keyBy(fn ($s) => $s->stay_date->toDateString());
     }
 
     /** forward price position: our average rate vs the comp-set average over shops in the window (100 = at par) */
     public static function ratePosition(Carbon $from, int $days): array
     {
-        $shops = BdRateShop::with('lines')->whereBetween('stay_date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])->get()
+        $shops = BdRateShop::with('lines')->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())->get()
             ->filter(fn ($s) => $s->own_rate !== null && $s->compAverage() !== null);
         if ($shops->isEmpty()) {
             return ['shops' => 0, 'own' => null, 'comp' => null, 'index' => null, 'cheaper' => 0, 'dearer' => 0];
@@ -495,7 +495,7 @@ class BusinessDevService
     {
         $from ??= bdate()->copy()->startOfYear();
         $to ??= bdate()->copy()->endOfYear();
-        $v = CrmService::bookingValue(self::partnerQuery($p)->whereBetween('arrival_date', [$from->toDateString(), $to->toDateString()]));
+        $v = CrmService::bookingValue(self::partnerQuery($p)->whereDate('arrival_date', '>=', $from->toDateString())->whereDate('arrival_date', '<=', $to->toDateString()));
         $commission = $p->agreement === 'commission' && $p->commission_pct ? round($v['revenue'] * (float) $p->commission_pct / 100, 2) : 0.0;
 
         return $v + ['commission' => $commission, 'net' => round($v['revenue'] - $commission, 2),

@@ -244,7 +244,7 @@ class V1Controller extends Controller
         }
         [$from, $to] = ApiService::range($r->query('from', bdate()->copy()->subDays(7)->toDateString()), $r->query('to', bdate()->toDateString()), 93, true);
 
-        return $this->ok(NightAudit::whereBetween('business_date', [$from->toDateString(), $to->copy()->subDay()->toDateString()])->orderBy('business_date')->get()
+        return $this->ok(NightAudit::whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->copy()->subDay()->toDateString())->orderBy('business_date')->get()
             ->map(fn ($a) => ApiService::audit($a))->values());
     }
 

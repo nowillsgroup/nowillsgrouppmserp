@@ -260,7 +260,7 @@ class CloseService
                 if ($to < $from) {
                     return ['fail', 'No business day of '.$mon.' has been audited yet.'];
                 }
-                $closed = \App\Models\AuditDay::where('status', 'closed')->whereBetween('business_date', [$from, $to])->pluck('business_date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
+                $closed = \App\Models\AuditDay::where('status', 'closed')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('business_date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
                 $missing = [];
                 for ($d = Carbon::parse($from); $d->toDateString() <= $to; $d->addDay()) {
                     if (! in_array($d->toDateString(), $closed, true)) {
@@ -436,7 +436,7 @@ class CloseService
                 if (! \App\Models\InventoryItem::exists()) {
                     return ['na', 'Stores not in use.'];
                 }
-                $st = \App\Models\StockTake::where('status', 'posted')->whereBetween('count_date', [$S, Carbon::parse($E)->addDays(5)->toDateString()])->orderByDesc('count_date')->first();
+                $st = \App\Models\StockTake::where('status', 'posted')->whereDate('count_date', '>=', $S)->whereDate('count_date', '<=', Carbon::parse($E)->addDays(5)->toDateString())->orderByDesc('count_date')->first();
 
                 return $st ? ['pass', 'Stock take '.$st->take_no.' posted ('.dmy($st->count_date).').'] : ['warn', 'No stock take posted for '.$mon.' – stores are valued at the book balance.'];
         }

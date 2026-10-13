@@ -375,7 +375,7 @@ class ReportController extends Controller
 
     protected function r_kpi_alert_log($from, $to): array
     {
-        $rows = \App\Models\KpiAlertEvent::with('alert', 'acknowledger')->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])
+        $rows = \App\Models\KpiAlertEvent::with('alert', 'acknowledger')->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())
             ->orderBy('business_date')->orderBy('id')->get()
             ->map(function ($e) {
                 $fmt = \App\Services\KpiService::METRICS[$e->alert?->metric][1] ?? 'int';
@@ -399,7 +399,7 @@ class ReportController extends Controller
         $pkgs = \App\Models\Package::where('is_allowance', true)->orderBy('sort')->orderBy('name')->get()->keyBy('id');
         $bd = bdate()->toDateString();
         $rows = collect();
-        $actual = \App\Models\PackageEntitlement::whereBetween('service_date', [$from->toDateString(), min($to->toDateString(), bdate()->copy()->subDay()->toDateString())])
+        $actual = \App\Models\PackageEntitlement::whereDate('service_date', '>=', $from->toDateString())->whereDate('service_date', '<=', min($to->toDateString(), bdate()->copy()->subDay()->toDateString()))
             ->where('status', '!=', 'cancelled')->where('is_allowance', true)
             ->selectRaw('service_date, package_id, COUNT(DISTINCT reservation_room_id) rooms, SUM(adults) adults, SUM(children) children, SUM(qty) covers, SUM(consumed_qty) used, SUM(amount) value')
             ->groupBy('service_date', 'package_id')->get();
@@ -432,15 +432,15 @@ class ReportController extends Controller
     {
         $range = [$from->toDateString(), $to->toDateString()];
         $pkgs = \App\Models\Package::orderBy('sort')->orderBy('name')->get();
-        $alloc = \App\Models\PackageEntitlement::whereBetween('night_date', $range)->where('status', '!=', 'cancelled')
+        $alloc = \App\Models\PackageEntitlement::whereDate('night_date', '>=', $range[0])->whereDate('night_date', '<=', $range[1])->where('status', '!=', 'cancelled')
             ->selectRaw("package_id, SUM(CASE WHEN source='included' THEN amount ELSE 0 END) inc, SUM(CASE WHEN source='addon' THEN amount ELSE 0 END) addon, SUM(qty) covers, COUNT(*) n")
             ->groupBy('package_id')->get()->keyBy('package_id');
-        $used = \App\Models\PackageRedemption::whereBetween('business_date', $range)->whereNull('voided_at')
+        $used = \App\Models\PackageRedemption::whereDate('business_date', '>=', $range[0])->whereDate('business_date', '<=', $range[1])->whereNull('voided_at')
             ->selectRaw("package_id, SUM(amount) used, SUM(covers) cov, SUM(CASE WHEN overage_mode='folio' THEN extra_amount ELSE 0 END) extras, SUM(extra_covers) xcov")
             ->groupBy('package_id')->get()->keyBy('package_id');
-        $fixedUsed = \App\Models\PackageEntitlement::whereBetween('night_date', $range)->where('status', 'consumed')->where('is_allowance', false)
+        $fixedUsed = \App\Models\PackageEntitlement::whereDate('night_date', '>=', $range[0])->whereDate('night_date', '<=', $range[1])->where('status', 'consumed')->where('is_allowance', false)
             ->selectRaw('package_id, SUM(amount) v, SUM(qty) q')->groupBy('package_id')->get()->keyBy('package_id');
-        $brk = \App\Models\PackageEntitlement::whereBetween('expired_date', $range)->selectRaw('package_id, SUM(breakage_amount) b, SUM(qty - consumed_qty) q')->groupBy('package_id')->get()->keyBy('package_id');
+        $brk = \App\Models\PackageEntitlement::whereDate('expired_date', '>=', $range[0])->whereDate('expired_date', '<=', $range[1])->selectRaw('package_id, SUM(breakage_amount) b, SUM(qty - consumed_qty) q')->groupBy('package_id')->get()->keyBy('package_id');
         $open = \App\Models\PackageEntitlement::whereIn('status', ['open', 'partial'])->where('is_allowance', true)->whereDate('night_date', '<=', $range[1])
             ->selectRaw('package_id, SUM(amount - consumed_amount) o')->groupBy('package_id')->get()->keyBy('package_id');
         $rows = $pkgs->map(function ($p) use ($alloc, $used, $brk, $open, $fixedUsed) {
@@ -466,7 +466,7 @@ class ReportController extends Controller
     protected function r_package_consumption($from, $to): array
     {
         $rows = \App\Models\PackageRedemption::with('package', 'stay.room', 'stay.guest', 'outlet', 'recorder', 'voider')
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->orderBy('business_date')->orderBy('id')->get()
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->orderBy('business_date')->orderBy('id')->get()
             ->map(fn ($r) => ['no' => $r->redemption_no, 'date' => $r->business_date->format('d-m-Y'), 'time' => $r->created_at?->format('H:i'), 'room' => $r->stay?->room?->room_no,
                 'guest' => $r->stay?->guest?->full_name, 'package' => $r->package?->name, 'outlet' => $r->outlet?->name, 'covers' => $r->voided_at ? 0 : $r->covers,
                 'amount' => $r->voided_at ? 0 : (float) $r->amount, 'extra_covers' => $r->voided_at ? 0 : $r->extra_covers, 'extra' => $r->voided_at ? 0 : (float) $r->extra_amount,
@@ -513,7 +513,7 @@ class ReportController extends Controller
 
     protected function r_ap_register($from, $to): array
     {
-        $rows = \App\Models\SupplierInvoice::with('supplier', 'purchaseOrder')->whereBetween('doc_date', [$from, $to])->orderBy('doc_date')->orderBy('id')->get()
+        $rows = \App\Models\SupplierInvoice::with('supplier', 'purchaseOrder')->whereDate('doc_date', '>=', $from)->whereDate('doc_date', '<=', $to)->orderBy('doc_date')->orderBy('id')->get()
             ->map(fn ($b) => ['doc' => $b->doc_no, 'date' => $b->doc_date->format('d-m-Y'), 'type' => $b->isDebitNote() ? 'Debit note' : ($b->kind === 'goods' ? 'Goods' : 'Expense'),
                 'supplier' => $b->supplier?->name, 'ref' => $b->supplier_ref, 'po' => $b->purchaseOrder?->po_no, 'due' => $b->isDebitNote() ? '' : $b->due_date?->format('d-m-Y'),
                 'subtotal' => ($b->isDebitNote() ? -1 : 1) * (float) $b->subtotal, 'tax' => ($b->isDebitNote() ? -1 : 1) * (float) $b->tax, 'total' => ($b->isDebitNote() ? -1 : 1) * (float) $b->total,
@@ -829,7 +829,7 @@ class ReportController extends Controller
     {
         $qf = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
         $reqs = \App\Models\Requisition::with('department', 'fromStore', 'toStore', 'raiser', 'approver', 'lines.item', 'issues')
-            ->whereBetween('req_date', [$from->toDateString(), $to->toDateString()])->orderBy('req_date')->orderBy('id')->get();
+            ->whereDate('req_date', '>=', $from->toDateString())->whereDate('req_date', '<=', $to->toDateString())->orderBy('req_date')->orderBy('id')->get();
         $rows = $reqs->map(function ($r) {
             $approvedQty = $r->lines->sum(fn ($l) => (float) ($l->qty_approved ?? 0));
             $issuedQty = $r->lines->sum(fn ($l) => (float) $l->qty_issued);
@@ -861,8 +861,8 @@ class ReportController extends Controller
         $issues = \App\Models\StoreIssue::whereBetween('date', [$f, $t])->get()->groupBy('department_id');
         $adhoc = \App\Models\StockMovement::with('item')->where('type', 'issue')->whereNull('store_issue_id')->whereNotNull('department_id')->whereBetween('date', [$f, $t])->get()
             ->groupBy('department_id')->map(fn ($g) => round($g->sum(fn ($m) => -(float) $m->qty * ((float) $m->rate ?: (float) $m->item?->last_cost)), 2));
-        $reqCount = \App\Models\Requisition::whereBetween('req_date', [$f, $t])->whereNotIn('status', ['draft', 'cancelled'])->selectRaw('department_id, COUNT(*) n')->groupBy('department_id')->pluck('n', 'department_id');
-        $occupied = (int) \App\Models\NightAudit::whereBetween('business_date', [$f, $t])->sum('rooms_occupied');
+        $reqCount = \App\Models\Requisition::whereDate('req_date', '>=', $f)->whereDate('req_date', '<=', $t)->whereNotIn('status', ['draft', 'cancelled'])->selectRaw('department_id, COUNT(*) n')->groupBy('department_id')->pluck('n', 'department_id');
+        $occupied = (int) \App\Models\NightAudit::whereDate('business_date', '>=', $f)->whereDate('business_date', '<=', $t)->sum('rooms_occupied');
         // budget pro-rated by the days of each month the period covers
         $factor = 0.0;
         for ($m = $from->copy()->startOfMonth(); $m->lte($to); $m->addMonth()) {
@@ -1038,7 +1038,7 @@ class ReportController extends Controller
 
     protected function r_arrivals($from, $to): array
     {
-        $rows = ReservationRoom::with('reservation.guest', 'reservation.company', 'guest', 'room', 'roomType')->whereBetween('arrival_date', [$from, $to])
+        $rows = ReservationRoom::with('reservation.guest', 'reservation.company', 'guest', 'room', 'roomType')->whereDate('arrival_date', '>=', $from)->whereDate('arrival_date', '<=', $to)
             ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])->orderBy('arrival_date')->get()->map(fn ($s) => $this->stayRow($s));
 
         return ['cols' => $this->stayCols(), 'rows' => $rows, 'money' => ['rate'], 'sum' => ['nights']];
@@ -1046,7 +1046,7 @@ class ReportController extends Controller
 
     protected function r_departures($from, $to): array
     {
-        $rows = ReservationRoom::with('reservation.guest', 'reservation.company', 'guest', 'room', 'roomType')->whereBetween('departure_date', [$from, $to])
+        $rows = ReservationRoom::with('reservation.guest', 'reservation.company', 'guest', 'room', 'roomType')->whereDate('departure_date', '>=', $from)->whereDate('departure_date', '<=', $to)
             ->whereIn('status', ['checked_in', 'checked_out'])->orderBy('departure_date')->get()->map(fn ($s) => $this->stayRow($s));
 
         return ['cols' => $this->stayCols(), 'rows' => $rows, 'money' => ['rate'], 'sum' => ['nights']];
@@ -1073,7 +1073,7 @@ class ReportController extends Controller
     protected function r_cancellations($from, $to): array
     {
         $rows = ReservationRoom::with('reservation.guest', 'reservation.company', 'guest', 'room', 'roomType')->whereIn('status', ['cancelled', 'no_show'])
-            ->whereBetween('arrival_date', [$from, $to])->get()->map(fn ($s) => $this->stayRow($s) + ['reason' => $s->reservation->cancel_reason]);
+            ->whereDate('arrival_date', '>=', $from)->whereDate('arrival_date', '<=', $to)->get()->map(fn ($s) => $this->stayRow($s) + ['reason' => $s->reservation->cancel_reason]);
 
         return ['cols' => $this->stayCols() + ['reason' => 'Reason'], 'rows' => $rows, 'money' => ['rate'], 'sum' => ['nights']];
     }
@@ -1083,7 +1083,7 @@ class ReportController extends Controller
     {
         $total = Room::where('is_active', true)->count();
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)->get(['arrival_date', 'departure_date', 'adults', 'children']);
-        $rev = FolioTransaction::where('category', 'room')->where('type', 'charge')->where('is_void', false)->whereBetween('business_date', [$from, $to])
+        $rev = FolioTransaction::where('category', 'room')->where('type', 'charge')->where('is_void', false)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->get(['business_date', 'amount'])->groupBy(fn ($t) => $t->business_date->toDateString())->map->sum('amount');
         $rows = collect();
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
@@ -1203,7 +1203,7 @@ class ReportController extends Controller
         $in = $CR::with('transfer')->whereBetween('received_on', [$F, $T])->orderBy('received_on')->get()->map(fn ($c) => ['dir' => 'Received', 'date' => $c->received_on->format('d M Y'), 'no' => $c->cheque_no,
             'party' => $c->party(), 'bank' => $c->bank_name, 'cheque_date' => $c->cheque_date->format('d M Y'), 'amount' => (float) $c->amount, 'status' => $CR::STATUSES[$c->status],
             'ref' => trim($c->number.' '.($c->transfer?->number ?? '')), 'note' => $c->bounce_reason, '_class' => $c->status === 'bounced' ? 'bold-row' : '']);
-        $out = $CI::with('book.account')->whereBetween('cheque_date', [$F, $T])->orderBy('cheque_date')->get()->map(fn ($c) => ['dir' => 'Written', 'date' => $c->cheque_date->format('d M Y'), 'no' => $c->cheque_no,
+        $out = $CI::with('book.account')->whereDate('cheque_date', '>=', $F)->whereDate('cheque_date', '<=', $T)->orderBy('cheque_date')->get()->map(fn ($c) => ['dir' => 'Written', 'date' => $c->cheque_date->format('d M Y'), 'no' => $c->cheque_no,
             'party' => $c->payee ?: '(spoilt)', 'bank' => $c->book?->account?->name, 'cheque_date' => $c->cheque_date->format('d M Y'), 'amount' => -(float) $c->amount, 'status' => $CI::STATUSES[$c->status],
             'ref' => $c->payment?->payment_no, 'note' => $c->void_reason ?: $c->memo, '_class' => '']);
         $rows = $in->concat($out)->values();
@@ -1706,7 +1706,7 @@ class ReportController extends Controller
     protected function r_voucher_redemptions($from, $to): array
     {
         $rows = \App\Models\GiftVoucherTransaction::with('voucher.type', 'user', 'folioTransaction.folio', 'posOrder')->whereIn('type', ['redeem', 'reversal'])
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->orderBy('business_date')->orderBy('id')->get()
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->orderBy('business_date')->orderBy('id')->get()
             ->map(fn ($t) => ['date' => $t->business_date->format('d-m-Y'), 'code' => $t->voucher?->code, 'type' => $t->voucher?->type?->name, 'movement' => $t->type === 'redeem' ? 'Redeemed' : 'Reversed',
                 'where' => $t->outlet ?: ($t->folio_transaction_id ? 'Front office' : '—'), 'doc' => $t->folioTransaction?->folio?->folio_no ?? $t->posOrder?->bill_no ?? $t->reference,
                 'amount' => $t->type === 'redeem' ? $t->amount : -$t->amount, 'balance' => $t->balance_after, 'by' => $t->user?->name, 'note' => $t->note]);
@@ -1722,7 +1722,7 @@ class ReportController extends Controller
     protected function r_voucher_breakage($from, $to): array
     {
         $rows = \App\Models\GiftVoucherTransaction::with('voucher.type', 'paymentMode', 'user')->whereIn('type', ['expire', 'cancel'])
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->orderBy('business_date')->orderBy('id')->get()
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->orderBy('business_date')->orderBy('id')->get()
             ->map(function ($t) {
                 $promo = $t->voucher?->source === 'promo';
                 $kind = $t->type === 'expire' ? ($promo ? 'Promo lapsed' : 'Breakage') : ($t->payment_mode_id ? 'Refunded' : 'Withdrawn');
@@ -1740,7 +1740,7 @@ class ReportController extends Controller
 
     protected function r_voucher_sales($from, $to): array
     {
-        $tx = \App\Models\GiftVoucherTransaction::with('voucher', 'paymentMode')->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->get();
+        $tx = \App\Models\GiftVoucherTransaction::with('voucher', 'paymentMode')->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->get();
         $rows = \App\Models\GiftVoucherType::orderBy('name')->get()->map(function ($type) use ($tx) {
             $t = $tx->filter(fn ($x) => $x->voucher?->gift_voucher_type_id === $type->id);
             $issue = $t->where('type', 'issue');
@@ -1806,7 +1806,7 @@ class ReportController extends Controller
 
     protected function r_utility_bill_reconciliation($from, $to): array
     {
-        $rows = \App\Models\UtilityBill::with('meter', 'supplierInvoice')->whereBetween('bill_date', [$from->toDateString(), $to->toDateString()])->orderBy('bill_date')->get()
+        $rows = \App\Models\UtilityBill::with('meter', 'supplierInvoice')->whereDate('bill_date', '>=', $from->toDateString())->whereDate('bill_date', '<=', $to->toDateString())->orderBy('bill_date')->get()
             ->map(fn ($b) => ['bill' => $b->bill_no, 'date' => $b->bill_date->format('d-m-Y'), 'meter' => $b->meter->code, 'period' => $b->period_from->format('d-m').' – '.$b->period_to->format('d-m-Y'),
                 'billed' => round($b->units_billed, 1), 'metered' => round($b->metered_units, 1), 'var' => round($b->varianceUnits(), 1), 'var_pct' => $b->variancePct() === null ? '—' : $b->variancePct().'%',
                 'energy' => $b->energy_charges, 'fixed' => $b->fixed_charges, 'taxes' => $b->taxes, 'total' => $b->total, 'rate' => number_format($b->effectiveRate(), 2), 'tariff' => number_format($b->meter->rate, 2),
@@ -2064,7 +2064,7 @@ class ReportController extends Controller
             ->map(function ($g, $name) use ($from, $to) {
                 $end = $to->copy()->addDay();
                 $nights = $g->sum(fn ($s) => max(0, (int) ($s->arrival_date->gt($from) ? $s->arrival_date : $from)->diffInDays($s->departure_date->lt($end) ? $s->departure_date : $end)));
-                $rev = $g->sum(fn ($s) => $s->folio ? $s->folio->transactions->where('is_void', false)->where('type', 'charge')->where('category', 'room')->whereBetween('business_date', [$from, $to])->sum('amount') : 0);
+                $rev = $g->sum(fn ($s) => $s->folio ? $s->folio->transactions->where('is_void', false)->where('type', 'charge')->where('category', 'room')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->sum('amount') : 0);
 
                 return ['name' => $name, 'stays' => $g->count(), 'nights' => (int) $nights, 'revenue' => $rev, 'adr' => $nights ? round($rev / $nights, 2) : 0];
             })->sortByDesc('revenue')->values();
@@ -2082,7 +2082,7 @@ class ReportController extends Controller
 
     protected function r_nationality($from, $to): array
     {
-        $rows = ReservationRoom::with('reservation.guest', 'guest')->whereIn('status', ['checked_in', 'checked_out'])->whereBetween('arrival_date', [$from, $to])->get()
+        $rows = ReservationRoom::with('reservation.guest', 'guest')->whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '>=', $from)->whereDate('arrival_date', '<=', $to)->get()
             ->groupBy(fn ($s) => ($s->guest ?? $s->reservation->guest)?->nationality ?: 'Unknown')
             ->map(fn ($g, $n) => ['nat' => $n, 'arrivals' => $g->count(), 'pax' => $g->sum('adults') + $g->sum('children'), 'nights' => $g->sum(fn ($s) => $s->nights)])->sortByDesc('arrivals')->values();
 
@@ -2145,7 +2145,7 @@ class ReportController extends Controller
 
     protected function r_hk_productivity($from, $to): array
     {
-        $tasks = \App\Models\HousekeepingTask::with('employee')->whereBetween('task_date', [$from->toDateString(), $to->toDateString()])->get();
+        $tasks = \App\Models\HousekeepingTask::with('employee')->whereDate('task_date', '>=', $from->toDateString())->whereDate('task_date', '<=', $to->toDateString())->get();
         $rows = $tasks->groupBy(fn ($t) => $t->employee?->name ?? 'Unassigned')->map(function ($g, $name) {
             $done = $g->where('status', 'completed');
             $mins = $done->map->minutes()->filter(fn ($m) => $m !== null);
@@ -2163,7 +2163,7 @@ class ReportController extends Controller
     protected function r_minibar($from, $to): array
     {
         $rows = FolioTransaction::with('folio.guest', 'folio.stay.room', 'poster')->where('category', 'minibar')->where('type', 'charge')->where('is_void', false)
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->orderBy('business_date')->get()
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->orderBy('business_date')->get()
             ->map(fn ($t) => ['date' => $t->business_date->format('d-m-Y'), 'room' => $t->folio?->stay?->room?->room_no, 'guest' => $t->folio?->guest?->full_name, 'desc' => $t->description,
                 'amount' => (float) $t->amount, 'tax' => (float) $t->tax_amount, 'by' => $t->poster?->name]);
 
@@ -2191,7 +2191,7 @@ class ReportController extends Controller
 
     protected function r_revenue($from, $to): array
     {
-        $tx = FolioTransaction::where('is_void', false)->whereBetween('business_date', [$from, $to])->whereIn('type', ['charge', 'discount', 'allowance'])->get();
+        $tx = FolioTransaction::where('is_void', false)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->whereIn('type', ['charge', 'discount', 'allowance'])->get();
         $cats = config('pms.charge_categories');
         $rows = $tx->groupBy(fn ($t) => $t->business_date->toDateString())->sortKeys()->map(function ($g, $d) use ($cats) {
             $row = ['date' => Carbon::parse($d)->format('d-m-Y')];
@@ -2212,7 +2212,7 @@ class ReportController extends Controller
 
     protected function r_collection($from, $to): array
     {
-        $rows = FolioTransaction::with('folio.guest', 'paymentMode', 'poster')->where('is_void', false)->whereIn('type', ['payment', 'refund'])->whereBetween('business_date', [$from, $to])->orderBy('business_date')->get()
+        $rows = FolioTransaction::with('folio.guest', 'paymentMode', 'poster')->where('is_void', false)->whereIn('type', ['payment', 'refund'])->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderBy('business_date')->get()
             ->map(fn ($t) => ['date' => $t->business_date->format('d-m-Y'), 'folio' => $t->folio->folio_no, 'guest' => $t->folio->guest?->full_name, 'desc' => $t->description,
                 'mode' => $t->category === 'city_ledger' ? 'City Ledger' : $t->paymentMode?->name, 'ref' => $t->reference, 'amount' => $t->type === 'refund' ? -(float) $t->amount : (float) $t->amount, 'user' => $t->poster?->username]);
 
@@ -2227,14 +2227,14 @@ class ReportController extends Controller
 
             return ['src' => $src, 'cat' => $cat, 'rate' => $rate, 'taxable' => round($taxable, 2), 'vat' => $b['VAT'], 'nhil' => $b['NHIL'], 'getfund' => $b['GETFUND'], 'tl' => $b['TL'], 'tax' => round($tax, 2)];
         };
-        $rows = FolioTransaction::where('is_void', false)->where('type', 'charge')->whereBetween('business_date', [$from, $to])->get()
+        $rows = FolioTransaction::where('is_void', false)->where('type', 'charge')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()
             ->groupBy(fn ($t) => $t->category.'|'.(float) $t->tax_rate)
             ->map(function ($g, $k) use ($split) {
                 [$cat, $rate] = explode('|', $k);
 
                 return $split('Front Office', config('pms.charge_categories')[$cat] ?? $cat, $rate, (float) $g->sum('amount'), (float) $g->sum('tax_amount'), $cat);
             })->values();
-        $pos = PosOrderItem::whereHas('order', fn ($q) => $q->where('status', 'settled')->where('settlement', '!=', 'room_post')->whereBetween('business_date', [$from, $to]))->where('is_cancelled', false)->get()
+        $pos = PosOrderItem::whereHas('order', fn ($q) => $q->where('status', 'settled')->where('settlement', '!=', 'room_post')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to))->where('is_cancelled', false)->get()
             ->groupBy(fn ($i) => (float) $i->tax_rate)
             ->map(fn ($g, $rate) => $split('POS (direct)', 'Food & Beverage', $rate, (float) $g->sum('amount'), round($g->sum(fn ($i) => $i->amount * $i->tax_rate / 100), 2), 'fnb'))->values();
         $m = ['taxable', 'vat', 'nhil', 'getfund', 'tl', 'tax'];
@@ -2260,10 +2260,10 @@ class ReportController extends Controller
 
     protected function r_voids($from, $to): array
     {
-        $rows = FolioTransaction::with('folio.guest', 'poster')->whereBetween('business_date', [$from, $to])->where(fn ($q) => $q->where('is_void', true)->orWhereIn('type', ['discount', 'allowance']))->orderBy('business_date')->get()
+        $rows = FolioTransaction::with('folio.guest', 'poster')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where(fn ($q) => $q->where('is_void', true)->orWhereIn('type', ['discount', 'allowance']))->orderBy('business_date')->get()
             ->map(fn ($t) => ['date' => $t->business_date->format('d-m-Y'), 'folio' => $t->folio->folio_no, 'guest' => $t->folio->guest?->full_name, 'kind' => $t->is_void ? 'VOID '.$t->type : strtoupper($t->type),
                 'desc' => $t->description, 'amount' => (float) $t->amount + (float) $t->tax_amount, 'reason' => $t->void_reason, 'user' => $t->poster?->username]);
-        $pos = PosOrder::with('outlet', 'user')->where('status', 'void')->whereBetween('business_date', [$from, $to])->get()
+        $pos = PosOrder::with('outlet', 'user')->where('status', 'void')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()
             ->map(fn ($o) => ['date' => $o->business_date->format('d-m-Y'), 'folio' => $o->order_no, 'guest' => $o->outlet->name, 'kind' => 'VOID POS', 'desc' => $o->customer_name, 'amount' => (float) $o->total, 'reason' => $o->void_reason, 'user' => $o->user?->username]);
 
         return ['cols' => ['date' => 'Date', 'folio' => 'Folio / Order', 'guest' => 'Guest / Outlet', 'kind' => 'Type', 'desc' => 'Description', 'amount' => 'Amount', 'reason' => 'Reason', 'user' => 'User'], 'rows' => $rows->concat($pos)->values(), 'money' => ['amount'], 'sum' => ['amount']];
@@ -2284,7 +2284,7 @@ class ReportController extends Controller
 
     protected function r_pos_sales($from, $to): array
     {
-        $rows = PosOrder::with('outlet')->where('status', 'settled')->whereBetween('business_date', [$from, $to])->get()->groupBy('outlet.name')
+        $rows = PosOrder::with('outlet')->where('status', 'settled')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()->groupBy('outlet.name')
             ->map(fn ($g, $o) => ['outlet' => $o, 'bills' => $g->count(), 'covers' => $g->sum('covers'), 'gross' => $g->sum('subtotal'), 'discount' => $g->sum('discount'), 'sc' => $g->sum('service_charge'), 'tax' => $g->sum('tax'), 'total' => $g->sum('total'),
                 'cash' => $g->where('settlement', 'payment')->sum('total'), 'room' => $g->where('settlement', 'room_post')->sum('total'), 'comp' => $g->where('settlement', 'complimentary')->sum('subtotal'), 'apc' => $g->sum('covers') ? round($g->sum('total') / $g->sum('covers'), 2) : 0])->values();
         $m = ['gross', 'discount', 'sc', 'tax', 'total', 'cash', 'room', 'comp', 'apc'];
@@ -2295,7 +2295,7 @@ class ReportController extends Controller
 
     protected function r_pos_items($from, $to): array
     {
-        $rows = PosOrderItem::with('order.outlet', 'menuItem.category')->where('is_cancelled', false)->whereHas('order', fn ($q) => $q->where('status', 'settled')->whereBetween('business_date', [$from, $to]))->get()
+        $rows = PosOrderItem::with('order.outlet', 'menuItem.category')->where('is_cancelled', false)->whereHas('order', fn ($q) => $q->where('status', 'settled')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to))->get()
             ->groupBy(fn ($i) => $i->order->outlet->name.'|'.$i->item_name)
             ->map(function ($g, $k) {
                 [$o, $n] = explode('|', $k, 2);
@@ -2308,7 +2308,7 @@ class ReportController extends Controller
 
     protected function r_pos_bills($from, $to): array
     {
-        $rows = PosOrder::with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')->whereIn('status', ['settled', 'void'])->whereBetween('business_date', [$from, $to])->orderBy('business_date')->orderBy('id')->get()
+        $rows = PosOrder::with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')->whereIn('status', ['settled', 'void'])->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderBy('business_date')->orderBy('id')->get()
             ->map(function ($o) {
                 $tenders = $o->payments->where('kind', 'payment')->map(fn ($p) => $p->paymentMode?->name)->filter()->unique()->join(', ');
 
@@ -2323,7 +2323,7 @@ class ReportController extends Controller
 
     protected function r_pos_payments($from, $to): array
     {
-        $rows = PosPayment::with('order.outlet', 'paymentMode', 'receiver')->whereBetween('business_date', [$from, $to])->orderBy('business_date')->orderBy('id')->get()
+        $rows = PosPayment::with('order.outlet', 'paymentMode', 'receiver')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderBy('business_date')->orderBy('id')->get()
             ->map(fn ($p) => ['date' => $p->business_date->format('d-m-Y'), 'time' => $p->received_at?->format('H:i'), 'kind' => $p->kind === 'refund' ? 'REFUND' : 'PAYMENT',
                 'bill' => $p->order?->bill_no ?? $p->order?->order_no, 'outlet' => $p->order?->outlet?->name, 'mode' => $p->paymentMode?->name,
                 'amount' => $p->kind === 'refund' ? -(float) $p->amount : (float) $p->amount, 'tendered' => (float) ($p->tendered_amount ?? 0),
@@ -2346,7 +2346,7 @@ class ReportController extends Controller
         $orders = PosOrder::with([
             'outlet', 'table', 'stay.room', 'user', 'settledBy',
             'items.menuItem.category', 'items.compBy',
-        ])->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])
+        ])->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())
             ->whereNotIn('status', ['merged'])
             ->where(function ($q) {
                 $q->where('settlement', 'complimentary')
@@ -2441,7 +2441,7 @@ class ReportController extends Controller
 
     protected function r_banquet($from, $to): array
     {
-        $rows = BanquetEvent::with('functions.hall', 'functions.items', 'company', 'salesUser')->whereBetween('event_date', [$from, $to])->orderBy('event_date')->get()
+        $rows = BanquetEvent::with('functions.hall', 'functions.items', 'company', 'salesUser')->whereDate('event_date', '>=', $from)->whereDate('event_date', '<=', $to)->orderBy('event_date')->get()
             ->map(fn ($e) => ['no' => $e->event_no, 'date' => $e->event_date->format('d-m-Y'), 'title' => $e->title, 'type' => BanquetEvent::TYPES[$e->event_type] ?? $e->event_type,
                 'client' => $e->company?->name ?? $e->contact_name, 'venues' => $e->functions->pluck('hall.name')->unique()->join(', '), 'fns' => $e->functions->count(),
                 'pax' => $e->pax(), 'net' => $e->net(), 'tax' => $e->tax(), 'deposit' => $e->depositsReceived(), 'sales' => $e->salesUser?->name,
@@ -2453,7 +2453,7 @@ class ReportController extends Controller
 
     protected function r_banquet_pipeline($from, $to): array
     {
-        $rows = BanquetEvent::with('functions.items')->whereBetween('event_date', [$from, $to])->orderBy('event_date')->get()
+        $rows = BanquetEvent::with('functions.items')->whereDate('event_date', '>=', $from)->whereDate('event_date', '<=', $to)->orderBy('event_date')->get()
             ->groupBy(fn ($e) => $e->event_date->format('Y-m'))
             ->map(function ($g, $m) {
                 $by = fn ($st) => $g->whereIn('status', (array) $st);
@@ -2600,7 +2600,7 @@ class ReportController extends Controller
     protected function r_einvoice_register($from, $to): array
     {
         $rows = Folio::whereNotNull('invoice_no')->whereIn('status', ['closed', 'cancelled'])
-            ->whereBetween('invoice_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('invoice_date')->orderBy('id')->get()
+            ->whereDate('invoice_date', '>=', Carbon::parse($from)->toDateString())->whereDate('invoice_date', '<=', Carbon::parse($to)->toDateString())->orderBy('invoice_date')->orderBy('id')->get()
             ->map(function ($f) {
                 $t = $f->gstTotals();
 
@@ -2621,7 +2621,7 @@ class ReportController extends Controller
     protected function r_pos_evat_register($from, $to): array
     {
         $rows = \App\Models\PosOrder::with('outlet:id,name')->where('status', 'settled')->where('settlement', 'payment')->where('total', '>', 0)
-            ->whereBetween('business_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('business_date')->orderBy('id')->get()
+            ->whereDate('business_date', '>=', Carbon::parse($from)->toDateString())->whereDate('business_date', '<=', Carbon::parse($to)->toDateString())->orderBy('business_date')->orderBy('id')->get()
             ->map(function ($o) {
                 $l = \App\Services\PosEvatService::lines($o);
 
@@ -2654,7 +2654,7 @@ class ReportController extends Controller
     protected function r_credit_notes($from, $to): array
     {
         $rows = Folio::with('original:id,invoice_no,invoice_date', 'guest')->where('type', 'credit_note')->whereNotNull('invoice_no')
-            ->whereBetween('invoice_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('invoice_date')->orderBy('id')->get()
+            ->whereDate('invoice_date', '>=', Carbon::parse($from)->toDateString())->whereDate('invoice_date', '<=', Carbon::parse($to)->toDateString())->orderBy('invoice_date')->orderBy('id')->get()
             ->map(function ($n) {
                 $x = $n->status === 'cancelled';
                 $c = \App\Services\GstService::componentTotals(\App\Services\GstService::lines($n));
@@ -2687,7 +2687,7 @@ class ReportController extends Controller
                 $acc[$k][$x] = round($acc[$k][$x] + $l[$x], 2);
             }
         };
-        foreach (Folio::where('status', 'closed')->whereNotNull('invoice_no')->whereBetween('invoice_date', [$f, $t])->get() as $d) {
+        foreach (Folio::where('status', 'closed')->whereNotNull('invoice_no')->whereDate('invoice_date', '>=', $f)->whereDate('invoice_date', '<=', $t)->get() as $d) {
             foreach (\App\Services\GstService::lines($d) as $l) {
                 $add($d->supply_type === 'B2B' ? 'B2B' : 'B2C', $l);
             }
@@ -2877,7 +2877,7 @@ class ReportController extends Controller
 
     protected function r_purchases($from, $to): array
     {
-        $rows = PurchaseOrder::with('supplier', 'store')->whereBetween('po_date', [$from, $to])->orderBy('po_date')->get()
+        $rows = PurchaseOrder::with('supplier', 'store')->whereDate('po_date', '>=', $from)->whereDate('po_date', '<=', $to)->orderBy('po_date')->get()
             ->map(fn ($p) => ['po' => $p->po_no, 'date' => $p->po_date->format('d-m-Y'), 'supplier' => $p->supplier->name, 'store' => $p->store->name, 'inv' => $p->invoice_no, 'sub' => (float) $p->subtotal, 'tax' => (float) $p->tax, 'total' => (float) $p->total, 'status' => $p->status]);
 
         return ['cols' => ['po' => 'PO No', 'date' => 'Date', 'supplier' => 'Supplier', 'store' => 'Store', 'inv' => 'Supplier inv.', 'sub' => 'Subtotal', 'tax' => 'Tax', 'total' => 'Total', 'status' => 'Status'], 'rows' => $rows, 'money' => ['sub', 'tax', 'total'], 'sum' => ['sub', 'tax', 'total']];
@@ -2965,7 +2965,7 @@ class ReportController extends Controller
 
     protected function r_mis($from, $to): array
     {
-        $rows = NightAudit::whereBetween('business_date', [$from, $to])->orderBy('business_date')->get()
+        $rows = NightAudit::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderBy('business_date')->get()
             ->map(fn ($a) => ['date' => $a->business_date->format('d-m-Y'), 'sold' => $a->rooms_occupied.'/'.$a->rooms_total, 'occ' => (float) $a->occupancy_pct, 'arr' => $a->arrivals, 'dep' => $a->departures, 'ns' => $a->no_shows,
                 'room' => (float) $a->room_revenue, 'other' => (float) $a->other_revenue, 'tax' => (float) $a->tax_collected, 'coll' => (float) $a->collections, 'adr' => (float) $a->adr, 'revpar' => (float) $a->revpar]);
         $m = ['room', 'other', 'tax', 'coll', 'adr', 'revpar'];
@@ -2976,7 +2976,7 @@ class ReportController extends Controller
 
     protected function r_guest_history($from, $to): array
     {
-        $rows = Guest::withCount(['reservations as stays' => fn ($q) => $q->whereIn('status', ['checked_in', 'checked_out', 'partially_checked_in'])->whereBetween('arrival_date', [$from, $to])])
+        $rows = Guest::withCount(['reservations as stays' => fn ($q) => $q->whereIn('status', ['checked_in', 'checked_out', 'partially_checked_in'])->whereDate('arrival_date', '>=', $from)->whereDate('arrival_date', '<=', $to)])
             ->with(['folios' => fn ($q) => $q->where('status', 'closed')->whereBetween('closed_at', [$from, $to->copy()->endOfDay()])])->get()
             ->filter(fn ($g) => $g->stays > 0)
             ->map(fn ($g) => ['guest' => $g->full_name, 'phone' => $g->phone, 'city' => $g->city, 'vip' => $g->is_vip ? 'VIP' : '', 'stays' => $g->stays, 'revenue' => $g->folios->sum(fn ($f) => $f->totals()['charges'] - $f->totals()['discount']), 'points' => $g->loyalty_points])
@@ -3067,7 +3067,7 @@ class ReportController extends Controller
 
     protected function r_online_reviews($from, $to): array
     {
-        $rows = \App\Models\OnlineReview::with('guest', 'poster', 'recoveryCase')->whereBetween('review_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('review_date')->get()
+        $rows = \App\Models\OnlineReview::with('guest', 'poster', 'recoveryCase')->whereDate('review_date', '>=', Carbon::parse($from)->toDateString())->whereDate('review_date', '<=', Carbon::parse($to)->toDateString())->orderBy('review_date')->get()
             ->map(fn ($r) => ['date' => $r->review_date->format('d M Y'), 'site' => $r->sourceName(), 'rev' => $r->reviewer_name, 'rating' => rtrim(rtrim(number_format((float) $r->rating, 1), '0'), '.').' / '.$r->rating_scale,
                 'r5' => (float) $r->rating5, 'title' => \Illuminate\Support\Str::limit((string) ($r->title ?: $r->body), 80), 'sent' => ucfirst((string) $r->sentiment), 'guest' => $r->guest?->full_name,
                 'status' => \App\Models\OnlineReview::STATUSES[$r->status], 'by' => $r->poster?->name, 'hrs' => $r->responseHours() ?? '', 'case' => $r->recoveryCase?->case_no,
@@ -3235,7 +3235,7 @@ class ReportController extends Controller
     protected function r_logbook_register($from, $to): array
     {
         $E = \App\Models\LogEntry::class;
-        $list = $E::with('author', 'resolver', 'stay.room', 'room')->withCount('reads')->whereBetween('business_date', [$from, $to])->orderBy('business_date')->orderBy('id')->get();
+        $list = $E::with('author', 'resolver', 'stay.room', 'room')->withCount('reads')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderBy('business_date')->orderBy('id')->get();
         $rows = $list->map(fn ($e) => ['date' => $e->business_date->format('d M Y'), 'time' => $e->created_at->format('H:i'), 'shift' => $E::SHIFTS[$e->shift] ?? $e->shift,
             'dept' => $E::DEPARTMENTS[$e->department] ?? $e->department, 'cat' => $e->categoryLabel(), 'prio' => $E::PRIORITIES[$e->priority] ?? $e->priority,
             'title' => $e->title, 'room' => (string) ($e->stay?->room?->room_no ?? $e->room?->room_no), 'by' => $e->source === 'system' ? 'System' : (string) $e->author?->name,
@@ -3306,7 +3306,7 @@ class ReportController extends Controller
     {
         $D = \App\Services\TraceService::DEPARTMENTS;
         $list = \App\Models\Trace::with('reservation', 'stay.room', 'guest', 'creator', 'doer')
-            ->where(fn ($q) => $q->whereBetween('trace_date', [$from, $to])->orWhereBetween('carried_from', [$from, $to]))->orderBy('trace_date')->orderBy('due_time')->get();
+            ->where(fn ($q) => $q->whereDate('trace_date', '>=', $from)->whereDate('trace_date', '<=', $to)->orWhereBetween('carried_from', [$from, $to]))->orderBy('trace_date')->orderBy('due_time')->get();
         $rows = $list->map(fn ($t) => ['date' => ($t->carried_from ?? $t->trace_date)->format('d M Y'), 'time' => $t->due_time ? substr($t->due_time, 0, 5) : '',
             'dept' => $D[$t->department] ?? $t->department, 'text' => $t->text, 'res' => (string) $t->reservation?->reservation_no, 'room' => (string) $t->stay?->room?->room_no,
             'carried' => $t->carried_from ? 'to '.$t->trace_date->format('d M') : '', 'status' => ucfirst($t->status), 'done' => $t->done_at?->format('d M H:i') ?? '',
@@ -3325,7 +3325,7 @@ class ReportController extends Controller
     protected function r_lost_found_register($from, $to): array
     {
         $I = \App\Models\LostFoundItem::class;
-        $list = $I::with('room', 'guest', 'releaser', 'disposer', 'witness', 'report')->whereBetween('found_date', [$from, $to])->orderBy('found_date')->orderBy('id')->get();
+        $list = $I::with('room', 'guest', 'releaser', 'disposer', 'witness', 'report')->whereDate('found_date', '>=', $from)->whereDate('found_date', '<=', $to)->orderBy('found_date')->orderBy('id')->get();
         $rows = $list->map(fn ($i) => ['no' => (string) $i->item_no, 'found' => $i->found_date->format('d M Y'), 'item' => $i->item_name, 'cat' => $i->categoryLabel(),
             'val' => $i->valuable ? 'Yes' : '', 'where' => (string) $i->location, 'finder' => (string) $i->found_by, 'store' => (string) $i->storage_location,
             'owner' => (string) ($i->guest?->full_name ?? ''), 'report' => (string) $i->report?->report_no, 'status' => $i->statusLabel(),
@@ -3399,7 +3399,7 @@ class ReportController extends Controller
 
     protected function r_forex_register($from, $to): array
     {
-        $xs = \App\Models\ForexExchange::with('currency', 'stay.room', 'creator')->whereBetween('business_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
+        $xs = \App\Models\ForexExchange::with('currency', 'stay.room', 'creator')->whereDate('business_date', '>=', Carbon::parse($from)->toDateString())->whereDate('business_date', '<=', Carbon::parse($to)->toDateString())
             ->orderBy('business_date')->orderBy('id')->get();
         $rows = $xs->map(function ($x) {
             $v = (bool) $x->voided_at;
@@ -3557,7 +3557,7 @@ class ReportController extends Controller
         $f = $from->toDateString();
         $t = min($to->toDateString(), now()->toDateString());
         $shifts = \App\Models\RosterShift::with('template')->where('kind', 'shift')->whereBetween('date', [$f, $t])->get()->groupBy('employee_id');
-        $punches = \App\Models\TimePunch::whereBetween('work_date', [$f, $t])->get()->groupBy('employee_id');
+        $punches = \App\Models\TimePunch::whereDate('work_date', '>=', $f)->whereDate('work_date', '<=', $t)->get()->groupBy('employee_id');
         $ids = $shifts->keys()->merge($punches->keys())->unique();
         $leave = \App\Services\RosterService::leaveMap($ids, $f, $t);
         $rows = \App\Models\Employee::with('department')->whereIn('id', $ids)->orderBy('department_id')->orderBy('name')->get()->map(function ($e) use ($shifts, $punches, $leave) {
@@ -3584,7 +3584,7 @@ class ReportController extends Controller
 
     protected function r_timesheet($from, $to): array
     {
-        $rows = \App\Models\TimePunch::with('employee.department', 'shift.template', 'editor', 'approver')->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+        $rows = \App\Models\TimePunch::with('employee.department', 'shift.template', 'editor', 'approver')->whereDate('work_date', '>=', $from->toDateString())->whereDate('work_date', '<=', $to->toDateString())
             ->orderBy('work_date')->orderBy('clock_in')->get()->map(fn ($p) => ['date' => $p->work_date->format('d M Y'), 'emp' => $p->employee?->name.' ('.$p->employee?->emp_code.')', 'dept' => $p->employee?->department?->name,
                 'shift' => $p->shift ? $p->shift->code().' '.$p->shift->label() : 'not rostered', 'in' => $p->clock_in->format('H:i'), 'out' => $p->clock_out ? $p->clock_out->format($p->clock_out->isSameDay($p->clock_in) ? 'H:i' : 'd M H:i') : 'open',
                 'hours' => $p->clock_out ? round($p->worked_minutes / 60, 2) : null, 'late' => $p->late_minutes ?: null, 'early' => $p->early_minutes ?: null, 'source' => $p->in_source.($p->out_source && $p->out_source !== $p->in_source ? ' / '.$p->out_source : ''),
@@ -3795,7 +3795,7 @@ class ReportController extends Controller
                     'action' => 'New rent '.money(round($l->rent * (1 + $l->escalation_pct / 100), 2)).' applied automatically – notify the tenant']);
             }
         }
-        foreach (\App\Models\Lease::with('unit', 'company')->where('status', 'draft')->whereBetween('start_date', [$f, $t])->get() as $l) {
+        foreach (\App\Models\Lease::with('unit', 'company')->where('status', 'draft')->whereDate('start_date', '>=', $f)->whereDate('start_date', '<=', $t)->get() as $l) {
             $rows->push(['date' => $l->start_date->toDateString(), 'event' => 'Move-in', 'l' => $l, 'action' => $l->signed_at ? 'Prepare the unit, keys & opening meter readings' : 'Get the agreement signed first']);
         }
         $rows = $rows->sortBy('date')->values()->map(fn ($r) => ['date' => dmy($r['date']), 'event' => $r['event'], 'lease' => $r['l']->lease_no, 'unit' => $r['l']->unit->code, 'tenant' => $r['l']->tenant_name.($r['l']->company ? ' ('.$r['l']->company->name.')' : ''),
@@ -3811,7 +3811,7 @@ class ReportController extends Controller
     {
         $checks = \App\Services\IncomeAuditService::CHECKS;
         $rows = \App\Models\AuditFinding::with('day', 'resolver')->where('status', '!=', 'cleared')
-            ->whereHas('day', fn ($q) => $q->whereBetween('business_date', [$from->toDateString(), $to->toDateString()]))->get()
+            ->whereHas('day', fn ($q) => $q->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString()))->get()
             ->sortBy(fn ($f) => [$f->day->business_date->toDateString(), array_search($f->check, array_keys($checks))])->values()
             ->map(fn ($f) => ['date' => dmy($f->day->business_date), 'check' => $checks[$f->check][0] ?? $f->check, 'sev' => $f->severity, 'room' => $f->room_no, 'ref' => $f->ref_label,
                 'detail' => $f->detail, 'amount' => (float) $f->amount, 'status' => \App\Models\AuditFinding::STATUSES[$f->status], 'resolution' => $f->resolution, 'by' => $f->resolver?->name]);
@@ -3852,7 +3852,7 @@ class ReportController extends Controller
     protected function r_ia_reconciliation($from, $to): array
     {
         $to = $to->copy()->min(bdate()->copy()->subDay());
-        $days = \App\Models\AuditDay::with('signer', 'closer')->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->get()->keyBy(fn ($d) => $d->business_date->toDateString());
+        $days = \App\Models\AuditDay::with('signer', 'closer')->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->get()->keyBy(fn ($d) => $d->business_date->toDateString());
         $rows = collect();
         for ($d = $from->copy(); $d->lte($to) && $rows->count() < 92; $d->addDay()) {
             $date = $d->toDateString();
@@ -4071,7 +4071,7 @@ class ReportController extends Controller
     protected function r_marketing_roi($from, $to): array
     {
         $M = \App\Models\MarketingEvent::class;
-        $events = $M::with('owner')->whereBetween('start_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('start_date')->get();
+        $events = $M::with('owner')->whereDate('start_date', '>=', Carbon::parse($from)->toDateString())->whereDate('start_date', '<=', Carbon::parse($to)->toDateString())->orderBy('start_date')->get();
         $roi = \App\Services\MarketingPlanService::roi($events);
         $rows = $events->map(fn ($e) => ['no' => $e->number, 'name' => $e->name, 'type' => $e->typeLabel(), 'dates' => $e->start_date->format('d M Y'), 'segment' => $M::SEGMENTS[$e->segment] ?? '',
             'market' => $M::MARKETS[$e->market] ?? '', 'status' => $e->statusLabel(), 'budget' => (float) $e->budget, 'cost' => in_array($e->status, ['done', 'cancelled']) ? (float) $e->actual_cost : 0.0,
@@ -4256,7 +4256,7 @@ class ReportController extends Controller
     protected function r_bd_rate_shop($from, $to): array
     {
         $CH = \App\Models\BdRateShop::CHANNELS;
-        $shops = \App\Models\BdRateShop::with('lines.competitor')->whereBetween('stay_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('stay_date')->orderBy('channel')->get();
+        $shops = \App\Models\BdRateShop::with('lines.competitor')->whereDate('stay_date', '>=', Carbon::parse($from)->toDateString())->whereDate('stay_date', '<=', Carbon::parse($to)->toDateString())->orderBy('stay_date')->orderBy('channel')->get();
         $rows = $shops->map(function ($s) use ($CH) {
             $rated = $s->lines->where('sold_out', false)->whereNotNull('rate');
             $avg = $s->compAverage();
@@ -4704,7 +4704,7 @@ class ReportController extends Controller
 
     protected function r_parking_revenue($from, $to): array
     {
-        $ch = \App\Models\ParkingCharge::with('session')->whereBetween('business_date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->get();
+        $ch = \App\Models\ParkingCharge::with('session')->whereDate('business_date', '>=', Carbon::parse($from)->toDateString())->whereDate('business_date', '<=', Carbon::parse($to)->toDateString())->get();
         $waived = \App\Models\ParkingSession::where('fee_waived', '>', 0)->whereBetween('exited_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()])->get();
         $rows = $ch->groupBy(fn ($c) => $c->business_date->toDateString())->sortKeys()->map(function ($g, $d) use ($waived) {
             $n = $g->where('kind', 'night');
@@ -5043,7 +5043,7 @@ class ReportController extends Controller
 
     protected function r_esg_green($from, $to): array
     {
-        $list = \App\Models\EsgGreenNight::with(['room', 'guest', 'greenStay'])->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])->orderBy('business_date')->orderBy('room_id')->get();
+        $list = \App\Models\EsgGreenNight::with(['room', 'guest', 'greenStay'])->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())->orderBy('business_date')->orderBy('room_id')->get();
         $s = \App\Services\EsgService::greenStats($from->toDateString(), $to->toDateString());
         $rows = $list->map(fn ($n) => ['date' => $n->business_date->format('d-m-Y'), 'room' => $n->room?->room_no, 'guest' => $n->guest?->full_name, 'source' => $n->greenStay?->source === 'portal' ? 'Guest portal' : 'Front desk',
             'points' => $n->points ?: null, 'kwh' => $n->kwh, 'litres' => $n->litres, 'co2' => $n->co2_kg]);

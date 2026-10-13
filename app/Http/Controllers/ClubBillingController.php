@@ -38,9 +38,9 @@ class ClubBillingController extends Controller
         return view('club.billing', [
             'arrears' => ClubBillingService::arrears(),
             'due' => ClubMembership::with('plan', 'company')->whereIn('status', ['active', 'frozen'])->whereNull('cancel_mode')->where('auto_renew', true)
-                ->whereBetween('end_date', [Carbon::parse($today)->subDay()->toDateString(), Carbon::parse($today)->addDays($renewDays)->toDateString()])->orderBy('end_date')->get(),
+                ->whereDate('end_date', '>=', Carbon::parse($today)->subDay()->toDateString())->whereDate('end_date', '<=', Carbon::parse($today)->addDays($renewDays)->toDateString())->orderBy('end_date')->get(),
             'ending' => ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->where(fn ($q) => $q->where('auto_renew', false)->orWhereNotNull('cancel_mode'))
-                ->whereBetween('end_date', [$today, Carbon::parse($today)->addDays(30)->toDateString()])->orderBy('end_date')->get(),
+                ->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())->orderBy('end_date')->get(),
             'lapsed' => ClubMembership::with('plan')->where('status', 'expired')->whereDate('end_date', '>=', Carbon::parse($today)->subDays(60)->toDateString())->orderByDesc('end_date')->get(),
             'charges' => ClubCharge::with('membership')->whereBetween('date', [$from, $to])->orderByDesc('date')->orderByDesc('id')->get(),
             'receipts' => ClubPayment::with('membership', 'paymentMode')->whereBetween('date', [$from, $to])->orderByDesc('date')->orderByDesc('id')->get(),

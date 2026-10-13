@@ -379,7 +379,7 @@ class ReservationDeskService
         return Reservation::with(['guest', 'rooms.room'])
             ->where('booking_type', 'group')
             ->whereIn('status', ['tentative', 'confirmed'])
-            ->whereBetween('arrival_date', [$date->toDateString(), $date->copy()->addDays($days - 1)->toDateString()])
+            ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->orderBy('arrival_date')->orderBy('id')
             ->get();
     }
@@ -399,7 +399,7 @@ class ReservationDeskService
     {
         return ReservationRoom::with(['reservation.guest', 'room'])
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->whereBetween('arrival_date', [$date->toDateString(), $date->copy()->addDays($days - 1)->toDateString()])
+            ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))
             ->orderBy('arrival_date')->orderBy('id')->get();
     }
