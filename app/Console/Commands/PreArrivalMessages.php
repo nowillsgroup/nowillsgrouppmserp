@@ -27,7 +27,7 @@ class PreArrivalMessages extends Command
             $sent = 0;
             $date = bdate()->copy()->addDays($days)->toDateString();
             $done = MessageLog::where('template', 'pre_arrival')->where('related_type', 'Reservation')->where('status', 'sent')->pluck('related_id')->all();
-            Reservation::with('guest')->whereIn('status', ['confirmed', 'tentative'])->where('arrival_date', $date)->whereNotIn('id', $done)
+            Reservation::with('guest')->whereIn('status', ['confirmed', 'tentative'])->whereDate('arrival_date', $date)->whereNotIn('id', $done)
                 ->whereHas('guest', fn ($q) => $q->whereNotNull('phone')->where('phone', '!=', ''))
                 ->each(function ($r) use (&$sent) {
                     $sent += MessageService::sendTemplate('pre_arrival', $r, MessageService::defaultChannel())->status === 'sent' ? 1 : 0;

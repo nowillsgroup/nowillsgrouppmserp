@@ -53,7 +53,7 @@ class UtilityController extends Controller
         } elseif ($tab === 'readings') {
             $date = $request->query('date') && strtotime($request->query('date')) ? min(Carbon::parse($request->query('date'))->toDateString(), bdate()->toDateString()) : bdate()->toDateString();
             $meters = UtilityMeter::with('parent')->where('is_active', true)->orderByRaw("FIELD(utility,'electricity','dg','solar','water','lpg','diesel','png')")->orderBy('parent_id')->orderBy('code')->get();
-            $today = MeterReading::with('user')->where('reading_date', $date)->get()->keyBy('utility_meter_id');
+            $today = MeterReading::with('user')->whereDate('reading_date', $date)->get()->keyBy('utility_meter_id');
             $rows = $meters->map(fn ($m) => ['meter' => $m, 'prev' => Us::previous($m, $date), 'cur' => $today->get($m->id), 'expected' => Us::expected($m, $date)]);
             $v += ['date' => $date, 'rows' => $rows];
         } elseif ($tab === 'meters') {

@@ -496,7 +496,7 @@ class SecurityService
             'visitors_today' => Visitor::whereDate('checked_in_at', $now->toDateString())->count(),
             'gp_pending' => GatePass::where('status', 'pending')->count(),
             'gp_away' => GatePass::whereIn('status', GatePass::AWAY)->count(),
-            'gp_overdue' => GatePass::where('type', 'returnable')->whereIn('status', GatePass::AWAY)->where('expected_return_date', '<', $bd)->count(),
+            'gp_overdue' => GatePass::where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd)->count(),
             'inc_open' => SecurityIncident::where('status', '!=', 'closed')->count(),
             'inc_serious' => SecurityIncident::where('status', '!=', 'closed')->whereIn('severity', ['high', 'critical'])->count(),
             'inc_month' => SecurityIncident::where('occurred_at', '>=', bdate()->copy()->startOfMonth())->count(),

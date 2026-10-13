@@ -354,8 +354,8 @@ class FbCostService
         return self::$memo['creep'.Tenant::id()] ??= (function () {
             $costs = self::costs();
             $from = bdate()->copy()->subDays(self::cfg()['creep_days'])->toDateString();
-            $base = FbCostSnapshot::where('business_date', '<=', $from)
-                ->whereIn('id', FbCostSnapshot::where('business_date', '<=', $from)->groupBy('menu_item_id')->select(DB::raw('MAX(id)')))
+            $base = FbCostSnapshot::whereDate('business_date', '<=', $from)
+                ->whereIn('id', FbCostSnapshot::whereDate('business_date', '<=', $from)->groupBy('menu_item_id')->select(DB::raw('MAX(id)')))
                 ->get()->keyBy('menu_item_id');
             $out = [];
             foreach ($costs as $id => $cost) {

@@ -662,7 +662,7 @@ class PrivacyService
                 ->whereNotIn('guest_id', Reservation::whereNotNull('guest_id')->where(fn ($w) => $busy($w, $c['id']))->select('guest_id'))
                 ->whereNotIn('guest_id', ReservationRoom::whereNotNull('guest_id')->where(fn ($w) => $busy($w, $c['id']))->select('guest_id')), $none),
             'signatures' => ReservationRoom::whereNotNull('grc_signature_path')->when($c['id'], fn ($q) => $q->where('status', 'checked_out')
-                ->where('departure_date', '<', $c['id']->toDateString()), $none),
+                ->whereDate('departure_date', '<', $c['id']->toDateString()), $none),
             'messages' => MessageLog::when($c['msg'], fn ($q) => $q->where('created_at', '<', $c['msg'])->whereNotIn('body', ['[purged]', '[erased]']), $none),
             'emails' => EmailLog::when($c['msg'], fn ($q) => $q->where('created_at', '<', $c['msg'])->whereNotIn('to_email', ['[purged]', '[erased]']), $none),
             'dining' => \App\Models\TableReservation::when($c['msg'], fn ($q) => $q->where('start_at', '<', $c['msg'])->whereNotIn('status', ['booked', 'confirmed', 'waiting', 'notified', 'seated'])

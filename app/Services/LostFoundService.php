@@ -38,7 +38,7 @@ class LostFoundService
         }
 
         return ReservationRoom::with('guest', 'reservation.guest')->where('room_id', $roomId)
-            ->where('arrival_date', '<=', $found->toDateString())->where('departure_date', '>=', $found->copy()->subDays(3)->toDateString())
+            ->whereDate('arrival_date', '<=', $found->toDateString())->where('departure_date', '>=', $found->copy()->subDays(3)->toDateString())
             ->whereIn('status', ['checked_in', 'checked_out'])->orderByRaw("status = 'checked_in' desc")->orderByDesc('departure_date')->first();
     }
 

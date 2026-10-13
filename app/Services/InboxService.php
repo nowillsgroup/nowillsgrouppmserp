@@ -669,8 +669,8 @@ class InboxService
         $today = bdate()->toDateString();
         $q = ReservationRoom::with('guest', 'reservation.guest', 'room');
         match ($audience) {
-            'arrivals' => $q->where('status', 'reserved')->where('arrival_date', $today)->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative'])),
-            'departures' => $q->where('status', 'checked_in')->where('departure_date', $today),
+            'arrivals' => $q->where('status', 'reserved')->whereDate('arrival_date', $today)->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative'])),
+            'departures' => $q->where('status', 'checked_in')->whereDate('departure_date', $today),
             'floor' => $q->where('status', 'checked_in')->whereHas('room', fn ($r) => $r->where('floor_id', $floorId ?: 0)),
             default => $q->where('status', 'checked_in'),
         };

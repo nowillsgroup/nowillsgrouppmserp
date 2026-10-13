@@ -352,7 +352,7 @@ class CloseService
                 if (($tr = TreasuryService::inTransit($E)) > 0) {
                     $notes[] = money($tr).' in transit at month end – confirm it was credited in the first days of the next month';
                 }
-                $pdc = \App\Models\ChequeReceived::where('status', 'pdc')->where('cheque_date', '<=', $E)->count();
+                $pdc = \App\Models\ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $E)->count();
                 if ($pdc) {
                     $notes[] = $pdc.' post-dated cheque(s) due by '.dmy($E).' not yet banked';
                 }
@@ -394,7 +394,7 @@ class CloseService
                 return $n ? ['fail', $n.' expense claim(s) submitted by '.dmy($E).' still awaiting approval.'] : ['pass', 'No claims waiting.'];
 
             case 'ap_hold':
-                $q = \App\Models\SupplierInvoice::where('status', 'on_hold')->where('doc_date', '<=', $E);
+                $q = \App\Models\SupplierInvoice::where('status', 'on_hold')->whereDate('doc_date', '<=', $E);
 
                 return ($n = $q->count()) ? ['warn', $n.' supplier bill(s) on hold for price / quantity variances ('.money($q->sum('total')).') – accrue if the goods were received.'] : ['pass', 'No bills on hold.'];
 

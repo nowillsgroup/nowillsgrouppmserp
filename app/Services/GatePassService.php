@@ -235,7 +235,7 @@ class GatePassService
     {
         $n = 0;
         $bd = bdate()->toDateString();
-        foreach (GatePass::with('items', 'department')->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->where('expected_return_date', '<', $bd)
+        foreach (GatePass::with('items', 'department')->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd)
             ->whereNull('overdue_alerted_on')->get() as $p) {
             LogBookService::system("Gate pass {$p->pass_no} overdue – goods not back from {$p->party_name}",
                 'Expected back '.$p->expected_return_date->format('d M Y').'. Still out: '.$p->items->filter(fn ($i) => $i->outstanding() > 0)

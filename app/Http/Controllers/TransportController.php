@@ -415,7 +415,7 @@ class TransportController extends Controller
         $month = now()->startOfMonth();
         $vehicles = Vehicle::with('asset')->orderByDesc('is_active')->orderBy('code')->get();
         $tripStats = TransportTrip::where('status', 'completed')->where('scheduled_at', '>=', $month)->whereNotNull('vehicle_id')
-            ->selectRaw('vehicle_id, COUNT(*) n, SUM(GREATEST(COALESCE(odo_end,0) - COALESCE(odo_start,0), 0)) km, SUM(CASE WHEN billing <> \'complimentary\' THEN total ELSE 0 END) rev')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
+            ->selectRaw('vehicle_id, COUNT(*) n, SUM(CASE WHEN COALESCE(odo_end,0) > COALESCE(odo_start,0) THEN COALESCE(odo_end,0) - COALESCE(odo_start,0) ELSE 0 END) km, SUM(CASE WHEN billing <> \'complimentary\' THEN total ELSE 0 END) rev')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
         $cost = VehicleExpense::where('date', '>=', $month->toDateString())->selectRaw('vehicle_id, SUM(amount) amt, SUM(COALESCE(litres,0)) l')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
         $drivers = Driver::with('user', 'employee')->orderByDesc('is_active')->orderBy('name')->get();
         $today = TransportTrip::whereDate('scheduled_at', now()->toDateString())->whereNotIn('status', ['cancelled'])->whereNotNull('driver_id')->selectRaw('driver_id, COUNT(*) n')->groupBy('driver_id')->pluck('n', 'driver_id');

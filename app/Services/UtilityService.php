@@ -98,12 +98,12 @@ class UtilityService
 
     public static function previous(UtilityMeter $m, string $date): ?MeterReading
     {
-        return MeterReading::where('utility_meter_id', $m->id)->where('reading_date', '<', $date)->orderByDesc('reading_date')->orderByDesc('id')->first();
+        return MeterReading::where('utility_meter_id', $m->id)->whereDate('reading_date', '<', $date)->orderByDesc('reading_date')->orderByDesc('id')->first();
     }
 
     public static function next(UtilityMeter $m, string $date): ?MeterReading
     {
-        return MeterReading::where('utility_meter_id', $m->id)->where('reading_date', '>', $date)->orderBy('reading_date')->orderBy('id')->first();
+        return MeterReading::where('utility_meter_id', $m->id)->whereDate('reading_date', '>', $date)->orderBy('reading_date')->orderBy('id')->first();
     }
 
     /** consumption, days, cost and roll-over for a reading against its predecessor (throws on an impossible reading) */
@@ -140,7 +140,7 @@ class UtilityService
         if ($r->days < 1 || $m->alert_pct <= 0) {          // opening reading, or detection switched off for this meter
             return;
         }
-        $hist = MeterReading::where('utility_meter_id', $m->id)->where('reading_date', '<', $r->reading_date->toDateString())->where('days', '>', 0)
+        $hist = MeterReading::where('utility_meter_id', $m->id)->whereDate('reading_date', '<', $r->reading_date->toDateString())->where('days', '>', 0)
             ->orderByDesc('reading_date')->limit(14)->get(['consumption', 'days']);
         if ($hist->count() < 3) {
             return;
@@ -176,7 +176,7 @@ class UtilityService
         if (! $prev) {
             return null;
         }
-        $hist = MeterReading::where('utility_meter_id', $m->id)->where('reading_date', '<', $date)->where('days', '>', 0)->orderByDesc('reading_date')->limit(14)->get(['consumption', 'days']);
+        $hist = MeterReading::where('utility_meter_id', $m->id)->whereDate('reading_date', '<', $date)->where('days', '>', 0)->orderByDesc('reading_date')->limit(14)->get(['consumption', 'days']);
         $avg = $hist->count() ? $hist->sum('consumption') / max(1, $hist->sum('days')) : 0;
         $days = max(1, (int) $prev->reading_date->diffInDays(Carbon::parse($date)));
 
@@ -287,8 +287,8 @@ class UtilityService
         $date ??= bdate()->toDateString();
 
         // a later reading spans the gap (its consumption covers the missed day), so only meters with nothing on or after $date count
-        return UtilityMeter::where('is_active', true)->whereDoesntHave('readings', fn ($q) => $q->where('reading_date', '>=', $date))
-            ->when($established, fn ($q) => $q->whereHas('readings', fn ($r) => $r->where('reading_date', '<', $date)))->orderBy('code')->get();
+        return UtilityMeter::where('is_active', true)->whereDoesntHave('readings', fn ($q) => $q->whereDate('reading_date', '>=', $date))
+            ->when($established, fn ($q) => $q->whereHas('readings', fn ($r) => $r->whereDate('reading_date', '<', $date)))->orderBy('code')->get();
     }
 
     /** nav badge: meters not read yesterday + unacknowledged anomalies of the last week */

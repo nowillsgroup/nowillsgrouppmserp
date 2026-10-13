@@ -268,7 +268,7 @@ class ClubBillingService
     {
         $cut = Carbon::parse($date ?? bdate())->subDays((int) setting('club_grace_days', 7))->toDateString();
         $rows = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->where('type', '!=', 'credit')
-            ->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
+            ->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
 
         return [round($rows->sum(fn ($c) => (float) $c->total - (float) $c->paid), 2), $rows->first()?->due_date];
     }
@@ -277,7 +277,7 @@ class ClubBillingService
     public static function arrears(): \Illuminate\Support\Collection
     {
         $cut = bdate()->copy()->subDays((int) setting('club_grace_days', 7))->toDateString();
-        $rows = ClubCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')
+        $rows = ClubCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')
             ->selectRaw('club_membership_id, SUM(total - paid) amt, MIN(due_date) since')->groupBy('club_membership_id')->get();
         $ms = ClubMembership::with('plan', 'company')->whereIn('id', $rows->pluck('club_membership_id'))->get()->keyBy('id');
 

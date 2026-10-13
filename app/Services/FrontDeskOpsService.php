@@ -136,7 +136,7 @@ class FrontDeskOpsService
             'parcels' => GuestMessage::whereIn('status', GuestMessage::OPEN)->where('kind', 'parcel')->count(),
             'messages_old' => GuestMessage::whereIn('status', GuestMessage::OPEN)->where('created_at', '<', now()->subMinutes(max(1, $c['msg_remind_minutes'])))->count(),
             'departed_parcels' => GuestMessage::whereIn('status', GuestMessage::OPEN)->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count(),
-            'traces_today' => Trace::where('status', 'open')->where('trace_date', '<=', $today)->count(),
+            'traces_today' => Trace::where('status', 'open')->whereDate('trace_date', '<=', $today)->count(),
             'log_unread' => $userId ? LogBookService::unreadCount($userId) : 0,
             'log_open' => LogEntry::where('status', 'open')->count(),
             'log_urgent' => LogEntry::where('status', 'open')->where('priority', 'urgent')->count(),
@@ -154,10 +154,10 @@ class FrontDeskOpsService
 
         return self::counts() + [
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
-            'arrivals_pending' => ReservationRoom::where('status', 'reserved')->where('arrival_date', $today)
+            'arrivals_pending' => ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $today)
                 ->whereHas('reservation', fn ($q) => $q->whereIn('status', ['confirmed', 'tentative']))->count(),
-            'departures_pending' => ReservationRoom::where('status', 'checked_in')->where('departure_date', '<=', $today)->count(),
-            'lf_today' => LostFoundItem::where('found_date', $today)->count(),
+            'departures_pending' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $today)->count(),
+            'lf_today' => LostFoundItem::whereDate('found_date', $today)->count(),
         ];
     }
 

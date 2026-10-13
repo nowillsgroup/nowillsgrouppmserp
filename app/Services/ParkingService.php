@@ -628,7 +628,7 @@ class ParkingService
                 'requested' => ParkingSession::where('status', 'requested')->count(), 'ready' => ParkingSession::where('status', 'ready')->count(),
                 'in_today' => ParkingSession::where('status', '!=', 'cancelled')->where('entered_at', '>=', $dayStart)->count(),
                 'out_today' => ParkingSession::where('status', 'out')->where('exited_at', '>=', $dayStart)->count(),
-                'revenue_today' => (float) ParkingCharge::where('business_date', $b)->sum('amount'),
+                'revenue_today' => (float) ParkingCharge::whereDate('business_date', $b)->sum('amount'),
                 'revenue_mtd' => (float) ParkingCharge::whereBetween('business_date', [bdate()->copy()->startOfMonth()->toDateString(), $b])->sum('amount'),
                 'avg_wait' => $waits->count() ? round($waits->avg(), 1) : null, 'within_sla' => $waits->count() ? round($waits->filter(fn ($w) => $w <= $sla)->count() / $waits->count() * 100, 1) : null,
                 'retrievals' => $waits->count()];

@@ -1194,7 +1194,7 @@ class KioskService
         $kioskOuts = $sessions->where('kind', 'checkout')->filter(fn ($s) => collect($s->trail)->contains(fn ($t) => ($t[1] ?? '') === 'checkout'))->count();
         $done = KioskSession::where('status', 'completed')->where('kind', 'checkin')->where('started_at', '>=', now()->subDays(30))->get();
         $avg = $done->count() ? (int) round($done->avg(fn ($s) => $s->seconds())) : 0;
-        $arrivalsLeft = ReservationRoom::where('status', 'reserved')->where('arrival_date', $bd)->count();
+        $arrivalsLeft = ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $bd)->count();
 
         return [
             'kiosks' => Kiosk::orderBy('name')->get(),

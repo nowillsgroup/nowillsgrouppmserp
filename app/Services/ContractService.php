@@ -150,8 +150,8 @@ class ContractService
     /** Active stays booked under the given contracts that touch the range (each with ->contract_id). */
     public static function pickedStays(array $contractIds, Carbon $from, Carbon $to): Collection
     {
-        $resToContract = Reservation::whereIn('rate_contract_id', $contractIds)->where('arrival_date', '<', $to->toDateString())
-            ->where('departure_date', '>', $from->toDateString())->pluck('rate_contract_id', 'id');
+        $resToContract = Reservation::whereIn('rate_contract_id', $contractIds)->whereDate('arrival_date', '<', $to->toDateString())
+            ->whereDate('departure_date', '>', $from->toDateString())->pluck('rate_contract_id', 'id');
 
         return ReservationRoom::whereIn('reservation_id', $resToContract->keys())->whereIn('status', ['reserved', 'checked_in'])
             ->get(['id', 'reservation_id', 'room_type_id', 'arrival_date', 'departure_date'])

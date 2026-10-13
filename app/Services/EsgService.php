@@ -429,7 +429,7 @@ class EsgService
     {
         $to ??= Carbon::parse(self::today())->subDay()->toDateString();
         $from = Carbon::parse($to)->subYear()->addDay()->toDateString();
-        $first = MeterReading::where('reading_date', '>=', $from)->where('reading_date', '<=', $to)->min('reading_date');
+        $first = MeterReading::whereDate('reading_date', '>=', $from)->whereDate('reading_date', '<=', $to)->min('reading_date');
         $first = $first ? Carbon::parse($first)->toDateString() : $from;
 
         return [max($from, $first), $to];
@@ -489,7 +489,7 @@ class EsgService
             $from = "{$year}-01-01";
             $to = "{$year}-12-31";
             $stays = ReservationRoom::with('room', 'roomType')->whereHas('reservation', fn ($q) => $q->where('company_id', $co->id))->whereIn('status', ['checked_in', 'checked_out'])
-                ->where('arrival_date', '<=', $to)->where('arrival_date', '>=', $from)->orderBy('arrival_date')->get();
+                ->whereDate('arrival_date', '<=', $to)->whereDate('arrival_date', '>=', $from)->orderBy('arrival_date')->get();
             foreach ($stays as $s) {
                 $lines[] = $roomLine($s);
             }

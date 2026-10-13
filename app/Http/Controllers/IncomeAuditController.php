@@ -83,9 +83,9 @@ class IncomeAuditController extends Controller
         $date = $auditday->business_date->toDateString();
 
         return view('income-audit.day', ['day' => $auditday, 'findings' => $findings, 'all' => $all, 'checks' => IA::CHECKS,
-            'figures' => $auditday->figures ?: IA::figures($date), 'counts' => RoomCount::where('business_date', $date)->get(),
-            'prev' => AuditDay::where('business_date', '<', $date)->orderByDesc('business_date')->first(),
-            'next' => AuditDay::where('business_date', '>', $date)->orderBy('business_date')->first()]);
+            'figures' => $auditday->figures ?: IA::figures($date), 'counts' => RoomCount::whereDate('business_date', $date)->get(),
+            'prev' => AuditDay::whereDate('business_date', '<', $date)->orderByDesc('business_date')->first(),
+            'next' => AuditDay::whereDate('business_date', '>', $date)->orderBy('business_date')->first()]);
     }
 
     public function print(AuditDay $auditday)
@@ -138,7 +138,7 @@ class IncomeAuditController extends Controller
     {
         $date = bdate()->toDateString();
         $rooms = Room::with('roomType')->where('is_active', true)->orderBy('floor_id')->orderBy('room_no')->get();
-        $done = RoomCount::where('business_date', $date)->get()->keyBy('room_id');
+        $done = RoomCount::whereDate('business_date', $date)->get()->keyBy('room_id');
 
         return view('income-audit.room-count', ['rooms' => $rooms, 'done' => $done, 'date' => $date, 'blind' => ! can_do('income_audit.authorise')]);
     }
@@ -154,7 +154,7 @@ class IncomeAuditController extends Controller
     public function discrepancies(Request $request)
     {
         $from = Carbon::parse($request->input('from', bdate()->copy()->subDays(7)->toDateString()))->toDateString();
-        $rows = RoomCount::with('room.roomType', 'counter', 'resolver')->where('business_date', '>=', $from)->where('result', '!=', 'ok')
+        $rows = RoomCount::with('room.roomType', 'counter', 'resolver')->whereDate('business_date', '>=', $from)->where('result', '!=', 'ok')
             ->when($request->input('show', 'open') === 'open', fn ($q) => $q->whereNull('resolution'))
             ->orderByDesc('business_date')->orderBy('room_id')->get();
         $summary = RoomCount::where('business_date', bdate()->toDateString())->selectRaw('result, count(*) n')->groupBy('result')->pluck('n', 'result');

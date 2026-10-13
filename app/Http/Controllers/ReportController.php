@@ -411,7 +411,7 @@ class ReportController extends Controller
             foreach (\App\Services\PackageService::forecast($from->copy()->max(bdate()), $to->copy()) as $d => $cells) {
                 foreach ($cells as $pid => $c) {
                     $rows->push(['date' => Carbon::parse($d)->format('d-m-Y'), '_d' => $d, 'package' => $pkgs[$pid]->name ?? '#'.$pid, 'basis' => $d === $bd ? 'Today (on the books)' : 'Forecast',
-                        'rooms' => $c['rooms'], 'adults' => $c['adults'], 'children' => $c['children'], 'covers' => $c['covers'], 'used' => $d === $bd ? (int) \App\Models\PackageEntitlement::where('service_date', $d)->where('package_id', $pid)->sum('consumed_qty') : '',
+                        'rooms' => $c['rooms'], 'adults' => $c['adults'], 'children' => $c['children'], 'covers' => $c['covers'], 'used' => $d === $bd ? (int) \App\Models\PackageEntitlement::whereDate('service_date', $d)->where('package_id', $pid)->sum('consumed_qty') : '',
                         'value' => round($c['value'], 2), '_class' => $d === $bd ? 'row-amber' : '']);
                 }
             }
@@ -441,7 +441,7 @@ class ReportController extends Controller
         $fixedUsed = \App\Models\PackageEntitlement::whereBetween('night_date', $range)->where('status', 'consumed')->where('is_allowance', false)
             ->selectRaw('package_id, SUM(amount) v, SUM(qty) q')->groupBy('package_id')->get()->keyBy('package_id');
         $brk = \App\Models\PackageEntitlement::whereBetween('expired_date', $range)->selectRaw('package_id, SUM(breakage_amount) b, SUM(qty - consumed_qty) q')->groupBy('package_id')->get()->keyBy('package_id');
-        $open = \App\Models\PackageEntitlement::whereIn('status', ['open', 'partial'])->where('is_allowance', true)->where('night_date', '<=', $range[1])
+        $open = \App\Models\PackageEntitlement::whereIn('status', ['open', 'partial'])->where('is_allowance', true)->whereDate('night_date', '<=', $range[1])
             ->selectRaw('package_id, SUM(amount - consumed_amount) o')->groupBy('package_id')->get()->keyBy('package_id');
         $rows = $pkgs->map(function ($p) use ($alloc, $used, $brk, $open, $fixedUsed) {
             $a = $alloc[$p->id] ?? null;
@@ -922,7 +922,7 @@ class ReportController extends Controller
     {
         $d = $to->toDateString();
         $runs = $this->assetAcc($d);
-        $rows = \App\Models\Asset::with('category', 'room', 'custodian')->where('purchase_date', '<=', $d)
+        $rows = \App\Models\Asset::with('category', 'room', 'custodian')->whereDate('purchase_date', '<=', $d)
             ->where(fn ($q) => $q->whereNull('disposed_date')->orWhere('disposed_date', '>', $d))->orderBy('asset_no')->get()
             ->map(function ($a) use ($runs) {
                 $acc = round((float) $a->opening_acc_dep + (float) ($runs[$a->id] ?? 0), 2);
@@ -946,7 +946,7 @@ class ReportController extends Controller
         $before = $from->copy()->subDay()->toDateString();
         $accOpen = $this->assetAcc($before);
         $charge = $this->assetAcc($t, $before);
-        $rows = \App\Models\Asset::with('category')->where('purchase_date', '<=', $t)
+        $rows = \App\Models\Asset::with('category')->whereDate('purchase_date', '<=', $t)
             ->where(fn ($q) => $q->whereNull('disposed_date')->orWhere('disposed_date', '>=', $f))->orderBy('asset_no')->get()
             ->map(function ($a) use ($f, $t, $accOpen, $charge) {
                 $isNew = $a->purchase_date->toDateString() >= $f;
@@ -1082,7 +1082,7 @@ class ReportController extends Controller
     protected function r_occupancy($from, $to): array
     {
         $total = Room::where('is_active', true)->count();
-        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $to)->where('departure_date', '>', $from)->get(['arrival_date', 'departure_date', 'adults', 'children']);
+        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)->get(['arrival_date', 'departure_date', 'adults', 'children']);
         $rev = FolioTransaction::where('category', 'room')->where('type', 'charge')->where('is_void', false)->whereBetween('business_date', [$from, $to])
             ->get(['business_date', 'amount'])->groupBy(fn ($t) => $t->business_date->toDateString())->map->sum('amount');
         $rows = collect();
@@ -1675,7 +1675,7 @@ class ReportController extends Controller
     protected function r_voucher_liability($from, $to): array
     {
         $d = $to->toDateString();
-        $bal = \App\Models\GiftVoucherTransaction::where('business_date', '<=', $d)->selectRaw("gift_voucher_id, SUM(CASE WHEN type IN ('issue','reload','reversal') THEN amount ELSE -amount END) b")
+        $bal = \App\Models\GiftVoucherTransaction::whereDate('business_date', '<=', $d)->selectRaw("gift_voucher_id, SUM(CASE WHEN type IN ('issue','reload','reversal') THEN amount ELSE -amount END) b")
             ->groupBy('gift_voucher_id')->havingRaw('ABS(b) > 0.004')->pluck('b', 'gift_voucher_id');
         $rows = \App\Models\GiftVoucher::with('type')->whereIn('id', $bal->keys())->orderBy('expires_on')->get()->map(function ($v) use ($bal, $to) {
             $days = (int) $to->diffInDays($v->expires_on, false);
@@ -2059,7 +2059,7 @@ class ReportController extends Controller
     protected function roomNightsBy($from, $to, string $key): Collection
     {
         return ReservationRoom::with('reservation.source', 'reservation.company', 'folio.transactions')->whereIn('status', ['checked_in', 'checked_out'])
-            ->where('arrival_date', '<=', $to)->where('departure_date', '>', $from)->get()
+            ->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)->get()
             ->groupBy(fn ($s) => ($key === 'source' ? $s->reservation->source?->name : $s->reservation->company?->name) ?? ($key === 'source' ? 'Direct / Walk-in' : 'Individual (FIT)'))
             ->map(function ($g, $name) use ($from, $to) {
                 $end = $to->copy()->addDay();
@@ -2914,7 +2914,7 @@ class ReportController extends Controller
     {
         $on = $d->toDateString();
         $rows = collect();
-        foreach (PurchaseOrder::with('items.item', 'supplier')->whereIn('status', ['approved', 'partial'])->where('po_date', '<=', $on)->orderBy('expected_date')->get() as $po) {
+        foreach (PurchaseOrder::with('items.item', 'supplier')->whereIn('status', ['approved', 'partial'])->whereDate('po_date', '<=', $on)->orderBy('expected_date')->get() as $po) {
             foreach ($po->items as $l) {
                 if ($l->outstanding() <= 0) {
                     continue;
@@ -3425,7 +3425,7 @@ class ReportController extends Controller
     {
         $f = Carbon::parse($from)->toDateString();
         $t = Carbon::parse($to)->toDateString();
-        $buys = \App\Models\ForexExchange::whereNull('voided_at')->where('business_date', '<=', $t)->get(['currency_id', 'business_date', 'fc_amount', 'inr_amount'])->groupBy('currency_id');
+        $buys = \App\Models\ForexExchange::whereNull('voided_at')->whereDate('business_date', '<=', $t)->get(['currency_id', 'business_date', 'fc_amount', 'inr_amount'])->groupBy('currency_id');
         $outs = \App\Models\ForexSurrenderLine::with('surrender')->whereHas('surrender', fn ($q) => $q->where('hotel_id', \App\Support\Tenant::id())->where('date', '<=', $t))->get()->groupBy('currency_id');
         $rows = \App\Models\Currency::orderBy('sort_order')->get()->map(function ($c) use ($buys, $outs, $f) {
             $b = $buys[$c->id] ?? collect();
@@ -3668,7 +3668,7 @@ class ReportController extends Controller
         $f = $from->toDateString();
         $t = $to->toDateString();
         $ms = \App\Models\ClubMembership::with('plan', 'company')->withCount(['members' => fn ($q) => $q->where('is_active', true)])
-            ->where('start_date', '<=', $t)->where(fn ($q) => $q->where('end_date', '>=', $f)->orWhereIn('status', ['active', 'frozen']))->orderBy('membership_no')->get();
+            ->whereDate('start_date', '<=', $t)->where(fn ($q) => $q->whereDate('end_date', '>=', $f)->orWhereIn('status', ['active', 'frozen']))->orderBy('membership_no')->get();
         $visits = \App\Models\ClubVisit::join('club_members as cm', 'cm.id', '=', 'club_visits.club_member_id')->where('club_visits.denied', false)
             ->whereBetween('club_visits.checked_in_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->selectRaw('cm.club_membership_id m, COUNT(*) n')->groupBy('cm.club_membership_id')->pluck('n', 'm');
         $rows = $ms->map(fn ($m) => ['no' => $m->membership_no, 'holder' => $m->holder_name.($m->company ? ' ('.$m->company->name.')' : ''), 'plan' => $m->plan->name, 'cards' => $m->members_count,
@@ -3742,7 +3742,7 @@ class ReportController extends Controller
         $f = $from->toDateString();
         $t = $to->toDateString();
         $LB = \App\Services\LeaseBillingService::class;
-        $leases = \App\Models\Lease::whereIn('status', ['active', 'notice', 'ended', 'terminated'])->where('start_date', '<=', $t)->get()
+        $leases = \App\Models\Lease::whereIn('status', ['active', 'notice', 'ended', 'terminated'])->whereDate('start_date', '<=', $t)->get()
             ->filter(fn ($l) => $l->lastDay()->toDateString() >= $f)->groupBy('lease_unit_id');
         $rows = \App\Models\LeaseUnit::where('is_active', true)->orderBy('code')->get()->map(function ($u) use ($leases, $f, $t, $LB) {
             $l = ($leases[$u->id] ?? collect())->sortByDesc('start_date')->first();
@@ -4146,7 +4146,7 @@ class ReportController extends Controller
         $F = Carbon::parse($from);
         $T = Carbon::parse($to);
         $C = \App\Models\DmCampaign::class;
-        $rows = $C::with('channel')->where('start_date', '<=', $T->toDateString())->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $F->toDateString()))
+        $rows = $C::with('channel')->whereDate('start_date', '<=', $T->toDateString())->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $F->toDateString()))
             ->where('status', '!=', 'draft')->orderBy('start_date')->get()->map(function ($c) use ($F, $T, $C) {
                 $s = \App\Services\DigitalMarketingService::campaignStats($c, $F, $T);
 

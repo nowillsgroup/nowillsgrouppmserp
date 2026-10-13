@@ -248,7 +248,7 @@ class ForexService
         $days = self::cfg()['aggregate_days'];
         $from = bdate()->copy()->subDays(max(0, $days - 1))->toDateString();
 
-        return (float) ForexExchange::whereNull('voided_at')->where('payout', 'cash')->where('business_date', '>=', $from)
+        return (float) ForexExchange::whereNull('voided_at')->where('payout', 'cash')->whereDate('business_date', '>=', $from)
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
             ->where(fn ($q) => $q->when($g, fn ($w) => $w->orWhere('guest_id', $g->id))->when($passport, fn ($w) => $w->orWhere('passport_no', $passport)))
             ->sum('usd_equiv');

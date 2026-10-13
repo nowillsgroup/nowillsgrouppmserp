@@ -190,7 +190,7 @@ class PartnerPortalController extends Controller
         $today = bdate()->toDateString();
         $q = Reservation::with('guest', 'rooms.roomType', 'rooms.room', 'partnerUser')->where('company_id', $u->company_id);
         match ($tab) {
-            'upcoming' => $q->whereIn('status', ['confirmed', 'tentative'])->where('departure_date', '>=', $today)->orderBy('arrival_date'),
+            'upcoming' => $q->whereIn('status', ['confirmed', 'tentative'])->whereDate('departure_date', '>=', $today)->orderBy('arrival_date'),
             'inhouse' => $q->where('status', 'checked_in')->orderBy('departure_date'),
             'past' => $q->whereIn('status', ['checked_out', 'no_show'])->orderByDesc('departure_date'),
             'cancelled' => $q->where('status', 'cancelled')->orderByDesc('cancelled_at'),

@@ -100,7 +100,7 @@ class KpiService
         }
         $to = $from->copy()->addDays($nights);
         $stays = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())->get(['arrival_date', 'departure_date']);
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get(['arrival_date', 'departure_date']);
         $sold = 0;
         for ($d = $from->copy(); $d->lt($to); $d->addDay()) {
             $sold += $stays->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d))->count();

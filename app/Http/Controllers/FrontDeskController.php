@@ -30,7 +30,7 @@ class FrontDeskController extends Controller
         $rooms = Room::with(['roomType', 'floor', 'currentStay.reservation.guest'])->where('is_active', true)
             ->when($request->type, fn ($q, $t) => $q->where('room_type_id', $t))
             ->orderBy('room_no')->get();
-        $arrivingToday = ReservationRoom::with('reservation.guest')->where('status', 'reserved')->where('arrival_date', $d)->whereNotNull('room_id')->get()->keyBy('room_id');
+        $arrivingToday = ReservationRoom::with('reservation.guest')->where('status', 'reserved')->whereDate('arrival_date', $d)->whereNotNull('room_id')->get()->keyBy('room_id');
 
         foreach ($rooms as $room) {
             $room->view_status = $room->status;
@@ -61,7 +61,7 @@ class FrontDeskController extends Controller
         $to = $from->copy()->addDays($days);
         $rooms = Room::with('roomType')->where('is_active', true)->orderBy('room_type_id')->orderBy('room_no')->get();
         $stays = ReservationRoom::with('reservation.guest')->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())->get();
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get();
 
         return view('frontdesk.tapechart', [
             'from' => $from, 'days' => $days, 'rooms' => $rooms->groupBy(fn ($r) => $r->roomType->name),
@@ -136,7 +136,7 @@ class FrontDeskController extends Controller
     {
         $d = $request->input('date', bdate()->toDateString());
 
-        return $this->stayList('arrivals', ReservationRoom::where('status', 'reserved')->where('arrival_date', '<=', $d)->where('arrival_date', '>=', Carbon::parse($d)->subDays($request->boolean('overdue') ? 30 : 0))->orderBy('arrival_date'), 'Arrivals');
+        return $this->stayList('arrivals', ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', '<=', $d)->where('arrival_date', '>=', Carbon::parse($d)->subDays($request->boolean('overdue') ? 30 : 0))->orderBy('arrival_date'), 'Arrivals');
     }
 
     public function inHouse()
@@ -148,7 +148,7 @@ class FrontDeskController extends Controller
     {
         $d = $request->input('date', bdate()->toDateString());
 
-        return $this->stayList('departures', ReservationRoom::where('status', 'checked_in')->where('departure_date', '<=', $d)->orderBy('departure_date'), 'Departures');
+        return $this->stayList('departures', ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->orderBy('departure_date'), 'Departures');
     }
 
     // ---------------- Walk-in ----------------

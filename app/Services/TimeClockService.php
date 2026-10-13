@@ -248,7 +248,7 @@ class TimeClockService
     {
         $emps = RosterService::employees($dept, Carbon::parse($date))->keyBy('id');
         $shifts = RosterShift::with('template')->whereIn('employee_id', $emps->keys())->where('date', $date)->get()->keyBy('employee_id');
-        $punches = TimePunch::whereIn('employee_id', $emps->keys())->where('work_date', $date)->orderBy('clock_in')->get()->groupBy('employee_id');
+        $punches = TimePunch::whereIn('employee_id', $emps->keys())->whereDate('work_date', $date)->orderBy('clock_in')->get()->groupBy('employee_id');
         $leave = RosterService::leaveMap($emps->keys(), $date, $date);
         $now = now();
         $rows = collect();

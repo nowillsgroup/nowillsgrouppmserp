@@ -303,11 +303,11 @@ class FrontDeskOpsController extends Controller
         $dept = array_key_exists((string) $request->query('department'), TraceService::DEPARTMENTS) ? $request->query('department') : null;
         $with = ['stay.room', 'reservation', 'guest', 'creator', 'doer'];
         $isToday = $date->isSameDay(bdate());
-        $open = Trace::with($with)->where('status', 'open')->when($isToday, fn ($q) => $q->where('trace_date', '<=', $date->toDateString()), fn ($q) => $q->where('trace_date', $date->toDateString()))
+        $open = Trace::with($with)->where('status', 'open')->when($isToday, fn ($q) => $q->whereDate('trace_date', '<=', $date->toDateString()), fn ($q) => $q->whereDate('trace_date', $date->toDateString()))
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderBy('trace_date')->orderByRaw('due_time IS NULL')->orderBy('due_time')->get();
-        $closed = Trace::with($with)->where('status', '!=', 'open')->where(fn ($q) => $q->where('trace_date', $date->toDateString())->orWhereDate('done_at', $date->toDateString()))
+        $closed = Trace::with($with)->where('status', '!=', 'open')->where(fn ($q) => $q->whereDate('trace_date', $date->toDateString())->orWhereDate('done_at', $date->toDateString()))
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderByDesc('done_at')->get();
-        $upcoming = $isToday ? Trace::with($with)->where('status', 'open')->where('trace_date', '>', $date->toDateString())
+        $upcoming = $isToday ? Trace::with($with)->where('status', 'open')->whereDate('trace_date', '>', $date->toDateString())
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderBy('trace_date')->limit(50)->get() : collect();
 
         return view('desk.traces', ['open' => $open, 'closed' => $closed, 'upcoming' => $upcoming, 'date' => $date, 'dept' => $dept, 'isToday' => $isToday,

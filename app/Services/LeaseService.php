@@ -105,7 +105,7 @@ class LeaseService
         $t = Carbon::parse($to)->toDateString();
 
         return Lease::with('unit.room')->whereIn('status', ['draft', 'active', 'notice'])->whereHas('unit', fn ($q) => $q->whereNotNull('room_id'))
-            ->where('start_date', '<', $t)->get()
+            ->whereDate('start_date', '<', $t)->get()
             ->filter(fn ($l) => $l->lastDay()->copy()->addDay()->toDateString() > $f)
             ->map(fn ($l) => ['room_id' => $l->unit->room_id, 'room_type_id' => $l->unit->room?->room_type_id, 'from' => $l->start_date->toDateString(),
                 'to' => $l->lastDay()->copy()->addDay()->toDateString(), 'lease_no' => $l->lease_no])->values();
@@ -125,7 +125,7 @@ class LeaseService
         $to = Carbon::parse($lastDay)->addDay()->toDateString();
 
         return ReservationRoom::with('reservation')->where('room_id', $unit->room_id)->whereNotIn('status', ['cancelled', 'no_show', 'checked_out'])
-            ->where('arrival_date', '<', $to)->where('departure_date', '>', $from)->get()
+            ->whereDate('arrival_date', '<', $to)->whereDate('departure_date', '>', $from)->get()
             ->map(fn ($s) => ($s->reservation?->reservation_no ?? 'stay #'.$s->id).' ('.dmy($s->arrival_date).'–'.dmy($s->departure_date).')')->all();
     }
 
@@ -414,7 +414,7 @@ class LeaseService
         $cut = Carbon::parse($today)->subDays((int) self::cfg('lease_grace_days'))->toDateString();
         $n = 0;
         $charged = LeaseCharge::whereNotNull('late_fee_of_id')->whereNull('cancelled_at')->pluck('late_fee_of_id')->all();
-        foreach (LeaseCharge::with('lease.unit')->where('type', 'rent')->whereNull('cancelled_at')->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->whereNotIn('id', $charged ?: [0])->get() as $c) {
+        foreach (LeaseCharge::with('lease.unit')->where('type', 'rent')->whereNull('cancelled_at')->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->whereNotIn('id', $charged ?: [0])->get() as $c) {
             if (! $c->lease->isLive() && $c->lease->status !== 'ended') {
                 continue;
             }

@@ -313,7 +313,7 @@ class LeaseBillingService
     {
         $cut = Carbon::parse($date ?? bdate())->subDays((int) setting('lease_grace_days', 5))->toDateString();
         $rows = LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->where('type', '!=', 'credit')
-            ->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
+            ->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
 
         return [round($rows->sum(fn ($c) => (float) $c->total - (float) $c->paid), 2), $rows->first()?->due_date];
     }
@@ -323,7 +323,7 @@ class LeaseBillingService
     {
         $asOf ??= bdate()->toDateString();
         $cut = Carbon::parse($asOf)->subDays((int) setting('lease_grace_days', 5))->toDateString();
-        $rows = LeaseCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->get(['lease_id', 'total', 'paid', 'due_date']);
+        $rows = LeaseCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->get(['lease_id', 'total', 'paid', 'due_date']);
         $leases = Lease::with('unit', 'company')->whereIn('id', $rows->pluck('lease_id')->unique())->get()->keyBy('id');
 
         return $rows->groupBy('lease_id')->map(function ($g, $id) use ($leases, $asOf) {

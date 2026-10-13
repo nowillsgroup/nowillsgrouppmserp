@@ -126,7 +126,7 @@ class PettyCashService
         return PettyTxn::where('status', 'pending')->count()
             + PettyReplenishment::whereIn('status', ['requested', 'approved'])->count()
             + PettyCount::where('status', 'pending')->count()
-            + PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('due_date', '<', $today)->count();
+            + PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->whereDate('due_date', '<', $today)->count();
     }
 
     // ─────────────────────────── guards ───────────────────────────

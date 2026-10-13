@@ -575,7 +575,7 @@ class CroService
         $m = AvailabilityService::matrix($from->copy(), $days);
         $cap = (int) $m['types']->sum('rooms_count');
         $enq = CroEnquiry::whereIn('status', ['lost', 'referred'])->whereNotNull('loss_type')
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())->get(['status', 'loss_type', 'arrival_date', 'departure_date', 'rooms']);
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get(['status', 'loss_type', 'arrival_date', 'departure_date', 'rooms']);
         $out = collect();
         foreach (CarbonPeriod::create($from, $to->copy()->subDay()) as $d) {
             $k = $d->toDateString();

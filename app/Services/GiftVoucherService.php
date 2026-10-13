@@ -657,7 +657,7 @@ class GiftVoucherService
         $today = bdate()->toDateString();
         $days = self::cfg()['reminder_days'] ?: 30;
         $live = GiftVoucher::whereIn('status', ['active', 'suspended']);
-        $t = GiftVoucherTransaction::where('business_date', $today);
+        $t = GiftVoucherTransaction::whereDate('business_date', $today);
         $exp = GiftVoucher::where('status', 'active')->where('balance', '>', 0)->whereBetween('expires_on', [$today, bdate()->copy()->addDays($days)->toDateString()]);
 
         return [

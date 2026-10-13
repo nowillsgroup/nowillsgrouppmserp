@@ -472,7 +472,7 @@ class ApService
 
             return $s->id;
         };
-        foreach (SupplierInvoice::with('supplier')->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->where('doc_date', '<=', $asOf)
+        foreach (SupplierInvoice::with('supplier')->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $b) {
             $r = &$rows[$row($b->supplier)];
             $days = $b->daysOverdue($asOf);
@@ -495,7 +495,7 @@ class ApService
             $r['credit'] += $p->unapplied();
             unset($r);
         }
-        foreach (SupplierInvoice::with('supplier')->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->where('doc_date', '<=', $asOf)
+        foreach (SupplierInvoice::with('supplier')->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $dn) {
             $r = &$rows[$row($dn->supplier)];
             $r['credit'] += $dn->outstanding();
@@ -553,9 +553,9 @@ class ApService
     {
         $grn = PurchaseOrder::where('status', 'received')->whereDoesntHave('receipts')->get()->filter(fn ($po) => $po->grnDate() <= $asOf)->sum('total')
             + \App\Models\GoodsReceipt::where('date', '<=', $asOf)->sum('total'); // v4.8
-        $bills = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial', 'paid'])->where('doc_date', '<=', $asOf)->get()
+        $bills = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial', 'paid'])->whereDate('doc_date', '<=', $asOf)->get()
             ->sum(fn ($b) => $b->kind === 'goods' ? $b->variance() : (float) $b->total);
-        $dn = SupplierInvoice::where('type', 'debit_note')->where('status', '!=', 'cancelled')->where('doc_date', '<=', $asOf)->sum('total');
+        $dn = SupplierInvoice::where('type', 'debit_note')->where('status', '!=', 'cancelled')->whereDate('doc_date', '<=', $asOf)->sum('total');
         $paid = SupplierPayment::whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('amount');
         $vouchers = Voucher::where('type', 'payment')->where('account_head_id', AccountHead::sys('accounts_payable'))->where('date', '<=', $asOf)->sum('amount');
 

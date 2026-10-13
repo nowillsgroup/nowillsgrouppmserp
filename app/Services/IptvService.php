@@ -1406,7 +1406,7 @@ class IptvService
         $top = fn ($e) => (clone $ev)->where('event', $e)->whereNotNull('target')->selectRaw('target, COUNT(*) n')->groupBy('target')->orderByDesc('n')->limit(10)->pluck('n', 'target')->map(fn ($n) => (int) $n)->all();
         $rent = TvPurchase::whereBetween('starts_at', [$a, $b])->where('status', '!=', 'refunded');
         $orders = PosOrder::where('source', 'tv')->whereBetween('created_at', [$a, $b])->with('items')->get();
-        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $b->toDateString())->where('departure_date', '>', $a->toDateString())->whereNotNull('checked_in_at')->count();
+        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $b->toDateString())->whereDate('departure_date', '>', $a->toDateString())->whereNotNull('checked_in_at')->count();
         $used = (clone $ev)->whereNotNull('reservation_room_id')->distinct()->count('reservation_room_id');
         $sent = TvMessage::whereBetween('starts_at', [$a, $b])->where('kind', '!=', 'emergency');
 

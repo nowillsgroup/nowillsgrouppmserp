@@ -314,7 +314,7 @@ class MarketingPlanService
     {
         $start = $month->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
         $end = $month->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
-        $events = MarketingEvent::where('start_date', '<=', $end->toDateString())->where('end_date', '>=', $start->toDateString())->orderBy('start_date')->get();
+        $events = MarketingEvent::whereDate('start_date', '<=', $end->toDateString())->whereDate('end_date', '>=', $start->toDateString())->orderBy('start_date')->get();
         $days = [];
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
             $ds = $d->toDateString();

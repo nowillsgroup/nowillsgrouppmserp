@@ -186,7 +186,7 @@ class TreasuryService
     public static function position(?string $asOf = null): array
     {
         $asOf ??= bdate()->toDateString();
-        $issued = ChequeIssued::with('book')->where('status', 'issued')->where('cheque_date', '<=', $asOf)->get()->groupBy(fn ($c) => $c->book->treasury_account_id);
+        $issued = ChequeIssued::with('book')->where('status', 'issued')->whereDate('cheque_date', '<=', $asOf)->get()->groupBy(fn ($c) => $c->book->treasury_account_id);
         $rows = self::accounts()->map(function (TreasuryAccount $a) use ($asOf, $issued) {
             $bal = self::balance($a->account_head_id, $asOf);
             $rec = in_array($a->kind, ['bank', 'momo', 'clearing'], true)
@@ -535,7 +535,7 @@ class TreasuryService
     {
         $upTo ??= bdate()->toDateString();
         $n = 0;
-        foreach (ChequeReceived::where('status', 'pdc')->where('cheque_date', '<=', $upTo)->get() as $c) {
+        foreach (ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $upTo)->get() as $c) {
             DB::transaction(fn () => self::recognise($c, $c->cheque_date->toDateString()));
             $n++;
         }
@@ -1142,7 +1142,7 @@ class TreasuryService
                 $n += TreasuryTransfer::where('status', 'requested')->where('requested_by', '!=', $u->id)->count();
             }
             $T = bdate()->toDateString();
-            $n += ChequeReceived::where('status', 'pdc')->where('cheque_date', '<=', $T)->count();
+            $n += ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $T)->count();
             $n += TreasuryTransfer::where('status', 'in_transit')->where('dispatched_on', '<', bdate()->copy()->subDays(2)->toDateString())->count();
         } catch (\Throwable $e) {
             $n = 0;
@@ -1159,7 +1159,7 @@ class TreasuryService
         foreach ($pos['alerts'] as $r) {
             $out[] = ['tone' => 'red', 'text' => $r['account']->name.($r['overdrawn'] ? ' is overdrawn: ' : ' is below its minimum of '.money($r['account']->min_balance).': ').money($r['balance'])];
         }
-        if ($n = ChequeReceived::where('status', 'pdc')->where('cheque_date', '<=', $T)->count()) {
+        if ($n = ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $T)->count()) {
             $out[] = ['tone' => 'amber', 'text' => $n.' post-dated cheque(s) now due – bank them'];
         }
         $inHand = ChequeReceived::where('status', 'in_hand')->whereNull('transfer_id')->get();

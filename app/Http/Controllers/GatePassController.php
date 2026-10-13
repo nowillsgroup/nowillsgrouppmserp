@@ -36,15 +36,15 @@ class GatePassController extends Controller
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where('pass_no', 'like', "%{$q}%")->orWhere('party_name', 'like', "%{$q}%")
                 ->orWhereHas('items', fn ($i) => $i->where('description', 'like', "%{$q}%"))))
             ->when($f === 'action', fn ($w) => $w->where(fn ($x) => $x->whereIn('status', ['pending', 'approved'])
-                ->orWhere(fn ($o) => $o->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->where('expected_return_date', '<', $bd))))
+                ->orWhere(fn ($o) => $o->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd))))
             ->when(in_array($f, ['pending', 'approved'], true), fn ($w) => $w->where('status', $f))
             ->when($f === 'away', fn ($w) => $w->whereIn('status', GatePass::AWAY))
-            ->when($f === 'overdue', fn ($w) => $w->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->where('expected_return_date', '<', $bd))
+            ->when($f === 'overdue', fn ($w) => $w->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd))
             ->when($f === 'done', fn ($w) => $w->whereIn('status', ['returned', 'closed', 'rejected', 'cancelled']))
             ->orderByRaw("FIELD(status, 'pending', 'approved', 'partial', 'out') = 0")->latest('id')->paginate(40)->withQueryString();
         $counts = ['pending' => GatePass::where('status', 'pending')->count(), 'approved' => GatePass::where('status', 'approved')->count(),
             'away' => GatePass::whereIn('status', GatePass::AWAY)->count(),
-            'overdue' => GatePass::where('type', 'returnable')->whereIn('status', GatePass::AWAY)->where('expected_return_date', '<', $bd)->count(),
+            'overdue' => GatePass::where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd)->count(),
             'value_out' => (float) \App\Models\GatePassItem::whereHas('pass', fn ($p) => $p->whereIn('status', GatePass::AWAY))
                 ->selectRaw('COALESCE(SUM(est_value * (quantity - returned_qty) / quantity), 0) v')->value('v')];
 

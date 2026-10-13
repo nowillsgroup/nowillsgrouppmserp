@@ -498,7 +498,7 @@ class RequisitionService
     {
         return PurchaseOrderItem::join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
             ->where('purchase_orders.hotel_id', Tenant::id())->whereIn('purchase_orders.status', ['draft', 'approved', 'partial'])
-            ->groupBy('purchase_order_items.inventory_item_id')->selectRaw('purchase_order_items.inventory_item_id, SUM(GREATEST(purchase_order_items.qty - purchase_order_items.received_qty, 0)) q')
+            ->groupBy('purchase_order_items.inventory_item_id')->selectRaw('purchase_order_items.inventory_item_id, SUM(CASE WHEN purchase_order_items.qty > purchase_order_items.received_qty THEN purchase_order_items.qty - purchase_order_items.received_qty ELSE 0 END) q')
             ->pluck('q', 'inventory_item_id');
     }
 

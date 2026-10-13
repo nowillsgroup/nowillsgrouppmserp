@@ -101,8 +101,8 @@ class AccountsController extends Controller
     public function cashBook(Request $request)
     {
         $date = $request->input('date', bdate()->toDateString());
-        $folioPay = FolioTransaction::with('folio.guest', 'paymentMode')->where('business_date', $date)->whereIn('type', ['payment', 'refund'])->where('category', '!=', 'city_ledger')->where('is_void', false)->get();
-        $pos = PosOrder::with('paymentMode', 'outlet')->where('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get();
+        $folioPay = FolioTransaction::with('folio.guest', 'paymentMode')->whereDate('business_date', $date)->whereIn('type', ['payment', 'refund'])->where('category', '!=', 'city_ledger')->where('is_void', false)->get();
+        $pos = PosOrder::with('paymentMode', 'outlet')->whereDate('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get();
         $vouchers = Voucher::with('head', 'paymentMode')->where('date', $date)->get();
 
         $rows = collect()

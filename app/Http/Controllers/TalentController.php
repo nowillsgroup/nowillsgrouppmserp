@@ -237,7 +237,7 @@ class TalentController extends Controller
     {
         $since = bdate()->subMonths(6)->toDateString();
         $emps = Employee::with(['department', 'onboardingTasks'])->where('is_active', true)
-            ->where(fn ($q) => $q->where('joining_date', '>=', $since)->orWhere(fn ($w) => $w->whereNotNull('probation_end')->whereNull('confirmed_on'))->orWhereNull('statement_issued_on'))
+            ->where(fn ($q) => $q->whereDate('joining_date', '>=', $since)->orWhere(fn ($w) => $w->whereNotNull('probation_end')->whereNull('confirmed_on'))->orWhereNull('statement_issued_on'))
             ->orderByDesc('joining_date')->get();
 
         return view('talent.starters', ['emps' => $emps, 'overdue' => TS::statementsOverdue()->pluck('id')->all()]);

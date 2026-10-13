@@ -122,7 +122,7 @@ class AvailabilityService
         $to = Carbon::parse($to)->startOfDay();
         $blocks = RoomBlock::with('lines')->whereIn('status', ['tentative', 'definite'])
             ->when($exceptBlockId, fn ($q) => $q->where('id', '!=', $exceptBlockId))
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())->get();
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get();
         if ($blocks->isEmpty()) {
             return [];
         }

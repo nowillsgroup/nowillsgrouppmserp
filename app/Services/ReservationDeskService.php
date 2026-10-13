@@ -111,7 +111,7 @@ class ReservationDeskService
         } elseif ($focus === 'oos') {
             $rooms = $rooms->where('status', 'out_of_service')->values();
         } elseif ($focus === 'cleaning') {
-            $ids = HousekeepingTask::where('task_date', $date->toDateString())->where('status', 'in_progress')->pluck('room_id');
+            $ids = HousekeepingTask::whereDate('task_date', $date->toDateString())->where('status', 'in_progress')->pluck('room_id');
             $rooms = $rooms->whereIn('id', $ids)->values();
         } elseif ($focus === 'maintenance') {
             $ids = MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->pluck('room_id');
@@ -445,7 +445,7 @@ class ReservationDeskService
             'vacant_clean' => $roomRows->where('status', 'vacant')->where('hk_status', 'clean')->count(),
             'vacant_dirty' => $roomRows->where('status', 'vacant')->where('hk_status', 'dirty')->count(),
             'inspected' => $roomRows->where('hk_status', 'inspected')->count(),
-            'cleaning' => HousekeepingTask::where('task_date', $d)->where('status', 'in_progress')->distinct()->count('room_id'),
+            'cleaning' => HousekeepingTask::whereDate('task_date', $d)->where('status', 'in_progress')->distinct()->count('room_id'),
             'maintenance' => MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->whereNotNull('room_id')->distinct()->count('room_id'),
             'ooo' => $roomRows->where('status', 'out_of_order')->count(),
             'oos' => $roomRows->where('status', 'out_of_service')->count(),

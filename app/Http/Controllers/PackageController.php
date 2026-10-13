@@ -32,7 +32,7 @@ class PackageController extends Controller
         $d = bdate();
         $pkgs = Package::where('is_allowance', true)->where('is_active', true)->orderBy('sort')->orderBy('name')->get();
         $forecast = PS::forecast($d->copy(), $d->copy()->addDays(6));
-        $today = PackageEntitlement::with('package')->where('service_date', $d->toDateString())->whereIn('status', ['open', 'partial', 'consumed'])->where('is_allowance', true)->get();
+        $today = PackageEntitlement::with('package')->whereDate('service_date', $d->toDateString())->whereIn('status', ['open', 'partial', 'consumed'])->where('is_allowance', true)->get();
         $mtd = [$d->copy()->startOfMonth()->toDateString(), $d->toDateString()];
         $stats = [
             'covers_today' => (int) $today->sum('qty'),

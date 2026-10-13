@@ -36,7 +36,7 @@ class ApController extends Controller
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->status, fn ($q, $s) => $s === 'unpaid' ? $q->whereIn('status', ['open', 'partial']) : $q->where('status', $s))
-            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->where('due_date', '<', $asOf))
+            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('due_date', '<', $asOf))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('doc_no', 'like', "%{$s}%")->orWhere('supplier_ref', 'like', "%{$s}%")));
         $open = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial']);
 
@@ -45,7 +45,7 @@ class ApController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
             'kpi' => [
                 'outstanding' => (float) (clone $open)->sum('total') - (float) (clone $open)->sum('allocated'),
-                'overdue' => (float) (clone $open)->where('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
+                'overdue' => (float) (clone $open)->whereDate('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
                 'due7' => (float) (clone $open)->whereBetween('due_date', [$asOf, Carbon::parse($asOf)->addDays(7)->toDateString()])->get()->sum(fn ($b) => $b->outstanding()),
                 'hold' => SupplierInvoice::where('status', 'on_hold')->count(),
                 'unbilled' => ApService::unbilledReceipts(),

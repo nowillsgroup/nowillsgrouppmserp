@@ -28,7 +28,7 @@ class NightAuditService
             // v3.4: Form C reports past their 24-hour deadline (a warning – the audit still runs)
             'formc_overdue' => FormCService::enabled() ? \App\Models\FormCRecord::with('stay.room')->where('status', 'pending')->where('deadline_at', '<=', now())->orderBy('deadline_at')->get() : collect(),
             // v3.5: front desk – open traces roll forward, urgent log items should be seen by the night manager (warnings only)
-            'desk_traces' => \App\Models\Trace::with('stay.room', 'reservation')->where('status', 'open')->where('trace_date', '<=', $d)->orderBy('trace_date')->get(),
+            'desk_traces' => \App\Models\Trace::with('stay.room', 'reservation')->where('status', 'open')->whereDate('trace_date', '<=', $d)->orderBy('trace_date')->get(),
             'desk_urgent' => \App\Models\LogEntry::where('status', 'open')->where('priority', 'urgent')->orderBy('id')->get(),
             // v3.9: meters not read today (warning – the next reading will simply cover two days) and lapsed critical licences
             'meters_missing' => UtilityService::cfg()['require_readings'] ? UtilityService::missing($d, true) : collect(),
