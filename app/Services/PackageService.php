@@ -169,7 +169,7 @@ class PackageService
             throw new RuntimeException('The end date is before the start date.');
         }
         $overlap = StayFixedCharge::where('reservation_room_id', $stay->id)->where('package_id', $p->id)->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('end_date')->whereDate('end_date', '>=', $s->toDateString()))
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $s->toDateString()))
             ->when($e, fn ($q) => $q->whereDate('start_date', '<=', $e->toDateString()))->exists();
         if ($overlap) {
             throw new RuntimeException("{$p->name} is already on this stay for those nights.");

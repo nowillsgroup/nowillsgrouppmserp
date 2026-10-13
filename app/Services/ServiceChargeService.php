@@ -165,8 +165,8 @@ class ServiceChargeService
         $dist->lines()->delete();
 
         $emps = Employee::where('sc_eligible', true)
-            ->where(fn ($q) => $q->whereNull('joining_date')->whereDate('joining_date', '<=', $to))
-            ->where(fn ($q) => $q->whereNull('leaving_date')->whereDate('leaving_date', '>=', $from))
+            ->where(fn ($q) => $q->whereNull('joining_date')->orWhereDate('joining_date', '<=', $to))
+            ->where(fn ($q) => $q->whereNull('leaving_date')->orWhereDate('leaving_date', '>=', $from))
             ->where(fn ($q) => $q->where('is_active', true)->orWhereNotNull('leaving_date'))->orderBy('name')->get();
         $att = Attendance::whereIn('employee_id', $emps->pluck('id'))->whereBetween('date', [$from, $to])->whereIn('status', ['P', 'H'])
             ->get()->groupBy('employee_id')->map(fn ($g) => $g->sum(fn ($a) => $a->status === 'H' ? 0.5 : 1));

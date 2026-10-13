@@ -301,8 +301,8 @@ class PayrollService
     public static function eligible(PayrollRun $run): Collection
     {
         return Employee::where('salary', '>', 0)
-            ->where(fn ($q) => $q->whereNull('joining_date')->whereDate('joining_date', '<=', $run->period_end->toDateString()))
-            ->where(fn ($q) => $q->where(fn ($w) => $w->where('is_active', true)->whereNull('leaving_date'))->whereDate('leaving_date', '>=', $run->period_start->toDateString()))
+            ->where(fn ($q) => $q->whereNull('joining_date')->orWhereDate('joining_date', '<=', $run->period_end->toDateString()))
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('is_active', true)->whereNull('leaving_date'))->orWhereDate('leaving_date', '>=', $run->period_start->toDateString()))
             ->orderBy('emp_code')->get();
     }
 

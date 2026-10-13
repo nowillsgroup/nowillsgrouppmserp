@@ -58,7 +58,7 @@ class HrController extends Controller
     {
         $month = Carbon::createFromFormat('Y-m-d', ($request->input('month') ?: bdate()->format('Y-m')).'-01')->startOfDay();
         $end = $month->copy()->endOfMonth()->startOfDay();
-        $employees = Employee::with('department')->where(fn ($q) => $q->where('is_active', true)->whereDate('leaving_date', '>=', $month->toDateString()))
+        $employees = Employee::with('department')->where(fn ($q) => $q->where('is_active', true)->orWhereDate('leaving_date', '>=', $month->toDateString()))
             ->when($request->department, fn ($q, $d) => $q->where('department_id', $d))->orderBy('emp_code')->get();
         $att = Attendance::whereIn('employee_id', $employees->pluck('id'))->whereBetween('date', [$month->toDateString(), $end->toDateString()])->get()
             ->groupBy('employee_id')->map(fn ($g) => $g->keyBy(fn ($a) => $a->date->day));

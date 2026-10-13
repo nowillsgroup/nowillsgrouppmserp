@@ -131,6 +131,43 @@ Also fixed while sweeping: `GREATEST()` is not a SQLite function, so
 portable `CASE WHEN` in `TransportController`, `RequisitionService` and
 `StockTakeService` — same semantics on MySQL and Postgres.
 
+## The `orWhere` trap when converting mechanically
+
+`orWhere()` has a `Date` variant too, and a mechanical `where(` → `whereDate(`
+rewrite that drops the method name silently turns an **OR into an AND**:
+
+```php
+// before — employees still on staff, or who left after the period started
+->where(fn ($q) => $q->where('is_active', true)->whereNull('leaving_date'))
+->orWhere('leaving_date', '>=', $start)
+
+// broken rewrite — leaving_date IS NULL **and** leaving_date >= start: never true
+->whereNull('leaving_date')->whereDate('leaving_date', '>=', $start)
+
+// correct
+->whereNull('leaving_date')->orWhereDate('leaving_date', '>=', $start)
+```
+
+This shipped once, in 13 sites across 8 files, and the symptom was not an error
+but an *empty result*: payroll found 0 eligible employees instead of 15 and
+every seeded payroll run failed with "The run has no payslips". The pairs that
+break loudest are `whereNull(col)->orWhere(col, …)` — "open-ended **or** within
+range" — because the AND form is unsatisfiable by construction.
+
+Two checks catch it, and both should be run after any bulk rewrite:
+
+```bash
+# 1. conservation: every orWhere in the base is still an orWhere or an orWhereDate
+#    (compare counts per file against the base commit)
+
+# 2. the unsatisfiable pattern, anywhere in the tree
+grep -rnE "whereNull\('([a-z_]+_date)'\)\s*->\s*whereDate\('\1'" app/
+```
+
+Lint passes on all of it, and a page sweep returns 200 — the queries simply
+come back empty. Only running the code paths (seeding, running the audit,
+opening the report) shows it.
+
 ## Checking for regressions
 
 To find columns whose rows disagree about the storage form:
