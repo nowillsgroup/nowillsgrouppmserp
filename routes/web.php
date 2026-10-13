@@ -713,6 +713,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::middleware('perm:frontdesk.checkout')->group(function () {
             Route::get('/stay/{stay}/check-out', 'checkOutForm')->name('checkout');
             Route::post('/stay/{stay}/check-out', 'checkOut')->name('checkout.store');
+            Route::post('/stay/{stay}/prepare-bill', 'prepareBill')->name('prepare');
         });
         Route::middleware('perm:frontdesk.roommove')->group(function () {
             Route::get('/stay/{stay}/move', 'moveForm')->name('move');

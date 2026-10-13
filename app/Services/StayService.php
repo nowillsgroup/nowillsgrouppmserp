@@ -298,6 +298,46 @@ class StayService
         ];
     }
 
+    /**
+     * Post everything still sitting outside the folio onto it, so a departure
+     * can actually check out: unsettled outlet bills, pending laundry and
+     * transport trips billed to the room. Anything that needs a human first
+     * (guest QR items awaiting confirmation, laundry not yet processed, an
+     * activity waiting on its operator, Form C) is reported as skipped rather
+     * than forced. Returns counts, totals and the skip reasons.
+     */
+    public static function assembleBill(ReservationRoom $stay): array
+    {
+        if ($stay->status !== 'checked_in') {
+            throw new RuntimeException('Stay is not checked in.');
+        }
+        $done = ['pos' => 0, 'pos_total' => 0.0, 'laundry' => 0, 'laundry_total' => 0.0, 'trips' => 0, 'skipped' => []];
+
+        DB::transaction(function () use ($stay, &$done) {
+            foreach (PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->orderBy('id')->get() as $o) {
+                if ($o->items()->where('is_pending', true)->where('is_cancelled', false)->exists()) {
+                    $done['skipped'][] = "outlet bill {$o->order_no} has guest QR items awaiting confirmation";
+                    continue;
+                }
+                PosOpsService::postToRoom($o, $stay);
+                $done['pos']++;
+                $done['pos_total'] += (float) $o->total;
+            }
+            foreach (LaundryService::pendingForStay($stay->id) as $o) {
+                if (! in_array($o->status, ['processing', 'ready'], true) || (float) $o->total <= 0) {
+                    $done['skipped'][] = "laundry {$o->order_no} is {$o->statusLabel()}";
+                    continue;
+                }
+                LaundryService::deliver($o);
+                $done['laundry']++;
+                $done['laundry_total'] += (float) $o->total;
+            }
+            $done['trips'] = TransportService::postPendingForStay($stay);
+        });
+
+        return $done;
+    }
+
     /** Fixed charges postPendingNights would add. Reads the folio; does not post. */
     protected static function unpostedFixed(ReservationRoom $stay, array $nights, Carbon $until): array
     {

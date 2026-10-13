@@ -348,6 +348,29 @@ class FrontDeskController extends Controller
         return redirect()->route('folios.invoice', $stay->fresh()->folio)->with('success', 'Checked out. Invoice generated.');
     }
 
+    /** Post every outstanding outlet bill, laundry order and transport trip onto the folio. */
+    public function prepareBill(ReservationRoom $stay)
+    {
+        abort_unless($stay->status === 'checked_in', 404);
+        $done = StayService::assembleBill($stay);
+        $parts = [];
+        if ($done['pos']) {
+            $parts[] = $done['pos'].' outlet bill(s) '.money($done['pos_total']);
+        }
+        if ($done['laundry']) {
+            $parts[] = $done['laundry'].' laundry order(s) '.money($done['laundry_total']);
+        }
+        if ($done['trips']) {
+            $parts[] = $done['trips'].' transport trip(s)';
+        }
+        $msg = $parts ? 'Posted to the bill: '.implode(', ', $parts).'.' : 'Nothing outstanding could be posted.';
+        foreach ($done['skipped'] as $skip) {
+            $msg .= ' Left alone: '.$skip.'.';
+        }
+
+        return back()->with('success', $msg);
+    }
+
     // ---------------- Room move / amend ----------------
     public function moveForm(ReservationRoom $stay)
     {

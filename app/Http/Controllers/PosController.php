@@ -669,19 +669,7 @@ class PosController extends Controller
                 }
             } elseif ($data['settlement'] === 'room_post') {
                 $stay = ReservationRoom::findOrFail($data['reservation_room_id']);
-                if ($stay->status !== 'checked_in') {
-                    throw ValidationException::withMessages(['reservation_room_id' => 'Room is not in-house.']);
-                }
-                $folio = FolioService::openForStay($stay);
-                $net = (float) $order->subtotal - (float) $order->discount + (float) $order->service_charge + (float) $order->round_off;
-                FolioService::charge($folio, 'fnb', "{$order->outlet->name} – Bill {$order->bill_no}", $net, false,
-                    ['tax_amount' => $order->tax, 'tax_rate' => $net > 0 ? round($order->tax * 100 / $net, 2) : 0, 'source_type' => 'pos', 'source_id' => $order->id]);
-                $order->reservation_room_id = $stay->id;
-                $order->folio_id = $folio->id;
-                $order->status = 'settled';
-                $order->settled_at = now();
-                $order->settled_by = auth()->id();
-                \App\Services\RecipeService::consume($order);
+                \App\Services\PosOpsService::postToRoom($order, $stay);
             } else {
                 $order->status = 'settled';
                 $order->settled_at = now();

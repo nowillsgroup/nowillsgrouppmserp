@@ -20,7 +20,10 @@
         @endif
         @if(($mode ?? '') === 'departure')
           @php $holds = $s->status === 'checked_in' ? \App\Services\StayService::checkoutHolds($s) : null; @endphp
-          <td class="small">@if(! $holds)Checked out.@elseif($holds['blocking'] > 0)Checkout blocked.@if($holds['pos']['count']) POS {{ $holds['pos']['count'] }} ({{ money($holds['pos']['total']) }}).@endif @if($holds['trips']['count']) Transport {{ money($holds['trips']['total']) }}.@endif @if($holds['activities']['count']) Activity {{ money($holds['activities']['total']) }}.@endif @if($holds['formc']['count']) Form C {{ $holds['formc']['form_no'] }}.@endif @else No hold on file.@endif</td>
+          <td class="small">@if(! $holds)Checked out.@elseif($holds['blocking'] > 0)Checkout blocked.@if($holds['pos']['count']) POS {{ $holds['pos']['count'] }} ({{ money($holds['pos']['total']) }}).@endif @if($holds['trips']['count']) Transport {{ money($holds['trips']['total']) }}.@endif @if($holds['activities']['count']) Activity {{ money($holds['activities']['total']) }}.@endif @if($holds['formc']['count']) Form C {{ $holds['formc']['form_no'] }}.@endif
+            @if($holds['pos']['count'] || $holds['trips']['count'] || $holds['laundry']['count'])
+            <form method="post" action="{{ route('frontdesk.prepare', $s) }}" style="display:inline">@csrf<button class="btn btn-sm btn-warning" title="Post outlet bills, laundry and transport onto the folio">Post to bill</button></form>
+            @endif @else No hold on file.@endif</td>
           <td class="small">@if($s->status !== 'checked_in')—@else @php $due = \App\Services\StayService::quoteCheckoutFigures($s)['due']; @endphp {{ $due === null ? 'No folio' : money($due) }}<div class="tiny muted">Not posted</div>@endif</td>
         @endif
         <td class="nowrap">{{ $s->arrival_date->format('d M') }} – {{ $s->departure_date->format('d M') }}</td>
