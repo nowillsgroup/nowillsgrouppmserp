@@ -151,8 +151,9 @@
           </div>
           <div class="ws-rate-row small">
             <div><span class="muted">Best available rate</span><br><span class="bold">GH₵{{ number_format($c['rate']) }}</span> <span class="muted">/n</span></div>
-            @if ($c['balance'] !== null)
-            <div class="text-right {{ $c['balance'] > 0 ? 'ws-due' : 'muted' }}">{{ $c['balance'] > 0 ? 'GH₵ '.number_format($c['balance'], 0).' due' : 'Settled' }}</div>
+            @php $cardDue = $c['due'] ?? $c['balance']; @endphp
+            @if ($cardDue !== null)
+            <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="What checkout would collect, including nights and fixed charges still to post">{{ $cardDue > 0 ? 'GH₵ '.number_format($cardDue, 0).' due' : 'Settled' }}</div>
             @endif
           </div>
         </div>
@@ -267,7 +268,10 @@
       <a class="ws-person" href="{{ route('frontdesk.checkout', $s) }}">
         <span class="ws-avatar sm">{{ mb_substr($s->guest?->first_name ?? $s->reservation->guest?->first_name ?? 'G', 0, 1) }}</span>
         <span><b>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</b>
-          <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ $s->reservation->businessSource->name ?? 'Direct' }}</span></span>
+          <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ $s->reservation->businessSource->name ?? 'Direct' }}
+            @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
+            @if ($da !== null) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? 'GH₵ '.number_format($da, 2).' to settle' : 'settled' }}</b>@endif
+          </span></span>
       </a>
       @empty
       <div class="muted small">No departures today.</div>
@@ -387,7 +391,10 @@
             <tr><td class="muted">Stay</td><td class="bold">{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format('d M') }} → {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format('d M') }} · {{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</td>
                 <td class="muted">Guests</td><td class="bold">{{ $stay->reservation?->adults ?? 1 }} Adults · {{ $stay->reservation?->children ?? 0 }} Children</td></tr>
             <tr><td class="muted">Rate</td><td class="bold">GH₵{{ number_format($c['rate']) }}/n</td>
-                <td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? 'GH₵ '.number_format($c['balance'], 0).' due' : 'Settled' }}</td></tr>
+                <td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? 'GH₵ '.number_format($c['balance'], 0) : (($c['balance'] ?? 0) < 0 ? 'GH₵ '.number_format(abs($c['balance']), 0).' in credit' : 'Settled') }}</td></tr>
+            @if (($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)
+            <tr><td class="muted">Due at checkout</td><td class="bold ws-due" colspan="3">GH₵ {{ number_format($c['due'], 2) }} <span class="muted small">(balance plus nights and fixed charges still to post)</span></td></tr>
+            @endif
           </table>
         </div>
       </div>

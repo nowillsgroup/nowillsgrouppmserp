@@ -53,18 +53,26 @@
       <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>Balance</th></tr></thead>
       <tbody>
         @forelse ($departures as $s)
-        @php $bal = 0.0; try { $bal = (float) (\App\Services\StayService::quoteCheckoutFigures($s)['balance'] ?? 0); } catch (\Throwable) {} @endphp
+        @php
+          // `due` for a stay still in house (nights and fixed charges post at
+          // checkout), the final folio balance for one already checked out
+          $df = $departureFigures[$s->id] ?? null;
+          $bal = $df['amount'] ?? null;
+        @endphp
         <tr>
           <td>{{ $s->room?->room_no ?? '—' }}</td>
           <td>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</td>
           <td>{{ $s->reservation->businessSource->name ?? 'Direct' }}</td>
-          <td class="{{ $bal > 0 ? 'neg' : 'text-2' }}">{{ $bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled' }}</td>
+          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}</td>
         </tr>
         @empty
         <tr><td colspan="4" class="text-2">No departures today.</td></tr>
         @endforelse
       </tbody>
     </table>
+    @if (collect($departureFigures ?? [])->filter(fn ($f) => ($f['unposted'] ?? 0) > 0)->isNotEmpty())
+    <div class="text-2 small">* still in house: the figure is what checkout will collect, including nights and fixed charges not yet posted.</div>
+    @endif
   </div>
 
   <div>

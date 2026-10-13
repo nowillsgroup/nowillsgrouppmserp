@@ -146,13 +146,24 @@ class ReservationWorkspaceService
                 $status = 'reserved';
             }
 
+            // Two different numbers, and the labels matter:
+            //   balance — what the folio carries right now
+            //   due     — what checkout would collect, i.e. balance plus the
+            //             nights and fixed charges still to post
+            // The room card says "due", so it must be fed `due`; the modal says
+            // "Balance", so it keeps `balance`. quoteCheckoutFigures() only
+            // works on a checked-in stay, hence the fallback.
             $balance = null;
+            $due = null;
             $bestRate = null;
             if ($stay) {
                 try {
-                    $balance = (float) (StayService::quoteCheckoutFigures($stay)['balance'] ?? 0);
+                    $fig = StayService::quoteCheckoutFigures($stay);
+                    $balance = (float) ($fig['balance'] ?? 0);
+                    $due = (float) ($fig['due'] ?? $balance);
                 } catch (\Throwable) {
                     $balance = null;
+                    $due = null;
                 }
                 $bestRate = (float) $stay->rate;
             }
@@ -162,6 +173,7 @@ class ReservationWorkspaceService
                 'status' => $status,
                 'stay' => $stay,
                 'balance' => $balance,
+                'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
                 'amenities' => $typeAmenities[$room->room_type_id] ?? [],
                 'arriving_today' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $today,
@@ -195,6 +207,29 @@ class ReservationWorkspaceService
             ->whereDate('departure_date', $today)
             ->whereIn('status', ['checked_in', 'checked_out'])
             ->orderBy('room_id')->get();
+
+        // What each departure will actually settle. A checked-in stay still has
+        // nights and fixed charges to post, so its figure is `due`; a stay that
+        // has already checked out has a final folio balance and nothing more to
+        // post. Reporting the raw balance here understated departures — one demo
+        // guest showed GH₵ 774.40 when checkout would collect GH₵ 2,589.40.
+        $departureFigures = [];
+        foreach ($departures as $s) {
+            try {
+                $fig = StayService::quoteCheckoutFigures($s);
+                // 'unposted' is what checkout will still add on top of the folio as it
+                // stands. It is a better asterisk signal than 'pending' (missing nights
+                // only), which misses extra/early/late and unposted fixed charges.
+                $departureFigures[$s->id] = [
+                    'amount' => (float) ($fig['due'] ?? 0),
+                    'pending' => (int) ($fig['missing'] ?? 0),
+                    'unposted' => max(0, round((float) ($fig['due'] ?? 0) - (float) ($fig['balance'] ?? 0), 2)),
+                ];
+            } catch (\Throwable) {
+                $bal = $s->folio ? round((float) $s->folio->balance(), 2) : null;
+                $departureFigures[$s->id] = ['amount' => $bal, 'pending' => 0, 'unposted' => 0];
+            }
+        }
 
         $total = max(1, $rooms->count());
         $houseUse = $rooms->where('status', 'house_use')->count();
@@ -246,6 +281,7 @@ class ReservationWorkspaceService
             'cards' => collect($cards),
             'arrivals' => collect($arrivals),
             'departures' => $departures,
+            'departureFigures' => $departureFigures,
             'vip' => collect($vip),
             'statusSummary' => [
                 'Available' => [$rooms->count() - $sold - $reservedCount - $houseUse - $ooo, '#10b981'],
