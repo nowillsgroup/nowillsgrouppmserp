@@ -362,7 +362,7 @@ class ReservationController extends Controller
         $stays = $q->get();
         abort_if($stays->isEmpty(), 422, 'Nothing to cancel.');
         try {
-            [, $fee] = CancellationService::cancel($reservation, $stays, $data['reason'], $request->boolean('waive_fee'), $data['waive_reason'] ?? null);
+            [, $fee, , $channel] = CancellationService::cancel($reservation, $stays, $data['reason'], $request->boolean('waive_fee'), $data['waive_reason'] ?? null);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -375,7 +375,11 @@ class ReservationController extends Controller
             report($e);
         }
 
-        return back()->with('success', 'Reservation cancelled.'.($fee > 0 ? ' Cancellation fee '.money($fee).' posted to the advance folio.' : ' Refund any advance from the folio if applicable.'));
+        $atChannel = $channel === null ? '' : ($channel['sent']
+            ? ' The cancellation was sent to the channel.'.($channel['message'] !== '' ? ' '.$channel['message'] : '')
+            : ' The channel could not be reached – cancel it there by hand (flagged on the reservation).');
+
+        return back()->with('success', 'Reservation cancelled.'.($fee > 0 ? ' Cancellation fee '.money($fee).' posted to the advance folio.' : ' Refund any advance from the folio if applicable.').$atChannel);
     }
 
     public function noShow(Request $request, Reservation $reservation)

@@ -714,6 +714,50 @@ class ChannelService
         });
     }
 
+    /**
+     * v7.42 Outbound cancellation — the other half of the two-way loop.
+     *
+     * Every driver implements cancelBooking(), but nothing called it: a reservation cancelled at the desk stayed live
+     * at the OTA, so the room remained sold on the channel and the guest could still arrive holding a confirmation.
+     * Call this AFTER the PMS cancellation has committed (CancellationService::cancel does exactly that). It never
+     * throws and never rolls the cancellation back — a channel that refuses is written to the activity log and flagged
+     * on channel_attention so the desk cancels it at the channel by hand.
+     *
+     * A partial cancellation (one room of many) is deliberately not sent: the booking still stands at the channel.
+     * A no-show is not sent either — the OTA booking stands and its retention fee is claimed here.
+     *
+     * @return array{sent: bool, message: string}|null  null when this booking did not come from a live channel
+     */
+    public static function cancelAtChannel(Reservation $res): ?array
+    {
+        $c = $res->channel;
+        $ref = trim((string) $res->ota_reference);
+        if (! $c || ! $c->is_active || $ref === '' || $res->status !== 'cancelled') {
+            return null;
+        }
+        try {
+            $out = self::driverFor($c)->cancelBooking($c, $ref);
+        } catch (\Throwable $e) {
+            report($e);
+            $out = ['ok' => false, 'message' => get_class($e).': '.$e->getMessage()];
+        }
+        $sent = (bool) ($out['ok'] ?? false);
+        $message = mb_substr(trim((string) ($out['message'] ?? '')), 0, 200);
+        ActivityLogger::log('channels', $sent ? 'cancel_sent' : 'cancel_failed',
+            "{$c->name} {$ref} ({$res->reservation_no}): ".($message !== '' ? $message : ($sent ? 'cancelled at the channel.' : 'the channel did not answer.')), $res);
+
+        // Only ever touch our own flag: channel_attention also carries overbooking warnings, which must survive.
+        $flag = "Cancellation was not delivered to {$c->name} – cancel {$ref} at the channel by hand.";
+        $current = (string) $res->channel_attention;
+        if (! $sent) {
+            $res->forceFill(['channel_attention' => $flag])->save();
+        } elseif ($current !== '' && str_contains($current, 'Cancellation was not delivered')) {
+            $res->forceFill(['channel_attention' => null])->save();
+        }
+
+        return ['sent' => $sent, 'message' => $message];
+    }
+
     // ------------------------------------------------------------------ simulator & stats
 
     /** Build a realistic channel message for the built-in test channel and feed it through the normal inbound path. */

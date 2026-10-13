@@ -30,8 +30,9 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 `OPERATIONS` section · **10 modules**
 
-- **Front Office** — 9 pages
+- **Front Office** — 9 pages (8 in the sidebar + the offline desktop workspace)
   - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync (Offline Mode)
+  - Desktop Sync is `/offline/desktop` (workspace, delta, pack, sync): a real, working page that is reachable by URL and from Offline Request Capture, but is not listed in the sidebar — so the section carries **63 menu pages** against the 64 documented here. Verified end to end in `docs/FRONT-OFFICE-AUDIT.md` (370 named routes, 228 of them writes).
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
 - **Reservations** — 8 pages

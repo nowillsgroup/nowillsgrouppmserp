@@ -47,6 +47,10 @@ const server = http.createServer((req, res) => {
       console.log(`[channel-sim] ARI push #${pushes} kind=${kind} bytes=${body.length} sig=${String(sig).slice(0, 22)}…`);
       return send(200, { ok: true, accepted: true, kind });
     }
+    if (req.method === 'GET' && url.pathname === '/ari') {
+      // reachability probe for a mirror connection (its test() is a plain GET on the endpoint)
+      return send(200, { service: 'channel-sim', protocol: 'nowills-channel/v1', ari_pushes: pushes, bookings: '/ari/bookings' });
+    }
     if (req.method === 'GET' && url.pathname === '/ari/bookings') {
       console.log(`[channel-sim] booking pull since=${url.searchParams.get('since') ?? '-'} sig=${String(sig).slice(0, 22)}…`);
       return send(200, {

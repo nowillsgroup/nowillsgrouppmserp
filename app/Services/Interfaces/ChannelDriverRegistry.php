@@ -22,6 +22,7 @@ class ChannelDriverRegistry
         'mirror' => MirrorChannelDriver::class,
         'booking' => \App\Services\Interfaces\Drivers\BookingEpsChannelDriver::class,
         'expedia' => \App\Services\Interfaces\Drivers\ExpediaRapidChannelDriver::class,
+        'siteminder' => \App\Services\Interfaces\Drivers\SiteMinderChannelDriver::class,
     ];
 
     /** @param  class-string<ChannelDriver>  $class */

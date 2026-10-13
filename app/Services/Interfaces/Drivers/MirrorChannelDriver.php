@@ -28,9 +28,14 @@ class MirrorChannelDriver implements ChannelDriver
         return 'Mirror feed (HTTP JSON/XML adapter)';
     }
 
+    /** A read-only reachability probe. Contract: test() reports failure, it never throws (docs/CHANNEL-ADAPTER.md). */
     public function test(ChannelConnection $c): array
     {
-        $res = $this->request($c, 'GET', $this->endpoint($c));
+        try {
+            $res = $this->request($c, 'GET', $this->endpoint($c));
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'message' => 'Mirror endpoint not usable: '.$e->getMessage()];
+        }
         $ok = $res->successful();
 
         return ['ok' => $ok, 'message' => 'HTTP '.$res->status().' – '.($ok ? 'mirror endpoint reachable.' : mb_substr($res->body(), 0, 150))];
@@ -56,7 +61,7 @@ class MirrorChannelDriver implements ChannelDriver
 
     public function pullBookings(ChannelConnection $c, ?\DateTimeInterface $since): array
     {
-        $url = $this->endpoint($c).($since ? '?since='.urlencode($since->format('c')) : '');
+        $url = $this->bookingsUrl($c).($since ? '?since='.urlencode($since->format('c')) : '');
         $res = $this->request($c, 'GET', $url);
         if (! $res->successful()) {
             throw new RuntimeException('Mirror pull returned HTTP '.$res->status());
@@ -67,8 +72,18 @@ class MirrorChannelDriver implements ChannelDriver
 
     public function cancelBooking(ChannelConnection $c, string $externalRef): array
     {
-        $res = $this->request($c, 'POST', $this->endpoint($c).'/'.rawurlencode($externalRef).'/cancel', json_encode(['ref' => $externalRef]));
+        $res = $this->request($c, 'POST', $this->bookingsUrl($c).'/'.rawurlencode($externalRef).'/cancel', json_encode(['ref' => $externalRef]));
         return ['ok' => $res->successful(), 'message' => 'HTTP '.$res->status()];
+    }
+
+    /**
+     * Bookings sit under {endpoint}/bookings — the same layout the hub protocol documents, so one simulator (or one
+     * real hub) can serve both a hub and a mirror connection. Pull and cancel used to hit {endpoint} itself, which
+     * answered 404 on every hub-protocol feed.
+     */
+    protected function bookingsUrl(ChannelConnection $c): string
+    {
+        return $this->endpoint($c).'/bookings';
     }
 
     protected function endpoint(ChannelConnection $c): string

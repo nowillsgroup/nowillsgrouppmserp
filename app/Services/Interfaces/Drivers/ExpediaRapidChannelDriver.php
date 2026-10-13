@@ -43,10 +43,16 @@ class ExpediaRapidChannelDriver implements ChannelDriver
         return rtrim((string) $c->endpoint_url, '/');
     }
 
-    /** Rapid request signing: base64(HMAC-SHA512(secret, path + body)). */
+    /**
+     * Rapid request signing: base64(HMAC-SHA512(api_secret, path + body)).
+     *
+     * The vendor secret lives in `api_secret` (v7.42). Older connections stored it in `secret`, which is really the
+     * PMS-generated HMAC secret for INBOUND webhook pushes, so that is still honoured as a fallback — but a connection
+     * that signs outbound requests should move the value to api_secret and let `secret` stay the inbound one.
+     */
     protected function sign(ChannelConnection $c, string $path, string $body = ''): string
     {
-        return base64_encode(hash_hmac('sha512', $path.$body, (string) $c->secret, true)); // secret column (encrypted cast)
+        return base64_encode(hash_hmac('sha512', $path.$body, (string) ($c->api_secret ?: $c->secret), true));
     }
 
     protected function headers(ChannelConnection $c, string $path, string $body = ''): array
@@ -64,8 +70,8 @@ class ExpediaRapidChannelDriver implements ChannelDriver
 
     public function test(ChannelConnection $c): array
     {
-        if (! $c->endpoint_url || ! $c->property_code || ! $c->api_key || ! $c->secret) {
-            return ['ok' => false, 'message' => 'Set the Rapid endpoint URL, property id, api_key and api_secret on this connection first.'];
+        if (! $c->endpoint_url || ! $c->property_code || ! $c->api_key || (! $c->api_secret && ! $c->secret)) {
+            return ['ok' => false, 'message' => 'Set the Rapid endpoint URL, property id, API key and API secret on this connection first.'];
         }
         $path = '/v3/rooms?property_id='.rawurlencode($this->propertyRef($c));
         try {

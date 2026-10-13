@@ -91,9 +91,10 @@
   <div>
     <div class="card"><div class="card-head"><h3>{{ $c->name }}</h3>@include('channel-manager._health', ['conn' => $c])</div><div class="card-body"><dl class="kv">
       <dt>Code</dt><dd><code>{{ $c->code }}</code></dd>
-      <dt>Type</dt><dd>{{ \App\Models\ChannelConnection::PROVIDERS[$c->provider] ?? $c->provider }}</dd>
+      <dt>Type</dt><dd>{{ \App\Models\ChannelConnection::providerOptions()[$c->provider] ?? $c->provider }}</dd>
       <dt>Hotel ID</dt><dd>{{ $c->property_code ?: '—' }}</dd>
-      @if(! $c->isSimulator())<dt>ARI endpoint</dt><dd class="small" style="word-break:break-all">{{ $c->endpoint_url ?: '—' }}</dd><dt>API key</dt><dd>{{ $c->api_key ? '•••• stored (encrypted)' : '—' }}</dd>@endif
+      @if(! $c->isSimulator())<dt>Channel endpoint</dt><dd class="small" style="word-break:break-all">{{ $c->endpoint_url ?: '—' }}</dd><dt>API key</dt><dd>{{ $c->api_key ? '•••• stored (encrypted)' : '—' }}</dd>
+      <dt>API secret</dt><dd>{{ $c->api_secret ? '•••• stored (encrypted)' : '—' }}@if(! $c->api_secret && $c->provider === 'expedia') <span class="badge badge-amber">needed to sign requests</span>@endif</dd>@endif
       <dt>Commission</dt><dd>{{ rtrim(rtrim((string) $c->commission_pct, '0'), '.') }}%</dd>
       <dt>Rate markup</dt><dd>{{ (float) $c->rate_markup_pct ? ($c->rate_markup_pct > 0 ? '+' : '').rtrim(rtrim((string) $c->rate_markup_pct, '0'), '.').'%' : 'none (parity)' }} · {{ \App\Models\ChannelConnection::ROUNDING[$c->rate_rounding] ?? '' }}</dd>
       <dt>Collect</dt><dd>{{ $c->payment_model === 'channel_collect' ? 'Channel collect (prepaid)' : 'Hotel collect' }}</dd>

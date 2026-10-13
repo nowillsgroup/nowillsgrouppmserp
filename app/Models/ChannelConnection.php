@@ -7,13 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
- * v2.8 two-way OTA / channel-hub connection. Credentials (api_key, secret) are encrypted at rest and never serialised.
+ * v2.8 two-way OTA / channel-hub connection. Credentials are encrypted at rest and never serialised.
+ *
+ * Two different credentials live here and they are not interchangeable:
+ *   api_key / api_secret — what the PMS presents when it calls OUT to the channel (vendor adapter).
+ *   token / secret       — what the channel presents when it pushes IN to the PMS webhook (HMAC-SHA256).
  */
 class ChannelConnection extends Model
 {
     use BelongsToHotel;
 
-    public const PROVIDERS = ['hub' => 'Channel hub / OTA API (signed JSON)', 'simulator' => 'Built-in test channel (simulator)', 'mirror' => 'Mirror feed (HTTP JSON/XML adapter)', 'booking' => 'Booking.com EPS (External Connectivity Standard)'];
+    /** Static fallback labels. The selectable list is providerOptions(), so a newly registered driver appears without touching this model. */
+    public const PROVIDERS = ['hub' => 'Channel hub / OTA API (signed JSON)', 'simulator' => 'Built-in test channel (simulator)', 'mirror' => 'Mirror feed (HTTP JSON/XML adapter)',
+        'booking' => 'Booking.com EPS (External Connectivity Standard)', 'expedia' => 'Expedia Rapid (JSON, HMAC-SHA512 request signing)',
+        'siteminder' => 'SiteMinder (OTA XML — AvailRateNotify / HotelResModifyNotif)'];
 
     public const PAYMENT_MODELS = ['hotel_collect' => 'Hotel collect – guest pays at the hotel', 'channel_collect' => 'Channel collect – prepaid to the OTA, bill the OTA'];
 
@@ -21,7 +28,7 @@ class ChannelConnection extends Model
 
     protected $guarded = ['id', 'hotel_id', 'token', 'secret', 'pushed_upto_id'];
 
-    protected $hidden = ['api_key', 'secret'];
+    protected $hidden = ['api_key', 'api_secret', 'secret'];
 
     protected $attributes = ['provider' => 'hub', 'payment_model' => 'hotel_collect', 'rate_rounding' => 'none', 'push_days' => 365,
         'is_active' => true, 'full_sync_due' => true, 'fail_count' => 0, 'pushed_upto_id' => 0, 'commission_pct' => 0, 'rate_markup_pct' => 0];
@@ -39,7 +46,7 @@ class ChannelConnection extends Model
     protected function casts(): array
     {
         return [
-            'api_key' => 'encrypted', 'secret' => 'encrypted', 'is_active' => 'boolean', 'full_sync_due' => 'boolean', 'last_push_ok' => 'boolean',
+            'api_key' => 'encrypted', 'api_secret' => 'encrypted', 'secret' => 'encrypted', 'is_active' => 'boolean', 'full_sync_due' => 'boolean', 'last_push_ok' => 'boolean',
             'last_push_at' => 'datetime', 'next_retry_at' => 'datetime', 'last_booking_at' => 'datetime',
             'commission_pct' => 'decimal:2', 'rate_markup_pct' => 'decimal:2',
         ];
@@ -55,6 +62,28 @@ class ChannelConnection extends Model
     public function isSimulator(): bool
     {
         return $this->provider === 'simulator';
+    }
+
+    /**
+     * Every selectable connection type: the static labels plus whatever the driver registry holds, so registering an
+     * adapter (docs/CHANNEL-ADAPTER.md step 2) is enough to make it both selectable and valid — the two used to drift,
+     * which left the shipped Expedia Rapid driver impossible to choose or save.
+     */
+    public static function providerOptions(): array
+    {
+        return array_merge(self::PROVIDERS, \App\Services\Interfaces\ChannelDriverRegistry::options());
+    }
+
+    /** Adapters that talk to a remote endpoint (everything but the built-in simulator). */
+    public static function endpointProviders(): array
+    {
+        return array_values(array_diff(array_keys(self::providerOptions()), ['simulator']));
+    }
+
+    /** Does this connection call out to a URL? Drives both the form and the endpoint_url validation. */
+    public function needsEndpoint(): bool
+    {
+        return ! $this->isSimulator();
     }
 
     public function webhookUrl(): string
