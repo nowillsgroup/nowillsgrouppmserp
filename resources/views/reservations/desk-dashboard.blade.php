@@ -127,7 +127,9 @@
           @php
             $due = $s->status === 'checked_in' ? \App\Services\StayService::quoteCheckoutFigures($s)['due'] : null;
             $holds = $s->status === 'checked_in' ? \App\Services\StayService::checkoutHolds($s) : null;
-            $blocked = $holds && ($holds['trips']['count'] || $holds['activities']['count']);
+            // Canonical count from checkoutHolds(): POS orders and a pending Form C
+            // block a checkout too, and this badge used to miss both.
+            $blocked = $holds && $holds['blocking'] > 0;
           @endphp
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>@if($s->status === 'checked_in' && $blocked) <span class="badge badge-red">Blocked</span>@endif
             <div class="tiny muted">@if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]->path) }}" alt="">@endif {{ $s->room->room_no ?? '—' }} · @if($s->status !== 'checked_in')Checked out. @elseif($due === null)No folio. @else To settle {{ money($due) }} · not posted. @endif</div></div>

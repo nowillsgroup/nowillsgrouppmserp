@@ -271,6 +271,9 @@
           <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ $s->reservation->businessSource->name ?? 'Direct' }}
             @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
             @if ($da !== null) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? 'GH₵ '.number_format($da, 2).' to settle' : 'settled' }}</b>@endif
+            @if (! empty($df['blocked']))
+            <span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>
+            @endif
           </span></span>
       </a>
       @empty
@@ -490,6 +493,7 @@ setInterval(() => {
 .ws-nights{font-size:10px;background:#f1f5f9;border-radius:10px;padding:2px 8px;color:#64748b}
 .ws-rate-row{display:flex;justify-content:space-between;padding:6px 0 2px}
 .ws-due{color:#dc2626;font-weight:700}
+.ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
 .ws-actions{display:flex;gap:6px;padding:8px 12px 12px;border-top:1px solid #f1f5f9}

@@ -215,6 +215,31 @@ class ReservationWorkspaceService
         // guest showed GH₵ 774.40 when checkout would collect GH₵ 2,589.40.
         $departureFigures = [];
         foreach ($departures as $s) {
+            // A departure the desk cannot actually check out yet is worse than an
+            // understated figure: it sends a guest to the cashier who will be turned
+            // away. checkoutHolds() is the same read-only picture the checkout guard
+            // is built from, so the board and the guard cannot disagree.
+            $blocked = [];
+            if ($s->status === 'checked_in') {
+                $holds = StayService::checkoutHolds($s);
+                $pl = fn (int $n, string $w) => $n.' '.$w.($n > 1 ? 's' : '');
+                // The held money is worth showing: once the desk clears the hold and
+                // the charge lands on the folio, the settlement figure rises by exactly
+                // this much, so the number can be anticipated rather than discovered.
+                $amt = fn (float $v) => $v > 0 ? ' ('.money($v).')' : '';
+                if ($holds['pos']['count']) {
+                    $blocked[] = $pl($holds['pos']['count'], 'unsettled POS order').$amt((float) $holds['pos']['total']);
+                }
+                if ($holds['trips']['count']) {
+                    $blocked[] = $pl($holds['trips']['count'], 'transport trip').' not on the bill'.$amt((float) $holds['trips']['total']);
+                }
+                if ($holds['activities']['count']) {
+                    $blocked[] = $pl($holds['activities']['count'], 'activity').' not confirmed'.$amt((float) $holds['activities']['total']);
+                }
+                if ($holds['formc']['count']) {
+                    $blocked[] = 'Form C '.($holds['formc']['form_no'] ?: 'pending').' not filed';
+                }
+            }
             try {
                 $fig = StayService::quoteCheckoutFigures($s);
                 // 'unposted' is what checkout will still add on top of the folio as it
@@ -224,10 +249,11 @@ class ReservationWorkspaceService
                     'amount' => (float) ($fig['due'] ?? 0),
                     'pending' => (int) ($fig['missing'] ?? 0),
                     'unposted' => max(0, round((float) ($fig['due'] ?? 0) - (float) ($fig['balance'] ?? 0), 2)),
+                    'blocked' => $blocked,
                 ];
             } catch (\Throwable) {
                 $bal = $s->folio ? round((float) $s->folio->balance(), 2) : null;
-                $departureFigures[$s->id] = ['amount' => $bal, 'pending' => 0, 'unposted' => 0];
+                $departureFigures[$s->id] = ['amount' => $bal, 'pending' => 0, 'unposted' => 0, 'blocked' => $blocked];
             }
         }
 

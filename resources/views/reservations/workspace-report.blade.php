@@ -63,7 +63,7 @@
           <td>{{ $s->room?->room_no ?? '—' }}</td>
           <td>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</td>
           <td>{{ $s->reservation->businessSource->name ?? 'Direct' }}</td>
-          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}</td>
+          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}@if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif</td>
         </tr>
         @empty
         <tr><td colspan="4" class="text-2">No departures today.</td></tr>
