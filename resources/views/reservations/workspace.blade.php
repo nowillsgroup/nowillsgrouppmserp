@@ -2,7 +2,7 @@
 @section('title', 'Reservation Workspace')
 
 @section('actions')
-<a class="btn" href="{{ route('reservations.workspace.report') }}" target="_blank"><x-icon name="chart"/> Reports</a>
+<a class="btn" href="{{ route('reservations.workspace.report', ['date' => $date->toDateString()]) }}" target="_blank"><x-icon name="chart"/> Reports</a>
 <a class="btn btn-ghost" href="{{ route('reservations.daysummary') }}">Day summary</a>
 <a class="btn btn-primary" href="{{ route('frontdesk.walkin') }}" style="background:#16a34a"><x-icon name="login"/> Walk-In</a>
 <a class="btn" href="{{ route('blocks.create') }}" style="background:#2563eb;color:#fff"><x-icon name="users"/> Group</a>
@@ -13,7 +13,16 @@
 <div class="ws-head">
   <div>
     <h1 class="ws-title">Reservation Workspace</h1>
-    <div class="muted">{{ $date->format('l, j F Y') }}</div>
+    <div class="muted">
+      <a class="btn btn-sm" href="{{ route('reservations.workspace', ['date' => $date->copy()->subDay()->toDateString()]) }}" title="Previous day">←</a>
+      <b style="margin:0 8px">{{ $date->format('l, j F Y') }}</b>
+      <a class="btn btn-sm" href="{{ route('reservations.workspace', ['date' => $date->copy()->addDay()->toDateString()]) }}" title="Next day">→</a>
+      @if ($date->toDateString() !== now()->toDateString())
+        <a class="btn btn-sm btn-ghost" href="{{ route('reservations.workspace') }}">Today</a>
+      @endif
+      @if ($date->toDateString() > now()->toDateString())<span class="badge badge-blue" style="margin-left:6px">Planning ahead</span>
+      @elseif ($date->toDateString() < now()->toDateString())<span class="badge badge-slate" style="margin-left:6px">Historic board</span>@endif
+    </div>
   </div>
   <div class="flex gap">
     <span class="badge badge-green" id="wsClock"><x-icon name="refresh"/> Live-synced {{ now()->format('H:i:s') }}</span>
@@ -174,10 +183,10 @@
               $hasA = $arrivals->contains(fn ($s) => \Illuminate\Support\Carbon::parse($s->arrival_date)->toDateString() === $ds) || collect($cards)->pluck('stay')->filter()->contains(fn ($s) => \Illuminate\Support\Carbon::parse($s->arrival_date)->toDateString() === $ds);
               $hasD = $departures->contains(fn ($s) => \Illuminate\Support\Carbon::parse($s->departure_date)->toDateString() === $ds);
             @endphp
-            <span class="ws-cal-day {{ $isToday ? 'today' : '' }}">
+            <a class="ws-cal-day {{ $isToday ? 'today' : '' }}" href="{{ route('reservations.workspace', ['date' => $ds]) }}" style="color:inherit;text-decoration:none;display:block">
               {{ $day }}
               <span class="ws-cal-dots">@if($hasA)<i class="dot-a"></i>@endif @if($hasD)<i class="dot-d"></i>@endif</span>
-            </span>
+            </a>
           @endfor
         </div>
         <div class="ws-cal-legend small muted"><span class="ws-legend"><i class="dot-a"></i> Arrivals</span> <span class="ws-legend"><i class="dot-d"></i> Departures</span></div>
