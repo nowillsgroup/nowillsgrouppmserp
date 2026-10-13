@@ -360,7 +360,7 @@ class StayService
             report($e);
         }
         // today's stay-over service becomes a departure clean
-        \App\Models\HousekeepingTask::where('room_id', $out->room_id)->where('task_date', bdate()->toDateString())->where('status', 'pending')->where('task_type', 'cleaning')
+        \App\Models\HousekeepingTask::where('room_id', $out->room_id)->whereDate('task_date', bdate()->toDateString())->where('status', 'pending')->where('task_type', 'cleaning')
             ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]);
         if ($out->reservation->status === 'checked_out') {
             try {

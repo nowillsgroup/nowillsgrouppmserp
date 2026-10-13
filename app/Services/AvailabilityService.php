@@ -18,8 +18,8 @@ class AvailabilityService
     public static function blockingStays($from, $to)
     {
         return ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', Carbon::parse($to)->toDateString())
-            ->where('departure_date', '>', Carbon::parse($from)->toDateString());
+            ->whereDate('arrival_date', '<', Carbon::parse($to)->toDateString())
+            ->whereDate('departure_date', '>', Carbon::parse($from)->toDateString());
     }
 
     /** Physical rooms free for the whole range. */

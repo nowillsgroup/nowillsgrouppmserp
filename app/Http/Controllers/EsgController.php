@@ -170,7 +170,7 @@ class EsgController extends Controller
     {
         [$from, $to] = $this->range($r, bdate()->copy()->startOfMonth()->toDateString(), bdate()->toDateString());
         $active = EsgGreenStay::with(['stay.room', 'stay.guest', 'stay.reservation.guest'])->where('status', 'active')->orderBy('from_date')->get();
-        $inhouse = ReservationRoom::with(['room', 'guest', 'reservation.guest'])->where('status', 'checked_in')->where('departure_date', '>', bdate()->copy()->addDay()->toDateString())
+        $inhouse = ReservationRoom::with(['room', 'guest', 'reservation.guest'])->where('status', 'checked_in')->whereDate('departure_date', '>', bdate()->copy()->addDay()->toDateString())
             ->whereNotIn('id', $active->pluck('reservation_room_id'))->get()->sortBy(fn ($s) => $s->room?->room_no)->values();
         $nights = EsgGreenNight::with(['room', 'guest'])->whereBetween('business_date', [$from, $to])->orderByDesc('business_date')->orderBy('room_id')->limit(200)->get();
         $today = bdate()->toDateString();

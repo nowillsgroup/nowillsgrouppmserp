@@ -565,7 +565,7 @@ class LeaseService
     {
         $today = $asOf ?? self::today();
         $done = [];
-        foreach (Lease::with('unit')->where('status', 'active')->where('auto_renew', true)->where('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())->get() as $l) {
+        foreach (Lease::with('unit')->where('status', 'active')->where('auto_renew', true)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())->get() as $l) {
             try {
                 self::renew($l, min(12, $l->term_months), null, $u);
                 $done[] = $l->lease_no;

@@ -362,7 +362,7 @@ class TimeClockService
     public static function attentionCount(): int
     {
         return TimePunch::where('status', 'open')->where('clock_in', '<', now()->subHours(16))->count()
-            + TimePunch::where('status', 'closed')->where('work_date', '<', now()->toDateString())->distinct('employee_id')->count('employee_id');
+            + TimePunch::where('status', 'closed')->whereDate('work_date', '<', now()->toDateString())->distinct('employee_id')->count('employee_id');
     }
 
     /** Today at a glance for the dashboard. */

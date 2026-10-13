@@ -325,7 +325,7 @@ class CroService
     {
         $cut = now()->subDays(self::cfg()['expire_days']);
         $n = 0;
-        foreach (CroEnquiry::where('status', 'open')->where(fn ($q) => $q->where('arrival_date', '<', bdate()->toDateString())->orWhere('created_at', '<', $cut))->get() as $e) {
+        foreach (CroEnquiry::where('status', 'open')->where(fn ($q) => $q->whereDate('arrival_date', '<', bdate()->toDateString())->orWhere('created_at', '<', $cut))->get() as $e) {
             $e->update(['status' => 'lost', 'loss_type' => 'regret', 'loss_reason' => 'no_response', 'follow_up_at' => null, 'closed_at' => now(),
                 'loss_note' => $e->arrival_date->lt(bdate()) ? 'Lapsed – arrival date passed without a booking' : 'Lapsed – no booking after '.self::cfg()['expire_days'].' days']);
             $n++;
@@ -485,7 +485,7 @@ class CroService
             ->orderByDesc('last_stay_on')->orderBy('first_name')->limit(40)->get();
         $ids = $guests->pluck('id');
         $next = Reservation::withoutGlobalScope('hotel')->whereIn('guest_id', $ids)->whereIn('status', ['confirmed', 'tentative', 'checked_in'])
-            ->where('departure_date', '>=', bdate()->toDateString())->orderBy('arrival_date')->get(['id', 'guest_id', 'reservation_no', 'arrival_date', 'departure_date', 'status'])->groupBy('guest_id');
+            ->whereDate('departure_date', '>=', bdate()->toDateString())->orderBy('arrival_date')->get(['id', 'guest_id', 'reservation_no', 'arrival_date', 'departure_date', 'status'])->groupBy('guest_id');
         $counts = Reservation::withoutGlobalScope('hotel')->whereIn('guest_id', $ids)->selectRaw('guest_id, count(*) n')->groupBy('guest_id')->pluck('n', 'guest_id');
 
         return $guests->map(fn ($g) => ['guest' => $g, 'hotel' => $hotels[$g->hotel_id], 'upcoming' => $next[$g->id] ?? collect(), 'bookings' => (int) ($counts[$g->id] ?? 0)]);

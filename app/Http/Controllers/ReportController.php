@@ -923,7 +923,7 @@ class ReportController extends Controller
         $d = $to->toDateString();
         $runs = $this->assetAcc($d);
         $rows = \App\Models\Asset::with('category', 'room', 'custodian')->whereDate('purchase_date', '<=', $d)
-            ->where(fn ($q) => $q->whereNull('disposed_date')->orWhere('disposed_date', '>', $d))->orderBy('asset_no')->get()
+            ->where(fn ($q) => $q->whereNull('disposed_date')->whereDate('disposed_date', '>', $d))->orderBy('asset_no')->get()
             ->map(function ($a) use ($runs) {
                 $acc = round((float) $a->opening_acc_dep + (float) ($runs[$a->id] ?? 0), 2);
 
@@ -947,7 +947,7 @@ class ReportController extends Controller
         $accOpen = $this->assetAcc($before);
         $charge = $this->assetAcc($t, $before);
         $rows = \App\Models\Asset::with('category')->whereDate('purchase_date', '<=', $t)
-            ->where(fn ($q) => $q->whereNull('disposed_date')->orWhere('disposed_date', '>=', $f))->orderBy('asset_no')->get()
+            ->where(fn ($q) => $q->whereNull('disposed_date')->whereDate('disposed_date', '>=', $f))->orderBy('asset_no')->get()
             ->map(function ($a) use ($f, $t, $accOpen, $charge) {
                 $isNew = $a->purchase_date->toDateString() >= $f;
                 $gone = $a->disposed_date && $a->disposed_date->toDateString() <= $t;
@@ -4146,7 +4146,7 @@ class ReportController extends Controller
         $F = Carbon::parse($from);
         $T = Carbon::parse($to);
         $C = \App\Models\DmCampaign::class;
-        $rows = $C::with('channel')->whereDate('start_date', '<=', $T->toDateString())->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $F->toDateString()))
+        $rows = $C::with('channel')->whereDate('start_date', '<=', $T->toDateString())->where(fn ($q) => $q->whereNull('end_date')->whereDate('end_date', '>=', $F->toDateString()))
             ->where('status', '!=', 'draft')->orderBy('start_date')->get()->map(function ($c) use ($F, $T, $C) {
                 $s = \App\Services\DigitalMarketingService::campaignStats($c, $F, $T);
 

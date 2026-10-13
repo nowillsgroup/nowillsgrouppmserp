@@ -822,7 +822,7 @@ class DigitalMarketingService
                 'missed' => DmPost::where('status', 'approved')->where('scheduled_at', '<', now()->subHour())->count(),
                 'audits' => DmChannel::where('is_active', true)->get()->filter(fn ($c) => self::auditDue($c))->count(),
                 'over_budget' => $over,
-                'influencers' => DmInfluencer::where('status', 'hosted')->whereNotNull('due_date')->where('due_date', '<', bdate()->toDateString())->count(),
+                'influencers' => DmInfluencer::where('status', 'hosted')->whereNotNull('due_date')->whereDate('due_date', '<', bdate()->toDateString())->count(),
             ];
         })();
     }

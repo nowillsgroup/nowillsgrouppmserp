@@ -750,7 +750,7 @@ class BusinessDevService
 
             return [
                 'approvals' => BdInitiative::where('stage', 'business_case')->whereNotNull('submitted_at')->count(),
-                'milestones' => BdMilestone::whereNull('done_at')->where('due_date', '<', bdate()->toDateString())
+                'milestones' => BdMilestone::whereNull('done_at')->whereDate('due_date', '<', bdate()->toDateString())
                     ->whereHas('initiative', fn ($q) => $q->whereIn('stage', ['idea', 'assessment', 'business_case', 'approved', 'implementation']))->count(),
                 'lapsed' => $flags->filter(fn ($f) => in_array('lapsed', $f, true))->count(),
                 'expiring' => $flags->filter(fn ($f) => in_array('expiring', $f, true))->count(),

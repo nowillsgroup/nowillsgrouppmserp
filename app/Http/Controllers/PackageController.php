@@ -63,7 +63,7 @@ class PackageController extends Controller
                     ->orWhereHas('guest', fn ($g) => $g->where('first_name', 'like', "%{$q}%")->orWhere('last_name', 'like', "%{$q}%"))))
                 ->get()->sortBy(fn ($e) => $e->stay?->room?->room_no)->values();
         }
-        $served = $pkg ? PackageRedemption::with('stay.room', 'stay.guest', 'recorder')->where('package_id', $pkg->id)->where('business_date', bdate()->toDateString())
+        $served = $pkg ? PackageRedemption::with('stay.room', 'stay.guest', 'recorder')->where('package_id', $pkg->id)->whereDate('business_date', bdate()->toDateString())
             ->orderByDesc('id')->get() : collect();
         // in-house rooms without the package (walk-in to breakfast, charged to the room)
         $inHouse = ReservationRoom::with('room', 'guest')->where('status', 'checked_in')->get()->sortBy(fn ($s) => $s->room?->room_no)->values();

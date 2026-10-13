@@ -49,8 +49,8 @@ class RosterService
 
         return Employee::with('department')->where('is_active', true)
             ->when($dept, fn ($q) => $q->where('department_id', $dept))
-            ->where(fn ($q) => $q->whereNull('joining_date')->orWhere('joining_date', '<=', $end))
-            ->where(fn ($q) => $q->whereNull('leaving_date')->orWhere('leaving_date', '>=', $week->toDateString()))
+            ->where(fn ($q) => $q->whereNull('joining_date')->whereDate('joining_date', '<=', $end))
+            ->where(fn ($q) => $q->whereNull('leaving_date')->whereDate('leaving_date', '>=', $week->toDateString()))
             ->orderBy('name')->get();
     }
 

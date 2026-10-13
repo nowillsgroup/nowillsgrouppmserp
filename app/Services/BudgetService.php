@@ -244,7 +244,7 @@ class BudgetService
         $act = self::actuals($fy);
         $fyEnd = $months[12]->copy()->endOfMonth()->startOfDay();
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])
-            ->where('arrival_date', '<=', min($fyEnd, $cut)->toDateString())->whereDate('departure_date', '>', $months[1]->toDateString())
+            ->whereDate('arrival_date', '<=', min($fyEnd, $cut)->toDateString())->whereDate('departure_date', '>', $months[1]->toDateString())
             ->get(['arrival_date', 'departure_date']);
         $out = [];
         foreach ($months as $m => $start) {

@@ -665,7 +665,7 @@ class ProcurementService
     public static function overdueDeliveries(): Collection
     {
         return PurchaseOrder::with('supplier')->whereIn('status', ['approved', 'partial'])->whereNotNull('expected_date')
-            ->where('expected_date', '<', bdate()->toDateString())->orderBy('expected_date')->get();
+            ->whereDate('expected_date', '<', bdate()->toDateString())->orderBy('expected_date')->get();
     }
 
     /** RFQs past their deadline (or closed) waiting for an award decision. */

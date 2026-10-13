@@ -37,7 +37,7 @@ class OfflineSyncService
         $manage = $user->hasPermission('housekeeping.manage');
         $employeeId = Employee::where('user_id', $user->id)->where('is_active', true)->value('id');
         $tasks = HousekeepingTask::with(['room.roomType', 'room.floor'])
-            ->where('task_date', bdate()->toDateString())
+            ->whereDate('task_date', bdate()->toDateString())
             ->when(! $manage, fn ($q) => $employeeId ? $q->where('employee_id', $employeeId) : $q->whereRaw('1 = 0'))
             ->orderByRaw("CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END")
             ->orderBy('priority')->orderBy('id')->get();

@@ -169,7 +169,7 @@ class PackageService
             throw new RuntimeException('The end date is before the start date.');
         }
         $overlap = StayFixedCharge::where('reservation_room_id', $stay->id)->where('package_id', $p->id)->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $s->toDateString()))
+            ->where(fn ($q) => $q->whereNull('end_date')->whereDate('end_date', '>=', $s->toDateString()))
             ->when($e, fn ($q) => $q->whereDate('start_date', '<=', $e->toDateString()))->exists();
         if ($overlap) {
             throw new RuntimeException("{$p->name} is already on this stay for those nights.");
@@ -376,7 +376,7 @@ class PackageService
         $stays = ReservationRoom::with(['fixedCharges' => fn ($q) => $q->where('is_active', true)->whereNotNull('package_id')])
             ->whereIn('status', ['reserved', 'checked_in'])
             ->whereHas('reservation', fn ($q) => $q->whereNotIn('status', ['cancelled', 'tentative']))
-            ->whereDate('arrival_date', '<=', $to->toDateString())->where('departure_date', '>=', $from->copy()->subDay()->toDateString())->get();
+            ->whereDate('arrival_date', '<=', $to->toDateString())->whereDate('departure_date', '>=', $from->copy()->subDay()->toDateString())->get();
         $plans = [];
         foreach ($stays as $s) {
             $lastNight = $s->departure_date->copy()->subDay()->max($s->arrival_date);

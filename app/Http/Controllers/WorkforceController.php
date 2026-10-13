@@ -151,7 +151,7 @@ class WorkforceController extends Controller
         return view('workforce.clock', ['date' => $date, 'dept' => $dept, 'rows' => $rows, 'departments' => Department::orderBy('name')->pluck('name', 'id'),
             'employees' => Employee::where('is_active', true)->orderBy('name')->get(['id', 'name', 'emp_code', 'clock_pin', 'department_id']),
             'stale' => TimePunch::with('employee')->where('status', 'open')->where('clock_in', '<', now()->subHours(16))->orderBy('clock_in')->get(),
-            'pendingDays' => TimePunch::where('status', 'closed')->where('work_date', '<', now()->toDateString())->selectRaw('work_date, COUNT(*) n')->groupBy('work_date')->orderByDesc('work_date')->limit(10)->pluck('n', 'work_date'),
+            'pendingDays' => TimePunch::where('status', 'closed')->whereDate('work_date', '<', now()->toDateString())->selectRaw('work_date, COUNT(*) n')->groupBy('work_date')->orderByDesc('work_date')->limit(10)->pluck('n', 'work_date'),
             'canApprove' => can_do('timeclock.approve')]);
     }
 

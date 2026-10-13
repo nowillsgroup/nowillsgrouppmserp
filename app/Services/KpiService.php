@@ -189,13 +189,13 @@ class KpiService
     public static function openEvents()
     {
         return KpiAlertEvent::with('alert')->whereNull('acknowledged_at')
-            ->where('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())
+            ->whereDate('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())
             ->orderByRaw("FIELD(severity,'critical','warning','info')")->orderByDesc('business_date')->get();
     }
 
     public static function openCount(): int
     {
-        return KpiAlertEvent::whereNull('acknowledged_at')->where('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())->count();
+        return KpiAlertEvent::whereNull('acknowledged_at')->whereDate('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())->count();
     }
 
     public static function save(array $d, User $by, ?KpiAlert $a = null): KpiAlert

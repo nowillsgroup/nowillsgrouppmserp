@@ -39,7 +39,7 @@ class ParkingController extends Controller
         return [
             'zones' => ParkingZone::where('is_active', true)->orderBy('sort')->orderBy('code')->get(),
             'stays' => ReservationRoom::with(['guest', 'room'])->where(fn ($q) => $q->where('status', 'checked_in')
-                ->orWhere(fn ($w) => $w->where('status', 'reserved')->where('arrival_date', '<=', bdate()->toDateString())))->get()->sortBy(fn ($s) => $s->room?->room_no ?? 'zzz')->values(),
+                ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '<=', bdate()->toDateString())))->get()->sortBy(fn ($s) => $s->room?->room_no ?? 'zzz')->values(),
             'modes' => PS::walkInModes(), 'cfg' => PS::cfg(), 'runners' => PS::runners(),
         ];
     }

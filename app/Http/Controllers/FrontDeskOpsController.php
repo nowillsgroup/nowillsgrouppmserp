@@ -38,7 +38,7 @@ class FrontDeskOpsController extends Controller
             'open' => LogEntry::where('status', 'open'),
             'pinned' => LogBookService::pinnedQuery(),
             'all' => LogEntry::query(),
-            default => LogEntry::where('business_date', bdate()->toDateString()),
+            default => LogEntry::whereDate('business_date', bdate()->toDateString()),
         };
         $q->with('author', 'reads', 'stay.room', 'room', 'guest')->withCount('comments')
             ->when($request->query('department'), fn ($q, $d) => $q->where('department', $d))
@@ -138,7 +138,7 @@ class FrontDeskOpsController extends Controller
     {
         return view('desk.handover', LogBookService::handover() + ['snap' => FrontDeskOpsService::snapshot(), 'shift' => FrontDeskOpsService::currentShift(),
             'wakeups' => WakeupCall::with('stay.room', 'stay.guest', 'stay.reservation.guest')->where('status', 'scheduled')->whereBetween('call_at', [now()->subHours(2), now()->addHours(12)])->orderBy('call_at')->get(),
-            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->where('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get(),
+            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->whereDate('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get(),
             'messages' => GuestMessage::with('stay.room', 'guest')->whereIn('status', GuestMessage::OPEN)->orderBy('id')->get()]);
     }
 
@@ -146,7 +146,7 @@ class FrontDeskOpsController extends Controller
     {
         return view('desk.handover-print', LogBookService::handover() + ['snap' => FrontDeskOpsService::snapshot(), 'shift' => FrontDeskOpsService::currentShift(),
             'wakeups' => WakeupCall::with('stay.room', 'stay.guest', 'stay.reservation.guest')->where('status', 'scheduled')->whereBetween('call_at', [now()->subHours(2), now()->addHours(12)])->orderBy('call_at')->get(),
-            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->where('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get()]);
+            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->whereDate('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get()]);
     }
 
     // ───────────────────────── wake-up calls ─────────────────────────

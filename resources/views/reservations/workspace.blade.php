@@ -223,11 +223,39 @@
     <div class="card ws-rail-card"><div class="card-body">
       <a class="ws-rail-title" href="{{ route('frontdesk.arrivals') }}" style="color:inherit"><x-icon name="login"/> TODAY'S ARRIVALS · {{ $arrivals->count() }}</a>
       @forelse ($arrivals as $s)
-      <a class="ws-person" href="{{ $s->room_id ? route('frontdesk.checkin', $s) : route('reservations.index') }}">
-        <span class="ws-avatar sm">{{ mb_substr($s->guest?->first_name ?? $s->reservation->guest?->first_name ?? 'G', 0, 1) }}</span>
-        <span><b>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</b>
-          <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation->businessSource->name ?? 'Direct' }}</span></span>
-      </a>
+      @php
+        // an arrival with no room yet: offer the rooms the desk may actually
+        // assign for this night, best fit (same type) first
+        $canAssign = can_do('reservations.edit') && ! $s->room_id && $s->status === 'reserved' && $date->toDateString() >= now()->toDateString();
+        $freeSameType = $canAssign ? $assignable->where('room_type_id', $s->room_type_id) : collect();
+        $freeOther = $canAssign ? $assignable->where('room_type_id', '!=', $s->room_type_id) : collect();
+      @endphp
+      <div class="ws-person-row">
+        <a class="ws-person" href="{{ $s->room_id ? route('frontdesk.checkin', $s) : route('reservations.index') }}">
+          <span class="ws-avatar sm">{{ mb_substr($s->guest?->first_name ?? $s->reservation->guest?->first_name ?? 'G', 0, 1) }}</span>
+          <span><b>{{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation->guest?->last_name }}</b>
+            <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation->businessSource->name ?? 'Direct' }}</span></span>
+        </a>
+        @if ($canAssign)
+          @if ($freeSameType->isNotEmpty() || $freeOther->isNotEmpty())
+          <form method="POST" action="{{ route('reservations.assign', $s->reservation_id) }}" class="ws-assign">
+            @csrf
+            <select name="assign[{{ $s->id }}]" class="ws-assign-select" aria-label="Room for {{ $s->guest?->first_name ?? $s->reservation->guest?->first_name }}">
+              @foreach ($freeSameType as $r)
+              <option value="{{ $r->id }}">{{ $r->room_no }} · {{ $r->roomType?->name }}{{ $r->hk_status === 'clean' || $r->hk_status === 'inspected' ? '' : ' · '.$r->hk_status }}</option>
+              @endforeach
+              @if ($freeSameType->isNotEmpty() && $freeOther->isNotEmpty())<option disabled>── other types ──</option>@endif
+              @foreach ($freeOther as $r)
+              <option value="{{ $r->id }}">{{ $r->room_no }} · {{ $r->roomType?->name }}{{ $r->hk_status === 'clean' || $r->hk_status === 'inspected' ? '' : ' · '.$r->hk_status }}</option>
+              @endforeach
+            </select>
+            <button type="submit" class="btn btn-sm">Assign</button>
+          </form>
+          @else
+          <div class="muted small ws-assign-none">No free room for these dates — waitlist or extend a departure.</div>
+          @endif
+        @endif
+      </div>
       @empty
       <div class="muted small">No arrivals today.</div>
       @endforelse
@@ -433,6 +461,10 @@ setInterval(() => {
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
 .ws-photo{height:128px;position:relative;border-radius:8px;margin:0 10px}
 .ws-photo-link{cursor:pointer}
+.ws-person-row{display:flex;flex-direction:column;gap:4px}
+.ws-assign{display:flex;gap:6px;align-items:center;padding-left:34px}
+.ws-assign-select{flex:1;min-width:0;font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff}
+.ws-assign-none{padding-left:34px}
 .ws-kpi:hover{border-color:#94a3b8}
 .ws-photo-tag{position:absolute;left:10px;top:8px;background:rgba(15,23,42,.72);color:#fff;font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 6px;border-radius:4px}
 .ws-photo-rate{position:absolute;right:10px;bottom:8px;background:#f59e0b;color:#1f2937;font-weight:800;padding:3px 8px;border-radius:6px;font-size:13px}

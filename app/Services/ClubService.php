@@ -273,7 +273,7 @@ class ClubService
         $done = [];
         $errors = [];
         foreach (ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->where('auto_renew', true)->whereNull('cancel_mode')
-            ->whereDate('end_date', '<=', $limit)->where('end_date', '>=', Carbon::parse($today)->subDay()->toDateString())->get() as $m) {
+            ->whereDate('end_date', '<=', $limit)->whereDate('end_date', '>=', Carbon::parse($today)->subDay()->toDateString())->get() as $m) {
             if (! $m->plan->is_active) {
                 $errors[] = "{$m->membership_no}: the {$m->plan->name} plan is withdrawn";
 

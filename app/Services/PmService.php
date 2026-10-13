@@ -73,6 +73,6 @@ class PmService
 
     public static function overdueCount(): int
     {
-        return MaintenanceRequest::whereNotNull('pm_schedule_id')->whereIn('status', ['open', 'in_progress'])->where('due_date', '<', bdate()->toDateString())->count();
+        return MaintenanceRequest::whereNotNull('pm_schedule_id')->whereIn('status', ['open', 'in_progress'])->whereDate('due_date', '<', bdate()->toDateString())->count();
     }
 }

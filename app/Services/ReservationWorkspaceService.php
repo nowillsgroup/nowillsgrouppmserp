@@ -262,6 +262,13 @@ class ReservationWorkspaceService
             'waitlist' => ReservationWaitlist::where('hotel_id', $hotelId)
                 ->with(['guest:id,first_name,last_name', 'roomType:id,name'])
                 ->orderByDesc('created_at')->limit(5)->get(),
+            // rooms the desk may assign for this night — the same source the
+            // reservations screen and the assign endpoint validate against, so
+            // the inline picker can never offer a room that would be rejected
+            'assignable' => AvailabilityService::reservationRooms(
+                $date->toDateString(),
+                $date->copy()->addDay()->toDateString()
+            ),
             'roomTypes' => $rooms->pluck('roomType')->filter()->unique('id')->values(),
             'floors' => $rooms->pluck('floor')->filter()->unique('id')->values(),
         ];

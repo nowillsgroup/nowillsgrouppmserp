@@ -528,7 +528,7 @@ class IncomeAuditService
 
     public static function stats(): array
     {
-        $days = AuditDay::where('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->get();
+        $days = AuditDay::whereDate('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->get();
 
         return [
             'open_days' => $days->where('status', 'open')->count(),
@@ -538,7 +538,7 @@ class IncomeAuditService
             'escalated' => (int) AuditFinding::where('status', 'escalated')->count(),
             'pending_auth' => RevenueAuthService::pendingCount(),
             'unaudited' => self::unaudited(),
-            'count_issues' => RoomCount::where('business_date', '>=', bdate()->copy()->subDays(2)->toDateString())->where('result', '!=', 'ok')->whereNull('resolution')->count(),
+            'count_issues' => RoomCount::whereDate('business_date', '>=', bdate()->copy()->subDays(2)->toDateString())->where('result', '!=', 'ok')->whereNull('resolution')->count(),
         ];
     }
 

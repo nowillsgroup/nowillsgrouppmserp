@@ -202,7 +202,7 @@ class ReservationImporter extends BaseImporter
         return [
             'Reservations in this property now' => Reservation::count(),
             'External ids mapped (all batches)' => (clone $mapped)->count(),
-            'Upcoming (arriving later)' => Reservation::where('arrival_date', '>', now()->toDateString())->whereIn('status', ['tentative', 'confirmed'])->count(),
+            'Upcoming (arriving later)' => Reservation::whereDate('arrival_date', '>', now()->toDateString())->whereIn('status', ['tentative', 'confirmed'])->count(),
             'In-house' => Reservation::where('status', 'checked_in')->count(),
             'Checked out' => Reservation::where('status', 'checked_out')->count(),
             'Cancelled / no-show' => Reservation::whereIn('status', ['cancelled', 'no_show'])->count(),

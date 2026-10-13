@@ -719,7 +719,7 @@ class TalentService
             $g = $goals->map(fn ($t, $i) => ['title' => $t, 'weight' => $weights[$i], 'self' => null, 'mgr' => null])->all();
             $comp = collect(self::COMPETENCIES)->map(fn () => ['self' => null, 'mgr' => null])->all();
             $n = 0;
-            foreach (Employee::where('is_active', true)->where(fn ($q) => $q->whereNull('joining_date')->orWhere('joining_date', '<=', $to->toDateString()))->get() as $e) {
+            foreach (Employee::where('is_active', true)->where(fn ($q) => $q->whereNull('joining_date')->whereDate('joining_date', '<=', $to->toDateString()))->get() as $e) {
                 TalentAppraisal::create(['cycle_id' => $c->id, 'employee_id' => $e->id, 'reviewer_id' => $e->manager_user_id, 'goals' => $g, 'competencies' => $comp,
                     'status' => $e->user_id ? 'self' : 'review']);
                 $n++;

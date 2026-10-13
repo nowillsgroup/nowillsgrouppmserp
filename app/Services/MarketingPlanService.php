@@ -306,8 +306,8 @@ class MarketingPlanService
     /** marketing events for the opportunity "source" picker: this year and last, not cancelled */
     public static function attributable(): Collection
     {
-        return MarketingEvent::where('status', '!=', 'cancelled')->where('start_date', '>=', bdate()->copy()->subMonths(18)->toDateString())
-            ->where('start_date', '<=', bdate()->copy()->addMonths(6)->toDateString())->orderByDesc('start_date')->get(['id', 'number', 'name', 'start_date']);
+        return MarketingEvent::where('status', '!=', 'cancelled')->whereDate('start_date', '>=', bdate()->copy()->subMonths(18)->toDateString())
+            ->whereDate('start_date', '<=', bdate()->copy()->addMonths(6)->toDateString())->orderByDesc('start_date')->get(['id', 'number', 'name', 'start_date']);
     }
 
     public static function calendar(Carbon $month): array

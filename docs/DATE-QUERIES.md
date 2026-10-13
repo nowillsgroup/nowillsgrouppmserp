@@ -60,7 +60,7 @@ against either.
 
 ## What was converted
 
-217 call sites, in two passes:
+285 call sites, in three passes:
 
 1. **Reservation Workspace** (`ReservationWorkspaceService`,
    `ReservationWorkspaceController`, the `ws_arrivals` side-menu badge) — the
@@ -74,11 +74,25 @@ against either.
    understated (4 of 15 transactions matched), the already-audited guard could
    miss an existing audit, `precheck()` missed same-day arrivals, and the desk
    `kpis()` / `tabs()` counts were zero.
-3. **App-wide sweep** (55 further files, 150 sites) — every `where()` /
-   `orWhere()` on a `*_date` column that was passed a date string, either
-   inline (`->toDateString()`) or via a variable assigned from it. Heaviest:
-   `IncomeAuditService` (16), `ReportController` (15), `RevenueService` (9),
-   `UtilityService` (6), `IncomeAuditController` (5).
+3. **App-wide sweep** (55 files, 150 sites) — every `where()` / `orWhere()` on
+   a `*_date` column passed a date string, either inline (`->toDateString()`)
+   or via a variable assigned from it.
+4. **Paren-balanced second pass** (46 files, 68 sites) — a plain regex cannot
+   see a date string nested inside another call, so
+   `where('arrival_date', '<', Carbon::parse($to)->toDateString())` survived
+   pass 3. That exact line is `AvailabilityService::blockingStays()`, the query
+   behind every availability, assignment and rate decision in the app. A
+   scanner that matches the argument list by balancing parentheses (and
+   respects quotes) found the rest; a re-scan now reports zero remaining
+   string comparisons against a `*_date` column anywhere under `app/`.
+
+Cumulative totals: `IncomeAuditService` 18, `ReportController` 18,
+`RevenueService` 9, `UtilityService` 8, `FbCostService` 6.
+
+Also fixed while sweeping: `GREATEST()` is not a SQLite function, so
+`/inventory/reorder` and `/transport/fleet` returned 500. Replaced with
+portable `CASE WHEN` in `TransportController`, `RequisitionService` and
+`StockTakeService` — same semantics on MySQL and Postgres.
 
 ## Checking for regressions
 

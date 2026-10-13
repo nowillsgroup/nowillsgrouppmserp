@@ -562,7 +562,7 @@ class ForexService
 
         return ['rates_missing' => $active->count() - $today->count(), 'carried' => $today->where('carried', true)->count(),
             'surrender_overdue' => $pos->where('overdue', true)->count(), 'surrender_days' => $cfg['surrender_days'], 'held_value' => round($pos->sum('cost'), 2),
-            'today' => ForexExchange::whereNull('voided_at')->where('business_date', bdate()->toDateString())->count()];
+            'today' => ForexExchange::whereNull('voided_at')->whereDate('business_date', bdate()->toDateString())->count()];
     }
 
     public static function attentionCount(): int

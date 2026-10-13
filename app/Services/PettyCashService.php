@@ -317,7 +317,7 @@ class PettyCashService
         if (! $emp) {
             throw new RuntimeException('Choose the member of staff taking the cash.');
         }
-        if (PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('employee_id', $emp->id)->where('due_date', '<', bdate()->toDateString())->exists()) {
+        if (PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('employee_id', $emp->id)->whereDate('due_date', '<', bdate()->toDateString())->exists()) {
             throw new RuntimeException("{$emp->name} has an overdue IOU – settle it first.");
         }
         $pending = $amount > (float) $f->voucher_limit;

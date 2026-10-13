@@ -136,7 +136,7 @@ class FrontDeskController extends Controller
     {
         $d = $request->input('date', bdate()->toDateString());
 
-        return $this->stayList('arrivals', ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', '<=', $d)->where('arrival_date', '>=', Carbon::parse($d)->subDays($request->boolean('overdue') ? 30 : 0))->orderBy('arrival_date'), 'Arrivals');
+        return $this->stayList('arrivals', ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', '<=', $d)->whereDate('arrival_date', '>=', Carbon::parse($d)->subDays($request->boolean('overdue') ? 30 : 0))->orderBy('arrival_date'), 'Arrivals');
     }
 
     public function inHouse()

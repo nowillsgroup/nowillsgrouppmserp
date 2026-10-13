@@ -29,7 +29,7 @@ class IncomeAuditController extends Controller
 
     public function index(Request $request)
     {
-        $days = AuditDay::with('signer', 'closer')->where('business_date', '>=', bdate()->copy()->subDays(45)->toDateString())->get()->keyBy(fn ($d) => $d->business_date->toDateString());
+        $days = AuditDay::with('signer', 'closer')->whereDate('business_date', '>=', bdate()->copy()->subDays(45)->toDateString())->get()->keyBy(fn ($d) => $d->business_date->toDateString());
         $rows = [];
         for ($d = bdate()->copy()->subDay(); $d->gte(bdate()->copy()->subDays(30)); $d->subDay()) {
             $rows[] = ['date' => $d->toDateString(), 'day' => $days[$d->toDateString()] ?? null];
@@ -157,7 +157,7 @@ class IncomeAuditController extends Controller
         $rows = RoomCount::with('room.roomType', 'counter', 'resolver')->whereDate('business_date', '>=', $from)->where('result', '!=', 'ok')
             ->when($request->input('show', 'open') === 'open', fn ($q) => $q->whereNull('resolution'))
             ->orderByDesc('business_date')->orderBy('room_id')->get();
-        $summary = RoomCount::where('business_date', bdate()->toDateString())->selectRaw('result, count(*) n')->groupBy('result')->pluck('n', 'result');
+        $summary = RoomCount::whereDate('business_date', bdate()->toDateString())->selectRaw('result, count(*) n')->groupBy('result')->pluck('n', 'result');
 
         return view('income-audit.discrepancies', ['rows' => $rows, 'from' => $from, 'summary' => $summary, 'total' => Room::where('is_active', true)->count()]);
     }

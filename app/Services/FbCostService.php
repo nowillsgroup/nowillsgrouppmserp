@@ -372,7 +372,7 @@ class FbCostService
     /** Plate cost of one dish per snapshot date (for the card's trend). */
     public static function history(int $menuItemId, int $days = 120): Collection
     {
-        return FbCostSnapshot::where('menu_item_id', $menuItemId)->where('business_date', '>=', bdate()->copy()->subDays($days)->toDateString())
+        return FbCostSnapshot::where('menu_item_id', $menuItemId)->whereDate('business_date', '>=', bdate()->copy()->subDays($days)->toDateString())
             ->orderBy('business_date')->get(['business_date', 'cost', 'price']);
     }
 
@@ -717,7 +717,7 @@ class FbCostService
         return self::$memo['alerts'.Tenant::id()] ??= (function () {
             $d = self::dishes();
             $used = MenuItemRecipe::distinct()->pluck('inventory_item_id');
-            $mealsInUse = FbStaffMeal::where('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->exists();
+            $mealsInUse = FbStaffMeal::whereDate('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->exists();
 
             return [
                 'over' => $d->where('st', 'over')->count(),
@@ -725,7 +725,7 @@ class FbCostService
                 'creep' => $d->filter(fn ($m) => $m->creep && $m->creep['pct'] >= self::cfg()['creep_pct'])->count(),
                 'zero_cost' => InventoryItem::whereIn('id', $used)->where(fn ($q) => $q->whereNull('last_cost')->orWhere('last_cost', '<=', 0))->count(),
                 'unapproved' => FbRecipeCard::whereNull('approved_at')->whereIn('menu_item_id', MenuItemRecipe::distinct()->pluck('menu_item_id'))->count(),
-                'meals_missing' => $mealsInUse && ! FbStaffMeal::where('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
+                'meals_missing' => $mealsInUse && ! FbStaffMeal::whereDate('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
             ];
         })();
     }

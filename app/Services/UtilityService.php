@@ -295,13 +295,13 @@ class UtilityService
     public static function attentionCount(): int
     {
         return self::missing(bdate()->copy()->subDay()->toDateString(), true)->count()
-            + MeterReading::whereNotNull('anomaly')->whereNull('anomaly_ack_at')->where('reading_date', '>=', bdate()->copy()->subDays(7)->toDateString())->count();
+            + MeterReading::whereNotNull('anomaly')->whereNull('anomaly_ack_at')->whereDate('reading_date', '>=', bdate()->copy()->subDays(7)->toDateString())->count();
     }
 
     public static function openAnomalies(int $days = 7): Collection
     {
         return MeterReading::with('meter')->whereNotNull('anomaly')->whereNull('anomaly_ack_at')
-            ->where('reading_date', '>=', bdate()->copy()->subDays($days)->toDateString())->orderByDesc('reading_date')->get();
+            ->whereDate('reading_date', '>=', bdate()->copy()->subDays($days)->toDateString())->orderByDesc('reading_date')->get();
     }
 
     // ───────────────────────────── analytics ─────────────────────────────

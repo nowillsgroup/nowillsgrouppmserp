@@ -63,7 +63,7 @@ class QaController extends Controller
             'failures' => QA::topFailures($from, $to, 8), 'due' => QA::due(), 'alerts' => QA::alerts(), 'cfg' => QA::cfg(),
             'recent' => QaAudit::with(['template', 'department', 'auditor'])->where('status', 'completed')->orderByDesc('completed_at')->limit(6)->get(),
             'upcoming' => QaAudit::with(['template', 'auditor'])->whereIn('status', ['scheduled', 'in_progress'])->orderBy('scheduled_for')->limit(6)->get(),
-            'overdue' => QaAction::with(['department', 'owner'])->whereIn('status', QaAction::OPEN)->where('due_date', '<', bdate()->toDateString())->orderBy('due_date')->limit(8)->get(),
+            'overdue' => QaAction::with(['department', 'owner'])->whereIn('status', QaAction::OPEN)->whereDate('due_date', '<', bdate()->toDateString())->orderBy('due_date')->limit(8)->get(),
         ] + $this->lookups());
     }
 
@@ -145,7 +145,7 @@ class QaController extends Controller
         $view = $r->query('view', 'open');
         $q = QaAction::with(['department', 'owner', 'audit', 'standard', 'ticket'])
             ->when($view === 'open', fn ($q) => $q->whereIn('status', QaAction::OPEN))
-            ->when($view === 'overdue', fn ($q) => $q->whereIn('status', QaAction::OPEN)->where('due_date', '<', bdate()->toDateString()))
+            ->when($view === 'overdue', fn ($q) => $q->whereIn('status', QaAction::OPEN)->whereDate('due_date', '<', bdate()->toDateString()))
             ->when($view === 'verify', fn ($q) => $q->where('status', 'done'))
             ->when($view === 'mine', fn ($q) => $q->where('owner_id', $u->id)->whereIn('status', ['open', 'in_progress', 'done']))
             ->when($view === 'unassigned', fn ($q) => $q->whereIn('status', QaAction::OPEN)->whereNull('owner_id'))

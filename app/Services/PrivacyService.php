@@ -655,7 +655,7 @@ class PrivacyService
     {
         $c = self::cutoffs();
         $none = fn ($q) => $q->whereRaw('1 = 0');
-        $busy = fn ($q, Carbon $cut) => $q->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->orWhere('departure_date', '>=', $cut->toDateString());
+        $busy = fn ($q, Carbon $cut) => $q->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereDate('departure_date', '>=', $cut->toDateString());
 
         return [
             'documents' => GuestDocument::query()->when($c['id'], fn ($q) => $q->where('created_at', '<', $c['id'])

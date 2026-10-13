@@ -93,7 +93,7 @@ class SelfServiceController extends Controller
 
         return view('me.roster', ['e' => $e, 'today' => $today, 'days' => $days, 'shifts' => $shifts,
             'open' => \App\Services\TimeClockService::openPunch($e),
-            'punches' => \App\Models\TimePunch::with('shift')->where('employee_id', $e->id)->where('work_date', '>=', now()->subDays(13)->toDateString())->orderByDesc('clock_in')->get(),
+            'punches' => \App\Models\TimePunch::with('shift')->where('employee_id', $e->id)->whereDate('work_date', '>=', now()->subDays(13)->toDateString())->orderByDesc('clock_in')->get(),
             'selfOn' => setting('timeclock_self', '1') === '1', 'ipOk' => \App\Services\TimeClockService::ipAllowed($request->ip()),
             'swaps' => (clone $swapIds)->with('requester', 'colleague', 'shift', 'colleagueShift', 'decider')->latest('id')->limit(15)->get(),
             'colleagues' => Employee::where('department_id', $e->department_id)->where('is_active', true)->whereKeyNot($e->id)->orderBy('name')->pluck('name', 'id'),
