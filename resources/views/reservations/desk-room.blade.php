@@ -2,7 +2,7 @@
 <div class="room-card">
   <div class="flex gap-1">
     @if($photo)
-      <img src="{{ asset($photo->path) }}" alt="{{ $photo->caption ?: 'Room '.$room->room_no }}" style="width:96px;height:72px;object-fit:cover;border-radius:8px">
+      <img src="{{ asset($photo) }}" alt="Room {{ $room->room_no }}" style="width:96px;height:72px;object-fit:cover;border-radius:8px">
     @else
       <div class="no-photo" title="No photo on file">No photo on file</div>
     @endif

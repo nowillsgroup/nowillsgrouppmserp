@@ -190,12 +190,12 @@
         <div class="tape-group">{{ $name }} <span>{{ $groupRooms->count() }}</span></div>
         @foreach($groupRooms as $room)
           @php
-            $photo = \App\Services\ReservationDeskService::photo($room);
+            $photo = \App\Services\ReservationDeskService::photoPath($room);
             $names = \App\Services\ReservationDeskService::amenityNames($room);
           @endphp
           <div class="room-row {{ $room->status }}" data-room="{{ $room->id }}" style="--days:{{ $days }}">
             <a class="room-label" href="{{ route('reservations.room', $room) }}">
-              @if($photo)<img src="{{ asset($photo->path) }}" alt="">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
+              @if($photo)<img src="{{ asset($photo) }}" alt="">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
               <span>
                 <b>{{ $room->room_no }}</b>
                 <small>{{ $room->hk_status }}@if($names->isNotEmpty()) · {{ $names->take(2)->join(', ') }}@if($names->count() > 2) <span title="{{ $names->join(', ') }}">+{{ $names->count() - 2 }} more</span>@endif @endif</small>
@@ -245,10 +245,10 @@
           @foreach($groupRooms as $room)
             @php
               $occ = ($byRoom[$room->id] ?? collect())->first(fn ($s) => $s->status === 'checked_in') ?? ($byRoom[$room->id] ?? collect())->first();
-              $photo = \App\Services\ReservationDeskService::photo($room);
+              $photo = \App\Services\ReservationDeskService::photoPath($room);
             @endphp
             <a class="board-card {{ $room->status }} {{ $room->hk_status }}" href="{{ route('reservations.room', $room) }}">
-              @if($photo)<img src="{{ asset($photo->path) }}" alt="{{ $photo->caption ?: 'Room '.$room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
+              @if($photo)<img src="{{ asset($photo) }}" alt="Room {{ $room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
               <b>{{ $room->room_no }}</b>
               <span>{{ $room->roomType->code }} · {{ ucfirst(str_replace('_', ' ', $room->hk_status)) }}</span>
               <em>{{ $occ ? $occ->reservation->guest->full_name : ($room->status === 'vacant' ? 'Vacant' : ucwords(str_replace('_',' ',$room->status))) }}</em>

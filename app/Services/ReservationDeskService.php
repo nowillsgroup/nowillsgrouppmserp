@@ -593,6 +593,16 @@ class ReservationDeskService
             ?? $room->roomType?->images?->first();
     }
 
+    /**
+     * Web path for the room board photo. Uploaded room/type images win; the
+     * room-type media column seeded in v7.41 is the fallback, so a fresh build
+     * still shows the standard photos when nothing has been uploaded.
+     */
+    public static function photoPath(Room $room): ?string
+    {
+        return self::photo($room)?->path ?: $room->roomType?->image ?: null;
+    }
+
     /** Same refusals as block(). Writes nothing. */
     public static function describeBlock(int $roomId, string $from, string $to, string $reason): string
     {

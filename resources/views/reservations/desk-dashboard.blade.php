@@ -9,7 +9,7 @@
   $arrivalsByEta = $arrivals->sortBy(fn ($s) => $s->reservation->eta ? substr((string) $s->reservation->eta, 0, 5) : '99:99');
   $photoByRoom = [];
   foreach ($rooms as $r) {
-      $photoByRoom[$r->id] = \App\Services\ReservationDeskService::photo($r);
+      $photoByRoom[$r->id] = \App\Services\ReservationDeskService::photoPath($r);
   }
 @endphp
 <div class="card">
@@ -29,7 +29,7 @@
     <div class="room-strip">
       @foreach($rooms as $room)
         <a class="room-thumb {{ $room->status }}" href="{{ route('reservations.room', $room) }}" title="{{ $room->room_no }} · {{ ucwords(str_replace('_', ' ', $room->status)) }} · {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}">
-          @if($photoByRoom[$room->id] ?? null)<img src="{{ asset($photoByRoom[$room->id]->path) }}" alt="Room {{ $room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
+          @if($photoByRoom[$room->id] ?? null)<img src="{{ asset($photoByRoom[$room->id]) }}" alt="Room {{ $room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
           <span class="rt-no">{{ $room->room_no }}</span>
         </a>
       @endforeach
@@ -110,7 +110,7 @@
         @forelse($arrivalsByEta->take(8) as $s)
           @php $eta = $s->reservation->eta ? substr((string) $s->reservation->eta, 0, 5) : '—'; @endphp
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>@if($s->reservation->guest->is_vip) <span class="badge badge-purple">VIP</span>@endif
-            <div class="tiny muted">{{ $s->reservation->reservation_no }} · @if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]->path) }}" alt="">@endif {{ $s->room->room_no ?? 'Unassigned' }} · ETA {{ $eta }} · {{ \App\Services\StayService::checkInReady($s) }}</div></div>
+            <div class="tiny muted">{{ $s->reservation->reservation_no }} · @if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]) }}" alt="">@endif {{ $s->room->room_no ?? 'Unassigned' }} · ETA {{ $eta }} · {{ \App\Services\StayService::checkInReady($s) }}</div></div>
             <div class="flex gap-1"><a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}">Open</a>
             @if($s->status === 'reserved' && $s->room_id && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}">Check in</a>@endif</div></li>
         @empty
@@ -132,7 +132,7 @@
             $blocked = $holds && $holds['blocking'] > 0;
           @endphp
           <li><div><b>{{ $s->reservation->guest->full_name }}</b>@if($s->status === 'checked_in' && $blocked) <span class="badge badge-red">Blocked</span>@endif
-            <div class="tiny muted">@if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]->path) }}" alt="">@endif {{ $s->room->room_no ?? '—' }} · @if($s->status !== 'checked_in')Checked out. @elseif($due === null)No folio. @else To settle {{ money($due) }} · not posted. @endif</div></div>
+            <div class="tiny muted">@if($s->room_id && ($photoByRoom[$s->room_id] ?? null))<img class="rt-mini" src="{{ asset($photoByRoom[$s->room_id]) }}" alt="">@endif {{ $s->room->room_no ?? '—' }} · @if($s->status !== 'checked_in')Checked out. @elseif($due === null)No folio. @else To settle {{ money($due) }} · not posted. @endif</div></div>
             @if($s->status === 'checked_in' && can_do('frontdesk.checkout'))<a class="btn btn-sm btn-warning" href="{{ route('frontdesk.checkout', $s) }}">Check out</a>@endif</li>
         @empty
           <li class="muted">No departures on file for this date.</li>

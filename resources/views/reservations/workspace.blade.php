@@ -120,7 +120,7 @@
           </div>
         </div>
 
-        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%)){{ $room->roomType->image ? ' ,url('.asset($room->roomType->image).') center/cover no-repeat' : '' }}">
+        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" title="Room details" style="background:{{ $room->roomType->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           <span class="ws-photo-tag">{{ strtoupper($room->roomType->code ?? $room->roomType->name ?? 'ROOM') }}</span>
           <span class="ws-photo-rate">GH₵{{ number_format($c['rate']) }} <small>/ night</small></span>
         </div>

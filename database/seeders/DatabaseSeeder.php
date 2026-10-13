@@ -2178,11 +2178,17 @@ class DatabaseSeeder extends Seeder
         // ---------- Rooms ----------
         $floors = collect(['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor'])->map(fn ($f, $i) => Models\Floor::create(['name' => $f, 'sort_order' => $i]));
         $types = collect([
-            ['STD', 'Standard Room', 2800, 600, 300, 'AC, TV, Wi-Fi, Tea/Coffee maker'],
-            ['DLX', 'Deluxe Room', 4200, 800, 400, 'AC, Smart TV, Wi-Fi, Minibar, Work desk'],
-            ['EXE', 'Executive Suite', 7800, 1200, 600, 'Living area, Bathtub, Minibar, Lounge access'],
-            ['PRE', 'Presidential Suite', 15500, 2000, 1000, 'Private butler, Jacuzzi, Dining area, City view'],
-        ])->map(fn ($t) => Models\RoomType::create(['code' => $t[0], 'name' => $t[1], 'base_rate' => $t[2], 'extra_adult_rate' => $t[3], 'extra_child_rate' => $t[4], 'amenities' => $t[5], 'max_adults' => $t[0] === 'PRE' ? 4 : 3, 'description' => $t[1].' with modern amenities.']));
+            ['STD', 'Standard Room', 2800, 600, 300, 'AC, TV, Wi-Fi, Tea/Coffee maker', 24, 'images/rooms/std.jpg'],
+            ['DLX', 'Deluxe Room', 4200, 800, 400, 'AC, Smart TV, Wi-Fi, Minibar, Work desk', 32, 'images/rooms/dlx.jpg'],
+            ['EXE', 'Executive Suite', 7800, 1200, 600, 'Living area, Bathtub, Minibar, Lounge access', 48, 'images/rooms/exe.jpg'],
+            ['PRE', 'Presidential Suite', 15500, 2000, 1000, 'Private butler, Jacuzzi, Dining area, City view', 85, 'images/rooms/pre.jpg'],
+        ])->map(fn ($t) => Models\RoomType::create(['code' => $t[0], 'name' => $t[1], 'base_rate' => $t[2], 'extra_adult_rate' => $t[3], 'extra_child_rate' => $t[4], 'amenities' => $t[5], 'max_adults' => $t[0] === 'PRE' ? 4 : 3, 'description' => $t[1].' with modern amenities.',
+            // v7.41 room media. The migration that adds these two columns backfills
+            // them by code, but on a fresh build it runs before this seeder creates
+            // the types, so it matches nothing and the room board is left with no
+            // sizes and no photos. Seed them here as well; the migration backfill
+            // still serves databases that already had room types.
+            'size_sqm' => $t[6] ?? null, 'image' => $t[7] ?? null]));
         $layout = $rich ? [[101, 108, 0], [201, 208, 1], [301, 306, 2], [401, 402, 3]] : [[1, 6, 0], [11, 14, 1], [21, 22, 2]];
         foreach ($layout as $fi => [$a, $b, $ti]) {
             for ($n = $a; $n <= $b; $n++) {
