@@ -5,6 +5,7 @@
 <a class="btn btn-primary" id="downloadPack" href="{{ route('offline.desktop.pack', ['days' => $window, 'device' => 'desk-01']) }}"><x-icon name="download"/> Download {{ $window }}-day pack</a>
 @endsection
 
+@section('content')
 @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if (session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 @if (session('warning'))<div class="alert alert-warning">{{ session('warning') }}</div>@endif
@@ -67,6 +68,8 @@
   @endif
   </div>
 </div>
+
+@endsection
 
 @push('scripts')
 <script>

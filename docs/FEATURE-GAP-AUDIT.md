@@ -5,7 +5,7 @@
 **Audit type:** full code read + parity check against the pre-October Nowills PMS/ERP feature set  
 **Audit method:** every module's routes/controllers/services/views read from source; the gap checklist below enumerates every area where the old PMS/ERP behaved differently or did more; package requirements verified against `composer.json` / `package.json` and runtime checks.
 
-**System under audit:** Nowills PMS — Laravel 13.33 PHP property-management system. 52 modules, 359 pages. Ghana-specific (VAT 21% / NHIL 2.5% / GETFund 2.5% / COVID levy 1%, GRA e-invoicing), multi-property, group-wide.
+**System under audit:** Nowills PMS — Laravel 13.33 PHP property-management system. 54 modules, 371 pages (counts refreshed 13 October 2026 against docs/MODULES.md). Ghana-specific (VAT 21% / NHIL 2.5% / GETFund 2.5% / COVID levy 1%, GRA e-invoicing), multi-property, group-wide.
 
 ---
 

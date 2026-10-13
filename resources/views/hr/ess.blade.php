@@ -4,6 +4,7 @@
 <button class="btn btn-primary" data-modal="announceModal" id="announceBtn"><x-icon name="plus"/> New announcement</button>
 @endsection
 
+@section('content')
 @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if (session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
@@ -106,3 +107,4 @@
     <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary" id="doAnnounce">Publish</button></div>
   </form>
 </div></div>
+@endsection

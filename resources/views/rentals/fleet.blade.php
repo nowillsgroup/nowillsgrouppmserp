@@ -6,6 +6,7 @@
 @if(auth()->user()->hasPermission('rentals.manage'))<button class="btn btn-primary" data-modal="vehicleModal" id="addVehicleBtn"><x-icon name="plus"/> Add vehicle</button>@endif
 @endsection
 
+@section('content')
 @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if ($errors->any())<div class="alert alert-danger">{{ collect($errors->all())->implode(' ') }}</div>@endif
 
@@ -75,3 +76,4 @@
   </form>
 </div></div>
 @endif
+@endsection
