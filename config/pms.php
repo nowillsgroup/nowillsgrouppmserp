@@ -255,7 +255,7 @@ return [
                 ['label' => 'Desk Settings', 'route' => 'desk.settings', 'perm' => 'logbook.manage'],
             ]],
             ['label' => 'Reservations', 'icon' => 'calendar', 'children' => [
-                ['label' => 'Reservation Workspace', 'route' => 'reservations.workspace', 'perm' => 'reservations.view'],
+                ['label' => 'Reservation Workspace', 'route' => 'reservations.workspace', 'perm' => 'reservations.view', 'badge' => 'ws_arrivals'],
                 ['label' => 'New Reservation', 'route' => 'reservations.create', 'perm' => 'reservations.create'],
                 ['label' => 'Reservation List', 'route' => 'reservations.index', 'perm' => 'reservations.view'],
                 ['label' => 'Availability', 'route' => 'reservations.availability', 'perm' => 'reservations.view'],

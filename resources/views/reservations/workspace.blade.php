@@ -43,6 +43,17 @@
     'inhouse' => ['In-house guests', fn ($v) => $v],
     'vips' => ['VIP guests', fn ($v) => $v],
   ];
+  $tileLink = [
+    'occupancy' => route('frontdesk.tapechart'),
+    'revenue' => route('revenue.index'),
+    'available' => route('frontdesk.rooms'),
+    'occupied' => route('frontdesk.rooms'),
+    'reserved' => route('frontdesk.rooms'),
+    'arrivals' => route('frontdesk.arrivals'),
+    'departures' => route('frontdesk.departures'),
+    'inhouse' => route('frontdesk.inhouse'),
+    'vips' => route('frontdesk.inhouse'),
+  ];
   $kpis = [];
   foreach ($tile as $key => [$label, $fmt]) {
       $delta = $deltas[$key] ?? null;
@@ -53,19 +64,20 @@
           'delta' => $delta === null ? '—' : ($delta > 0 ? '+' : '').$delta.'%',
           'tone' => $delta !== null && $delta == 0 ? 'green' : $tone,
           'series' => $trend[$key],
+          'link' => $tileLink[$key],
       ];
   }
 @endphp
 <div class="ws-kpis">
   @foreach ($kpis as $i => $k)
-  <div class="ws-kpi">
+  <a class="ws-kpi" href="{{ $k['link'] }}" style="color:inherit;text-decoration:none">
     <div class="flex gap">
       <span class="ws-kpi-delta {{ $k['tone'] === 'red' ? 'down' : 'up' }}">{{ $k['delta'] }}</span>
     </div>
     {!! WS::spark($k['series'], $k['tone']) !!}
     <div class="ws-kpi-value">{{ $k['value'] }}</div>
     <div class="ws-kpi-label">{{ $k['label'] }}</div>
-  </div>
+  </a>
   @endforeach
 </div>
 
@@ -108,7 +120,7 @@
           </div>
         </div>
 
-        <div class="ws-photo" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%)){{ $room->roomType->image ? ' ,url('.asset($room->roomType->image).') center/cover no-repeat' : '' }}">
+        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%)){{ $room->roomType->image ? ' ,url('.asset($room->roomType->image).') center/cover no-repeat' : '' }}">
           <span class="ws-photo-tag">{{ strtoupper($room->roomType->code ?? $room->roomType->name ?? 'ROOM') }}</span>
           <span class="ws-photo-rate">GH₵{{ number_format($c['rate']) }} <small>/ night</small></span>
         </div>
@@ -209,7 +221,7 @@
     </div></div>
 
     <div class="card ws-rail-card"><div class="card-body">
-      <div class="ws-rail-title"><x-icon name="login"/> TODAY'S ARRIVALS · {{ $arrivals->count() }}</div>
+      <a class="ws-rail-title" href="{{ route('frontdesk.arrivals') }}" style="color:inherit"><x-icon name="login"/> TODAY'S ARRIVALS · {{ $arrivals->count() }}</a>
       @forelse ($arrivals as $s)
       <a class="ws-person" href="{{ $s->room_id ? route('frontdesk.checkin', $s) : route('reservations.index') }}">
         <span class="ws-avatar sm">{{ mb_substr($s->guest?->first_name ?? $s->reservation->guest?->first_name ?? 'G', 0, 1) }}</span>
@@ -222,7 +234,7 @@
     </div></div>
 
     <div class="card ws-rail-card"><div class="card-body">
-      <div class="ws-rail-title"><x-icon name="logout"/> TODAY'S DEPARTURES · {{ $departures->count() }}</div>
+      <a class="ws-rail-title" href="{{ route('frontdesk.departures') }}" style="color:inherit"><x-icon name="logout"/> TODAY'S DEPARTURES · {{ $departures->count() }}</a>
       @forelse ($departures as $s)
       <a class="ws-person" href="{{ route('frontdesk.checkout', $s) }}">
         <span class="ws-avatar sm">{{ mb_substr($s->guest?->first_name ?? $s->reservation->guest?->first_name ?? 'G', 0, 1) }}</span>
@@ -261,7 +273,7 @@
     </div></div>
 
     <div class="card ws-rail-card"><div class="card-body">
-      <div class="ws-rail-title"><x-icon name="broom"/> HOUSEKEEPING</div>
+      <a class="ws-rail-title" href="{{ url('/housekeeping') }}" style="color:inherit"><x-icon name="broom"/> HOUSEKEEPING</a>
       <table class="ws-rail-list">
         <tr><td><span class="dot" style="background:#f59e0b"></span> Dirty</td><td class="text-right bold">{{ $hk['Dirty'] }}</td></tr>
         <tr><td><span class="dot" style="background:#10b981"></span> Clean / inspected</td><td class="text-right bold">{{ $hk['Clean'] }}</td></tr>
@@ -378,12 +390,19 @@ function applyWsFilters() {
       && (!fl || c.dataset.floor === fl) && (!so || c.dataset.source === so) ? '' : 'none';
   });
 }
-document.querySelectorAll('.ws-all').forEach(b => b.addEventListener('click', (e) => {
-  e.preventDefault();
-  const m = document.getElementById('roomModal' + b.dataset.room);
+function openRoomModal(id) {
+  const m = document.getElementById('roomModal' + id);
   m?.classList.add('open');
   m?.querySelector('[data-close]')?.addEventListener('click', () => m.classList.remove('open'));
   m?.addEventListener('click', (e2) => { if (e2.target === m) m.classList.remove('open'); });
+}
+document.querySelectorAll('.ws-all').forEach(b => b.addEventListener('click', (e) => {
+  e.preventDefault();
+  openRoomModal(b.dataset.room);
+}));
+document.querySelectorAll('.ws-photo-link').forEach(b => b.addEventListener('click', (e) => {
+  e.preventDefault();
+  openRoomModal(b.dataset.room);
 }));
 setInterval(() => {
   const el = document.getElementById('wsClock');
@@ -413,6 +432,8 @@ setInterval(() => {
 .ws-room-no.huge{font-size:34px}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
 .ws-photo{height:128px;position:relative;border-radius:8px;margin:0 10px}
+.ws-photo-link{cursor:pointer}
+.ws-kpi:hover{border-color:#94a3b8}
 .ws-photo-tag{position:absolute;left:10px;top:8px;background:rgba(15,23,42,.72);color:#fff;font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 6px;border-radius:4px}
 .ws-photo-rate{position:absolute;right:10px;bottom:8px;background:#f59e0b;color:#1f2937;font-weight:800;padding:3px 8px;border-radius:6px;font-size:13px}
 .ws-photo-rate small{font-weight:500}
