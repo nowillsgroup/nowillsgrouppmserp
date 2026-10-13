@@ -16,7 +16,7 @@ class PayComponent extends Model
     public const CALCS = ['fixed' => 'Fixed amount', 'percent_basic' => '% of basic', 'percent_gross' => '% of gross', 'slab' => 'Slab on gross', 'tax' => 'PAYE (GRA monthly bands)', 'system' => 'System (calculated)'];
 
     /** Codes the payroll engine computes itself. */
-    public const SYSTEM = ['BASIC', 'OT', 'ADV'];
+    public const SYSTEM = ['BASIC', 'OT', 'OTH', 'ADV', 'OT_TAX'];
 
     protected function casts(): array
     {
@@ -49,8 +49,10 @@ class PayComponent extends Model
             'percent_basic' => $pct.' of basic'.($this->cap_base ? ' (max base '.money($this->cap_base).')' : '').($this->tax_relief ? ' · PAYE relief' : ''),
             'percent_gross' => $pct.' of gross'.($this->gross_ceiling ? ' while gross ≤ '.money($this->gross_ceiling) : ''),
             'slab' => collect($this->slabs ?? [])->map(fn ($s) => ($s[0] === null ? 'above' : '≤ '.number_format($s[0])).': '.number_format($s[1]))->implode(' · '),
-            'tax' => 'GRA PAYE monthly bands on taxable pay less SSNIT',
-            default => match ($this->code) { 'BASIC' => 'Employee monthly basic, pro-rata', 'OT' => 'Overtime hours from attendance', 'ADV' => 'Salary advance instalment', default => 'Calculated' },
+            'tax' => 'GRA PAYE – the bands in force in the payroll month, on taxable pay less SSNIT and personal reliefs (non-resident 25%, casual worker 5% final, junior overtime 5% / 10%)',
+            default => match ($this->code) { 'BASIC' => 'Employee monthly basic, pro-rata', 'OT' => 'Overtime hours from attendance',
+                    'OTH' => 'Hours worked on a gazetted public holiday (Act 651 s. 77)', 'ADV' => 'Salary advance instalment',
+                    'OT_TAX' => 'Final tax on a junior employee\'s overtime (GRA PAYE)', default => 'Calculated' },
         };
     }
 }

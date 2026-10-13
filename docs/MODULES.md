@@ -10,8 +10,14 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **54** | modules |
-| **371** | pages |
+| **53** | modules |
+| **361** | pages |
+
+Counted from the live `config('pms.menu')` registry on 13 Oct 2026 (v7.43, after **HR & Payroll ›
+Public Holidays** was added): a page is any node below module level that carries a `route`; a module
+that is itself a link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. The
+per-module lists below are the historical inventory (v7.36–v7.38) and still name a few pages that are
+routed but no longer menued — the HR & Workforce section carries the reconciled HR count.
 
 ---
 
@@ -160,8 +166,9 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
-- **HR & Payroll** — 23 pages
-  - Employees · Attendance · Monthly Register · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims · My Profile · My Documents · My Announcements · Self-Service Desk
+- **HR & Payroll** — 20 pages · v7.43 reconciled (was listed as 23)
+  - Employees · Attendance · Monthly Register · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+  - Routed but not in the sidebar: My Profile (`/me/profile`), My Documents (`/me/documents`), My Announcements (`/me/announcements`) and the HR Self-Service Desk (`/hr/ess`) — all four render; v7.43 stopped the first three from returning a bare 404 for a login that is not linked to an employee record.
 - **Learning & SOPs** — 7 pages
   - L&D Dashboard · Training Matrix · Training Sessions · Training Records · Courses & Requirements · SOP Library · L&D Settings
 

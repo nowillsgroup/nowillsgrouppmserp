@@ -21,7 +21,7 @@ use RuntimeException;
  * v4.5 Ghana payroll statutory returns, built from the approved payroll of each month:
  *   SSNIT Tier 1 – 13.5 % of basic salary (employee 5.5 % + employer 8 %), to SSNIT by the 14th of the following month;
  *   Tier 2      – 5 % of basic (employer), to the scheme's corporate trustee by the 14th;
- *   PAYE        – income tax deducted, to GRA by the 15th.
+ *   PAYE        – income tax deducted, to GRA by the 15th, on the bands in force in that payroll month (Act 1178 from 1 Sep 2026).
  * Amounts come from the payslip lines that credit each liability account (2210 / 2220 / 2230), so custom components are
  * included. Recording a remittance posts Dr the liability / Cr the bank and locks the month's payroll run from reopening.
  * Also: the national daily minimum wage check (GH₵ 21.77 × 27 days from 1 Jan 2026) and the insurable-earnings cap.
@@ -99,7 +99,7 @@ class StatutoryService
 
     public static function runFor(string $period): ?PayrollRun
     {
-        return PayrollRun::where('period_start', $period.'-01')->first();
+        return PayrollRun::whereDate('period_start', $period.'-01')->first(); // a date column stores 'Y-m-d 00:00:00' – equality never matched
     }
 
     protected static function heads(): array
@@ -155,10 +155,13 @@ class StatutoryService
                     'basic' => $basic, 'ee' => $ee, 'er' => $er, 'total' => round($ee + $er, 2)];
                 if ($kind === 'paye') {
                     $earn = $s->lines->where('kind', 'earning');
-                    $ot = round((float) $earn->where('code', 'OT')->sum('amount'), 2);
+                    $ot = round((float) $earn->whereIn('code', ['OT', 'OTH'])->sum('amount'), 2);
                     $relief = round((float) $s->lines->filter(fn ($l) => $l->kind === 'deduction' && self::kindOf($l, $heads) === 'ssnit')->sum('amount'), 2);
-                    $row += ['allowances' => round((float) $earn->whereNotIn('code', ['BASIC', 'OT'])->sum('amount'), 2), 'overtime' => $ot, 'gross' => (float) $s->gross,
-                        'relief' => $relief, 'chargeable' => round((float) $earn->where('taxable', true)->sum('amount') - $relief, 2)];
+                    $row += ['allowances' => round((float) $earn->whereNotIn('code', ['BASIC', 'OT', 'OTH'])->sum('amount'), 2), 'overtime' => $ot, 'gross' => (float) $s->gross,
+                        'relief' => $relief, 'personal_relief' => PayrollService::personalRelief($e),
+                        'ot_tax' => round((float) $s->lines->where('code', 'OT_TAX')->sum('amount'), 2),
+                        'chargeable' => round((float) $s->chargeable_income, 2), 'resident' => PayrollService::isResident($e) ? 'Y' : 'N',
+                        'basis' => (string) ($s->paye_basis ?? ''), 'holiday_hours' => round((float) $s->holiday_hours, 2)];
                 } else {
                     $row['insurable'] = $cap > 0 ? min($basic, $cap) : $basic;
                 }
@@ -185,7 +188,11 @@ class StatutoryService
 
         return ['kind' => $kind, 'label' => self::label($kind), 'payee' => self::payee($kind), 'period' => $period, 'run' => $run, 'rows' => $rows,
             'ee' => round($rows->sum('ee'), 2), 'er' => round($rows->sum('er'), 2), 'total' => $total, 'employees' => $rows->count(),
-            'due' => $due, 'remittance' => $rem, 'status' => self::statusOf($run, $rem, $due, $total), 'issues' => $issues, 'gl' => $gl];
+            'due' => $due, 'remittance' => $rem, 'status' => self::statusOf($run, $rem, $due, $total), 'issues' => $issues, 'gl' => $gl,
+            'schedule' => $kind === 'paye' ? PayrollService::scheduleFor($period.'-01') : null,
+            'ot_tax' => $kind === 'paye' ? round($rows->sum('ot_tax'), 2) : 0.0,
+            'personal_relief' => $kind === 'paye' ? round($rows->sum('personal_relief'), 2) : 0.0,
+            'non_residents' => $kind === 'paye' ? $rows->where('resident', 'N')->count() : 0];
     }
 
     /** no_payroll | draft | nil | due | overdue | remitted | late */
@@ -349,8 +356,9 @@ class StatutoryService
         $r = self::build($kind, $period);
         if ($kind === 'paye') {
             $head = ['Employee TIN / Ghana Card PIN', 'Employee name', 'Position', 'Resident', 'Basic salary', 'Cash allowances', 'Overtime', 'Total cash emolument',
-                'SSNIT relief (5.5%)', 'Chargeable income', 'Tax deducted (PAYE)'];
-            $rows = $r['rows']->map(fn ($x) => [$x['ghana_card'], $x['name'], $x['position'], 'Y', $x['basic'], $x['allowances'], $x['overtime'], $x['gross'], $x['relief'], $x['chargeable'], $x['total']]);
+                'SSNIT relief (5.5%)', 'Personal reliefs', 'Chargeable income', 'Overtime tax (junior staff)', 'Tax deducted (PAYE)', 'Rule applied'];
+            $rows = $r['rows']->map(fn ($x) => [$x['ghana_card'], $x['name'], $x['position'], $x['resident'], $x['basic'], $x['allowances'], $x['overtime'], $x['gross'],
+                $x['relief'], $x['personal_relief'], $x['chargeable'], $x['ot_tax'], $x['total'], $x['basis']]);
         } else {
             $head = ['SSNIT number', 'Ghana Card PIN', 'Employee name', 'Staff no.', 'Basic salary', 'Insurable earnings', 'Employee share', 'Employer share', 'Total contribution'];
             $rows = $r['rows']->map(fn ($x) => [$x['ssnit_no'], $x['ghana_card'], $x['name'], $x['emp_code'], $x['basic'], $x['insurable'], $x['ee'], $x['er'], $x['total']]);

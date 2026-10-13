@@ -105,7 +105,7 @@ class ServiceChargeService
 
     protected static function consumed(string $date): bool
     {
-        return ScDistribution::whereIn('status', ['approved', 'posted'])->where('period_start', '<=', $date)->where('period_end', '>=', $date)->exists();
+        return ScDistribution::whereIn('status', ['approved', 'posted'])->whereDate('period_start', '<=', $date)->whereDate('period_end', '>=', $date)->exists();
     }
 
     /** GL: Dr cash / card clearing / MoMo, Cr 2110. */
@@ -131,13 +131,13 @@ class ServiceChargeService
         if ($to > LedgerService::cutoff()) {
             throw new RuntimeException('The period must be closed – the ledger is posted up to '.dmy(LedgerService::cutoff()).'.');
         }
-        if ($o = ScDistribution::where('status', '!=', 'cancelled')->where('period_start', '<=', $to)->where('period_end', '>=', $from)->first()) {
+        if ($o = ScDistribution::where('status', '!=', 'cancelled')->whereDate('period_start', '<=', $to)->whereDate('period_end', '>=', $from)->first()) {
             throw new RuntimeException("The period overlaps {$o->dist_no} ({$o->label()}).");
         }
         if (! array_key_exists($d['basis'] ?? 'points_days', ScDistribution::BASES)) {
             throw new RuntimeException('Unknown sharing basis.');
         }
-        $prev = ScDistribution::whereIn('status', ['approved', 'posted'])->where('period_end', '<', $from)->orderByDesc('period_end')->first();
+        $prev = ScDistribution::whereIn('status', ['approved', 'posted'])->whereDate('period_end', '<', $from)->orderByDesc('period_end')->first();
 
         return DB::transaction(function () use ($d, $u, $from, $to, $prev) {
             $dist = ScDistribution::create(['dist_no' => Numbering::next('sc_dist'), 'period_start' => $from, 'period_end' => $to, 'basis' => $d['basis'] ?? 'points_days',

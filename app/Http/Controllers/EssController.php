@@ -13,22 +13,26 @@ use Illuminate\Support\Facades\Auth;
 /** v7.40 Employee self-service: profile change requests, document uploads, announcements + the HR review desk. */
 class EssController extends Controller
 {
-    protected function me(): Employee
+    /**
+     * The employee behind the logged-in user, or null.
+     *
+     * v7.43: this used to abort(404), so an unlinked login – the administrator account, and any
+     * of the 11 demo employees without a user – got a bare "Not Found" page on My Profile, My
+     * Documents and My Announcements. Every other self-service page explains itself instead
+     * (me/unlinked), so these three do too.
+     */
+    protected function me(): ?Employee
     {
-        $e = Employee::where('user_id', Auth::id())->where('is_active', true)->first();
-        if (! $e) {
-            // graceful, like me/hr: explain instead of a bare 404
-            abort(404, 'Your login is not linked to an employee record – ask HR to link it.');
-        }
-
-        return $e;
+        return Employee::where('user_id', Auth::id())->where('is_active', true)->first();
     }
 
     // ------------------------------------------------------------------ staff
 
     public function profile()
     {
-        $e = $this->me();
+        if (! $e = $this->me()) {
+            return view('me.unlinked', ['title' => 'My Profile']);
+        }
 
         return view('me.profile', [
             'e' => $e,
@@ -39,14 +43,19 @@ class EssController extends Controller
 
     public function profileUpdate(Request $request)
     {
-        Ess::requestUpdate($this->me(), $request->all(), Auth::user());
+        if (! $e = $this->me()) {
+            return back()->with('error', 'Your login is not linked to an employee record – ask HR to link it first.');
+        }
+        Ess::requestUpdate($e, $request->all(), Auth::user());
 
         return back()->with('success', 'Your change request has been sent to HR for approval.');
     }
 
     public function documents()
     {
-        $e = $this->me();
+        if (! $e = $this->me()) {
+            return view('me.unlinked', ['title' => 'My Documents']);
+        }
 
         return view('me.documents', [
             'e' => $e,
@@ -62,14 +71,19 @@ class EssController extends Controller
             'kind' => ['nullable', 'string'],
             'file' => ['required', 'file'],
         ]);
-        Ess::upload($this->me(), $request->file('file'), (string) ($data['title'] ?? ''), $data['kind'] ?? null, Auth::user());
+        if (! $e = $this->me()) {
+            return back()->with('error', 'Your login is not linked to an employee record – ask HR to link it first.');
+        }
+        Ess::upload($e, $request->file('file'), (string) ($data['title'] ?? ''), $data['kind'] ?? null, Auth::user());
 
         return back()->with('success', 'Document uploaded — HR will verify it shortly.');
     }
 
     public function announcements()
     {
-        $e = $this->me();
+        if (! $e = $this->me()) {
+            return view('me.unlinked', ['title' => 'My Announcements']);
+        }
 
         return view('me.announcements', ['e' => $e, 'items' => Ess::feed($e)]);
     }

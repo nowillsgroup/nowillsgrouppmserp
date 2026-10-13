@@ -3597,7 +3597,7 @@ class ReportController extends Controller
     protected function r_service_charge_distribution($from, $to): array
     {
         $rows = collect();
-        foreach (\App\Models\ScDistribution::with('lines.employee', 'lines.department', 'run')->where('status', '!=', 'cancelled')->where('period_start', '<=', $to->toDateString())->where('period_end', '>=', $from->toDateString())->orderBy('period_start')->get() as $d) {
+        foreach (\App\Models\ScDistribution::with('lines.employee', 'lines.department', 'run')->where('status', '!=', 'cancelled')->whereDate('period_start', '<=', $to->toDateString())->whereDate('period_end', '>=', $from->toDateString())->orderBy('period_start')->get() as $d) {
             foreach ($d->lines->sortBy(fn ($l) => [$l->department?->name, $l->employee?->name]) as $l) {
                 $rows->push(['dist' => $d->dist_no, 'period' => $d->label(), 'emp' => $l->employee?->name.' ('.$l->employee?->emp_code.')', 'dept' => $l->department?->name,
                     'points' => (float) $l->points, 'days' => (float) $l->days, 'amount' => (float) $l->amount, 'note' => $l->excluded ? 'excluded: '.$l->exclude_reason : '',

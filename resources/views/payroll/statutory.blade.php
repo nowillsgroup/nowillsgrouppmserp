@@ -61,13 +61,19 @@
     @endif
     <div class="card-body table-wrap"><table class="table" id="statTable">
     @if($tab === 'paye')
-      <thead><tr><th>Employee</th><th>TIN / Ghana Card</th><th>Position</th><th class="num">Basic</th><th class="num">Allowances</th><th class="num">Overtime</th><th class="num">Gross</th><th class="num">SSNIT relief</th><th class="num">Chargeable</th><th class="num">PAYE</th></tr></thead>
+      @php
+        $extra = [];
+        if (($cur['ot_tax'] ?? 0) > 0) { $extra[] = 'overtime tax on junior staff '.money($cur['ot_tax']); }
+        if (($cur['personal_relief'] ?? 0) > 0) { $extra[] = 'personal reliefs claimed '.money($cur['personal_relief']); }
+      @endphp
+      <div class="card-body" style="padding-bottom:0"><p class="tiny muted"><b>Bands applied:</b> {{ $cur['schedule']['name'] ?? '—' }} (in force {{ isset($cur['schedule']) ? dmy(\Illuminate\Support\Carbon::parse($cur['schedule']['from'])) : '' }}) – {{ $cur['non_residents'] }} non-resident(s) at a flat 25%{{ $extra ? ' · '.implode(' · ', $extra) : '' }}. The DT 107 return below carries the same rule per employee.</p></div>
+      <thead><tr><th>Employee</th><th>TIN / Ghana Card</th><th>Position</th><th class="num">Basic</th><th class="num">Allowances</th><th class="num">Overtime</th><th class="num">Gross</th><th class="num">SSNIT relief</th><th class="num">Reliefs</th><th class="num">Chargeable</th><th class="num">OT tax</th><th class="num">PAYE</th></tr></thead>
       <tbody>@foreach($cur['rows'] as $x)
-      <tr><td>{{ $x['name'] }}<div class="tiny muted">{{ $x['emp_code'] }}</div></td><td class="mono small {{ \App\Services\GstService::validTin($x['ghana_card']) ? '' : 'text-red' }}">{{ $x['ghana_card'] ?: 'missing' }}</td><td class="small">{{ $x['position'] }}</td>
+      <tr><td>{{ $x['name'] }}<div class="tiny muted">{{ $x['emp_code'] }}@if($x['resident'] === 'N') · <span class="badge badge-amber">non-resident 25%</span>@endif<div class="tiny muted">{{ $x['basis'] }}</div></div></td><td class="mono small {{ \App\Services\GstService::validTin($x['ghana_card']) ? '' : 'text-red' }}">{{ $x['ghana_card'] ?: 'missing' }}</td><td class="small">{{ $x['position'] }}</td>
         <td class="num">{{ money($x['basic'], false) }}</td><td class="num">{{ money($x['allowances'], false) }}</td><td class="num">{{ money($x['overtime'], false) }}</td><td class="num">{{ money($x['gross'], false) }}</td>
-        <td class="num">{{ money($x['relief'], false) }}</td><td class="num">{{ money($x['chargeable'], false) }}</td><td class="num bold">{{ money($x['total'], false) }}</td></tr>
+        <td class="num">{{ money($x['relief'], false) }}</td><td class="num">{{ $x['personal_relief'] ? money($x['personal_relief'], false) : '—' }}</td><td class="num">{{ money($x['chargeable'], false) }}</td><td class="num">{{ $x['ot_tax'] ? money($x['ot_tax'], false) : '—' }}</td><td class="num bold">{{ money($x['total'], false) }}</td></tr>
       @endforeach</tbody>
-      <tfoot><tr><th colspan="3">{{ $cur['employees'] }} employee(s)</th><th class="num">{{ money($cur['rows']->sum('basic'), false) }}</th><th class="num">{{ money($cur['rows']->sum('allowances'), false) }}</th><th class="num">{{ money($cur['rows']->sum('overtime'), false) }}</th><th class="num">{{ money($cur['rows']->sum('gross'), false) }}</th><th class="num">{{ money($cur['rows']->sum('relief'), false) }}</th><th class="num">{{ money($cur['rows']->sum('chargeable'), false) }}</th><th class="num" id="statTotal">{{ money($cur['total'], false) }}</th></tr></tfoot>
+      <tfoot><tr><th colspan="3">{{ $cur['employees'] }} employee(s)</th><th class="num">{{ money($cur['rows']->sum('basic'), false) }}</th><th class="num">{{ money($cur['rows']->sum('allowances'), false) }}</th><th class="num">{{ money($cur['rows']->sum('overtime'), false) }}</th><th class="num">{{ money($cur['rows']->sum('gross'), false) }}</th><th class="num">{{ money($cur['rows']->sum('relief'), false) }}</th><th class="num">{{ money($cur['personal_relief'], false) }}</th><th class="num">{{ money($cur['rows']->sum('chargeable'), false) }}</th><th class="num">{{ money($cur['ot_tax'], false) }}</th><th class="num" id="statTotal">{{ money($cur['total'], false) }}</th></tr></tfoot>
     @else
       <thead><tr><th>Employee</th><th>SSNIT no.</th><th>Ghana Card</th><th class="num">Basic</th><th class="num">Insurable</th><th class="num">Employee</th><th class="num">Employer</th><th class="num">Total</th></tr></thead>
       <tbody>@foreach($cur['rows'] as $x)

@@ -27,7 +27,7 @@ class SelfServiceController extends Controller
     {
         $e = Employee::with('department')->where('user_id', auth()->id())->where('is_active', true)->first();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Payslips & Leave']);
         }
         $month = bdate()->copy()->startOfMonth();
 
@@ -82,7 +82,7 @@ class SelfServiceController extends Controller
     {
         $e = Employee::with('department')->where('user_id', auth()->id())->where('is_active', true)->first();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Roster & Time Clock']);
         }
         $today = now()->toDateString();
         $from = now()->subDays(6)->toDateString();

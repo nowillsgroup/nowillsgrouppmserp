@@ -35,8 +35,12 @@
 <div class="alert alert-warn" id="runMinWage"><x-icon name="alert"/><div><b>Below the national minimum wage</b> ({{ money(\App\Services\StatutoryService::minWageMonthly()) }} a month): {{ $runBelowMin->pluck('name')->join(', ') }}. Raise the basic salary before approving.</div></div>
 @endif
 
+@if($holidays['count'])
+<div class="alert alert-info" id="runHolidays"><x-icon name="calendar"/><div><b>{{ $holidays['text'] }}</b> Everyone is paid for them whether they work or not (Act 651 s. 72, and s. 77 for temporary and casual workers); hours clocked on a holiday are paid on the OTH line at {{ rtrim(rtrim(number_format((float) setting('payroll_holiday_multiplier', '2'), 2), '0'), '.') }}×. Edit the calendar under <a href="{{ route('hr.holidays', ['year' => $run->period_start->year]) }}">Public holidays</a>.</div></div>
+@endif
+
 <div class="card"><div class="card-body grid g-2">
-  <dl class="kv"><dt>Period</dt><dd>{{ dmy($run->period_start) }} – {{ dmy($run->period_end) }} ({{ $run->period_start->daysInMonth }} days)</dd>
+  <dl class="kv"><dt>Period</dt><dd>{{ dmy($run->period_start) }} – {{ dmy($run->period_end) }} ({{ $run->period_start->daysInMonth }} days)<div class="tiny muted">PAYE bands: {{ $schedule['name'] }}</div></dd>
     <dt>Prepared by</dt><dd>{{ $run->generator?->name ?? '—' }} · {{ $run->generated_at?->format('d M H:i') }}</dd>
     @if($run->approved_at)<dt>Approved by</dt><dd>{{ $run->approver?->name }} · {{ $run->approved_at->format('d M H:i') }}</dd>@endif
     @if($run->notes)<dt>Notes</dt><dd>{{ $run->notes }}</dd>@endif
@@ -62,14 +66,15 @@
 
 <div class="card flush mt-2"><div class="card-head"><h3>Payslips</h3>@if($run->status === 'draft' && can_do('payroll.manage'))<button class="btn btn-sm btn-primary" data-modal="adjModal"><x-icon name="plus"/> One-off earning / recovery</button>@endif</div>
 <div class="card-body table-wrap"><table class="table table-compact" id="slipTable">
-<thead><tr><th>Code</th><th>Employee</th><th class="num" title="Paid days / days in month">Paid days</th><th class="num">LOP</th><th class="num">OT h</th><th class="num">Monthly basic</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Pay mode</th><th></th></tr></thead><tbody>
+<thead><tr><th>Code</th><th>Employee</th><th class="num" title="Paid days / days in month">Paid days</th><th class="num">LOP</th><th class="num" title="Public holidays in the month (Act 651 s. 72)">PH</th><th class="num">OT h</th><th class="num">Monthly basic</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Pay mode</th><th></th></tr></thead><tbody>
 @foreach($slips as $s)@php $manual = $s->lines->where('is_manual', true); @endphp
 <tr data-emp="{{ $s->employee->emp_code }}"><td class="small muted">{{ $s->employee->emp_code }}</td>
-<td><span class="bold">{{ $s->employee->name }}</span><div class="tiny muted">{{ $s->employee->designation }} · {{ $s->employee->department?->name }}</div>
+<td><span class="bold">{{ $s->employee->name }}</span>@if($s->employee->employment_type === 'casual') <span class="badge badge-amber" title="A casual worker's pay carries a final 5% tax instead of the bands (GRA)">casual</span>@endif @if(! $s->employee->tax_resident) <span class="badge badge-amber" title="A non-resident's employment income is taxed at a flat 25%">non-resident</span>@endif<div class="tiny muted">{{ $s->employee->designation }} · {{ $s->employee->department?->name }}@if($s->paye_basis) · {{ $s->paye_basis }}@endif</div>
 @foreach($manual as $m)<div class="tiny"><span class="badge {{ $m->kind === 'earning' ? 'badge-green' : 'badge-red' }}">{{ $m->kind === 'earning' ? '+' : '−' }} {{ money($m->amount, false) }}</span> {{ $m->name }}
 @if($run->status === 'draft' && can_do('payroll.manage'))<form method="post" action="{{ route('payroll.lines.remove', $m) }}" class="inline" onsubmit="return confirm('Remove this adjustment?')">@csrf @method('DELETE')<button class="btn btn-ghost btn-sm" style="padding:0 .25rem" title="Remove">×</button></form>@endif</div>@endforeach</td>
 <td class="num">{{ rtrim(rtrim(number_format($s->paid_days, 1), '0'), '.') }} / {{ $s->days_in_period }}</td>
 <td class="num {{ $s->lop_days > 0 ? 'text-red' : 'muted' }}">{{ $s->lop_days > 0 ? rtrim(rtrim(number_format($s->lop_days, 1), '0'), '.') : '–' }}</td>
+<td class="num {{ $s->holiday_days > 0 ? '' : 'muted' }}" title="{{ $s->holiday_hours > 0 ? rtrim(rtrim(number_format($s->holiday_hours, 2), '0'), '.').' h worked on a public holiday, paid at '.setting('payroll_holiday_multiplier', '2').'×' : 'paid, not worked' }}">{{ $s->holiday_days > 0 ? rtrim(rtrim(number_format($s->holiday_days, 1), '0'), '.') : '–' }}</td>
 <td class="num {{ $s->ot_hours > 0 ? '' : 'muted' }}">{{ $s->ot_hours > 0 ? rtrim(rtrim(number_format($s->ot_hours, 2), '0'), '.') : '–' }}</td>
 <td class="num small">{{ money($s->basic, false) }}</td><td class="num">{{ money($s->gross, false) }}</td><td class="num">{{ money($s->deductions, false) }}</td><td class="num bold">{{ money($s->net, false) }}</td>
 <td class="small">{{ $s->paymentMode?->name ?? '—' }}</td>

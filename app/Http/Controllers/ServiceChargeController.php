@@ -88,7 +88,7 @@ class ServiceChargeController extends Controller
         $to = $scdist->period_end->toDateString();
 
         return view('servicecharge.show', ['d' => $scdist, 'bySource' => ServiceChargeService::collectedBySource($from, $to),
-            'runs' => PayrollRun::where('status', 'draft')->where('period_end', '>=', $to)->orderBy('period_start')->get(),
+            'runs' => PayrollRun::where('status', 'draft')->whereDate('period_end', '>=', $to)->orderBy('period_start')->get(),
             'byDept' => $scdist->lines->groupBy(fn ($l) => $l->department?->name ?? '—')->map(fn ($g) => ['n' => $g->where('amount', '>', 0)->count(), 'amt' => $g->sum('amount')]),
             'canApprove' => can_do('servicecharge.approve'), 'canManage' => can_do('servicecharge.manage')]);
     }

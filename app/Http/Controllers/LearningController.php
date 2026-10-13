@@ -397,7 +397,7 @@ class LearningController extends Controller
     {
         $e = $this->me();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Training & SOPs']);
         }
 
         return view('me.learning', ['e' => $e, 'mine' => LS::mine($e), 'cfg' => LS::cfg()]);

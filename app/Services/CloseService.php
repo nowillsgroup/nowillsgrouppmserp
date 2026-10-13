@@ -413,7 +413,7 @@ class CloseService
                 if (! \App\Models\PayrollRun::exists()) {
                     return ['na', 'Payroll is not run in the system.'];
                 }
-                $run = \App\Models\PayrollRun::where('period_start', '<=', $E)->where('period_end', '>=', $S)->orderByDesc('id')->first();
+                $run = \App\Models\PayrollRun::whereDate('period_start', '<=', $E)->whereDate('period_end', '>=', $S)->orderByDesc('id')->first();
                 if (! $run) {
                     return ['fail', 'No payroll run for '.$mon.'.'];
                 }
@@ -422,7 +422,7 @@ class CloseService
 
             case 'statutory':
                 $prev = self::prev($p->period);
-                $pr = \App\Models\PayrollRun::whereIn('status', ['approved', 'paid'])->where('period_end', '>=', $prev.'-01')->where('period_end', '<=', Carbon::parse($prev.'-01')->endOfMonth()->toDateString())->first();
+                $pr = \App\Models\PayrollRun::whereIn('status', ['approved', 'paid'])->whereDate('period_end', '>=', $prev.'-01')->whereDate('period_end', '<=', Carbon::parse($prev.'-01')->endOfMonth()->toDateString())->first();
                 if (! $pr) {
                     return ['na', 'No approved payroll for '.Carbon::parse($prev.'-01')->format('M Y').'.'];
                 }

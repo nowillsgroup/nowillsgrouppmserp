@@ -22,6 +22,10 @@
   </tr><tr>
     <td><span>Days in month</span>{{ $s->days_in_period }}</td><td><span>Paid days</span><b>{{ $fmt($s->paid_days) }}</b></td>
     <td><span>Present / paid leave</span>{{ $fmt($s->present_days) }} / {{ $fmt($s->paid_leave_days) }}</td><td><span>Loss of pay / overtime</span>{{ $fmt($s->lop_days) }} d / {{ $fmt($s->ot_hours) }} h</td>
+  </tr><tr>
+    <td><span>Public holidays</span>{{ $fmt($s->holiday_days) }} d{{ (float) $s->holiday_hours > 0 ? ' · '.$fmt($s->holiday_hours).' h worked' : '' }}</td>
+    <td><span>Chargeable income</span>{{ money($s->chargeable_income, false) }}</td>
+    <td colspan="2"><span>Income tax (PAYE)</span>{{ $s->paye_basis ?: 'GRA monthly bands' }}</td>
   </tr></table>
   <table class="table table-compact slip-lines">
     <thead><tr><th>Earnings</th><th class="num">Amount</th><th>Deductions</th><th class="num">Amount</th></tr></thead>
@@ -36,6 +40,7 @@
   @if($er->count())
   <div class="small text-2" style="margin-top:.6rem"><b>Employer contributions (not deducted from pay):</b> @foreach($er as $x){{ $x->name }} {{ money($x->amount, false) }}@if(! $loop->last) · @endif @endforeach · Cost to company {{ money($s->gross + $s->employer_cost) }}</div>
   @endif
+  <div class="tiny text-2" style="margin-top:.5rem"><b>Statutory (Ghana):</b> SSNIT Tier 1 13.5% of basic (employee 5.5% + employer 8%) and Tier 2 5% (employer) up to {{ money(\App\Services\PayrollService::SSNIT_CAP, false) }} insurable earnings · employer SSNIT no. {{ \App\Services\StatutoryService::cfg('stat_ssnit_employer_no') ?: '—' }} · Tier 2 trustee: {{ \App\Services\StatutoryService::payee('tier2') }} · PAYE is paid to GRA by the 15th of the following month and SSNIT by the 14th (Act 766, Act 896).</div>
   <div class="tiny text-2" style="margin-top:1rem;display:flex;justify-content:space-between"><span>Computer-generated payslip – no signature required.</span><span>{{ $run->status === 'paid' ? 'Paid '.dmy($run->paid_date) : ucfirst($run->status) }} · printed {{ now()->format('d M Y H:i') }}</span></div>
 </div>
 @endforeach

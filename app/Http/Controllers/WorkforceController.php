@@ -129,8 +129,9 @@ class WorkforceController extends Controller
 
     public function rosterSettings(Request $request)
     {
-        $d = $request->validate(['roster_min_rest_hours' => 'required|numeric|min:0|max:24', 'roster_max_days' => 'required|integer|min:1|max:14',
-            'roster_week_hours' => 'required|numeric|min:1|max:84', 'roster_swap_notice_hours' => 'required|integer|min:0|max:168']);
+        $d = $request->validate(['roster_min_rest_hours' => 'required|numeric|min:0|max:24', 'roster_week_rest_hours' => 'required|numeric|min:0|max:168',
+            'roster_max_days' => 'required|integer|min:1|max:14', 'roster_week_hours' => 'required|numeric|min:1|max:84',
+            'roster_swap_notice_hours' => 'required|integer|min:0|max:168']);
         foreach ($d as $k => $v) {
             Setting::updateOrCreate(['key' => $k], ['value' => (string) $v]);
         }

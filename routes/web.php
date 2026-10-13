@@ -1527,6 +1527,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/hr/attendance', [Controllers\HrController::class, 'attendance'])->middleware('perm:hr.manage')->name('hr.attendance');
     Route::post('/hr/attendance', [Controllers\HrController::class, 'saveAttendance'])->middleware('perm:hr.manage')->name('hr.attendance.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
+    // v7.43 public holidays – the gazetted Ghana calendar behind the roster, the register, leave and payroll
+    Route::get('/hr/holidays', [Controllers\HrController::class, 'holidays'])->middleware('perm:hr.manage,roster.view,payroll.view')->name('hr.holidays');
+    Route::post('/hr/holidays', [Controllers\HrController::class, 'saveHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.save');
+    Route::post('/hr/holidays/reset', [Controllers\HrController::class, 'resetHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.reset');
     // v7.40 ESS review desk
     Route::controller(Controllers\EssController::class)->middleware('perm:hr.manage')->group(function () {
         Route::get('/hr/ess', 'desk')->name('hr.ess');

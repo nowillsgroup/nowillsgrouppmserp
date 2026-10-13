@@ -27,9 +27,16 @@ class RosterService
         return Carbon::parse($d ?? bdate())->startOfWeek(Carbon::MONDAY)->startOfDay();
     }
 
+    /** Act 651 s. 41: at least twelve consecutive hours of rest between two working days. */
     public static function minRest(): float
     {
-        return (float) setting('roster_min_rest_hours', '11');
+        return (float) setting('roster_min_rest_hours', '12');
+    }
+
+    /** Act 651 s. 42: at least forty-eight consecutive hours of rest in every seven days. */
+    public static function weekRest(): float
+    {
+        return (float) setting('roster_week_rest_hours', '48');
     }
 
     public static function maxDays(): int
@@ -37,6 +44,7 @@ class RosterService
         return (int) setting('roster_max_days', '6');
     }
 
+    /** Act 651 s. 33: eight hours a day and a forty-hour normal week – anything above it is overtime (s. 35). */
     public static function weekHours(): float
     {
         return (float) setting('roster_week_hours', '40');
@@ -168,6 +176,29 @@ class RosterService
         $mins = $shifts->filter(fn ($r) => $r->date->toDateString() >= $from)->sum(fn ($r) => $r->paidMinutes());
         if ($mins / 60 > self::weekHours() + 0.001) {
             $out[] = rtrim(rtrim(number_format($mins / 60, 2), '0'), '.').' h planned this week – above the '.rtrim(rtrim(number_format(self::weekHours(), 1), '0'), '.').' h normal week (overtime)';
+        }
+        // s. 42: the longest unbroken rest inside the week must reach forty-eight hours
+        if (self::weekRest() > 0 && $shifts->isNotEmpty()) {
+            $open = $week->copy()->startOfDay();
+            $close = $open->copy()->addDays(7);
+            $best = 0.0;
+            $prevEnd = $open;
+            foreach ($shifts as $sh) {
+                if ($sh->startsAt()->lt($open)) {
+                    $prevEnd = $prevEnd->max($sh->endsAt());
+
+                    continue;
+                }
+                if ($sh->startsAt()->gte($close)) {
+                    break;
+                }
+                $best = max($best, $prevEnd->diffInMinutes($sh->startsAt(), false) / 60);
+                $prevEnd = $prevEnd->max($sh->endsAt());
+            }
+            $best = max($best, $prevEnd->diffInMinutes($close, false) / 60);
+            if ($best + 0.001 < self::weekRest()) {
+                $out[] = 'The longest unbroken rest this week is '.rtrim(rtrim(number_format(max(0, $best), 1), '0'), '.').' h – s. 42 of the Labour Act wants '.rtrim(rtrim(number_format(self::weekRest(), 1), '0'), '.').' consecutive hours';
+            }
         }
 
         return $out;

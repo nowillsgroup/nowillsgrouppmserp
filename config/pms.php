@@ -631,6 +631,7 @@ return [
                 ['label' => 'Employees', 'route' => 'masters.index', 'params' => ['employees'], 'perm' => 'hr.manage'],
                 ['label' => 'Attendance', 'route' => 'hr.attendance', 'perm' => 'hr.manage'],
                 ['label' => 'Monthly Register', 'route' => 'hr.register', 'perm' => 'hr.manage'],
+                ['label' => 'Public Holidays', 'route' => 'hr.holidays', 'perm' => 'hr.manage,roster.view,payroll.view'], // v7.43 Act 601 / Act 1142
                 ['label' => 'Leave Requests', 'route' => 'leave.index', 'perm' => 'hr.leave', 'badge' => 'leave_pending'],
                 ['label' => 'Duty Roster', 'route' => 'roster.index', 'perm' => 'roster.view', 'badge' => 'swap_pending'], // v4.9
                 ['label' => 'Time Clock', 'route' => 'clock.index', 'perm' => 'roster.view', 'badge' => 'timeclock_attention'],

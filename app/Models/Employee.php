@@ -22,6 +22,8 @@ class Employee extends Model
             'leaving_date' => 'date',
             'is_active' => 'boolean',
             'ot_eligible' => 'boolean',
+            'tax_resident' => 'boolean',      // v7.43 Act 896: a non-resident's employment income is taxed at a flat 25%
+            'tax_relief' => 'decimal:2',      // v7.43 GRA personal reliefs, monthly figure
             'sc_eligible' => 'boolean',
             'sc_points' => 'decimal:2',
             'salary' => 'decimal:2',
