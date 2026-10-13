@@ -17,12 +17,12 @@ use Illuminate\Support\Carbon;
 class ReservationWorkspaceService
 {
     /** KPI values for one date (history: on-the-books; today: live statuses). */
-    protected static function dayStats(\Illuminate\Support\Carbon $date, $rooms, bool $history = false): array
+    protected static function dayStats(\Illuminate\Support\Carbon $date, $rooms, bool $history = false, ?int $hotelId = null): array
     {
         $d = $date->toDateString();
         $ids = $rooms->pluck('id');
         $q = ReservationRoom::whereIn('room_id', $ids)
-            ->where('arrival_date', '<=', $d)->where('departure_date', '>', $d);
+            ->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $q = $history
             ? (clone $q)->whereNotIn('status', ['cancelled', 'no_show'])
             : (clone $q)->whereIn('status', ['reserved', 'checked_in']);
@@ -30,8 +30,10 @@ class ReservationWorkspaceService
         $sold = $covering->where('status', '!=', 'reserved')->count() ?: $covering->count();
         $reserved = $covering->where('status', 'reserved')->count();
 
-        $arrQ = ReservationRoom::whereIn('room_id', $ids)->where('arrival_date', $d);
-        $depQ = ReservationRoom::whereIn('room_id', $ids)->where('departure_date', $d);
+        // hotel scope (not room scope) so arrivals still without a room count
+        $deskScope = fn ($q) => $hotelId ? $q->where('hotel_id', $hotelId) : $q->whereIn('room_id', $ids);
+        $arrQ = $deskScope(ReservationRoom::query())->whereDate('arrival_date', $d);
+        $depQ = $deskScope(ReservationRoom::query())->whereDate('departure_date', $d);
         $arrivals = ($history ? (clone $arrQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $arrQ)->whereIn('status', ['reserved', 'checked_in']))->count();
         $departures = ($history ? (clone $depQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $depQ)->whereIn('status', ['checked_in', 'checked_out']))->count();
 
@@ -116,7 +118,7 @@ class ReservationWorkspaceService
         $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality'])
             ->where('hotel_id', $hotelId)
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->where('departure_date', '>', $today)
+            ->whereDate('departure_date', '>', $today)
             ->whereIn('room_id', $activeRoomIds)
             ->orderBy('arrival_date')->get()
             ->groupBy('room_id');
@@ -176,15 +178,21 @@ class ReservationWorkspaceService
                 $reservedCount++;
             }
 
-            if ($stay && $stay->arrival_date?->toDateString() === $today) {
-                $arrivals[] = $stay;
-            }
         }
+
+        // arrivals & departures for the date, regardless of room assignment —
+        // an arrival with no room yet is still desk work (room_id is null until
+        // it is assigned, so room-scoped queries would silently drop it)
+        $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no'])
+            ->where('hotel_id', $hotelId)
+            ->whereDate('arrival_date', $today)
+            ->whereIn('status', ['reserved', 'checked_in'])
+            ->orderBy('room_id')->get();
 
         // departures today (regardless of room assignment state)
         $departures = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no'])
             ->where('hotel_id', $hotelId)
-            ->where('departure_date', $today)
+            ->whereDate('departure_date', $today)
             ->whereIn('status', ['checked_in', 'checked_out'])
             ->orderBy('room_id')->get();
 
@@ -196,7 +204,7 @@ class ReservationWorkspaceService
         // the books as of each date (stays not cancelled/no-show), today live.
         $history = [];
         for ($i = 6; $i >= 1; $i--) {
-            $history[] = self::dayStats($date->copy()->subDays($i), $rooms, true);
+            $history[] = self::dayStats($date->copy()->subDays($i), $rooms, true, $hotelId);
         }
         $todayStats = [
             'occupancy' => round(100 * $sold / $total),
