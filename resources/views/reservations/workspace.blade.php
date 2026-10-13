@@ -10,6 +10,7 @@
 <a class="btn" href="{{ url('/channel-manager') }}" style="background:#d97706;color:#fff"><x-icon name="globe"/> OTA</a>
 @endsection
 
+@section('content')
 <div class="ws-head">
   <div>
     <h1 class="ws-title">Reservation Workspace</h1>
@@ -413,6 +414,7 @@
   </div>
 </div></div>
 @endforeach
+@endsection
 
 @push('scripts')
 <script>
@@ -449,7 +451,7 @@ setInterval(() => {
 </script>
 @endpush
 
-@push('styles')
+@push('head')
 <style>
 .ws-head{display:flex;justify-content:space-between;align-items:flex-end;margin:2px 0 12px}
 .ws-title{font-size:22px;margin:0}

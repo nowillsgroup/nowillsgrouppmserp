@@ -141,7 +141,7 @@
 <p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report · on-the-books figures</p>
 @endsection
 
-@push('styles')
+@push('head')
 <style>
 .tbl{width:100%;border-collapse:collapse;font-size:12px}
 .tbl th,.tbl td{border:1px solid #d7dce5;padding:5px 7px;text-align:left}

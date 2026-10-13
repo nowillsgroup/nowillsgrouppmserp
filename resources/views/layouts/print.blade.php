@@ -2,7 +2,9 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@yield('title') · {{ $currentHotel->name ?? '' }}</title>
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
-<style>body{background:#eef1f6}</style></head>
+<style>body{background:#eef1f6}</style>
+@stack('head')
+</head>
 <body>
 <div class="print-bar no-print">
   <a class="btn" href="{{ url()->previous() }}">← Back</a>
