@@ -240,8 +240,8 @@ class NightAuditService
             $roomRev = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount');
             $otherRev = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount');
             $posDirect = PosOrder::whereDate('business_date', $date->toDateString())->where('status', 'settled')->where('settlement', 'payment')->get();
+            $counter = \App\Services\RecreationService::counterTakings($date->toDateString()); // v7.38 desk passes + outlet takings — must be read before it is added into $otherRev
             $otherRev += $posDirect->sum(fn ($o) => $o->total - $o->tax) + $counter['revenue'];
-            $counter = \App\Services\RecreationService::counterTakings($date->toDateString()); // v7.38 desk passes + outlet takings
             $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax') + $counter['tax'];
             $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total') + $counter['collections'];
 
