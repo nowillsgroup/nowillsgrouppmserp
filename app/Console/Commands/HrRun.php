@@ -182,7 +182,7 @@ class HrRun extends Command
         }
         foreach (ShiftSwap::with('requester', 'colleague', 'shift')->where('status', 'pending_manager')->orderBy('created_at')->get() as $s) {
             $out[] = 'Shift swap waiting for a manager: '.($s->requester?->name ?? '?').' ⇄ '.($s->colleague?->name ?? '?')
-                .' for '.dmy($s->shift?->date ?? $today).' – decide it under Workforce › Duty Roster.';
+                .' for '.dmy($s->shift?->date ?? $today).' – decide it under HR & Payroll › Duty Roster.';
         }
         if ($peers = ShiftSwap::where('status', 'pending_peer')->count()) {
             $out[] = "{$peers} swap request(s) still waiting for the colleague to answer.";

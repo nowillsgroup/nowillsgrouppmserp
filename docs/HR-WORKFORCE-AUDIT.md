@@ -402,7 +402,7 @@ deploy/dev/bin/php artisan pms:hr-run --hotel=NOWILLS
 ```
 
 Click-paths for the preview panel: `/hr/holidays` (and `?year=2027`) · `/hr/attendance?date=2026-09-21`
-· `/hr/register?month=2026-09` · `/workforce/roster` (rules tab) · `/payroll` · `/payroll/runs/4`
+· `/hr/register?month=2026-09` · `/hr/roster` (rules tab: s. 33 week, s. 41 daily rest, s. 42 weekly rest) · `/payroll` · `/payroll/runs/4`
 (September, holiday note + `PH` column) · `/payroll/payslips/59` (holiday hours, chargeable income,
 PAYE basis, statutory footer) · `/payroll/statutory?tab=paye&period=2026-08` ·
 `/payroll/components` (schedules, holiday multiplier, junior-OT concession, payday) ·
