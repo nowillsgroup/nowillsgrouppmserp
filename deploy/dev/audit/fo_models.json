@@ -1,0 +1,293 @@
+{
+ "Front Office": {
+  "controllers": [
+   "FrontDeskController",
+   "GrcController",
+   "GuestRequestController",
+   "OfflineSyncController"
+  ],
+  "models": [
+   "BusinessSource",
+   "Company",
+   "Floor",
+   "FormCRecord",
+   "Guest",
+   "GuestDocument",
+   "GuestRequest",
+   "LostFoundItem",
+   "PaymentMode",
+   "PosOrder",
+   "RatePlan",
+   "Reservation",
+   "ReservationRoom",
+   "Room",
+   "RoomType",
+   "UpsellOrder",
+   "User",
+   "WakeupCall"
+  ],
+  "services": [
+   "ActivityLogger",
+   "AvailabilityService",
+   "ContractService",
+   "FolioService",
+   "ForexService",
+   "FormCService",
+   "GuestMessageService",
+   "GuestPortalService",
+   "KeyCardService",
+   "LaundryService",
+   "MailService",
+   "OfflineSyncService",
+   "ParkingService",
+   "PrivacyService",
+   "StayService",
+   "TransportService",
+   "UpsellService"
+  ]
+ },
+ "Desk Operations": {
+  "controllers": [
+   "FrontDeskOpsController",
+   "LostFoundController"
+  ],
+  "models": [
+   "GuestMessage",
+   "LogEntry",
+   "LostFoundItem",
+   "LostReport",
+   "ReservationRoom",
+   "Room",
+   "Trace",
+   "WakeupCall"
+  ],
+  "services": [
+   "FrontDeskOpsService",
+   "GuestMessageService",
+   "LogBookService",
+   "LostFoundService",
+   "TraceService",
+   "WakeupService"
+  ]
+ },
+ "Reservations": {
+  "controllers": [
+   "BlockController",
+   "ChannelConnectionController",
+   "ChannelController",
+   "ChannelManagerController",
+   "EmailController",
+   "MessageController",
+   "RateController",
+   "ReservationController",
+   "ReservationDeskController",
+   "ReservationWorkspaceController"
+  ],
+  "models": [
+   "BusinessSource",
+   "ChannelConnection",
+   "ChannelMessage",
+   "ChannelPush",
+   "ChannelRateMap",
+   "ChannelRestriction",
+   "ChannelRoomMap",
+   "Company",
+   "EmailLog",
+   "Folio",
+   "FormCRecord",
+   "Guest",
+   "GuestMessage",
+   "Hotel",
+   "MessageLog",
+   "OnlinePayment",
+   "OtaChannel",
+   "PaymentMode",
+   "RateContract",
+   "RateOverride",
+   "RatePlan",
+   "Reservation",
+   "ReservationDeskView",
+   "ReservationRoom",
+   "ReservationWaitlist",
+   "Room",
+   "RoomAmenity",
+   "RoomAmenityLink",
+   "RoomBlock",
+   "RoomImage",
+   "RoomOutage",
+   "RoomType",
+   "Setting",
+   "TransportTrip",
+   "WakeupCall"
+  ],
+  "services": [
+   "ActivityLogger",
+   "AvailabilityService",
+   "BlockService",
+   "CancellationService",
+   "ChannelService",
+   "ContractService",
+   "FolioService",
+   "FormCService",
+   "IcalService",
+   "MailService",
+   "MessageService",
+   "RateService",
+   "ReservationAmendmentService",
+   "ReservationDeskService",
+   "ReservationWorkspaceService",
+   "RevenueService",
+   "ShiftService",
+   "StayService",
+   "TaxService",
+   "TraceService",
+   "UpsellService"
+  ]
+ },
+ "Central Reservations": {
+  "controllers": [
+   "CroController"
+  ],
+  "models": [
+   "BdCompetitor",
+   "Company",
+   "CroEnquiry",
+   "Guest",
+   "RoomType"
+  ],
+  "services": []
+ },
+ "Concierge": {
+  "controllers": [
+   "ConciergeController"
+  ],
+  "models": [
+   "Activity",
+   "ActivityBooking",
+   "ActivityDeparture",
+   "ActivityLog",
+   "ActivitySettlement",
+   "ActivityVendor",
+   "ConciergePlace",
+   "Hotel",
+   "MessageLog",
+   "ReservationRoom"
+  ],
+  "services": [
+   "ActivityLogger",
+   "EInvoiceService"
+  ]
+ },
+ "Guest Messaging": {
+  "controllers": [
+   "InboxController"
+  ],
+  "models": [
+   "Conversation",
+   "ConversationMessage",
+   "Floor",
+   "Folio",
+   "Guest",
+   "GuestRequest",
+   "Hotel",
+   "InboxBroadcast",
+   "InboxQuickReply",
+   "InboxRule",
+   "ReservationRoom",
+   "User"
+  ],
+  "services": [
+   "GuestPortalService",
+   "MessageService"
+  ]
+ },
+ "Self-Service Kiosk": {
+  "controllers": [
+   "KioskAdminController",
+   "KioskController"
+  ],
+  "models": [
+   "Hotel",
+   "Kiosk",
+   "KioskSession",
+   "Setting"
+  ],
+  "services": [
+   "InterfaceService",
+   "OnlinePaymentService"
+  ]
+ },
+ "IPTV & Guest Welcome": {
+  "controllers": [
+   "IptvController",
+   "TvController"
+  ],
+  "models": [
+   "Floor",
+   "GuestMessage",
+   "Hotel",
+   "Reservation",
+   "ReservationRoom",
+   "Room",
+   "TvChannel",
+   "TvCommand",
+   "TvDevice",
+   "TvEvent",
+   "TvMessage",
+   "TvMovie",
+   "TvPage",
+   "TvPurchase",
+   "TvSession",
+   "TvWelcomeTemplate"
+  ],
+  "services": []
+ },
+ "Foreign Guests": {
+  "controllers": [
+   "ForexController",
+   "FormCController"
+  ],
+  "models": [
+   "Currency",
+   "ForexExchange",
+   "ForexRate",
+   "ForexSurrender",
+   "FormCRecord",
+   "Guest",
+   "PaymentMode",
+   "ReservationRoom"
+  ],
+  "services": [
+   "ActivityLogger",
+   "ForexService",
+   "FormCService",
+   "PrivacyService"
+  ]
+ },
+ "Interfaces": {
+  "controllers": [
+   "CallController",
+   "InterfaceController",
+   "KeyCardController"
+  ],
+  "models": [
+   "CallRecord",
+   "CallTariff",
+   "Hotel",
+   "InterfaceCommand",
+   "KeyCard",
+   "KeyLoan",
+   "MasterKey",
+   "PhoneExtension",
+   "ReservationRoom",
+   "Room",
+   "Setting",
+   "User"
+  ],
+  "services": [
+   "CallAccountingService",
+   "FrontDeskOpsService",
+   "InterfaceService"
+  ]
+ }
+}

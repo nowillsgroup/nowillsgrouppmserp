@@ -1,0 +1,176 @@
+[
+ {
+  "module": "Reservations",
+  "flow": "desk: save a view",
+  "ok": false,
+  "detail": "no form matching '/reservations/desk-views$' on /reservations"
+ },
+ {
+  "module": "Reservations",
+  "flow": "waitlist: add",
+  "ok": true,
+  "detail": "POST /reservations/waitlist -> 302 /reservations?view=waitlist | flash: > Audit Waitlister is on the waitlist. Nothing is booked until you convert it."
+ },
+ {
+  "module": "Reservations",
+  "flow": "waitlist: check availability",
+  "ok": true,
+  "detail": "POST /reservations/waitlist/2/check -> 302 /reservations?view=waitlist | flash: > Deluxe Room has 1 room(s) free for those dates. Convert only if you want to book one. Nothing has been reserved."
+ },
+ {
+  "module": "Reservations",
+  "flow": "waitlist: convert to reservation",
+  "ok": true,
+  "detail": "POST /reservations/waitlist/2/convert -> 302 /reservations/229 | flash: > Reservation RES-00205 created from the waitlist. The room is not assigned yet. / > Cancellation fee: GH\u20b5 4,200.00 for all pending rooms (Late cancellation: First night tariff \u00d7 1 room(s)). Posted to the advance folio, "
+ },
+ {
+  "module": "Reservations",
+  "flow": "room outage: block a room",
+  "ok": true,
+  "detail": "POST /reservations/outages -> 302 /reservations/rooms/1/card | flash: > Room blocked. It is off sale for those nights and will not accept a drag-drop."
+ },
+ {
+  "module": "Reservations",
+  "flow": "room outage: release",
+  "ok": true,
+  "detail": "POST /reservations/outages/2/release -> 302 /reservations/rooms/1/card | flash: > Block released."
+ },
+ {
+  "module": "Reservations",
+  "flow": "amenities: add master record",
+  "ok": true,
+  "detail": "POST /reservations/amenities -> 302 /reservations/amenities | flash: > Amenity saved. It is shown only where you attached it."
+ },
+ {
+  "module": "Reservations",
+  "flow": "room media: upload a photo",
+  "ok": true,
+  "detail": "POST(multipart) /reservations/images -> 302 | flash: > Photo saved on the room record. It is not a stock picture."
+ },
+ {
+  "module": "Reservations",
+  "flow": "rates: seasonal override",
+  "ok": true,
+  "detail": "POST /rates -> 302 /rates | flash: > Rates updated for 1 room type(s). / > Revenue management is in recommend mode \u00b7 4 published day rate(s) are not listed below. Open the pricing grid \u2192 Active &amp; upcoming rate rules Newest rule wins where dates overla"
+ },
+ {
+  "module": "Reservations",
+  "flow": "rates: remove override",
+  "ok": true,
+  "detail": "POST /rates/7 -> 302 /rates | flash: > Rate override removed \u2013 base rates apply again for those dates. / > Revenue management is in recommend mode \u00b7 4 published day rate(s) are not listed below. Open the pricing grid \u2192 Active &amp; upcoming rate rules Newes"
+ },
+ {
+  "module": "Reservations",
+  "flow": "blocks: create group block",
+  "ok": true,
+  "detail": "POST /blocks -> 302 /blocks/4 | flash: > Block BLK-00004 created \u2013 2 room(s) held until 07 Nov."
+ },
+ {
+  "module": "Reservations",
+  "flow": "blocks: mark definite",
+  "ok": true,
+  "detail": "POST /blocks/4/status -> 302 /blocks/4 | flash: > Block marked definite."
+ },
+ {
+  "module": "Reservations",
+  "flow": "blocks: rooming-list pickup",
+  "ok": true,
+  "detail": "POST /blocks/4/pickup -> 302 /blocks/4 | flash: > 2 reservation(s) created from the rooming list."
+ },
+ {
+  "module": "Reservations",
+  "flow": "blocks: release unpicked rooms",
+  "ok": true,
+  "detail": "POST /blocks/4/status -> 302 /blocks/4 | flash: > Unpicked rooms released to general inventory."
+ },
+ {
+  "module": "Reservations",
+  "flow": "workspace: assign a room",
+  "ok": true,
+  "detail": "POST /reservations/72/assign -> 302 /reservations/workspace | flash: > Room assignment updated."
+ },
+ {
+  "module": "Central Reservations",
+  "flow": "enquiry: log",
+  "ok": true,
+  "detail": "POST /cro/enquiries -> 302 /cro/enquiries/35 | flash: > Enquiry ENQ-00031 logged \u2013 follow up by 14 Oct 14:45."
+ },
+ {
+  "module": "Central Reservations",
+  "flow": "enquiry: record a contact",
+  "ok": true,
+  "detail": "POST /cro/enquiries/35/contact -> 302 /cro/enquiries/35 | flash: > Contact recorded."
+ },
+ {
+  "module": "Central Reservations",
+  "flow": "enquiry: convert to a reservation",
+  "ok": true,
+  "detail": "POST /cro/book -> 302 /cro | flash: > Reservation RES-00208 booked at Nowills Grand Hotel (GH\u20b5 6,020.00) \u2013 enquiry ENQ-00031. / id=\"croBooked\"> Booked at Nowills Grand Hotel : RES-00208 \u00b7 GH\u20b5 6,020.00 \u00b7 enquiry ENQ-00031 27 Enquiries Oct 5 open \u00b7 7 booked "
+ },
+ {
+  "module": "Central Reservations",
+  "flow": "enquiry: close as lost business",
+  "ok": true,
+  "detail": "POST /cro/enquiries -> 302 /cro/enquiries/36 | flash: > Enquiry ENQ-00032 logged as lost (Price too high)."
+ },
+ {
+  "module": "Central Reservations",
+  "flow": "settings: save",
+  "ok": true,
+  "detail": "POST /cro/settings -> 302 /cro/settings | flash: > Central reservations settings saved."
+ },
+ {
+  "module": "Concierge",
+  "flow": "booking: create for an in-house guest",
+  "ok": true,
+  "detail": "POST /concierge/bookings -> 302 /concierge/bookings/22 | flash: > Booking ACT-00022 confirmed. / >A cancellation fee of GH\u20b5 650.00 will be charged to the room; the hotel keeps its share of it as commission. Waive the fee (manager) Keep booking Cancel booking"
+ },
+ {
+  "module": "Concierge",
+  "flow": "booking: confirm with the vendor",
+  "ok": false,
+  "detail": "no form matching '/concierge/bookings/22/confirm$' on /concierge/bookings/22"
+ },
+ {
+  "module": "Concierge",
+  "flow": "booking: complete the activity",
+  "ok": true,
+  "detail": "POST /concierge/bookings/22/complete -> 302 /concierge/bookings/22 | flash: > ACT-00022 is on 14 Oct 2026 \u2013 it can&#039;t be completed before it happens. / >A cancellation fee of GH\u20b5 650.00 will be charged to the room; the hotel keeps its share of it as commission. Waive the fee (manager) Keep b"
+ },
+ {
+  "module": "Concierge",
+  "flow": "booking: send the voucher",
+  "ok": true,
+  "detail": "POST /concierge/bookings/22/send -> 302 /concierge/bookings/22 | flash: > Voucher sent to the guest. / >A cancellation fee of GH\u20b5 650.00 will be charged to the room; the hotel keeps its share of it as commission. Waive the fee (manager) Keep booking Cancel booking"
+ },
+ {
+  "module": "Concierge",
+  "flow": "settlement: settle with a vendor",
+  "ok": true,
+  "detail": "POST /concierge/settlements -> 302 /concierge/settlements/3 | flash: > Settlement AST-00003 posted \u2013 received from vendor GH\u20b5 40.00."
+ },
+ {
+  "module": "Concierge",
+  "flow": "settlement: void",
+  "ok": true,
+  "detail": "POST /concierge/settlements/3/void -> 302 /concierge/settlements/3 | flash: > Settlement voided \u2013 its bookings are open for settlement again. / >Voided \u2013 Audit probe \u2014 reversing the test settlement. The bookings are open for settlement again. Booking Date Activity Guest Status Paid to Guest paid"
+ },
+ {
+  "module": "Concierge",
+  "flow": "catalogue: add an activity",
+  "ok": true,
+  "detail": "POST /concierge/activities -> 302 /concierge/catalogue | flash: > Audit \u2014 Accra night market walk added."
+ },
+ {
+  "module": "Concierge",
+  "flow": "local guide: add a place",
+  "ok": true,
+  "detail": "POST /concierge/guide -> 302 /concierge/guide | flash: > Audit \u2014 Kwame Nkrumah Mausoleum added to the guide."
+ },
+ {
+  "module": "Concierge",
+  "flow": "settings: save",
+  "ok": true,
+  "detail": "POST /concierge/settings -> 302 /concierge/settings | flash: > Concierge settings saved."
+ }
+]

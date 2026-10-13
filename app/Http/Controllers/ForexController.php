@@ -118,8 +118,10 @@ class ForexController extends Controller
     {
         $date = bdate()->toDateString();
         $currencies = Currency::orderBy('sort_order')->orderBy('code')->get();
-        $prev = ForexRate::where('date', '<', $date)->orderByDesc('date')->get()->unique('currency_id')->keyBy('currency_id');
-        $history = ForexRate::with('currency')->where('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderBy('date')->get()->groupBy('currency_id');
+        // whereDate: the DATE column is stored with a 00:00:00 time part on SQLite,
+        // so bare date-string comparisons miss today's rows.
+        $prev = ForexRate::whereDate('date', '<', $date)->orderByDesc('date')->get()->unique('currency_id')->keyBy('currency_id');
+        $history = ForexRate::with('currency')->whereDate('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderBy('date')->get()->groupBy('currency_id');
 
         return view('forex.rates', ['currencies' => $currencies, 'today' => ForexService::todayRates(), 'prev' => $prev, 'history' => $history,
             'cfg' => ForexService::cfg(), 'alerts' => ForexService::alerts(), 'canEdit' => can_do('forex.manage')]);

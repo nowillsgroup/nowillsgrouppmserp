@@ -1,0 +1,212 @@
+[
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: start with an in-house guest",
+  "ok": true,
+  "detail": "POST /inbox/start -> 302 /inbox?c=16&f=all | flash: > Write your message below."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: reply to the guest",
+  "ok": true,
+  "detail": "POST /inbox/c/16/reply -> 302 /inbox?c=16&f=open | flash: > Reply sent."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: internal note",
+  "ok": true,
+  "detail": "POST /inbox/c/16/reply -> 302 /inbox?c=16&f=open | flash: > Note added."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: assign to a teammate",
+  "ok": false,
+  "detail": "POST /inbox/c/16/assign -> 302 /inbox/c/16 | flash: "
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: set the priority",
+  "ok": false,
+  "detail": "POST /inbox/c/16/priority -> 302 /inbox/c/16 | flash: "
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: route to a department",
+  "ok": false,
+  "detail": "POST /inbox/c/16/department -> 302 /inbox/c/16 | flash: "
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: snooze",
+  "ok": false,
+  "detail": "POST /inbox/c/16/snooze -> 302 /inbox/c/16 | flash: "
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: close",
+  "ok": true,
+  "detail": "POST /inbox/c/16/close -> 302 /inbox?f=open | flash: > Conversation CNV-00016 closed."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: reopen",
+  "ok": true,
+  "detail": "POST /inbox/c/16/reopen -> 302 /inbox?c=16 | flash: > Conversation reopened."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: raise a guest request from a message",
+  "ok": false,
+  "detail": "POST /inbox/c/16/request -> 302 /inbox/c/16 | flash: "
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "device: rotate the start address",
+  "ok": true,
+  "detail": "POST /self-service/kiosks/6/rotate -> 302 /self-service/kiosks | flash: > New start address for Audit lobby kiosk: https://127.0.0.1:8000/kiosk/ZaVFUQdKyHX2mLWKOiXbhtH3kdVNzDTVj3dpQ3cs \u2013 the old address no longer works."
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "guest flow: kiosk home renders",
+  "ok": false,
+  "detail": "250 bytes, doctype-first=False"
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "guest flow: start a visit",
+  "ok": false,
+  "detail": "no start form; kiosk home fields: "
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "guest side: TV state API",
+  "ok": true,
+  "detail": "3077 bytes of JSON for device 42"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "guest side: TV app shell",
+  "ok": true,
+  "detail": "4001 bytes"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "guest side: usage event recorded",
+  "ok": true,
+  "detail": "POST /tv/B0cohn0iljGzpW5BbCjcBPvjPuazqkeuSCv5SCVf/event -> 200"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "guest side: rent a movie from the TV",
+  "ok": false,
+  "detail": "POST /tv/B0cohn0iljGzpW5BbCjcBPvjPuazqkeuSCv5SCVf/rent/1 -> 422 | "
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "emergency alert: put it on every TV",
+  "ok": false,
+  "detail": "POST /iptv/emergency -> 302 /iptv | flash: > EMERGENCY alert TVM-00011 is on every screen (27 TVs). Clear it with \u201cAll clear\u201d when the situation is over. / id=\"tvAlerts\"> 26 TV(s) offline \u2013 no heartbeat for 5+ minutes. 1 channel(s) have less than 6 hours of progr"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "emergency alert: send the all clear",
+  "ok": true,
+  "detail": "POST /iptv/emergency/11 -> 404 /iptv | flash: id=\"tvAlerts\"> 26 TV(s) offline \u2013 no heartbeat for 5+ minutes. 1 channel(s) have less than 6 hours of programme guide left \u2013 import a fresh XMLTV file."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "device: send a remote command",
+  "ok": false,
+  "detail": "no form matching '/iptv/devices/14/command$' on /iptv/devices/14"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "device: switch a TV off/on",
+  "ok": false,
+  "detail": "no form matching '/iptv/devices/14/status$' on /iptv/devices"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "settings: save",
+  "ok": false,
+  "detail": "POST /iptv/settings -> 302 /iptv/settings | flash: > The default language must be one of the languages offered. | languages=[]"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: import an SMDR batch",
+  "ok": true,
+  "detail": "POST /calls/import -> 302 /calls?tab=log | flash: > 0 call(s) imported: 0 posted to folios (GH\u20b5 0.00), 0 for review, 0 free, 0 admin. / id=\"importErrors\"> Some lines were not imported: Line 2: expected 6 columns (date, time, ext, trunk, number, duration), found 5. / id="
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: post a call to the folio",
+  "ok": true,
+  "detail": "POST /calls/13/post -> 302 /calls?tab=review | flash: > Call posted: GH\u20b5 18.00 to room 101. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: waive a call",
+  "ok": true,
+  "detail": "POST /calls/14/waive -> 302 /calls?tab=review | flash: > Call waived. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: save an extension",
+  "ok": true,
+  "detail": "POST /calls/extensions -> 302 /calls?tab=extensions | flash: > Extension 199 saved. / id=\"reviewAlert\"> 1 call(s) could not be posted automatically \u2013 post them to a stay or waive them. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: sync extensions from the PABX",
+  "ok": false,
+  "detail": "no form matching '/calls/extensions-sync$' on /calls?tab=review"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: re-run the review queue",
+  "ok": true,
+  "detail": "POST /calls/reprocess -> 302 /calls?tab=review | flash: > Review queue re-run: 0 call(s) posted, 1 still need attention. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: read a card at the desk",
+  "ok": true,
+  "detail": "POST /key-cards/read -> 302 /key-cards | flash: > Card AUDIT-SERIAL-1 is not known to the PMS (blank, staff or another property&#039;s card). / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the holder or report the k"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: report a card lost + reissue",
+  "ok": true,
+  "detail": "POST /key-cards/4/lost -> 302 /key-cards | flash: > KC-00004 cancelled as lost \u2013 2 replacement card(s) encoded; the old cards stop working on first use of the new key. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase th"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: take a card back",
+  "ok": true,
+  "detail": "POST /key-cards/6/return -> 302 /key-cards | flash: > KC-00006 returned. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the holder or report the key lost. / > A lost master key is a security incident: it is logged as ur"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "master keys: register a key",
+  "ok": true,
+  "detail": "POST /master-keys -> 302 /key-cards?tab=master | flash: > Master key AUDIT-MK1 saved. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the holder or report the key lost. / > A lost master key is a security incident: it is log"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "master keys: sign one out",
+  "ok": false,
+  "detail": "no master-key rows with an out action"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "hub: retry failed commands",
+  "ok": false,
+  "detail": "no form matching '/interfaces/commands/retry-all$' on /interfaces"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "hub: retry one command",
+  "ok": true,
+  "detail": "command log empty \u2014 nothing to retry"
+ }
+]

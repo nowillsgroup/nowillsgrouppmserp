@@ -3061,7 +3061,7 @@ class DatabaseSeeder extends Seeder
                     'buy_rate' => round($buy * $f, 4), 'carried' => $d === 0 && $code === 'CHF', 'set_by' => $d === 0 && $code === 'CHF' ? null : $acct->id]);
             }
         }
-        $rateOn = fn (string $code, Carbon $day) => Models\ForexRate::where('currency_id', $cur[$code]->id)->where('date', $day->toDateString())->first();
+        $rateOn = fn (string $code, Carbon $day) => Models\ForexRate::where('currency_id', $cur[$code]->id)->whereDate('date', $day->toDateString())->first();
         $pref = ['japan' => 'JPY', 'united kingdom' => 'GBP', 'germany' => 'EUR', 'spain' => 'EUR', 'india' => 'USD'];
         $foreignStays = Models\ReservationRoom::with('reservation.guest', 'guest', 'room')->whereIn('status', ['checked_in', 'checked_out'])
             ->where('checked_in_at', '>=', $bd->copy()->subDays(20))->orderBy('id')->get()->filter(fn ($st) => $FC::isForeign($FC::stayGuest($st)));

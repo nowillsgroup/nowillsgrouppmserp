@@ -133,13 +133,17 @@ class ForexService
 
     public static function rate(int $currencyId, ?string $date = null): ?ForexRate
     {
-        return ForexRate::where('currency_id', $currencyId)->where('date', $date ?? bdate()->toDateString())->first();
+        // whereDate, never where('date', …): the column is a DATE but the cast value
+        // is written as "Y-m-d 00:00:00", so an equality match on the bare date
+        // string finds nothing on SQLite and the desk reports a rate that exists as
+        // missing (which then blocks every exchange).
+        return ForexRate::where('currency_id', $currencyId)->whereDate('date', $date ?? bdate()->toDateString())->first();
     }
 
     /** Today's rates keyed by currency id. */
     public static function todayRates(?string $date = null): Collection
     {
-        return ForexRate::where('date', $date ?? bdate()->toDateString())->get()->keyBy('currency_id');
+        return ForexRate::whereDate('date', $date ?? bdate()->toDateString())->get()->keyBy('currency_id');
     }
 
     /** @param array $rows currency_id => ['reference' => , 'buy' => ] (blank rows ignored) */
@@ -183,7 +187,12 @@ class ForexService
             throw ValidationException::withMessages($errors);
         }
         foreach ($clean as $id => [$ref, $buy]) {
-            ForexRate::updateOrCreate(['currency_id' => $id, 'date' => $date], ['reference_rate' => $ref, 'buy_rate' => $buy, 'carried' => false, 'set_by' => auth()->id()]);
+            // Match on the date with whereDate: updateOrCreate() would compare the
+            // bare date string against a stored "Y-m-d 00:00:00", never find the row
+            // and then break the (hotel, currency, date) unique index with a 500.
+            $values = ['reference_rate' => $ref, 'buy_rate' => $buy, 'carried' => false, 'set_by' => auth()->id()];
+            $existing = ForexRate::where('currency_id', $id)->whereDate('date', $date)->first();
+            $existing ? $existing->update($values) : ForexRate::create(['currency_id' => $id, 'date' => $date] + $values);
         }
         if ($clean) {
             ActivityLogger::log('forex', 'rates', 'Exchange rates for '.bdate()->format('d M Y').' set: '.collect($clean)->map(fn ($r, $id) => $currencies[$id]->code.' '.$r[1])->implode(', '));
@@ -196,10 +205,10 @@ class ForexService
     public static function copyPrevious(bool $carried = false): int
     {
         $date = bdate()->toDateString();
-        $have = ForexRate::where('date', $date)->pluck('currency_id')->all();
+        $have = ForexRate::whereDate('date', $date)->pluck('currency_id')->all();
         $n = 0;
         foreach (Currency::where('is_active', true)->whereNotIn('id', $have)->get() as $c) {
-            $prev = ForexRate::where('currency_id', $c->id)->where('date', '<', $date)->orderByDesc('date')->first();
+            $prev = ForexRate::where('currency_id', $c->id)->whereDate('date', '<', $date)->orderByDesc('date')->first();
             if ($prev) {
                 ForexRate::create(['currency_id' => $c->id, 'date' => $date, 'reference_rate' => $prev->reference_rate, 'buy_rate' => $prev->buy_rate,
                     'carried' => $carried, 'set_by' => $carried ? null : auth()->id()]);

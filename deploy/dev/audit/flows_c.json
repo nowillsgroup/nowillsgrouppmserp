@@ -1,0 +1,278 @@
+[
+ {
+  "module": "Guest Messaging",
+  "flow": "quick reply: create",
+  "ok": true,
+  "detail": "POST /inbox/quick-replies -> 302 /inbox/quick-replies | flash: > Quick reply saved."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "quick reply: edit",
+  "ok": false,
+  "detail": "POST /inbox/quick-replies/1 -> 302 /inbox/quick-replies | flash: > Quick reply deleted."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "quick reply: delete",
+  "ok": false,
+  "detail": "no DELETE form for quick reply 1"
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "routing rule: create",
+  "ok": true,
+  "detail": "POST /inbox/rules -> 302 /inbox/rules | flash: > Rule saved."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "routing rule: test against a message",
+  "ok": true,
+  "detail": "POST /inbox/rules/test -> 302 /inbox/rules | flash: > \u201cAudit \u2014 route airport questions\u201d would handle it: Route to Concierge \u00b7 mark urgent \u00b7 raise request \u201cClean my room now\u201d."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: start with an in-house guest",
+  "ok": true,
+  "detail": "POST /inbox/start -> 302 /inbox?c=16&f=all | flash: > Write your message below."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "conversation: reply / assign / close",
+  "ok": false,
+  "detail": "no conversation found"
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "broadcast: send to in-house guests",
+  "ok": true,
+  "detail": "POST /inbox/broadcasts -> 302 /inbox/broadcasts/2 | flash: > Broadcast sent to 9 guest(s)."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "settings: save",
+  "ok": true,
+  "detail": "POST /inbox/settings -> 302 /inbox/settings | flash: > Guest messaging settings saved."
+ },
+ {
+  "module": "Guest Messaging",
+  "flow": "settings: rotate the webhook secret",
+  "ok": true,
+  "detail": "POST /inbox/settings/secret -> 302 /inbox/settings | flash: > New webhook secret created \u2013 copy it into your gateway now; it is shown only once. / id=\"inbSecret\"> Webhook secret: GR9NmstA9RikHuCXhdgPs4VGX8QOa9vsiCIZpk9L Copy it now \u2013 it is stored encrypted and not shown again."
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "device: register a kiosk",
+  "ok": true,
+  "detail": "POST /self-service/kiosks -> 302 /self-service/kiosks | flash: > Kiosk Audit lobby kiosk added. Open this address on the kiosk: https://127.0.0.1:8000/kiosk/Krg9EDImQPmfI4nvDWFmCV9JUjy7oMIs4PvgLwkk"
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "guest flow: kiosk home renders",
+  "ok": false,
+  "detail": "250 bytes"
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "guest flow: start a visit",
+  "ok": false,
+  "detail": "no start form on the kiosk home screen"
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "assistance queue: desk resolves a visit",
+  "ok": false,
+  "detail": "no form matching '/self-service/visits/44/resolve$' on /self-service/visits/44"
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "device: switch a kiosk off/on",
+  "ok": true,
+  "detail": "POST /self-service/kiosks/3/status -> 302 /self-service/kiosks | flash: > Kiosk updated."
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "device: rotate the start address",
+  "ok": true,
+  "detail": "POST /self-service/kiosks/3/rotate -> 302 /self-service/kiosks | flash: > New start address for Pool Terrace Kiosk: https://127.0.0.1:8000/kiosk/welZCRM76hbndJQWpaV8qHsZXLAewwcvrVKns9gy \u2013 the old address no longer works."
+ },
+ {
+  "module": "Self-Service Kiosk",
+  "flow": "settings: save",
+  "ok": true,
+  "detail": "POST /self-service/settings -> 302 /self-service/settings | flash: > Kiosk settings saved."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "device: register a TV",
+  "ok": true,
+  "detail": "POST /iptv/devices -> 302 /iptv/devices/42 | flash: > Audit TV \u2014 201 added. Set the TV&#039;s start page to the URL below."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "device: TV pairs itself",
+  "ok": false,
+  "detail": "no form matching '/tv/setup/B0cohn0iljGzpW5BbCjcBPvjPuazqkeuSCv5SCVf$' on /tv/setup/B0cohn0iljGzpW5BbCjcBPvjPuazqkeuSCv5SCVf"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "message: send to one room",
+  "ok": true,
+  "detail": "POST /iptv/messages -> 302 /iptv/messages | flash: > Message TVM-00010 sent to Room 103 (2 TVs)."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "channels: add a channel",
+  "ok": true,
+  "detail": "POST /iptv/channels -> 302 /iptv/channels | flash: > Channel 901 added."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "channels: edit",
+  "ok": true,
+  "detail": "POST /iptv/channels/32 -> 302 /iptv/channels | flash: > Channel 931 saved."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "channels: M3U import",
+  "ok": true,
+  "detail": "POST(multipart) -> 302 | > Line-up imported: 1 added, 0 updated. / > 1 channel(s) with a guide id have less than 6 hours of programmes left. Import a fresh XMLTV file from your headend or EPG provider."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "welcome screen: save a template",
+  "ok": true,
+  "detail": "POST /iptv/welcome -> 302 /iptv/welcome | flash: > Unknown placeholder {guest}. Use {name} {title} {first_name} {last_name} {room} {arrival} {departure} {nights} {hotel} {wifi_name} {wifi_password} {company} {group} {checkout_time} {desk_ext}."
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "emergency alert: put it on every TV",
+  "ok": false,
+  "detail": "POST /iptv/emergency -> 302 /iptv | flash: > Type EMERGENCY to confirm \u2013 the alert covers every TV in the hotel. / id=\"tvAlerts\"> 27 TV(s) offline \u2013 no heartbeat for 5+ minutes. 1 channel(s) have less than 6 hours of programme guide left \u2013 import a fresh XMLTV fi"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "emergency alert: send the all clear",
+  "ok": false,
+  "detail": "no active alert row to clear"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "movies: guest rents from the TV",
+  "ok": false,
+  "detail": "need a paired TV token (False) and a movie id (True)"
+ },
+ {
+  "module": "IPTV & Guest Welcome",
+  "flow": "settings: save",
+  "ok": false,
+  "detail": "POST /iptv/settings -> 302 /iptv/settings | flash: > The default language must be one of the languages offered."
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "forex: set today's rates",
+  "ok": false,
+  "detail": "POST /foreign/rates -> 500 /foreign/rates | flash: id=\"fxAlerts\"> 12 currencies have no rate for 13 Oct | fields=13"
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "forex: copy yesterday's rates",
+  "ok": true,
+  "detail": "POST /foreign/rates/copy -> 500 /foreign/rates | flash: id=\"fxAlerts\"> 12 currencies have no rate for 13 Oct"
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "forex: buy currency from a guest",
+  "ok": false,
+  "detail": "POST /foreign/forex -> 302 /foreign/forex/new | flash: Please fix the following: No USD rate has been set for 13 Oct 2026 \u2013 set today\u2019s rates first. / > Please fix the following: No USD rate has been set for 13 Oct 2026 \u2013 set today\u2019s rates first. / id=\"noRates\"> No exchange "
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "forex: encashment certificate",
+  "ok": false,
+  "detail": "no exchange id from the redirect"
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "forex: surrender currency to the bank",
+  "ok": true,
+  "detail": "POST /foreign/surrenders -> 302 /foreign/position | flash: Please fix the following: The counterparty field is required. The payment mode id field is required. The lines field is required. / > Please fix the following: The counterparty field is required. The payment mode id fiel"
+ },
+ {
+  "module": "Foreign Guests",
+  "flow": "Form C: create for a foreign arrival",
+  "ok": true,
+  "detail": "no foreign stay is waiting for a Form C (nothing to do)"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: log a call manually",
+  "ok": true,
+  "detail": "POST /calls/manual -> 302 /calls | flash: > Call to +233302700700 recorded \u2013 Posted (GH\u20b5 135.00 on room 101). / id=\"reviewAlert\"> 3 call(s) could not be posted automatically \u2013 post them to a stay or waive them. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: post a call to the folio",
+  "ok": false,
+  "detail": "no postable call in the review queue"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: import an SMDR batch",
+  "ok": true,
+  "detail": "POST /calls/import -> 302 /calls | flash: > Upload an SMDR / CSV file or paste the call records. / id=\"reviewAlert\"> 3 call(s) could not be posted automatically \u2013 post them to a stay or waive them. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: save a tariff",
+  "ok": true,
+  "detail": "POST /calls/tariffs -> 302 /calls?tab=tariffs | flash: > Tariff Audit \u2014 national mobile saved \u2013 guest price GH\u20b5 4.00 per minute. / id=\"reviewAlert\"> 3 call(s) could not be posted automatically \u2013 post them to a stay or waive them. / style=\"display:none;margin-top:.6rem\">"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "call accounting: re-run the review queue",
+  "ok": false,
+  "detail": "no form matching '/calls/reprocess$' on /calls"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: encode a guest card",
+  "ok": true,
+  "detail": "POST /key-cards/issue -> 302 /key-cards | flash: > 1 card(s) encoded for room 101 (KC-00017) \u2013 valid until 13 Oct 17:01. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the holder or report the key lost. / > A lost ma"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: report a card lost",
+  "ok": false,
+  "detail": "no form matching '/key-cards/4/lost$' on /key-cards"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "key cards: read a card at the desk",
+  "ok": true,
+  "detail": "POST /key-cards/read -> 302 /key-cards | flash: Please fix the following: The serial field is required. / > Please fix the following: The serial field is required. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the "
+ },
+ {
+  "module": "Interfaces",
+  "flow": "master keys: register a key",
+  "ok": true,
+  "detail": "POST /master-keys -> 302 /key-cards | flash: Please fix the following: The name field is required. / > Please fix the following: The name field is required. / id=\"overdueKeys\"> 1 master key(s) overdue \u2013 not returned by the end of the sign-out period. Chase the hold"
+ },
+ {
+  "module": "Interfaces",
+  "flow": "hub: save interface settings",
+  "ok": true,
+  "detail": "POST /interfaces/settings -> 302 /interfaces | flash: > Interface settings saved."
+ },
+ {
+  "module": "Interfaces",
+  "flow": "hub: rotate the PBX push token",
+  "ok": true,
+  "detail": "POST /interfaces/token -> 302 /interfaces | flash: > New PBX push token generated \u2013 update the URL on the PBX / call-logger PC."
+ },
+ {
+  "module": "Interfaces",
+  "flow": "hub: retry failed commands",
+  "ok": false,
+  "detail": "no form matching '/interfaces/commands/retry-all$' on /interfaces"
+ }
+]
