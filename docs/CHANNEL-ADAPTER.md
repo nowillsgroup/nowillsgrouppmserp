@@ -1,4 +1,4 @@
-# Channel / OTA adapter spec (v7.42)
+# Channel / OTA adapter spec (v7.42, foreign-currency bookings v7.50)
 
 Every channel transport implements `App\Services\Interfaces\ChannelDriver`
 (resolved by `App\Services\Interfaces\ChannelDriverRegistry` from the
@@ -104,6 +104,91 @@ activity log (`channels/cancel_failed`) and flagged on
 clears only that flag, never an overbooking one. Partial cancellations (one room
 of many) and no-shows are deliberately **not** sent: the booking still stands at
 the channel and, for a no-show, its retention fee is claimed here.
+
+## Foreign-currency bookings (v7.50)
+
+An OTA sends what the guest paid in: Booking.com sends EUR, Expedia USD, a
+regional channel GHS. `currency`, `rooms[].amount`, `total` and `commission` all
+arrive in that currency. Until v7.50 a booking whose currency was not the hotel
+currency threw a `DomainException` in `ChannelService::applyBooking()`, so the
+message landed in the inbox as `failed` (HTTP 422) and somebody re-keyed the
+booking by hand at whatever rate they chose — a normal outcome for a hotel in
+Accra with a USD rate plan, and the reason the audit called it P1.
+
+It is now converted at the forex board the hotel already maintains
+(`Foreign Guests › Exchange Rates`), and the original is kept.
+
+**Policy** — `Foreign Guests › Settings › Forex desk`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `forex_channel_convert` | on | off restores the old rejection |
+| `forex_channel_basis` | `reference` | `reference` = the published board · `buy` = what the desk would pay a guest |
+| `forex_channel_stale_days` | 7 | how old a board may be when today's rates are not set yet; 0 = today only |
+
+`ForexService::boardRate($code, $on = null)` resolves them and returns
+`code, currency_id, rate, basis, date, carried, stale` — or `null` when there is
+no rate to use honestly. It prefers the business-date board, falls back to the
+most recent board inside the staleness window and flags it `stale`, and reports
+`carried` when the night audit carried the rate forward without review.
+
+**Three outcomes**
+
+| Situation | Result | Reservation |
+|---|---|---|
+| a rate on the board | `200 accepted` | created in hotel currency, conversion recorded |
+| no rate inside the window | `202 attention` · reason `no_fx_rate` | none — held in the inbox, **reprocessable** once a rate is set |
+| conversion switched off | `422 rejected` | none — the error names where the switch is |
+
+`no_fx_rate` is deliberately *attention* and not a rejection: a missing rate is
+ours to fix, the booking is still valid, and the inbox **Reprocess** button
+applies it once the board is set. A rejection tells the channel the booking is
+wrong.
+
+**What is stored.** `channel_amount` and `channel_commission` stay in the hotel
+currency, because that is what the reports sum (`ReportController` channel
+production, `ChannelService::stats()`) and what the folio posts. Four columns
+added in `2026_10_14_002000_channel_fx_conversion` keep the original, and are
+`null` for a booking the channel already sent in the hotel currency:
+
+| Column | Holds |
+|---|---|
+| `channel_currency` | the code the channel sent |
+| `channel_amount_fx` | the total as sent, in that currency |
+| `channel_fx_rate` | the board rate used, on the chosen basis |
+| `channel_fx_date` | the date of the board that rate came from |
+
+Room lines are converted too (each keeps `amount_fx`), so the informational
+rate-mismatch check still compares like with like: the converted amount against
+what the PMS publishes for that room type. The commission the channel sends is
+converted with the total; when it sends none, the connection's percentage is
+applied to the converted total.
+
+**Where it surfaces.** The message carries a warning naming the currency, the
+amount sent, the rate, the basis and the board date (plus a line when the board
+was stale or carried forward). It appears in the flash after a simulator push,
+on the inbox message, on `Reservations › the booking › Channel` as an audit line
+(`id="resFx"`), and on the `Channel Manager` booking row under the cedi amount.
+
+**Rounding.** The figure the channel sends is what the guest paid and is
+authoritative, so the conversion never re-derives it: one cent of the quoted
+currency can land as several pesewas in cedis (USD 0.01 ≈ GH₵ 0.12). The
+sandbox simulator therefore quotes in the currency chosen — it divides the
+published price by the board rate — and the round trip lands inside that
+rounding.
+
+**Proof.** `deploy/dev/audit/channel_fx.php` — 31 checks at the service level
+inside a rolled-back transaction: basis switch, stale fallback, zero-day window,
+unknown currency, conversion math on the total / room rate / commission,
+`no_fx_rate`, the switch off, and an unchanged hotel-currency booking.
+`deploy/dev/audit/channel_fx_flow.py` — 37 checks through the pages a person
+uses, ending with one converted booking left as demo evidence.
+`channel_contract.php` is unchanged at 54/54 across all six drivers.
+
+```bash
+TINKER='require "/app/deploy/dev/audit/channel_fx.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
+python3 deploy/dev/audit/channel_fx_flow.py
+```
 
 ## Sandbox end-to-end
 

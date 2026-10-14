@@ -35,6 +35,12 @@
     <p class="tiny muted span-all">Money changing is a VAT-exempt financial service – no VAT, NHIL, GETFund or tourism levy is deducted. Buying foreign currency needs a Bank of Ghana forex bureau licence, or an agency with a bank / licensed bureau.</p>
     <label class="check span-all"><input type="checkbox" name="allow_residents" value="1" @checked($x['allow_residents'] === '1')> Also buy from resident (Ghanaian) guests</label>
     <label class="check span-all"><input type="checkbox" name="carry_rates" value="1" @checked($x['carry_rates'] === '1')> Night audit carries rates forward (flagged until reviewed)</label>
+    <label class="check span-all"><input type="checkbox" name="channel_convert" value="1" @checked($x['channel_convert'] === '1')> Convert OTA / channel bookings sent in a foreign currency at this board</label>
+    <x-field name="channel_basis" label="Channel bookings convert at" type="select" :placeholder="false" :value="$x['channel_basis']" class="span-all"
+             :options="['reference' => 'The reference rate (the board as published)', 'buy' => 'The buy rate (what the desk would pay a guest)']"
+             hint="Off means a booking in another currency is held in the channel inbox instead of converted."/>
+    <x-field name="channel_stale_days" label="Use a board up to (days) old" type="number" min="0" max="90" :value="$x['channel_stale_days']" class="span-all"
+             hint="When today’s rates are not set yet. Beyond this the booking is held for a human. 0 = today’s board only."/>
   </div></div>
   @if(can_do('forex.manage'))<button class="btn btn-primary" id="saveForexSettings"><x-icon name="check"/> Save forex settings</button>
   <span class="small muted ml-1"><a href="{{ route('masters.index', 'currencies') }}">Currencies</a> · GL 1060 Foreign Currency on Hand, 4085 / 4986</span>@endif

@@ -584,8 +584,22 @@ class ChannelService
             return self::attention($msg, 'unmapped_room', 'Room code(s) '.$unmapped->implode(', ').' are not mapped to a room type – map them, then reprocess.', $res);
         }
         $hotel = Tenant::hotel();
-        if (! empty($p['currency']) && strtoupper($p['currency']) !== strtoupper($hotel->currency ?: 'GHS')) {
-            throw new DomainException("Currency {$p['currency']} does not match the hotel currency {$hotel->currency}.");
+        $hotelCcy = strtoupper((string) ($hotel->currency ?: 'GHS'));
+        $ccy = strtoupper(trim((string) ($p['currency'] ?? '')));
+        // v7.50 An OTA sends what the guest paid in — Booking.com EUR, Expedia USD, a regional channel GHS. A booking
+        // in another currency used to be rejected here, so a hotel in Accra with a USD rate plan lost the booking into
+        // the inbox and somebody re-keyed it by hand at whatever rate they chose. It is now converted at the forex
+        // board, on the basis the forex settings choose, and the original is kept on the reservation.
+        $fx = null;
+        if ($ccy !== '' && $ccy !== $hotelCcy) {
+            if (! ForexService::channelConvert()) {
+                throw new DomainException("Currency {$ccy} does not match the hotel currency {$hotelCcy}, and converting channel bookings is off (Foreign Guests › Settings › Forex desk).");
+            }
+            $fx = ForexService::boardRate($ccy);
+            if (! $fx) {
+                return self::attention($msg, 'no_fx_rate', "The channel sent {$ccy} but the exchange board has no {$ccy} rate for "
+                    .dmy(bdate()->toDateString()).' or the '.ForexService::cfg()['channel_stale_days'].' days before it. Set one under Foreign Guests › Exchange Rates, then reprocess.', $res);
+            }
         }
         $arr = Carbon::parse($p['arrival'])->startOfDay();
         $dep = Carbon::parse($p['departure'])->startOfDay();
@@ -605,6 +619,14 @@ class ChannelService
             return ['type' => $types[$typeId], 'rate_map' => $rm, 'adults' => (int) $l['adults'], 'children' => (int) ($l['children'] ?? 0),
                 'amount' => round((float) $l['amount'], 2), 'room_code' => $l['room_code'], 'rate_code' => $l['rate_code'] ?? null];
         });
+        if ($fx) {
+            $lines = $lines->map(function ($l) use ($fx) {
+                $l['amount_fx'] = $l['amount'];
+                $l['amount'] = round($l['amount'] * $fx['rate'], 2);
+
+                return $l;
+            });
+        }
         // informational rate check against what we are publishing (before this booking moves occupancy-based prices)
         foreach ($lines as $l) {
             $expected = round(collect(RateService::quote($l['type'], $arr, $dep)['nights'])->sum(fn ($n) => self::price($c, $l['type'], $l['rate_map']?->ratePlan, (float) $n['rate'])), 2);
@@ -632,9 +654,22 @@ class ChannelService
             }
         }
         $g = $p['guest'];
-        $total = round((float) ($p['total'] ?? $lines->sum('amount')), 2);
+        $sent = isset($p['total']) ? round((float) $p['total'], 2) : null;
+        // channel_amount is what the reports sum and what the folio posts, so it is always the hotel currency;
+        // channel_amount_fx keeps the figure the channel actually sent
+        $totalFx = $fx ? ($sent ?? round((float) $lines->sum('amount_fx'), 2)) : null;
+        $total = $sent === null ? round((float) $lines->sum('amount'), 2) : ($fx ? round($sent * $fx['rate'], 2) : $sent);
         $model = $p['payment']['model'] ?? $c->payment_model;
-        $commission = isset($p['commission']) ? round((float) $p['commission'], 2) : round($total * (float) $c->commission_pct / 100, 2);
+        $commission = isset($p['commission'])
+            ? round((float) $p['commission'] * ($fx ? $fx['rate'] : 1), 2)
+            : round($total * (float) $c->commission_pct / 100, 2);
+        if ($fx) {
+            $warnings[] = 'Booked in '.$hotelCcy.': the channel sent '.$fx['code'].' '.number_format((float) $totalFx, 2)
+                .' at the '.$fx['basis'].' rate '.number_format($fx['rate'], 4).' from the '.dmy($fx['date']).' board → '
+                .money($total).'.'
+                .($fx['stale'] ? ' Today’s board is not set yet, so the most recent one within '.ForexService::cfg()['channel_stale_days'].' days was used.' : '')
+                .($fx['carried'] ? ' That rate was carried forward by the night audit and has not been reviewed.' : '');
+        }
         if ($res) {
             $guest = $res->guest;
             $guest->update(array_filter(['first_name' => $g['first_name'], 'last_name' => $g['last_name'] ?? null, 'email' => $g['email'] ?? null,
@@ -647,6 +682,7 @@ class ChannelService
         $data = ['guest_id' => $guest->id, 'company_id' => $c->company_id, 'business_source_id' => $c->business_source_id, 'arrival_date' => $arr->toDateString(),
             'departure_date' => $dep->toDateString(), 'adults' => $lines->sum('adults'), 'children' => $lines->sum('children'), 'status' => 'confirmed',
             'ota_reference' => $ref, 'channel_connection_id' => $c->id, 'channel_payment' => $model, 'channel_amount' => $total, 'channel_commission' => $commission,
+            'channel_currency' => $fx['code'] ?? null, 'channel_amount_fx' => $totalFx, 'channel_fx_rate' => $fx['rate'] ?? null, 'channel_fx_date' => $fx['date'] ?? null,
             'billing_instruction' => $model === 'channel_collect' && $c->company_id ? 'company' : 'guest',
             'special_request' => ! empty($p['remarks']) ? mb_substr($p['remarks'], 0, 1000) : ($res?->special_request), 'channel_attention' => $short ? 'overbooked' : null];
         $isNew = ! $res;
@@ -827,11 +863,20 @@ class ChannelService
         $quote = RateService::quote($map->roomType, $in['arrival'], $in['departure']);
         $amount = round(collect($quote['nights'])->sum(fn ($n) => self::price($c, $map->roomType, $rm?->ratePlan, (float) $n['rate'])), 2);
         $rooms = max(1, (int) ($in['rooms'] ?? 1));
+        // v7.50 A real OTA quotes in its own currency, so the simulator expresses the price we publish in the currency
+        // chosen, at the board rate. The booking then comes back through the same conversion and lands within the
+        // rounding a cent of that currency carries — on a real channel the figure the OTA sends is what the guest paid
+        // and is authoritative, which is why the conversion keeps it. With no rate on the board the figure is sent
+        // unchanged, which is how the held-for-a-human path can be seen from the UI.
+        $hotelCcy = strtoupper((string) (Tenant::hotel()->currency ?: 'GHS'));
+        $ccy = strtoupper(trim((string) ($in['currency'] ?? ''))) ?: $hotelCcy;
+        $board = $ccy !== $hotelCcy ? ForexService::boardRate($ccy) : null;
+        $sent = $board ? round($amount / $board['rate'], 2) : $amount;
         $payload = ['event' => $in['event'], 'booking_id' => $in['booking_id'] ?: $c->code.'-'.random_int(10000000, 99999999),
-            'arrival' => $in['arrival'], 'departure' => $in['departure'], 'currency' => Tenant::hotel()->currency ?: 'GHS',
+            'arrival' => $in['arrival'], 'departure' => $in['departure'], 'currency' => $ccy,
             'guest' => ['first_name' => $in['first_name'], 'last_name' => $in['last_name'] ?? null, 'email' => $in['email'] ?? null, 'phone' => $in['phone'] ?? null, 'country' => $in['country'] ?? 'India'],
-            'rooms' => array_fill(0, $rooms, ['room_code' => $map->channel_room_code, 'rate_code' => $rm?->channel_rate_code, 'adults' => (int) $in['adults'], 'children' => 0, 'amount' => $amount]),
-            'total' => round($amount * $rooms, 2), 'payment' => ['model' => $c->payment_model], 'remarks' => $in['remarks'] ?? null, 'created_at' => now()->toIso8601String()];
+            'rooms' => array_fill(0, $rooms, ['room_code' => $map->channel_room_code, 'rate_code' => $rm?->channel_rate_code, 'adults' => (int) $in['adults'], 'children' => 0, 'amount' => $sent]),
+            'total' => round($sent * $rooms, 2), 'payment' => ['model' => $c->payment_model], 'remarks' => $in['remarks'] ?? null, 'created_at' => now()->toIso8601String()];
 
         return self::receive($c, $payload);
     }

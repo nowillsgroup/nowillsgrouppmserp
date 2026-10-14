@@ -108,9 +108,18 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 
 def menu_json():
-    """The live registry, generated if it is not already on disk: this harness is one command, not two."""
-    if os.path.exists(LIVE):
+    """The live registry, generated if it is not on disk: this harness is one command, not two.
+
+    It is also regenerated when config/pms.php is newer than the dump. A dump is derived from that file, and reusing a
+    stale one would diff the document against a menu that is no longer the one that ships — the exact drift this harness
+    exists to catch, reported as a clean run. That is what happened when the version stamp moved to 7.50.0 and the check
+    kept insisting the menu said 7.38.0.
+    """
+    cfg = os.path.join(ROOT, "config", "pms.php")
+    if os.path.exists(LIVE) and (not os.path.exists(cfg) or os.path.getmtime(LIVE) >= os.path.getmtime(cfg)):
         return json.load(open(LIVE))
+    if os.path.exists(LIVE):
+        print("  (config/pms.php is newer than %s — re-dumping the live menu registry)" % LIVE)
     import subprocess
     env = dict(os.environ, TINKER='putenv("MENU_JSON=1"); require "/app/deploy/dev/audit/menu_inventory.php";')
     out = subprocess.run([os.path.join("deploy", "dev", "bin", "php"), "-f", os.path.join("deploy", "dev", "tinker.php")],

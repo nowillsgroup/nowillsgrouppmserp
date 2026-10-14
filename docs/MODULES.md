@@ -1,8 +1,9 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.38.0** — the value of
-`config('pms.version')`, which lags the release notes in `deploy/dev/serve.mjs`.
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.50.0** — the value of
+`config('pms.version')` — the asset cache-buster and the stamp in the sidebar. It moves with
+the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_check.py` fails if the two disagree.
 
 > Every entry carries a `perm` key checked by `RequirePermission` middleware, so what a
 > given user sees depends on their role. Some entries also carry a `badge` for live counts.

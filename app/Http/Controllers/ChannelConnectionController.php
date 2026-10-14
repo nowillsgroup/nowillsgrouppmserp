@@ -322,6 +322,7 @@ class ChannelConnectionController extends Controller
             'rooms' => 'exclude_if:event,cancel|required|integer|min:1|max:5',
             'adults' => 'exclude_if:event,cancel|required|integer|min:1|max:6',
             'first_name' => 'exclude_if:event,cancel|required|string|max:80', 'last_name' => 'nullable|string|max:80', 'email' => 'nullable|email|max:255',
+            'currency' => 'exclude_if:event,cancel|nullable|string|size:3|exists:currencies,code',   // v7.50 the currency the OTA quotes in
         ]);
         abort_unless($data['event'] === 'cancel' || $chconn->roomMaps()->whereKey($data['room_map_id'])->exists(), 404);
         foreach (['arrival', 'departure'] as $k) {

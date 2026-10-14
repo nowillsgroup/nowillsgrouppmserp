@@ -54,7 +54,8 @@
     @forelse($recent as $r)
       <tr><td>@if(can_do('reservations.view'))<a href="{{ route('reservations.show', $r) }}">{{ $r->reservation_no }}</a>@else{{ $r->reservation_no }}@endif<div class="tiny muted">{{ $r->ota_reference }}</div></td>
         <td class="small">{{ $r->channel?->name }}</td><td>{{ $r->guest?->full_name }}</td><td class="small nowrap">{{ $r->arrival_date->format('d M') }} – {{ $r->departure_date->format('d M') }}</td>
-        <td class="num">{{ money($r->channel_amount) }}<div class="tiny muted">comm. {{ money($r->channel_commission) }}</div></td>
+        <td class="num">{{ money($r->channel_amount) }}<div class="tiny muted">comm. {{ money($r->channel_commission) }}</div>
+          @if($r->channel_currency)<div class="tiny muted">sent {{ $r->channel_currency }} {{ number_format((float) $r->channel_amount_fx, 2) }} @ {{ number_format((float) $r->channel_fx_rate, 4) }}</div>@endif</td>
         <td class="small">{{ $r->channel_payment === 'channel_collect' ? 'Prepaid (OTA)' : 'Pay at hotel' }}</td>
         <td>{!! status_badge($r->status) !!}@if($r->channel_attention)<span class="badge badge-red">overbooked</span>@endif</td></tr>
     @empty<tr><td colspan="7"><x-empty text="No channel bookings yet." icon="calendar"/></td></tr>@endforelse

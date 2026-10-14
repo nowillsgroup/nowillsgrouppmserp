@@ -51,6 +51,9 @@ class Reservation extends Model
             'promo_discount' => 'decimal:2',
             'channel_amount' => 'decimal:2',
             'channel_commission' => 'decimal:2',
+            'channel_amount_fx' => 'decimal:2',      // v7.50 the figure the channel sent, in its own currency
+            'channel_fx_rate' => 'decimal:4',
+            'channel_fx_date' => 'date',
         ];
     }
 

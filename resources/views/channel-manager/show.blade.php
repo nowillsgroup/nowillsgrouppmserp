@@ -126,6 +126,9 @@
         <x-field name="arrival" label="Arrival" type="date" :value="bdate()->copy()->addDays(3)->toDateString()"/>
         <x-field name="departure" label="Departure" type="date" :value="bdate()->copy()->addDays(5)->toDateString()"/>
         <x-field name="adults" label="Adults" type="number" min="1" max="6" value="2"/>
+        <x-field name="currency" label="Currency the OTA quotes in" type="select" :placeholder="false" value=""
+                 :options="['' => (hotel()->currency ?: 'GHS').' (hotel)'] + \App\Models\Currency::where('is_active', true)->orderBy('code')->pluck('code', 'code')->all()"
+                 hint="A foreign currency is converted at the forex board — Foreign Guests › Settings › Forex desk."/>
         <x-field name="first_name" label="Guest first name" value="Test"/>
         <x-field name="last_name" label="Last name" value="Guest"/>
         <x-field name="email" label="Email" type="email" placeholder="optional"/>

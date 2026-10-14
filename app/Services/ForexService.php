@@ -53,6 +53,9 @@ class ForexService
         'forex_fee_pct' => '0',               // optional service fee on cash encashment (VAT-exempt financial service)
         'forex_surrender_days' => '7',
         'forex_carry_rates' => '1',           // night audit copies rates to the new day (flagged "carried")
+        'forex_channel_convert' => '1',       // v7.50 an OTA booking in a foreign currency is converted, not rejected
+        'forex_channel_basis' => 'reference', // v7.50 …at the reference rate, or at the buy rate the desk would give
+        'forex_channel_stale_days' => '7',    // v7.50 …using a board no older than this many days
         'forex_licence' => '',                // BoG bureau licence / agency no. printed on the certificate
         'forex_franchiser' => '',             // bank / licensed bureau the hotel buys for
     ];
@@ -105,6 +108,9 @@ class ForexService
         foreach (['cash_cap_usd', 'resident_cap_usd', 'aggregate_days', 'id_copy_inr', 'surrender_days'] as $k) {
             $s[$k] = max(0, (int) $s[$k]);
         }
+        // v7.50 the channel-conversion policy: only two bases exist, and the staleness window is a small number of days
+        $s['channel_basis'] = in_array($s['channel_basis'] ?? '', ['reference', 'buy'], true) ? $s['channel_basis'] : 'reference';
+        $s['channel_stale_days'] = max(0, min(90, (int) ($s['channel_stale_days'] ?? self::BOARD_STALE_DAYS)));
         foreach (['max_margin', 'fee_pct'] as $k) {
             $s[$k] = max(0, (float) $s[$k]);
         }
@@ -229,6 +235,53 @@ class ForexService
     }
 
     // ───────────────────────── quoting & limits ─────────────────────────
+
+    /** How far back a board rate may be used for a channel booking before the booking is held instead. */
+    public const BOARD_STALE_DAYS = 7;
+
+    /**
+     * v7.50 The rate an OTA booking in a foreign currency is converted at, and where it came from.
+     *
+     * The board for the business date is used; if the desk has not set today's rates yet, the most recent board
+     * within `channel_stale_days` is used instead and flagged, because the night audit normally carries rates forward
+     * and a booking that arrives before the desk opens should not be lost over it. Beyond that window there is no
+     * honest rate to use and the caller holds the booking for a human.
+     *
+     * @return array{code: string, currency_id: int, rate: float, basis: string, date: string, carried: bool, stale: bool}|null
+     */
+    public static function boardRate(string $code, ?string $on = null): ?array
+    {
+        $cur = Currency::where('code', strtoupper(trim($code)))->first();
+        if (! $cur) {
+            return null;
+        }
+        $on = $on ?: bdate()->toDateString();
+        $cfg = self::cfg();
+        $r = self::rate($cur->id, $on);
+        if (! $r) {
+            $floor = Carbon::parse($on)->subDays(max(0, (int) $cfg['channel_stale_days']))->toDateString();
+            $r = ForexRate::where('currency_id', $cur->id)
+                ->whereDate('date', '<=', $on)->whereDate('date', '>=', $floor)
+                ->orderByDesc('date')->first();
+        }
+        if (! $r) {
+            return null;
+        }
+        $basis = $cfg['channel_basis'] === 'buy' ? 'buy' : 'reference';
+        $rate = round((float) ($basis === 'buy' ? $r->buy_rate : $r->reference_rate), 4);
+        if ($rate <= 0) {
+            return null;
+        }
+
+        return ['code' => strtoupper((string) $cur->code), 'currency_id' => (int) $cur->id, 'rate' => $rate, 'basis' => $basis,
+            'date' => $r->date->toDateString(), 'carried' => (bool) $r->carried, 'stale' => $r->date->toDateString() !== $on];
+    }
+
+    /** v7.50 Whether a channel booking in a foreign currency is converted at the board or held for a human. */
+    public static function channelConvert(): bool
+    {
+        return self::enabled() && setting('forex_channel_convert', self::DEFAULTS['forex_channel_convert']) === '1';
+    }
 
     public static function usdRate(): ?float
     {
