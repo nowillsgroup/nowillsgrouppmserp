@@ -139,7 +139,7 @@ PROSE = {
     "pms:import {companies,guests,employees,rooms,reservations} file.csv --hotel=1": "a usage example of pms:import",
     "PMS_DEV_AUTOLOGIN=0": "an environment variable of the dev server",
     "arena/49a44449-nowillsgrouppmserp": "the working branch",
-    "c32e943": "a commit hash — checked against git history below",
+    "ca74493": "a commit hash — checked against git history below",
     "config('pms.version')": "a config accessor, not an artifact",
     "MIG": "an abbreviation used in prose",
     "Spatie": "a vendor namespace (diagnostics), not our code",
@@ -260,6 +260,14 @@ CLOSED = [
         "file:database/migrations/2026_10_14_003000_hotel_vat_registration.php",
         "file:deploy/dev/audit/vat_registration.php", "file:deploy/dev/audit/vat_registration_flow.py",
         "doc:GRA-EVAT.md"]),
+    ("multi-currency supplier invoicing (v7.53)", [
+        "method:ApService.convertLines", "method:ApService.fxNote", "method:ApService.fxExposure",
+        "method:ForexService.boardRate", "method:ForexService.apBoard", "method:ForexService.apPolicy",
+        "method:ForexService.apConvert", "method:SupplierInvoice.isForeign", "method:SupplierInvoice.fxOutstanding",
+        "method:SupplierInvoice.fxLabel", "method:SupplierInvoice.fxStale",
+        "file:database/migrations/2026_10_14_004000_supplier_invoice_fx.php",
+        "file:deploy/dev/audit/ap_fx.php", "file:deploy/dev/audit/ap_fx_flow.py",
+        "doc:MULTI-CURRENCY.md"]),
     ("data migration toolkit (v7.35)", ["model:DataMigrationBatch", "model:DataMigrationRow", "model:DataMigrationIdMap",
                                         "class:MigrationService", "class:DatasetImporter", "class:BaseImporter", "class:ImportContext",
                                           "class:CompanyImporter", "class:GuestImporter",
@@ -294,7 +302,6 @@ for label, evidence in CLOSED:
 for vendor in ["staah", "rategain", "synxis", "cubilis", "djubo", "hotelbeds", "airbnb"]:
     check("D no channel driver for %s yet, as the document says" % vendor, vendor in facts["channel_drivers"], False)
 
-check("D a supplier invoice is still not converted at the board", in_code("ForexService", ("app/Services/ProcurementService.php",)), False)
 check("D no key-card hardware driver is bundled", class_file("KeyCardHardwareDriver"), None)
 check("D Instagram / X / LinkedIn stay recorded-only", "LIVE" in open(class_file("SocialPublishService")).read()
       and re.search(r"LIVE\s*=\s*\['facebook',\s*'whatsapp'\]", open(class_file("SocialPublishService")).read()) is not None, True)
@@ -304,9 +311,9 @@ check("E the version the document claims", re.search(r"`config\('pms\.version'\)
 check("E the Laravel version the document claims", re.search(r"Laravel ([\d.]+)", text).group(1), facts["laravel"])
 check("E the module count the document claims", re.search(r"(\d+) modules", text).group(1), str(facts["menu"]["modules"]))
 check("E the page count the document claims", re.search(r"(\d+) pages", text).group(1), str(facts["menu"]["pages"]))
-head = run(["git", "cat-file", "-e", "c32e943^{commit}"])
+head = run(["git", "cat-file", "-e", "ca74493^{commit}"])
 check("E the commit the document names exists", head.returncode, 0)
-anc = run(["git", "merge-base", "--is-ancestor", "c32e943", "HEAD"])
+anc = run(["git", "merge-base", "--is-ancestor", "ca74493", "HEAD"])
 check("E …and is an ancestor of HEAD", anc.returncode, 0)
 check("E the SiteMinder message names are in the driver",
       all(x in open(class_file("SiteMinderChannelDriver")).read() for x in ["OTA_AvailRateNotifyRQ", "OTA_HotelResModifyNotifRS"]), True)

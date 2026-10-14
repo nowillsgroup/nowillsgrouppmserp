@@ -96,6 +96,67 @@ class ApService
     }
 
     /**
+     * v7.53 A supplier document entered in a foreign currency, converted at the forex board.
+     *
+     * The lines are what the supplier's document says, in its own currency. What comes back is the same lines in the
+     * hotel currency plus the audit trail of the conversion, because the ledger, the budget check, ageing, allocations
+     * and payments all work in the hotel currency and none of them should have to learn a second one. The lines are
+     * converted one by one and the header is their sum, so what the ledger posts always equals the sum of its lines;
+     * the supplier's own subtotal, tax and total are kept beside it, and the pesewa difference between that and
+     * `fx_total * fx_rate` is rounding, which fxNote() and the bill page show rather than hide.
+     *
+     * @return array{lines: array, subtotal: float, tax: float, fx: array|null, board: array|null}
+     */
+    protected static function convertLines(array $lines, ?string $currency, string $date, ?int $defaultHead = null): array
+    {
+        $code = strtoupper(trim((string) $currency));
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        if ($code === '' || $code === $home) {
+            [$sub, $tax, $rows] = self::lines($lines, $defaultHead);
+
+            return ['lines' => $rows, 'subtotal' => $sub, 'tax' => $tax, 'fx' => null, 'board' => null];
+        }
+        if (! ForexService::apConvert()) {
+            throw new RuntimeException("Supplier bills in $code are switched off, so nothing would record the rate this one was booked at. Either enter it in $home, or turn on foreign-currency supplier bills under Foreign Guests › Settings › Forex desk.");
+        }
+        $policy = ForexService::apPolicy($date);
+        $board = ForexService::boardRate($code, $policy['date'], ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+        if (! $board) {
+            throw new RuntimeException("There is no $code rate on the forex board for ".Carbon::parse($policy['date'])->format('d M Y')
+                .', and none in the '.$policy['stale_days'].' days before it. Set the rate under Foreign Guests › Exchange Rates, or enter the bill in '.$home.'.');
+        }
+        [$fxSub, $fxTax, $rows] = self::lines($lines, $defaultHead);   // validated in the supplier's own currency first
+        $rate = (float) $board['rate'];
+        foreach ($rows as &$row) {
+            $row['amount'] = round($row['amount'] * $rate, 2);
+            $row['tax_amount'] = round($row['tax_amount'] * $rate, 2);
+        }
+        unset($row);
+
+        return ['lines' => $rows,
+            'subtotal' => round(array_sum(array_column($rows, 'amount')), 2),
+            'tax' => round(array_sum(array_column($rows, 'tax_amount')), 2),
+            'fx' => ['currency' => $board['code'], 'fx_subtotal' => $fxSub, 'fx_tax' => $fxTax,
+                'fx_total' => round($fxSub + $fxTax, 2), 'fx_rate' => $rate,
+                'fx_date' => $board['date'], 'fx_basis' => $board['basis']],
+            'board' => $board];
+    }
+
+    /** v7.53 How a converted document reads in the audit trail and on the flash: the supplier's own figure, the rate, and the board it came from. */
+    public static function fxNote(?array $fx, ?array $board = null): string
+    {
+        if (! $fx) {
+            return '';
+        }
+        $rounding = round((float) $fx['fx_total'] * (float) $fx['fx_rate'] - ((float) $fx['fx_subtotal'] + (float) $fx['fx_tax']), 2);
+
+        return " ({$fx['currency']} ".number_format((float) $fx['fx_total'], 2).' at '.number_format((float) $fx['fx_rate'], 4)
+            .' '.$fx['fx_basis'].', board of '.Carbon::parse($fx['fx_date'])->format('d M Y')
+            .(! empty($board['stale']) ? ' — carried forward' : '')
+            .($rounding ? ', '.money(abs($rounding)).' rounding' : '').')';
+    }
+
+    /**
      * Supplier documents are usually dated in the past. When the date falls in a day the ledger has already closed,
      * post (or reverse) straight away so the AP control never drifts; otherwise the night-audit sync picks it up.
      * Never blocks the AP transaction – a failure is simply retried by the next sync.
@@ -134,6 +195,12 @@ class ApService
             }
             $date = $d['doc_date'] ?? bdate()->toDateString();
             self::checkDate($date, 'bill date');
+            // v7.53 a matched bill is valued at the goods receipt, and a receipt is valued at the purchase order, which
+            // carries no currency: converting here would break the three-way match and the stock valuation with it
+            if (! empty($d['currency']) && strtoupper(trim((string) $d['currency'])) !== strtoupper(trim((string) (hotel()?->currency ?: 'GHS')))) {
+                throw new RuntimeException('A bill matched to a goods receipt is valued at the receipt, which is in '.hotel()?->currency
+                    .'. Enter it in '.hotel()?->currency.', or record the supplier\'s own document as a direct bill.');
+            }
             self::duplicateRef($po->supplier_id, $d['supplier_ref'] ?? null, 'invoice');
             [$recSub, $recTax] = $po->receivedSplit(); // v4.8: GRN value for part deliveries / short-closed POs
             $grnValue = $po->receivedValue();
@@ -167,8 +234,11 @@ class ApService
         $date = $d['doc_date'] ?? bdate()->toDateString();
         self::checkDate($date, 'bill date');
         self::duplicateRef($s->id, $d['supplier_ref'] ?? null, 'invoice');
-        [$sub, $tax, $lines] = self::lines($d['lines'] ?? [], $s->expense_head_id);
-        // v3.6 spend control: warn (flashed + noted on the bill) or block (needs budget.override and a reason)
+        $conv = self::convertLines($d['lines'] ?? [], $d['currency'] ?? null, $date, $s->expense_head_id);
+        [$sub, $tax, $lines] = [$conv['subtotal'], $conv['tax'], $conv['lines']];
+        [$fx, $board] = [$conv['fx'], $conv['board']];
+        // v3.6 spend control: warn (flashed + noted on the bill) or block (needs budget.override and a reason).
+        // Budgets are approved in the hotel currency, so this sees the converted lines, not the supplier's own.
         $over = BudgetService::checkSpend($lines, $date, $d['budget_reason'] ?? null);
         $notes = $d['notes'] ?? null;
         if ($over) {
@@ -176,14 +246,14 @@ class ApService
             $notes = mb_substr(trim(($notes ? $notes.' · ' : '').'Over budget: '.BudgetService::describe($over).($reason !== '' ? '. Reason: '.$reason : '')), 0, 500);
         }
 
-        $bill = DB::transaction(function () use ($s, $d, $date, $sub, $tax, $lines, $notes, $over) {
-            $bill = SupplierInvoice::create([
+        $bill = DB::transaction(function () use ($s, $d, $date, $sub, $tax, $lines, $notes, $over, $fx, $board) {
+            $bill = SupplierInvoice::create(array_merge([
                 'doc_no' => Numbering::next('supplier_bill'), 'type' => 'invoice', 'kind' => 'expense', 'supplier_id' => $s->id,
                 'supplier_ref' => $d['supplier_ref'] ?? null, 'doc_date' => $date, 'due_date' => self::dueDate($s, $date, $d['due_date'] ?? null),
                 'subtotal' => $sub, 'tax' => $tax, 'total' => round($sub + $tax, 2), 'status' => 'open', 'notes' => $notes, 'created_by' => auth()->id(),
-            ]);
+            ], $fx ?: []));
             $bill->lines()->createMany($lines);
-            ActivityLogger::log('ap', 'bill', "Expense bill {$bill->doc_no} from {$s->name}: ".money($bill->total), $bill);
+            ActivityLogger::log('ap', 'bill', "Expense bill {$bill->doc_no} from {$s->name}: ".money($bill->total).self::fxNote($fx, $board), $bill);
             if ($over) {
                 ActivityLogger::log('budget', 'over_budget', "Expense bill {$bill->doc_no} over budget: ".BudgetService::describe($over).(trim((string) ($d['budget_reason'] ?? '')) !== '' ? ' – reason: '.trim($d['budget_reason']) : ''), $bill);
             }
@@ -203,16 +273,28 @@ class ApService
         self::duplicateRef($s->id, $d['supplier_ref'] ?? null, 'debit_note');
         $against = ! empty($d['against_invoice_id']) ? SupplierInvoice::where('supplier_id', $s->id)->where('type', 'invoice')->findOrFail($d['against_invoice_id']) : null;
         $default = $against?->kind === 'goods' ? AccountHead::sys('price_variance') : $s->expense_head_id;
-        [$sub, $tax, $lines] = self::lines($d['lines'] ?? [], $default);
+        // v7.53 a debit note is allocated against the bill it corrects, so the two have to be in one currency: inherit
+        // it when the note does not say, and refuse a note in a third currency rather than allocate apples to oranges
+        $currency = strtoupper(trim((string) ($d['currency'] ?? '')));
+        if ($against && $against->isForeign()) {
+            if ($currency === '') {
+                $currency = strtoupper((string) $against->currency);
+            } elseif ($currency !== strtoupper((string) $against->currency)) {
+                throw new RuntimeException("{$against->doc_no} was billed in {$against->currency}, so a debit note against it has to be in {$against->currency} too — the two are allocated against each other.");
+            }
+        }
+        $conv = self::convertLines($d['lines'] ?? [], $currency, $date, $default);
+        [$sub, $tax, $lines] = [$conv['subtotal'], $conv['tax'], $conv['lines']];
+        [$fx, $board] = [$conv['fx'], $conv['board']];
 
-        $dn = DB::transaction(function () use ($s, $d, $date, $sub, $tax, $lines, $against) {
-            $dn = SupplierInvoice::create([
+        $dn = DB::transaction(function () use ($s, $d, $date, $sub, $tax, $lines, $against, $fx, $board) {
+            $dn = SupplierInvoice::create(array_merge([
                 'doc_no' => Numbering::next('debit_note'), 'type' => 'debit_note', 'kind' => $against?->kind ?? 'expense', 'supplier_id' => $s->id,
                 'against_invoice_id' => $against?->id, 'supplier_ref' => $d['supplier_ref'] ?? null, 'doc_date' => $date, 'due_date' => $date,
                 'subtotal' => $sub, 'tax' => $tax, 'total' => round($sub + $tax, 2), 'status' => 'open', 'notes' => $d['notes'] ?? null, 'created_by' => auth()->id(),
-            ]);
+            ], $fx ?: []));
             $dn->lines()->createMany($lines);
-            ActivityLogger::log('ap', 'debit_note', "Debit note {$dn->doc_no} to {$s->name}: ".money($dn->total), $dn);
+            ActivityLogger::log('ap', 'debit_note', "Debit note {$dn->doc_no} to {$s->name}: ".money($dn->total).self::fxNote($fx, $board), $dn);
             if ($against && in_array($against->status, ['open', 'partial'])) {
                 $amt = min($dn->total, $against->fresh()->outstanding());
                 if ($amt > 0) {
@@ -459,6 +541,43 @@ class ApService
      * Ageing by days past due as at a date: current (not yet due), 1–30, 31–60, 61–90, 90+.
      * Unapplied payments and debit notes are shown as credits and netted in the balance.
      */
+    /**
+     * v7.53 What the open foreign-currency bills would cost at the board as it stands.
+     *
+     * A bill booked in dollars stays a dollar obligation: if the cedi moves before it is paid the hotel hands over more
+     * or fewer cedis than the ledger carries, and that movement is a real cost nobody sees until the payment leaves.
+     * This reports it per currency — the outstanding foreign amount, the cedis it was booked at, what it would take at
+     * the board now, and the difference. Nothing is posted: an unrealised revaluation belongs to the period end, and
+     * the ledger keeps every bill at the rate it was booked at until it is paid.
+     *
+     * @return array{home: string, as_of: string, rows: array, booked: float, at_board: float|null, movement: float|null, unpriced: int}
+     */
+    public static function fxExposure(?string $asOf = null): array
+    {
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        $asOf = $asOf ?: bdate()->toDateString();
+        $policy = ForexService::apPolicy($asOf);
+        $rows = [];
+        $bills = SupplierInvoice::whereNotNull('currency')->where('currency', '!=', $home)->whereNull('cancelled_at')
+            ->whereIn('status', ['open', 'partial', 'on_hold'])->orderBy('currency')->get();
+        foreach ($bills->groupBy(fn ($b) => strtoupper((string) $b->currency)) as $code => $group) {
+            $booked = round((float) $group->sum(fn ($b) => $b->outstanding()), 2);
+            $foreign = round((float) $group->sum(fn ($b) => $b->fxOutstanding()), 2);
+            $board = ForexService::boardRate((string) $code, $policy['date'], ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+            $at = $board ? round($foreign * (float) $board['rate'], 2) : null;
+            $rows[] = ['currency' => (string) $code, 'bills' => $group->count(), 'foreign' => $foreign, 'booked' => $booked,
+                'rate_now' => $board['rate'] ?? null, 'board_date' => $board['date'] ?? null, 'stale' => (bool) ($board['stale'] ?? false),
+                'at_board' => $at, 'movement' => $at === null ? null : round($at - $booked, 2)];
+        }
+        $priced = array_filter($rows, fn ($r) => $r['at_board'] !== null);
+
+        return ['home' => $home, 'as_of' => $asOf, 'rows' => $rows,
+            'booked' => round((float) array_sum(array_column($rows, 'booked')), 2),
+            'at_board' => $priced ? round((float) array_sum(array_column($priced, 'at_board')), 2) : null,
+            'movement' => $priced ? round((float) array_sum(array_column($priced, 'movement')), 2) : null,
+            'unpriced' => count($rows) - count($priced)];
+    }
+
     public static function ageing(?string $asOf = null, ?int $supplierId = null): Collection
     {
         $asOf ??= bdate()->toDateString();

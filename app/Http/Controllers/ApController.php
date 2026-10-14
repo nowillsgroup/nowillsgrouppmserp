@@ -67,6 +67,11 @@ class ApController extends Controller
             'receipts' => ApService::unbilledReceipts()->filter(fn ($p) => $p->billable() && ! $p->bill()->exists()),
             'againstOptions' => $supplier ? SupplierInvoice::where('supplier_id', $supplier->id)->where('type', 'invoice')->whereIn('status', ['open', 'partial', 'paid'])->latest('doc_date')->get() : collect(),
             'tolerance' => $po ? ApService::tolerance($po->receivedValue() ?: (float) $po->total) : null,
+            // v7.53 the payables side of the forex board: which currencies can be billed in, and at what rate today
+            'home' => strtoupper(trim((string) (hotel()?->currency ?: 'GHS'))),
+            'fxOn' => \App\Services\ForexService::apConvert(),
+            'fxBoard' => \App\Services\ForexService::apBoard(),
+            'fxPolicy' => \App\Services\ForexService::apPolicy(),
         ]);
     }
 
@@ -83,6 +88,7 @@ class ApController extends Controller
             'tax' => 'nullable|numeric|min:0|max:99999999',
             'notes' => 'nullable|string|max:500',
             'budget_reason' => 'nullable|string|max:255',
+            'currency' => 'nullable|string|size:3',   // v7.53 the supplier's own currency; blank is the property's
             'lines' => 'required_unless:mode,goods|array|max:30',
             'lines.*.account_head_id' => 'nullable|owned:account_heads',
             'lines.*.description' => 'nullable|string|max:200',
@@ -95,6 +101,17 @@ class ApController extends Controller
             'expense' => ApService::expenseBill(Supplier::findOrFail($data['supplier_id']), $data),
             'debit_note' => ApService::debitNote(Supplier::findOrFail($data['supplier_id']), $data),
         }, function ($doc) {
+            if ($doc->isForeign()) {   // v7.53 say what the bill was booked at, and when the board was not today's
+                $r = redirect()->route('ap.bills.show', $doc)
+                    ->with($doc->fxStale() ? 'warning' : 'success', "{$doc->doc_no} saved: {$doc->fxLabel()} at "
+                        .number_format((float) $doc->fx_rate, 4)." {$doc->fx_basis}, board of {$doc->fx_date->format('d M Y')} = ".money($doc->total)
+                        .($doc->fxStale() ? '. The board for the invoice date had no rate, so the most recent one within the window was used.' : '.'));
+                if ($doc->status === 'on_hold') {
+                    $r->with('warning', "{$doc->doc_no} is ON HOLD: the invoice differs from the goods receipt by ".money($doc->variance()).'.');
+                }
+
+                return $r;
+            }
             $r = redirect()->route('ap.bills.show', $doc)->with($doc->status === 'on_hold' ? 'warning' : 'success',
                 $doc->status === 'on_hold' ? "{$doc->doc_no} saved but ON HOLD: the invoice differs from the goods receipt by ".money($doc->variance()).'. It needs approval before it can be paid.' : "{$doc->doc_no} saved.");
             if ($doc->status !== 'on_hold' && \App\Services\BudgetService::$lastWarnings) {
@@ -217,7 +234,8 @@ class ApController extends Controller
         $keys = ['current', 'd30', 'd60', 'd90', 'd90p', 'unbilled', 'credit', 'balance'];
         $tot = collect($keys)->mapWithKeys(fn ($k) => [$k => round($rows->sum($k), 2)])->all();
 
-        return view('ap.ageing', compact('rows', 'tot', 'asOf'));
+        return view('ap.ageing', compact('rows', 'tot', 'asOf'))
+            ->with('fx', ApService::fxExposure($asOf));   // v7.53 open foreign-currency bills at today's board
     }
 
     public function statement(Request $request, Supplier $supplier)

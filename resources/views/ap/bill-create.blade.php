@@ -67,6 +67,17 @@
   <div class="field"><label>{{ $mode === 'debit_note' ? 'Supplier credit note no.' : 'Supplier invoice no.' }} @if($mode !== 'debit_note')<span class="req">*</span>@endif</label><input name="supplier_ref" maxlength="60" value="{{ old('supplier_ref', $po?->invoice_no) }}" @required($mode !== 'debit_note')></div>
   <div class="field"><label>{{ $mode === 'debit_note' ? 'Date' : 'Invoice date' }} <span class="req">*</span></label><input type="date" name="doc_date" id="docDate" value="{{ old('doc_date', $po?->grnDate() && $po->grnDate() >= ($minDate ?? '0') ? $po->grnDate() : $today) }}" max="{{ $today }}" @if($minDate) min="{{ $minDate }}" @endif required data-terms="{{ (int) ($po?->supplier ?? $supplier)->payment_terms_days }}"></div>
   @if($mode !== 'debit_note')<div class="field"><label>Due date</label><input type="date" name="due_date" id="dueDate" value="{{ old('due_date') }}"><div class="tiny muted">Auto: invoice date + {{ (int) ($po?->supplier ?? $supplier)->payment_terms_days }} days</div></div>@endif
+  @if($mode !== 'goods')
+  <div class="field"><label>Billed in</label>
+    <select name="currency" id="billCurrency" data-home="{{ $home }}">
+      <option value="{{ $home }}" data-rate="" @selected(old('currency', $home) === $home)>{{ $home }} – the property's own currency</option>
+      @if($fxOn)@foreach($fxBoard as $code => $b)@if($code !== $home)
+      <option value="{{ $code }}" data-rate="{{ $b['rate'] }}" data-date="{{ $b['date'] }}" data-basis="{{ $b['basis'] }}" data-stale="{{ $b['stale'] ? '1' : '' }}" @selected(old('currency') === $code)>{{ $code }} · {{ $b['name'] }} – {{ number_format($b['rate'], 4) }} (board {{ \Illuminate\Support\Carbon::parse($b['date'])->format('d M Y') }})</option>
+      @endif @endforeach @endif
+    </select>
+    <div class="tiny muted">@if($fxOn)The lines are entered in the currency the supplier billed in, and each one is converted at the board for the invoice date. @else Foreign-currency bills are switched off – turn them on under Foreign Guests › Settings › Forex desk. @endif</div>
+  </div>
+  @endif
   <div class="field {{ $mode === 'debit_note' ? 'span-2' : '' }}"><label>Notes</label><input name="notes" maxlength="500" value="{{ old('notes') }}" placeholder="{{ $mode === 'debit_note' ? 'e.g. 3 kg tomatoes returned – spoiled' : '' }}"></div>
   @if($mode === 'expense' && ($bctl = \App\Services\BudgetService::cfg()['control']) !== 'off')<div class="field span-2"><label>Reason if over budget @if($bctl === 'block')<span class="tiny muted">(required to exceed the budget – budget override permission)</span>@endif</label><input name="budget_reason" id="budgetReason" maxlength="255" value="{{ old('budget_reason') }}" placeholder="Only needed when the bill takes an expense account over the active budget ({{ \App\Services\BudgetService::cfg()['control_basis'] === 'ytd' ? 'year to date' : \App\Services\BudgetService::cfg()['control_basis'] }})"></div>@endif
 </div></div>
@@ -74,7 +85,7 @@
 
 @if($mode !== 'goods' && $supplier)
 @php $rows = old('lines') ?: [['account_head_id' => $supplier->expense_head_id]] + array_fill(1, 2, []); @endphp
-<div class="card flush"><div class="card-head"><h3>Lines</h3><button type="button" class="btn btn-sm" id="addLine"><x-icon name="plus" size="sm"/> Add line</button></div>
+<div class="card flush"><div class="card-head"><h3>Lines <span class="badge badge-blue" id="lineCurrency">{{ old('currency', $home) }}</span></h3><button type="button" class="btn btn-sm" id="addLine"><x-icon name="plus" size="sm"/> Add line</button></div>
 <div class="card-body table-wrap"><table class="table gl-lines" id="billLines">
 <thead><tr><th style="width:34%">Account</th><th>Description</th><th class="num" style="width:13%">Amount</th><th class="num" style="width:9%">Tax %</th><th class="num" style="width:11%">Tax</th><th style="width:40px"></th></tr></thead><tbody>
 @foreach($rows as $i => $r)
@@ -85,7 +96,10 @@
 <td class="num tax">0.00</td>
 <td><button type="button" class="btn btn-ghost btn-sm del" title="Remove line"><x-icon name="trash" size="sm"/></button></td></tr>
 @endforeach
-</tbody><tfoot><tr><td colspan="2" class="right">Totals</td><td class="num" id="tSub">0.00</td><td></td><td class="num" id="tTax">0.00</td><td></td></tr><tr><td colspan="4" class="right bold">{{ $mode === 'debit_note' ? 'Debit note total' : 'Bill total' }}</td><td class="num bold" id="tTotal">0.00</td><td></td></tr></tfoot></table></div></div>
+</tbody><tfoot><tr><td colspan="2" class="right">Totals</td><td class="num" id="tSub">0.00</td><td></td><td class="num" id="tTax">0.00</td><td></td></tr><tr><td colspan="4" class="right bold">{{ $mode === 'debit_note' ? 'Debit note total' : 'Bill total' }}</td><td class="num bold" id="tTotal">0.00</td><td></td></tr>
+<tr id="fxRow" style="display:none"><td colspan="2" class="right">Booked in {{ $home }} · net</td><td class="num" id="fxSub">0.00</td><td class="right" colspan="2">at <b id="fxRate">0.0000</b></td><td class="num bold" id="fxTotal">0.00</td></tr></tfoot></table></div>
+<div class="tiny muted" id="fxPanel" style="display:none;padding:.55rem .9rem .8rem"><b id="fxText"></b> <span id="fxStale" class="badge badge-amber" style="display:none">board carried forward</span>
+  <div id="fxNote">The rate quoted is the board for today; the bill is booked at the board for its invoice date, within {{ (int) $fxPolicy['stale_days'] }} days, on the {{ $fxPolicy['basis'] }} side.</div></div></div>
 @endif
 
 @if(($mode === 'goods' && $po) || ($mode !== 'goods' && $supplier))
@@ -116,12 +130,40 @@
   }
   const body = document.querySelector('#billLines tbody');
   if (body) {
+    const cur = document.getElementById('billCurrency');
+    // the board rate of the currency chosen, or null for the property's own currency
+    const rate = () => { if (!cur) return null; const o = cur.selectedOptions[0], r = parseFloat(o && o.dataset.rate); return cur.value !== cur.dataset.home && r > 0 ? r : null; };
     const total = () => {
-      let s = 0, t = 0;
-      body.querySelectorAll('tr').forEach(tr => { const a = f(tr.querySelector('.amt').value), x = f(a * f(tr.querySelector('.rate').value) / 100); tr.querySelector('.tax').textContent = fx(x); s += a; t += x; });
+      const r = rate(); let s = 0, t = 0, hs = 0, ht = 0;
+      body.querySelectorAll('tr').forEach(tr => {
+        const a = f(tr.querySelector('.amt').value), x = f(a * f(tr.querySelector('.rate').value) / 100);
+        tr.querySelector('.tax').textContent = fx(x); s += a; t += x;
+        // each line is converted and rounded on its own, exactly as ApService::convertLines() books it
+        if (r) { hs += Math.round(a * r * 100) / 100; ht += Math.round(x * r * 100) / 100; }
+      });
       document.getElementById('tSub').textContent = fx(s); document.getElementById('tTax').textContent = fx(t); document.getElementById('tTotal').textContent = fx(s + t);
+      const row = document.getElementById('fxRow');
+      if (row) {
+        if (r) { row.style.display = ''; document.getElementById('fxRate').textContent = r.toFixed(4); document.getElementById('fxSub').textContent = fx(hs); document.getElementById('fxTotal').textContent = fx(hs + ht); }
+        else { row.style.display = 'none'; }
+      }
       document.getElementById('saveBill').disabled = s <= 0;
     };
+    if (cur) {
+      const paint = () => {
+        const o = cur.selectedOptions[0], r = rate(), panel = document.getElementById('fxPanel');
+        document.getElementById('lineCurrency').textContent = cur.value;
+        if (panel) {
+          if (r) {
+            panel.style.display = '';
+            document.getElementById('fxText').textContent = '1 ' + cur.value + ' = ' + r.toFixed(4) + ' {{ $home }} on the ' + (o.dataset.basis || 'reference') + ' board of ' + o.dataset.date + '.';
+            document.getElementById('fxStale').style.display = o.dataset.stale ? '' : 'none';
+          } else { panel.style.display = 'none'; }
+        }
+        total();
+      };
+      cur.addEventListener('change', paint); paint();
+    }
     body.addEventListener('input', total);
     body.addEventListener('click', e => { const b = e.target.closest('.del'); if (b && body.rows.length > 1) { b.closest('tr').remove(); total(); } });
     document.getElementById('addLine').addEventListener('click', () => {

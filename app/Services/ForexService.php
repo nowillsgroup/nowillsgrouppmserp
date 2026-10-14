@@ -56,6 +56,10 @@ class ForexService
         'forex_channel_convert' => '1',       // v7.50 an OTA booking in a foreign currency is converted, not rejected
         'forex_channel_basis' => 'reference', // v7.50 …at the reference rate, or at the buy rate the desk would give
         'forex_channel_stale_days' => '7',    // v7.50 …using a board no older than this many days
+        'forex_ap_convert' => '1',            // v7.53 a supplier invoice in a foreign currency is converted, not refused
+        'forex_ap_basis' => 'reference',      // v7.53 …at the reference rate, or at the buy rate the desk would give
+        'forex_ap_stale_days' => '7',         // v7.53 …using a board no older than this many days
+        'forex_ap_rate_date' => 'document',   // v7.53 …read at the invoice date, which is what accounting wants, or at today's board
         'forex_licence' => '',                // BoG bureau licence / agency no. printed on the certificate
         'forex_franchiser' => '',             // bank / licensed bureau the hotel buys for
     ];
@@ -111,6 +115,10 @@ class ForexService
         // v7.50 the channel-conversion policy: only two bases exist, and the staleness window is a small number of days
         $s['channel_basis'] = in_array($s['channel_basis'] ?? '', ['reference', 'buy'], true) ? $s['channel_basis'] : 'reference';
         $s['channel_stale_days'] = max(0, min(90, (int) ($s['channel_stale_days'] ?? self::BOARD_STALE_DAYS)));
+        // v7.53 the payables policy: the same two bases, the same kind of window, and a choice of which date to read
+        $s['ap_basis'] = in_array($s['ap_basis'] ?? '', ['reference', 'buy'], true) ? $s['ap_basis'] : 'reference';
+        $s['ap_stale_days'] = max(0, min(90, (int) ($s['ap_stale_days'] ?? self::BOARD_STALE_DAYS)));
+        $s['ap_rate_date'] = in_array($s['ap_rate_date'] ?? '', ['document', 'business'], true) ? $s['ap_rate_date'] : 'document';
         foreach (['max_margin', 'fee_pct'] as $k) {
             $s[$k] = max(0, (float) $s[$k]);
         }
@@ -240,16 +248,20 @@ class ForexService
     public const BOARD_STALE_DAYS = 7;
 
     /**
-     * v7.50 The rate an OTA booking in a foreign currency is converted at, and where it came from.
+     * v7.50 The rate a foreign-currency document is converted at, and where it came from.
      *
-     * The board for the business date is used; if the desk has not set today's rates yet, the most recent board
-     * within `channel_stale_days` is used instead and flagged, because the night audit normally carries rates forward
-     * and a booking that arrives before the desk opens should not be lost over it. Beyond that window there is no
-     * honest rate to use and the caller holds the booking for a human.
+     * The board for the date asked for is used; if the desk has not set that day's rates, the most recent board within
+     * the staleness window is used instead and flagged, because the night audit normally carries rates forward and a
+     * booking that arrives before the desk opens — or an invoice dated on a Sunday — should not be lost over it.
+     * Beyond that window there is no honest rate to use and the caller holds the document for a human.
      *
+     * `$policy` lets a caller bring its own basis and window: a channel booking uses the channel settings, a supplier
+     * invoice the payables ones (v7.53). With no policy the channel settings apply, exactly as before.
+     *
+     * @param  array{basis?: string, stale_days?: int}|null  $policy
      * @return array{code: string, currency_id: int, rate: float, basis: string, date: string, carried: bool, stale: bool}|null
      */
-    public static function boardRate(string $code, ?string $on = null): ?array
+    public static function boardRate(string $code, ?string $on = null, ?array $policy = null): ?array
     {
         $cur = Currency::where('code', strtoupper(trim($code)))->first();
         if (! $cur) {
@@ -257,9 +269,11 @@ class ForexService
         }
         $on = $on ?: bdate()->toDateString();
         $cfg = self::cfg();
+        $policy = $policy ?: [];
+        $staleDays = max(0, min(90, (int) ($policy['stale_days'] ?? $cfg['channel_stale_days'])));
         $r = self::rate($cur->id, $on);
         if (! $r) {
-            $floor = Carbon::parse($on)->subDays(max(0, (int) $cfg['channel_stale_days']))->toDateString();
+            $floor = Carbon::parse($on)->subDays($staleDays)->toDateString();
             $r = ForexRate::where('currency_id', $cur->id)
                 ->whereDate('date', '<=', $on)->whereDate('date', '>=', $floor)
                 ->orderByDesc('date')->first();
@@ -267,7 +281,7 @@ class ForexService
         if (! $r) {
             return null;
         }
-        $basis = $cfg['channel_basis'] === 'buy' ? 'buy' : 'reference';
+        $basis = ($policy['basis'] ?? $cfg['channel_basis']) === 'buy' ? 'buy' : 'reference';
         $rate = round((float) ($basis === 'buy' ? $r->buy_rate : $r->reference_rate), 4);
         if ($rate <= 0) {
             return null;
@@ -281,6 +295,50 @@ class ForexService
     public static function channelConvert(): bool
     {
         return self::enabled() && setting('forex_channel_convert', self::DEFAULTS['forex_channel_convert']) === '1';
+    }
+
+    /** v7.53 Whether a supplier invoice in a foreign currency is converted at the board or refused. */
+    public static function apConvert(): bool
+    {
+        return self::enabled() && setting('forex_ap_convert', self::DEFAULTS['forex_ap_convert']) === '1';
+    }
+
+    /**
+     * v7.53 The payables side of the board: its own basis, its own staleness window, and which date the rate is read at.
+     *
+     * The default reads the board for the invoice date, because that is the transaction date an invoice is translated
+     * at; a property that would rather book everything at the desk's board for today can say so in the forex settings.
+     */
+    public static function apPolicy(?string $docDate = null): array
+    {
+        $cfg = self::cfg();
+
+        return ['basis' => $cfg['ap_basis'], 'stale_days' => $cfg['ap_stale_days'],
+            'rate_date' => $cfg['ap_rate_date'],
+            'date' => $cfg['ap_rate_date'] === 'business' ? bdate()->toDateString() : ($docDate ?: bdate()->toDateString())];
+    }
+
+    /**
+     * v7.53 Every currency with a rate inside the payables staleness window, on the payables basis.
+     *
+     * The bill entry form uses it to quote the rate before the bill is saved, so whoever is keying a dollar invoice can
+     * see the cedi total it will book at — and can see that a currency with no rate on the board cannot be used at all.
+     *
+     * @return array<string, array{rate: float, basis: string, date: string, stale: bool, carried: bool, name: string, symbol: string}>
+     */
+    public static function apBoard(?string $date = null): array
+    {
+        $policy = self::apPolicy($date);
+        $out = [];
+        foreach (Currency::orderBy('sort_order')->orderBy('code')->get() as $c) {
+            $b = self::boardRate((string) $c->code, $policy['date'], ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+            if ($b) {
+                $out[$b['code']] = ['rate' => $b['rate'], 'basis' => $b['basis'], 'date' => $b['date'], 'stale' => $b['stale'],
+                    'carried' => $b['carried'], 'name' => (string) $c->name, 'symbol' => (string) $c->symbol];
+            }
+        }
+
+        return $out;
     }
 
     public static function usdRate(): ?float

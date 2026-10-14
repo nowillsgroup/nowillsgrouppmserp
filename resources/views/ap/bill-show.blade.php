@@ -29,6 +29,16 @@
     <div><div class="l">{{ $bill->isDebitNote() ? 'Applied' : 'Paid / credited' }}</div><div class="v green">{{ money($bill->allocated) }}</div></div>
     <div><div class="l">{{ $bill->isDebitNote() ? 'Unapplied credit' : 'Outstanding' }}</div><div class="v {{ $bill->outstanding() > 0 && ! $bill->isDebitNote() ? 'red' : '' }}" id="billOutstanding">{{ money($bill->outstanding()) }}</div></div>
   </div>
+  @if($bill->isForeign())
+  <div class="ap-summary" id="fxSummary">
+    <div><div class="l">Billed in {{ $bill->currency }}</div><div class="v">{{ $bill->fxLabel() }}</div></div>
+    <div><div class="l">Net + tax as billed</div><div class="v">{{ number_format((float) $bill->fx_subtotal, 2) }} + {{ number_format((float) $bill->fx_tax, 2) }}</div></div>
+    <div><div class="l">Board rate · {{ $bill->fx_basis }}</div><div class="v">{{ number_format((float) $bill->fx_rate, 4) }}</div></div>
+    <div><div class="l">Board of</div><div class="v">{{ $bill->fx_date?->format('d M Y') }} @if($bill->fxStale())<span class="badge badge-amber">carried forward</span>@endif</div></div>
+    <div><div class="l">Still owed in {{ $bill->currency }}</div><div class="v {{ $bill->fxOutstanding() > 0 ? 'red' : '' }}">{{ $bill->fxLabel($bill->fxOutstanding()) }}</div></div>
+  </div>
+  <p class="tiny muted">The ledger, the budget, ageing and every payment carry {{ money($bill->total) }}: each line was converted at the board above and rounded on its own, so the lines sum to what was posted. The supplier's own document is kept here beside it, and Accounts payable › Ageing re-values what is still open against the board as it stands.</p>
+  @endif
 </div></div>
 
 @if($bill->kind === 'goods' && ! $bill->isDebitNote())

@@ -22,7 +22,24 @@ sys.path.insert(0, "deploy/dev/audit")
 from pmshttp import Pms  # noqa: E402
 
 p = Pms()
-RUN = 4          # PAY-2026-09
+def find_run():
+    """The run a recalculation is allowed to change: the draft one, resolved from the live register.
+
+    This used to be hardcoded to run 4 / PAY-2026-09. The demo has no September run any more — the business date moved
+    to October, so the draft run is PAY-2026-10 and the hardcoded id 404s, which made every case below report
+    "no payslip row" and the final summary crash on None. Read it instead of pinning it."""
+    rows = re.findall(r'/payroll/runs/(\d+)">([^<]+)</a></td><td>([^<]+)</td><td><span class="badge[^"]*">([^<]+)</span>',
+                      p.get("/payroll"))
+    if not rows:
+        raise SystemExit("no payroll runs on /payroll to test against")
+    for rid, no, period, status in rows:
+        if status.strip().lower() == "draft":
+            return int(rid), no, period
+    rid, no, period, _ = rows[0]
+    return int(rid), no, period
+
+
+RUN, RUN_NO, RUN_PERIOD = find_run()
 GHS = "GH₵ "
 
 
@@ -142,7 +159,7 @@ cases = [
      lambda s: ("chargeable income now %.2f with a 100.00 relief" % (s["chargeable"] or 0), True)),
 ]
 
-print("== GRA special treatments, September 2026 run (PAY-2026-09) ==")
+print("== GRA special treatments, %s run (%s) ==" % (RUN_PERIOD, RUN_NO))
 ids = {c: emp_id(c) for c in {x[0] for x in cases}}
 print("  employee ids: %s" % ids)
 originals = {}
@@ -171,4 +188,7 @@ t = re.findall(r'<div class="l">(Gross pay|Deductions|Net pay)</div><div class="
 print("  run totals after revert: %s" % dict(t))
 for code in sorted(ids):
     s = slip(run_html, code)
+    if not s:
+        print("  %-7s !! no payslip row after the revert" % code)
+        continue
     print("  %-7s gross %-10s chargeable %-9s PAYE %-9s basis %s" % (code, s["gross"], s["chargeable"], s["paye"], s["basis"]))

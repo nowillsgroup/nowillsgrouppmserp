@@ -6,6 +6,7 @@ use App\Models;
 use App\Services\FolioService;
 use App\Services\HotelProvisioner;
 use App\Services\ApService;
+use App\Services\ForexService;
 use App\Services\LedgerService;
 use App\Services\StayService;
 use App\Services\TaxService;
@@ -2684,6 +2685,7 @@ class DatabaseSeeder extends Seeder
         $this->seedTables($rich, $user); // v3.2: restaurant table reservations, floor plan & waitlist
         $this->seedTransport($rich, $user); // v3.3: guest transport & fleet desk
         $this->seedForeign($rich, $user); // v3.4: Form C (FRRO) & forex desk
+        $this->seedApForeign($rich, $today, $user); // v7.53: supplier bills in a foreign currency, converted at that board
         $this->seedFrontDesk($rich, $user); // v3.5: log book, wake-up calls, messages & parcels, traces, lost & found
         $this->seedInterfaces($rich, $user); // v3.7: PABX tariffs / extensions / calls, key cards, master keys
         $this->seedVouchers($rich, $user); // v3.8: gift vouchers & stored-value cards – sold, redeemed, expired, promo campaign
@@ -6308,6 +6310,48 @@ class DatabaseSeeder extends Seeder
         // 6. advance to CleanPro while its bill is on hold
         ApService::pay(Models\Supplier::find($po3->supplier_id), ['date' => $today->copy()->subDays(1)->toDateString(), 'payment_mode_id' => $cash, 'amount' => 3000, 'reference' => 'Advance', 'notes' => 'Advance against towel order']);
         unset($po4);
+    }
+
+    /**
+     * v7.53 — two supplier bills in the supplier's own currency, booked in cedis at the forex board for their invoice
+     * date, with the supplier's own document kept on the header. Called after seedForeign() because the board has to
+     * exist before a bill can be converted at it; a property with no board keeps a plain cedi ledger, and a refusal is
+     * not demo data, so this quietly does nothing there.
+     */
+    protected function seedApForeign(bool $rich, Carbon $today, Models\User $user): void
+    {
+        if (! $rich || ! ForexService::enabled()) {
+            return;
+        }
+        $heads = Models\AccountHead::pluck('id', 'name');
+        $otaHead = $heads['Marketing & OTA Commission'] ?? $heads['Agent Commission'] ?? null;
+        $feeHead = $heads['Management Fees – Base'] ?? $heads['Audit & Professional Fees'] ?? null;
+        $eurDate = $today->copy()->subDays(3)->toDateString();
+        $usdDate = $today->copy()->subDays(9)->toDateString();
+        if (! $otaHead || ! $feeHead || ! ForexService::boardRate('EUR', $eurDate) || ! ForexService::boardRate('USD', $usdDate)) {
+            return;
+        }
+        Auth::setUser($user);
+        $bank = Models\PaymentMode::where('name', 'like', '%Bank%')->value('id');
+        // 7. v7.53 two bills in the supplier's own currency, booked at the board for their invoice date: an OTA's
+        //    commission invoice from its Amsterdam entity in euros, and an international operator's base management fee
+        //    in dollars, part-paid, so Accounts payable › Ageing shows what settling the rest would cost at today's board
+        $ota = Models\Supplier::create(['wht_category' => 'none', 'name' => 'Booking.com B.V.', 'contact_person' => 'Partner settlements',
+            'email' => 'invoices@booking.example', 'address' => 'Keizersgracht 597, 1017 DR Amsterdam, Netherlands', 'payment_terms_days' => 14, 'is_local' => false,
+            'expense_head_id' => $otaHead ?? null]);
+        ApService::expenseBill($ota, ['supplier_ref' => 'BCOM-INV-'.$today->copy()->subDays(3)->format('Ym').'-88213', 'currency' => 'EUR',
+            'doc_date' => $today->copy()->subDays(3)->toDateString(),
+            'lines' => [['account_head_id' => $otaHead, 'description' => 'Commission on 41 reservations, Sep 2026', 'amount' => 4180.55, 'tax_rate' => 0]],
+            'notes' => 'Billed in EUR by the Amsterdam entity and settled monthly through the bank.']);
+        $operator = Models\Supplier::create(['wht_category' => 'none', 'name' => 'Meridian Hotels International Ltd.', 'contact_person' => 'Owner services',
+            'email' => 'fees@meridianhotels.example', 'address' => '110 High Holborn, London WC1V 6QT, United Kingdom', 'payment_terms_days' => 30, 'is_local' => false,
+            'expense_head_id' => $feeHead]);
+        $mgmt = ApService::expenseBill($operator, ['supplier_ref' => 'MHI/BMF/2026-09', 'currency' => 'USD',
+            'doc_date' => $today->copy()->subDays(9)->toDateString(),
+            'lines' => [['account_head_id' => $feeHead, 'description' => 'Base management fee, 3% of gross revenue, Sep 2026', 'amount' => 6250, 'tax_rate' => 0],
+                ['account_head_id' => $heads['Internet & Telephone'] ?? $feeHead, 'description' => 'Reservation platform and channel-manager licence', 'amount' => 480, 'tax_rate' => 0]],
+            'notes' => 'Billed in USD under the management agreement; paid from the dollar account.']);
+        ApService::pay($operator, ['date' => $today->copy()->subDays(2)->toDateString(), 'payment_mode_id' => $bank, 'amount' => 40000, 'reference' => 'TT 558214'], [$mgmt->id => 40000]);
     }
 
     /** Attendance from 1 July (or joining): a fixed weekly off, occasional absences and some overtime; deterministic per employee/day. */

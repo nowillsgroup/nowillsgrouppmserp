@@ -41,6 +41,15 @@
              hint="Off means a booking in another currency is held in the channel inbox instead of converted."/>
     <x-field name="channel_stale_days" label="Use a board up to (days) old" type="number" min="0" max="90" :value="$x['channel_stale_days']" class="span-all"
              hint="When today’s rates are not set yet. Beyond this the booking is held for a human. 0 = today’s board only."/>
+    <label class="check span-all"><input type="checkbox" name="ap_convert" value="1" @checked($x['ap_convert'] === '1')> Convert supplier invoices billed in a foreign currency at this board</label>
+    <x-field name="ap_basis" label="Supplier invoices convert at" type="select" :placeholder="false" :value="$x['ap_basis']" class="span-all"
+             :options="['reference' => 'The reference rate (the board as published)', 'buy' => 'The buy rate (what the desk would pay a guest)']"
+             hint="Off means a bill in another currency is refused until somebody enters it in the property's own currency, so nothing is booked at a rate nobody chose."/>
+    <x-field name="ap_stale_days" label="Use a board up to (days) old for a bill" type="number" min="0" max="90" :value="$x['ap_stale_days']" class="span-all"
+             hint="An invoice dated on a Sunday, or on a day the desk never set rates, still has to be booked. Beyond this the bill is refused. 0 means that date's board only."/>
+    <x-field name="ap_rate_date" label="Read the board at" type="select" :placeholder="false" :value="$x['ap_rate_date']" class="span-all"
+             :options="['document' => 'The invoice date - the transaction date, which is what accounting wants', 'business' => 'The board for today, whatever the invoice date']"
+             hint="Each line is converted at one rate and rounded on its own, so the lines always sum to what the ledger posts."/>
   </div></div>
   @if(can_do('forex.manage'))<button class="btn btn-primary" id="saveForexSettings"><x-icon name="check"/> Save forex settings</button>
   <span class="small muted ml-1"><a href="{{ route('masters.index', 'currencies') }}">Currencies</a> · GL 1060 Foreign Currency on Hand, 4085 / 4986</span>@endif
