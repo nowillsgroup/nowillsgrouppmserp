@@ -373,8 +373,16 @@ named human, which is the point of segregation of duties.
    charges against the approved budget for the same fiscal month and the same accounts, the approve
    confirmation says so before it is clicked, and the nightly HR task warns about a draft run that would
    break the budget. Detail and evidence: **§16**.
-5. **`docs/MODULES.md`** was reconciled for HR (23 → 20 pages, with the four routed-but-unmenued
-   self-service pages named). The rest of the inventory is still the v7.36–v7.38 snapshot.
+5. ~~**`docs/MODULES.md`.**~~ **Closed by v7.49** — the whole inventory now, not just the HR part.
+   Every count, name and order in the document is the live `config('pms.menu')` registry (5 sections,
+   12 groups, 53 modules, 361 pages), each group heading carries its own page count, and the four
+   entries that named something the sidebar does not menu were moved to prose where they belong:
+   Front Office › Desktop Sync (routed, working, unmenued), the Recreation Outlet sale receipt (a
+   document per record, not a page), the whole Car Rental module (`/rentals`, `/rentals/fleet` — routed
+   and permissioned, absent from the sidebar) and the version the document claimed.
+   `deploy/dev/audit/modules_doc_check.py` now diffs the document against the registry and the route
+   list — **210 checks, 0 discrepancies** — so the next menu change is caught rather than discovered.
+   All five follow-ups from this audit are now closed.
 
 ---
 

@@ -1,7 +1,8 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.36.0.**
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.38.0** — the value of
+`config('pms.version')`, which lags the release notes in `deploy/dev/serve.mjs`.
 
 > Every entry carries a `perm` key checked by `RequirePermission` middleware, so what a
 > given user sees depends on their role. Some entries also carry a `badge` for live counts.
@@ -13,18 +14,26 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 | **53** | modules |
 | **361** | pages |
 
-Counted from the live `config('pms.menu')` registry on 13 Oct 2026 (v7.43, after **HR & Payroll ›
-Public Holidays** was added): a page is any node below module level that carries a `route`; a module
-that is itself a link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. The
-per-module lists below are the historical inventory (v7.36–v7.38) and still name a few pages that are
-routed but no longer menued — the HR & Workforce section carries the reconciled HR count.
+Counted from the live `config('pms.menu')` registry and reconciled against it page for page on
+14 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
+link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. Until this pass the
+per-module lists were the historical v7.36–v7.38 inventory and named four things the sidebar does not
+menu; **every count, name and order below is now the live menu**, and each group heading carries its
+own page count. A page that is routed but not menued (Desktop Sync), a document that is routed per
+record rather than menued (a ticket sale receipt), and a module that is routed but absent from the
+sidebar altogether (Car Rental) are named in prose under the group or module they belong to and are
+*not* counted, because the sidebar is what this document inventories.
+
+`deploy/dev/audit/modules_doc_check.py` diffs this file against the live registry and the route list —
+counts, names, order, section keys, permission keys and every URI the prose names — and reports
+0 discrepancies. Run it after any change to `config/pms.php`.
 
 ---
 
 
 ## Dashboard & Operations
 
-`DASHBOARD` section · **4 modules**
+`DASHBOARD` section · **4 modules** · 4 menu pages
 
 - **Dashboard** — direct link
 - **Group Dashboard** — direct link
@@ -34,11 +43,11 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Front Office & Guest Services
 
-`OPERATIONS` section · **10 modules**
+`OPERATIONS` section · **10 modules** · 63 menu pages
 
-- **Front Office** — 9 pages (8 in the sidebar + the offline desktop workspace)
-  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync (Offline Mode)
-  - Desktop Sync is `/offline/desktop` (workspace, delta, pack, sync): a real, working page that is reachable by URL and from Offline Request Capture, but is not listed in the sidebar — so the section carries **63 menu pages** against the 64 documented here. Verified end to end in `docs/FRONT-OFFICE-AUDIT.md` (370 named routes, 228 of them writes).
+- **Front Office** — 8 pages
+  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture
+  - Routed but not menued: Desktop Sync, `/offline/desktop` (workspace, delta, pack, sync) — a real, working page, reachable by URL and from Offline Request Capture, that the sidebar does not list. Verified end to end in `docs/FRONT-OFFICE-AUDIT.md` (370 named routes, 228 of them writes).
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
 - **Reservations** — 8 pages
@@ -60,7 +69,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Guest Relations & Commercial
 
-`OPERATIONS` section · **7 modules**
+`OPERATIONS` section · **7 modules** · 49 menu pages
 
 - **Guests & CRM** — 12 pages
   - Guest Profiles · Companies / Agents · Rate Contracts · Feedback & Reputation · Guest Cases · Loyalty Program · Privacy & Data · Marketing Dashboard · Campaigns · Guest Segments · Automations · Promo Codes
@@ -79,7 +88,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Revenue & Financial Management
 
-`FINANCE` section · **7 modules**
+`FINANCE` section · **7 modules** · 52 menu pages
 
 - **Revenue** — 4 pages
   - Revenue Dashboard · Pricing Grid · Pricing Rules · Upselling
@@ -96,14 +105,11 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 - **Owner Reporting** — 6 pages
   - Owner Dashboard · USALI Statement · Monthly Owner Packs · Management Fees · FF&E Reserve & Capex · Agreement & Mapping
 
-### Car Rental (`OPERATIONS`)
-
-- **Car Rental** — 2 pages
-  - Rental Desk · Rental Fleet
+- Routed but not menued: **Car Rental** (`OPERATIONS`) — `/rentals` (Rental Desk) and `/rentals/fleet` (Rental Fleet), with writes for a vehicle, pickup, return, billing and cancellation. Both pages render and both are permissioned; neither is in the sidebar, so neither is counted in the 7 modules or the 52 pages above.
 
 ## Housekeeping & Laundry
 
-`OPERATIONS` section · **2 modules**
+`OPERATIONS` section · **2 modules** · 9 menu pages
 
 - **Housekeeping** — 5 pages
   - Room Status · HK Tasks & Inspection · My Rooms (mobile) · Minibar Items · Maintenance
@@ -112,7 +118,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Food & Beverage
 
-`OPERATIONS` section · **6 modules**
+`OPERATIONS` section · **6 modules** · 57 menu pages
 
 - **POS / Restaurant** — 14 pages
   - POS Terminal · Orders & Bills · Floor Plan & Waitlist · Table Reservations · Kitchen Display · KOT Printers · Print Station · Menu Items · Menu Categories · Outlets · Tables · Table QR Codes · Modifiers & Add-ons · Reservation Settings
@@ -129,7 +135,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Accommodation & Property
 
-`OPERATIONS` section · **3 modules**
+`OPERATIONS` section · **3 modules** · 16 menu pages
 
 - **Apartments & Leases** — 5 pages
   - Leasing Dashboard · Leases · Units · Billing & Arrears · Meter Readings
@@ -140,7 +146,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Facilities & Security
 
-`OPERATIONS` section · **3 modules**
+`OPERATIONS` section · **3 modules** · 16 menu pages
 
 - **Engineering** — 3 pages
   - Utilities & Energy · Daily Meter Readings · Licences & Compliance
@@ -151,18 +157,19 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Wellness & Recreation
 
-`OPERATIONS` section · **3 modules**
+`OPERATIONS` section · **3 modules** · 13 menu pages
 
 - **Health Club** — 7 pages
   - Club Dashboard · Check-in Desk · Members · Billing & Renewals · Class Timetable · Day Passes · Plans & Settings
-- **Recreation Outlet** — 4 pages · v7.38
-  - Ticket Outlet · Ticket Sales · Ticket Types · Sale Receipt (POS ticketing for walk-ins; memberships untouched)
+- **Recreation Outlet** — 3 pages · v7.38
+  - Ticket Outlet · Ticket Sales · Ticket Types
+  - POS ticketing for walk-ins; club memberships are untouched by it. Each sale prints its own receipt at `/recreation/sales/{sale}/receipt`, which is a document per record rather than a menu page.
 - **Spa & Activities** — 3 pages
   - Appointments · Services & Activities · Treatment Rooms
 
 ## HR & Workforce
 
-`PEOPLE` section · **3 modules**
+`PEOPLE` section · **3 modules** · 36 menu pages
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
@@ -174,7 +181,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Quality, Safety & Sustainability
 
-`GOVERNANCE` section · **3 modules**
+`GOVERNANCE` section · **3 modules** · 27 menu pages
 
 - **Quality Assurance** — 6 pages
   - QA Dashboard · Audits · Corrective Actions · Standards · Checklists · QA Settings
@@ -185,7 +192,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 
 ## Administration & Configuration
 
-`GOVERNANCE` section · **2 modules**
+`GOVERNANCE` section · **2 modules** · 19 menu pages
 
 - **Masters** — 8 pages
   - Room Types · Rooms · Floors · Rate Plans · Taxes · Business Sources · Payment Modes · Item Categories
