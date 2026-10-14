@@ -44,8 +44,10 @@ $ok = function (string $what, $got, $want) use (&$pass, &$fail) {
 };
 
 $h = hotel();
-printf("Property #%d %s (%s) · TIN %s · business date %s%s%s", $h->id, $h->name, $h->country,
-    $h->tax_number ?: '(none)', bdate()->toDateString(), PHP_EOL, PHP_EOL);
+// whatever the record is when the harness starts is what it must be when it ends — the seed decides, not this file
+$shipped = [(bool) $h->vat_registered, (string) $h->vat_supply_kind, $h->vat_registered_at?->toDateString(), (bool) $h->supports_e_invoicing];
+printf("Property #%d %s (%s) · TIN %s · business date %s · registration %s%s%s", $h->id, $h->name, $h->country,
+    $h->tax_number ?: '(none)', bdate()->toDateString(), json_encode($shipped), PHP_EOL, PHP_EOL);
 
 /** Put the property into a known registration state, the way the hotel settings form would. */
 $set = function (bool $registered, string $kind, ?string $since = null, bool $einvoicing = true) use ($h) {
@@ -86,8 +88,10 @@ try {
 
     // ── 3. the status for each supply kind ──
     printf("%s — Act 1151 status by what the property supplies%s", 'The test', PHP_EOL);
+    $set($shipped[0], $shipped[1], $shipped[2], $shipped[3]);
     $r = GstService::vatRegistration(true);
-    $ok('  the shipped record: a registered services property', [$r['status'], $r['supply_kind'], $r['threshold']], ['registered', 'services', null]);
+    $ok('  the record as seeded reads back as it was written', [$r['registered'], $r['supply_kind'], $r['registered_at'], $r['supports_e_invoicing']], $shipped);
+    $ok('  a registered services property has no threshold', [$r['status'], $r['threshold']], ['registered', null]);
     $ok('  …has no threshold, because services have none', $r['threshold_label'], 'None — services must register');
     $ok('  …names the Act and its effective date', $r['act'], 'Value Added Tax Act, 2025 (Act 1151), effective 1 January 2026');
     $ok('  a registered property may submit', EInvoiceService::registrationBlocker(), null);
@@ -166,9 +170,7 @@ try {
 }
 
 $after = hotel()->fresh();
-// the migration backfilled both demo hotels: a TIN was already on file, so they were treated as registered
-$ok('the record is back as it was', [(bool) $after->vat_registered, $after->vat_supply_kind, $after->vat_registered_at, (bool) $after->supports_e_invoicing],
-    [true, 'services', null, true]);
+$ok('the record is back as it was', [(bool) $after->vat_registered, $after->vat_supply_kind, $after->vat_registered_at?->toDateString(), (bool) $after->supports_e_invoicing], $shipped);
 $ok('a registered property may submit again', EInvoiceService::registrationBlocker(), null);
 
 printf("%s%d passed, %d failed%s", PHP_EOL, $pass, $fail, PHP_EOL);

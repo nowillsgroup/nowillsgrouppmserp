@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use App\Support\Tenant;
 
 /**
  * Monthly payroll.
@@ -80,6 +81,11 @@ class PayrollService
     /** Default pay structure & leave types for a property (idempotent; existing codes are never touched). */
     public static function ensureDefaults(): void
     {
+        // pay components and account heads belong to a property, and hotel_id is stamped from the current hotel, so a
+        // migration or CLI run with no tenant must not write them — provisioning and the seeders set one first
+        if (! Tenant::check()) {
+            return;
+        }
         ChartOfAccounts::ensureLight();
         $sys = fn ($k) => AccountHead::sys($k);
         $defs = [

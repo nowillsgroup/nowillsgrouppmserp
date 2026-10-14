@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Hotel;
 use App\Services\PayrollService;
+use App\Support\Tenant;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -27,7 +29,14 @@ return new class extends Migration
             $t->string('paye_basis', 255)->nullable()->change();
         });
 
-        PayrollService::ensureDefaults();
+        // pay_components and account_heads are per property and hotel_id is stamped from the current hotel, which a
+        // migration does not have — so walk the properties that exist. On a from-scratch database there are none yet,
+        // and HotelProvisioner::provision() seeds both for each property as it is created.
+        foreach (Hotel::all() as $property) {
+            Tenant::set($property);
+            PayrollService::ensureDefaults();
+        }
+        Tenant::set(null);
     }
 
     public function down(): void

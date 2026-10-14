@@ -1,7 +1,7 @@
 # Nowills PMS — feature and module gap audit
 
 **Audited:** 14 October 2026 (reconciled against the running code, v7.51) · 11 October 2026 (follow-up) · 8 October 2026 (baseline)  
-**Branch / verified application source:** `arena/49a44449-nowillsgrouppmserp` @ v7.52 (`c32e943` plus this release's working tree) — `config('pms.version')` 7.52.0, Laravel 13.33.0 on PHP 8.5.11  
+**Branch / verified application source:** `arena/49a44449-nowillsgrouppmserp` @ v7.52 (`c32e943` plus this release's working tree) — `config('pms.version')` 7.52.1, Laravel 13.33.0 on PHP 8.5.11  
 **Audit type:** full code read + parity check against the pre-October Nowills PMS/ERP feature set  
 **Audit method:** every module's routes/controllers/services/views read from source; the gap checklist below enumerates every area where the old PMS/ERP behaved differently or did more; package requirements verified against `composer.json` and runtime checks — the application ships no npm build, so there is no root `package.json`; the only one in the repository is `deploy/dev/package.json`, which belongs to the dev runtime, and the front end is plain CSS and JavaScript under `public/`.
 

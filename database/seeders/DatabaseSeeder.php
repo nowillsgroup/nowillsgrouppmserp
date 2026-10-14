@@ -28,11 +28,14 @@ class DatabaseSeeder extends Seeder
             'phone' => '+233 30 274 1234', 'email' => 'frontoffice@nowills.example', 'website' => 'www.nowills.example', 'tax_number' => 'C0001234567',
             'currency' => 'GHS', 'currency_symbol' => 'GH₵', 'timezone' => 'Africa/Accra', 'business_date' => $today->toDateString(),
             'invoice_footer' => 'Thank you for staying with us. Check-out time 11:00 AM. This is a computer generated invoice.',
+            // v7.52 on the GRA VAT register since before the demo window: a supplier of services has no threshold (Act 1151)
+            'vat_registered' => true, 'vat_registered_at' => '2019-04-01', 'vat_supply_kind' => 'services', 'supports_e_invoicing' => true,
         ]);
         $resort = Models\Hotel::create([
             'hotel_group_id' => $group->id, 'code' => 'NWRESORT', 'name' => 'Nowills Lake Resort', 'property_type' => 'resort',
             'address' => 'Kokrobite Beach Road', 'city' => 'Kokrobite', 'state' => 'Greater Accra', 'country' => 'Ghana', 'phone' => '+233 30 290 5678', 'tax_number' => 'C0007654321',
             'email' => 'resort@nowills.example', 'currency' => 'GHS', 'currency_symbol' => 'GH₵', 'timezone' => 'Africa/Accra', 'business_date' => $today->toDateString(),
+            'vat_registered' => true, 'vat_supply_kind' => 'services', 'supports_e_invoicing' => true,   // registered, no date on file
         ]);
 
         foreach ([$main, $resort] as $h) {
