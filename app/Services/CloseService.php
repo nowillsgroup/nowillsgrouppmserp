@@ -336,7 +336,7 @@ class CloseService
                 if ($accts->isEmpty()) {
                     return ['na', 'Bank reconciliation not in use for '.$mon.'.'];
                 }
-                $missing = $accts->reject(fn ($a) => \App\Models\BankStatement::where('account_head_id', $a)->where('status', 'reconciled')->where('period_to', '>=', $E)->exists());
+                $missing = $accts->reject(fn ($a) => \App\Models\BankStatement::where('account_head_id', $a)->where('status', 'reconciled')->whereDate('period_to', '>=', $E)->exists());
                 if ($missing->isEmpty()) {
                     return ['pass', $accts->count().' account(s) reconciled to '.dmy($E).'.'];
                 }
@@ -356,8 +356,8 @@ class CloseService
                 if ($pdc) {
                     $notes[] = $pdc.' post-dated cheque(s) due by '.dmy($E).' not yet banked';
                 }
-                $old = \App\Models\ChequeReceived::whereNotNull('recognised_on')->where('recognised_on', '<=', Carbon::parse($E)->subDays(7)->toDateString())
-                    ->where(fn ($q) => $q->whereNull('left_on')->orWhere('left_on', '>', $E))->count();
+                $old = \App\Models\ChequeReceived::whereNotNull('recognised_on')->whereDate('recognised_on', '<=', Carbon::parse($E)->subDays(7)->toDateString())
+                    ->where(fn ($q) => $q->whereNull('left_on')->orWhereDate('left_on', '>', $E))->count();
                 if ($old) {
                     $notes[] = $old.' cheque(s) held more than a week at month end';
                 }
@@ -380,7 +380,7 @@ class CloseService
 
             case 'concierge': // v5.9 – warn only: open activity bookings dated in the month keep commission out of the books
                 $S = Carbon::parse($p->period.'-01')->toDateString();
-                $open = \App\Models\ActivityBooking::whereIn('status', \App\Models\ActivityBooking::OPEN)->whereBetween('date', [$S, $E])->count();
+                $open = \App\Models\ActivityBooking::whereIn('status', \App\Models\ActivityBooking::OPEN)->whereDate('date', '>=', $S)->whereDate('date', '<=', $E)->count();
                 if (! \App\Models\ActivityBooking::whereBetween('date', [$S, $E])->exists()) {
                     return ['na', 'No activity bookings this month.'];
                 }

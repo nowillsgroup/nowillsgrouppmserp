@@ -601,7 +601,7 @@ class IptvService
     /** today's banquet functions for the lobby screens */
     public static function eventsToday(): array
     {
-        return BanquetFunction::with(['event', 'hall'])->where('date', bdate()->toDateString())
+        return BanquetFunction::with(['event', 'hall'])->whereDate('date', bdate()->toDateString())
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['definite', 'completed']))->orderBy('start_time')->get()
             ->map(fn ($f) => ['name' => $f->event?->title ?: $f->name, 'function' => $f->name, 'hall' => $f->hall?->name,
                 'from' => substr((string) $f->start_time, 0, 5), 'to' => substr((string) $f->end_time, 0, 5)])->values()->all();

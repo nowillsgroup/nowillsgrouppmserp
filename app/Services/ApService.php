@@ -489,7 +489,7 @@ class ApService
             $r['oldest'] = max($r['oldest'], $days);
             unset($r);
         }
-        foreach (SupplierPayment::with('supplier')->whereNull('cancelled_at')->where('date', '<=', $asOf)->whereColumn('allocated', '<', 'amount')
+        foreach (SupplierPayment::with('supplier')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->whereColumn('allocated', '<', 'amount')
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $p) {
             $r = &$rows[$row($p->supplier)];
             $r['credit'] += $p->unapplied();
@@ -537,7 +537,7 @@ class ApService
             $rows->push(['date' => $p->date->toDateString(), 'doc' => $p->payment_no, 'type' => 'Payment – '.($p->paymentMode?->name ?? ''), 'ref' => $p->reference, 'dr' => (float) $p->amount, 'cr' => 0.0, 'link' => route('ap.payments.show', $p)]);
         }
         $rows = $rows->sortBy(fn ($r) => $r['date'].'|'.$r['doc'])->values();
-        $opening = round($rows->where('date', '<', $from)->sum(fn ($r) => $r['cr'] - $r['dr']), 2);
+        $opening = round($rows->where('date', '<', $from)->sum(fn ($r) => $r['cr'] - $r['dr']), 2); // Collection of arrays, 'date' is already Y-m-d
         $bal = $opening;
         $period = $rows->filter(fn ($r) => $r['date'] >= $from && $r['date'] <= $to)->map(function ($r) use (&$bal) {
             $bal = round($bal + $r['cr'] - $r['dr'], 2);
@@ -556,8 +556,8 @@ class ApService
         $bills = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial', 'paid'])->whereDate('doc_date', '<=', $asOf)->get()
             ->sum(fn ($b) => $b->kind === 'goods' ? $b->variance() : (float) $b->total);
         $dn = SupplierInvoice::where('type', 'debit_note')->where('status', '!=', 'cancelled')->whereDate('doc_date', '<=', $asOf)->sum('total');
-        $paid = SupplierPayment::whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('amount');
-        $vouchers = Voucher::where('type', 'payment')->where('account_head_id', AccountHead::sys('accounts_payable'))->where('date', '<=', $asOf)->sum('amount');
+        $paid = SupplierPayment::whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('amount');
+        $vouchers = Voucher::where('type', 'payment')->where('account_head_id', AccountHead::sys('accounts_payable'))->whereDate('date', '<=', $asOf)->sum('amount');
 
         return round((float) $grn + (float) $bills - (float) $dn - (float) $paid - (float) $vouchers, 2);
     }

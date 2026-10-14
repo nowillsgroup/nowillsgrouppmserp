@@ -122,7 +122,7 @@ class LogBookService
     /** pinned entries still in force */
     public static function pinnedQuery()
     {
-        return LogEntry::where('pinned', true)->where(fn ($q) => $q->whereNull('pinned_until')->orWhere('pinned_until', '>=', bdate()->toDateString()));
+        return LogEntry::where('pinned', true)->where(fn ($q) => $q->whereNull('pinned_until')->orWhereDate('pinned_until', '>=', bdate()->toDateString()));
     }
 
     /** the hand-over: what happened since the previous shift started + everything still open + pinned notes */

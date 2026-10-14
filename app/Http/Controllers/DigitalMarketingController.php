@@ -262,7 +262,7 @@ class DigitalMarketingController extends Controller
     public function channels()
     {
         $all = DmChannel::with('owner', 'auditor')->orderByDesc('is_active')->orderBy('name')->get();
-        $prev = DmChannelStat::whereIn('channel_id', $all->pluck('id')->all() ?: [0])->where('month', bdate()->copy()->startOfMonth()->subMonthNoOverflow()->toDateString())->pluck('followers', 'channel_id');
+        $prev = DmChannelStat::whereIn('channel_id', $all->pluck('id')->all() ?: [0])->whereDate('month', bdate()->copy()->startOfMonth()->subMonthNoOverflow()->toDateString())->pluck('followers', 'channel_id');
 
         return view('digital.channels', ['groups' => $all->groupBy(fn ($c) => $c->kind()), 'prev' => $prev, 'people' => $this->people()]);
     }

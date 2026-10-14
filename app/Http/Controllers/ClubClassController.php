@@ -34,7 +34,7 @@ class ClubClassController extends Controller
         $d['residents'] = $request->boolean('residents');
         $d['is_active'] = $request->boolean('is_active');
         if ($clubclass && ((int) $d['weekday'] !== (int) $clubclass->weekday || $d['start_time'] !== substr($clubclass->start_time, 0, 5))
-            && ClubBooking::where('club_class_id', $clubclass->id)->where('date', '>=', bdate()->toDateString())->whereIn('status', ['booked', 'waitlist'])->exists()) {
+            && ClubBooking::where('club_class_id', $clubclass->id)->whereDate('date', '>=', bdate()->toDateString())->whereIn('status', ['booked', 'waitlist'])->exists()) {
             return back()->with('error', 'This class has upcoming bookings – cancel them before moving the day or time, or add a new class.');
         }
         $c = $clubclass ? tap($clubclass)->update($d) : ClubClass::create($d);
@@ -47,7 +47,7 @@ class ClubClassController extends Controller
     {
         $d = Carbon::parse($date);
         abort_unless((int) $d->isoWeekday() === (int) $clubclass->weekday, 404);
-        $bookings = ClubBooking::with('member.membership', 'stay.room')->where('club_class_id', $clubclass->id)->where('date', $d->toDateString())
+        $bookings = ClubBooking::with('member.membership', 'stay.room')->where('club_class_id', $clubclass->id)->whereDate('date', $d->toDateString())
             ->orderByRaw("field(status,'booked','attended','no_show','waitlist','cancelled')")->orderBy('position')->orderBy('id')->get();
 
         return view('club.session', ['c' => $clubclass->load('employee'), 'date' => $d, 'bookings' => $bookings, 'start' => ClubClassService::sessionStart($clubclass, $d->toDateString()),

@@ -142,7 +142,7 @@ class FrontDeskOpsService
             'log_urgent' => LogEntry::where('status', 'open')->where('priority', 'urgent')->count(),
             'log_follow_ups' => LogEntry::where('status', 'open')->whereNotNull('follow_up_at')->where('follow_up_at', '<=', now())->count(),
             'lf_stored' => LostFoundItem::where('status', 'stored')->count(),
-            'lf_due' => LostFoundItem::where('status', 'stored')->whereNotNull('retain_until')->where('retain_until', '<=', $today)->count(),
+            'lf_due' => LostFoundItem::where('status', 'stored')->whereNotNull('retain_until')->whereDate('retain_until', '<=', $today)->count(),
             'lf_reports' => LostReport::where('status', 'open')->count(),
         ];
     }

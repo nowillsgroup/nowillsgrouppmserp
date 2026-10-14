@@ -668,11 +668,11 @@ class PrivacyService
             'dining' => \App\Models\TableReservation::when($c['msg'], fn ($q) => $q->where('start_at', '<', $c['msg'])->whereNotIn('status', ['booked', 'confirmed', 'waiting', 'notified', 'seated'])
                 ->where(fn ($w) => $w->whereNotNull('phone')->orWhereNotNull('email')->orWhereNotNull('notes')), $none),
             'inactive' => Guest::whereNull('privacy_status')->when($c['inactive'], fn ($q) => $q->where('created_at', '<', $c['inactive'])
-                ->where(fn ($w) => $w->whereNull('last_stay_on')->orWhere('last_stay_on', '<', $c['inactive']->toDateString()))
+                ->where(fn ($w) => $w->whereNull('last_stay_on')->orWhereDate('last_stay_on', '<', $c['inactive']->toDateString()))
                 ->whereNotIn('id', Reservation::whereNotNull('guest_id')->where(fn ($w) => $w->where('created_at', '>=', $c['inactive'])->orWhere(fn ($x) => $busy($x, $c['inactive'])))->select('guest_id'))
                 ->whereNotIn('id', ReservationRoom::whereNotNull('guest_id')->where(fn ($w) => $busy($w, $c['inactive']))->select('guest_id'))
                 ->whereNotIn('id', Folio::where('status', 'open')->whereNotNull('guest_id')->select('guest_id')), $none),
-            'holds_ended' => Guest::where('privacy_status', 'restricted')->whereNotNull('legal_hold_until')->where('legal_hold_until', '<=', bdate()->toDateString()),
+            'holds_ended' => Guest::where('privacy_status', 'restricted')->whereNotNull('legal_hold_until')->whereDate('legal_hold_until', '<=', bdate()->toDateString()),
             'unverified' => PrivacyRequest::where('status', 'unverified')->where('created_at', '<', $c['unverified']),
         ];
     }
@@ -746,8 +746,8 @@ class PrivacyService
         $today = bdate()->toDateString();
         $pending = DataBreach::where('notifiable', true)->whereNull('authority_notified_at')->where('status', '!=', 'closed')->get();
 
-        return ['overdue' => PrivacyRequest::where('status', 'open')->where('due_on', '<', $today)->count(),
-            'due_soon' => PrivacyRequest::where('status', 'open')->whereBetween('due_on', [$today, bdate()->copy()->addDays(7)->toDateString()])->count(),
+        return ['overdue' => PrivacyRequest::where('status', 'open')->whereDate('due_on', '<', $today)->count(),
+            'due_soon' => PrivacyRequest::where('status', 'open')->whereDate('due_on', '>=', $today)->whereDate('due_on', '<=', bdate()->copy()->addDays(7)->toDateString())->count(),
             'breach' => $pending->count(), 'breach_overdue' => $pending->filter(fn ($b) => $b->deadline()->isPast())->count(),
             'breach_next' => $pending->sortBy(fn ($b) => $b->deadline())->first()];
     }

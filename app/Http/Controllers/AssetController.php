@@ -24,7 +24,7 @@ class AssetController extends Controller
             ->when(in_array($status, array_keys(Asset::STATUSES)), fn ($w) => $w->where('status', $status))
             ->when($request->filled('category'), fn ($w) => $w->where('asset_category_id', $request->integer('category')))
             ->when($request->filled('department'), fn ($w) => $w->where('department', $request->department))
-            ->when($request->input('warranty') === 'expiring', fn ($w) => $w->whereBetween('warranty_until', [bdate()->toDateString(), bdate()->copy()->addDays(60)->toDateString()]))
+            ->when($request->input('warranty') === 'expiring', fn ($w) => $w->whereDate('warranty_until', '>=', bdate()->toDateString())->whereDate('warranty_until', '<=', bdate()->copy()->addDays(60)->toDateString()))
             ->when($request->filled('q'), function ($w) use ($request) {
                 $term = '%'.$request->q.'%';
                 $w->where(fn ($x) => $x->where('name', 'like', $term)->orWhere('asset_no', 'like', $term)->orWhere('serial_no', 'like', $term)

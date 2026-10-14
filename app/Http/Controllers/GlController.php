@@ -44,7 +44,7 @@ class GlController extends Controller
     {
         $to = $request->input('to', bdate()->toDateString());
         $from = $request->input('from', Carbon::parse($to)->subDays(30)->toDateString());
-        $journals = GlJournal::withCount('lines')->whereBetween('date', [$from, $to])
+        $journals = GlJournal::withCount('lines')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->when($request->source, fn ($q, $s) => $q->where('source_type', $s))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('journal_no', 'like', "%{$s}%")->orWhere('reference', 'like', "%{$s}%")->orWhere('narration', 'like', "%{$s}%")))
             ->latest('date')->latest('id')->paginate(50)->withQueryString();

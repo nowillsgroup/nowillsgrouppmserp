@@ -77,7 +77,7 @@ class CloseController extends Controller
 
         return view('close.show', [
             'p' => $p, 'tasks' => $p->tasks, 'due' => $p->status === 'open' ? CS::due($month) : collect(),
-            'postings' => PeriodPosting::with('journal', 'accrual', 'recurring')->where(fn ($q) => $q->where('period', $month)->orWhereBetween('date', [$p->start()->toDateString(), $E]))->orderBy('date')->orderBy('id')->get(),
+            'postings' => PeriodPosting::with('journal', 'accrual', 'recurring')->where(fn ($q) => $q->where('period', $month)->orWhere(fn ($b) => $b->whereDate('date', '>=', $p->start()->toDateString())->whereDate('date', '<=', $E)))->orderBy('date')->orderBy('id')->get(),
             'blockers' => $p->status === 'open' ? CS::blockers($p) : [], 'lock' => LedgerService::lockDate(), 'lastClosed' => CS::lastClosed(),
             'prev' => $month > CS::startPeriod() ? CS::prev($month) : null, 'next' => $month < CS::currentPeriod() ? CS::next($month) : null, 'prevRow' => $prevRow,
             'pnl' => \App\Services\GlReportService::profitLoss($p->start()->toDateString(), $E), 'yearClose' => $p->isYearEnd() ? CS::yearClose((int) $p->fiscal_year) : null,

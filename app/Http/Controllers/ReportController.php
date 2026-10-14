@@ -529,7 +529,7 @@ class ReportController extends Controller
     {
         $std = ['BASIC', 'OT', 'SSNIT', 'PAYE', 'ADV'];
         $rows = \App\Models\Payslip::with('employee.department', 'run', 'lines')
-            ->whereHas('run', fn ($q) => $q->whereBetween('period_start', [$from->copy()->startOfMonth()->toDateString(), $to->toDateString()]))
+            ->whereHas('run', fn ($q) => $q->whereDate('period_start', '>=', $from->copy()->startOfMonth()->toDateString())->whereDate('period_start', '<=', $to->toDateString()))
             ->get()->sortBy(fn ($p) => $p->run->period_start->format('Ymd').$p->employee->emp_code)->values()
             ->map(function ($p) use ($std) {
                 $by = $p->lines->groupBy('code')->map(fn ($g) => (float) $g->sum('amount'));
@@ -597,7 +597,7 @@ class ReportController extends Controller
 
     protected function r_statutory_remittances($from, $to): array
     {
-        $rows = \App\Models\StatutoryRemittance::with('paymentMode', 'creator')->whereBetween('paid_on', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
+        $rows = \App\Models\StatutoryRemittance::with('paymentMode', 'creator')->whereDate('paid_on', '>=', Carbon::parse($from)->toDateString())->whereDate('paid_on', '<=', Carbon::parse($to)->toDateString())
             ->orderBy('paid_on')->orderBy('id')->get()->map(function ($r) {
                 $due = \App\Services\StatutoryService::due($r->kind, $r->period);
                 $late = $r->paid_on->gt($due) ? (int) $due->diffInDays($r->paid_on) : 0;
@@ -616,7 +616,7 @@ class ReportController extends Controller
     /** v4.6: latest statement of each account ending on or before the date */
     protected function recStatements($to)
     {
-        return \App\Services\BankRecService::accounts()->map(fn ($a) => [$a, \App\Models\BankStatement::where('account_head_id', $a->id)->where('period_to', '<=', $to->toDateString())
+        return \App\Services\BankRecService::accounts()->map(fn ($a) => [$a, \App\Models\BankStatement::where('account_head_id', $a->id)->whereDate('period_to', '<=', $to->toDateString())
             ->orderByDesc('period_to')->orderByDesc('id')->first()]);
     }
 
@@ -670,7 +670,7 @@ class ReportController extends Controller
     protected function r_bank_statement_lines($from, $to): array
     {
         $types = ['reference' => 'Auto – reference', 'amount' => 'Auto – amount', 'group' => 'Auto – batch', 'manual' => 'By hand', 'entry' => 'Booked from statement'];
-        $rows = \App\Models\BankStatementLine::with('statement.account', 'glLines.journal')->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+        $rows = \App\Models\BankStatementLine::with('statement.account', 'glLines.journal')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
             ->orderBy('date')->orderBy('id')->get()->map(fn ($l) => ['date' => $l->date->format('d M Y'), 'account' => $l->statement->account->code, 'statement' => $l->statement->statement_no,
                 'details' => $l->description, 'ref' => $l->reference, 'in' => $l->amount > 0 ? (float) $l->amount : null, 'out' => $l->amount < 0 ? -(float) $l->amount : null,
                 'status' => ucfirst($l->status), 'how' => $types[$l->match_type] ?? ($l->status === 'ignored' ? $l->ignore_reason : ''), 'journals' => $l->glLines->map(fn ($g) => $g->journal->journal_no)->unique()->implode(', ')]);
@@ -707,7 +707,7 @@ class ReportController extends Controller
     protected function r_petty_expenses($from, $to): array
     {
         $floats = \App\Models\PettyFloat::orderBy('code')->get();
-        $txns = \App\Models\PettyTxn::with('head')->where('status', 'posted')->whereIn('type', ['expense', 'settle'])->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get()
+        $txns = \App\Models\PettyTxn::with('head')->where('status', 'posted')->whereIn('type', ['expense', 'settle'])->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->get()
             ->filter(fn ($t) => $t->type === 'expense' || (float) $t->spent > 0);
         $rows = $txns->groupBy('expense_head_id')->map(function ($g) use ($floats) {
             $r = ['account' => $g->first()->head?->label ?? '—'];
@@ -744,7 +744,7 @@ class ReportController extends Controller
     protected function r_payroll_statutory($from, $to): array
     {
         $lines = \App\Models\PayslipLine::with('payslip.run')->whereIn('kind', ['deduction', 'employer'])->whereNull('staff_advance_id')->where('is_manual', false)
-            ->whereHas('payslip.run', fn ($q) => $q->whereIn('status', ['approved', 'paid'])->whereBetween('period_start', [$from->copy()->startOfMonth()->toDateString(), $to->toDateString()]))->get();
+            ->whereHas('payslip.run', fn ($q) => $q->whereIn('status', ['approved', 'paid'])->whereDate('period_start', '>=', $from->copy()->startOfMonth()->toDateString())->whereDate('period_start', '<=', $to->toDateString()))->get();
         $heads = \App\Models\AccountHead::pluck('name', 'id');
         $rows = $lines->groupBy(fn ($l) => $l->payslip->run->period_start->format('Y-m').'|'.$l->liability_head_id)->map(function ($g) use ($heads) {
             $run = $g->first()->payslip->run;
@@ -808,7 +808,7 @@ class ReportController extends Controller
     protected function r_linen_losses($from, $to): array
     {
         $rows = \App\Models\LinenMovement::with('linen', 'batch.supplier', 'user')->whereIn('type', ['discard', 'lost'])
-            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->orderBy('id')->get()
+            ->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->orderBy('id')->get()
             ->map(fn ($m) => ['date' => $m->date->format('d-m-Y'), 'code' => $m->linen?->code, 'name' => $m->linen?->name, 'type' => \App\Models\LinenMovement::TYPES[$m->type],
                 'where' => \App\Models\LinenType::LOCATIONS[$m->from_loc] ?? $m->from_loc, 'batch' => $m->batch ? $m->batch->batch_no.' – '.($m->batch->supplier?->name ?? 'in-house') : '',
                 'qty' => (int) $m->qty, 'value' => (float) $m->value, 'reason' => $m->reason, 'by' => $m->user?->name])->values();
@@ -821,7 +821,7 @@ class ReportController extends Controller
     protected function assetAcc(string $asOf, ?string $after = null): \Illuminate\Support\Collection
     {
         return \App\Models\AssetDepLine::query()->join('asset_dep_runs as r', 'r.id', '=', 'asset_dep_lines.asset_dep_run_id')
-            ->where('r.status', 'posted')->where('r.period_end', '<=', $asOf)->when($after, fn ($q) => $q->where('r.period_end', '>', $after))
+            ->where('r.status', 'posted')->whereDate('r.period_end', '<=', $asOf)->when($after, fn ($q) => $q->whereDate('r.period_end', '>', $after))
             ->groupBy('asset_dep_lines.asset_id')->selectRaw('asset_dep_lines.asset_id, SUM(asset_dep_lines.amount) amt')->pluck('amt', 'asset_id');
     }
 
@@ -859,7 +859,7 @@ class ReportController extends Controller
         $f = $from->toDateString();
         $t = $to->toDateString();
         $issues = \App\Models\StoreIssue::whereBetween('date', [$f, $t])->get()->groupBy('department_id');
-        $adhoc = \App\Models\StockMovement::with('item')->where('type', 'issue')->whereNull('store_issue_id')->whereNotNull('department_id')->whereBetween('date', [$f, $t])->get()
+        $adhoc = \App\Models\StockMovement::with('item')->where('type', 'issue')->whereNull('store_issue_id')->whereNotNull('department_id')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->get()
             ->groupBy('department_id')->map(fn ($g) => round($g->sum(fn ($m) => -(float) $m->qty * ((float) $m->rate ?: (float) $m->item?->last_cost)), 2));
         $reqCount = \App\Models\Requisition::whereDate('req_date', '>=', $f)->whereDate('req_date', '<=', $t)->whereNotIn('status', ['draft', 'cancelled'])->selectRaw('department_id, COUNT(*) n')->groupBy('department_id')->pluck('n', 'department_id');
         $occupied = (int) \App\Models\NightAudit::whereDate('business_date', '>=', $f)->whereDate('business_date', '<=', $t)->sum('rooms_occupied');
@@ -992,7 +992,7 @@ class ReportController extends Controller
     protected function r_leave_register($from, $to): array
     {
         $rows = \App\Models\LeaveRequest::with('employee.department', 'leaveType', 'decider')
-            ->where('date_from', '<=', $to->toDateString())->where('date_to', '>=', $from->toDateString())->orderBy('date_from')->get()
+            ->whereDate('date_from', '<=', $to->toDateString())->whereDate('date_to', '>=', $from->toDateString())->orderBy('date_from')->get()
             ->map(fn ($r) => ['employee' => $r->employee->name, 'code' => $r->employee->emp_code, 'dept' => $r->employee->department?->name, 'type' => $r->leaveType->code.' – '.$r->leaveType->name,
                 'paid' => $r->leaveType->is_paid ? 'Paid' : 'Unpaid', 'from' => $r->date_from->format('d-m-Y'), 'to' => $r->date_to->format('d-m-Y'), 'days' => (float) $r->days,
                 'status' => ucfirst($r->status), 'reason' => $r->reason, 'decided' => $r->decider ? $r->decider->name.' '.$r->decided_at?->format('d-m-Y') : '', 'note' => $r->decision_note]);
@@ -1200,7 +1200,7 @@ class ReportController extends Controller
         $T = $to->toDateString();
         $CR = \App\Models\ChequeReceived::class;
         $CI = \App\Models\ChequeIssued::class;
-        $in = $CR::with('transfer')->whereBetween('received_on', [$F, $T])->orderBy('received_on')->get()->map(fn ($c) => ['dir' => 'Received', 'date' => $c->received_on->format('d M Y'), 'no' => $c->cheque_no,
+        $in = $CR::with('transfer')->whereDate('received_on', '>=', $F)->whereDate('received_on', '<=', $T)->orderBy('received_on')->get()->map(fn ($c) => ['dir' => 'Received', 'date' => $c->received_on->format('d M Y'), 'no' => $c->cheque_no,
             'party' => $c->party(), 'bank' => $c->bank_name, 'cheque_date' => $c->cheque_date->format('d M Y'), 'amount' => (float) $c->amount, 'status' => $CR::STATUSES[$c->status],
             'ref' => trim($c->number.' '.($c->transfer?->number ?? '')), 'note' => $c->bounce_reason, '_class' => $c->status === 'bounced' ? 'bold-row' : '']);
         $out = $CI::with('book.account')->whereDate('cheque_date', '>=', $F)->whereDate('cheque_date', '<=', $T)->orderBy('cheque_date')->get()->map(fn ($c) => ['dir' => 'Written', 'date' => $c->cheque_date->format('d M Y'), 'no' => $c->cheque_no,
@@ -1217,7 +1217,7 @@ class ReportController extends Controller
     protected function r_transfer_register($from, $to): array
     {
         $TT = \App\Models\TreasuryTransfer::class;
-        $rows = $TT::with('from', 'to', 'requester', 'approver')->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->orderBy('id')->get()
+        $rows = $TT::with('from', 'to', 'requester', 'approver')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->orderBy('id')->get()
             ->map(fn ($t) => ['no' => $t->number, 'date' => $t->date->format('d M Y'), 'kind' => $TT::KINDS[$t->kind], 'from' => $t->from?->name, 'to' => $t->to?->name, 'amount' => (float) $t->amount,
                 'fee' => (float) $t->fee ?: null, 'variance' => abs((float) $t->variance) >= 0.005 ? (float) $t->variance : null, 'status' => $TT::STATUSES[$t->status],
                 'sent' => $t->dispatched_on?->format('d M'), 'credited' => $t->completed_on && $t->status === 'completed' ? $t->completed_on->format('d M') : '',
@@ -1314,7 +1314,7 @@ class ReportController extends Controller
     protected function r_management_fees($from, $to): array
     {
         $F = \App\Models\OwnerFee::class;
-        $fees = $F::with('paidAccount')->whereBetween('period', [$from->format('Y-m'), $to->format('Y-m')])->orderBy('period')->get();
+        $fees = $F::with('paidAccount')->whereBetween('period', [$from->format('Y-m'), $to->format('Y-m')])->orderBy('period')->get(); // period is a 'Y-m' string
         $rows = $fees->map(fn ($f) => ['month' => $f->label(), 'revenue' => (float) $f->total_revenue, 'base' => (float) $f->base_fee, 'ffe' => (float) $f->ffe_amount, 'gop' => (float) $f->gop, 'agop' => (float) $f->agop,
             'agop_ytd' => (float) $f->agop_ytd, 'priority' => (float) $f->priority_ytd, 'incentive' => (float) $f->incentive_fee, 'total' => (float) $f->total_fee, 'status' => $F::STATUSES[$f->status],
             'paid' => $f->status === 'paid' ? $f->paid_on?->format('d M Y').' '.$f->paidAccount?->name : ($f->status === 'accrued' ? 'due '.$f->dueOn()->format('d M Y') : $f->reversal_note), '_class' => $f->status === 'reversed' ? 'muted' : '']);
@@ -1355,7 +1355,7 @@ class ReportController extends Controller
     {
         $CP = \App\Models\ClosePeriod::class;
         $rows = $CP::with('preparer', 'closer')->withCount(['tasks', 'tasks as cleared_count' => fn ($q) => $q->whereIn('status', \App\Models\CloseTask::CLEARED), 'tasks as waived_count' => fn ($q) => $q->where('status', 'waived')])
-            ->whereBetween('period', [$from->format('Y-m'), $to->format('Y-m')])->orderBy('period')->get()
+            ->whereBetween('period', [$from->format('Y-m'), $to->format('Y-m')])->orderBy('period')->get() // period is a 'Y-m' string
             ->map(fn ($p) => ['period' => $p->label(), 'fy' => \App\Services\BudgetService::fyLabel($p->fiscal_year).' · M'.$p->fiscal_month, 'status' => $CP::STATUSES[$p->status],
                 'tasks' => $p->cleared_count.' / '.$p->tasks_count, 'waived' => $p->waived_count, 'prepared' => $p->preparer ? $p->preparer->name.' · '.$p->prepared_at?->format('d M Y') : '',
                 'closed' => $p->closer ? $p->closer->name.' · '.$p->closed_at?->format('d M Y') : '', 'days' => $p->closed_at ? max(0, (int) $p->end()->diffInDays($p->closed_at->copy()->startOfDay())) : null,
@@ -1390,7 +1390,7 @@ class ReportController extends Controller
 
     protected function r_period_end_postings($from, $to): array
     {
-        $rows = \App\Models\PeriodPosting::with('journal', 'accrual', 'recurring')->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->orderBy('id')->get()
+        $rows = \App\Models\PeriodPosting::with('journal', 'accrual', 'recurring')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->orderBy('id')->get()
             ->map(fn ($p) => ['date' => $p->date->format('d-m-Y'), 'source' => $p->source === 'accrual' ? \App\Models\Accrual::TYPES[$p->accrual?->type ?? 'accrual'] : 'Recurring journal',
                 'item' => $p->sourceLabel(), 'period' => Carbon::parse($p->period.'-01')->format('M Y'), 'kind' => $p->kind === 'reverse' ? 'Auto-reversal' : 'Posting', 'amount' => (float) $p->amount, 'journal' => $p->journal?->journal_no]);
 
@@ -1634,7 +1634,7 @@ class ReportController extends Controller
 
     protected function r_key_card_audit($from, $to): array
     {
-        $rows = \App\Models\KeyCard::with('room', 'issuer', 'fee')->whereBetween('valid_from', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->orderBy('valid_from')->get()
+        $rows = \App\Models\KeyCard::with('room', 'issuer', 'fee')->whereDate('valid_from', '>=', $from->copy()->startOfDay())->whereDate('valid_from', '<=', $to->copy()->endOfDay())->orderBy('valid_from')->get()
             ->map(fn ($k) => ['card' => $k->card_no, 'room' => $k->room?->room_no, 'holder' => $k->holder, 'type' => \App\Models\KeyCard::TYPES[$k->type] ?? $k->type, 'serial' => $k->serial,
                 'issued' => $k->valid_from->format('d-m-Y H:i'), 'until' => $k->valid_until->format('d-m-Y H:i'), 'status' => $k->statusLabel(), 'note' => $k->status_note,
                 'by' => $k->issuer?->name, 'fee' => $k->fee && ! $k->fee->is_void ? (float) $k->fee->amount : null]);
@@ -1660,7 +1660,7 @@ class ReportController extends Controller
 
     protected function r_gift_voucher_register($from, $to): array
     {
-        $rows = \App\Models\GiftVoucher::with('type', 'paymentMode', 'issuer', 'transactions')->whereBetween('issued_on', [$from->toDateString(), $to->toDateString()])->orderBy('issued_on')->orderBy('id')->get()
+        $rows = \App\Models\GiftVoucher::with('type', 'paymentMode', 'issuer', 'transactions')->whereDate('issued_on', '>=', $from->toDateString())->whereDate('issued_on', '<=', $to->toDateString())->orderBy('issued_on')->orderBy('id')->get()
             ->map(fn ($v) => ['code' => $v->code, 'type' => $v->type?->name, 'source' => $v->source === 'promo' ? 'Promo'.($v->campaign ? ': '.$v->campaign : '') : 'Sold', 'purchaser' => $v->purchaser_name, 'recipient' => $v->recipient_name,
                 'issued' => $v->issued_on->format('d-m-Y'), 'expires' => $v->expires_on->format('d-m-Y'), 'mode' => $v->paymentMode?->name, 'value' => $v->face_value,
                 'reloads' => round((float) $v->transactions->where('type', 'reload')->sum('amount'), 2), 'redeemed' => round((float) $v->transactions->where('type', 'redeem')->sum('amount') - (float) $v->transactions->where('type', 'reversal')->sum('amount'), 2),
@@ -1686,7 +1686,7 @@ class ReportController extends Controller
         });
         $gl = 0.0;
         try {
-            $gl = -(float) \App\Models\GlLine::where('account_head_id', \App\Models\AccountHead::sys('voucher_liability'))->where('date', '<=', $d)->sum(\DB::raw('debit - credit'));
+            $gl = -(float) \App\Models\GlLine::where('account_head_id', \App\Models\AccountHead::sys('voucher_liability'))->whereDate('date', '<=', $d)->sum(\DB::raw('debit - credit'));
         } catch (\Throwable) {
         }
         $total = round($rows->sum('balance'), 2);
@@ -2064,7 +2064,10 @@ class ReportController extends Controller
             ->map(function ($g, $name) use ($from, $to) {
                 $end = $to->copy()->addDay();
                 $nights = $g->sum(fn ($s) => max(0, (int) ($s->arrival_date->gt($from) ? $s->arrival_date : $from)->diffInDays($s->departure_date->lt($end) ? $s->departure_date : $end)));
-                $rev = $g->sum(fn ($s) => $s->folio ? $s->folio->transactions->where('is_void', false)->where('type', 'charge')->where('category', 'room')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->sum('amount') : 0);
+                $rev = $g->sum(fn ($s) => $s->folio ? $s->folio->transactions->where('is_void', false)->where('type', 'charge')->where('category', 'room')
+                    // a loaded relation is a Collection: compare the cast dates as days, not with whereDate()
+                    ->filter(fn ($t) => ($d = $t->business_date?->toDateString()) !== null && $d >= $from->toDateString() && $d <= $to->toDateString())
+                    ->sum('amount') : 0);
 
                 return ['name' => $name, 'stays' => $g->count(), 'nights' => (int) $nights, 'revenue' => $rev, 'adr' => $nights ? round($rev / $nights, 2) : 0];
             })->sortByDesc('revenue')->values();
@@ -2172,7 +2175,7 @@ class ReportController extends Controller
 
     protected function r_spa_revenue($from, $to): array
     {
-        $appts = \App\Models\SpaAppointment::with('service', 'therapist')->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get();
+        $appts = \App\Models\SpaAppointment::with('service', 'therapist')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->get();
         $rows = $appts->groupBy(fn ($a) => $a->service->name.'|'.($a->therapist?->name ?? '—'))->map(function ($g) {
             $done = $g->where('status', 'completed');
             $paid = $done->where('settlement', '!=', 'complimentary');
@@ -2476,7 +2479,7 @@ class ReportController extends Controller
     protected function r_venue_utilisation($from, $to): array
     {
         $days = Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1;
-        $fns = \App\Models\BanquetFunction::with('items', 'event')->whereBetween('date', [$from, $to])
+        $fns = \App\Models\BanquetFunction::with('items', 'event')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->get()->groupBy('banquet_hall_id');
         $rows = \App\Models\BanquetHall::orderBy('sort')->orderBy('name')->get()->map(function ($h) use ($fns, $days) {
             $all = $fns->get($h->id, collect());
@@ -2496,7 +2499,7 @@ class ReportController extends Controller
 
     protected function r_function_forecast($from, $to): array
     {
-        $rows = \App\Models\BanquetFunction::with('event.company', 'hall', 'package', 'items')->whereBetween('date', [$from, $to])
+        $rows = \App\Models\BanquetFunction::with('event.company', 'hall', 'package', 'items')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite']))->orderBy('date')->orderBy('start_time')->get()
             ->map(fn ($f) => ['date' => $f->date->format('d-m-Y D'), 'time' => $f->timeRange(), 'venue' => $f->hall->name, 'event' => $f->event->event_no.' '.$f->event->title,
                 'fn' => $f->name, 'setup' => \App\Models\BanquetFunction::SETUPS[$f->setup_style] ?? $f->setup_style, 'pax' => $f->guaranteed_pax ?? $f->expected_pax,
@@ -2640,7 +2643,7 @@ class ReportController extends Controller
     protected function r_wht_register($from, $to): array
     {
         $rows = \App\Models\SupplierPayment::with('supplier:id,name,tax_number')->whereNull('cancelled_at')
-            ->whereBetween('date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('date')->orderBy('id')->get()
+            ->whereDate('date', '>=', Carbon::parse($from)->toDateString())->whereDate('date', '<=', Carbon::parse($to)->toDateString())->orderBy('date')->orderBy('id')->get()
             ->map(fn ($p) => ['date' => $p->date->format('d-m-Y'), 'no' => $p->payment_no, 'supplier' => $p->supplier?->name, 'tin' => $p->supplier?->tax_number,
                 'nature' => \App\Services\WhtService::label($p->wht_category), 'gross' => (float) $p->amount, 'base' => (float) $p->wht_base,
                 'rate' => (float) $p->wht_amount > 0 ? rtrim(rtrim(number_format($p->wht_rate, 2), '0'), '.').'%' : '', 'wht' => (float) $p->wht_amount, 'wvat' => (float) $p->wvat_amount,
@@ -2887,7 +2890,7 @@ class ReportController extends Controller
     protected function r_goods_received($from, $to): array
     {
         $rows = collect();
-        foreach (\App\Models\GoodsReceipt::with('lines.item', 'order', 'supplier')->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->orderBy('id')->get() as $g) {
+        foreach (\App\Models\GoodsReceipt::with('lines.item', 'order', 'supplier')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->orderBy('id')->get() as $g) {
             foreach ($g->lines as $l) {
                 $rows->push(['date' => $g->date->format('d-m-Y'), 'grn' => $g->grn_no, 'po' => $g->order?->po_no, 'supplier' => $g->supplier->name, 'item' => $l->item->name, 'unit' => $l->item->unit,
                     'del' => (float) $l->qty_delivered, 'rej' => (float) $l->qty_rejected ?: null, 'reason' => $l->reject_reason, 'acc' => (float) $l->qty_accepted, 'rate' => (float) $l->rate,
@@ -2944,7 +2947,7 @@ class ReportController extends Controller
 
     protected function r_consumption($from, $to): array
     {
-        $rows = StockMovement::with('item')->whereIn('type', ['issue', 'wastage', 'consumption'])->whereBetween('date', [$from, $to])->get()
+        $rows = StockMovement::with('item')->whereIn('type', ['issue', 'wastage', 'consumption'])->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()
             ->groupBy(fn ($m) => $m->item->name.'|'.($m->department ?: '—'))
             ->map(function ($g, $k) {
                 [$i, $d] = explode('|', $k, 2);
@@ -2957,7 +2960,7 @@ class ReportController extends Controller
 
     protected function r_expenses($from, $to): array
     {
-        $rows = Voucher::with('head', 'paymentMode', 'supplier')->where('type', 'payment')->whereBetween('date', [$from, $to])->orderBy('date')->get()
+        $rows = Voucher::with('head', 'paymentMode', 'supplier')->where('type', 'payment')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderBy('date')->get()
             ->map(fn ($v) => ['no' => $v->voucher_no, 'date' => $v->date->format('d-m-Y'), 'head' => $v->head->name, 'party' => $v->supplier?->name ?? $v->party_name, 'mode' => $v->paymentMode?->name, 'narr' => $v->narration, 'amount' => (float) $v->amount]);
 
         return ['cols' => ['no' => 'Voucher', 'date' => 'Date', 'head' => 'Head', 'party' => 'Party', 'mode' => 'Mode', 'narr' => 'Narration', 'amount' => 'Amount'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'summary' => $rows->groupBy('head')->map->sum('amount')];
@@ -3107,7 +3110,7 @@ class ReportController extends Controller
 
     protected function tbRows($from, $to)
     {
-        return \App\Models\TableReservation::with('outlet', 'tables', 'order')->whereBetween('date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
+        return \App\Models\TableReservation::with('outlet', 'tables', 'order')->whereDate('date', '>=', Carbon::parse($from)->toDateString())->whereDate('date', '<=', Carbon::parse($to)->toDateString())
             ->orderBy('start_at')->get();
     }
 
@@ -3306,7 +3309,7 @@ class ReportController extends Controller
     {
         $D = \App\Services\TraceService::DEPARTMENTS;
         $list = \App\Models\Trace::with('reservation', 'stay.room', 'guest', 'creator', 'doer')
-            ->where(fn ($q) => $q->whereDate('trace_date', '>=', $from)->whereDate('trace_date', '<=', $to)->orWhereBetween('carried_from', [$from, $to]))->orderBy('trace_date')->orderBy('due_time')->get();
+            ->where(fn ($q) => $q->whereDate('trace_date', '>=', $from)->whereDate('trace_date', '<=', $to)->orWhere(fn ($b) => $b->whereDate('carried_from', '>=', $from)->whereDate('carried_from', '<=', $to)))->orderBy('trace_date')->orderBy('due_time')->get();
         $rows = $list->map(fn ($t) => ['date' => ($t->carried_from ?? $t->trace_date)->format('d M Y'), 'time' => $t->due_time ? substr($t->due_time, 0, 5) : '',
             'dept' => $D[$t->department] ?? $t->department, 'text' => $t->text, 'res' => (string) $t->reservation?->reservation_no, 'room' => (string) $t->stay?->room?->room_no,
             'carried' => $t->carried_from ? 'to '.$t->trace_date->format('d M') : '', 'status' => ucfirst($t->status), 'done' => $t->done_at?->format('d M H:i') ?? '',
@@ -3426,7 +3429,7 @@ class ReportController extends Controller
         $f = Carbon::parse($from)->toDateString();
         $t = Carbon::parse($to)->toDateString();
         $buys = \App\Models\ForexExchange::whereNull('voided_at')->whereDate('business_date', '<=', $t)->get(['currency_id', 'business_date', 'fc_amount', 'inr_amount'])->groupBy('currency_id');
-        $outs = \App\Models\ForexSurrenderLine::with('surrender')->whereHas('surrender', fn ($q) => $q->where('hotel_id', \App\Support\Tenant::id())->where('date', '<=', $t))->get()->groupBy('currency_id');
+        $outs = \App\Models\ForexSurrenderLine::with('surrender')->whereHas('surrender', fn ($q) => $q->where('hotel_id', \App\Support\Tenant::id())->whereDate('date', '<=', $t))->get()->groupBy('currency_id');
         $rows = \App\Models\Currency::orderBy('sort_order')->get()->map(function ($c) use ($buys, $outs, $f) {
             $b = $buys[$c->id] ?? collect();
             $o = $outs[$c->id] ?? collect();
@@ -3556,7 +3559,7 @@ class ReportController extends Controller
     {
         $f = $from->toDateString();
         $t = min($to->toDateString(), now()->toDateString());
-        $shifts = \App\Models\RosterShift::with('template')->where('kind', 'shift')->whereBetween('date', [$f, $t])->get()->groupBy('employee_id');
+        $shifts = \App\Models\RosterShift::with('template')->where('kind', 'shift')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->get()->groupBy('employee_id');
         $punches = \App\Models\TimePunch::whereDate('work_date', '>=', $f)->whereDate('work_date', '<=', $t)->get()->groupBy('employee_id');
         $ids = $shifts->keys()->merge($punches->keys())->unique();
         $leave = \App\Services\RosterService::leaveMap($ids, $f, $t);
@@ -3627,7 +3630,7 @@ class ReportController extends Controller
     protected function r_haccp_checklists($from, $to): array
     {
         $FS = \App\Services\FoodSafetyService::class;
-        $runs = \App\Models\FsChecklistRun::with('completer', 'signer')->whereBetween('period', [$from->copy()->subMonth()->toDateString(), $to->toDateString()])->get()->keyBy(fn ($r) => $r->fs_checklist_id.'|'.$r->period->toDateString());
+        $runs = \App\Models\FsChecklistRun::with('completer', 'signer')->whereDate('period', '>=', $from->copy()->subMonth()->toDateString())->whereDate('period', '<=', $to->toDateString())->get()->keyBy(fn ($r) => $r->fs_checklist_id.'|'.$r->period->toDateString());
         $rows = collect();
         foreach (\App\Models\FsChecklist::orderBy('name')->get() as $c) {
             $seen = [];
@@ -3652,7 +3655,7 @@ class ReportController extends Controller
 
     protected function r_food_waste($from, $to): array
     {
-        $rows = \App\Models\FsWaste::with('item', 'menuItem', 'store', 'outlet', 'user')->whereNull('cancelled_at')->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->get()
+        $rows = \App\Models\FsWaste::with('item', 'menuItem', 'store', 'outlet', 'user')->whereNull('cancelled_at')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->get()
             ->map(fn ($w) => ['no' => $w->waste_no, 'date' => dmy($w->date), 'item' => $w->name(), 'type' => \App\Models\FsWaste::SOURCES[$w->source], 'qty' => rtrim(rtrim(number_format((float) $w->qty, 3), '0'), '.').' '.$w->unit,
                 'reason' => \App\Models\FsWaste::REASONS[$w->reason], 'where' => trim(($w->store?->name ?? '').($w->outlet ? ' / '.$w->outlet->name : ''), ' /'), 'cost' => (float) $w->cost, 'by' => $w->user?->name]);
         $s = \App\Services\FoodWasteService::summary($from->toDateString(), $to->toDateString());
@@ -3674,8 +3677,8 @@ class ReportController extends Controller
         $rows = $ms->map(fn ($m) => ['no' => $m->membership_no, 'holder' => $m->holder_name.($m->company ? ' ('.$m->company->name.')' : ''), 'plan' => $m->plan->name, 'cards' => $m->members_count,
             'start' => dmy($m->start_date), 'end' => dmy($m->end_date), 'status' => \App\Models\ClubMembership::STATUSES[$m->status].($m->cancel_mode === 'term_end' && $m->status !== 'cancelled' ? ' (notice)' : ''),
             'visits' => (int) ($visits[$m->id] ?? 0), 'balance' => \App\Services\ClubBillingService::balance($m)]);
-        $joined = $ms->filter(fn ($m) => $m->start_date->between($from, $to) && ! \App\Models\ClubCharge::where('club_membership_id', $m->id)->where('type', 'subscription')->where('period_start', '<', $m->start_date)->exists())->count();
-        $renewed = \App\Models\ClubCharge::where('type', 'subscription')->whereNull('cancelled_at')->whereBetween('date', [$f, $t])->where('description', 'like', '%renewal%')->count();
+        $joined = $ms->filter(fn ($m) => $m->start_date->between($from, $to) && ! \App\Models\ClubCharge::where('club_membership_id', $m->id)->where('type', 'subscription')->whereDate('period_start', '<', $m->start_date)->exists())->count();
+        $renewed = \App\Models\ClubCharge::where('type', 'subscription')->whereNull('cancelled_at')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->where('description', 'like', '%renewal%')->count();
         $left = $ms->filter(fn ($m) => ($m->status === 'cancelled' && $m->cancelled_on && $m->cancelled_on->between($from, $to)) || ($m->status === 'expired' && $m->end_date->between($from, $to)))->count();
 
         return ['cols' => ['no' => 'Membership', 'holder' => 'Holder', 'plan' => 'Plan', 'cards' => 'Cards', 'start' => 'Since', 'end' => 'Term ends', 'status' => 'Status', 'visits' => 'Visits', 'balance' => 'Balance'],
@@ -3715,9 +3718,9 @@ class ReportController extends Controller
     {
         $f = $from->toDateString();
         $t = $to->toDateString();
-        $ch = \App\Models\ClubCharge::with('creditOf')->whereNull('cancelled_at')->whereBetween('date', [$f, $t])->get();
-        $dp = \App\Models\ClubDayPass::whereNull('cancelled_at')->whereBetween('date', [$f, $t])->get();
-        $pay = \App\Models\ClubPayment::whereNull('voided_at')->whereBetween('date', [$f, $t])->get();
+        $ch = \App\Models\ClubCharge::with('creditOf')->whereNull('cancelled_at')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->get();
+        $dp = \App\Models\ClubDayPass::whereNull('cancelled_at')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->get();
+        $pay = \App\Models\ClubPayment::whereNull('voided_at')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->get();
         $subCredits = $ch->where('type', 'credit')->filter(fn ($c) => $c->creditOf?->type === 'subscription');
         $otherCredits = $ch->where('type', 'credit')->reject(fn ($c) => $c->creditOf?->type === 'subscription');
         $rows = collect([
@@ -3746,9 +3749,9 @@ class ReportController extends Controller
             ->filter(fn ($l) => $l->lastDay()->toDateString() >= $f)->groupBy('lease_unit_id');
         $rows = \App\Models\LeaseUnit::where('is_active', true)->orderBy('code')->get()->map(function ($u) use ($leases, $f, $t, $LB) {
             $l = ($leases[$u->id] ?? collect())->sortByDesc('start_date')->first();
-            $inv = $l ? (float) \App\Models\LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->whereIn('type', ['rent', 'service_charge'])->whereBetween('date', [$f, $t])->sum('amount')
-                + (float) \App\Models\LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->where('type', 'credit')->whereBetween('date', [$f, $t])->whereHas('creditOf', fn ($q) => $q->whereIn('type', ['rent', 'service_charge']))->sum('amount') : 0;
-            $col = $l ? (float) \App\Models\LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->where('kind', 'payment')->whereBetween('date', [$f, $t])->selectRaw('SUM(amount + wht_amount) s')->value('s') : 0;
+            $inv = $l ? (float) \App\Models\LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->whereIn('type', ['rent', 'service_charge'])->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->sum('amount')
+                + (float) \App\Models\LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->where('type', 'credit')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->whereHas('creditOf', fn ($q) => $q->whereIn('type', ['rent', 'service_charge']))->sum('amount') : 0;
+            $col = $l ? (float) \App\Models\LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->where('kind', 'payment')->whereDate('date', '>=', $f)->whereDate('date', '<=', $t)->selectRaw('SUM(amount + wht_amount) s')->value('s') : 0;
 
             return ['unit' => $u->code, 'type' => \App\Models\LeaseUnit::TYPES[$u->type], 'tenant' => $l ? $l->tenant_name.($l->company_id ? ' ('.$l->company?->name.')' : '') : '— '.strtolower(\App\Models\LeaseUnit::STATUSES[$u->status]).' —',
                 'class' => $l ? ucfirst($l->tax_class) : ucfirst($u->tax_class), 'term' => $l ? dmy($l->start_date).' – '.dmy($l->lastDay()) : '', 'cycle' => $l ? \App\Models\Lease::CYCLES[$l->cycle_months] : '',
@@ -3913,13 +3916,13 @@ class ReportController extends Controller
     {
         $f = Carbon::parse($from)->toDateString();
         $t = Carbon::parse($to)->toDateString();
-        $recs = \App\Models\TrainingRecord::with('course', 'employee.department')->whereIn('status', ['passed', 'exempt'])->whereNotNull('expires_on')->whereBetween('expires_on', [$f, $t])
+        $recs = \App\Models\TrainingRecord::with('course', 'employee.department')->whereIn('status', ['passed', 'exempt'])->whereNotNull('expires_on')->whereDate('expires_on', '>=', $f)->whereDate('expires_on', '<=', $t)
             ->whereHas('employee', fn ($q) => $q->where('is_active', true))->orderBy('expires_on')->get();
         $booked = \App\Models\TrainingRecord::with('session')->where('status', 'enrolled')->whereHas('session', fn ($q) => $q->where('status', 'scheduled'))->get()
             ->mapWithKeys(fn ($r) => [$r->employee_id.'-'.$r->training_course_id => $r->session]);
         $rows = $recs->filter(function ($r) {   // only the latest certificate per employee & course (a renewal supersedes it)
             return ! \App\Models\TrainingRecord::where('employee_id', $r->employee_id)->where('training_course_id', $r->training_course_id)->whereIn('status', ['passed', 'exempt'])
-                ->where(fn ($q) => $q->whereNull('expires_on')->orWhere('expires_on', '>', $r->expires_on->toDateString()))->exists();
+                ->where(fn ($q) => $q->whereNull('expires_on')->orWhereDate('expires_on', '>', $r->expires_on->toDateString()))->exists();
         })->map(function ($r) use ($booked) {
             $s = $booked[$r->employee_id.'-'.$r->training_course_id] ?? null;
             $days = (int) bdate()->diffInDays($r->expires_on, false);
@@ -3967,7 +3970,7 @@ class ReportController extends Controller
     protected function r_sales_win_loss($from, $to): array
     {
         $O = \App\Models\SalesOpportunity::class;
-        $opps = $O::with('owner')->whereIn('stage', ['won', 'lost'])->whereBetween('closed_on', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->get();
+        $opps = $O::with('owner')->whereIn('stage', ['won', 'lost'])->whereDate('closed_on', '>=', Carbon::parse($from)->toDateString())->whereDate('closed_on', '<=', Carbon::parse($to)->toDateString())->get();
         $rows = collect();
         $line = function ($label, $g, $cls = '') {
             $w = $g->where('stage', 'won');
@@ -4121,8 +4124,8 @@ class ReportController extends Controller
         $F = Carbon::parse($from)->startOfMonth();
         $T = Carbon::parse($to)->startOfMonth();
         $rows = \App\Models\DmChannel::orderBy('name')->get()->filter(fn ($c) => $c->kind() === 'social')->map(function ($c) use ($F, $T) {
-            $st = \App\Models\DmChannelStat::where('channel_id', $c->id)->whereBetween('month', [$F->toDateString(), $T->toDateString()])->orderBy('month')->get();
-            $before = \App\Models\DmChannelStat::where('channel_id', $c->id)->where('month', '<', $F->toDateString())->orderByDesc('month')->value('followers');
+            $st = \App\Models\DmChannelStat::where('channel_id', $c->id)->whereDate('month', '>=', $F->toDateString())->whereDate('month', '<=', $T->toDateString())->orderBy('month')->get();
+            $before = \App\Models\DmChannelStat::where('channel_id', $c->id)->whereDate('month', '<', $F->toDateString())->orderByDesc('month')->value('followers');
             $start = $before ?? $st->first()?->followers;
             $end = $st->last()?->followers;
             $posts = \App\Models\DmPost::whereJsonContains('channels', $c->id)->where('status', 'published')->whereBetween('published_at', [$F, $T->copy()->endOfMonth()])->count();
@@ -4212,7 +4215,7 @@ class ReportController extends Controller
         $I = \App\Models\DmInfluencer::class;
         $F = Carbon::parse($from)->toDateString();
         $T = Carbon::parse($to)->toDateString();
-        $rows = $I::where(fn ($q) => $q->whereBetween('stay_from', [$F, $T])->orWhere(fn ($w) => $w->whereNull('stay_from')->whereBetween('created_at', [$F.' 00:00:00', $T.' 23:59:59'])))
+        $rows = $I::where(fn ($q) => $q->whereDate('stay_from', '>=', $F)->whereDate('stay_from', '<=', $T)->orWhere(fn ($w) => $w->whereNull('stay_from')->whereBetween('created_at', [$F.' 00:00:00', $T.' 23:59:59'])))
             ->orderBy('stay_from')->get()->map(function ($i) use ($I) {
                 $s = \App\Services\DigitalMarketingService::influencerStats($i);
 
@@ -4529,7 +4532,7 @@ class ReportController extends Controller
     {
         $R = \App\Models\TrainingRecord::class;
         $rows = \App\Models\TrainingRecord::with('course', 'employee.department', 'session')->whereIn('status', ['passed', 'failed', 'no_show'])
-            ->whereBetween('completed_on', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->orderBy('completed_on')->orderBy('id')->get()
+            ->whereDate('completed_on', '>=', Carbon::parse($from)->toDateString())->whereDate('completed_on', '<=', Carbon::parse($to)->toDateString())->orderBy('completed_on')->orderBy('id')->get()
             ->map(fn ($r) => ['date' => $r->completed_on->format('d M Y'), 'emp' => $r->employee->name, 'dept' => $r->employee->department?->name ?? '—', 'course' => $r->course->name,
                 'source' => $r->session ? $r->session->number : ($R::SOURCES[$r->source] ?? $r->source), 'provider' => (string) ($r->provider ?: ($r->session?->trainerLabel() ?? '')),
                 'result' => $r->statusLabel(), 'score' => $r->score !== null ? (float) $r->score : '', 'hours' => $r->status === 'passed' ? (float) $r->course->duration_hours : 0.0,
@@ -4546,7 +4549,7 @@ class ReportController extends Controller
     protected function r_training_hours($from, $to): array
     {
         $recs = \App\Models\TrainingRecord::with('course', 'employee.department')->whereIn('status', ['passed', 'failed'])
-            ->whereBetween('completed_on', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])->get();
+            ->whereDate('completed_on', '>=', Carbon::parse($from)->toDateString())->whereDate('completed_on', '<=', Carbon::parse($to)->toDateString())->get();
         $staff = \App\Services\LearningService::employees()->groupBy(fn ($e) => $e->department?->name ?? '—');
         $rows = $staff->keys()->merge($recs->map(fn ($r) => $r->employee->department?->name ?? '—'))->unique()->sort()->map(function ($d) use ($recs, $staff) {
             $g = $recs->filter(fn ($r) => ($r->employee->department?->name ?? '—') === $d);
@@ -4593,7 +4596,7 @@ class ReportController extends Controller
 
     protected function cgRows($from, $to)
     {
-        return \App\Models\ActivityBooking::with('activity', 'vendor', 'creator')->whereBetween('date', [Carbon::parse($from)->toDateString(), Carbon::parse($to)->toDateString()])
+        return \App\Models\ActivityBooking::with('activity', 'vendor', 'creator')->whereDate('date', '>=', Carbon::parse($from)->toDateString())->whereDate('date', '<=', Carbon::parse($to)->toDateString())
             ->orderBy('date')->orderBy('time')->orderBy('id')->get();
     }
 
@@ -4644,7 +4647,7 @@ class ReportController extends Controller
         $V = \App\Models\ActivityVendor::class;
         $done = $this->cgRows($from, $to)->whereIn('status', ['completed', 'no_show', 'cancelled'])->groupBy('activity_vendor_id');
         $open = \App\Services\ConciergeService::unsettled(null, $to)->groupBy('activity_vendor_id');
-        $paid = \App\Models\ActivitySettlement::where('status', 'posted')->whereBetween('date', [Carbon::parse($from)->toDateString(), $to])->get()->groupBy('activity_vendor_id');
+        $paid = \App\Models\ActivitySettlement::where('status', 'posted')->whereDate('date', '>=', Carbon::parse($from)->toDateString())->whereDate('date', '<=', $to)->get()->groupBy('activity_vendor_id');
         $rows = \App\Models\ActivityVendor::orderBy('name')->get()->map(function ($v) use ($done, $open, $paid, $V) {
             $d = $done[$v->id] ?? collect();
             $o = $open[$v->id] ?? collect();
@@ -4829,7 +4832,7 @@ class ReportController extends Controller
 
     protected function r_hse_checks($from, $to): array
     {
-        $rows = \App\Models\HseCheck::with(['equipment', 'user', 'ticket'])->whereBetween('checked_on', [$from->toDateString(), $to->toDateString()])->orderByDesc('checked_on')->orderByDesc('id')->get()
+        $rows = \App\Models\HseCheck::with(['equipment', 'user', 'ticket'])->whereDate('checked_on', '>=', $from->toDateString())->whereDate('checked_on', '<=', $to->toDateString())->orderByDesc('checked_on')->orderByDesc('id')->get()
             ->map(fn ($c) => ['date' => $c->checked_on->format('d M Y'), 'code' => $c->equipment?->code, 'type' => $c->equipment?->typeLabel(), 'location' => $c->equipment?->location,
                 'kind' => $c->kind === 'service' ? 'Service' : 'Visual', 'result' => $c->result === 'pass' ? 'Pass' : 'FAIL', 'faults' => $c->faults ? implode('; ', $c->faults) : '',
                 'cert' => $c->certificate_no ?? '', 'ticket' => $c->ticket?->ticket_no ?? '', 'by' => $c->contractor ?? $c->user?->name, '_class' => $c->result === 'fail' ? 'row-red' : '']);
@@ -4910,7 +4913,7 @@ class ReportController extends Controller
     protected function r_talent_appraisals($from, $to): array
     {
         $list = \App\Models\TalentAppraisal::with(['cycle', 'employee.department', 'reviewer', 'signer'])
-            ->whereHas('cycle', fn ($q) => $q->whereBetween('period_to', [$from->toDateString(), $to->toDateString()]))->get()->sortBy(fn ($a) => $a->cycle_id.'|'.$a->employee->name)->values();
+            ->whereHas('cycle', fn ($q) => $q->whereDate('period_to', '>=', $from->toDateString())->whereDate('period_to', '<=', $to->toDateString()))->get()->sortBy(fn ($a) => $a->cycle_id.'|'.$a->employee->name)->values();
         $rows = $list->map(fn ($a) => ['cycle' => $a->cycle->name, 'emp' => $a->employee->name, 'dept' => $a->employee->department?->name ?? '', 'rev' => $a->reviewer?->name ?? '',
             'goals' => $a->goals_score !== null ? (float) $a->goals_score : null, 'comp' => $a->comp_score !== null ? (float) $a->comp_score : null,
             'overall' => $a->overall !== null ? number_format($a->overall, 2) : '', 'band' => $a->bandLabel() ?? '', 'pip' => $a->pip ? 'PIP' : '',
@@ -4928,7 +4931,7 @@ class ReportController extends Controller
     protected function r_talent_discipline($from, $to): array
     {
         $u = auth()->user();
-        $list = \App\Models\TalentCase::with(['employee.department', 'raiser', 'decider'])->whereBetween('incident_on', [$from->toDateString(), $to->toDateString()])->orderByDesc('incident_on')->get();
+        $list = \App\Models\TalentCase::with(['employee.department', 'raiser', 'decider'])->whereDate('incident_on', '>=', $from->toDateString())->whereDate('incident_on', '<=', $to->toDateString())->orderByDesc('incident_on')->get();
         $rows = $list->map(function ($c) use ($u) {
             $see = \App\Services\TalentService::canSeeCase($c, $u);
 
@@ -4949,7 +4952,7 @@ class ReportController extends Controller
 
     protected function r_talent_exits($from, $to): array
     {
-        $list = \App\Models\TalentExit::with('employee.department')->where('status', '!=', 'withdrawn')->whereBetween('last_day', [$from->toDateString(), $to->toDateString()])->orderBy('last_day')->get();
+        $list = \App\Models\TalentExit::with('employee.department')->where('status', '!=', 'withdrawn')->whereDate('last_day', '>=', $from->toDateString())->whereDate('last_day', '<=', $to->toDateString())->orderBy('last_day')->get();
         $rows = $list->map(fn ($x) => ['no' => $x->number, 'emp' => $x->employee->name, 'dept' => $x->employee->department?->name ?? '', 'type' => $x->typeLabel(),
             'service' => number_format(\App\Services\TalentService::serviceYears($x->employee, $x->last_day), 1), 'notice' => $x->notice_days, 'last' => $x->last_day->format('d M Y'),
             'pay' => $x->final_pay_due->format('d M Y'), 'pilon' => $x->pilon ? (float) $x->pilon_amount : null,
@@ -5014,7 +5017,7 @@ class ReportController extends Controller
     protected function r_esg_waste($from, $to): array
     {
         $ES = \App\Services\EsgService::class;
-        $list = \App\Models\EsgWasteLog::live()->with(['department', 'supplier'])->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->orderBy('id')->get();
+        $list = \App\Models\EsgWasteLog::live()->with(['department', 'supplier'])->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->orderBy('id')->get();
         $rows = $list->map(fn ($w) => ['no' => $w->number, 'date' => $w->date->format('d-m-Y'), 'stream' => $w->streamLabel(), 'route' => $w->disposalLabel(), 'diverted' => $w->isDiverted() ? 'Yes' : 'No',
             'kg' => (float) $w->weight_kg, 'dept' => $w->department?->name, 'contractor' => $w->supplier?->name ?? $w->contractor, 'wtn' => $w->manifest_no,
             'cost' => (float) $w->cost ?: null, 'income' => (float) $w->income ?: null, 'co2' => round((float) $w->weight_kg * $ES::wasteFactor($w->stream, $w->disposal), 1)]);
@@ -5029,7 +5032,7 @@ class ReportController extends Controller
     protected function r_esg_refrigerants($from, $to): array
     {
         $R = \App\Models\EsgRefrigerantLog::class;
-        $list = $R::with(['asset', 'ticket'])->whereBetween('date', [$from->toDateString(), $to->toDateString()])->orderBy('date')->get();
+        $list = $R::with(['asset', 'ticket'])->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->orderBy('date')->get();
         $leaks = collect(\App\Services\EsgService::leakRates())->keyBy(fn ($l) => mb_strtolower($l['equipment']));
         $rows = $list->map(fn ($r) => ['no' => $r->number, 'date' => $r->date->format('d-m-Y'), 'system' => $r->equipment, 'asset' => $r->asset?->asset_no, 'gas' => $r->gas, 'gwp' => $R::gwp($r->gas),
             'work' => $R::REASONS[$r->reason] ?? $r->reason, 'added' => (float) $r->kg_added ?: null, 'recovered' => (float) $r->kg_recovered ?: null, 'co2' => $r->co2e(),
@@ -5648,7 +5651,7 @@ class ReportController extends Controller
 
     protected function r_fbc_price_changes($from, $to): array
     {
-        $list = \App\Models\FbPriceChange::with(['menuItem', 'user'])->whereBetween('effective_on', [$from->toDateString(), $to->toDateString()])->orderByDesc('effective_on')->orderByDesc('id')->get();
+        $list = \App\Models\FbPriceChange::with(['menuItem', 'user'])->whereDate('effective_on', '>=', $from->toDateString())->whereDate('effective_on', '<=', $to->toDateString())->orderByDesc('effective_on')->orderByDesc('id')->get();
         $rows = $list->map(fn ($c) => ['date' => $c->effective_on->format('d M Y'), 'dish' => $c->menuItem?->name, 'old' => $c->old_price, 'new' => $c->new_price,
             'change' => $c->old_price > 0 ? round(($c->new_price - $c->old_price) / $c->old_price * 100, 1).'%' : '', 'cost' => $c->cost_at,
             'before' => $c->old_price > 0 && $c->cost_at > 0 ? round($c->cost_at / $c->old_price * 100, 1).'%' : '', 'after' => $c->new_price > 0 && $c->cost_at > 0 ? round($c->cost_at / $c->new_price * 100, 1).'%' : '',

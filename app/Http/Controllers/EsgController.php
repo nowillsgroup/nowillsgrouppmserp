@@ -114,7 +114,7 @@ class EsgController extends Controller
     public function waste(Request $r)
     {
         [$from, $to] = $this->range($r, bdate()->copy()->subDays(89)->toDateString(), bdate()->toDateString());
-        $list = EsgWasteLog::with(['department', 'supplier', 'user'])->whereBetween('date', [$from, $to])
+        $list = EsgWasteLog::with(['department', 'supplier', 'user'])->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->when($r->filled('stream'), fn ($q) => $q->where('stream', $r->query('stream')))
             ->when($r->filled('disposal'), fn ($q) => $q->where('disposal', $r->query('disposal')))
             ->when(! $r->boolean('cancelled'), fn ($q) => $q->whereNull('cancelled_at'))
@@ -145,7 +145,7 @@ class EsgController extends Controller
     public function refrigerants(Request $r)
     {
         [$from, $to] = $this->range($r, bdate()->copy()->subYear()->addDay()->toDateString(), bdate()->toDateString());
-        $list = EsgRefrigerantLog::with(['asset', 'ticket', 'user'])->whereBetween('date', [$from, $to])->orderByDesc('date')->orderByDesc('id')->get();
+        $list = EsgRefrigerantLog::with(['asset', 'ticket', 'user'])->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderByDesc('date')->orderByDesc('id')->get();
 
         return view('esg.refrigerants', ['from' => $from, 'to' => $to, 'list' => $list, 'leaks' => ES::leakRates(), 'cfg' => ES::cfg(),
             'assets' => Asset::orderBy('name')->get(['id', 'name', 'asset_no']),
@@ -274,7 +274,7 @@ class EsgController extends Controller
         [$from, $to] = $this->range($r, bdate()->copy()->startOfYear()->toDateString());
 
         return view('esg.social', ['from' => $from, 'to' => $to, 's' => ES::social($from, $to), 'src' => ES::localSpend($from, $to),
-            'list' => EsgCommunity::with('user')->whereBetween('date', [$from, $to])->orderByDesc('date')->get()]);
+            'list' => EsgCommunity::with('user')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderByDesc('date')->get()]);
     }
 
     public function communityStore(Request $r)

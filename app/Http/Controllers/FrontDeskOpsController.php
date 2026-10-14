@@ -43,7 +43,7 @@ class FrontDeskOpsController extends Controller
         $q->with('author', 'reads', 'stay.room', 'room', 'guest')->withCount('comments')
             ->when($request->query('department'), fn ($q, $d) => $q->where('department', $d))
             ->when($request->query('category'), fn ($q, $c) => $q->where('category', $c))
-            ->when($request->query('date'), fn ($q, $d) => $q->where('business_date', $d))
+            ->when($request->query('date'), fn ($q, $d) => $q->whereDate('business_date', $d))
             ->when(trim((string) $request->query('q')), fn ($q, $t) => $q->where(fn ($w) => $w->where('title', 'like', "%{$t}%")->orWhere('body', 'like', "%{$t}%")));
         $entries = $tab === 'open'
             ? $q->orderByRaw("FIELD(priority,'urgent','high','normal')")->orderByRaw('follow_up_at IS NULL')->orderBy('follow_up_at')->orderByDesc('id')->paginate(40)->withQueryString()

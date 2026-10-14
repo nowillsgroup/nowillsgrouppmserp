@@ -54,7 +54,7 @@ class PettyCashService
 
     public static function balance(PettyFloat $f, ?string $asOf = null): float
     {
-        return round((float) PettyTxn::where('petty_float_id', $f->id)->where('status', 'posted')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('effect'), 2);
+        return round((float) PettyTxn::where('petty_float_id', $f->id)->where('status', 'posted')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('effect'), 2);
     }
 
     public static function pending(PettyFloat $f): float
@@ -636,7 +636,7 @@ class PettyCashService
     public static function book(PettyFloat $f, string $from, string $to): array
     {
         $open = self::balance($f, Carbon::parse($from)->subDay()->toDateString());
-        $rows = PettyTxn::with('head', 'employee', 'creator')->where('petty_float_id', $f->id)->where('status', 'posted')->whereBetween('date', [$from, $to])
+        $rows = PettyTxn::with('head', 'employee', 'creator')->where('petty_float_id', $f->id)->where('status', 'posted')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->orderBy('date')->orderBy('id')->get();
         $run = $open;
         foreach ($rows as $r) {

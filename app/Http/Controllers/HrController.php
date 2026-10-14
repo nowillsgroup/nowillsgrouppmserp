@@ -16,7 +16,7 @@ class HrController extends Controller
     public function attendance(Request $request)
     {
         $date = $request->input('date', bdate()->toDateString());
-        $employees = Employee::with(['department', 'attendances' => fn ($q) => $q->where('date', $date)->with('leaveRequest.leaveType')])->where('is_active', true)
+        $employees = Employee::with(['department', 'attendances' => fn ($q) => $q->whereDate('date', $date)->with('leaveRequest.leaveType')])->where('is_active', true)
             ->when($request->department, fn ($q, $d) => $q->where('department_id', $d))->orderBy('name')->get();
         $month = Carbon::parse($date);
         $summary = Attendance::whereYear('date', $month->year)->whereMonth('date', $month->month)->get()->groupBy('employee_id')->map(fn ($g) => $g->countBy('status'));
@@ -38,7 +38,7 @@ class HrController extends Controller
             if (! Employee::whereKey($empId)->exists()) {
                 continue;
             }
-            $existing = Attendance::where('employee_id', $empId)->where('date', $data['date'])->first();
+            $existing = Attendance::where('employee_id', $empId)->whereDate('date', $data['date'])->first();
             if ($existing?->leave_request_id) {
                 // approved leave owns the day: only the clock times of a half day may change here
                 if ($existing->status === 'H') {
@@ -61,7 +61,7 @@ class HrController extends Controller
         $end = $month->copy()->endOfMonth()->startOfDay();
         $employees = Employee::with('department')->where(fn ($q) => $q->where('is_active', true)->orWhereDate('leaving_date', '>=', $month->toDateString()))
             ->when($request->department, fn ($q, $d) => $q->where('department_id', $d))->orderBy('emp_code')->get();
-        $att = Attendance::whereIn('employee_id', $employees->pluck('id'))->whereBetween('date', [$month->toDateString(), $end->toDateString()])->get()
+        $att = Attendance::whereIn('employee_id', $employees->pluck('id'))->whereDate('date', '>=', $month->toDateString())->whereDate('date', '<=', $end->toDateString())->get()
             ->groupBy('employee_id')->map(fn ($g) => $g->keyBy(fn ($a) => $a->date->day));
         $until = $end->lt(bdate()) ? $end : bdate()->copy();
         $summary = $employees->mapWithKeys(fn ($e) => [$e->id => $month->lte($until) ? PayrollService::attendanceSummary($e, $month, $until) : null]);

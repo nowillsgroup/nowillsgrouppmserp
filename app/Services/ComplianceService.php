@@ -299,7 +299,7 @@ class ComplianceService
             : fn ($w) => $w->where('status', 'active')->whereRaw('expires_on <= DATE_ADD(?, INTERVAL lead_days DAY)', [$d]);
 
         return ComplianceItem::where('status', '!=', 'archived')->whereNotNull('expires_on')
-            ->where(fn ($q) => $q->where('expires_on', '<', $d)->orWhere($renewing))
+            ->where(fn ($q) => $q->whereDate('expires_on', '<', $d)->orWhere($renewing))
             ->count();
     }
 

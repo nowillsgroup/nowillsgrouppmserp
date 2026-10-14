@@ -48,7 +48,7 @@ class ServiceChargeController extends Controller
             'available' => ServiceChargeService::available($cutoff), 'retention' => ServiceChargeService::retentionPct(),
             'bySource' => ServiceChargeService::collectedBySource($mFrom, min($mTo, $cutoff)),
             'dists' => ScDistribution::with('creator', 'approver', 'run')->withCount(['lines as paid_count' => fn ($q) => $q->where('amount', '>', 0)])->latest('period_end')->latest('id')->limit(36)->get(),
-            'tips' => TipCollection::with('paymentMode', 'creator')->whereBetween('date', [$mFrom, $mTo])->latest('date')->latest('id')->get(),
+            'tips' => TipCollection::with('paymentMode', 'creator')->whereDate('date', '>=', $mFrom)->whereDate('date', '<=', $mTo)->latest('date')->latest('id')->get(),
             'modes' => PaymentMode::where('is_active', true)->orderBy('id')->pluck('name', 'id'),
             'staff' => Employee::with('department')->where('is_active', true)->orderBy('department_id')->orderBy('name')->get(),
             'suggest' => ['from' => $nextFrom->toDateString(), 'to' => $nextTo->toDateString(), 'ok' => $nextFrom->toDateString() <= $cutoff]]);

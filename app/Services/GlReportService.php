@@ -101,7 +101,7 @@ class GlReportService
 
     public static function journalRegister(string $from, string $to): Collection
     {
-        return GlLine::with('journal', 'account')->whereBetween('date', [$from, $to])->orderBy('date')->orderBy('gl_journal_id')->orderByDesc('debit')->get()
+        return GlLine::with('journal', 'account')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderBy('date')->orderBy('gl_journal_id')->orderByDesc('debit')->get()
             ->map(fn ($l) => ['date' => $l->date->format('d-m-Y'), 'jv' => $l->journal->journal_no, 'source' => GlJournal::SOURCES[$l->journal->source_type] ?? $l->journal->source_type,
                 'ref' => $l->journal->reference, 'narration' => $l->journal->narration, 'account' => $l->account->label, 'memo' => $l->memo, 'debit' => (float) $l->debit, 'credit' => (float) $l->credit]);
     }
@@ -110,9 +110,9 @@ class GlReportService
     public static function ledger(AccountHead $a, string $from, string $to): array
     {
         $sign = $a->isDebitNature() ? 1 : -1;
-        $open = $sign * (float) GlLine::where('account_head_id', $a->id)->where('date', '<', $from)->sum(\DB::raw('debit - credit'));
+        $open = $sign * (float) GlLine::where('account_head_id', $a->id)->whereDate('date', '<', $from)->sum(\DB::raw('debit - credit'));
         $run = $open;
-        $lines = GlLine::with('journal')->where('account_head_id', $a->id)->whereBetween('date', [$from, $to])->orderBy('date')->orderBy('id')->get()
+        $lines = GlLine::with('journal')->where('account_head_id', $a->id)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderBy('date')->orderBy('id')->get()
             ->map(function ($l) use (&$run, $sign) {
                 $run += $sign * ((float) $l->debit - (float) $l->credit);
 

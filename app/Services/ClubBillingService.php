@@ -256,8 +256,8 @@ class ClubBillingService
     /** Positive = the member owes; negative = in credit. */
     public static function balance(ClubMembership $m, ?string $asOf = null): float
     {
-        $ch = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('total');
-        $pay = ClubPayment::where('club_membership_id', $m->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))
+        $ch = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('total');
+        $pay = ClubPayment::where('club_membership_id', $m->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
@@ -307,7 +307,7 @@ class ClubBillingService
         }
         $start = $c->period_start->toDateString();
         $stop = self::stopDate($c);
-        $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->where('date', '<=', $d)->sum('amount');
+        $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->whereDate('date', '<=', $d)->sum('amount');
         if ($d >= $stop || $d >= $c->period_end->toDateString()) {
             return round((float) $c->amount + $credits, 2);
         }
@@ -324,8 +324,8 @@ class ClubBillingService
     public static function unearned(string $asOf): float
     {
         $sum = 0.0;
-        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->where('date', '<=', $asOf)->get() as $c) {
-            $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('amount');
+        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->get() as $c) {
+            $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('amount');
             $sum += (float) $c->amount + $credits - self::earned($c, $asOf);
         }
 
@@ -337,7 +337,7 @@ class ClubBillingService
     {
         $prev = Carbon::parse($from)->subDay()->toDateString();
         $sum = 0.0;
-        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->where('date', '<=', $to)->get() as $c) {
+        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->whereDate('date', '<=', $to)->get() as $c) {
             $before = $c->date->toDateString() > $prev ? 0.0 : self::earned($c, $prev);
             $sum += self::earned($c, $to) - $before;
         }
@@ -446,8 +446,8 @@ class ClubBillingService
     /** Members receivable per the sub-ledger at the end of $asOf. */
     public static function controlBalance(string $asOf): float
     {
-        $ch = ClubCharge::whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('total');
-        $pay = ClubPayment::whereNull('voided_at')->where('date', '<=', $asOf)->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
+        $ch = ClubCharge::whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('total');
+        $pay = ClubPayment::whereNull('voided_at')->whereDate('date', '<=', $asOf)->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
     }

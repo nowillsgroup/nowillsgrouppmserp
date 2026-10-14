@@ -28,7 +28,7 @@ class SecurityWatch extends Model
 
     public function scopeCurrent($q)
     {
-        return $q->where('is_active', true)->where(fn ($w) => $w->whereNull('valid_until')->orWhere('valid_until', '>=', bdate()->toDateString()));
+        return $q->where('is_active', true)->where(fn ($w) => $w->whereNull('valid_until')->orWhereDate('valid_until', '>=', bdate()->toDateString()));
     }
 
     public function isCurrent(): bool

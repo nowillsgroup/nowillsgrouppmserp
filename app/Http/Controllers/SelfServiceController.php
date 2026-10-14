@@ -36,7 +36,7 @@ class SelfServiceController extends Controller
             'slips' => Payslip::with('run')->where('employee_id', $e->id)->whereHas('run', fn ($q) => $q->whereIn('status', ['approved', 'paid']))->latest('id')->limit(12)->get(),
             'advances' => $e->advances()->whereNull('cancelled_at')->orderByDesc('date')->get()->filter(fn ($a) => $a->outstanding() > 0),
             'att' => PayrollService::attendanceSummary($e, $month, bdate()->copy()),
-            'recent' => Attendance::where('employee_id', $e->id)->where('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderByDesc('date')->get(),
+            'recent' => Attendance::where('employee_id', $e->id)->whereDate('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderByDesc('date')->get(),
             'month' => $month]);
     }
 

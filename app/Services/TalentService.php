@@ -376,7 +376,7 @@ class TalentService
     public static function publicVacancies(): Collection
     {
         return TalentVacancy::with('department')->where('status', 'open')->where('is_public', true)
-            ->where(fn ($q) => $q->whereNull('closing_on')->orWhere('closing_on', '>=', self::today()))->orderBy('title')->get();
+            ->where(fn ($q) => $q->whereNull('closing_on')->orWhereDate('closing_on', '>=', self::today()))->orderBy('title')->get();
     }
 
     // ───────────────────────── applicants ─────────────────────────
@@ -654,7 +654,7 @@ class TalentService
         $today = self::today();
 
         return Employee::with('department')->where('is_active', true)->whereNull('statement_issued_on')->whereNotNull('joining_date')
-            ->where('joining_date', '>=', self::cfg()['statement_from'])->get()
+            ->whereDate('joining_date', '>=', self::cfg()['statement_from'])->get()
             ->filter(fn ($e) => self::statementDue($e)->toDateString() < $today)->values();
     }
 
@@ -902,7 +902,7 @@ class TalentService
         $t = self::today();
 
         return TalentCase::where('employee_id', $e->id)->where('kind', 'discipline')->whereIn('outcome', ['verbal', 'written', 'final', 'suspension'])
-            ->where('expires_on', '>=', $t)->when($except, fn ($q) => $q->where('id', '!=', $except))->orderByDesc('outcome_on')->get();
+            ->whereDate('expires_on', '>=', $t)->when($except, fn ($q) => $q->where('id', '!=', $except))->orderByDesc('outcome_on')->get();
     }
 
     public static function raiseCase(array $d, User $u): TalentCase
@@ -1121,7 +1121,7 @@ class TalentService
     public static function onMaternityLeave(Employee $e, Carbon $on): bool
     {
         return LeaveRequest::where('employee_id', $e->id)->where('status', 'approved')
-            ->where('date_from', '<=', $on->toDateString())->where('date_to', '>=', $on->copy()->subWeeks(2)->toDateString())
+            ->whereDate('date_from', '<=', $on->toDateString())->whereDate('date_to', '>=', $on->copy()->subWeeks(2)->toDateString())
             ->whereHas('leaveType', fn ($q) => $q->where('code', 'ML')->orWhere('name', 'like', '%matern%'))->exists();
     }
 
@@ -1245,10 +1245,10 @@ class TalentService
     {
         $to ??= bdate();
         $from = $to->copy()->subYear()->addDay();
-        $count = fn (string $d) => Employee::where(fn ($q) => $q->whereNull('joining_date')->orWhere('joining_date', '<=', $d))
-            ->where(fn ($q) => $q->where(fn ($w) => $w->whereNull('leaving_date')->where('is_active', true))->orWhere('leaving_date', '>=', $d))->count();
+        $count = fn (string $d) => Employee::where(fn ($q) => $q->whereNull('joining_date')->orWhereDate('joining_date', '<=', $d))
+            ->where(fn ($q) => $q->where(fn ($w) => $w->whereNull('leaving_date')->where('is_active', true))->orWhereDate('leaving_date', '>=', $d))->count();
         $avg = ($count($from->toDateString()) + $count($to->toDateString())) / 2;
-        $leavers = TalentExit::with('employee')->where('status', 'completed')->whereBetween('last_day', [$from->toDateString(), $to->toDateString()])->get();
+        $leavers = TalentExit::with('employee')->where('status', 'completed')->whereDate('last_day', '>=', $from->toDateString())->whereDate('last_day', '<=', $to->toDateString())->get();
         $vol = $leavers->filter->isVoluntary()->count();
 
         return ['from' => $from, 'to' => $to, 'average' => $avg, 'leavers' => $leavers->count(), 'voluntary' => $vol, 'regretted' => $leavers->where('regretted', true)->count(),
@@ -1267,10 +1267,10 @@ class TalentService
             return [
                 'vacancies' => TalentVacancy::where('status', 'pending')->count(),
                 'offers' => TalentOffer::where('status', 'pending')->count(),
-                'probation' => Employee::where('is_active', true)->whereNotNull('probation_end')->whereNull('confirmed_on')->where('probation_end', '<', $t)->count(),
+                'probation' => Employee::where('is_active', true)->whereNotNull('probation_end')->whereNull('confirmed_on')->whereDate('probation_end', '<', $t)->count(),
                 'statements' => self::statementsOverdue()->count(),
-                'replies' => TalentCase::where('status', 'query')->whereNull('replied_on')->where('reply_due', '<', $t)->count(),
-                'exits' => TalentExit::where('status', 'notice')->where('last_day', '<', $t)->count(),
+                'replies' => TalentCase::where('status', 'query')->whereNull('replied_on')->whereDate('reply_due', '<', $t)->count(),
+                'exits' => TalentExit::where('status', 'notice')->whereDate('last_day', '<', $t)->count(),
                 'appraisals' => $apps->filter(fn ($a) => self::appraisalOverdue($a))->count(),
             ];
         })();

@@ -354,7 +354,7 @@ class TalentController extends Controller
         $u = $r->user();
         $rows = TalentCase::with(['employee.department', 'raiser'])->when($kind, fn ($q) => $q->where('kind', $kind))
             ->when($open, fn ($q) => $q->whereNotIn('status', ['closed', 'withdrawn']))->orderByDesc('id')->get()->filter(fn ($c) => TS::canSeeCase($c, $u))->values();
-        $warnings = TalentCase::with('employee')->whereIn('outcome', ['verbal', 'written', 'final', 'suspension'])->where('expires_on', '>=', bdate()->toDateString())->orderBy('expires_on')->get();
+        $warnings = TalentCase::with('employee')->whereIn('outcome', ['verbal', 'written', 'final', 'suspension'])->whereDate('expires_on', '>=', bdate()->toDateString())->orderBy('expires_on')->get();
 
         return view('talent.cases', ['rows' => $rows, 'kind' => $kind, 'open' => $open, 'employees' => $this->employees(), 'warnings' => $warnings, 'today' => bdate()->toDateString()]);
     }

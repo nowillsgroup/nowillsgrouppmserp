@@ -379,7 +379,7 @@ class LedgerService
     /** One journal per day for stores movements that change inventory value (purchases/transfers excluded). */
     public static function forStockDay(string $date): ?array
     {
-        $moves = StockMovement::with('item', 'store')->where('date', $date)->whereNotIn('type', ['purchase', 'transfer_in', 'transfer_out'])->get();
+        $moves = StockMovement::with('item', 'store')->whereDate('date', $date)->whereNotIn('type', ['purchase', 'transfer_in', 'transfer_out'])->get();
         if ($moves->isEmpty()) {
             return null;
         }
@@ -745,14 +745,16 @@ class LedgerService
     /** Per-account debit/credit totals between two dates (inclusive); null from = since inception. $closing = false leaves out year-end closing entries (v5.6). */
     public static function totals(?string $from, string $to, bool $closing = true): \Illuminate\Support\Collection
     {
-        return GlLine::query()->when($from, fn ($q) => $q->where('date', '>=', $from))->where('date', '<=', $to)->when(! $closing, fn ($q) => $q->where('closing', false))
+        return GlLine::query()->when($from, fn ($q) => $q->whereDate('date', '>=', $from))->whereDate('date', '<=', $to)->when(! $closing, fn ($q) => $q->where('closing', false))
             ->groupBy('account_head_id')->selectRaw('account_head_id, SUM(debit) dr, SUM(credit) cr')->get()->keyBy('account_head_id');
     }
 
     /** Signed balance (debit − credit) of one system account up to a date. */
     public static function balance(string $sysKey, string $asOf): float
     {
-        return round((float) GlLine::where('account_head_id', AccountHead::sys($sysKey))->where('date', '<=', $asOf)->sum(DB::raw('debit - credit')), 2);
+        // whereDate, not where: SQLite keeps whatever shape the writer used ("Y-m-d" or "Y-m-d 00:00:00"),
+        // and a string comparison against a date-only bound silently drops the as-of day itself.
+        return round((float) GlLine::where('account_head_id', AccountHead::sys($sysKey))->whereDate('date', '<=', $asOf)->sum(DB::raw('debit - credit')), 2);
     }
 
     /** Sub-ledger vs control account checks as at a date. */
@@ -766,12 +768,12 @@ class LedgerService
 
     public static function controls(string $asOf): array
     {
-        $fo = FolioTransaction::where('is_void', false)->where('business_date', '<=', $asOf)
+        $fo = FolioTransaction::where('is_void', false)->whereDate('business_date', '<=', $asOf)
             ->selectRaw("SUM(CASE WHEN type='charge' THEN amount + tax_amount WHEN type='refund' THEN amount WHEN type IN ('payment','discount','allowance') THEN -amount ELSE 0 END) bal")->value('bal');
-        $clDebits = FolioTransaction::where('is_void', false)->where('type', 'payment')->where('category', 'city_ledger')->where('business_date', '<=', $asOf)->sum('amount');
-        $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->where('date', '<=', $asOf)->sum('amount');
+        $clDebits = FolioTransaction::where('is_void', false)->where('type', 'payment')->where('category', 'city_ledger')->whereDate('business_date', '<=', $asOf)->sum('amount');
+        $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOf)->sum('amount');
         $stock = DB::table('stock_movements as m')->join('inventory_items as i', 'i.id', '=', 'm.inventory_item_id')
-            ->where('m.hotel_id', Tenant::id())->where('m.date', '<=', $asOf)
+            ->where('m.hotel_id', Tenant::id())->whereDate('m.date', '<=', $asOf)
             ->selectRaw('SUM(ROUND(m.qty * COALESCE(NULLIF(m.rate, 0), i.last_cost), 2)) v')->value('v'); // each movement is posted at its rounded value
         $fa = AssetService::registerBalances($asOf);
 

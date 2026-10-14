@@ -752,7 +752,7 @@ class TransportService
             $expired += count($v->expiredPapers()) ? 1 : 0;
             $papers += count($v->expiringPapers($c['paper_days'])) ? 1 : 0;
         }
-        $lic = Driver::where('is_active', true)->whereNotNull('licence_until')->where('licence_until', '<=', now()->addDays($c['paper_days'])->toDateString())->count();
+        $lic = Driver::where('is_active', true)->whereNotNull('licence_until')->whereDate('licence_until', '<=', now()->addDays($c['paper_days'])->toDateString())->count();
 
         return [
             'requested' => TransportTrip::where('status', 'requested')->count(),

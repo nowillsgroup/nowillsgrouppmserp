@@ -131,8 +131,8 @@ class LeaseBillingService
             // a cancelled rent invoice hands its period back to the billing run
             if (in_array($c->type, ['rent'], true) && $l->billed_to && $c->period_end && $l->billed_to->toDateString() === $c->period_end->toDateString()) {
                 $l->update(['billed_to' => $c->period_start->copy()->subDay()->toDateString()]);
-                LeaseCharge::where('lease_id', $l->id)->where('type', 'service_charge')->whereNull('cancelled_at')->where('date', $c->date)
-                    ->where('period_start', $c->period_start)->update(['cancelled_at' => now(), 'cancelled_by' => $u?->id, 'cancel_reason' => 'With '.$c->charge_no, 'paid' => 0]);
+                LeaseCharge::where('lease_id', $l->id)->where('type', 'service_charge')->whereNull('cancelled_at')->whereDate('date', $c->date)
+                    ->whereDate('period_start', $c->period_start)->update(['cancelled_at' => now(), 'cancelled_by' => $u?->id, 'cancel_reason' => 'With '.$c->charge_no, 'paid' => 0]);
             }
             self::reallocate($l);
         });
@@ -293,8 +293,8 @@ class LeaseBillingService
     /** Positive = the tenant owes; negative = paid ahead / in credit. */
     public static function balance(Lease $l, ?string $asOf = null): float
     {
-        $ch = LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('total');
-        $pay = LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))
+        $ch = LeaseCharge::where('lease_id', $l->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('total');
+        $pay = LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN kind='payment' THEN amount + wht_amount WHEN kind='deposit_applied' THEN amount WHEN kind='refund' THEN -amount ELSE 0 END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
@@ -302,7 +302,7 @@ class LeaseBillingService
 
     public static function depositHeld(Lease $l, ?string $asOf = null): float
     {
-        $v = LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))
+        $v = LeasePayment::where('lease_id', $l->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN kind='deposit' THEN amount WHEN kind IN ('deposit_refund','deposit_applied') THEN -amount ELSE 0 END) s")->value('s');
 
         return round((float) $v, 2);
@@ -380,8 +380,8 @@ class LeaseBillingService
     /** Tenants' receivable per the sub-ledger at the end of $asOf. */
     public static function controlBalance(string $asOf): float
     {
-        $ch = LeaseCharge::whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('total');
-        $pay = LeasePayment::whereNull('voided_at')->where('date', '<=', $asOf)
+        $ch = LeaseCharge::whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('total');
+        $pay = LeasePayment::whereNull('voided_at')->whereDate('date', '<=', $asOf)
             ->selectRaw("SUM(CASE WHEN kind='payment' THEN amount + wht_amount WHEN kind='deposit_applied' THEN amount WHEN kind='refund' THEN -amount ELSE 0 END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
@@ -389,7 +389,7 @@ class LeaseBillingService
 
     public static function depositControl(string $asOf): float
     {
-        $v = LeasePayment::whereNull('voided_at')->where('date', '<=', $asOf)
+        $v = LeasePayment::whereNull('voided_at')->whereDate('date', '<=', $asOf)
             ->selectRaw("SUM(CASE WHEN kind='deposit' THEN amount WHEN kind IN ('deposit_refund','deposit_applied') THEN -amount ELSE 0 END) s")->value('s');
 
         return round((float) $v, 2);

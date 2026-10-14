@@ -75,7 +75,7 @@ class InventoryController extends Controller
     {
         $from = $request->input('from', bdate()->copy()->subDays(30)->toDateString());
         $to = $request->input('to', bdate()->toDateString());
-        $moves = StockMovement::with('item', 'store', 'user')->whereBetween('date', [$from, $to])
+        $moves = StockMovement::with('item', 'store', 'user')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->when($request->item, fn ($q, $i) => $q->where('inventory_item_id', $i))
             ->when($request->store, fn ($q, $s) => $q->where('store_id', $s))
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))

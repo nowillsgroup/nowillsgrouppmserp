@@ -31,7 +31,7 @@ class SupplierPrice extends Model
 
     public function scopeValidOn($q, string $date)
     {
-        return $q->where('valid_from', '<=', $date)->where(fn ($w) => $w->whereNull('valid_to')->orWhere('valid_to', '>=', $date));
+        return $q->whereDate('valid_from', '<=', $date)->where(fn ($w) => $w->whereNull('valid_to')->orWhereDate('valid_to', '>=', $date));
     }
 
     public function state(?string $on = null): string

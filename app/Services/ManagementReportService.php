@@ -29,7 +29,7 @@ class ManagementReportService
         $rooms = Room::where('is_active', true)->count();
 
         // Load the whole YTD window once, then slice per period in memory.
-        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $date)->where('departure_date', '>', $yStart)
+        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $date)->whereDate('departure_date', '>', $yStart)
             ->get(['arrival_date', 'departure_date', 'adults', 'children', 'status', 'checked_out_at']);
         $tx = FolioTransaction::where('is_void', false)->whereDate('business_date', '>=', $yStart)->whereDate('business_date', '<=', $date)
             ->get(['business_date', 'type', 'category', 'amount', 'tax_amount']);
@@ -89,9 +89,9 @@ class ManagementReportService
     public static function arAgeing(Carbon $asOn): Collection
     {
         $asOn = $asOn->copy()->startOfDay();
-        $bills = FolioTransaction::where('category', 'city_ledger')->where('is_void', false)->whereNotNull('company_id')->where('business_date', '<=', $asOn)
+        $bills = FolioTransaction::where('category', 'city_ledger')->where('is_void', false)->whereNotNull('company_id')->whereDate('business_date', '<=', $asOn)
             ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'amount'])->groupBy('company_id');
-        $paid = Voucher::where('type', 'receipt')->whereNotNull('company_id')->where('date', '<=', $asOn)->get(['company_id', 'amount'])->groupBy('company_id')->map->sum('amount');
+        $paid = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOn)->get(['company_id', 'amount'])->groupBy('company_id')->map->sum('amount');
         $companies = Company::whereIn('id', $bills->keys()->merge($paid->keys())->unique())->orderBy('name')->get();
 
         return $companies->map(function ($c) use ($bills, $paid, $asOn) {

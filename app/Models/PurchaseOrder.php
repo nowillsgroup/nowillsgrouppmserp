@@ -99,7 +99,7 @@ class PurchaseOrder extends Model
     public function receivedValue(?string $asOf = null): float
     {
         if ($this->hasGrns()) {
-            return round((float) GoodsReceipt::where('purchase_order_id', $this->id)->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('total'), 2);
+            return round((float) GoodsReceipt::where('purchase_order_id', $this->id)->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('total'), 2);
         }
         if ($this->status !== 'received' || ($asOf && $this->grnDate() > $asOf)) {
             return 0.0;

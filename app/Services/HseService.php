@@ -776,7 +776,7 @@ class HseService
                 'permits_overdue' => HsePermit::where('status', 'issued')->where('ends_at', '<', now())->count(),
                 'detectors_isolated' => HsePermit::where('status', 'issued')->whereNotNull('detectors_isolated')->count(),
                 'unnotified' => HseAccident::where('reportable', true)->whereNull('notified_on')->count(),
-                'reviews' => HseRisk::where('status', '!=', 'archived')->where('review_on', '<', $today)->count(),
+                'reviews' => HseRisk::where('status', '!=', 'archived')->whereDate('review_on', '<', $today)->count(),
                 'pending' => HseRisk::where('status', 'pending')->count(),
                 'drills' => collect(self::drillStatus())->whereIn('state', ['overdue', 'never'])->count(),
                 'warden_gaps' => collect(self::coverage())->sum(fn ($c) => count($c['gaps'])),

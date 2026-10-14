@@ -556,7 +556,7 @@ class GiftVoucherService
         $today = bdate()->toDateString();
         $n = 0;
         $amount = 0.0;
-        foreach (GiftVoucher::whereIn('status', ['active', 'suspended'])->where('expires_on', '<', $today)->orderBy('id')->get() as $v) {
+        foreach (GiftVoucher::whereIn('status', ['active', 'suspended'])->whereDate('expires_on', '<', $today)->orderBy('id')->get() as $v) {
             DB::transaction(function () use ($v, &$n, &$amount) {
                 $v = GiftVoucher::lockForUpdate()->findOrFail($v->id);
                 $rest = $v->balance;
@@ -584,7 +584,7 @@ class GiftVoucherService
         }
         $n = 0;
         foreach (GiftVoucher::with('type')->where('status', 'active')->where('balance', '>', 0)->whereNull('reminded_at')
-            ->whereBetween('expires_on', [bdate()->toDateString(), bdate()->copy()->addDays($days)->toDateString()])->get() as $v) {
+            ->whereDate('expires_on', '>=', bdate()->toDateString())->whereDate('expires_on', '<=', bdate()->copy()->addDays($days)->toDateString())->get() as $v) {
             $to = $v->recipient_email ?: $v->purchaser_email;
             if (! $to) {
                 continue;
@@ -658,7 +658,7 @@ class GiftVoucherService
         $days = self::cfg()['reminder_days'] ?: 30;
         $live = GiftVoucher::whereIn('status', ['active', 'suspended']);
         $t = GiftVoucherTransaction::whereDate('business_date', $today);
-        $exp = GiftVoucher::where('status', 'active')->where('balance', '>', 0)->whereBetween('expires_on', [$today, bdate()->copy()->addDays($days)->toDateString()]);
+        $exp = GiftVoucher::where('status', 'active')->where('balance', '>', 0)->whereDate('expires_on', '>=', $today)->whereDate('expires_on', '<=', bdate()->copy()->addDays($days)->toDateString());
 
         return [
             'outstanding' => round((float) (clone $live)->sum('balance'), 2), 'live' => (clone $live)->where('balance', '>', 0)->count(),
@@ -673,6 +673,6 @@ class GiftVoucherService
     {
         $days = self::cfg()['reminder_days'] ?: 30;
 
-        return GiftVoucher::where('status', 'active')->where('balance', '>', 0)->whereBetween('expires_on', [bdate()->toDateString(), bdate()->copy()->addDays($days)->toDateString()])->count();
+        return GiftVoucher::where('status', 'active')->where('balance', '>', 0)->whereDate('expires_on', '>=', bdate()->toDateString())->whereDate('expires_on', '<=', bdate()->copy()->addDays($days)->toDateString())->count();
     }
 }

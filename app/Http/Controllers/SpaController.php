@@ -16,7 +16,7 @@ class SpaController extends Controller
     public function index(Request $request)
     {
         $date = Carbon::parse($request->input('date', bdate()->toDateString()))->toDateString();
-        $appts = SpaAppointment::with('service', 'therapist', 'spaRoom', 'stay.room')->where('date', $date)->orderBy('start_time')->get();
+        $appts = SpaAppointment::with('service', 'therapist', 'spaRoom', 'stay.room')->whereDate('date', $date)->orderBy('start_time')->get();
         $therapists = SpaBookingService::therapists();
         $slots = SpaBookingService::slots();
         $step = max(15, (int) setting('spa_slot_min', 30));

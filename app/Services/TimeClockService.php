@@ -50,11 +50,11 @@ class TimeClockService
     /** The shift being worked at a moment: today's, or last night's overnight shift that has not ended yet. */
     public static function shiftAt(Employee $e, Carbon $at): ?RosterShift
     {
-        $y = RosterShift::where('employee_id', $e->id)->where('date', $at->copy()->subDay()->toDateString())->first();
+        $y = RosterShift::where('employee_id', $e->id)->whereDate('date', $at->copy()->subDay()->toDateString())->first();
         if ($y && $y->isShift() && $at->lt($y->endsAt())) {
             return $y;
         }
-        $t = RosterShift::where('employee_id', $e->id)->where('date', $at->toDateString())->first();
+        $t = RosterShift::where('employee_id', $e->id)->whereDate('date', $at->toDateString())->first();
 
         return $t && $t->isShift() ? $t : null;
     }
@@ -247,7 +247,7 @@ class TimeClockService
     public static function board(string $date, ?int $dept = null): Collection
     {
         $emps = RosterService::employees($dept, Carbon::parse($date))->keyBy('id');
-        $shifts = RosterShift::with('template')->whereIn('employee_id', $emps->keys())->where('date', $date)->get()->keyBy('employee_id');
+        $shifts = RosterShift::with('template')->whereIn('employee_id', $emps->keys())->whereDate('date', $date)->get()->keyBy('employee_id');
         $punches = TimePunch::whereIn('employee_id', $emps->keys())->whereDate('work_date', $date)->orderBy('clock_in')->get()->groupBy('employee_id');
         $leave = RosterService::leaveMap($emps->keys(), $date, $date);
         $now = now();

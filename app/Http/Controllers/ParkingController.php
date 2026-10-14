@@ -219,9 +219,9 @@ class ParkingController extends Controller
     {
         $d = bdate()->toDateString();
         $q = ParkingPermit::with(['vehicle', 'zone', 'employee'])
-            ->when($r->query('view') === 'active', fn ($q) => $q->where('status', 'active')->where('valid_from', '<=', $d)->where('valid_to', '>=', $d))
-            ->when($r->query('view') === 'expiring', fn ($q) => $q->where('status', 'active')->whereBetween('valid_to', [$d, bdate()->copy()->addDays(7)->toDateString()]))
-            ->when($r->query('view') === 'expired', fn ($q) => $q->where(fn ($w) => $w->where('status', 'revoked')->orWhere('valid_to', '<', $d)))
+            ->when($r->query('view') === 'active', fn ($q) => $q->where('status', 'active')->whereDate('valid_from', '<=', $d)->whereDate('valid_to', '>=', $d))
+            ->when($r->query('view') === 'expiring', fn ($q) => $q->where('status', 'active')->whereDate('valid_to', '>=', $d)->whereDate('valid_to', '<=', bdate()->copy()->addDays(7)->toDateString()))
+            ->when($r->query('view') === 'expired', fn ($q) => $q->where(fn ($w) => $w->where('status', 'revoked')->orWhereDate('valid_to', '<', $d)))
             ->when($r->filled('q'), fn ($q) => $q->where(fn ($w) => $w->where('holder_name', 'like', '%'.$r->query('q').'%')->orWhere('number', 'like', '%'.$r->query('q').'%')
                 ->orWhereHas('vehicle', fn ($v) => $v->where('plate', 'like', '%'.PS::normalisePlate($r->query('q')).'%'))))
             ->orderByRaw("status = 'revoked'")->orderBy('valid_to')->orderBy('id');

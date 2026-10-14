@@ -654,7 +654,7 @@ class UsaliService
         $available = 0;
         $sold = 0.0;
         if ($b) {
-            foreach ($b->stats()->whereBetween('month', [$m1, $m2])->get() as $s) {
+            foreach ($b->stats()->whereBetween('month', [$m1, $m2])->get() as $s) { // budget_stats.month is an INTEGER fiscal-month number
                 $available += (int) $s->rooms_available;
                 $sold += (int) $s->rooms_available * (float) $s->occupancy / 100;
             }

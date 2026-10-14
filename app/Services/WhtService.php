@@ -83,7 +83,7 @@ class WhtService
     {
         $y = substr($date, 0, 4);
 
-        return round((float) SupplierPayment::where('supplier_id', $s->id)->whereNull('cancelled_at')->whereBetween('date', ["$y-01-01", $date])
+        return round((float) SupplierPayment::where('supplier_id', $s->id)->whereNull('cancelled_at')->whereDate('date', '>=', "$y-01-01")->whereDate('date', '<=', $date)
             ->when($exceptPaymentId, fn ($q) => $q->where('id', '!=', $exceptPaymentId))->sum('wht_base'), 2);
     }
 

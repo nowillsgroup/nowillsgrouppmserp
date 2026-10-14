@@ -46,18 +46,18 @@ class SalesController extends Controller
         $owner = $this->mineOnly($r);
         $t = bdate()->copy();
         $won = SalesOpportunity::where('stage', 'won')->when($owner, fn ($q) => $q->where('owner_id', $owner));
-        $decided = SalesOpportunity::whereIn('stage', ['won', 'lost'])->where('closed_on', '>=', $t->copy()->subDays(90)->toDateString())->when($owner, fn ($q) => $q->where('owner_id', $owner))->get();
+        $decided = SalesOpportunity::whereIn('stage', ['won', 'lost'])->whereDate('closed_on', '>=', $t->copy()->subDays(90)->toDateString())->when($owner, fn ($q) => $q->where('owner_id', $owner))->get();
         $prod = SS::production($t->copy()->startOfYear(), $t->copy());
         $top = Company::whereIn('id', $prod->keys())->get()->keyBy('id');
 
         return view('sales.index', $this->formData() + [
             'owner' => $owner, 'pipe' => SS::pipeline($owner), 'alerts' => SS::alerts($owner), 'cfg' => SS::cfg(),
-            'wonMonth' => (clone $won)->where('closed_on', '>=', $t->copy()->startOfMonth()->toDateString())->get(),
-            'wonYear' => (clone $won)->where('closed_on', '>=', $t->copy()->startOfYear()->toDateString())->get(),
+            'wonMonth' => (clone $won)->whereDate('closed_on', '>=', $t->copy()->startOfMonth()->toDateString())->get(),
+            'wonYear' => (clone $won)->whereDate('closed_on', '>=', $t->copy()->startOfYear()->toDateString())->get(),
             'winRate' => $decided->count() ? round($decided->where('stage', 'won')->count() * 100 / $decided->count()) : null, 'decided' => $decided->count(),
             'agenda' => SalesActivity::with('company', 'owner', 'opportunity')->where('status', 'planned')->where('due_at', '<=', $t->copy()->addDays(7)->endOfDay())
                 ->when($owner, fn ($q) => $q->where('owner_id', $owner))->orderBy('due_at')->limit(12)->get(),
-            'closing' => SalesOpportunity::with('company', 'owner')->whereIn('stage', SalesOpportunity::OPEN)->where('expected_close', '<=', $t->copy()->addDays(30)->toDateString())
+            'closing' => SalesOpportunity::with('company', 'owner')->whereIn('stage', SalesOpportunity::OPEN)->whereDate('expected_close', '<=', $t->copy()->addDays(30)->toDateString())
                 ->when($owner, fn ($q) => $q->where('owner_id', $owner))->orderBy('expected_close')->limit(8)->get(),
             'stale' => SS::staleOpportunities($owner)->take(6), 'dormant' => SS::dormantAccounts($owner)->take(6), 'birthdays' => SS::birthdays()->take(6),
             'top' => $prod->sortByDesc('revenue')->take(8)->map(fn ($p, $id) => $p + ['company' => $top[$id] ?? null])->filter(fn ($p) => $p['company']),
@@ -138,11 +138,11 @@ class SalesController extends Controller
         if ($list) {
             $q->when($r->query('stage') === 'open', fn ($q) => $q->whereIn('stage', SalesOpportunity::OPEN))
                 ->when($r->filled('stage') && $r->stage !== 'open', fn ($q) => $q->where('stage', $r->stage))
-                ->when($r->filled('from'), fn ($q) => $q->where('expected_close', '>=', $r->from))->when($r->filled('to'), fn ($q) => $q->where('expected_close', '<=', $r->to));
+                ->when($r->filled('from'), fn ($q) => $q->whereDate('expected_close', '>=', $r->from))->when($r->filled('to'), fn ($q) => $q->whereDate('expected_close', '<=', $r->to));
             $opps = $q->orderByRaw("FIELD(stage, 'negotiation', 'proposal', 'qualified', 'prospect', 'won', 'lost')")->orderBy('expected_close')->paginate(40)->withQueryString();
         } else {
             $since = bdate()->copy()->subDays(60)->toDateString();
-            $opps = $q->where(fn ($w) => $w->whereIn('stage', SalesOpportunity::OPEN)->orWhere('closed_on', '>=', $since))->orderBy('expected_close')->get()->groupBy('stage');
+            $opps = $q->where(fn ($w) => $w->whereIn('stage', SalesOpportunity::OPEN)->orWhereDate('closed_on', '>=', $since))->orderBy('expected_close')->get()->groupBy('stage');
         }
 
         return view('sales.opportunities', $this->formData() + ['opps' => $opps, 'list' => $list, 'owner' => $owner, 'pipe' => SS::pipeline($owner), 'cfg' => SS::cfg()]);

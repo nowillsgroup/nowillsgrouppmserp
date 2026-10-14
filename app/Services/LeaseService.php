@@ -442,11 +442,11 @@ class LeaseService
             throw new RuntimeException('Unknown meter.');
         }
         $date ??= self::today();
-        $prev = LeaseMeterReading::where('lease_unit_id', $unit->id)->where('meter', $meter)->where('date', '<=', $date)->orderByDesc('date')->orderByDesc('id')->first();
+        $prev = LeaseMeterReading::where('lease_unit_id', $unit->id)->where('meter', $meter)->whereDate('date', '<=', $date)->orderByDesc('date')->orderByDesc('id')->first();
         if ($prev && $reading < (float) $prev->reading - 0.004) {
             throw new RuntimeException("{$unit->code}: the ".strtolower(LeaseMeterReading::METERS[$meter][0]).' reading '.number_format($reading, 2).' is below the previous one ('.number_format((float) $prev->reading, 2).' on '.dmy($prev->date).').');
         }
-        $lease = Lease::where('lease_unit_id', $unit->id)->whereIn('status', ['active', 'notice', 'ended'])->where('start_date', '<=', $date)
+        $lease = Lease::where('lease_unit_id', $unit->id)->whereIn('status', ['active', 'notice', 'ended'])->whereDate('start_date', '<=', $date)
             ->orderByDesc('start_date')->get()->first(fn ($l) => $l->status !== 'ended' || $l->lastDay()->toDateString() >= Carbon::parse($date)->subDays(3)->toDateString());
         $cons = $kind === 'opening' || ! $prev ? 0.0 : round($reading - (float) $prev->reading, 2);
         $mode = $meter === 'electricity' ? 'elec_mode' : 'water_mode';
@@ -549,7 +549,7 @@ class LeaseService
         if ($c = self::roomConflicts($l->unit, $from, $end)) {
             throw new RuntimeException("Room {$l->unit->room?->room_no} has hotel bookings in the renewal period: ".implode(', ', $c).'.');
         }
-        if (Lease::where('lease_unit_id', $l->lease_unit_id)->whereKeyNot($l->id)->whereIn('status', ['draft', 'active', 'notice'])->where('start_date', '<=', $end)->exists()) {
+        if (Lease::where('lease_unit_id', $l->lease_unit_id)->whereKeyNot($l->id)->whereIn('status', ['draft', 'active', 'notice'])->whereDate('start_date', '<=', $end)->exists()) {
             throw new RuntimeException('Another lease on this unit starts before '.dmy($end).'.');
         }
         $newTerm = $l->term_months + $months;
@@ -606,7 +606,7 @@ class LeaseService
             }
             // bill up to the move-out date, then credit any rent / service charge billed beyond it
             self::bill($l->refresh(), $u, $date);
-            foreach (LeaseCharge::where('lease_id', $l->id)->whereIn('type', ['rent', 'service_charge'])->whereNull('cancelled_at')->where('period_end', '>', $date)->get() as $c) {
+            foreach (LeaseCharge::where('lease_id', $l->id)->whereIn('type', ['rent', 'service_charge'])->whereNull('cancelled_at')->whereDate('period_end', '>', $date)->get() as $c) {
                 $total = $c->period_start->diffInDays($c->period_end) + 1;
                 $unused = $c->period_start->toDateString() > $date ? $total : Carbon::parse($date)->diffInDays($c->period_end);
                 $amt = min(LeaseBillingService::creditable($c), round((float) $c->amount * $unused / $total, 2));

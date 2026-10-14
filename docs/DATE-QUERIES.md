@@ -168,6 +168,24 @@ Lint passes on all of it, and a page sweep returns 200 — the queries simply
 come back empty. Only running the code paths (seeding, running the audit,
 opening the report) shows it.
 
+6. **Schema-driven completion pass (v7.44, 103 application files, 411 insertions)** — passes 1 to 5 selected columns
+   by the *name pattern* `*_date`, so they never reached a column called simply `date` (170 sites),
+   nor `expires_on`, `valid_to`, `valid_from`, `period_start`, `month`, `night`, `week_start`,
+   `carried_from` or `due_on`: **91 per cent of the sites fixed in that pass are on columns whose
+   name does not end in `_date`**. It also covered two classes no earlier pass looked at —
+   comparisons nested inside `where(fn ($q) => …)` closures, and `updateOrCreate()` /
+   `firstOrCreate()` keyed on a date column, which cannot take `whereDate()` and now go through the
+   new `date_upsert()` / `date_first_or_create()` helpers in `app/helpers.php`. Measured cost of what
+   was left: the September trial balance was understated by **GH₵ 153,064.15** (the whole of
+   30 September), `LedgerService::balance()` and `totals()` were dropping the last day of every
+   period from every cumulative figure in the product, the unearned-subscription control account
+   showed a standing GH₵ 5,510.25 difference on the period-close checklist, and saving an
+   already-rostered week returned **HTTP 500 `UNIQUE constraint failed: roster_shifts.employee_id,
+   roster_shifts.date`**. Column selection now comes from `pragma_table_info`, not from names, and
+   both regression checks in the section below were run on the result.
+   Full measurements, the before/after tables and the reproduction commands are in
+   [`DATE-STORAGE-AUDIT.md`](DATE-STORAGE-AUDIT.md).
+
 ## Checking for regressions
 
 To find columns whose rows disagree about the storage form:

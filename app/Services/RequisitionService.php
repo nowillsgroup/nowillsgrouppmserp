@@ -447,7 +447,7 @@ class RequisitionService
         if (! $d) {
             return ['budget' => null, 'issued' => 0.0, 'committed' => 0.0, 'used' => 0.0, 'left' => null, 'pct' => null];
         }
-        $issued = (float) StoreIssue::where('department_id', $d->id)->whereBetween('date', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()])->sum('value');
+        $issued = (float) StoreIssue::where('department_id', $d->id)->whereDate('date', '>=', $month->copy()->startOfMonth()->toDateString())->whereDate('date', '<=', $month->copy()->endOfMonth()->toDateString())->sum('value');
         $committed = Requisition::with('lines.item')->where('department_id', $d->id)->whereIn('status', Requisition::OPEN_FOR_ISSUE)
             ->when($exceptReq, fn ($q) => $q->whereKeyNot($exceptReq))->get()
             ->sum(fn ($r) => $r->lines->sum(fn ($l) => $l->outstanding() * self::cost($l->item)));

@@ -127,7 +127,7 @@ class ReservationDeskService
 
         $roomIds = $rooms->pluck('id');
         $outages = RoomOutage::with('room')->where('status', 'active')
-            ->where('starts_on', '<', $to->toDateString())->where('ends_on', '>', $date->toDateString())
+            ->whereDate('starts_on', '<', $to->toDateString())->whereDate('ends_on', '>', $date->toDateString())
             ->get();
 
         $day = $date->toDateString();

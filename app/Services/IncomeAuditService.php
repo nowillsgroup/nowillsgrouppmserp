@@ -85,7 +85,7 @@ class IncomeAuditService
             throw new RuntimeException('Only closed business dates can be audited – '.dmy($date).' is still open.');
         }
 
-        return AuditDay::firstOrCreate(['business_date' => $date], ['status' => 'open']);
+        return date_first_or_create(AuditDay::class, ['business_date' => $date], ['status' => 'open']);
     }
 
     public static function isClosed(string $date): bool
@@ -159,7 +159,7 @@ class IncomeAuditService
         $reported = $na ? ['room' => (float) $na->room_revenue, 'other' => (float) $na->other_revenue, 'tax' => (float) $na->tax_collected, 'collections' => (float) $na->collections] : null;
         $diff = $reported ? array_map(fn ($k) => round($now[$k] - $reported[$k], 2), array_combine(array_keys($now), array_keys($now))) : null;
         $gl = (float) DB::table('gl_lines')->join('account_heads', 'account_heads.id', '=', 'gl_lines.account_head_id')
-            ->where('gl_lines.hotel_id', \App\Support\Tenant::id())->where('gl_lines.date', $date)->where('gl_lines.closing', false)->where('account_heads.type', 'income')
+            ->where('gl_lines.hotel_id', \App\Support\Tenant::id())->whereDate('gl_lines.date', $date)->where('gl_lines.closing', false)->where('account_heads.type', 'income')
             ->selectRaw('COALESCE(SUM(gl_lines.credit - gl_lines.debit), 0) v')->value('v');
 
         return ['now' => $now, 'reported' => $reported, 'diff' => $diff,
@@ -449,7 +449,7 @@ class IncomeAuditService
     public static function afterNightAudit(string $closedDate): void
     {
         RevenueAuthService::nightly();
-        $day = AuditDay::firstOrCreate(['business_date' => $closedDate], ['status' => 'open']);
+        $day = date_first_or_create(AuditDay::class, ['business_date' => $closedDate], ['status' => 'open']);
         if ($day->status === 'open') {
             self::run($day);
         }

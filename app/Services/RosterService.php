@@ -67,7 +67,7 @@ class RosterService
     {
         $map = [];
         foreach (LeaveRequest::with('leaveType')->where('status', 'approved')->whereIn('employee_id', $employeeIds)
-            ->where('date_from', '<=', $to)->where('date_to', '>=', $from)->get() as $l) {
+            ->whereDate('date_from', '<=', $to)->whereDate('date_to', '>=', $from)->get() as $l) {
             for ($d = Carbon::parse(max($from, $l->date_from->toDateString())); $d->toDateString() <= min($to, $l->date_to->toDateString()); $d->addDay()) {
                 $map[$l->employee_id][$d->toDateString()] = $l;
             }
@@ -78,7 +78,7 @@ class RosterService
 
     public static function week(int $dept, Carbon $week): ?RosterWeek
     {
-        return RosterWeek::where('department_id', $dept)->where('week_start', $week->toDateString())->first();
+        return RosterWeek::where('department_id', $dept)->whereDate('week_start', $week->toDateString())->first();
     }
 
     /** Everything the week grid needs. */
@@ -90,7 +90,7 @@ class RosterService
         $to = $week->copy()->addDays(6)->toDateString();
         // a week of history before the grid feeds the rest / consecutive-day checks
         $all = RosterShift::with('template')->whereIn('employee_id', $emps->pluck('id'))
-            ->whereBetween('date', [$week->copy()->subDays(7)->toDateString(), $to])->orderBy('date')->get()->groupBy('employee_id');
+            ->whereDate('date', '>=', $week->copy()->subDays(7)->toDateString())->whereDate('date', '<=', $to)->orderBy('date')->get()->groupBy('employee_id');
         $shifts = [];
         foreach ($all as $eid => $rows) {
             foreach ($rows as $r) {
@@ -228,7 +228,7 @@ class RosterService
                 }
                 foreach ($days as $date => $val) {
                     $val = trim((string) $val);
-                    $existing = RosterShift::where('employee_id', $eid)->where('date', $date)->first();
+                    $existing = RosterShift::where('employee_id', $eid)->whereDate('date', $date)->first();
                     $same = $existing ? ($existing->kind === 'off' ? 'OFF' : (string) $existing->shift_template_id) : '';
                     if ($val === $same) {
                         continue;
@@ -243,9 +243,9 @@ class RosterService
                     if ($val === '') {
                         $existing?->delete();
                     } elseif ($val === 'OFF') {
-                        RosterShift::updateOrCreate(['employee_id' => $eid, 'date' => $date], ['kind' => 'off', 'shift_template_id' => null, 'start_time' => null, 'end_time' => null, 'break_minutes' => 0, 'created_by' => $u?->id]);
+                        date_upsert(RosterShift::class, ['employee_id' => $eid, 'date' => $date], ['kind' => 'off', 'shift_template_id' => null, 'start_time' => null, 'end_time' => null, 'break_minutes' => 0, 'created_by' => $u?->id]);
                     } elseif ($t = $templates[(int) $val] ?? null) {
-                        RosterShift::updateOrCreate(['employee_id' => $eid, 'date' => $date], ['kind' => 'shift', 'shift_template_id' => $t->id, 'start_time' => $t->start_time,
+                        date_upsert(RosterShift::class, ['employee_id' => $eid, 'date' => $date], ['kind' => 'shift', 'shift_template_id' => $t->id, 'start_time' => $t->start_time,
                             'end_time' => $t->end_time, 'break_minutes' => $t->break_minutes, 'created_by' => $u?->id]);
                     } else {
                         $skipped++;
@@ -274,9 +274,9 @@ class RosterService
         }
         $emps = self::employees($dept, $target)->pluck('id');
         $cells = [];
-        foreach (RosterShift::whereIn('employee_id', $emps)->whereBetween('date', [$source->toDateString(), $source->copy()->addDays(6)->toDateString()])->get() as $s) {
+        foreach (RosterShift::whereIn('employee_id', $emps)->whereDate('date', '>=', $source->toDateString())->whereDate('date', '<=', $source->copy()->addDays(6)->toDateString())->get() as $s) {
             $d = $target->copy()->addDays($source->diffInDays($s->date))->toDateString();
-            if (! RosterShift::where('employee_id', $s->employee_id)->where('date', $d)->exists()) {
+            if (! RosterShift::where('employee_id', $s->employee_id)->whereDate('date', $d)->exists()) {
                 $cells[$s->employee_id][$d] = $s->kind === 'off' ? 'OFF' : (string) $s->shift_template_id;
             }
         }
@@ -290,7 +290,7 @@ class RosterService
     public static function publish(int $dept, Carbon $week, User $u): RosterWeek
     {
         $emps = self::employees($dept, $week)->pluck('id');
-        if (! RosterShift::whereIn('employee_id', $emps)->whereBetween('date', [$week->toDateString(), $week->copy()->addDays(6)->toDateString()])->exists()) {
+        if (! RosterShift::whereIn('employee_id', $emps)->whereDate('date', '>=', $week->toDateString())->whereDate('date', '<=', $week->copy()->addDays(6)->toDateString())->exists()) {
             throw new RuntimeException('The week is empty – roster some shifts before publishing.');
         }
         $w = RosterWeek::firstOrNew(['department_id' => $dept, 'week_start' => $week->toDateString()]);
@@ -303,21 +303,21 @@ class RosterService
     /** Is the week containing this shift published for the employee's department? */
     public static function isPublished(Employee $e, Carbon|string $date): bool
     {
-        return RosterWeek::where('department_id', $e->department_id)->where('week_start', self::weekStart($date)->toDateString())->whereNotNull('published_at')->exists();
+        return RosterWeek::where('department_id', $e->department_id)->whereDate('week_start', self::weekStart($date)->toDateString())->whereNotNull('published_at')->exists();
     }
 
     public static function shiftFor(Employee $e, Carbon|string $date): ?RosterShift
     {
-        return RosterShift::with('template')->where('employee_id', $e->id)->where('date', Carbon::parse($date)->toDateString())->first();
+        return RosterShift::with('template')->where('employee_id', $e->id)->whereDate('date', Carbon::parse($date)->toDateString())->first();
     }
 
     /** An employee's published roster between two dates. */
     public static function myShifts(Employee $e, string $from, string $to): Collection
     {
         $weeks = RosterWeek::where('department_id', $e->department_id)->whereNotNull('published_at')
-            ->whereBetween('week_start', [self::weekStart($from)->toDateString(), $to])->pluck('week_start')->map(fn ($d) => $d->toDateString())->all();
+            ->whereDate('week_start', '>=', self::weekStart($from)->toDateString())->whereDate('week_start', '<=', $to)->pluck('week_start')->map(fn ($d) => $d->toDateString())->all();
 
-        return RosterShift::with('template')->where('employee_id', $e->id)->whereBetween('date', [$from, $to])->orderBy('date')->get()
+        return RosterShift::with('template')->where('employee_id', $e->id)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderBy('date')->get()
             ->filter(fn ($s) => in_array(self::weekStart($s->date)->toDateString(), $weeks, true))->values();
     }
 
@@ -343,7 +343,7 @@ class RosterService
         if (ShiftSwap::where('roster_shift_id', $mine->id)->whereIn('status', ShiftSwap::OPEN)->exists()) {
             throw new RuntimeException('There is already an open swap request for this shift.');
         }
-        $theirs = RosterShift::where('employee_id', $colleague->id)->where('date', $mine->date->toDateString())->first();
+        $theirs = RosterShift::where('employee_id', $colleague->id)->whereDate('date', $mine->date->toDateString())->first();
         if ($theirs && $theirs->isShift() && (string) $theirs->start_time === (string) $mine->start_time && (string) $theirs->end_time === (string) $mine->end_time) {
             throw new RuntimeException("{$colleague->name} already works the same shift that day.");
         }
@@ -394,7 +394,7 @@ class RosterService
                     throw new RuntimeException('The shift has changed or already started – the swap can no longer be applied.');
                 }
                 $fields = ['kind', 'shift_template_id', 'start_time', 'end_time', 'break_minutes'];
-                $theirs = RosterShift::lockForUpdate()->where('employee_id', $swap->colleague_id)->where('date', $mine->date->toDateString())->first();
+                $theirs = RosterShift::lockForUpdate()->where('employee_id', $swap->colleague_id)->whereDate('date', $mine->date->toDateString())->first();
                 if ($swap->colleague_shift_id && (! $theirs || (int) $theirs->id !== (int) $swap->colleague_shift_id || ! $theirs->isShift())) {
                     throw new RuntimeException('The colleague\'s shift has changed – ask them to request again.');
                 }
@@ -405,7 +405,7 @@ class RosterService
                     $theirs->update($a + ['notes' => 'Swapped with '.$swap->requester?->name]);
                 } else {
                     $mine->update(['kind' => 'off', 'shift_template_id' => null, 'start_time' => null, 'end_time' => null, 'break_minutes' => 0, 'notes' => 'Handed to '.$swap->colleague?->name]);
-                    RosterShift::updateOrCreate(['employee_id' => $swap->colleague_id, 'date' => $mine->date->toDateString()], $a + ['notes' => 'Covering for '.$swap->requester?->name, 'created_by' => $u->id]);
+                    date_upsert(RosterShift::class, ['employee_id' => $swap->colleague_id, 'date' => $mine->date->toDateString()], $a + ['notes' => 'Covering for '.$swap->requester?->name, 'created_by' => $u->id]);
                 }
             }
             $swap->update(['status' => $approve ? 'approved' : 'rejected', 'decided_by' => $u->id, 'decided_at' => now(), 'decision_note' => $note]);

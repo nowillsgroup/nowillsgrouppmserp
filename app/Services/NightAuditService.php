@@ -32,7 +32,7 @@ class NightAuditService
             'desk_urgent' => \App\Models\LogEntry::where('status', 'open')->where('priority', 'urgent')->orderBy('id')->get(),
             // v3.9: meters not read today (warning – the next reading will simply cover two days) and lapsed critical licences
             'meters_missing' => UtilityService::cfg()['require_readings'] ? UtilityService::missing($d, true) : collect(),
-            'licences_expired' => \App\Models\ComplianceItem::where('status', '!=', 'archived')->where('is_critical', true)->whereNotNull('expires_on')->where('expires_on', '<', $d)->orderBy('expires_on')->get(),
+            'licences_expired' => \App\Models\ComplianceItem::where('status', '!=', 'archived')->where('is_critical', true)->whereNotNull('expires_on')->whereDate('expires_on', '<', $d)->orderBy('expires_on')->get(),
         ];
     }
 

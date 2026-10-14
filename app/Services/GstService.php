@@ -396,7 +396,7 @@ class GstService
         [$from, $to] = self::monthRange($period);
         $acct = AccountHead::sys('input_tax');
 
-        return $acct ? round((float) GlLine::where('account_head_id', $acct)->where('closing', false)->whereBetween('date', [$from, $to])->sum(DB::raw('debit - credit')), 2) : 0.0;
+        return $acct ? round((float) GlLine::where('account_head_id', $acct)->where('closing', false)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->sum(DB::raw('debit - credit')), 2) : 0.0;
     }
 
     /**
@@ -543,11 +543,11 @@ class GstService
             }
         }
         $prev = Carbon::createFromFormat('Y-m-d', $period.'-01')->subMonth()->format('Y-m');
-        if (! GstPeriod::where('period', $prev)->exists() && Folio::whereNotNull('invoice_no')->where('invoice_date', '<', $period.'-01')->exists()) {
+        if (! GstPeriod::where('period', $prev)->exists() && Folio::whereNotNull('invoice_no')->whereDate('invoice_date', '<', $period.'-01')->exists()) {
             $out[] = ['block' => false, 'text' => 'The VAT return for '.Carbon::parse($prev.'-01')->format('M Y').' is not marked as filed.'];
         }
         $open = Folio::where('status', 'open')->whereNotNull('company_id')->whereHas('transactions', fn ($q) => $q->where('is_void', false)->where('type', 'charge')
-            ->where('business_date', '<=', self::monthRange($period)[1]))->where('type', '!=', 'credit_note')->count();
+            ->whereDate('business_date', '<=', self::monthRange($period)[1]))->where('type', '!=', 'credit_note')->count();
         if ($open && $period < bdate()->format('Y-m')) {
             $out[] = ['block' => false, 'text' => "{$open} company folio(s) with charges up to the month end are still open – invoices are dated when issued, so they belong to a later return."];
         }

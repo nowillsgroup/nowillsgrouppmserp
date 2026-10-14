@@ -116,7 +116,7 @@ class FoodSafetyController extends Controller
         $from = $request->input('from', now()->subDays(13)->toDateString());
 
         return view('foodsafety.checklists', ['lists' => FS::checklistStatus(), 'all' => FsChecklist::orderByDesc('is_active')->orderBy('name')->get(), 'from' => $from,
-            'runs' => FsChecklistRun::with('checklist', 'completer', 'signer')->where('period', '>=', $from)->orderByDesc('period')->orderByDesc('completed_at')->get()]);
+            'runs' => FsChecklistRun::with('checklist', 'completer', 'signer')->whereDate('period', '>=', $from)->orderByDesc('period')->orderByDesc('completed_at')->get()]);
     }
 
     public function runForm(FsChecklist $fslist)
@@ -124,7 +124,7 @@ class FoodSafetyController extends Controller
         abort_unless($fslist->is_active, 404);
         $p = FS::periodFor($fslist);
 
-        return view('foodsafety.checklist-run', ['c' => $fslist, 'period' => $p, 'done' => FsChecklistRun::where('fs_checklist_id', $fslist->id)->where('period', $p->toDateString())->first()]);
+        return view('foodsafety.checklist-run', ['c' => $fslist, 'period' => $p, 'done' => FsChecklistRun::where('fs_checklist_id', $fslist->id)->whereDate('period', $p->toDateString())->first()]);
     }
 
     public function complete(Request $request, FsChecklist $fslist)
@@ -211,7 +211,7 @@ class FoodSafetyController extends Controller
         $to = $request->input('to', bdate()->toDateString());
 
         return view('foodsafety.waste', ['from' => $from, 'to' => $to, 'summary' => FoodWasteService::summary($from, $to),
-            'rows' => FsWaste::with('item', 'menuItem', 'store', 'outlet', 'user')->whereBetween('date', [$from, $to])->orderByDesc('date')->orderByDesc('id')->get(),
+            'rows' => FsWaste::with('item', 'menuItem', 'store', 'outlet', 'user')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderByDesc('date')->orderByDesc('id')->get(),
             'stock' => InventoryItem::where('is_active', true)->whereHas('category', fn ($c) => $c->whereIn('name', ['Grocery', 'Beverages']))->orderBy('name')->get(),
             'dishes' => MenuItem::withCount('recipes')->orderBy('name')->get(), 'stores' => Store::whereIn('type', ['kitchen', 'bar', 'main'])->pluck('name', 'id'),
             'outlets' => Outlet::orderBy('name')->pluck('name', 'id'), 'defaultStore' => FoodWasteService::defaultStore()]);
@@ -306,8 +306,8 @@ class FoodSafetyController extends Controller
 
         return view('foodsafety.pack', ['from' => $from, 'to' => $to,
             'logs' => FsTempLog::with('equipment', 'user', 'reviewer', 'supplier')->whereBetween('recorded_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()])->orderBy('recorded_at')->get(),
-            'runs' => FsChecklistRun::with('checklist', 'completer', 'signer')->whereBetween('period', [$from, $to])->orderBy('period')->get(),
-            'waste' => FsWaste::with('item', 'menuItem')->whereNull('cancelled_at')->whereBetween('date', [$from, $to])->orderBy('date')->get(),
+            'runs' => FsChecklistRun::with('checklist', 'completer', 'signer')->whereDate('period', '>=', $from)->whereDate('period', '<=', $to)->orderBy('period')->get(),
+            'waste' => FsWaste::with('item', 'menuItem')->whereNull('cancelled_at')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->orderBy('date')->get(),
             'compliance' => FS::compliance(max(1, (int) Carbon::parse($from)->diffInDays(now()->startOfDay())))]);
     }
 }

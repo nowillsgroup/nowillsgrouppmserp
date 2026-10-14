@@ -348,7 +348,7 @@ class ClubController extends Controller
 
         return view('club.passes', ['rows' => $rows, 'date' => $date, 'modes' => $this->modes(),
             'todayCount' => (clone $today)->sum(\DB::raw('adults + children')), 'todayTotal' => (clone $today)->sum('total'),
-            'mtd' => ClubDayPass::whereNull('cancelled_at')->whereBetween('date', [bdate()->copy()->startOfMonth()->toDateString(), bdate()->toDateString()])->sum('amount'),
+            'mtd' => ClubDayPass::whereNull('cancelled_at')->whereDate('date', '>=', bdate()->copy()->startOfMonth()->toDateString())->whereDate('date', '<=', bdate()->toDateString())->sum('amount'),
             'adult' => (float) ClubService::cfg('club_daypass_adult'), 'child' => (float) ClubService::cfg('club_daypass_child'), 'rate' => ClubBillingService::tax(100)['rate']]);
     }
 

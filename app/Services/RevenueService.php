@@ -210,7 +210,7 @@ class RevenueService
                     if ($rate <= 0 || $rate > 99999999) {
                         throw new RuntimeException("Invalid rate for {$type->name} on {$date}.");
                     }
-                    RateOverride::where('source', 'rm')->where('room_type_id', $type->id)->where('date_from', $date)->where('date_to', $date)->delete();
+                    RateOverride::where('source', 'rm')->where('room_type_id', $type->id)->whereDate('date_from', $date)->whereDate('date_to', $date)->delete();
                     $minStay = self::evaluate($type, Carbon::parse($date), (float) $base[$date]['rate'], $occ[$date] ?? [], $rules)['min_stay'];
                     if (abs($rate - (float) $base[$date]['rate']) < 0.01 && ! $minStay) {
                         $stats['reverted']++;
@@ -231,7 +231,7 @@ class RevenueService
     /** Remove revenue-managed overrides in a range (back to the base / seasonal rates). */
     public static function reset(Carbon $from, Carbon $to, ?array $typeIds = null): int
     {
-        $n = RateOverride::where('source', 'rm')->whereBetween('date_from', [$from->toDateString(), $to->toDateString()])
+        $n = RateOverride::where('source', 'rm')->whereDate('date_from', '>=', $from->toDateString())->whereDate('date_from', '<=', $to->toDateString())
             ->when($typeIds, fn ($q) => $q->whereIn('room_type_id', $typeIds))->delete();
         ActivityLogger::log('revenue', 'reset', "Removed {$n} revenue-managed day rate(s) {$from->format('d M')} – {$to->format('d M Y')}");
 

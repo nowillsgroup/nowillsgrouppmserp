@@ -45,7 +45,7 @@ class SpaBookingService
         if (! $employeeId && ! $roomId) {
             return null;
         }
-        $hit = SpaAppointment::with('therapist', 'spaRoom')->where('date', $date)->whereNotIn('status', ['cancelled', 'no_show'])
+        $hit = SpaAppointment::with('therapist', 'spaRoom')->whereDate('date', $date)->whereNotIn('status', ['cancelled', 'no_show'])
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
             ->where('start_time', '<', $end)->where('end_time', '>', $start)
             ->where(fn ($q) => $q->when($employeeId, fn ($w) => $w->orWhere('employee_id', $employeeId))->when($roomId, fn ($w) => $w->orWhere('spa_room_id', $roomId)))

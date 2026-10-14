@@ -43,7 +43,7 @@ class GiftVoucherController extends Controller
         if ($tab === 'list') {
             $st = $request->query('status');
             $vouchers = GiftVoucher::with('type')
-                ->when($st === 'expiring', fn ($q) => $q->where('status', 'active')->where('balance', '>', 0)->whereBetween('expires_on', [bdate()->toDateString(), bdate()->copy()->addDays(Gv::cfg()['reminder_days'] ?: 30)->toDateString()]))
+                ->when($st === 'expiring', fn ($q) => $q->where('status', 'active')->where('balance', '>', 0)->whereDate('expires_on', '>=', bdate()->toDateString())->whereDate('expires_on', '<=', bdate()->copy()->addDays(Gv::cfg()['reminder_days'] ?: 30)->toDateString()))
                 ->when($st && $st !== 'expiring' && isset(GiftVoucher::STATUSES[$st]), fn ($q) => $q->where('status', $st))
                 ->when($request->query('type'), fn ($q, $t) => $q->where('gift_voucher_type_id', (int) $t))
                 ->when($request->query('source'), fn ($q, $s) => $q->where('source', $s))

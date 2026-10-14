@@ -106,7 +106,7 @@ class ChannelService
     public static function pendingCount(ChannelConnection $c): int
     {
         return (int) DB::table('channel_dirty')->where('hotel_id', $c->hotel_id)->where('id', '>', $c->pushed_upto_id)
-            ->where('date', '>=', bdate()->toDateString())->distinct()->count(DB::raw("CONCAT(room_type_id, '|', `date`)"));
+            ->whereDate('date', '>=', bdate()->toDateString())->distinct()->count(DB::raw("CONCAT(room_type_id, '|', `date`)"));
     }
 
     public static function registerObservers(): void
@@ -312,7 +312,7 @@ class ChannelService
             $days = (int) $c->push_days;
         } else {
             $rows = DB::table('channel_dirty')->where('hotel_id', $c->hotel_id)->where('id', '>', $c->pushed_upto_id)->where('id', '<=', $maxId)
-                ->where('date', '>=', $today->toDateString())->where('date', '<', $horizon->toDateString())->get(['room_type_id', 'date']);
+                ->whereDate('date', '>=', $today->toDateString())->whereDate('date', '<', $horizon->toDateString())->get(['room_type_id', 'date']);
             foreach ($rows as $r) {
                 $only[$r->room_type_id][Carbon::parse($r->date)->toDateString()] = true;
             }
@@ -404,7 +404,7 @@ class ChannelService
     public static function prune(): void
     {
         $min = ChannelConnection::where('is_active', true)->min('pushed_upto_id');
-        DB::table('channel_dirty')->where('hotel_id', Tenant::id())->where(fn ($q) => $q->where('date', '<', bdate()->toDateString())
+        DB::table('channel_dirty')->where('hotel_id', Tenant::id())->where(fn ($q) => $q->whereDate('date', '<', bdate()->toDateString())
             ->when($min !== null, fn ($w) => $w->orWhere('id', '<=', $min)))->delete();
         ChannelPush::where('created_at', '<', now()->subDays(90))->delete();
         ChannelAriState::where('date', '<', bdate()->toDateString())->delete();
@@ -864,7 +864,7 @@ class ChannelService
     public static function parity(ChannelConnection $c, Carbon $from, int $days): array
     {
         $expected = self::ari($c, $from, $days);
-        $states = ChannelAriState::where('channel_connection_id', $c->id)->whereBetween('date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])
+        $states = ChannelAriState::where('channel_connection_id', $c->id)->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $from->copy()->addDays($days - 1)->toDateString())
             ->get()->groupBy('room_type_id')->map(fn ($g) => $g->keyBy(fn ($s) => $s->date->toDateString()));
         $out = [];
         foreach ($expected as $typeId => $byDate) {

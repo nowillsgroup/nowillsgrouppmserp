@@ -676,7 +676,7 @@ class SalesService
         return self::$memo[$key] ??= [
             'overdue' => SalesActivity::where('status', 'planned')->where('due_at', '<', self::today().' 00:00:00')->when($ownerId, fn ($q) => $q->where('owner_id', $ownerId))->count(),
             'today' => SalesActivity::where('status', 'planned')->whereBetween('due_at', [self::today().' 00:00:00', self::today().' 23:59:59'])->when($ownerId, fn ($q) => $q->where('owner_id', $ownerId))->count(),
-            'closing_overdue' => SalesOpportunity::whereIn('stage', SalesOpportunity::OPEN)->where('expected_close', '<', self::today())->when($ownerId, fn ($q) => $q->where('owner_id', $ownerId))->count(),
+            'closing_overdue' => SalesOpportunity::whereIn('stage', SalesOpportunity::OPEN)->whereDate('expected_close', '<', self::today())->when($ownerId, fn ($q) => $q->where('owner_id', $ownerId))->count(),
             'stale' => self::staleOpportunities($ownerId)->count(),
             'dormant' => self::dormantAccounts($ownerId)->count(),
         ];
@@ -710,7 +710,7 @@ class SalesService
         $rows = DB::table('reservation_rooms as rr')->join('reservations as r', 'r.id', '=', 'rr.reservation_id')
             ->where('rr.hotel_id', hotel()->id)->whereNotNull('r.company_id')->when($companyIds !== null, fn ($q) => $q->whereIn('r.company_id', $companyIds ?: [0]))
             ->whereIn('rr.status', ['checked_in', 'checked_out', 'reserved'])->whereNotIn('r.status', ['cancelled', 'no_show'])
-            ->where('rr.arrival_date', '<=', $T)->where('rr.departure_date', '>', $F)
+            ->whereDate('rr.arrival_date', '<=', $T)->whereDate('rr.departure_date', '>', $F)
             ->get(['r.company_id', 'rr.status', 'rr.arrival_date', 'rr.departure_date', 'rr.rate']);
         $rev = DB::table('folio_transactions as t')->join('folios as f', 'f.id', '=', 't.folio_id')->join('reservations as r', 'r.id', '=', 'f.reservation_id')
             ->where('t.hotel_id', hotel()->id)->whereNotNull('r.company_id')->when($companyIds !== null, fn ($q) => $q->whereIn('r.company_id', $companyIds ?: [0]))
@@ -777,7 +777,7 @@ class SalesService
         $prod = self::production($from, $to);
         $accounts = Company::whereNotNull('account_manager_id')->get(['id', 'account_manager_id'])->groupBy('account_manager_id');
         $acts = SalesActivity::where('status', 'done')->whereBetween('done_at', [$from, $to->copy()->endOfDay()])->groupBy('owner_id')->selectRaw('owner_id, COUNT(*) n')->pluck('n', 'owner_id');
-        $won = SalesOpportunity::where('stage', 'won')->whereBetween('closed_on', [$from->toDateString(), $to->toDateString()])->get()->groupBy('owner_id');
+        $won = SalesOpportunity::where('stage', 'won')->whereDate('closed_on', '>=', $from->toDateString())->whereDate('closed_on', '<=', $to->toDateString())->get()->groupBy('owner_id');
         $targets = SalesTarget::with('user')->where('period', $period)->get()->keyBy('user_id');
         $users = self::sellers()->keyBy('id')->union($targets->mapWithKeys(fn ($t) => [$t->user_id => $t->user])->filter());
 

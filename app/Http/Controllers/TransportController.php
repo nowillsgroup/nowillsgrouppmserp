@@ -428,7 +428,7 @@ class TransportController extends Controller
     public function expenses(Request $request)
     {
         $month = Carbon::parse(($request->input('month') ?: now()->format('Y-m')).'-01')->startOfMonth();
-        $q = VehicleExpense::with('vehicle', 'driver', 'creator')->whereBetween('date', [$month->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+        $q = VehicleExpense::with('vehicle', 'driver', 'creator')->whereDate('date', '>=', $month->toDateString())->whereDate('date', '<=', $month->copy()->endOfMonth()->toDateString())
             ->when($request->vehicle, fn ($q, $v) => $q->where('vehicle_id', $v))->when($request->kind, fn ($q, $k) => $q->where('kind', $k));
         $rows = (clone $q)->orderByDesc('date')->orderByDesc('id')->get();
 

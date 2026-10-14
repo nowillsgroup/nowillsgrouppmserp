@@ -44,7 +44,7 @@ class LeaseController extends Controller
             'moving' => Lease::with('unit')->where('status', 'notice')->orderBy('move_out_on')->get(),
             'starting' => Lease::with('unit')->where('status', 'draft')->orderBy('start_date')->get(),
             'reviews' => Lease::with('unit')->whereIn('status', ['active', 'notice'])->whereNotNull('next_review_on')
-                ->where('next_review_on', '<=', Carbon::parse($today)->addDays(60)->toDateString())->orderBy('next_review_on')->get(),
+                ->whereDate('next_review_on', '<=', Carbon::parse($today)->addDays(60)->toDateString())->orderBy('next_review_on')->get(),
             'today' => $today,
         ]);
     }

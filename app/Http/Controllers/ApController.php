@@ -156,7 +156,7 @@ class ApController extends Controller
     {
         $payments = SupplierPayment::with('supplier', 'paymentMode')
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
-            ->when($request->from, fn ($q, $d) => $q->where('date', '>=', $d))->when($request->to, fn ($q, $d) => $q->where('date', '<=', $d))
+            ->when($request->from, fn ($q, $d) => $q->whereDate('date', '>=', $d))->when($request->to, fn ($q, $d) => $q->whereDate('date', '<=', $d))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('payment_no', 'like', "%{$s}%")->orWhere('reference', 'like', "%{$s}%")))
             ->latest('date')->latest('id')->paginate(30)->withQueryString();
 

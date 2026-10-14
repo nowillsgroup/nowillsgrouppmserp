@@ -43,8 +43,8 @@ class RoomOutage extends Model
     public static function covering($from, $to, ?int $roomId = null)
     {
         return static::where('status', 'active')
-            ->where('starts_on', '<', Carbon::parse($to)->toDateString())
-            ->where('ends_on', '>', Carbon::parse($from)->toDateString())
+            ->whereDate('starts_on', '<', Carbon::parse($to)->toDateString())
+            ->whereDate('ends_on', '>', Carbon::parse($from)->toDateString())
             ->when($roomId, fn ($q) => $q->where('room_id', $roomId));
     }
 }

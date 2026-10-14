@@ -179,7 +179,7 @@ class TreasuryService
 
     public static function balance(int $headId, ?string $asOf = null): float
     {
-        return round((float) GlLine::where('account_head_id', $headId)->where('date', '<=', $asOf ?? bdate()->toDateString())->sum(DB::raw('debit - credit')), 2);
+        return round((float) GlLine::where('account_head_id', $headId)->whereDate('date', '<=', $asOf ?? bdate()->toDateString())->sum(DB::raw('debit - credit')), 2);
     }
 
     /** cash position per account at a date */
@@ -858,15 +858,15 @@ class TreasuryService
     /** cheques in hand per the register at a date (receipt posted, not yet banked / returned) */
     public static function chequesInHand(string $asOf): float
     {
-        return round((float) ChequeReceived::whereNotNull('recognised_on')->where('recognised_on', '<=', $asOf)
-            ->where(fn ($q) => $q->whereNull('left_on')->orWhere('left_on', '>', $asOf))->sum('amount'), 2);
+        return round((float) ChequeReceived::whereNotNull('recognised_on')->whereDate('recognised_on', '<=', $asOf)
+            ->where(fn ($q) => $q->whereNull('left_on')->orWhereDate('left_on', '>', $asOf))->sum('amount'), 2);
     }
 
     /** transfers sent through Cash in Transit and not yet credited / recalled at a date */
     public static function inTransit(string $asOf): float
     {
-        return round((float) TreasuryTransfer::where('via_transit', true)->whereNotNull('dispatch_journal_id')->where('dispatched_on', '<=', $asOf)
-            ->where(fn ($q) => $q->whereNull('completed_on')->orWhere('completed_on', '>', $asOf))->sum('amount'), 2);
+        return round((float) TreasuryTransfer::where('via_transit', true)->whereNotNull('dispatch_journal_id')->whereDate('dispatched_on', '<=', $asOf)
+            ->where(fn ($q) => $q->whereNull('completed_on')->orWhereDate('completed_on', '>', $asOf))->sum('amount'), 2);
     }
 
     // ───────────────────────── 13-week cash forecast ─────────────────────────
@@ -1077,8 +1077,8 @@ class TreasuryService
         $mv = GlLine::whereBetween('date', [$from, $to])->where('closing', false)->groupBy('account_head_id')->selectRaw('account_head_id, SUM(debit - credit) m')->pluck('m', 'account_head_id');
         $cashIds = self::cashIds();
         $before = Carbon::parse($from)->subDay()->toDateString();
-        $open = round((float) GlLine::whereIn('account_head_id', $cashIds)->where('date', '<=', $before)->sum(DB::raw('debit - credit')), 2);
-        $close = round((float) GlLine::whereIn('account_head_id', $cashIds)->where('date', '<=', $to)->sum(DB::raw('debit - credit')), 2);
+        $open = round((float) GlLine::whereIn('account_head_id', $cashIds)->whereDate('date', '<=', $before)->sum(DB::raw('debit - credit')), 2);
+        $close = round((float) GlLine::whereIn('account_head_id', $cashIds)->whereDate('date', '<=', $to)->sum(DB::raw('debit - credit')), 2);
 
         $profit = 0.0;
         $sec = ['noncash' => [], 'operating' => [], 'investing' => [], 'financing' => []];
@@ -1143,7 +1143,7 @@ class TreasuryService
             }
             $T = bdate()->toDateString();
             $n += ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $T)->count();
-            $n += TreasuryTransfer::where('status', 'in_transit')->where('dispatched_on', '<', bdate()->copy()->subDays(2)->toDateString())->count();
+            $n += TreasuryTransfer::where('status', 'in_transit')->whereDate('dispatched_on', '<', bdate()->copy()->subDays(2)->toDateString())->count();
         } catch (\Throwable $e) {
             $n = 0;
         }
@@ -1166,7 +1166,7 @@ class TreasuryService
         if ($inHand->count()) {
             $out[] = ['tone' => 'amber', 'text' => $inHand->count().' cheque(s) in hand not yet banked ('.money($inHand->sum('amount')).')'];
         }
-        $old = TreasuryTransfer::where('status', 'in_transit')->where('dispatched_on', '<', bdate()->copy()->subDays(2)->toDateString())->count();
+        $old = TreasuryTransfer::where('status', 'in_transit')->whereDate('dispatched_on', '<', bdate()->copy()->subDays(2)->toDateString())->count();
         if ($old) {
             $out[] = ['tone' => 'red', 'text' => $old.' transfer(s) in transit for more than two days – confirm with the bank'];
         }

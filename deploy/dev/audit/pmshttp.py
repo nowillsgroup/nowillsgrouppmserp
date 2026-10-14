@@ -33,6 +33,7 @@ class Pms:
         self.opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(self.jar), NoRedirect())
         self.last_location = ""
+        self.last_code = 0
 
     # ---- primitives -------------------------------------------------
     def _open(self, req):
@@ -60,6 +61,7 @@ class Pms:
                                                                 headers={"Accept": "text/html"}))
             self.last_location = hdr.get("Location", "")
             hops += 1
+        self.last_code = code          # v7.44 — sweeps need the final status, not just the body
         return body
 
     def status(self, path):

@@ -456,7 +456,7 @@ class PackageService
         $liab = AccountHead::sys('package_liability');
         $room = LedgerService::categoryAccount('room');
         $lines = [];
-        $alloc = PackageEntitlement::with('package')->where('night_date', $date)->where('status', '!=', 'cancelled')->where('amount', '>', 0)->get();
+        $alloc = PackageEntitlement::with('package')->whereDate('night_date', $date)->where('status', '!=', 'cancelled')->where('amount', '>', 0)->get();
         foreach ($alloc as $e) {
             if (! $e->package) {
                 continue;
@@ -471,7 +471,7 @@ class PackageService
                 $lines[] = [$liab, -$a, $e->package->name];
             }
         }
-        $used = PackageRedemption::with('package', 'entitlement')->where('business_date', $date)->whereNull('voided_at')->where('amount', '>', 0)->whereNotNull('package_entitlement_id')->get();
+        $used = PackageRedemption::with('package', 'entitlement')->whereDate('business_date', $date)->whereNull('voided_at')->where('amount', '>', 0)->whereNotNull('package_entitlement_id')->get();
         foreach ($used as $r) {
             if (! $r->package || ($r->entitlement?->status === 'cancelled')) {
                 continue;
@@ -479,7 +479,7 @@ class PackageService
             $lines[] = [$liab, (float) $r->amount, $r->redemption_no];
             $lines[] = [LedgerService::categoryAccount($r->package->category), -(float) $r->amount, $r->package->name.' used'];
         }
-        foreach (PackageEntitlement::with('package')->where('expired_date', $date)->where('status', 'expired')->where('breakage_amount', '>', 0)->get() as $e) {
+        foreach (PackageEntitlement::with('package')->whereDate('expired_date', $date)->where('status', 'expired')->where('breakage_amount', '>', 0)->get() as $e) {
             if (! $e->package) {
                 continue;
             }

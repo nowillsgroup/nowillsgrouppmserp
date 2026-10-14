@@ -47,7 +47,7 @@ class ClubClassService
 
     public static function noShowCount(ClubMember $p): int
     {
-        return ClubBooking::where('club_member_id', $p->id)->where('status', 'no_show')->where('date', '>=', bdate()->copy()->subDays(30)->toDateString())->count();
+        return ClubBooking::where('club_member_id', $p->id)->where('status', 'no_show')->whereDate('date', '>=', bdate()->copy()->subDays(30)->toDateString())->count();
     }
 
     /** Book a place (member by card, or an in-house guest by room number). Full sessions go to the waitlist. */
@@ -77,7 +77,7 @@ class ClubClassService
             if (! $force && $limit > 0 && self::noShowCount($p) >= $limit) {
                 throw new RuntimeException("Class bookings are on hold – {$p->name} missed {$limit} or more classes in the last 30 days.");
             }
-            if (ClubBooking::where('club_class_id', $c->id)->where('date', $d->toDateString())->where('club_member_id', $p->id)->whereIn('status', ['booked', 'waitlist', 'attended'])->exists()) {
+            if (ClubBooking::where('club_class_id', $c->id)->whereDate('date', $d->toDateString())->where('club_member_id', $p->id)->whereIn('status', ['booked', 'waitlist', 'attended'])->exists()) {
                 throw new RuntimeException("{$p->name} is already booked on this session.");
             }
             $name = $p->name;
@@ -91,9 +91,9 @@ class ClubClassService
 
         return DB::transaction(function () use ($c, $d, $p, $stay, $name, $u) {
             ClubClass::whereKey($c->id)->lockForUpdate()->first();
-            $taken = ClubBooking::where('club_class_id', $c->id)->where('date', $d->toDateString())->whereIn('status', ['booked', 'attended'])->count();
+            $taken = ClubBooking::where('club_class_id', $c->id)->whereDate('date', $d->toDateString())->whereIn('status', ['booked', 'attended'])->count();
             $wait = $taken >= $c->capacity;
-            $pos = $wait ? (int) ClubBooking::where('club_class_id', $c->id)->where('date', $d->toDateString())->where('status', 'waitlist')->max('position') + 1 : null;
+            $pos = $wait ? (int) ClubBooking::where('club_class_id', $c->id)->whereDate('date', $d->toDateString())->where('status', 'waitlist')->max('position') + 1 : null;
 
             return ClubBooking::create(['club_class_id' => $c->id, 'date' => $d->toDateString(), 'club_member_id' => $p?->id, 'reservation_room_id' => $stay?->id,
                 'name' => mb_substr($name, 0, 120), 'status' => $wait ? 'waitlist' : 'booked', 'position' => $pos, 'user_id' => $u?->id]);
@@ -123,11 +123,11 @@ class ClubClassService
 
     public static function promote(ClubClass $c, string $date): ?ClubBooking
     {
-        $taken = ClubBooking::where('club_class_id', $c->id)->where('date', $date)->whereIn('status', ['booked', 'attended'])->count();
+        $taken = ClubBooking::where('club_class_id', $c->id)->whereDate('date', $date)->whereIn('status', ['booked', 'attended'])->count();
         if ($taken >= $c->capacity) {
             return null;
         }
-        $next = ClubBooking::where('club_class_id', $c->id)->where('date', $date)->where('status', 'waitlist')->orderBy('position')->first();
+        $next = ClubBooking::where('club_class_id', $c->id)->whereDate('date', $date)->where('status', 'waitlist')->orderBy('position')->first();
         $next?->update(['status' => 'booked', 'position' => null]);
 
         return $next;
@@ -144,7 +144,7 @@ class ClubClassService
             if (! in_array($status, ['attended', 'no_show'], true)) {
                 continue;
             }
-            $b = ClubBooking::where('club_class_id', $c->id)->where('date', $date)->whereIn('status', ['booked', 'attended', 'no_show'])->find($id);
+            $b = ClubBooking::where('club_class_id', $c->id)->whereDate('date', $date)->whereIn('status', ['booked', 'attended', 'no_show'])->find($id);
             if ($b && $b->status !== $status) {
                 $b->update(['status' => $status]);
                 $n++;

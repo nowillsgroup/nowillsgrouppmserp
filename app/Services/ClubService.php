@@ -294,15 +294,15 @@ class ClubService
     {
         $today = $asOf ?? self::today();
         $out = ['frozen' => 0, 'unfrozen' => 0, 'expired' => 0, 'cancelled' => 0, 'checked_out' => 0, 'no_shows' => 0];
-        foreach (ClubMembership::where('status', 'active')->whereNotNull('frozen_from')->where('frozen_from', '<=', $today)->where('frozen_to', '>=', $today)->get() as $m) {
+        foreach (ClubMembership::where('status', 'active')->whereNotNull('frozen_from')->whereDate('frozen_from', '<=', $today)->whereDate('frozen_to', '>=', $today)->get() as $m) {
             $m->update(['status' => 'frozen']);
             $out['frozen']++;
         }
-        foreach (ClubMembership::where('status', 'frozen')->where('frozen_to', '<', $today)->get() as $m) {
+        foreach (ClubMembership::where('status', 'frozen')->whereDate('frozen_to', '<', $today)->get() as $m) {
             $m->update(['status' => 'active']);
             $out['unfrozen']++;
         }
-        foreach (ClubMembership::whereIn('status', ['active', 'frozen'])->where('end_date', '<', $today)->get() as $m) {
+        foreach (ClubMembership::whereIn('status', ['active', 'frozen'])->whereDate('end_date', '<', $today)->get() as $m) {
             if ($m->cancel_mode === 'term_end') {
                 $m->update(['status' => 'cancelled', 'cancelled_on' => $m->end_date->copy()->addDay()->toDateString()]);
                 $out['cancelled']++;
@@ -316,7 +316,7 @@ class ClubService
             $v->update(['checked_out_at' => $v->checked_in_at->copy()->addHours($hours)]);
             $out['checked_out']++;
         }
-        $out['no_shows'] = ClubBooking::where('status', 'booked')->where('date', '<', $today)->update(['status' => 'no_show']);
+        $out['no_shows'] = ClubBooking::where('status', 'booked')->whereDate('date', '<', $today)->update(['status' => 'no_show']);
 
         return $out;
     }
@@ -385,7 +385,7 @@ class ClubService
     {
         $today = $asOf ?? self::today();
         $c = ClubCharge::where('club_membership_id', $m->id)->where('type', 'subscription')->whereNull('cancelled_at')
-            ->where('period_start', '<=', $today)->where('period_end', '>=', $today)->latest('period_start')->first();
+            ->whereDate('period_start', '<=', $today)->whereDate('period_end', '>=', $today)->latest('period_start')->first();
         if (! $c) {
             return ['charge' => null, 'days' => 0, 'amount' => 0.0];
         }
@@ -414,7 +414,7 @@ class ClubService
         }
         DB::transaction(function () use ($m, $mode, $reason, $credit, $u, $today) {
             // renewals for periods that have not started are withdrawn
-            foreach (ClubCharge::where('club_membership_id', $m->id)->where('type', 'subscription')->whereNull('cancelled_at')->where('period_start', '>', $today)->get() as $c) {
+            foreach (ClubCharge::where('club_membership_id', $m->id)->where('type', 'subscription')->whereNull('cancelled_at')->whereDate('period_start', '>', $today)->get() as $c) {
                 ClubBillingService::cancelCharge($c, 'Membership cancelled – '.$reason, $u, true);
                 $m->refresh();
             }
@@ -432,7 +432,7 @@ class ClubService
                     ClubBillingService::creditNote($unused['charge'], $amt, 'cancellation – unused '.$unused['days'].' day(s)', $u, $today);
                 }
                 ClubVisit::whereIn('club_member_id', $m->members()->pluck('id'))->whereNull('checked_out_at')->where('denied', false)->update(['checked_out_at' => now()]);
-                ClubBooking::whereIn('club_member_id', $m->members()->pluck('id'))->whereIn('status', ['booked', 'waitlist'])->where('date', '>=', $today)->update(['status' => 'cancelled']);
+                ClubBooking::whereIn('club_member_id', $m->members()->pluck('id'))->whereIn('status', ['booked', 'waitlist'])->whereDate('date', '>=', $today)->update(['status' => 'cancelled']);
             }
         });
         ActivityLogger::log('club', 'cancelled', "Membership {$m->membership_no} cancelled (".($mode === 'term_end' ? 'at term end '.dmy($m->end_date) : 'immediately').") – {$reason}", $m);
@@ -829,7 +829,7 @@ class ClubService
             'visits_today' => (clone $visits)->sum('pax'),
             'denied_today' => ClubVisit::where('denied', true)->whereDate('checked_in_at', now()->toDateString())->count(),
             'in_now' => (int) self::openVisits()->sum('pax'),
-            'day_passes_today' => ClubDayPass::whereNull('cancelled_at')->where('date', $today)->count(),
+            'day_passes_today' => ClubDayPass::whereNull('cancelled_at')->whereDate('date', $today)->count(),
             'unearned' => ClubBillingService::unearned($today),
         ];
     }

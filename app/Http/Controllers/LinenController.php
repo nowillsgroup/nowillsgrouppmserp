@@ -26,8 +26,8 @@ class LinenController extends Controller
             'stats' => [
                 'store' => (int) $types->sum('qty_store'), 'floor' => (int) $types->sum('qty_floor'), 'soiled' => (int) $types->sum('qty_soiled'), 'laundry' => (int) $types->sum('qty_laundry'),
                 'short' => $types->where('short', '>', 0)->count(),
-                'loss' => (float) LinenMovement::whereIn('type', ['discard', 'lost'])->where('date', '>=', $monthStart)->sum('value'),
-                'loss_n' => (int) LinenMovement::whereIn('type', ['discard', 'lost'])->where('date', '>=', $monthStart)->sum('qty'),
+                'loss' => (float) LinenMovement::whereIn('type', ['discard', 'lost'])->whereDate('date', '>=', $monthStart)->sum('value'),
+                'loss_n' => (int) LinenMovement::whereIn('type', ['discard', 'lost'])->whereDate('date', '>=', $monthStart)->sum('qty'),
             ],
         ]);
     }

@@ -308,7 +308,7 @@ class AssetService
 
         $run = DB::transaction(function () use ($period) {
             DB::table('asset_dep_runs')->where('hotel_id', \App\Support\Tenant::id())->lockForUpdate()->get();
-            if (AssetDepRun::where('status', 'posted')->where('period_end', $period->toDateString())->exists()) {
+            if (AssetDepRun::where('status', 'posted')->whereDate('period_end', $period->toDateString())->exists()) {
                 throw new RuntimeException($period->format('F Y').' has already been depreciated.');
             }
             $rows = self::preview($period);
@@ -319,8 +319,8 @@ class AssetService
                 AssetDepLine::create(['asset_dep_run_id' => $run->id, 'asset_id' => $r->asset->id, 'opening_nbv' => $r->opening_nbv, 'amount' => $r->amount, 'days' => $r->days]);
             }
             // every asset considered for the month is now "through" it, even at zero (fully depreciated)
-            Asset::where('status', '!=', 'disposed')->where('dep_start', '<=', $period->toDateString())
-                ->where(fn ($q) => $q->whereNull('dep_through')->orWhere('dep_through', '<', $period->toDateString()))
+            Asset::where('status', '!=', 'disposed')->whereDate('dep_start', '<=', $period->toDateString())
+                ->where(fn ($q) => $q->whereNull('dep_through')->orWhereDate('dep_through', '<', $period->toDateString()))
                 ->update(['dep_through' => $period->toDateString()]);
             ActivityLogger::log('assets', 'depreciation', "Depreciation {$run->run_no} for ".$period->format('F Y').": {$run->assets} assets, ".money($run->total), $run);
 
@@ -351,11 +351,11 @@ class AssetService
         DB::transaction(function () use ($run, $reason) {
             $run->forceFill(['status' => 'reversed', 'reversed_at' => now(), 'reversed_by' => auth()->id(), 'reverse_reason' => mb_substr($reason, 0, 190)])->save();
             $prev = self::lastRun();
-            Asset::where('status', '!=', 'disposed')->where('dep_through', $run->period_end->toDateString())
+            Asset::where('status', '!=', 'disposed')->whereDate('dep_through', $run->period_end->toDateString())
                 ->update(['dep_through' => $prev && $prev->period_end->lt($run->period_end) ? $prev->period_end->toDateString() : null]);
             // assets that started after the previous run fall back to "not depreciated yet"
             if ($prev) {
-                Asset::where('dep_through', $prev->period_end->toDateString())->where('dep_start', '>', $prev->period_end->toDateString())->update(['dep_through' => null]);
+                Asset::where('dep_through', $prev->period_end->toDateString())->whereDate('dep_start', '>', $prev->period_end->toDateString())->update(['dep_through' => null]);
             }
             ActivityLogger::log('assets', 'reverse', "Depreciation {$run->run_no} reversed: {$reason}", $run);
         });
@@ -437,11 +437,11 @@ class AssetService
     /** Register figures as at a date, for the ledger controls: [cost, accumulated depreciation]. */
     public static function registerBalances(string $asOf): array
     {
-        $live = Asset::where('purchase_date', '<=', $asOf)->where(fn ($q) => $q->whereNull('disposed_date')->orWhere('disposed_date', '>', $asOf));
+        $live = Asset::where('purchase_date', '<=', $asOf)->where(fn ($q) => $q->whereNull('disposed_date')->orWhereDate('disposed_date', '>', $asOf));
         $cost = (float) (clone $live)->sum('cost');
         $opening = (float) (clone $live)->sum('opening_acc_dep');
         $runs = (float) AssetDepLine::whereIn('asset_id', (clone $live)->select('id'))
-            ->whereHas('run', fn ($q) => $q->where('status', 'posted')->where('period_end', '<=', $asOf))->sum('amount');
+            ->whereHas('run', fn ($q) => $q->where('status', 'posted')->whereDate('period_end', '<=', $asOf))->sum('amount');
 
         return [round($cost, 2), round($opening + $runs, 2)];
     }

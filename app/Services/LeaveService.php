@@ -220,7 +220,7 @@ class LeaveService
     protected static function assertNoOverlap(Employee $e, Carbon $f, Carbon $t, ?int $except = null): void
     {
         $clash = LeaveRequest::where('employee_id', $e->id)->whereIn('status', ['pending', 'approved'])
-            ->where('date_from', '<=', $t->toDateString())->where('date_to', '>=', $f->toDateString())
+            ->whereDate('date_from', '<=', $t->toDateString())->whereDate('date_to', '>=', $f->toDateString())
             ->when($except, fn ($q) => $q->where('id', '!=', $except))->first();
         if ($clash) {
             throw new RuntimeException("Overlaps an existing {$clash->status} request ({$clash->periodLabel()}).");

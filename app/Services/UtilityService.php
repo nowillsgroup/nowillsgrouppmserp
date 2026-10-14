@@ -340,7 +340,7 @@ class UtilityService
     public static function occupancy(string $from, string $to): array
     {
         $audits = NightAudit::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()->keyBy(fn ($a) => $a->business_date->toDateString());
-        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->where('arrival_date', '<=', $to)->where('departure_date', '>', $from)
+        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)
             ->get(['arrival_date', 'departure_date', 'adults', 'children']);
         $out = [];
         for ($d = Carbon::parse($from); $d->toDateString() <= $to; $d->addDay()) {
@@ -440,7 +440,7 @@ class UtilityService
     /** metered consumption for a billing period: readings dated after the start reading up to and including the end */
     public static function meteredUnits(UtilityMeter $m, string $from, string $to): float
     {
-        return round((float) MeterReading::where('utility_meter_id', $m->id)->where('reading_date', '>', $from)->where('reading_date', '<=', $to)->sum('consumption'), 3);
+        return round((float) MeterReading::where('utility_meter_id', $m->id)->whereDate('reading_date', '>', $from)->whereDate('reading_date', '<=', $to)->sum('consumption'), 3);
     }
 
     public static function saveBill(array $d, ?UtilityBill $b = null): UtilityBill

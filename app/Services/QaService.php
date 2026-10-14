@@ -523,7 +523,7 @@ class QaService
             'overdue_actions' => QaAction::whereIn('status', QaAction::OPEN)->whereDate('due_date', '<', bdate()->toDateString())->count(),
             'to_verify' => QaAction::where('status', 'done')->count(),
             'unassigned' => QaAction::whereIn('status', QaAction::OPEN)->whereNull('owner_id')->count(),
-            'audits_late' => QaAudit::whereIn('status', ['scheduled', 'in_progress'])->where('scheduled_for', '<', bdate()->toDateString())->count(),
+            'audits_late' => QaAudit::whereIn('status', ['scheduled', 'in_progress'])->whereDate('scheduled_for', '<', bdate()->toDateString())->count(),
             'checklists_due' => self::due()->where('state', 'due')->count(),
         ];
     }

@@ -699,9 +699,9 @@ class OnlinePaymentService
     public static function clearingBalance(?string $asOf = null): float
     {
         $modes = PaymentMode::where('type', 'online')->pluck('id');
-        $fx = FolioTransaction::where('is_void', false)->whereIn('payment_mode_id', $modes)->when($asOf, fn ($q) => $q->where('business_date', '<=', $asOf))
+        $fx = FolioTransaction::where('is_void', false)->whereIn('payment_mode_id', $modes)->when($asOf, fn ($q) => $q->whereDate('business_date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN type='payment' THEN amount WHEN type='refund' THEN -amount ELSE 0 END) s")->value('s');
-        $out = GatewayPayout::when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('gross');
+        $out = GatewayPayout::when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('gross');
 
         return round((float) $fx - (float) $out, 2);
     }

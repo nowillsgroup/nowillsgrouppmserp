@@ -128,7 +128,7 @@ class PayrollService
             return $out;
         }
         $att = Attendance::with('leaveRequest.leaveType')->where('employee_id', $e->id)
-            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get()->keyBy(fn ($a) => $a->date->toDateString());
+            ->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())->get()->keyBy(fn ($a) => $a->date->toDateString());
         $holidays = HolidayService::inRange($from, $to);          // Act 651 ss. 22, 72: a public holiday is paid and is not leave
         $unmarkedPresent = setting('payroll_unmarked', 'present') !== 'absent';
         $shift = max(1.0, (float) setting('payroll_shift_hours', 9));

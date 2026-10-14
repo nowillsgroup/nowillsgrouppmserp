@@ -276,8 +276,8 @@ class OwnerService
     {
         $asOf ??= bdate()->toDateString();
 
-        return round((float) OwnerFee::where('status', '!=', 'reversed')->where('date', '<=', $asOf)
-            ->where(fn ($q) => $q->whereNull('paid_on')->orWhere('paid_on', '>', $asOf))->sum('total_fee'), 2);
+        return round((float) OwnerFee::where('status', '!=', 'reversed')->whereDate('date', '<=', $asOf)
+            ->where(fn ($q) => $q->whereNull('paid_on')->orWhereDate('paid_on', '>', $asOf))->sum('total_fee'), 2);
     }
 
     /** Cash & Bank heads fees can be paid from */
@@ -328,7 +328,7 @@ class OwnerService
 
     public static function reserveBalance(?string $asOf = null): float
     {
-        return round((float) FfeEntry::when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('amount'), 2);
+        return round((float) FfeEntry::when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('amount'), 2);
     }
 
     /** cash actually held in the designated reserve bank account */
@@ -340,7 +340,7 @@ class OwnerService
             return null;
         }
 
-        return round((float) \App\Models\GlLine::where('account_head_id', $head)->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum(DB::raw('debit - credit')), 2);
+        return round((float) \App\Models\GlLine::where('account_head_id', $head)->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum(DB::raw('debit - credit')), 2);
     }
 
     /** entries with a running balance, oldest first */
@@ -349,7 +349,7 @@ class OwnerService
         $open = $from ? self::reserveBalance(Carbon::parse($from)->subDay()->toDateString()) : 0.0;
         $bal = $open;
         $rows = [];
-        foreach (FfeEntry::with('project', 'asset')->when($from, fn ($q) => $q->where('date', '>=', $from))->when($to, fn ($q) => $q->where('date', '<=', $to))->orderBy('date')->orderBy('id')->get() as $e) {
+        foreach (FfeEntry::with('project', 'asset')->when($from, fn ($q) => $q->whereDate('date', '>=', $from))->when($to, fn ($q) => $q->whereDate('date', '<=', $to))->orderBy('date')->orderBy('id')->get() as $e) {
             $bal = round($bal + (float) $e->amount, 2);
             $rows[] = ['entry' => $e, 'balance' => $bal];
         }

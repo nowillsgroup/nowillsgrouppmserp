@@ -37,7 +37,7 @@ class LostFoundController extends Controller
         } else {
             $items = LostFoundItem::with('room', 'guest', 'report')
                 ->when($tab === 'stored', fn ($q) => $q->where('status', 'stored'))
-                ->when($tab === 'due', fn ($q) => $q->where('status', 'stored')->whereNotNull('retain_until')->where('retain_until', '<=', bdate()->toDateString()))
+                ->when($tab === 'due', fn ($q) => $q->where('status', 'stored')->whereNotNull('retain_until')->whereDate('retain_until', '<=', bdate()->toDateString()))
                 ->when(in_array($tab, ['returned', 'disposed']), fn ($q) => $q->where('status', $tab))
                 ->when($request->query('category'), fn ($q, $c) => $q->where('category', $c))
                 ->when($request->boolean('valuable'), fn ($q) => $q->where('valuable', true))

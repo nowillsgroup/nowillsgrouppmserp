@@ -286,7 +286,7 @@ class EsgService
     /** meeting-space use: Σ hall area (m²) × function hours for indoor functions of events that went ahead */
     public static function meetingUse(string $from, string $to, ?int $eventId = null): array
     {
-        $fns = BanquetFunction::with('hall', 'event')->whereBetween('date', [$from, $to])
+        $fns = BanquetFunction::with('hall', 'event')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['definite', 'completed'])->when($eventId, fn ($w) => $w->whereKey($eventId)))->get();
         $rows = [];
         $m2h = 0.0;
@@ -371,7 +371,7 @@ class EsgService
         $add('electricity', 2, 'Grid electricity', $u['electricity']['cons'] ?? 0, 'kWh', $ef['electricity']);
         $water = (float) ($u['water']['cons'] ?? 0);
         $add('water', 3, 'Water supply & treatment', $water, 'm³', round($c['ef_water'] + $c['ef_wastewater'], 3));
-        $waste = EsgWasteLog::live()->whereBetween('date', [$from, $to])->get();
+        $waste = EsgWasteLog::live()->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get();
         foreach ($waste->groupBy('disposal') as $disp => $g) {
             $kg = $g->sum(fn ($w) => (float) $w->weight_kg * self::wasteFactor($w->stream, $w->disposal));
             $add('waste_'.$disp, 3, 'Waste – '.(EsgWasteLog::DISPOSALS[$disp] ?? $disp), (float) $g->sum('weight_kg'), 'kg', $g->sum('weight_kg') > 0 ? round($kg / $g->sum('weight_kg'), 3) : 0, $kg);
@@ -543,7 +543,7 @@ class EsgService
     /** waste summary: matrix stream × route, diversion, carbon, per occupied room */
     public static function waste(string $from, string $to): array
     {
-        $list = EsgWasteLog::live()->whereBetween('date', [$from, $to])->get();
+        $list = EsgWasteLog::live()->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get();
         $matrix = [];
         foreach ($list as $w) {
             $matrix[$w->stream][$w->disposal] = ($matrix[$w->stream][$w->disposal] ?? 0) + (float) $w->weight_kg;
@@ -564,7 +564,7 @@ class EsgService
     public static function wasteTrend(): array
     {
         $start = bdate()->copy()->startOfMonth()->subMonths(11);
-        $rows = EsgWasteLog::live()->where('date', '>=', $start->toDateString())->get(['date', 'weight_kg', 'disposal']);
+        $rows = EsgWasteLog::live()->whereDate('date', '>=', $start->toDateString())->get(['date', 'weight_kg', 'disposal']);
         $out = [];
         for ($i = 0; $i < 12; $i++) {
             $m = $start->copy()->addMonths($i);
@@ -627,7 +627,7 @@ class EsgService
         $m = Carbon::parse($m)->startOfMonth();
         self::need($m->lte(Carbon::parse(self::today())->startOfMonth()), 'The month cannot be in the future.');
         $kg = round(self::num($d['kg'] ?? null, 0, 1000000, 'Linen processed is 0 to 1,000,000 kg.'), 1);
-        $row = EsgLaundryMonth::updateOrCreate(['month' => $m->toDateString()], ['kg' => $kg, 'supplier_id' => $d['supplier_id'] ?? null,
+        $row = date_upsert(EsgLaundryMonth::class, ['month' => $m->toDateString()], ['kg' => $kg, 'supplier_id' => $d['supplier_id'] ?? null,
             'kwh' => filled($d['kwh'] ?? null) ? round(self::num($d['kwh'], 0, 10000000, 'Energy is not valid.'), 1) : null, 'notes' => self::text($d['notes'] ?? null), 'user_id' => $by->id]);
         ActivityLogger::log('esg', 'laundry', 'Outsourced laundry '.$m->format('M Y').': '.number_format($kg, 1).' kg', $row);
 
@@ -889,7 +889,7 @@ class EsgService
         return ['policies' => $pol->count(), 'active' => $active->count(), 'overdue' => $active->filter(fn ($p) => $p->isOverdue())->count(), 'draft' => $pol->where('status', 'draft')->count(),
             'current_pct' => $active->count() ? round($active->reject(fn ($p) => $p->isOverdue())->count() / $active->count() * 100, 0) : null,
             'breaches' => DataBreach::where('detected_at', '>=', $from)->count(),
-            'compliance_expired' => ComplianceItem::whereNotNull('expires_on')->where('expires_on', '<', self::today())->whereNotIn('status', ['cancelled', 'closed', 'renewed'])->count(),
+            'compliance_expired' => ComplianceItem::whereNotNull('expires_on')->whereDate('expires_on', '<', self::today())->whereNotIn('status', ['cancelled', 'closed', 'renewed'])->count(),
             'compliance_total' => ComplianceItem::count(), 'cert' => self::certScore()];
     }
 
@@ -1018,7 +1018,7 @@ class EsgService
                 continue;
             }
             // the guest asked for (and got) a clean anyway → not a green night
-            $cleaned = HousekeepingTask::where('room_id', $s->room_id)->where('task_date', $date)->where('task_type', 'cleaning')->where('status', 'completed')->exists();
+            $cleaned = HousekeepingTask::where('room_id', $s->room_id)->whereDate('task_date', $date)->where('task_type', 'cleaning')->where('status', 'completed')->exists();
             if ($cleaned || EsgGreenNight::where('business_date', $date)->where('reservation_room_id', $s->id)->exists()) {
                 continue;
             }
@@ -1056,13 +1056,13 @@ class EsgService
         return self::$memo['alerts'.Tenant::id()] ??= (function () {
             $leaks = collect(self::leakRates())->where('flag', true)->count();
 
-            return ['policies_overdue' => EsgPolicy::where('status', 'active')->whereNotNull('next_review_on')->where('next_review_on', '<', self::today())->count(),
+            return ['policies_overdue' => EsgPolicy::where('status', 'active')->whereNotNull('next_review_on')->whereDate('next_review_on', '<', self::today())->count(),
                 'initiatives_pending' => EsgInitiative::where('status', 'idea')->count(),
-                'initiatives_late' => EsgInitiative::whereIn('status', ['approved', 'in_progress'])->whereNotNull('due_on')->where('due_on', '<', self::today())->count(),
+                'initiatives_late' => EsgInitiative::whereIn('status', ['approved', 'in_progress'])->whereNotNull('due_on')->whereDate('due_on', '<', self::today())->count(),
                 'leaks' => $leaks,
                 'targets_behind' => collect(self::targets())->where('state', 'behind')->count(),
                 'mandatory_open' => EsgChecklistItem::where('is_mandatory', true)->where('status', '!=', 'met')->count(),
-                'waste_stale' => EsgWasteLog::exists() && ! EsgWasteLog::live()->where('date', '>=', Carbon::parse(self::today())->subDays(14)->toDateString())->exists()];
+                'waste_stale' => EsgWasteLog::exists() && ! EsgWasteLog::live()->whereDate('date', '>=', Carbon::parse(self::today())->subDays(14)->toDateString())->exists()];
         })();
     }
 
