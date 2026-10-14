@@ -32,7 +32,7 @@
     <thead><tr><th>Statement</th><th>Account</th><th>Period</th><th class="num">Opening</th><th class="num">Closing</th><th>Lines</th><th>Status</th><th>Reconciled</th></tr></thead>
     <tbody>
     @forelse($statements as $s)
-    <tr><td><a href="{{ route('bankrec.show', $s) }}" class="bold">{{ $s->statement_no }}</a><div class="tiny muted">{{ $s->source === 'csv' ? ($s->file_name ?: 'CSV') : 'Entered by hand' }}</div></td>
+    <tr><td><a href="{{ route('bankrec.show', $s) }}" class="bold">{{ $s->statement_no }}</a><div class="tiny muted">{{ $s->sourceLabel() }}</div></td>
       <td class="small">{{ $s->account->code }} {{ $s->account->name }}</td><td class="small">{{ $s->label() }}</td>
       <td class="num">{{ money($s->opening_balance, false) }}</td><td class="num">{{ money($s->closing_balance, false) }}</td>
       <td class="small">{{ $s->matched_count }} / {{ $s->lines_count }} matched @if($s->open_count)<span class="text-red">· {{ $s->open_count }} open</span>@endif</td>

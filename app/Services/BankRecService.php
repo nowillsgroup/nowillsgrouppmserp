@@ -260,6 +260,508 @@ class BankRecService
         return [$rows[0] ?? [], array_slice($rows, 1)];
     }
 
+    // ───────────────────────── statement file formats (v7.48) ─────────────────────────
+
+    /**
+     * What the importer can read. Ghanaian banks and the MoMo merchant portal do not agree on a format: Ecobank and
+     * Stanbic hand over an Excel workbook, GCB and Absa a CSV, corporate accounts get a SWIFT MT940 by e-mail, and
+     * banks moving to ISO 20022 send camt.053. Everything below is reduced to the CSV the parser already reads, with
+     * the same column names its synonym list knows, so detection, de-duplication, auto-matching and the running-balance
+     * check all behave exactly as they do for a CSV — the format is a reader, not a second importer.
+     */
+    public const FILE_FORMATS = [
+        'csv' => 'CSV / tab-delimited text',
+        'xlsx' => 'Excel workbook (xlsx)',
+        'mt940' => 'SWIFT MT940 / MT942',
+        'camt' => 'ISO 20022 camt.052 / camt.053',
+    ];
+
+    /**
+     * Read an uploaded statement of any supported format and return the CSV to import, plus whatever the file itself
+     * says about the account and its balances — those are worth cross-checking against the figures the user typed.
+     *
+     * @return array{text: string, format: string, label: string, rows: int, opening: ?float, closing: ?float,
+     *                account: ?string, currency: ?string, notes: string[]}
+     */
+    public static function readFile(string $path, string $name = '', ?string $mime = null): array
+    {
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $head = (string) file_get_contents($path, false, null, 0, 1024);
+        if (str_starts_with($head, "\xD0\xCF\x11\xE0") || $ext === 'xls') {
+            throw new RuntimeException('That is an old Excel 97-2003 (.xls) workbook, which is a binary format. Open it and save it as .xlsx, or export a CSV.');
+        }
+        $format = match (true) {
+            str_starts_with($head, "PK\x03\x04"), in_array($ext, ['xlsx', 'xlsm'], true) => 'xlsx',
+            preg_match('/:6[012][FM]?:/m', $head) && preg_match('/:2[05]:/m', $head) => 'mt940',
+            str_contains($head, 'camt.0'), (str_contains($head, '<Document') && preg_match('/<(?:\w+:)?Ntry[\s>]/', $head)) => 'camt',
+            default => 'csv',
+        };
+        [$text, $meta] = match ($format) {
+            'xlsx' => self::fromXlsx($path),
+            'mt940' => self::fromMt940((string) file_get_contents($path)),
+            'camt' => self::fromCamt((string) file_get_contents($path)),
+            default => [(string) file_get_contents($path), []],
+        };
+        $rows = max(0, count(array_filter(explode("\n", trim($text)), fn ($l) => trim($l) !== '')) - 1);
+
+        return array_merge(['text' => $text, 'format' => $format, 'label' => self::FILE_FORMATS[$format], 'rows' => $rows,
+            'opening' => null, 'closing' => null, 'account' => null, 'currency' => null, 'notes' => []], $meta);
+    }
+
+    /** An .xlsx is a ZIP of XML: shared strings, one styles table (to know which cells are dates) and the sheet. */
+    protected static function fromXlsx(string $path): array
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($path) !== true) {
+            throw new RuntimeException('That Excel workbook could not be opened. Re-save it as .xlsx and try again.');
+        }
+        $shared = [];
+        if (($ss = $zip->getFromName('xl/sharedStrings.xml')) !== false && ($x = simplexml_load_string($ss))) {
+            foreach ($x->si as $si) {
+                $shared[] = self::xmlText($si);
+            }
+        }
+        $dateStyle = [];
+        if (($st = $zip->getFromName('xl/styles.xml')) !== false && ($x = simplexml_load_string($st))) {
+            $custom = [];
+            foreach ($x->xpath('.//*[local-name()="numFmt"]') ?: [] as $f) {
+                $custom[(int) $f['numFmtId']] = (string) $f['formatCode'];
+            }
+            foreach ($x->xpath('.//*[local-name()="cellXfs"]/*[local-name()="xf"]') ?: [] as $i => $xf) {
+                $dateStyle[$i] = self::isDateFormat((int) $xf['numFmtId'], $custom[(int) $xf['numFmtId']] ?? '');
+            }
+        }
+        $sheet = self::firstSheet($zip);
+        $x = simplexml_load_string((string) $zip->getFromName($sheet));
+        if (! $x) {
+            $zip->close();
+
+            throw new RuntimeException('The worksheet in that workbook could not be read.');
+        }
+        $rows = [];
+        foreach ($x->xpath('.//*[local-name()="row"]') ?: [] as $row) {
+            $cells = [];
+            foreach ($row->xpath('./*[local-name()="c"]') ?: [] as $c) {
+                $idx = self::colIndex((string) $c['r']);
+                $type = (string) $c['t'];
+                $raw = isset($c->v) ? trim((string) $c->v) : null;
+                $val = match ($type) {
+                    's' => $shared[(int) $raw] ?? '',
+                    'inlineStr' => self::xmlText($c->is ?? null),
+                    'b' => $raw === '1' ? 'TRUE' : 'FALSE',
+                    'e' => '',                                    // #DIV/0! and friends carry no money
+                    default => (string) ($raw ?? self::xmlText($c->is ?? null)),
+                };
+                if ($raw !== null && $raw !== '' && is_numeric($raw) && ($dateStyle[(int) $c['s']] ?? false)) {
+                    $val = self::excelDate((float) $raw);          // a bank statement keeps its dates as serials
+                }
+                $cells[$idx] = trim($val);
+            }
+            if (! $cells) {
+                continue;
+            }
+            $line = [];
+            for ($i = 0, $max = max(array_keys($cells)); $i <= $max; $i++) {
+                $line[] = $cells[$i] ?? '';
+            }
+            if (implode('', $line) !== '') {
+                $rows[] = $line;
+            }
+        }
+        $zip->close();
+        if (! $rows) {
+            throw new RuntimeException('That workbook is empty.');
+        }
+
+        return [self::toCsv($rows), ['notes' => ['Read as '.self::FILE_FORMATS['xlsx'].', worksheet '.basename($sheet).': '.count($rows).' row(s).']]];
+    }
+
+    /** The sheet the workbook shows first, or the lowest-numbered worksheet in the archive. */
+    protected static function firstSheet(\ZipArchive $zip): string
+    {
+        $wb = $zip->getFromName('xl/workbook.xml');
+        $rels = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if ($wb !== false && $rels !== false && ($x = simplexml_load_string($wb)) && ($r = simplexml_load_string($rels))) {
+            $sheet = $x->xpath('.//*[local-name()="sheet"]')[0] ?? null;
+            $rid = $sheet ? (string) ($sheet->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')->id ?? '') : '';
+            foreach ($r->Relationship as $rel) {
+                if ((string) $rel['Id'] === $rid) {
+                    $t = ltrim((string) $rel['Target'], '/');
+
+                    return str_starts_with($t, 'xl/') ? $t : 'xl/'.$t;
+                }
+            }
+        }
+        $found = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $n = (string) $zip->getNameIndex($i);
+            if (preg_match('#^xl/worksheets/sheet(\d+)\.xml$#', $n, $m)) {
+                $found[(int) $m[1]] = $n;
+            }
+        }
+        if (! $found) {
+            throw new RuntimeException('That workbook has no worksheet in it.');
+        }
+        ksort($found);
+
+        return reset($found);
+    }
+
+    /** Built-in date formats and any custom format built out of day / month / year / time parts. */
+    protected static function isDateFormat(int $numFmtId, string $code): bool
+    {
+        if (in_array($numFmtId, array_merge(range(14, 22), range(27, 36), range(45, 47), range(50, 58)), true)) {
+            return true;
+        }
+        if ($code === '') {
+            return false;
+        }
+        $c = preg_replace('/"[^"]*"|\\\\./', '', $code);   // quoted literals and escapes are not date parts
+
+        return (bool) preg_match('/[dmyhs]/i', (string) $c);
+    }
+
+    /** Excel's serial to a date: the epoch is 30 Dec 1899 because the 1900 system counts a leap day that never was. */
+    protected static function excelDate(float $serial): string
+    {
+        $days = (int) floor($serial);
+        $frac = $serial - $days;
+        $d = Carbon::create(1899, 12, 30)->startOfDay()->addDays($days);
+
+        return $frac > 0.000001 ? $d->copy()->addSeconds((int) round($frac * 86400))->format('Y-m-d H:i:s') : $d->format('Y-m-d');
+    }
+
+    /** "C12" or "AB3" → a zero-based column index, so a gap in a row does not shift the columns after it. */
+    protected static function colIndex(string $ref): int
+    {
+        $letters = strtoupper(preg_replace('/\d+/', '', $ref) ?? '');
+        $n = 0;
+        for ($i = 0; $i < strlen($letters); $i++) {
+            $n = $n * 26 + (ord($letters[$i]) - 64);
+        }
+
+        return max(0, $n - 1);
+    }
+
+    /** Every <t> under a node, joined: a shared string may be split across rich-text runs. */
+    protected static function xmlText($node): string
+    {
+        if (! $node) {
+            return '';
+        }
+        $out = '';
+        foreach ($node->xpath('.//*[local-name()="t"]') ?: [] as $t) {
+            $out .= (string) $t;
+        }
+
+        return $out !== '' ? $out : trim((string) $node);
+    }
+
+    protected static function toCsv(array $rows): string
+    {
+        $fh = fopen('php://temp', 'r+');
+        foreach ($rows as $r) {
+            fputcsv($fh, $r, ',', '"', '');
+        }
+        rewind($fh);
+        $text = (string) stream_get_contents($fh);
+        fclose($fh);
+
+        return $text;
+    }
+
+    /**
+     * SWIFT MT940 / MT942 — the tagged text corporate accounts still receive by e-mail. `:60F:` opens the statement,
+     * each `:61:` is one transaction with its `:86:` information to customer on the lines that follow, and `:62F:`
+     * closes it; the file carries no running balance, so it is rebuilt from the opening figure.
+     */
+    protected static function fromMt940(string $text): array
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $tags = [];
+        $cur = null;
+        foreach (explode("\n", $text) as $line) {
+            if (preg_match('/^:(\d{2}[A-Z]?):(.*)$/', $line, $m)) {
+                if ($cur !== null) {
+                    $tags[] = $cur;
+                }
+                $cur = [$m[1], $m[2]];
+            } elseif ($cur !== null) {
+                $cur[1] .= "\n".$line;      // :86: runs over as many lines as the bank likes
+            }
+        }
+        if ($cur !== null) {
+            $tags[] = $cur;
+        }
+        $opening = $closing = null;
+        $currency = $account = null;
+        $entries = [];
+        $unread = 0;
+        foreach ($tags as [$tag, $val]) {
+            $val = trim($val);
+            switch ($tag) {
+                case '25':
+                    // :25: is the account, but banks append the currency or a slash and a sub-account to it
+                    $a = preg_replace('/[^A-Z0-9\/.]/i', '', explode("\n", $val)[0]);
+                    $a = preg_replace('/[A-Z]{3}$/', '', (string) $a);
+                    $account = $account ?: rtrim((string) $a, '/.');
+                    break;
+                case '60F': case '60M':
+                    if (preg_match('/^([CD])(\d{6})([A-Z]{3})([\d.,]+)$/i', $val, $m)) {
+                        $opening = self::swiftAmount($m[4], $m[1]);
+                        $currency = $m[3];
+                    }
+                    break;
+                case '62F': case '62M': case '64':
+                    if (preg_match('/^([CD])(\d{6})([A-Z]{3})([\d.,]+)$/i', $val, $m)) {
+                        $closing = self::swiftAmount($m[4], $m[1]);
+                        $currency = $currency ?: $m[3];
+                    }
+                    break;
+                case '61':
+                    if ($e = self::swiftEntry($val)) {
+                        $entries[] = $e;
+                    } else {
+                        $unread++;        // a :61: this reader does not understand is reported, never dropped silently
+                    }
+                    break;
+                case '86':
+                    if ($entries) {      // the information to customer follows the transaction it describes
+                        $last = count($entries) - 1;
+                        $entries[$last]['info'] = trim(($entries[$last]['info'] ?? '').' '.preg_replace('/\s+/', ' ', $val));
+                    }
+                    break;
+            }
+        }
+        if (! $entries) {
+            throw new RuntimeException('No :61: transactions were found in that MT940 file.');
+        }
+
+        $rows = [['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance']];
+        $balance = $opening;
+        $notes = [];
+        foreach ($entries as $e) {
+            if ($balance !== null) {
+                $balance = round($balance + $e['amount'], 2);
+            }
+            $rows[] = [$e['date'], $e['info'] ?? $e['type'], $e['reference'],
+                $e['amount'] < 0 ? number_format(-$e['amount'], 2, '.', '') : '',
+                $e['amount'] > 0 ? number_format($e['amount'], 2, '.', '') : '',
+                $balance === null ? '' : number_format($balance, 2, '.', '')];
+        }
+        if ($balance !== null && $closing !== null && abs($balance - $closing) > 0.005) {
+            $notes[] = 'The file opens at '.money($opening).' and its '.count($entries).' transactions add up to '.money($balance)
+                .', but its own closing balance is '.money($closing).' – a page is probably missing from the statement.';
+        }
+        $notes[] = 'Read as '.self::FILE_FORMATS['mt940'].': '.count($entries).' transaction(s)'
+            .($account ? ', account '.$account : '').($currency ? ', '.$currency : '').'. The file carries no running balance, so it was rebuilt from the opening figure.';
+        if ($unread) {
+            $notes[] = $unread.' :61: line(s) in that file were not in a form this reader knows and were left out – check them against the paper statement.';
+        }
+
+        return [self::toCsv($rows), ['opening' => $opening, 'closing' => $closing, 'account' => $account, 'currency' => $currency, 'notes' => $notes]];
+    }
+
+    /** One `:61:` line: value date, optional booking date, debit/credit (R and E prefixes are reversals), amount, type, references. */
+    protected static function swiftEntry(string $val): ?array
+    {
+        $val = preg_replace('/\s+/', ' ', trim($val));
+        if (! preg_match('/^(\d{6})(\d{4})?(R|E)?([CD])([A-Z])?(\d+(?:[.,]\d+)?)([A-Z]\w{3})?([^\/\s]{0,16})(?:\/\/([^\s]{0,16}))?(.*)$/i', $val, $m)) {
+            return null;
+        }
+        $sign = strtoupper($m[4]) === 'C' ? 1 : -1;
+        if (strtoupper($m[3] ?? '') === 'R') {
+            $sign = -$sign;                 // a reversal undoes the entry it reverses
+        }
+        $amount = round($sign * self::swiftAmount($m[6], 'C'), 2);
+        $vy = (int) substr($m[1], 0, 2);
+        $year = ($vy > 70 ? 1900 : 2000) + $vy;
+        $date = sprintf('%04d-%02d-%02d', $year, (int) substr($m[1], 2, 2), (int) substr($m[1], 4, 2));
+        if ($m[2] !== '') {                // the booking date is the one the bank posted it on, and its year is implied
+            $bm = (int) substr($m[2], 0, 2);
+            $vm = (int) substr($m[1], 2, 2);
+            $by = $vm === 12 && $bm === 1 ? $year + 1 : ($vm === 1 && $bm === 12 ? $year - 1 : $year);
+            $date = sprintf('%04d-%02d-%02d', $by, $bm, (int) substr($m[2], 2, 2));
+        }
+
+        // the reference before the // is the customer's own, which is what a folio or invoice is matched on;
+        // what follows it is the bank's number, worth keeping only when the customer sent nothing
+        $ref = trim((string) ($m[8] ?? '')) ?: trim((string) ($m[9] ?? ''));
+
+        return ['date' => $date, 'amount' => $amount, 'type' => strtoupper($m[7] ?? ''),
+            'reference' => $ref !== '' ? mb_substr($ref, 0, 60) : null, 'info' => trim($m[10] ?? '') ?: null];
+    }
+
+    /** SWIFT amounts use a comma for the decimal point; some banks send a full stop. */
+    protected static function swiftAmount(string $raw, string $cd): float
+    {
+        $v = (float) str_replace(',', '.', preg_replace('/[^\d.,]/', '', $raw));
+
+        return strtoupper($cd) === 'D' ? -abs($v) : abs($v);
+    }
+
+    /**
+     * ISO 20022 camt.052 / camt.053 — the XML the banks are moving to. Entries are `<Ntry>`, and a batched entry
+     * carries its transactions under `<NtryDtls><TxDtls>`, each with its own amount, so a batch becomes one row per
+     * transaction rather than one unexplained lump.
+     */
+    protected static function fromCamt(string $text): array
+    {
+        $doc = new \DOMDocument;
+        $prev = libxml_use_internal_errors(true);
+        $ok = $doc->loadXML($text);
+        libxml_use_internal_errors($prev);
+        if (! $ok) {
+            throw new RuntimeException('That camt file is not readable XML.');
+        }
+        $x = new \DOMXPath($doc);
+        $one = fn (?\DOMNode $ctx, string $local) => self::domOne($x, $ctx, $local);
+        $kind = preg_match('/camt\.(\d{3})/', $text, $m) ? 'camt.'.$m[1] : 'camt';
+        $stmts = $x->query('//*[local-name()="Stmt" or local-name()="Rpt"]');
+        $opening = $closing = null;
+        $currency = $account = null;
+        $entries = [];
+        $pending = 0;
+        $dateless = 0;
+        foreach ($stmts ?: [] as $stmt) {
+            $acct = $x->query('.//*[local-name()="Acct"]', $stmt)->item(0);
+            $account = $account ?: ($one($acct, 'IBAN') ?: $one($acct, 'Id') ?: $one($x->query('.//*[local-name()="Id"]', $stmt)->item(0), 'Id'));
+            foreach ($x->query('.//*[local-name()="Bal"]', $stmt) ?: [] as $bal) {
+                $type = strtoupper((string) $one($x->query('.//*[local-name()="CdOrPrtry"]', $bal)->item(0), 'Cd'));
+                $amtNode = $x->query('.//*[local-name()="Amt"]', $bal)->item(0);
+                $signed = self::camtAmount($amtNode, $one($bal, 'CdtDbtInd'));
+                $currency = $currency ?: ($amtNode ? $amtNode->getAttribute('Ccy') : null) ?: null;
+                if (in_array($type, ['OPBD', 'PRCD'], true) && $opening === null) {
+                    $opening = $signed;
+                }
+                if (in_array($type, ['CLBD', 'ITBD', 'CLAV'], true)) {
+                    $closing = $signed;
+                }
+            }
+            foreach ($x->query('.//*[local-name()="Ntry"]', $stmt) ?: [] as $ntry) {
+                $status = strtoupper((string) $one($x->query('.//*[local-name()="Sts"]', $ntry)->item(0), 'Cd')) ?: 'BOOK';
+                $txs = $x->query('.//*[local-name()="TxDtls"]', $ntry);
+                if (! $txs || $txs->length === 0) {
+                    $entries[] = self::camtEntry($x, $ntry, null, $status);
+                } else {
+                    foreach ($txs as $tx) {
+                        $entries[] = self::camtEntry($x, $tx, $ntry, $status);
+                    }
+                }
+                if ($status === 'PDNG') {
+                    $pending++;
+                }
+            }
+        }
+        $dateless = count(array_filter($entries, fn ($e) => is_array($e) && ($e['date'] ?? '') === ''));
+        $entries = array_values(array_filter($entries, fn ($e) => is_array($e) && ($e['date'] ?? '') !== ''));
+        if (! $entries) {
+            throw new RuntimeException('No dated entries were found in that '.$kind.' file.');
+        }
+
+        $rows = [['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance']];
+        $balance = $opening;
+        foreach ($entries as $e) {
+            if ($balance !== null) {
+                $balance = round($balance + $e['amount'], 2);
+            }
+            $rows[] = [$e['date'], $e['info'], $e['reference'] ?? '',
+                $e['amount'] < 0 ? number_format(-$e['amount'], 2, '.', '') : '',
+                $e['amount'] > 0 ? number_format($e['amount'], 2, '.', '') : '',
+                $balance === null ? '' : number_format($balance, 2, '.', '')];
+        }
+        $notes = ['Read as '.self::FILE_FORMATS['camt'].' ('.$kind.'): '.count($entries).' transaction(s)'
+            .($account ? ', account '.$account : '').($currency ? ', '.$currency : '').'.'];
+        if ($pending) {
+            $notes[] = $pending.' entry/entries are still pending at the bank (status PDNG) – they are listed, but may not settle.';
+        }
+        if ($dateless) {
+            $notes[] = $dateless.' entry/entries carried no booking or value date and were left out.';
+        }
+        if ($balance !== null && $closing !== null && abs($balance - $closing) > 0.005) {
+            $notes[] = 'The entries add up to '.money($balance).' from an opening '.money($opening).', but the file closes at '
+                .money($closing).' – check whether an entry is missing or still pending.';
+        }
+
+        return [self::toCsv($rows), ['opening' => $opening, 'closing' => $closing, 'account' => $account, 'currency' => $currency, 'notes' => $notes]];
+    }
+
+    /** One camt entry, or one transaction inside a batched entry: date, signed amount, references and the narrative. */
+    protected static function camtEntry(\DOMXPath $x, \DOMNode $n, ?\DOMNode $parent, string $status): ?array
+    {
+        $one = fn (?\DOMNode $ctx, string $local) => self::domOne($x, $ctx, $local);
+        $ownAmt = $x->query('.//*[local-name()="Amt"]', $n)->item(0);
+        if ($ownAmt === null && $parent !== null && $x->query('.//*[local-name()="TxDtls"]', $parent)->length > 1) {
+            return null;                 // one line of a batch with no amount of its own: the batch total covers it
+        }
+        $amount = self::camtAmount($ownAmt ?: ($parent ? $x->query('.//*[local-name()="Amt"]', $parent)->item(0) : null),
+            $one($n, 'CdtDbtInd') ?: $one($parent, 'CdtDbtInd'));
+        if ($x->query('.//*[local-name()="Rvsl"]', $n)->length > 0 || ($parent && $x->query('.//*[local-name()="Rvsl"]', $parent)->length > 0)) {
+            $amount = -$amount;
+        }
+        if (abs($amount) < 0.005) {
+            return null;
+        }
+        $date = null;
+        foreach (['BookgDt', 'ValDt'] as $tag) {
+            foreach (array_filter([$n, $parent]) as $ctx) {
+                $node = $x->query('.//*[local-name()="'.$tag.'"]', $ctx)->item(0);
+                $date = $one($node, 'Dt') ?: $one($node, 'DtTm');
+                if ($date) {
+                    break 2;
+                }
+            }
+        }
+        if (! $date) {
+            return ['date' => '', 'amount' => $amount, 'info' => '', 'reference' => null, 'status' => $status];
+        }
+        $parts = [];
+        foreach ($x->query('.//*[local-name()="Ustrd"]', $n) ?: [] as $u) {
+            $parts[] = trim($u->nodeValue);
+        }
+        if (! $parts && $parent) {
+            foreach ($x->query('.//*[local-name()="Ustrd"]', $parent) ?: [] as $u) {
+                $parts[] = trim($u->nodeValue);
+            }
+        }
+        $info = trim(implode(' ', array_filter($parts)))
+            ?: (string) ($one($n, 'AddtlTxInf') ?: $one($n, 'AddtlNtryInf') ?: $one($parent, 'AddtlNtryInf') ?: '')
+            ?: strtoupper((string) $one($x->query('.//*[local-name()="BkTxCd"]', $parent ?? $n)->item(0), 'Cd'))
+            ?: 'entry';
+        // in order of what the money is actually about: the originator's id, then the instrument, then the bank's own
+        $ref = null;
+        foreach (['EndToEndId', 'InstrId', 'TxId', 'MndtId', 'ChqNb', 'AcctSvcrRef'] as $r) {
+            $v = $one($n, $r) ?: $one($parent, $r);
+            if ($v && ! in_array(strtoupper($v), ['NOTPROVIDED', 'NA', 'N/A', '-', 'NONREF'], true)) {
+                $ref = $v;
+                break;
+            }
+        }
+
+        return ['date' => substr((string) preg_replace('/[^\d\-]/', '', explode('T', trim($date))[0]), 0, 10),
+            'amount' => round($amount, 2), 'info' => mb_substr((string) preg_replace('/\s+/', ' ', $info), 0, 180),
+            'reference' => $ref ? mb_substr($ref, 0, 60) : null, 'status' => $status];
+    }
+
+    /** A camt amount is unsigned: <CdtDbtInd> says which way the money moved. */
+    protected static function camtAmount(?\DOMNode $amtNode, ?string $ind): float
+    {
+        $v = abs((float) str_replace(',', '', trim($amtNode ? $amtNode->nodeValue : '0')));
+
+        return strtoupper(trim((string) $ind)) === 'DBIT' ? -$v : $v;
+    }
+
+    /** First <local> under a node, namespace-agnostic: camt files arrive under whatever prefix the bank's tool used. */
+    protected static function domOne(\DOMXPath $x, ?\DOMNode $ctx, string $local): ?string
+    {
+        if (! $ctx) {
+            return null;
+        }
+        $n = $x->query('.//*[local-name()="'.$local.'"]', $ctx);
+
+        return $n && $n->length ? trim($n->item(0)->nodeValue) : null;
+    }
+
     /** Column index per role, from overrides (header names typed by the user) or synonyms. */
     public static function detect(array $headers, array $override = []): array
     {
@@ -434,7 +936,7 @@ class BankRecService
         return null;
     }
 
-    public static function import(int $accountId, string $from, string $to, float $opening, ?float $closing, string $text, string $file, array $override = [], string $dateFmt = 'auto', bool $invert = false): array
+    public static function import(int $accountId, string $from, string $to, float $opening, ?float $closing, string $text, string $file, array $override = [], string $dateFmt = 'auto', bool $invert = false, string $source = 'csv'): array
     {
         [$lines, $skipped, $dups, $warn] = self::parse($accountId, $text, $override, $dateFmt, $invert);
         $outside = array_filter($lines, fn ($l) => $l['date'] < $from || $l['date'] > $to);
@@ -447,7 +949,7 @@ class BankRecService
         if ($closing !== null && abs(round($opening + array_sum(array_column($lines, 'amount')), 2) - $closing) > 0.005 && ! $dups) {
             throw new RuntimeException('The lines add up to '.money(round($opening + array_sum(array_column($lines, 'amount')), 2)).' but the closing balance is '.money($closing).'.');
         }
-        $s = self::create($accountId, $from, $to, $opening, $closing, $lines, 'csv', $file);
+        $s = self::create($accountId, $from, $to, $opening, $closing, $lines, $source, $file);
 
         return [$s, count($lines), $skipped, $dups, $warn];
     }

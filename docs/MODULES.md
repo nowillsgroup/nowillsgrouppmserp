@@ -90,7 +90,7 @@ routed but no longer menued — the HR & Workforce section carries the reconcile
 - **Income Audit** — 4 pages
   - Audit Days · Authorisations · Room Count · Room Discrepancies
 - **Accounts** — 24 pages
-  - Vouchers · City Ledger · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
+  - Vouchers · City Ledger · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation (imports CSV, Excel .xlsx, SWIFT MT940 and ISO 20022 camt.052/053 — v7.48, see [`BANK-STATEMENT-FORMATS.md`](BANK-STATEMENT-FORMATS.md)) · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
 - **Treasury** — 6 pages
   - Cash Position · Banking & Transfers · Cheque Registers · 13-week Cash Forecast · Cash-flow Statement · Bank Accounts
 - **Owner Reporting** — 6 pages

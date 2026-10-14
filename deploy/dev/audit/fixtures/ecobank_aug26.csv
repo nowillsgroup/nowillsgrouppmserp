@@ -1,0 +1,15 @@
+ECOBANK GHANA LIMITED
+Account 1441000235678 - NOWILLS HOSPITALITY GROUP LIMITED
+Statement period: 01 August 2026 to 31 August 2026
+
+Date,Description,Reference,Debit,Credit,Balance
+2026-08-03,Guest settlement folio 4471 - room and F&B,INV-4471,,18450.00,143450.50
+2026-08-05,EFT to Accra Foods Ltd - produce invoice 2291,AFD-2291,9320.50,,134130.00
+2026-08-07,Bank charge - EFT commission,CHG-000881,145.00,,133985.00
+2026-08-10,MoMo merchant settlement,MOMO-7741203,,6240.75,140225.75
+2026-08-12,Cheque 004412 deposited - Nowills Group HQ,CHQ-004412,,25000.00,165225.75
+2026-08-14,Reversal - EFT posted in error,REV-AFD2291,,9320.50,174546.25
+2026-08-17,Salary batch August 2026 - A Mensah,PAY-2026-08,30000.00,,144546.25
+2026-08-17,Salary batch August 2026 - J Thomas,PAY-2026-08,12180.00,,132366.25
+2026-08-21,"Standing order - rent, Airport City",SO-RENT-08,15000.00,,117366.25
+,,,,Total,-7634.25

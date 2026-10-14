@@ -107,6 +107,16 @@ class Pms:
         self.last_location = hdr.get("Location", "")
         return code, html, self.last_location
 
+    def delete(self, path, tok=None, referer=None):
+        """DELETE a resource. The CSRF token goes in the query string: Laravel reads
+        `_token` from the request input, and a DELETE body is not always parsed."""
+        url = self.base + path + (("&" if "?" in path else "?") + "_token=" + tok if tok else "")
+        req = urllib.request.Request(url, data=b"", method="DELETE", headers={
+            "Accept": "text/html", "Referer": self.base + (referer or path)})
+        code, html, hdr = self._open(req)
+        self.last_location = hdr.get("Location", "")
+        return code, html, self.last_location
+
     # ---- helpers ----------------------------------------------------
     @staticmethod
     def token(html, action_pattern=None):

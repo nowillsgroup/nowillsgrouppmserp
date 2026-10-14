@@ -53,7 +53,7 @@ class BankRecController extends Controller
         $d = $request->validate([
             'account_head_id' => 'required|integer|owned:account_heads', 'period_from' => 'required|date', 'period_to' => 'required|date|after_or_equal:period_from',
             'opening_balance' => 'required|numeric|between:-1000000000,1000000000', 'closing_balance' => 'nullable|numeric|between:-1000000000,1000000000',
-            'mode' => 'required|in:csv,manual', 'file' => 'required_if:mode,csv|nullable|file|max:4096|mimes:csv,txt',
+            'mode' => 'required|in:csv,manual', 'file' => 'required_if:mode,csv|nullable|file|max:12288',   // format is checked on reading: csv, xlsx, MT940, camt
             'date_format' => 'nullable|in:'.implode(',', array_keys(Rec::DATE_FORMATS)), 'invert' => 'nullable|boolean', 'notes' => 'nullable|string|max:500',
             'col' => 'nullable|array', 'col.*' => 'nullable|string|max:60',
         ]);
@@ -68,15 +68,24 @@ class BankRecController extends Controller
                 return redirect()->route('bankrec.show', $s)->with('success', "Statement {$s->statement_no} created – add its lines.");
             }
             $file = $request->file('file');
-            $text = (string) file_get_contents($file->getRealPath());
-            if (! mb_check_encoding($text, 'UTF-8')) {
-                $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
+            $read = Rec::readFile($file->getRealPath(), (string) $file->getClientOriginalName(), $file->getClientMimeType());
+            $text = $read['text'];
+            if ($read['format'] !== 'xlsx' && ! mb_check_encoding($text, 'UTF-8')) {
+                $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');   // bank exports are still often Windows-1252
             }
             $cols = array_filter($d['col'] ?? [], fn ($v) => trim((string) $v) !== '');
             [$s, $n, $skipped, $dups, $warn] = Rec::import((int) $d['account_head_id'], $from, $to, (float) $d['opening_balance'], $closing, $text,
-                mb_substr(basename($file->getClientOriginalName()), 0, 190), $cols, $d['date_format'] ?? 'auto', (bool) ($d['invert'] ?? false));
+                mb_substr(basename($file->getClientOriginalName()), 0, 190), $cols, $d['date_format'] ?? 'auto', (bool) ($d['invert'] ?? false), $read['format']);
             $auto = Rec::autoMatch($s);
-            $msg = "Imported {$n} line(s) into {$s->statement_no}".($skipped ? ", {$skipped} summary / blank row(s) skipped" : '').($dups ? ", {$dups} already-imported line(s) left out" : '')
+            // an MT940 or a camt file states its own balances: if they disagree with what was typed, say so at once
+            if ($read['opening'] !== null && abs($read['opening'] - (float) $d['opening_balance']) > 0.005) {
+                $warn[] = 'The file itself opens at '.money($read['opening']).' but the opening balance entered was '.money((float) $d['opening_balance']).'.';
+            }
+            if ($read['closing'] !== null && $closing !== null && abs($read['closing'] - $closing) > 0.005) {
+                $warn[] = 'The file itself closes at '.money($read['closing']).' but the closing balance entered was '.money($closing).'.';
+            }
+            $warn = array_merge($read['notes'], $warn);
+            $msg = "Imported {$n} line(s) into {$s->statement_no} from a {$read['label']}".($skipped ? ", {$skipped} summary / blank row(s) skipped" : '').($dups ? ", {$dups} already-imported line(s) left out" : '')
                 .'. Auto-matched '.array_sum($auto).'.';
 
             return redirect()->route('bankrec.show', $s)->with('success', $msg)->with($warn ? 'warning' : 'x', implode(' ', array_slice($warn, 0, 5)));
