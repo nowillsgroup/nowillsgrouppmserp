@@ -10,7 +10,7 @@
 <form method="post" action="{{ route('payroll.recalc', $run) }}" class="inline">@csrf<button class="btn"><x-icon name="refresh"/> Recalculate</button></form>
 @endif
 @if($run->status === 'draft' && can_do('payroll.approve'))
-<form method="post" action="{{ route('payroll.approve', $run) }}" class="inline" onsubmit="return confirm('Approve {{ $run->run_no }}? Attendance and leave for {{ $run->label() }} will be locked and the payroll cost accrued in the ledger.')">@csrf
+<form method="post" action="{{ route('payroll.approve', $run) }}" class="inline" onsubmit="return confirm('Approve {{ $run->run_no }}? Attendance and leave for {{ $run->label() }} will be locked and the payroll cost accrued in the ledger.{{ ($variance['status'] ?? '') === 'over' ? ' This takes '.$variance['month_label'].' '.money($variance['variance']).' over the approved budget.' : '' }}')">@csrf
 <button class="btn btn-primary" @disabled($segregated) title="{{ $segregated ? 'You prepared this run – another approver must approve it' : '' }}"><x-icon name="check"/> Approve</button></form>
 @endif
 @if($run->status === 'approved' && can_do('payroll.approve'))
@@ -63,6 +63,25 @@
 <tfoot><tr class="bold"><td>Total</td><td></td><td class="num">{{ money(($byCode[$k] ?? collect())->sum('amt'), false) }}</td></tr></tfoot></table></div></div>
 @endforeach
 </div>
+
+@if(($variance['rows'] ?? collect())->isNotEmpty() || ($variance['note'] ?? ''))
+@php $vBadge = ['over' => ['badge-red', 'Over budget'], 'unbudgeted' => ['badge-amber', 'Account not budgeted'], 'within' => ['badge-green', 'Within budget'], 'none' => ['badge-slate', 'No approved budget']][$variance['status']] ?? ['badge-slate', '—']; @endphp
+<div class="card flush mt-2" id="budgetCard"><div class="card-head"><h3>Cost against budget</h3><span class="badge {{ $vBadge[0] }}">{{ $vBadge[1] }}</span>
+@if($variance['budget'])<a class="btn btn-sm btn-ghost" href="{{ route('budgets.show', $variance['budget']) }}" title="Open {{ $variance['budget']->budget_no }}"><x-icon name="external"/></a>@endif</div>
+<div class="card-body table-wrap"><table class="table table-compact" id="budgetTable">
+<thead><tr><th>Account charged</th><th class="num">This run</th><th class="num">Posted {{ $variance['month_label'] }}</th><th class="num">{{ $variance['posted_includes_run'] ? 'Month to date' : 'Month if approved' }}</th><th class="num">Budget</th><th class="num">Variance</th></tr></thead>
+<tbody>@forelse($variance['rows'] as $r)<tr>
+<td>{{ $r['account'] }}@if($r['unbudgeted']) <span class="badge badge-amber" title="The approved budget has no line for this account in {{ $variance['month_label'] }}">unbudgeted</span>@endif</td>
+<td class="num">{{ money($r['cost'], false) }}</td><td class="num muted">{{ money($r['posted'], false) }}</td><td class="num">{{ money($r['after'], false) }}</td>
+<td class="num">{{ $r['budgeted'] > 0 ? money($r['budgeted'], false) : '—' }}</td>
+<td class="num {{ $r['variance'] > 0.005 ? 'text-red bold' : 'muted' }}">{{ $r['budgeted'] > 0 ? ($r['variance'] > 0 ? '+' : '').money($r['variance'], false).($r['pct'] !== null ? ' ('.($r['pct'] > 0 ? '+' : '').$r['pct'].'%)' : '') : '—' }}</td></tr>
+@empty<tr><td class="muted small" colspan="6">{{ $variance['note'] }}</td></tr>@endforelse</tbody>
+@if($variance['rows']->isNotEmpty())<tfoot><tr class="bold"><td>Total</td><td class="num">{{ money($variance['cost'], false) }}</td><td class="num">{{ money($variance['posted'], false) }}</td><td class="num">{{ money($variance['after'], false) }}</td><td class="num">{{ money($variance['budgeted'], false) }}</td>
+<td class="num {{ $variance['variance'] > 0.005 ? 'text-red' : '' }}">{{ ($variance['variance'] > 0 ? '+' : '').money($variance['variance'], false) }}@if($variance['pct'] !== null) ({{ ($variance['pct'] > 0 ? '+' : '').$variance['pct'] }}%)@endif</td></tr></tfoot>@endif
+</table>
+<p class="tiny muted" style="margin:.5rem 0 0">{{ $variance['note'] }}@if($variance['budget']) Measured against {{ $variance['budget']->budget_no }} for {{ $variance['month_label'] }}, with the ledger read to {{ dmy($variance['cutoff']) }}. {{ $variance['posted_includes_run'] ? 'This run is already posted, so its cost is inside the posted column and is not added twice.' : 'Payroll is not the only thing that charges these accounts – casual labour, staff meals and accruals land on the same head, which is why the posted column is there.' }}@endif</p>
+</div></div>
+@endif
 
 <div class="card flush mt-2"><div class="card-head"><h3>Payslips</h3>@if($run->status === 'draft' && can_do('payroll.manage'))<button class="btn btn-sm btn-primary" data-modal="adjModal"><x-icon name="plus"/> One-off earning / recovery</button>@endif</div>
 <div class="card-body table-wrap"><table class="table table-compact" id="slipTable">

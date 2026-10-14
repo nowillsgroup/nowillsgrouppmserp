@@ -228,6 +228,17 @@ class HrRun extends Command
             $out[] = "{$run->run_no}: {$below->count()} payslip(s) below the national minimum wage of ".money(StatutoryService::minWageMonthly())
                 .' a month ('.$below->pluck('name')->take(3)->join(', ').($below->count() > 3 ? ', …' : '').') – raise the basic before approving.';
         }
+        // A draft run can still be changed, so this is the moment to say what approving it would do to the budget (v7.46).
+        $var = PayrollService::budgetVariance($run);
+        if ($run->status === 'draft' && $var['status'] === 'over') {
+            $out[] = "{$run->run_no} would take {$var['month_label']} ".money($var['variance'])." over the approved budget ({$var['pct']}%) – "
+                .$var['rows']->filter(fn ($r) => $r['variance'] > 0.005)->pluck('account')->join(', ')
+                .'. A bonus, overtime or an unbudgeted vacancy filled are the usual causes: trim the run or reforecast under Finance › Budget.';
+        } elseif ($run->status === 'draft' && $var['status'] === 'unbudgeted') {
+            $out[] = "{$run->run_no} charges account(s) the approved budget has no line for in {$var['month_label']}: "
+                .$var['rows']->where('unbudgeted', true)->pluck('account')->join(', ').'. Add them to the budget so the variance means something.';
+        }
+
         $due = $start->copy()->day(min(28, max(1, (int) setting('payroll_payday', '28'))));
         if ($run->status === 'draft') {
             $out[] = "{$run->run_no} ({$start->format('F Y')}) is still a draft: gross ".money($run->gross).', net '.money($run->net)

@@ -62,7 +62,8 @@ class PayrollController extends Controller
             'modes' => $slips->groupBy(fn ($s) => $s->paymentMode?->name ?? '—')->map(fn ($g) => ['n' => $g->count(), 'net' => $g->sum('net')]),
             'segregated' => setting('payroll_segregation', '1') === '1' && (int) $prun->generated_by === (int) auth()->id(),
             'holidays' => HolidayService::payrollNote($prun->period_start, $prun->period_end),
-            'schedule' => PayrollService::scheduleFor($prun->period_start)]);
+            'schedule' => PayrollService::scheduleFor($prun->period_start),
+            'variance' => PayrollService::budgetVariance($prun)]);
     }
 
     public function recalc(PayrollRun $prun)

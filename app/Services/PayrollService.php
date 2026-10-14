@@ -777,6 +777,102 @@ class PayrollService
     // ───────────────────────── ledger ─────────────────────────
 
     /** Post / reverse straight away when the document date is in a closed day; otherwise the night-audit sync picks it up. */
+    /**
+     * What this run costs against what the approved budget allowed for the same fiscal month and the same accounts.
+     *
+     * The comparison follows LedgerService::forPayrollRun(), which is the authority on what payroll charges to the
+     * profit and loss: earnings go to their expense head (Salaries & Wages by default), employer contributions to
+     * theirs, and a deduction credited to an *expense* head – a fine or a recovery – reduces that head. Liability
+     * accounts are left out on both sides, so SSNIT and PAYE withheld never look like payroll cost, and the accounts
+     * compared are the ones this run actually posts to rather than a hard-coded "salaries" line.
+     *
+     * Payroll is not the only thing that charges those accounts – casual labour, staff meals and accruals land on the
+     * same head – so the ledger's own postings for the month are read beside the run: for a draft run the question an
+     * approver is asking is "what does approving this take the month to", and for an approved or paid run the postings
+     * already include it, which the note says rather than adding it twice.
+     *
+     * @return array{budget: ?\App\Models\Budget, fy: int, month: int, month_label: string, cutoff: string,
+     *                posted_includes_run: bool, rows: Collection, cost: float, posted: float, after: float,
+     *                budgeted: float, variance: float, pct: ?float, status: string, note: string}
+     */
+    public static function budgetVariance(PayrollRun $run): array
+    {
+        $fy = BudgetService::fyFor($run->period_start);
+        $month = BudgetService::monthIndex($run->period_start);
+        $label = BudgetService::monthLabels($fy)[$month] ?? $run->label();
+        $cutoff = (string) LedgerService::cutoff();
+        // An approved or paid run is already in the ledger, so its cost must not be added to the postings a second time.
+        $inLedger = $run->isLocked();
+        $blank = ['budget' => null, 'fy' => $fy, 'month' => $month, 'month_label' => $label, 'cutoff' => $cutoff,
+            'posted_includes_run' => $inLedger, 'rows' => collect(), 'cost' => 0.0, 'posted' => 0.0, 'after' => 0.0,
+            'budgeted' => 0.0, 'variance' => 0.0, 'pct' => null, 'status' => 'none', 'note' => ''];
+        if (! $budget = BudgetService::active($fy)) {
+            return array_merge($blank, ['note' => 'No approved budget for '.BudgetService::fyLabel($fy)
+                .', so this run has nothing to be measured against. Approve one under Finance › Budget and the comparison appears here.']);
+        }
+
+        $expense = AccountHead::where('type', 'expense')->pluck('name', 'id');
+        $cost = [];
+        foreach ($run->payslips()->with('lines')->get() as $slip) {
+            foreach ($slip->lines as $l) {
+                $amt = (float) $l->amount;
+                $head = match ($l->kind) {
+                    'earning' => $l->expense_head_id ?: AccountHead::sys('salaries'),
+                    'employer' => $l->expense_head_id ?: AccountHead::sys('employer_contrib'),
+                    'deduction' => $l->liability_head_id, // only an expense head (a fine, a recovery) changes the cost
+                    default => null,
+                };
+                if (! $head || ! isset($expense[$head])) {
+                    continue;
+                }
+                $cost[$head] = round(($cost[$head] ?? 0.0) + ($l->kind === 'deduction' ? -$amt : $amt), 2);
+            }
+        }
+        if (! $cost) {
+            return array_merge($blank, ['budget' => $budget,
+                'note' => 'This run charges nothing to an expense account, so there is no budget line to compare it with.']);
+        }
+
+        $cell = 'm'.$month;
+        $lines = $budget->lines()->whereIn('account_head_id', array_keys($cost))->get()->keyBy('account_head_id');
+        $posted = BudgetService::actuals($fy);
+        $rows = collect();
+        foreach ($cost as $head => $amt) {
+            $budgeted = round((float) ($lines[$head]->{$cell} ?? 0), 2);
+            $already = round((float) ($posted[$head][$month] ?? 0), 2);
+            $after = round($inLedger ? $already : $already + $amt, 2);
+            $var = round($after - $budgeted, 2);
+            $rows->push(['account' => $expense[$head] ?? '#'.$head, 'cost' => $amt, 'posted' => $already, 'after' => $after,
+                'budgeted' => $budgeted, 'variance' => $var, 'pct' => $budgeted > 0 ? round($var / $budgeted * 100, 1) : null,
+                'unbudgeted' => $budgeted <= 0]);
+        }
+        $rows = $rows->sortByDesc('cost')->values();
+        $sum = fn (string $k) => round((float) $rows->sum($k), 2);
+        $costTotal = $sum('cost');
+        $postedTotal = $sum('posted');
+        $afterTotal = $sum('after');
+        $budgetTotal = $sum('budgeted');
+        $variance = round($afterTotal - $budgetTotal, 2);
+        $unbudgeted = $rows->where('unbudgeted', true);
+        $status = $unbudgeted->isNotEmpty() ? 'unbudgeted' : ($variance > 0.005 ? 'over' : 'within');
+        $over = $rows->filter(fn ($r) => $r['variance'] > 0.005);
+
+        return ['budget' => $budget, 'fy' => $fy, 'month' => $month, 'month_label' => $label, 'cutoff' => $cutoff,
+            'posted_includes_run' => $inLedger, 'rows' => $rows, 'cost' => $costTotal, 'posted' => $postedTotal,
+            'after' => $afterTotal, 'budgeted' => $budgetTotal, 'variance' => $variance,
+            'pct' => $budgetTotal > 0 ? round($variance / $budgetTotal * 100, 1) : null, 'status' => $status,
+            'note' => match (true) {
+                $unbudgeted->isNotEmpty() => $unbudgeted->count().' of these account(s) carry no budget for '.$label
+                    .' ('.$unbudgeted->pluck('account')->join(', ').'), so everything charged to them is variance.',
+                $status === 'over' => ($inLedger ? 'The month is ' : 'Approving this run takes the month ')
+                    .money($variance).' over the approved budget for '.$label
+                    .($over->count() ? ' – over on '.$over->pluck('account')->join(', ') : '')
+                    .'. A bonus, an unbudgeted vacancy filled, or overtime the budget did not assume are the usual causes; a reforecast is under Finance › Budget.',
+                default => ($inLedger ? 'Posted to the ledger' : 'Approving this run leaves the month')
+                    .' '.money(abs($variance)).' inside the approved budget for '.$label.'.',
+            }];
+    }
+
     public static function postNow(string $type, Model $doc, Carbon $date): void
     {
         $cutoff = setting('gl_cutoff');

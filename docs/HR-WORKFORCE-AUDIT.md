@@ -369,8 +369,10 @@ named human, which is the point of segregation of duties.
 3. ~~**Bonus taxation.**~~ **Implemented in v7.45** — `BONUS` / `BONUS_TAX` components, the 5%-final
    rule up to 15% of the year's basic, the 20% non-resident rate, the casual-worker and junior-overtime
    interactions, and the GRA return columns. Rule, code map and evidence: **§14**.
-4. **Payroll cost budgeting.** The run compares against nothing; linking it to the budget module
-   would let a hotel see a month's variance before approving.
+4. ~~**Payroll cost budgeting.**~~ **Implemented in v7.47** — every run page now compares what the run
+   charges against the approved budget for the same fiscal month and the same accounts, the approve
+   confirmation says so before it is clicked, and the nightly HR task warns about a draft run that would
+   break the budget. Detail and evidence: **§16**.
 5. **`docs/MODULES.md`** was reconciled for HR (23 → 20 pages, with the four routed-but-unmenued
    self-service pages named). The rest of the inventory is still the v7.36–v7.38 snapshot.
 
@@ -498,6 +500,78 @@ there, and only `days_per_year` and the wording of the note do.
 
 ---
 
+## 16. Payroll cost against the approved budget (added after the audit, v7.47)
+
+Follow-up 4 above. A run compared against nothing: the approver saw gross, deductions and net and had
+no way to know whether approving it would take the month through its salary budget — which is the one
+question a budget exists to answer, and the one a hotel cannot answer after the run is locked.
+
+### 16.1 What is compared
+
+`PayrollService::budgetVariance(PayrollRun)` follows **`LedgerService::forPayrollRun()`**, the authority
+on what payroll charges to the profit and loss, rather than assuming one "salaries" line:
+
+| Line kind | Charged to | Sign |
+|---|---|---|
+| earning | its `expense_head_id` (Salaries & Wages by default) | + |
+| employer contribution | its `expense_head_id` (Employer SSNIT & Pension by default) | + |
+| deduction | its `liability_head_id`, **only when that is an expense account** — a fine or a recovery reduces salary cost | − |
+| deduction | a liability account (SSNIT, PAYE, advances) | ignored on both sides |
+
+So withheld SSNIT and PAYE never look like payroll cost, and the accounts compared are the ones this run
+actually posts to. Against each of them the method reads two figures: the **approved budget** for that
+fiscal month (`BudgetService::active(fy)` → `budget_lines.m{month}`, fiscal-month indexed, so a hotel
+whose year does not start in January is handled) and what the **ledger already holds** for that month
+(`BudgetService::actuals(fy)`, read to `LedgerService::cutoff()`).
+
+The two are kept apart on purpose. Payroll is not the only thing that charges Salaries & Wages — casual
+labour, staff meals and accruals land on the same head — and in the demo data October already carried
+**GH₵285,000.00** of non-payroll postings against a GH₵720,000.00 budget. A card that showed only "this
+run vs budget" would have said *within budget by GH₵637,360.96* while the month was in fact already
+half spent. For a **draft** run the card therefore adds the run to the postings ("Month if approved");
+for an **approved or paid** run the postings already include it, and the card says so instead of adding
+it twice.
+
+### 16.2 Where it appears
+
+* **The run page** — a *Cost against budget* card between the earnings/deductions grid and the payslips
+  table: one row per account charged (this run, posted this month, month if approved, budget, variance
+  with its percentage), a total row, a status badge (`Within budget` / `Over budget` /
+  `Account not budgeted` / `No approved budget`), a link to the budget itself, and a sentence naming the
+  usual causes when it is over.
+* **The approve button** — the confirmation dialog gains "This takes Oct 26 GH₵299,830.73 over the
+  approved budget." before the approver clicks, not after.
+* **The nightly HR task** — `pms:hr-run` reports a draft run that would break the budget, and separately
+  a run charging an account the budget has no line for, which is the case that makes a variance
+  meaningless.
+
+### 16.3 Evidence
+
+`hr_budget_variance.php` — the seeded budget is far larger than the payroll, so the warning paths never
+fire in the demo; the probe lowers the October Salaries line, reads the page and the nightly task the way
+a user would, and **puts the figure back byte-identically** (the budget is approved and locked, so the
+only way to move it is a direct write, and it is undone in a `finally`).
+
+| October Salaries & Wages budget | Engine | Run page | Approve dialog | `pms:hr-run --dry` |
+|---|---|---|---|---|
+| **GH₵720,000.00** (as seeded) | `within`, −370,169.27 (−49.6%) | badge *Within budget* | no warning | nothing |
+| **GH₵50,000.00** | `over`, month to date 367,639.04 vs 50,000.00 = **+317,639.04 (+394.5%)** | badge *Over budget*, red variance | "This takes Oct 26 GH₵299,830.73 over the approved budget" | *"[NOWILLS] PAY-2026-10 would take Oct 26 GH₵299,830.73 over the approved budget (394.5%) – Salaries & Wages…"* |
+| **GH₵0.00** | `unbudgeted` | badge *Account not budgeted* + an `unbudgeted` chip on the row | — | *"…charges account(s) the approved budget has no line for in Oct 26…"* |
+
+The approve dialog and the nightly task quote the **total** variance (299,830.73, both accounts) while
+the engine line quotes the single account (317,639.04 against the lowered Salaries budget) — the
+Employer SSNIT line is still inside its own budget, so the totals differ by exactly that head's
+under-spend.
+
+Cross-check against the ledger, which is the real test of the cost definition: for the **paid** July run
+the card's "this run" and the ledger's own postings for that fiscal month agree to the pesewa
+(Salaries & Wages 71,996.46, Employer SSNIT 7,563.49), and for the **approved** August run they agree
+again (74,043.46 and 7,743.41 — the latter is the run's gross less the recovery credited to salary
+cost). September, a draft with no other postings, shows posted 0.00 and "month if approved" equal to the
+run. `budgetVariance()` costs about 136 ms on 4,811 GL lines and the run page still renders in ~1.5 s.
+
+---
+
 ## Appendix — reproduction
 
 ```bash
@@ -524,7 +598,10 @@ python3 deploy/dev/audit/hr_tax_cases.py
 # 5b. paternity leave through the leave form, the balances and the register (§15)
 python3 deploy/dev/audit/hr_paternity_flow.py
 
-# 5c. bonus / ex-gratia taxation: the rule case by case, then through the UI (§14)
+# 5c. payroll cost against the approved budget, including the over-budget branches (§16)
+TINKER='require "/app/deploy/dev/audit/hr_budget_variance.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
+
+# 5d. bonus / ex-gratia taxation: the rule case by case, then through the UI (§14)
 TINKER='require "/app/deploy/dev/audit/hr_bonus_cases.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
 python3 deploy/dev/audit/hr_bonus_flow.py
 TINKER='require "/app/deploy/dev/audit/hr_bonus_statutory.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
