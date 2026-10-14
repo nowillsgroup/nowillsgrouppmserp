@@ -107,10 +107,15 @@ class PayrollService
         // Leave types. Act 651 s. 20 sets the floor at 15 working days of annual leave with full pay and s. 57 gives a
         // mother 12 weeks (84 days) of maternity leave on full remuneration, plus two more weeks for an abnormal
         // confinement or multiple births – so ML is created even on an existing installation that has none.
+        // PL is the counterpart the Act does not provide: Ghana gives a father no statutory paternity leave, so what a
+        // hotel offers is contractual (its own policy or a collective agreement). The type is seeded with a common
+        // 5 working days on full pay and the hotel sets the real number in Masters › Leave Types; the engine needs no
+        // special case for it, because paid leave of any type is paid leave in payroll.
         $fresh = ! \App\Models\LeaveType::exists();
         foreach ([['CL', 'Casual leave', 12, true, 0], ['SL', 'Sick leave', 12, true, 0], ['EL', 'Earned / annual leave', 18, true, 30],
-            ['ML', 'Maternity leave (12 weeks, s. 57)', 84, true, 0], ['LWP', 'Leave without pay', 0, false, 0]] as [$c, $n, $d, $paid, $cf]) {
-            if (($fresh || $c === 'ML') && ! \App\Models\LeaveType::where('code', $c)->exists()) {
+            ['ML', 'Maternity leave (12 weeks, s. 57)', 84, true, 0],
+            ['PL', 'Paternity leave (contractual – Act 651 provides none)', 5, true, 0], ['LWP', 'Leave without pay', 0, false, 0]] as [$c, $n, $d, $paid, $cf]) {
+            if (($fresh || in_array($c, ['ML', 'PL'], true)) && ! \App\Models\LeaveType::where('code', $c)->exists()) {
                 \App\Models\LeaveType::create(['code' => $c, 'name' => $n, 'days_per_year' => $d, 'is_paid' => $paid, 'carry_forward_max' => $cf]);
             }
         }

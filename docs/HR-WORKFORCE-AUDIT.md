@@ -363,8 +363,9 @@ named human, which is the point of segregation of duties.
    `CloseService:405`, `ClubService:388/417`) now uses `whereDate()`, and the sweep that closed them
    went far beyond HR: **103 application files, 411 insertions**, selected from the schema rather than
    from column names. Measured effect and method: `docs/DATE-STORAGE-AUDIT.md`.
-2. **Paternity leave.** Act 651 provides none; hotels that offer it need a `PL` leave type — the
-   engine supports it the moment the type exists.
+2. ~~**Paternity leave.**~~ **Implemented in v7.46** — a `PL` type is now seeded (contractual, since
+   Act 651 provides none), and the leave pages state plainly which types the law gives and which the
+   hotel does. Detail and evidence: **§15**.
 3. ~~**Bonus taxation.**~~ **Implemented in v7.45** — `BONUS` / `BONUS_TAX` components, the 5%-final
    rule up to 15% of the year's basic, the 20% non-resident rate, the casual-worker and junior-overtime
    interactions, and the GRA return columns. Rule, code map and evidence: **§14**.
@@ -450,6 +451,53 @@ case unchanged. `pms:hr-run --dry` reports the October draft with the demo bonus
 
 ---
 
+## 15. Paternity leave (added after the audit, v7.46)
+
+Follow-up 2 above. Act 651 gives a mother 12 weeks on full remuneration (s. 57) and gives a father
+**nothing** — Ghana has no statutory paternity leave. Branded hotels and most collective agreements
+offer it anyway, and until now there was no type to record it against, so a week with a new-born was
+booked as casual leave (a 12-day pot meant for other things) or as leave without pay (which cost the
+worker pay his own contract promised).
+
+**What was added — one seeded row and two sentences of honest UI.** `PayrollService::ensureDefaults()`
+now seeds `PL` *Paternity leave (contractual – Act 651 provides none)*, 5 working days a year, paid, no
+carry-forward, and creates it on an **existing** installation the way it already did for `ML` (the gate
+is now `in_array($c, ['ML', 'PL'], true)`), so an upgrade hands a hotel the type without touching the
+leave types it has already configured.
+
+**No engine work was needed, and none was done.** `LeaveService::entitlement()`, `taken()`, `carried()`
+and `balances()` are generic over the type — entitlement pro-rates in the joining year, approved leave
+writes the attendance register, paid leave of any type is paid by payroll in the same way, and a
+gazetted public holiday falling inside the spell is not counted against the balance.
+
+**Deliberately not restricted by gender.** `employees.gender` exists, but there is no statutory rule to
+restrict against, and a hard-coded "men only" test would block an adoptive parent and a mother's
+partner. Every employee has the type; the hotel sets the days it actually offers.
+
+**The UI says which is which.** The balances tab and the *Record leave* modal both state that EL
+(s. 20) and ML (s. 57) are statutory while CL, SL and PL are contractual, so nobody mistakes a 5-day PL
+balance for a legal entitlement — and Masters › Leave Types is named as the place to change it.
+
+### Evidence
+
+`hr_paternity_flow.py` drives the whole of it and is idempotent — it cancels what an earlier pass left
+before it starts. `PL` seeded as leave type 11 (5.0 days, paid, active, no carry-forward) beside CL, SL,
+EL, ML and LWP.
+`/hr/leave?tab=balances` grew a PL column. Recording **9–13 November 2026** for EMP003 Joseph Thomas
+through the real form (`POST /hr/leave`, `approve=1`) answered *"Leave recorded and approved: Joseph
+Thomas, PL 09 Nov – 13 Nov 2026"*, took his PL balance from **5 to 0**, left the other four types
+untouched, and wrote the register: `/hr/attendance?date=2026-11-09` reads *On leave · PL* for him. The
+request is listed at `/hr/leave?status=approved` with its 5 days and reason, and the type is editable at
+`/masters/leave-types` and `/masters/leave-types/11/edit`. Cancelling the request through
+`POST /hr/leave/{id}/cancel` gives the 5 days back and clears the register, and the script then puts the
+demo leave back. The demo is dated in **November**, a month with no payroll run, so every October and
+September figure in §6, §8 and §14 is untouched.
+
+If Ghana ever amends Act 651 to add paternity leave, nothing structural changes: the type is already
+there, and only `days_per_year` and the wording of the note do.
+
+---
+
 ## Appendix — reproduction
 
 ```bash
@@ -473,7 +521,10 @@ python3 deploy/dev/audit/hr_paye_flow.py
 # 5. GRA's four special treatments through Masters › Employees, reverted (§7)
 python3 deploy/dev/audit/hr_tax_cases.py
 
-# 5b. bonus / ex-gratia taxation: the rule case by case, then through the UI (§14)
+# 5b. paternity leave through the leave form, the balances and the register (§15)
+python3 deploy/dev/audit/hr_paternity_flow.py
+
+# 5c. bonus / ex-gratia taxation: the rule case by case, then through the UI (§14)
 TINKER='require "/app/deploy/dev/audit/hr_bonus_cases.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
 python3 deploy/dev/audit/hr_bonus_flow.py
 TINKER='require "/app/deploy/dev/audit/hr_bonus_statutory.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
