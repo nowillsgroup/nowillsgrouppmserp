@@ -40,6 +40,9 @@
   @if($er->count())
   <div class="small text-2" style="margin-top:.6rem"><b>Employer contributions (not deducted from pay):</b> @foreach($er as $x){{ $x->name }} {{ money($x->amount, false) }}@if(! $loop->last) · @endif @endforeach · Cost to company {{ money($s->gross + $s->employer_cost) }}</div>
   @endif
+  @if($earn->contains('code', 'BONUS'))
+  <div class="tiny text-2" style="margin-top:.6rem"><b>Bonus / ex-gratia payment (GRA):</b> {{ money($earn->where('code', 'BONUS')->sum('amount'), false) }} taxed apart from the monthly bands — {{ $s->paye_basis ?: 'a final 5% up to 15% of the year\'s basic salary, the excess on the bands (non-resident 20%)' }}.{{ ($bt = $ded->where('code', 'BONUS_TAX')->sum('amount')) > 0 ? ' Tax withheld '.money($bt).'.' : '' }}</div>
+  @endif
   <div class="tiny text-2" style="margin-top:.5rem"><b>Statutory (Ghana):</b> SSNIT Tier 1 13.5% of basic (employee 5.5% + employer 8%) and Tier 2 5% (employer) up to {{ money(\App\Services\PayrollService::SSNIT_CAP, false) }} insurable earnings · employer SSNIT no. {{ \App\Services\StatutoryService::cfg('stat_ssnit_employer_no') ?: '—' }} · Tier 2 trustee: {{ \App\Services\StatutoryService::payee('tier2') }} · PAYE is paid to GRA by the 15th of the following month and SSNIT by the 14th (Act 766, Act 896).</div>
   <div class="tiny text-2" style="margin-top:1rem;display:flex;justify-content:space-between"><span>Computer-generated payslip – no signature required.</span><span>{{ $run->status === 'paid' ? 'Paid '.dmy($run->paid_date) : ucfirst($run->status) }} · printed {{ now()->format('d M Y H:i') }}</span></div>
 </div>

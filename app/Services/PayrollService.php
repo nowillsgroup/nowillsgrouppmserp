@@ -71,6 +71,9 @@ class PayrollService
     public const OT_JUNIOR_EXCESS_RATE = 10;   // … and the excess over 50% at 10%
     public const CASUAL_RATE = 5;              // a casual worker's gross pay: 5% final tax (Act 651 s. 78 / GRA practice note 4.12)
     public const NON_RESIDENT_RATE = 25;       // a non-resident's employment income: a flat 25% (Act 896)
+    public const BONUS_CAP_PCT = 15;           // a bonus up to 15% of the year's basic salary …
+    public const BONUS_RATE = 5;               // … carries a final 5% tax for a resident (Act 896 s. 114, GRA practice note 4.8) …
+    public const BONUS_NON_RESIDENT_RATE = 20; // … while a non-resident's bonus and overtime carry a flat 20%; the excess over the cap is taxed on the bands
 
     // ───────────────────────── defaults ─────────────────────────
 
@@ -85,11 +88,13 @@ class PayrollService
             ['TRANSPORT', 'Transport allowance', 'earning', 'fixed', 300, ['sort_order' => 20]],
             ['OT', 'Overtime', 'earning', 'system', 0, ['sort_order' => 90, 'expense_head_id' => $sys('salaries')]],
             ['OTH', 'Public holiday work', 'earning', 'system', 0, ['sort_order' => 91, 'expense_head_id' => $sys('salaries')]],
+            ['BONUS', 'Bonus / ex-gratia payment', 'earning', 'system', 0, ['sort_order' => 92, 'expense_head_id' => $sys('salaries')]],
             // Ghana (National Pensions Act 2008, Act 766): 18.5% of basic up to the maximum insurable earnings –
             // Tier 1 (SSNIT) 13.5% = employee 5.5% + employer 8%; Tier 2 (occupational trustee) 5% employer.
             ['SSNIT', 'SSNIT (employee 5.5%)', 'deduction', 'percent_basic', 5.5, ['sort_order' => 10, 'cap_base' => self::SSNIT_CAP, 'tax_relief' => true, 'liability_head_id' => $sys('pf_payable')]],
             ['PAYE', 'PAYE income tax', 'deduction', 'tax', 0, ['sort_order' => 40, 'liability_head_id' => $sys('paye_payable')]],
             ['OT_TAX', 'Overtime tax (junior staff – final 5% / 10%)', 'deduction', 'system', 0, ['sort_order' => 45, 'liability_head_id' => $sys('paye_payable')]],
+            ['BONUS_TAX', 'Tax on bonus (final 5% / non-resident 20%)', 'deduction', 'system', 0, ['sort_order' => 46, 'liability_head_id' => $sys('paye_payable')]],
             ['ADV', 'Salary advance recovery', 'deduction', 'system', 0, ['sort_order' => 90, 'liability_head_id' => $sys('staff_advances')]],
             ['SSNIT_ER', 'SSNIT Tier 1 (employer 8%)', 'employer', 'percent_basic', 8, ['sort_order' => 10, 'cap_base' => self::SSNIT_CAP, 'expense_head_id' => $sys('employer_contrib'), 'liability_head_id' => $sys('pf_payable')]],
             ['TIER2_ER', 'Tier 2 pension (employer 5%)', 'employer', 'percent_basic', 5, ['sort_order' => 20, 'cap_base' => self::SSNIT_CAP, 'expense_head_id' => $sys('employer_contrib'), 'liability_head_id' => $sys('esi_payable')]],
@@ -256,29 +261,57 @@ class PayrollService
      *   • anyone else is taxed on the bands over chargeable income = taxable pay − SSNIT 5.5% − personal reliefs,
      *     overtime included.
      *
-     * @return array{paye:float, ot_tax:float, chargeable:float, basis:string, schedule:string, junior:bool}
+     *   • a bonus (ex-gratia payment) is taxed on its own: a resident pays a final 5% on the part up to 15% of the
+     *     year's basic salary and the excess goes on the bands, a non-resident pays a flat 20% on the whole of it, and a
+     *     casual worker's bonus is simply part of the gross that carries the final 5%;
+     *
+     * @return array{paye:float, ot_tax:float, chargeable:float, basis:string, schedule:string, junior:bool,
+     *                bonus_tax:float, bonus_final:float, bonus_excess:float, bonus_cap:float}
      */
-    public static function incomeTax(Employee $e, Carbon $period, float $taxable, float $ssnitRelief, float $ot, float $basic): array
+    public static function incomeTax(Employee $e, Carbon $period, float $taxable, float $ssnitRelief, float $ot, float $basic, float $bonus = 0.0): array
     {
         $sched = self::scheduleFor($period);
         $personal = self::personalRelief($e);
         $ot = max(0, round($ot, 2));
+        $bonus = max(0, round($bonus, 2));
+        $pct = fn (float $v) => rtrim(rtrim(number_format($v, 2), '0'), '.');
+
         if (! self::isResident($e)) {
             $chargeable = max(0, round($taxable - $ssnitRelief, 2));
+            // A non-resident's bonus is taxed at a flat 20% – not on the resident bands, and not at the 25% that applies
+            // to the rest of a non-resident's employment income.
+            $rate = (float) setting('payroll_bonus_nonresident_rate', self::BONUS_NON_RESIDENT_RATE);
 
-            return ['paye' => round($chargeable * self::NON_RESIDENT_RATE / 100, 2), 'ot_tax' => 0.0, 'chargeable' => $chargeable,
-                'basis' => 'Non-resident – flat '.self::NON_RESIDENT_RATE.'%', 'schedule' => $sched['name'], 'junior' => false];
+            return self::taxResult($chargeable * self::NON_RESIDENT_RATE / 100, 0.0, $chargeable,
+                'Non-resident – flat '.self::NON_RESIDENT_RATE.'%', $sched['name'], false,
+                $bonus, 0.0, $bonus * $rate / 100, $bonus, $bonus > 0.004 ? ' · bonus '.$pct($rate).'% final (non-resident)' : '');
         }
         if (self::isCasual($e)) {
-            $gross = max(0, round($taxable, 2));
+            // A casual worker's whole gross pay carries the final 5% (Act 651 s. 78) and a bonus is part of that gross,
+            // so there is no separate bonus treatment to apply – it is simply taxed inside the 5%.
+            $gross = max(0, round($taxable + $bonus, 2));
 
-            return ['paye' => round($gross * self::CASUAL_RATE / 100, 2), 'ot_tax' => 0.0, 'chargeable' => $gross,
-                'basis' => 'Casual worker – '.self::CASUAL_RATE.'% final tax on gross pay', 'schedule' => $sched['name'], 'junior' => false];
+            return self::taxResult($gross * self::CASUAL_RATE / 100, 0.0, $gross,
+                'Casual worker – '.self::CASUAL_RATE.'% final tax on gross pay', $sched['name'], false,
+                $bonus, 0.0, 0.0, 0.0, $bonus > 0.004 ? ' · bonus taxed inside the '.$pct(self::CASUAL_RATE).'% final' : '');
         }
+        // A resident's bonus: a final 5% on the part up to 15% of the year's basic salary, and the excess over that cap
+        // taxed on the bands with the rest of the month's income (Act 896 s. 114, GRA practice note on ex-gratia payments).
+        $bonusPct = (float) setting('payroll_bonus_cap_pct', self::BONUS_CAP_PCT);
+        $bonusCap = round($basic * 12 * $bonusPct / 100, 2);
+        $bonusFinal = $bonusCap > 0 ? round(min($bonus, $bonusCap), 2) : 0.0;
+        $bonusExcess = round(max(0, $bonus - $bonusFinal), 2);
+        $bonusRate = (float) setting('payroll_bonus_rate', self::BONUS_RATE);
+        $bonusTax = round($bonusFinal * $bonusRate / 100, 2);
+        $bonusNote = $bonus > 0.004
+            ? ' · bonus '.money($bonusFinal, false).' at a final '.$pct($bonusRate).'%'
+                .($bonusExcess > 0.004 ? ', '.money($bonusExcess, false).' over the '.$pct($bonusPct).'% of annual basic cap taxed on the bands' : ' (within the '.$pct($bonusPct).'% of annual basic cap)')
+            : '';
+
         $cap = (float) setting('payroll_ot_junior_cap', self::OT_JUNIOR_CAP);
         // GRA tests the concession on the year's qualifying employment income, overtime and bonus included: the regular
-        // emolument annualised, plus the overtime of the month in question.
-        $qualifying = round(($taxable - $ot) * 12 + $ot, 2);
+        // emolument annualised, plus the overtime and the bonus of the month in question.
+        $qualifying = round(($taxable - $ot) * 12 + $ot + $bonus, 2);
         if ($ot > 0.004 && $cap > 0 && $qualifying <= $cap) {
             $ratio = (float) setting('payroll_ot_junior_ratio', self::OT_JUNIOR_RATIO);
             $free = round($basic * $ratio, 2);                       // the part of the month's basic the concession covers
@@ -286,17 +319,27 @@ class PayrollService
             $at10 = round(max(0, $ot - $free), 2);
             $otTax = round($at5 * (float) setting('payroll_ot_junior_rate', self::OT_JUNIOR_RATE) / 100
                 + $at10 * (float) setting('payroll_ot_junior_excess_rate', self::OT_JUNIOR_EXCESS_RATE) / 100, 2);
-            $chargeable = max(0, round($taxable - $ot - $ssnitRelief - $personal, 2));
+            $chargeable = max(0, round($taxable - $ot + $bonusExcess - $ssnitRelief - $personal, 2));
 
-            return ['paye' => self::monthlyPaye($chargeable, $period), 'ot_tax' => $otTax, 'chargeable' => $chargeable,
-                'basis' => 'Junior employee – overtime taxed at a final 5% / 10%, bands on the rest',
-                'schedule' => $sched['name'], 'junior' => true];
+            return self::taxResult(self::monthlyPaye($chargeable, $period), $otTax, $chargeable,
+                'Junior employee – overtime taxed at a final 5% / 10%, bands on the rest', $sched['name'], true,
+                $bonusFinal, $bonusExcess, $bonusTax, $bonusCap, $bonusNote);
         }
-        $chargeable = max(0, round($taxable - $ssnitRelief - $personal, 2));
+        $chargeable = max(0, round($taxable + $bonusExcess - $ssnitRelief - $personal, 2));
 
-        return ['paye' => self::monthlyPaye($chargeable, $period), 'ot_tax' => 0.0, 'chargeable' => $chargeable,
-            'basis' => 'Resident – '.$sched['name'].($personal > 0 ? ' less personal reliefs '.money($personal) : ''),
-            'schedule' => $sched['name'], 'junior' => false];
+        return self::taxResult(self::monthlyPaye($chargeable, $period), 0.0, $chargeable,
+            'Resident – '.$sched['name'].($personal > 0 ? ' less personal reliefs '.money($personal) : ''), $sched['name'], false,
+            $bonusFinal, $bonusExcess, $bonusTax, $bonusCap, $bonusNote);
+    }
+
+    /** One shape for every incomeTax() branch, so the bonus fields are never missing from the payslip context. */
+    protected static function taxResult(float $paye, float $otTax, float $chargeable, string $basis, string $schedule, bool $junior,
+        float $bonusFinal = 0.0, float $bonusExcess = 0.0, float $bonusTax = 0.0, float $bonusCap = 0.0, string $bonusNote = ''): array
+    {
+        return ['paye' => round($paye, 2), 'ot_tax' => round($otTax, 2), 'chargeable' => round($chargeable, 2),
+            'basis' => $basis.$bonusNote, 'schedule' => $schedule, 'junior' => $junior,
+            'bonus_tax' => round($bonusTax, 2), 'bonus_final' => round($bonusFinal, 2),
+            'bonus_excess' => round($bonusExcess, 2), 'bonus_cap' => round($bonusCap, 2)];
     }
 
     // ───────────────────────── payslip computation ─────────────────────────
@@ -374,7 +417,10 @@ class PayrollService
             $lines[] = self::manualArray($m);
         }
         $gross = round(array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => $l['kind'] === 'earning'))), 2);
-        $taxable = array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => $l['kind'] === 'earning' && $l['taxable'])));
+        // A bonus is an earning for the payslip but not part of the banded income: GRA taxes it on its own terms (a final
+        // 5% up to 15% of the year's basic for a resident, a flat 20% for a non-resident), so incomeTax() takes it apart.
+        $bonusPaid = round(array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => $l['kind'] === 'earning' && $l['code'] === 'BONUS'))), 2);
+        $taxable = array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => $l['kind'] === 'earning' && $l['taxable'] && $l['code'] !== 'BONUS')));
         $otPaid = ($s['ot_hours'] > 0 || $s['holiday_hours'] > 0)
             ? round(array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => in_array($l['code'], ['OT', 'OTH'], true)))), 2)
             : 0.0;
@@ -392,7 +438,7 @@ class PayrollService
                 'percent_basic' => min($basic, $c->cap_base !== null ? (float) $c->cap_base * $factor : INF) * $v / 100,
                 'percent_gross' => ($c->gross_ceiling !== null && $gross > (float) $c->gross_ceiling) ? 0 : $gross * $v / 100,
                 'slab' => self::slabAmount($c->slabs ?? [], $gross),
-                'tax' => ($taxCtx = self::incomeTax($e, $run->period_start, $taxable, $relief, $otPaid, $basic))['paye'],
+                'tax' => ($taxCtx = self::incomeTax($e, $run->period_start, $taxable, $relief, $otPaid, $basic, $bonusPaid))['paye'],
                 default => 0,
             };
             if ($c->calc === 'percent_gross' && $amt > 0) {
@@ -410,7 +456,7 @@ class PayrollService
         foreach ($manual->where('kind', 'deduction') as $m) {
             $lines[] = self::manualArray($m);
         }
-        $taxCtx ??= self::incomeTax($e, $run->period_start, $taxable, $relief, $otPaid, $basic);
+        $taxCtx ??= self::incomeTax($e, $run->period_start, $taxable, $relief, $otPaid, $basic, $bonusPaid);
         // A junior employee's overtime carries its own final tax (GRA PAYE: 5% up to half the month's basic, 10% above),
         // credited to PAYE payable like the bands tax so the monthly DT 107 return picks both up.
         if (($taxCtx['ot_tax'] ?? 0) > 0.004) {
@@ -418,6 +464,12 @@ class PayrollService
             $lines[] = $line('OT_TAX', $otc?->name ?? 'Overtime tax (junior staff – final 5% / 10%)', 'deduction', $taxCtx['ot_tax'],
                 ['pay_component_id' => $otc?->id, 'liability_head_id' => $otc?->liability_head_id ?? AccountHead::sys('paye_payable'), 'sort_order' => 245]);
         }
+        if (($taxCtx['bonus_tax'] ?? 0) > 0.004) {
+            $btc = $sys['BONUS_TAX'] ?? null;
+            $lines[] = $line('BONUS_TAX', $btc?->name ?? 'Tax on bonus (final 5% / non-resident 20%)', 'deduction', $taxCtx['bonus_tax'],
+                ['pay_component_id' => $btc?->id, 'liability_head_id' => $btc?->liability_head_id ?? AccountHead::sys('paye_payable'), 'sort_order' => 246]);
+        }
+
         // salary advances: one instalment per open advance, never more than the net pay left
         $room = $gross - array_sum(array_map(fn ($l) => $l['amount'], array_filter($lines, fn ($l) => $l['kind'] === 'deduction')));
         $a = $sys['ADV'] ?? null;
@@ -434,6 +486,9 @@ class PayrollService
 
         return ['stats' => $s, 'days' => $dim, 'basic' => $basicFull, 'lines' => $lines, 'gross' => $gross, 'deductions' => $ded, 'employer' => $emp, 'net' => round($gross - $ded, 2),
             'relief' => round($relief + self::personalRelief($e), 2), 'chargeable' => round((float) ($taxCtx['chargeable'] ?? 0), 2),
+            'bonus' => $bonusPaid, 'bonus_tax' => round((float) ($taxCtx['bonus_tax'] ?? 0), 2),
+            'bonus_final' => round((float) ($taxCtx['bonus_final'] ?? 0), 2), 'bonus_excess' => round((float) ($taxCtx['bonus_excess'] ?? 0), 2),
+            'bonus_cap' => round((float) ($taxCtx['bonus_cap'] ?? 0), 2),
             'paye_basis' => $taxCtx['basis'] ?? null, 'tax_schedule' => $taxCtx['schedule'] ?? null];
     }
 
@@ -551,9 +606,15 @@ class PayrollService
         if ($slip->run->isLocked()) {
             throw new RuntimeException('The run is '.$slip->run->status.' – reopen it to change payslips.');
         }
+        // Flagging an earning as a bonus moves it out of the banded income: the tax engine then applies the GRA
+        // ex-gratia treatment (final 5% up to 15% of the year's basic, 20% for a non-resident) and raises BONUS_TAX itself,
+        // which is why the line is stored non-taxable – its own tax is computed, not guessed by a checkbox.
+        $bonus = $d['kind'] === 'earning' && ($d['component'] ?? '') === 'BONUS';
+        $bc = $bonus ? PayComponent::where('code', 'BONUS')->first() : null;
         $line = $slip->lines()->create([
-            'code' => $d['kind'] === 'earning' ? 'ADJ+' : 'ADJ-', 'name' => $d['name'], 'kind' => $d['kind'], 'amount' => round((float) $d['amount'], 2),
-            'taxable' => $d['kind'] === 'earning' && ! empty($d['taxable']), 'is_manual' => true, 'sort_order' => $d['kind'] === 'earning' ? 95 : 295,
+            'code' => $bonus ? 'BONUS' : ($d['kind'] === 'earning' ? 'ADJ+' : 'ADJ-'), 'name' => $d['name'], 'kind' => $d['kind'], 'amount' => round((float) $d['amount'], 2),
+            'taxable' => $bonus ? false : ($d['kind'] === 'earning' && ! empty($d['taxable'])), 'is_manual' => true,
+            'pay_component_id' => $bc?->id, 'sort_order' => $bonus ? 92 : ($d['kind'] === 'earning' ? 95 : 295),
             'expense_head_id' => $d['kind'] === 'earning' ? ($d['account_head_id'] ?? null ?: AccountHead::sys('salaries')) : null,
             'liability_head_id' => $d['kind'] === 'deduction' ? ($d['account_head_id'] ?? null ?: AccountHead::sys('salaries')) : null, // e.g. a fine/recovery reduces salary cost
         ]);

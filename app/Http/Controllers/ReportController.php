@@ -527,7 +527,9 @@ class ReportController extends Controller
 
     protected function r_payroll_register($from, $to): array
     {
-        $std = ['BASIC', 'OT', 'SSNIT', 'PAYE', 'ADV'];
+        // BONUS and BONUS_TAX are kept out of "allowances & other" and "other deductions": GRA taxes a bonus apart from
+        // the bands, so the register shows it apart too (v7.45).
+        $std = ['BASIC', 'OT', 'BONUS', 'SSNIT', 'PAYE', 'BONUS_TAX', 'ADV'];
         $rows = \App\Models\Payslip::with('employee.department', 'run', 'lines')
             ->whereHas('run', fn ($q) => $q->whereDate('period_start', '>=', $from->copy()->startOfMonth()->toDateString())->whereDate('period_start', '<=', $to->toDateString()))
             ->get()->sortBy(fn ($p) => $p->run->period_start->format('Ymd').$p->employee->emp_code)->values()
@@ -538,14 +540,16 @@ class ReportController extends Controller
 
                 return ['month' => $p->run->period_start->format('M Y'), 'status' => ucfirst($p->run->status), 'code' => $p->employee->emp_code, 'employee' => $p->employee->name,
                     'dept' => $p->employee->department?->name, 'paid_days' => (float) $p->paid_days, 'lop' => (float) $p->lop_days, 'ot_hours' => (float) $p->ot_hours,
-                    'basic' => $by['BASIC'] ?? 0, 'allow' => round((float) $earn->whereNotIn('code', $std)->sum('amount'), 2), 'ot' => $by['OT'] ?? 0, 'gross' => (float) $p->gross,
-                    'ssnit' => $by['SSNIT'] ?? 0, 'paye' => $by['PAYE'] ?? 0, 'adv' => $by['ADV'] ?? 0,
+                    'basic' => $by['BASIC'] ?? 0, 'allow' => round((float) $earn->whereNotIn('code', $std)->sum('amount'), 2), 'ot' => $by['OT'] ?? 0,
+                    'bonus' => $by['BONUS'] ?? 0, 'gross' => (float) $p->gross,
+                    'ssnit' => $by['SSNIT'] ?? 0, 'paye' => $by['PAYE'] ?? 0, 'bonus_tax' => $by['BONUS_TAX'] ?? 0, 'adv' => $by['ADV'] ?? 0,
                     'other_ded' => round((float) $ded->whereNotIn('code', $std)->sum('amount'), 2), 'net' => (float) $p->net, 'employer' => (float) $p->employer_cost];
             });
-        $m = ['basic', 'allow', 'ot', 'gross', 'ssnit', 'paye', 'adv', 'other_ded', 'net', 'employer'];
+        $m = ['basic', 'allow', 'ot', 'bonus', 'gross', 'ssnit', 'paye', 'bonus_tax', 'adv', 'other_ded', 'net', 'employer'];
 
         return ['cols' => ['month' => 'Month', 'status' => 'Run', 'code' => 'Code', 'employee' => 'Employee', 'dept' => 'Department', 'paid_days' => 'Paid days', 'lop' => 'LOP', 'ot_hours' => 'OT h',
-            'basic' => 'Basic', 'allow' => 'Allowances & other', 'ot' => 'Overtime', 'gross' => 'Gross', 'ssnit' => 'SSNIT 5.5%', 'paye' => 'PAYE',
+            'basic' => 'Basic', 'allow' => 'Allowances & other', 'ot' => 'Overtime', 'bonus' => 'Bonus / ex-gratia', 'gross' => 'Gross', 'ssnit' => 'SSNIT 5.5%', 'paye' => 'PAYE',
+            'bonus_tax' => 'Tax on bonus',
             'adv' => 'Advance recovery', 'other_ded' => 'Other deductions', 'net' => 'Net pay', 'employer' => 'Employer contrib.'],
             'rows' => $rows, 'money' => $m, 'sum' => array_merge(['lop', 'ot_hours'], $m)];
     }

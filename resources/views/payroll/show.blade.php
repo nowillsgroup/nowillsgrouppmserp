@@ -101,11 +101,21 @@
   <div class="field"><label>Type</label><select name="kind" class="input"><option value="earning">Earning (bonus, incentive, arrears)</option><option value="deduction">Deduction (recovery, fine)</option></select></div>
   <div class="field"><label>Amount <span class="req">*</span></label><input name="amount" type="number" step="0.01" min="0.01" class="input" required></div>
   <div class="field span-2"><label>Description <span class="req">*</span></label><input name="name" class="input" maxlength="80" required placeholder="e.g. Festival bonus"></div>
-  <label class="check span-2"><input type="checkbox" name="taxable" value="1" checked> Taxable earning</label>
+  <div class="field span-2"><label>Tax treatment</label><select name="component" id="adjTax" class="input">
+    <option value="">Ordinary earning — taxed on the GRA bands with the rest of the month's pay</option>
+    <option value="BONUS">Bonus / ex-gratia — GRA final tax (5% up to 15% of the year's basic, the excess on the bands; non-resident 20%)</option>
+  </select>
+    <div class="hint">GRA taxes a bonus apart from the monthly bands (Act 896 s. 114). Choose it for festival, performance or ex-gratia bonuses and payroll raises its own “Tax on bonus” deduction and reports it on the GRA return.</div></div>
+  <label class="check span-2" id="adjTaxableWrap"><input type="checkbox" name="taxable" id="adjTaxable" value="1" checked> Taxable earning</label>
   <p class="small muted span-2">Adjustments survive recalculation. Earnings are charged to Salaries &amp; Wages; recoveries reduce it.</p>
 </div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Add &amp; recalculate</button></div></form></div></div>
-<script>document.getElementById('adjSlip').addEventListener('change', e => document.getElementById('adjForm').action = e.target.value);</script>
+<script>document.getElementById('adjSlip').addEventListener('change', e => document.getElementById('adjForm').action = e.target.value);
+// A bonus is never taxed by the checkbox: the engine works out its own tax, so the box is taken out of the way.
+document.getElementById('adjTax').addEventListener('change', e => {
+  const bonus = e.target.value === 'BONUS', box = document.getElementById('adjTaxable');
+  box.checked = ! bonus; box.disabled = bonus; document.getElementById('adjTaxableWrap').style.opacity = bonus ? '.45' : '';
+});</script>
 @endif
 
 @if($run->status === 'approved' && can_do('payroll.approve'))

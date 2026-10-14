@@ -32,7 +32,7 @@ class StatutoryService
     public const KINDS = [
         'ssnit' => ['SSNIT Tier 1 (13.5%)', 'Social Security and National Insurance Trust (SSNIT)', 14, 'pf_payable', ['SSNIT', 'SSNIT_ER']],
         'tier2' => ['Tier 2 occupational pension (5%)', 'Tier 2 corporate trustee', 14, 'esi_payable', ['TIER2_ER', 'TIER2']],
-        'paye' => ['PAYE income tax (GRA)', 'Ghana Revenue Authority (GRA)', 15, 'paye_payable', ['PAYE']],
+        'paye' => ['PAYE income tax (GRA)', 'Ghana Revenue Authority (GRA)', 15, 'paye_payable', ['PAYE', 'OT_TAX', 'BONUS_TAX']],
     ];
 
     public const DEFAULTS = [
@@ -156,10 +156,13 @@ class StatutoryService
                 if ($kind === 'paye') {
                     $earn = $s->lines->where('kind', 'earning');
                     $ot = round((float) $earn->whereIn('code', ['OT', 'OTH'])->sum('amount'), 2);
+                    $bonus = round((float) $earn->where('code', 'BONUS')->sum('amount'), 2);
                     $relief = round((float) $s->lines->filter(fn ($l) => $l->kind === 'deduction' && self::kindOf($l, $heads) === 'ssnit')->sum('amount'), 2);
-                    $row += ['allowances' => round((float) $earn->whereNotIn('code', ['BASIC', 'OT', 'OTH'])->sum('amount'), 2), 'overtime' => $ot, 'gross' => (float) $s->gross,
+                    $row += ['allowances' => round((float) $earn->whereNotIn('code', ['BASIC', 'OT', 'OTH', 'BONUS'])->sum('amount'), 2), 'overtime' => $ot,
+                        'bonus' => $bonus, 'gross' => (float) $s->gross,
                         'relief' => $relief, 'personal_relief' => PayrollService::personalRelief($e),
                         'ot_tax' => round((float) $s->lines->where('code', 'OT_TAX')->sum('amount'), 2),
+                        'bonus_tax' => round((float) $s->lines->where('code', 'BONUS_TAX')->sum('amount'), 2),
                         'chargeable' => round((float) $s->chargeable_income, 2), 'resident' => PayrollService::isResident($e) ? 'Y' : 'N',
                         'basis' => (string) ($s->paye_basis ?? ''), 'holiday_hours' => round((float) $s->holiday_hours, 2)];
                 } else {
@@ -191,6 +194,8 @@ class StatutoryService
             'due' => $due, 'remittance' => $rem, 'status' => self::statusOf($run, $rem, $due, $total), 'issues' => $issues, 'gl' => $gl,
             'schedule' => $kind === 'paye' ? PayrollService::scheduleFor($period.'-01') : null,
             'ot_tax' => $kind === 'paye' ? round($rows->sum('ot_tax'), 2) : 0.0,
+            'bonus' => $kind === 'paye' ? round($rows->sum('bonus'), 2) : 0.0,
+            'bonus_tax' => $kind === 'paye' ? round($rows->sum('bonus_tax'), 2) : 0.0,
             'personal_relief' => $kind === 'paye' ? round($rows->sum('personal_relief'), 2) : 0.0,
             'non_residents' => $kind === 'paye' ? $rows->where('resident', 'N')->count() : 0];
     }
@@ -355,10 +360,10 @@ class StatutoryService
     {
         $r = self::build($kind, $period);
         if ($kind === 'paye') {
-            $head = ['Employee TIN / Ghana Card PIN', 'Employee name', 'Position', 'Resident', 'Basic salary', 'Cash allowances', 'Overtime', 'Total cash emolument',
-                'SSNIT relief (5.5%)', 'Personal reliefs', 'Chargeable income', 'Overtime tax (junior staff)', 'Tax deducted (PAYE)', 'Rule applied'];
-            $rows = $r['rows']->map(fn ($x) => [$x['ghana_card'], $x['name'], $x['position'], $x['resident'], $x['basic'], $x['allowances'], $x['overtime'], $x['gross'],
-                $x['relief'], $x['personal_relief'], $x['chargeable'], $x['ot_tax'], $x['total'], $x['basis']]);
+            $head = ['Employee TIN / Ghana Card PIN', 'Employee name', 'Position', 'Resident', 'Basic salary', 'Cash allowances', 'Overtime', 'Bonus / ex-gratia', 'Total cash emolument',
+                'SSNIT relief (5.5%)', 'Personal reliefs', 'Chargeable income', 'Overtime tax (junior staff)', 'Tax on bonus (final)', 'Tax deducted (PAYE)', 'Rule applied'];
+            $rows = $r['rows']->map(fn ($x) => [$x['ghana_card'], $x['name'], $x['position'], $x['resident'], $x['basic'], $x['allowances'], $x['overtime'], $x['bonus'], $x['gross'],
+                $x['relief'], $x['personal_relief'], $x['chargeable'], $x['ot_tax'], $x['bonus_tax'], $x['total'], $x['basis']]);
         } else {
             $head = ['SSNIT number', 'Ghana Card PIN', 'Employee name', 'Staff no.', 'Basic salary', 'Insurable earnings', 'Employee share', 'Employer share', 'Total contribution'];
             $rows = $r['rows']->map(fn ($x) => [$x['ssnit_no'], $x['ghana_card'], $x['name'], $x['emp_code'], $x['basic'], $x['insurable'], $x['ee'], $x['er'], $x['total']]);

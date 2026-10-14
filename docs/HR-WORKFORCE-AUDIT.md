@@ -119,7 +119,8 @@ figures now encoded in the code and shown in the UI:
 - **GRA overtime and casual rules** — junior staff (qualifying employment income ≤ GH₵ 18,000 a
   year): overtime up to 50% of the month's basic at a final 5%, the excess at 10%, and overtime is
   never added to basic; casual workers (Act 651 s. 78) a final 5% of gross; bonus ≤ 15% of annual
-  basic at 5% final; non-resident overtime/bonus 20%.
+  basic at 5% final; non-resident overtime/bonus 20%. *(The bonus rule was a follow-up when this audit
+  was written; it is implemented and verified in §14.)*
 - **Pensions (Act 766 as amended by Act 971)** — 18.5% of basic: Tier 1 13.5% (employee 5.5% +
   employer 8%) to SSNIT, Tier 2 5% (employer) to a licensed trustee, Tier 3 voluntary and pre-tax.
   Both by the **14th**. Maximum insurable earnings **GH₵ 69,000 a month from 1 Jan 2026**; minimum
@@ -357,19 +358,95 @@ named human, which is the point of segregation of duties.
 
 ## 13. Follow-ups (outside this audit's scope)
 
-1. **The same date-equality bug class elsewhere.** `whereDate()` was applied across payroll,
-   statutory, service charge, month-close and the payroll reports. These non-HR sites still compare
-   a date column with string equality and deserve the same treatment:
-   `LeaseBillingController:160`, `ReportController:3677`, `AssetService:311/315/444`,
-   `CloseService:405`, `ClubService:388/417`.
+1. ~~**The same date-equality bug class elsewhere.**~~ **Closed by v7.44.** Every site named here
+   (`LeaseBillingController:160`, `ReportController:3677`, `AssetService:311/315/444`,
+   `CloseService:405`, `ClubService:388/417`) now uses `whereDate()`, and the sweep that closed them
+   went far beyond HR: **103 application files, 411 insertions**, selected from the schema rather than
+   from column names. Measured effect and method: `docs/DATE-STORAGE-AUDIT.md`.
 2. **Paternity leave.** Act 651 provides none; hotels that offer it need a `PL` leave type — the
    engine supports it the moment the type exists.
-3. **Bonus taxation.** GRA's 5%-final rule on a bonus up to 15% of annual basic (and the 20%
-   non-resident rate on bonus and overtime) is not implemented — there is no bonus component yet.
+3. ~~**Bonus taxation.**~~ **Implemented in v7.45** — `BONUS` / `BONUS_TAX` components, the 5%-final
+   rule up to 15% of the year's basic, the 20% non-resident rate, the casual-worker and junior-overtime
+   interactions, and the GRA return columns. Rule, code map and evidence: **§14**.
 4. **Payroll cost budgeting.** The run compares against nothing; linking it to the budget module
    would let a hotel see a month's variance before approving.
 5. **`docs/MODULES.md`** was reconciled for HR (23 → 20 pages, with the four routed-but-unmenued
    self-service pages named). The rest of the inventory is still the v7.36–v7.38 snapshot.
+
+---
+
+## 14. Bonus / ex-gratia taxation (added after the audit, v7.45)
+
+Follow-up 3 above. GRA taxes a bonus apart from the monthly bands, and until now a hotel could only
+enter one as an ordinary taxable earning — so a festival bonus was pushed through the graduated bands
+at up to 35% instead of the final 5%, and the GRA return could not show it.
+
+### 14.1 The rule implemented
+
+| Worker | Treatment | Where it comes from |
+|---|---|---|
+| Resident | A **final 5%** on the part of the bonus up to **15% of the year's basic salary** (12 × monthly basic); the **excess is added to that month's chargeable income** and taxed on the bands in force | Act 896 s. 114, GRA practice note on ex-gratia payments |
+| Non-resident | The **whole bonus at a flat 20%** — not on the resident bands, and not at the 25% that applies to the rest of a non-resident's employment income | GRA PAYE guide, non-resident bonus and overtime |
+| Casual (Act 651 s. 78) | No separate bonus tax: the bonus **stays inside the gross pay that carries the final 5%** | Act 651 s. 78, GRA practice note 4.12 |
+| Junior employee | The bonus **counts towards the GH₵18,000 qualifying-income test** for the overtime concession (a large bonus can cost the concession), and is then taxed as a resident's bonus | GRA PAYE guide, junior-staff overtime |
+
+The three figures are settings, not hard-coded: `payroll_bonus_cap_pct` (15), `payroll_bonus_rate` (5)
+and `payroll_bonus_nonresident_rate` (20), editable under **Payroll › Components & settings** next to
+the junior-overtime ones, with the statutory values as their defaults.
+
+### 14.2 How it is entered and how it flows
+
+* **Entry** — Payroll › a draft run › *One-off earning*: the modal now has a **Tax treatment** select.
+  "Bonus / ex-gratia — GRA final tax" stores the line against the `BONUS` component with `code = 'BONUS'`
+  and `taxable = false`, and takes the "Taxable earning" checkbox out of the way, because the tax on a
+  bonus is computed, not chosen. An ordinary adjustment (`ADJ+`) behaves exactly as before.
+* **Engine** — `PayrollService::compute()` sums the `BONUS` lines into `$bonusPaid`, keeps them **out of
+  `$taxable`** (they stay in gross pay) and passes them to `incomeTax()`, which returns `bonus_tax`,
+  `bonus_final`, `bonus_excess` and `bonus_cap` alongside `paye` and `ot_tax`. `compute()` then raises a
+  **`BONUS_TAX`** deduction credited to PAYE payable, exactly as the `OT_TAX` line is raised.
+* **Payslip** — the bonus prints as an earning, "Tax on bonus" as a deduction, and the rule line under
+  *Income tax (PAYE)* says what happened, e.g. `Resident – Act 1178, from 1 Sep 2026 · bonus 4,500.00 at
+  a final 5%, 1,000.00 over the 15% of annual basic cap taxed on the bands`. `payslips.paye_basis` was
+  widened 120 → 255 characters for it (migration `2026_10_14_001000_hr_bonus_taxation`).
+* **GRA return** — Statutory › PAYE gained **Bonus** and **Bonus tax** columns and totals, the CSV gained
+  *Bonus / ex-gratia* and *Tax on bonus (final)* columns (16 in all), and the bonus tax joins the amount
+  payable to GRA because it is credited to the same liability account. Allowances on the return now
+  exclude the bonus so the columns add up to the gross emolument.
+* **Reports** — the payroll register (`/reports/payroll_register`) gained the same two columns, and a
+  bonus no longer hides inside *Allowances & other* or its tax inside *Other deductions*. The statutory
+  summary report needed no change: it groups deductions by liability account, so `BONUS_TAX` already
+  appears in the PAYE group and in its component list.
+
+### 14.3 Evidence
+
+`hr_bonus_cases.php` — **15 cases, all passing**, each expectation hand-computed from the rule rather
+than read back from the code: cap arithmetic (basic 1,000 → cap 1,800; basic 12,000 → cap 21,600), a
+bonus inside the cap (1,500 → **75.00**, chargeable income unmoved), a bonus over it (3,000 → **90.00**
+final + 1,200 into the bands, and the resulting PAYE equals the PAYE on the same chargeable income as
+salary), non-resident 5,000 → **1,000.00**, casual 4,000 + 1,000 → **250.00** with no bonus line, the
+junior-overtime test won and lost by a bonus, personal reliefs still deducted before the bands, the
+three settings moved and restored, and the v7.43 figures for EMP004 (937.08) and EMP012 (221.60)
+unchanged when there is no bonus.
+
+`hr_bonus_flow.py` — the same thing **through the real UI** on the October draft run. EMP001, basic
+GH₵2,500.00, festival bonus **GH₵5,500.00**: cap 15% × 30,000 = **4,500.00** → final tax **225.00**,
+excess **1,000.00** into chargeable income 3,037.50 → 4,037.50 → PAYE **411.16 → 613.88**, so the
+payslip must read gross **8,675.00**, deductions **976.38**, net **7,698.62** — which is what it reads.
+The bonus and its tax survive `POST /payroll/runs/3/recalculate`; the run summary shows `BONUS 1 slip
+GH₵5,500.00` and `BONUS_TAX 1 slip GH₵225.00`; removing the line returns the payslip to 3,175.00 /
+548.66 / 2,626.34 exactly.
+
+`hr_bonus_statutory.php` — the GRA return for a run carrying a bonus (the run is locked inside a
+transaction and rolled back, so the demo stays a draft): 15 employees, bonus **5,500.00**, bonus tax
+**225.00**, total payable to GRA **13,144.81** = PAYE 12,919.81 + bonus tax 225.00; EMP001's row shows
+gross emolument 8,675.00 = basic + allowances + overtime + bonus, chargeable 4,037.50, tax deducted
+838.88 = 613.88 + 225.00.
+
+**No regression.** The September run, which carries no bonus, recalculates to the v7.43 pesewa —
+gross 77,023.47, deductions 16,892.12, net 60,131.35, PAYE **12,688.99**, OTH 408.34 — and
+`hr_tax_cases.py` still reports non-resident 937.08, junior overtime tax 2.50 and the personal-relief
+case unchanged. `pms:hr-run --dry` reports the October draft with the demo bonus in place
+(gross 82,639.04, net 65,228.53).
 
 ---
 
@@ -395,6 +472,11 @@ python3 deploy/dev/audit/hr_paye_flow.py
 
 # 5. GRA's four special treatments through Masters › Employees, reverted (§7)
 python3 deploy/dev/audit/hr_tax_cases.py
+
+# 5b. bonus / ex-gratia taxation: the rule case by case, then through the UI (§14)
+TINKER='require "/app/deploy/dev/audit/hr_bonus_cases.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
+python3 deploy/dev/audit/hr_bonus_flow.py
+TINKER='require "/app/deploy/dev/audit/hr_bonus_statutory.php";' deploy/dev/bin/php -f deploy/dev/tinker.php
 
 # 6. the nightly task                                                     (§10)
 deploy/dev/bin/php artisan pms:hr-run --dry
