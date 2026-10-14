@@ -7,6 +7,8 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\BackupService;
+use App\Services\EInvoiceService;
+use App\Services\GstService;
 use App\Services\HotelProvisioner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,10 +91,14 @@ class SettingController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255', 'legal_name' => 'nullable|string|max:255', 'property_type' => 'required|in:hotel,resort,guest_house,restaurant,cafe,service_apartment',
             'address' => 'nullable|string|max:255', 'city' => 'nullable|string|max:255', 'state' => 'nullable|string|max:255', 'country' => 'nullable|string|max:255', 'pincode' => 'nullable|string|max:20',
-            'phone' => 'nullable|string|max:30', 'email' => 'nullable|email|max:255', 'website' => 'nullable|url|max:255', 'tax_number' => 'nullable|string|max:40|tin',
+            'phone' => 'nullable|string|max:30', 'email' => 'nullable|email|max:255', // a letterhead wants "www.nowills.example", so a bare host is as valid as a full URL (an array keeps the regex's pipes out of the rule parser)
+            'website' => ['nullable', 'string', 'max:255', 'regex:/^(?:https?:\/\/)?[^\s\/]+\.[a-z]{2,}(?:\/\S*)?$/i'], 'tax_number' => 'nullable|string|max:40|tin',
             'currency' => 'required|string|max:10', 'currency_symbol' => 'required|string|max:5', 'timezone' => 'required|timezone',
             'checkin_time' => 'required|date_format:H:i', 'checkout_time' => 'required|date_format:H:i', 'invoice_footer' => 'nullable|string|max:1000',
             'logo' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:512', 'remove_logo' => 'nullable|boolean',
+            // v7.52 the per-property VAT registration record (Act 1151)
+            'vat_supply_kind' => 'required|in:services,goods,both', 'vat_registered_at' => 'nullable|date',
+            'vat_registered' => 'nullable|boolean', 'supports_e_invoicing' => 'nullable|boolean',
             'settings' => 'array', 'settings.*' => 'nullable|string|max:5000',
         ]);
         if ($request->hasFile('logo')) {
@@ -107,7 +113,14 @@ class SettingController extends Controller
         unset($data['logo'], $data['remove_logo']);
         $settings = $data['settings'] ?? [];
         unset($data['settings']);
+        $wasRegistered = (bool) $hotel->vat_registered;
+        // an unticked checkbox never arrives, so the two flags are read from the request rather than from $data;
+        // a property that is not registered has no registration date
+        $data['vat_registered'] = $request->boolean('vat_registered');
+        $data['supports_e_invoicing'] = $request->boolean('supports_e_invoicing');
+        $data['vat_registered_at'] = $data['vat_registered'] ? ($data['vat_registered_at'] ?: null) : null;
         $hotel->update($data);
+        GstService::flushRegistration();
         foreach (self::KEYS as $key => [$label, $type]) {
             if ($type === 'select' && ! array_key_exists($settings[$key] ?? '', self::KEYS[$key][3])) {
                 $settings[$key] = self::KEYS[$key][2];
@@ -138,6 +151,12 @@ class SettingController extends Controller
             Setting::updateOrCreate(['key' => $key], ['value' => $val]);
         }
         ActivityLogger::log('settings', 'update', 'Updated hotel settings');
+        if ($wasRegistered !== (bool) $hotel->vat_registered) {
+            // a statutory status change deserves its own line: it decides whether this property may submit to the VSDC
+            ActivityLogger::log('gst', 'vat_registration', ($hotel->vat_registered ? 'Recorded as VAT-registered' : 'Recorded as NOT VAT-registered')
+                .' with GRA ('.$hotel->name.', supplies '.GstService::VAT_SUPPLY_KINDS[$hotel->vat_supply_kind].')', $hotel);
+            EInvoiceService::registrationChanged($hotel);
+        }
 
         return back()->with('success', 'Settings saved.');
     }

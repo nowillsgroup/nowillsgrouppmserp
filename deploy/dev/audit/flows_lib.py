@@ -46,11 +46,15 @@ def form_fields(html, action_pattern):
             name = nm.group(1)
             val = re.search(r'value="([^"]*)"', attrs)
             if tag == "select":
-                opts = re.findall(r'<option[^>]*value="([^"]*)"', inner)
-                sel = re.search(r'<option[^>]*value="([^"]*)"[^>]*selected', inner) or \
-                      re.search(r'<option[^>]*selected[^>]*value="([^"]*)"', inner)
-                out[name] = sel.group(1) if sel else (opts[0] if opts else "")
-                out[name + "__options"] = opts
+                # an <option> with no value attribute posts its text — the browser does that, so the scraper must too
+                opts = []
+                for o in re.finditer(r'<option\b([^>]*)>(.*?)</option>|<option\b([^>]*)/?>', inner, re.S):
+                    oa = o.group(1) if o.group(1) is not None else (o.group(3) or "")
+                    v = re.search(r'value="([^"]*)"', oa)
+                    opts.append((v.group(1) if v else re.sub(r"<[^>]+>", "", o.group(2) or "").strip(),
+                                 bool(re.search(r"\bselected\b", oa))))
+                out[name] = next((v for v, sel in opts if sel), opts[0][0] if opts else "")
+                out[name + "__options"] = [v for v, _ in opts]
             elif tag == "textarea":
                 out[name] = re.sub(r"<[^>]+>", "", inner).strip()
             else:
@@ -66,9 +70,15 @@ def form_fields(html, action_pattern):
     return {}
 
 
-def payload(html, action_pattern, overrides=None):
+def payload(html, action_pattern, overrides=None, ticked_only=False):
     """Build a POST body from a real form: keep its values, fill empty selects
-    with their first non-empty option, then apply overrides."""
+    with their first non-empty option, then apply overrides.
+
+    ticked_only=True reproduces what a browser actually sends for checkboxes: an unticked box is
+    ABSENT, not empty. The default keeps every box present, which is what the older probes expect
+    but which silently switches on anything the form renders unticked — dangerous on a settings form
+    that writes every key it is given.
+    """
     f = form_fields(html, action_pattern)
     if not f:
         return None, None
@@ -84,6 +94,13 @@ def payload(html, action_pattern, overrides=None):
                 ne = [o for o in opts if o]
                 if ne:
                     out[base] = ne[0]
+    if ticked_only:
+        for k, v in f.items():
+            if k.endswith("__options"):
+                continue
+            box = re.search(r'<input[^>]*name="%s"[^>]*>' % re.escape(k), html)
+            if box and re.search(r'type="(?:checkbox|radio)"', box.group(0)) and not re.search(r"\bchecked\b", box.group(0)):
+                out.pop(k, None)
     out.update(overrides or {})
     return out, f
 

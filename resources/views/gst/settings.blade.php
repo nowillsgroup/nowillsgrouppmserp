@@ -12,7 +12,18 @@
         <li><span>TIN</span><b class="mono">{{ $tin ?? '—' }} {!! $tinOk ? '<span class="badge badge-green">valid</span> <span class="tiny muted">'.e(\App\Services\GstService::tinType($tin)).'</span>' : '<span class="badge badge-red">invalid</span>' !!}</b></li>
         <li><span>Address</span><b>{{ trim($hotel->address.', '.$hotel->city, ', ') ?: '—' }}</b></li>
         <li><span>Base currency</span><b>{{ $hotel->currency }} ({{ $hotel->currency_symbol }})</b></li>
+        <li><span>VAT registration</span><b id="vatStatus"><span class="badge {{ ['registered' => 'badge-green', 'must_register' => 'badge-red', 'approaching' => 'badge-amber', 'below_threshold' => 'badge-blue'][$reg['status']] }}">{{ $reg['status_label'] }}</span> <span class="tiny muted">{{ $reg['registered_at'] ? 'since '.\Illuminate\Support\Carbon::parse($reg['registered_at'])->format('d M Y') : 'no date recorded' }}</span></b></li>
+        <li><span>Supplies</span><b>{{ $reg['supply_kind_label'] }}</b></li>
+        <li><span>Registration threshold</span><b>{{ $reg['threshold_label'] }}</b></li>
+        <li><span>Taxable supplies, {{ $reg['window'] }}</span><b class="mono">{{ money($reg['turnover']['completed']) }}</b></li>
+        <li><span>The twelve months to today</span><b class="mono">{{ money($reg['turnover']['rolling']) }} <span class="tiny muted">{{ $reg['turnover']['open_period'] }} still open</span></b></li>
+        @if($reg['pct'] !== null)<li><span>Of the threshold</span><b>{{ $reg['pct'] }}%</b></li>@endif
       </ul>
+      <div class="alert {{ $reg['status'] === 'registered' ? ($blocker ? 'alert-warn' : 'alert-info') : ($reg['status'] === 'must_register' ? 'alert-error' : 'alert-warn') }} mt-1" id="vatTest">
+        <x-icon name="alert"/><div><b>{{ $reg['act'] }}.</b> {{ $reg['note'] }}
+          @if($blocker)<div class="mt-1"><b>E-VAT is not submitting:</b> {{ $blocker }}</div>@endif
+          <div class="tiny mt-1">Turnover is this property's own taxable base, month by month, from the same figures the filed VAT return uses — closed documents with credit notes negative, plus direct-settled outlet bills.</div>
+        </div></div>
       <p class="tiny muted mt-1">GRA TIN: P (individual), C (company), G (government), Q (other organisation) or V + 10 digits; individuals may use their Ghana Card PIN (GHA-123456789-0). Buyers with a valid TIN are B2B – their TIN is printed on the invoice and sent to E-VAT.</p>
     </div></div>
 

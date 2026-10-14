@@ -139,14 +139,12 @@ PROSE = {
     "pms:import {companies,guests,employees,rooms,reservations} file.csv --hotel=1": "a usage example of pms:import",
     "PMS_DEV_AUTOLOGIN=0": "an environment variable of the dev server",
     "arena/49a44449-nowillsgrouppmserp": "the working branch",
-    "d251588": "a commit hash — checked against git history below",
+    "c32e943": "a commit hash — checked against git history below",
     "config('pms.version')": "a config accessor, not an artifact",
     "MIG": "an abbreviation used in prose",
     "Spatie": "a vendor namespace (diagnostics), not our code",
     "PackageManifest": "a Laravel framework class, not ours",
     "submitInvoice": "the old audit's name for the call the live `gra` driver makes",
-    "supportsEInvoicing": "a per-property flag named as NOT modelled — checked as absent below",
-    "vatRegistered": "a per-property flag named as NOT modelled — checked as absent below",
     "bin/php": "deploy/dev/bin/php — checked as deploy/dev/ below",
     "bin/pms-serve": "deploy/dev/bin/pms-serve — checked as deploy/dev/ below",
     "pms-serve": "the dev server command — checked as deploy/dev/ below",
@@ -234,10 +232,6 @@ for name in NAMED_ABSENT:
 for name in COMMANDS_NAMED_ABSENT:
     check("B `%s` is not a command, as the document says" % name, name in facts["commands"], False)
 
-# the two per-property e-invoicing flags, named as not modelled
-for col in ["vat_registered", "supports_e_invoicing", "vatRegistered", "supportsEInvoicing"]:
-    check("B hotels.%s is not modelled, as the document says" % col, col in facts["hotel_columns"], False)
-
 # ── C. every closed claim carries its evidence ──────────────────────────────
 CLOSED = [
     ("social posting + review feeds (v7.39)", ["service:SocialPublishService", "service:ReviewService",
@@ -259,6 +253,13 @@ CLOSED = [
                                       "doc:OFFLINE-DESKTOP.md"]),
     ("live PABX capture (v7.36)", ["class:TcpPbxDriver", "command:pms:pbx:listen", "file:deploy/dev/pbx-sim.mjs",
                                    "doc:PBX-ADAPTER.md"]),
+    ("per-property VAT registration + the Act 1151 test (v7.52)", [
+        "column:vat_registered", "column:vat_registered_at", "column:vat_supply_kind", "column:supports_e_invoicing",
+        "method:GstService.vatRegistration", "method:GstService.vatTurnover", "method:GstService.monthTaxable",
+        "method:EInvoiceService.registrationBlocker", "method:EInvoiceService.registrationChanged",
+        "file:database/migrations/2026_10_14_003000_hotel_vat_registration.php",
+        "file:deploy/dev/audit/vat_registration.php", "file:deploy/dev/audit/vat_registration_flow.py",
+        "doc:GRA-EVAT.md"]),
     ("data migration toolkit (v7.35)", ["model:DataMigrationBatch", "model:DataMigrationRow", "model:DataMigrationIdMap",
                                         "class:MigrationService", "class:DatasetImporter", "class:BaseImporter", "class:ImportContext",
                                           "class:CompanyImporter", "class:GuestImporter",
@@ -279,6 +280,8 @@ for label, evidence in CLOSED:
             got = arg in facts["commands"]
         elif kind == "driver":
             got = arg in facts["channel_drivers"]
+        elif kind == "column":
+            got = arg in facts["hotel_columns"]
         elif kind == "file":
             got = exists(arg)
         elif kind == "doc":
@@ -301,9 +304,9 @@ check("E the version the document claims", re.search(r"`config\('pms\.version'\)
 check("E the Laravel version the document claims", re.search(r"Laravel ([\d.]+)", text).group(1), facts["laravel"])
 check("E the module count the document claims", re.search(r"(\d+) modules", text).group(1), str(facts["menu"]["modules"]))
 check("E the page count the document claims", re.search(r"(\d+) pages", text).group(1), str(facts["menu"]["pages"]))
-head = run(["git", "cat-file", "-e", "d251588^{commit}"])
+head = run(["git", "cat-file", "-e", "c32e943^{commit}"])
 check("E the commit the document names exists", head.returncode, 0)
-anc = run(["git", "merge-base", "--is-ancestor", "d251588", "HEAD"])
+anc = run(["git", "merge-base", "--is-ancestor", "c32e943", "HEAD"])
 check("E …and is an ancestor of HEAD", anc.returncode, 0)
 check("E the SiteMinder message names are in the driver",
       all(x in open(class_file("SiteMinderChannelDriver")).read() for x in ["OTA_AvailRateNotifyRQ", "OTA_HotelResModifyNotifRS"]), True)

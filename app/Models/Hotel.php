@@ -15,6 +15,10 @@ class Hotel extends Model
         return [
             'business_date' => 'date',
             'is_active' => 'boolean',
+            // v7.52 per-property VAT registration (Act 1151)
+            'vat_registered' => 'boolean',
+            'vat_registered_at' => 'date',
+            'supports_e_invoicing' => 'boolean',
         ];
     }
 

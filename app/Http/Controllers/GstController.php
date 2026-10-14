@@ -53,7 +53,7 @@ class GstController extends Controller
             'failed' => Folio::with('guest', 'company')->where('irn_status', 'failed')->where('status', 'closed')->orderByDesc('invoice_date')->limit(8)->get(),
             'filings' => GstPeriod::with('filer')->orderByDesc('period')->limit(12)->get(),
             'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()),
-            'enabled' => EInvoiceService::enabled(), 'driver' => EInvoiceService::driver(),
+            'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'driver' => EInvoiceService::driver(),
         ]);
     }
 
@@ -74,14 +74,14 @@ class GstController extends Controller
                 ->when($request->status, fn ($q, $st) => $st === 'none' ? $q->whereNull('evat_status') : $q->where('evat_status', $st))
                 ->orderByRaw("CASE WHEN evat_status = 'generated' THEN 1 ELSE 0 END")->orderByDesc('business_date')->orderByDesc('id')->paginate(30)->withQueryString();
 
-            return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => null, 'bills' => $bills, 'enabled' => EInvoiceService::enabled(), 'posEnabled' => \App\Services\PosEvatService::enabled(),
+            return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => null, 'bills' => $bills, 'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'posEnabled' => \App\Services\PosEvatService::enabled(),
                 'driver' => EInvoiceService::driver(), 'logs' => EinvoiceLog::with('user')->whereNotNull('pos_order_id')->latest('id')->limit(15)->get()]);
         }
         $docs = $scope($base(), $tab)->with('guest', 'company', 'original:id,invoice_no')
             ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('invoice_no', 'like', "%$t%")->orWhere('buyer_gstin', 'like', "%$t%")->orWhere('buyer_name', 'like', "%$t%")))
             ->orderByDesc('invoice_date')->orderByDesc('id')->paginate(30)->withQueryString();
 
-        return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => $docs, 'bills' => null, 'enabled' => EInvoiceService::enabled(), 'posEnabled' => \App\Services\PosEvatService::enabled(), 'driver' => EInvoiceService::driver(),
+        return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => $docs, 'bills' => null, 'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'posEnabled' => \App\Services\PosEvatService::enabled(), 'driver' => EInvoiceService::driver(),
             'logs' => EinvoiceLog::with('user')->whereNull('pos_order_id')->latest('id')->limit(15)->get()]); // restaurant bills have their own log on their tab
     }
 
@@ -132,7 +132,8 @@ class GstController extends Controller
     public function settings()
     {
         return view('gst.settings', ['s' => collect(GstService::DEFAULTS)->map(fn ($v, $k) => setting($k, $v)),
-            'taxes' => \App\Models\Tax::orderBy('id')->get(), 'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()), 'hotel' => hotel()]);
+            'taxes' => \App\Models\Tax::orderBy('id')->get(), 'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()), 'hotel' => hotel(),
+            'reg' => GstService::vatRegistration(), 'blocker' => EInvoiceService::registrationBlocker()]);   // v7.52 the Act 1151 test
     }
 
     public function saveSettings(Request $request)
@@ -169,6 +170,7 @@ class GstController extends Controller
     public function retryAll()
     {
         abort_unless(EInvoiceService::enabled(), 422, 'E-VAT is switched off.');
+        abort_if($blocker = EInvoiceService::registrationBlocker(), 422, $blocker);   // v7.52 Act 1151
         $ok = 0;
         $bad = 0;
         // manual retry ignores the back-off; documents with data errors (not retryable) need fixing first
@@ -214,6 +216,9 @@ class GstController extends Controller
         abort_unless($folio->status === 'closed' && $folio->invoice_no, 422, 'Only issued documents can be submitted to E-VAT.');
         if (! EInvoiceService::enabled()) {
             return back()->with('error', 'E-VAT is switched off (Billing › GRA VAT › Settings).');
+        }
+        if ($blocker = EInvoiceService::registrationBlocker()) {          // v7.52 Act 1151
+            return back()->with('error', $blocker);
         }
         $ok = EInvoiceService::generate($folio, auth()->id());
 

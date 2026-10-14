@@ -28,7 +28,7 @@ class PosEvatService
 {
     public static function enabled(): bool
     {
-        return EInvoiceService::enabled() && setting('gst_evat_pos', '1') === '1';
+        return EInvoiceService::enabled() && EInvoiceService::registrationBlocker() === null && setting('gst_evat_pos', '1') === '1';
     }
 
     public static function stampable(PosOrder $o): bool

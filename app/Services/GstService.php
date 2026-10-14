@@ -96,6 +96,144 @@ class GstService
         };
     }
 
+    // ------------------------------------------------------------------ VAT registration (v7.52, Act 1151)
+
+    /**
+     * Act 1151 registration thresholds, in force 1 January 2026.
+     *
+     * A supplier of taxable GOODS registers once annual taxable supplies reach GH₵750,000, raised from GH₵200,000 by the
+     * Value Added Tax Act, 2025. A supplier of SERVICES has no threshold at all and must register whatever it turns
+     * over — which is what a hotel, a restaurant and a guest house are. GRA's own guidance is that "the 750,000
+     * threshold is only applicable to the supply of goods. Supply of services — there is no threshold." A property that
+     * does both falls on the services side, because it supplies services.
+     */
+    public const VAT_THRESHOLD_GOODS = 750000.0;
+
+    /** The Act 870 threshold to 31 December 2025, kept so a registration that predates Act 1151 still reads correctly. */
+    public const VAT_THRESHOLD_PRIOR = 200000.0;
+
+    public const VAT_SUPPLY_KINDS = [
+        'services' => 'Services — accommodation, food and beverage, events (no threshold: registration is mandatory)',
+        'goods' => 'Goods only — a shop or retail outlet (GH₵750,000 threshold)',
+        'both' => 'Both goods and services — treated as services, so no threshold',
+    ];
+
+    public const REGISTRATION_STATUS = [
+        'registered' => 'VAT registered',
+        'must_register' => 'Must register',
+        'approaching' => 'Approaching the threshold',
+        'below_threshold' => 'Below the threshold',
+    ];
+
+    /** Is this property on the GRA VAT register? Only a Ghana property can be. */
+    public static function vatRegistered(): bool
+    {
+        return self::isGhana() && (bool) (hotel()?->vat_registered);
+    }
+
+    /**
+     * One month's taxable base — the same figure the VAT return reaches, without building the whole return: the taxable
+     * value of every closed document (credit notes negative) plus the taxable value of direct-settled POS bills.
+     * vat_registration.php asserts this equals vatReturn()['totals']['taxable'] for the same month, so the registration
+     * test can never disagree with a return that has been filed.
+     */
+    public static function monthTaxable(string $period): float
+    {
+        $t = 0.0;
+        foreach (self::documents($period) as $d) {
+            $t += (float) self::componentTotals(self::lines($d))['taxable'];
+        }
+        foreach (self::posLines($period) as $p) {
+            $t += (float) $p['taxable'];
+        }
+
+        return round($t, 2);
+    }
+
+    /**
+     * Thirteen months of taxable turnover ending with the open business month, so two real twelve-month windows can be
+     * read off one scan: the twelve COMPLETED months, and the twelve months to today with this month still open. GRA
+     * tests any period of twelve months, so the registration test uses whichever window is larger.
+     */
+    public static function vatTurnover(?string $ending = null): array
+    {
+        $end = $ending ? Carbon::createFromFormat('Y-m-d', $ending.'-01') : bdate()->copy();
+        $rows = [];
+        for ($i = 12; $i >= 0; $i--) {
+            $period = $end->copy()->subMonthsNoOverflow($i)->format('Y-m');
+            $rows[] = ['period' => $period, 'taxable' => self::monthTaxable($period), 'open' => $i === 0];
+        }
+        $sum = fn (array $slice) => round(array_sum(array_column($slice, 'taxable')), 2);
+        $completed = $sum(array_slice($rows, 0, 12));
+        $rolling = $sum(array_slice($rows, 1, 12));
+
+        return ['months' => $rows, 'completed' => $completed, 'rolling' => $rolling, 'test' => max($completed, $rolling),
+            'completed_from' => $rows[0]['period'], 'completed_to' => $rows[11]['period'], 'open_period' => $rows[12]['period']];
+    }
+
+    /**
+     * The property's VAT registration record, and the Act 1151 test that says whether it is the right one.
+     *
+     * E-invoicing is mandatory for every VAT-registered business with no revenue threshold, so an unregistered property
+     * must not submit to the VSDC and a registered one must: EInvoiceService::eligible() gates on vatRegistered().
+     */
+    /** Per-request memo of vatRegistration(): a retry loop asks once per document and the turnover scan is 13 months. */
+    protected static array $regMemo = [];
+
+    public static function vatRegistration(bool $fresh = false): array
+    {
+        $h = hotel();
+        $key = (int) $h?->id;
+        if (! $fresh && isset(self::$regMemo[$key])) {
+            return self::$regMemo[$key];
+        }
+        $kind = array_key_exists((string) ($h->vat_supply_kind ?? ''), self::VAT_SUPPLY_KINDS) ? $h->vat_supply_kind : 'services';
+        $threshold = $kind === 'goods' ? self::VAT_THRESHOLD_GOODS : null;
+        $t = self::vatTurnover();
+        $registered = (bool) $h->vat_registered;
+        $pct = $threshold ? round($t['test'] / $threshold * 100, 1) : null;
+
+        if ($registered) {
+            $status = 'registered';
+        } elseif ($threshold === null || $t['test'] >= $threshold) {
+            $status = 'must_register';
+        } elseif ($pct >= 80) {
+            $status = 'approaching';
+        } else {
+            $status = 'below_threshold';
+        }
+        $completedWindow = Carbon::createFromFormat('Y-m', $t['completed_from'])->format('M Y').' to '.Carbon::createFromFormat('Y-m', $t['completed_to'])->format('M Y');
+        $note = match ($status) {
+            'registered' => 'On the GRA VAT register'.($h->vat_registered_at ? ' since '.$h->vat_registered_at->format('d F Y') : '').'. Every tax invoice and credit note this property issues must go to the VSDC — e-invoicing is mandatory for every VAT-registered business, with no turnover threshold.',
+            'must_register' => $threshold === null
+                ? 'This property supplies services, and Act 1151 sets no registration threshold for services: it must register for VAT with GRA whatever it turns over. Until it does, it must not charge VAT, and E-VAT submission stays off.'
+                : 'Taxable supplies of '.money($t['test']).' are at or past the '.money($threshold).' goods threshold — register with GRA.',
+            'approaching' => money($t['test']).' of the '.money($threshold).' goods threshold ('.$pct.'%) — registration becomes mandatory when the property reaches it.',
+            'below_threshold' => 'A goods supplier below the '.money($threshold).' threshold: '.money($t['test']).' of taxable supplies. Registration is voluntary, and E-VAT submission stays off until it registers.',
+        };
+        if ($registered && ! $h->supports_e_invoicing) {
+            $note .= ' The property is registered but is not marked as able to e-invoice — a VAT-registered business has to issue through a certified invoicing system.';
+        }
+        if (! $registered && $t['test'] > 0) {
+            $note .= ' Note that '.money($t['test']).' of taxable supplies has been recorded while unregistered: an unregistered business must not charge VAT, so check the tax rows under Masters › Taxes.';
+        }
+
+        $out = ['registered' => $registered, 'registered_at' => $h->vat_registered_at?->toDateString(), 'supply_kind' => $kind,
+            'supply_kind_label' => self::VAT_SUPPLY_KINDS[$kind], 'supports_e_invoicing' => (bool) $h->supports_e_invoicing,
+            'threshold' => $threshold, 'threshold_label' => $threshold === null ? 'None — services must register' : money($threshold),
+            'turnover' => $t, 'pct' => $pct, 'status' => $status, 'status_label' => self::REGISTRATION_STATUS[$status], 'note' => $note,
+            'window' => $completedWindow, 'act' => 'Value Added Tax Act, 2025 (Act 1151), effective 1 January 2026',
+            'tin' => self::hotelTin(), 'tin_ok' => self::validTin(self::hotelTin()), 'is_ghana' => self::isGhana()];
+
+        return self::$regMemo[$key] = $out;
+    }
+
+    /** Drop the memo — the hotel settings form has just changed the record it is built from. */
+    public static function flushRegistration(): void
+    {
+        self::$regMemo = [];
+    }
+
     // ------------------------------------------------------------------ lines
 
     /**
