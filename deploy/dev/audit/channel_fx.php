@@ -51,16 +51,31 @@ if (! $c) {
 $map = $c->roomMaps()->where('is_active', true)->with('roomType')->first();
 $hotelCcy = strtoupper((string) (Tenant::hotel()->currency ?: 'GHS'));
 $today = bdate()->toDateString();
-printf("Sandbox connection #%d %s · room %s · hotel currency %s · business date %s%s%s",
-    $c->id, $c->name, $map->channel_room_code, $hotelCcy, $today, PHP_EOL, PHP_EOL);
+// Every push below books the same room type through the same connection, so they compete for one pool of inventory.
+// A date that had four free rooms when this harness was written may not have them after any reseed, and a push that
+// finds no inventory comes back 202 "attention" rather than 200 — so ask AvailabilityService, the same question the
+// channel writer asks, and use the first window that can hold the whole run.
+$pushCount = 4;
+$window = null;
+foreach ([20, 25, 31, 38, 45, 52, 60, 75, 90] as $d) {
+    $arr = bdate()->copy()->addDays($d);
+    $dep = bdate()->copy()->addDays($d + 3);
+    if (\App\Services\AvailabilityService::typeAvailable((int) $map->roomType->id, $arr, $dep) >= $pushCount) {
+        $window = [$arr->toDateString(), $dep->toDateString(), $d];
+        break;
+    }
+}
+$window = $window ?: [bdate()->copy()->addDays(20)->toDateString(), bdate()->copy()->addDays(23)->toDateString(), 20];
+printf("Sandbox connection #%d %s · room %s · hotel currency %s · business date %s · pushing into %s–%s (+%d days)%s%s",
+    $c->id, $c->name, $map->channel_room_code, $hotelCcy, $today, $window[0], $window[1], $window[2], PHP_EOL, PHP_EOL);
 
 $seq = 0;
 $ref = fn (string $tag) => 'FX-'.strtoupper($tag).'-'.str_pad((string) (++$seq), 3, '0', STR_PAD_LEFT);
-$push = function (string $ccy, float $amount, ?float $total = null, string $tag = 'usd') use ($c, $map, $ref) {
+$push = function (string $ccy, float $amount, ?float $total = null, string $tag = 'usd') use ($c, $map, $ref, $window) {
     $r = $ref($tag);
     [$code, $body] = ChannelService::receive($c, [
         'event' => 'new', 'booking_id' => $r,
-        'arrival' => bdate()->copy()->addDays(20)->toDateString(), 'departure' => bdate()->copy()->addDays(23)->toDateString(),
+        'arrival' => $window[0], 'departure' => $window[1],
         'currency' => $ccy,
         'guest' => ['first_name' => 'Fx', 'last_name' => strtoupper($tag), 'email' => null, 'phone' => null, 'country' => 'US'],
         'rooms' => [['room_code' => $map->channel_room_code, 'rate_code' => null, 'adults' => 2, 'children' => 0, 'amount' => $amount]],

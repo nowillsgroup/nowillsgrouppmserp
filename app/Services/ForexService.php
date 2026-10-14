@@ -60,6 +60,8 @@ class ForexService
         'forex_ap_basis' => 'reference',      // v7.53 …at the reference rate, or at the buy rate the desk would give
         'forex_ap_stale_days' => '7',         // v7.53 …using a board no older than this many days
         'forex_ap_rate_date' => 'document',   // v7.53 …read at the invoice date, which is what accounting wants, or at today's board
+        'forex_ap_pay' => '1',                // v7.54 a foreign bill may be settled in the currency it was billed in
+        'forex_ap_pay_deal' => '1',           // v7.54 …at the bank's deal rate from its advice, not only at the board
         'forex_licence' => '',                // BoG bureau licence / agency no. printed on the certificate
         'forex_franchiser' => '',             // bank / licensed bureau the hotel buys for
     ];
@@ -301,6 +303,45 @@ class ForexService
     public static function apConvert(): bool
     {
         return self::enabled() && setting('forex_ap_convert', self::DEFAULTS['forex_ap_convert']) === '1';
+    }
+
+    /** v7.54 May a foreign bill be settled in the currency the supplier billed in? */
+    public static function apPay(): bool
+    {
+        return self::enabled() && setting('forex_ap_pay', self::DEFAULTS['forex_ap_pay']) === '1';
+    }
+
+    /** v7.54 …and may the rate be the bank's deal rate from its advice, rather than the board? */
+    public static function apPayDeal(): bool
+    {
+        return setting('forex_ap_pay_deal', self::DEFAULTS['forex_ap_pay_deal']) === '1';
+    }
+
+    /**
+     * v7.54 The rate a payment in a foreign currency is converted at, with its provenance in the same shape
+     * boardRate() returns: a deal rate from the bank's advice when one is given and the policy allows it, otherwise
+     * the board for the payment date on the payables basis. `board` is always the board for that date, so a deal rate
+     * can be shown — and sanity-checked — against what the board said. Null means there is no rate to pay at.
+     */
+    public static function apPayRate(string $code, ?string $on = null, ?float $deal = null): ?array
+    {
+        $code = strtoupper(trim($code));
+        $on = $on ?: bdate()->toDateString();
+        $policy = self::apPolicy($on);
+        // A purchase invoice may follow the policy's document-date/business-date choice. A payment, however, is
+        // valued at the rate for the day the bank settled it — applying the invoice-date switch here would backdate
+        // the settlement and erase the very gain or loss this payment records.
+        $board = self::boardRate($code, $on, ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+        if ($deal !== null && $deal > 0) {
+            if (! self::apPayDeal()) {
+                return null;
+            }
+
+            return ['code' => $code, 'rate' => round((float) $deal, 4), 'basis' => 'deal', 'date' => $on,
+                'carried' => false, 'stale' => false, 'board' => $board];
+        }
+
+        return $board ? array_merge($board, ['board' => $board]) : null;
     }
 
     /**

@@ -1746,6 +1746,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/bills/{bill}/apply', 'apply')->whereNumber('bill')->middleware('perm:ap.pay')->name('bills.apply');
         Route::delete('/allocations/{alloc}', 'unallocate')->whereNumber('alloc')->middleware('perm:ap.pay')->name('allocations.delete');
         Route::get('/payments', 'payments')->name('payments');
+        Route::get('/payments/fx-rate', 'payFxRate')->middleware('perm:ap.pay')->name('payments.fx-rate'); // v7.54 board on the selected settlement date
         Route::get('/payments/create', 'payCreate')->middleware('perm:ap.pay')->name('payments.create');
         Route::post('/payments', 'payStore')->middleware(['perm:ap.pay', 'throttle:60,1'])->name('payments.store');
         Route::get('/payments/{spay}', 'payShow')->whereNumber('spay')->name('payments.show');

@@ -98,10 +98,10 @@ def forex_settings(p, changes):
             ["cash_cap_usd", "resident_cap_usd", "aggregate_days", "id_copy_inr", "max_margin", "fee_pct",
              "surrender_days", "licence", "franchiser", "channel_basis", "channel_stale_days",
              "ap_basis", "ap_stale_days", "ap_rate_date",  # v7.53 the payables policy sits on this same form
-             "enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert"]}
+             "enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert", "ap_pay", "ap_pay_deal"]}
     data.update(changes)
     data["section"] = "forex"
-    boxes = ["enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert"]
+    boxes = ["enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert", "ap_pay", "ap_pay_deal"]
     # an unchecked box is simply absent; a numeric 0 (fee_pct) is a real value and must be posted
     payload = {k: v for k, v in data.items() if v is not None and not (k in boxes and v == "0")}
     code, _, loc = p.post("/foreign/settings", payload, tok, referer="/foreign/settings")

@@ -1,17 +1,19 @@
-# Multi-currency supplier invoicing — v7.53
+# Multi-currency supplier invoicing and settlement — v7.53–7.54
 
 **Scope:** a supplier's invoice that arrives in the supplier's own currency — an OTA billing commission
 from its Amsterdam entity in euros, an international operator billing a management fee in dollars — and
-the path it takes into Accounts payable.
-**Result:** a bill can now be entered in the currency the supplier billed in. Every line is converted at
-the forex board and stored in the property's own currency, so the ledger, the budget check, ageing,
-allocations, withholding tax and payments all behave exactly as they did before; the supplier's own
-document is kept on the header beside it, and Accounts payable › AP Ageing reports what the open foreign
-bills would cost to settle at the board as it stands. A bill that cannot be converted at a rate somebody
-chose is refused in plain English rather than booked at a guess.
-**Evidence scripts:** `deploy/dev/audit/ap_fx.php` (84 checks — the policy, the conversion maths, the
-refusals, the exposure, the columns and the screens), `deploy/dev/audit/ap_fx_flow.py` (43 checks — the
-same thing walked through the real form, the real controller and the real flash messages).
+the path it takes through Accounts payable, all the way to the bank transfer that settles it.
+**Result:** a bill can be entered in the currency the supplier billed in, booked at the board and kept
+beside the cedi posting. A later payment can be made in that same currency, at the board for the payment
+date or at the rate on the bank's advice; the realised exchange difference is posted to Exchange Gain /
+Loss, while GRA withholding stays a separate GHS liability. The ledger, budget check, supplier balance,
+ageing, WHT return and bank reconciliation still have the cedi figures they expect. Open-bill revaluation
+is reported, never posted, until period end.
+**Evidence scripts:** `deploy/dev/audit/ap_fx.php` (84 checks — v7.53 invoice conversion),
+`deploy/dev/audit/ap_fx_flow.py` (43 checks — invoice form to controller),
+`deploy/dev/audit/ap_fx_pay.php` (98 checks — v7.54 WHT-aware payment and journal),
+`deploy/dev/audit/ap_fx_pay_flow.py` (35 checks — settlement through the real payment form, detail, statement,
+remittance and ageing screen).
 
 ---
 
@@ -63,12 +65,14 @@ on a supplier bill: a rate somebody typed is exactly what this release removes.
 | `forex_ap_convert` | `1` | off ⇒ a foreign bill is refused, not guessed at |
 | `forex_ap_basis` | `reference` | `reference` = the published board; `buy` = what the desk would pay a guest |
 | `forex_ap_stale_days` | `7` | how far back a board may be carried when the invoice date has no rate |
-| `forex_ap_rate_date` | `document` | `document` = the board for the invoice date (the transaction date, which is what accounting wants); `business` = today's board whatever the invoice says |
+| `forex_ap_rate_date` | `document` | `document` = the board for the invoice date (the transaction date, which is what accounting wants); `business` = today's board whatever the invoice says. Applies to invoices; settlement always reads the payment date. |
+| `forex_ap_pay` | `1` | permit a foreign bill to be settled in the currency it was billed in; off means settle in the property's currency |
+| `forex_ap_pay_deal` | `1` | permit the bank's advised deal rate on a payment; off means use only the forex board |
 
-All four are edited under **Foreign Guests › Settings › Forex desk**, beside the channel policy from
-v7.50 that they mirror. `ForexService::apPolicy()` resolves them, `ForexService::apBoard()` returns every
-currency a bill could be converted at (which is what the entry form's picker is built from), and
-`ForexService::boardRate()` does the lookup with carry-forward.
+All six are edited under **Foreign Guests › Settings › Forex desk**, beside the channel policy from
+v7.50 that they mirror. `ForexService::apPolicy()` resolves invoice settings; `apBoard()` returns every
+currency a bill could be converted at; `apPayRate()` always reads the board for the payment date (same
+basis and carry-forward window) unless an allowed bank deal rate is explicitly selected.
 
 ## The rounding rule, and why it is per line
 
@@ -126,41 +130,125 @@ rather than a stack trace:
 Saving a foreign bill flashes the booking: *BILL-00013 saved: USD 1,490.75 at 11.6200 reference, board of
 14 Oct 2026 = GH₵ 17,322.52.* — as a warning rather than a success when the board was carried forward.
 
+## Paying a foreign bill — v7.54
+
+A payment can be made in the currency the supplier billed in. The picker only offers a currency when
+this supplier actually has open bills in it, and the allocation rows in every other currency are disabled.
+A foreign payment must be allocated to one or more bills in that same currency: it never leaves a
+phantom supplier credit on account and never settles a GHS bill with euros.
+
+The six new nullable columns on `supplier_payments` are added by
+`database/migrations/2026_10_14_005000_supplier_payment_fx.php`:
+
+| Column | What it records |
+| --- | --- |
+| `currency` | the currency actually transferred to the supplier |
+| `fx_amount` | the bank's foreign-currency figure, net of any GRA withholding |
+| `fx_rate` | the board rate for the payment date, or the typed rate on the bank's advice |
+| `fx_date` | the payment date / board provenance |
+| `fx_basis` | `reference`, `buy` or `deal` |
+| `fx_diff` | the realised exchange difference in GHS: positive is a loss; negative is a gain |
+
+`SupplierPayment::amount` remains the GHS equivalent of the amount the bank actually transferred; that
+is the debit to the selected cash / bank account and what the bank reconciliation matches. It is **not**
+the cedi carrying value of the bill. `allocated` remains that carrying value, what Accounts Payable owed.
+For a foreign transfer, the service therefore records these two different figures rather than quietly
+forcing one to match the other.
+
+### The payment-date rate
+
+A payment is valued on its **own date**, never the invoice's date and never today's rate by accident.
+The selected basis and carry-forward window are the same as invoice conversion. The optional deal-rate
+box is a separate, explicit opt-in: leave it unticked and the form previews the dated board; tick it and
+type the rate from the bank's advice, and the stored basis says `deal`. The typed rate is sanity-checked
+against the board when one exists. `GET /ap/payments/fx-rate` supplies the payment-date quote to the form;
+the controller recalculates again on save.
+
+### WHT stays in GHS
+
+The foreign figure typed is what the bank actually transferred to the supplier, **after** withholding.
+WHT and withholding VAT are calculated from the GHS allocation as before and remain GHS liabilities to
+GRA. The form's default foreign transfer is each selected bill's foreign carrying amount less those
+GHS taxes translated at the settlement rate. An override rate changes the cedi equivalent but never
+changes the tax base. This matters: using the bank debit itself as the WHT base would make an exchange
+loss look like an on-account advance and tax it twice.
+
+### The realised difference and the journal
+
+The stored exchange difference is:
+
+`cedi bank debit + WHT + withholding VAT − GHS bills allocated`
+
+The journal keeps the supplier control exactly at the booked amount:
+
+- **Dr Accounts Payable** — the GHS allocation, what the bill was booked at;
+- **Dr Exchange Gain / Loss** on a loss, or **Cr Exchange Gain / Loss** on a gain — the realised difference;
+- **Cr Bank** — the GHS equivalent of the actual foreign transfer;
+- **Cr WHT Payable / Withholding VAT Payable**, when due — the separate GHS tax liabilities.
+
+The existing system account is `forex_gain` / **Exchange Gain / Loss** (chart code 4986). A rate
+increase from 11.6458 to 11.6700, for example, can produce a realised loss. A better rate credits the
+same account as a gain. The payment detail, payment register, remittance advice and supplier statement
+show the foreign figure, the date and rate, and the difference. The statement makes clear that the
+exchange difference is ours, not an extra charge to the supplier. Cancelling a payment releases the bill
+and reverses its posting through the ordinary AP cancellation path.
+
+A foreign payment is never left unapplied: the difference between the bank transfer plus tax and the
+booked allocation is the realised currency movement, **not** a supplier credit. Consequently,
+`ApService::controlBalance()` and the supplier statement reduce by what the bill owed, not by the
+amount the bank happened to debit.
+
+### Demo settlement
+
+The demo's Meridian Hotels USD management invoice is partly settled by a USD 1,000 bank transfer at the
+13 October reference rate of 11.6700. The bank transfer costs GH₵ 11,670.00; the bill allocation is
+GH₵ 11,645.80; the GH₵ 24.20 realised loss is posted separately. The open foreign exposure therefore
+keeps the USD 2,295.28 still owed, while the same row also records USD 1,000 settled and GH₵ 24.20
+realised.
+
 ## Exposure: reported, never posted
 
-`ApService::fxExposure()` groups every open foreign bill by currency and reports, for each: how many bills
-are open, what is still owed in the supplier's currency, what the ledger carries in cedis, the board rate
-now, what settling it would cost at that board, and the movement between the two.
+`ApService::fxExposure()` groups open foreign bills and their payments by currency. It reports the open
+obligation and its **unrealised** movement separately from the amount already transferred and its
+**realised** movement. A currency remains on the card after its last bill is settled so the posted gain
+or loss is not lost from the report.
 
 On the demo database at the 14 October board:
 
-| | Open | Still owed | Booked in GH₵ | Board now | Cost to settle | Movement |
-| --- | --- | --- | --- | --- | --- | --- |
-| EUR | 1 | 4,180.55 | 56,398.55 | 13.6184 | 56,932.40 | **+533.85** |
-| USD | 1 | 3,295.28 | 38,376.23 | 11.6200 | 38,291.15 | **−85.08** |
+| Currency | Open | Still owed | Booked in GH₵ | Board now | Cost to settle | Unrealised | Settled in it | Realised |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| EUR | 1 | 4,180.55 | 56,398.55 | 13.6184 | 56,932.40 | **+533.85** | — | — |
+| USD | 1 | 2,295.28 | 26,730.43 | 11.6200 | 26,671.15 | **−59.28** | USD 1,000.00 | **+24.20** |
+| **Total (GHS)** | 2 | — | **83,128.98** | — | **83,603.55** | **+474.57** | — | **+24.20** |
 
-This is **reported, not posted**. An unrealised revaluation belongs to the period end and to a decision
-about which rate the closing uses; a payables screen quietly writing FX gain and loss journals would be
-worse than no number at all. There is no FX gain/loss journal in this release.
+Realised exchange movement is **posted** on the payment journal. The unrealised movement on open
+bills is **reported, not posted**: revaluation belongs to period end and to a decision about which rate
+the close uses. A payables screen quietly writing unrealised FX journals would be worse than no number
+at all.
 
 ## What this release deliberately does not do
 
 - **Purchase-order currency.** A PO, its receipt and its matched bill stay in the property's currency
   (refusal 3 above). A supplier who bills goods in a foreign currency is recorded as a direct bill, with
   the receipt matched by hand.
-- **Payments in foreign currency.** A payment is still recorded in cedis; the dollar account and the
-  bank's own conversion are the treasury side of this, not payables.
-- **Deal rates.** The board only. A negotiated rate is a treasury conversation and a different screen.
-- **FX gain/loss posting**, as above.
-- **Withholding tax on a non-resident supplier** is unchanged and separate: `suppliers.wht_*` and the
-  WHT block on a payment still work in cedis on the converted figures, which is what GRA wants.
+- **Purchase-order currency.** A PO, its receipt and its matched bill stay in the property's currency
+  (refusal 3 above). A supplier who bills goods in a foreign currency is recorded as a direct bill, with
+  the receipt matched by hand.
+- **A separate foreign-currency bank subledger.** The payment journal and cash book carry the GHS
+  equivalent of what left the bank; the transfer's original currency and amount stay on the payment for
+  its audit trail and remittance. Bank-account revaluation and foreign-currency bank reconciliation are
+  a separate treasury increment.
+- **Unrealised FX gain/loss posting** on open bills. The ageing card reports it; period-end valuation is
+  deliberately not automatic.
 
 ## Ghana notes
 
 The board is the Bank of Ghana reference rate as the desk records it, and the `buy` side is what a licensed
 bank or forex bureau would pay a guest — money changing being a VAT-exempt financial service, no VAT,
 NHIL, GETFund or tourism levy is deducted on the forex desk itself. Buying foreign currency needs a Bank
-of Ghana forex bureau licence, or an agency with a bank; the payables side only ever *reads* the board.
+of Ghana forex bureau licence, or an agency with a bank; payables reads the board and records the
+bank's actual remittance. WHT on a non-resident supplier remains 20% in GHS; it is withheld separately
+from the foreign amount sent to the supplier.
 A Sunday-dated or public-holiday-dated invoice still has to be booked, which is what
 `forex_ap_stale_days` exists for — and a carried-forward rate is badged as such on the bill rather than
 presented as that day's board.
@@ -175,9 +263,15 @@ part payment; the seven columns; and the four screens over HTTP. Everything runs
 that is rolled back, and the harness measures the **rise** it causes in the exposure rather than an
 absolute, so it passes on a database that already carries foreign bills.
 
-`deploy/dev/audit/ap_fx_flow.py` — 43 checks: the same story walked through the real form and
-`ApController::store()` — the picker quoting the board, a USD bill posting and landing on the bill page
-with the right flash, the register and the ageing exposure following it, the identical form with the
-currency left alone producing no fx block at all, the three refusals arriving as sentences, the policy
-switched off and back on through Foreign Guests › Settings without moving any other setting on that form,
-and finally its own documents cancelled and swept so the demo is left exactly as it was.
+`deploy/dev/audit/ap_fx_flow.py` — 43 checks: the invoice story walked through the real form and
+`ApController::store()`.
+
+`deploy/dev/audit/ap_fx_pay.php` — 98 checks: board and deal rate provenance, WHT-aware cash transfer,
+foreign allocation and same-currency restrictions, no on-account remainder, realised gain and loss
+journals balanced against Accounts Payable, the home-currency journal unchanged, the supplier statement,
+the tax certificate side, controls, refusal paths and exposure.
+
+`deploy/dev/audit/ap_fx_pay_flow.py` — 35 checks: the actual payment form obtains the rate for the
+payment date, posts through `ApController::payStore()`, shows the payment in the register, supplier
+statement and remittance, separates realised from unrealised movement, cancels through the ordinary
+AP path and sweeps its own rows and journals from the disposable demo.

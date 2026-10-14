@@ -128,10 +128,10 @@ def submit(p, path, data, action_pattern=None, read=None, ok_words=(), method="P
     return flashes, "POST %s -> %s %s | flash: %s" % (path, code, target[:56], " / ".join(flashes)[:220])
 
 
-def submit_form(p, path, action_pattern, read=None, overrides=None, ok_words=()):
+def submit_form(p, path, action_pattern, read=None, overrides=None, ok_words=(), ticked_only=False):
     page = read or path
     html = p.get(page)
-    data, fields = payload(html, action_pattern, overrides)
+    data, fields = payload(html, action_pattern, overrides, ticked_only=ticked_only)
     if data is None:
         return None, "no form matching %r on %s" % (action_pattern, page)
     data.pop("_token", None)

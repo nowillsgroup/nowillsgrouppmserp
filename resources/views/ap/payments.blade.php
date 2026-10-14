@@ -16,7 +16,7 @@
 <thead><tr><th>Payment</th><th>Date</th><th>Supplier</th><th>Mode</th><th>Reference</th><th class="num">Amount</th><th class="num">Allocated</th><th class="num">Unapplied</th><th></th></tr></thead><tbody>
 @forelse($payments as $p)
 <tr class="{{ $p->cancelled_at ? 'muted' : '' }}"><td><a class="bold" href="{{ route('ap.payments.show', $p) }}">{{ $p->payment_no }}</a></td><td class="nowrap">{{ $p->date->format('d M Y') }}</td><td>{{ $p->supplier->name }}</td><td>{{ $p->paymentMode?->name }}</td><td>{{ $p->reference ?? '—' }}</td>
-<td class="num">{{ money($p->amount, false) }}</td><td class="num">{{ money($p->allocated, false) }}</td><td class="num {{ $p->unapplied() > 0 ? 'text-amber bold' : '' }}">{{ money($p->unapplied(), false) }}</td>
+<td class="num">{{ money($p->amount, false) }}@if($p->isForeign())<div class="tiny muted">{{ $p->fxLabel() }} @ {{ number_format((float) $p->fx_rate, 4) }}{{ $p->fxDifference() != 0 ? ' · '.money(abs($p->fxDifference()), false).' '.($p->fxDifference() > 0 ? 'loss' : 'gain') : '' }}</div>@endif</td><td class="num">{{ money($p->allocated, false) }}</td><td class="num {{ $p->unapplied() > 0 ? 'text-amber bold' : '' }}">{{ money($p->unapplied(), false) }}</td>
 <td>@if($p->cancelled_at)<span class="badge badge-red">Cancelled</span>@elseif($p->unapplied() > 0)<span class="badge badge-amber">Credit</span>@else<span class="badge badge-green">Allocated</span>@endif</td></tr>
 @empty<tr><td colspan="9" class="empty">No supplier payments yet.</td></tr>@endforelse
 </tbody></table></div></div>

@@ -14,11 +14,23 @@
   <dl class="kv"><dt>Supplier</dt><dd><b>{{ $p->supplier->name }}</b></dd><dt>Date</dt><dd>{{ $p->date->format('d M Y') }}</dd><dt>Paid by</dt><dd>{{ $p->paymentMode?->name }}</dd><dt>Reference</dt><dd>{{ $p->reference ?? '—' }}</dd></dl>
   <dl class="kv"><dt>Recorded by</dt><dd>{{ $p->creator?->name }} · {{ $p->created_at->format('d M H:i') }}</dd>@if($p->notes)<dt>Notes</dt><dd>{{ $p->notes }}</dd>@endif
     <dt>Ledger</dt><dd>@forelse($journals as $j)<a href="{{ route('gl.journals.show', $j) }}">{{ $j->journal_no }}</a>{{ $j->reversal_of_id ? ' (reversal)' : '' }} @empty<span class="muted small">posts after the night audit closes {{ $p->date->format('d M') }}</span>@endforelse</dd></dl>
+  @php $diff = $p->fxDifference(); @endphp
   <div class="ap-summary">
-    <div><div class="l">Amount</div><div class="v">{{ money($p->amount) }}</div></div>
-    <div><div class="l">Allocated</div><div class="v green">{{ money($p->allocated) }}</div></div>
+    <div><div class="l">{{ $p->isForeign() ? 'Cedis this cost' : 'Amount' }}</div><div class="v">{{ money($p->amount) }}</div>@if($p->isForeign())<div class="tiny muted">{{ $p->fxLabel() }} @ {{ number_format((float) $p->fx_rate, 4) }}</div>@endif</div>
+    <div><div class="l">Allocated</div><div class="v green">{{ money($p->allocated) }}</div>@if($p->isForeign())<div class="tiny muted">what the bills were booked at</div>@endif</div>
+    @if($p->isForeign())
+    <div><div class="l">Realised exchange {{ $diff > 0 ? 'loss' : ($diff < 0 ? 'gain' : 'difference') }}</div><div class="v {{ $diff > 0 ? 'red' : 'green' }}">{{ money(abs($diff)) }}</div><div class="tiny muted">posted to Exchange Gain / Loss</div></div>
+    @else
     <div><div class="l">Unapplied credit</div><div class="v" id="payUnapplied">{{ money($p->unapplied()) }}</div></div>
+    @endif
   </div>
+  @if($p->isForeign())
+  <dl class="kv" id="fxPayPanel" style="grid-column:1/-1"><dt>Paid in</dt><dd class="bold">{{ $p->currency }}</dd>
+    <dt>Bank's figure</dt><dd>{{ $p->fxLabel() }}</dd>
+    <dt>Rate used</dt><dd>{{ number_format((float) $p->fx_rate, 4) }} {{ strtoupper((string) (hotel()?->currency ?: 'GHS')) }} per {{ $p->currency }} <span class="small muted">{{ $p->fx_basis === 'deal' ? "– the bank's deal rate, typed from its advice" : '– the '.($p->fx_basis === 'buy' ? 'buy' : 'reference').' board of '.$p->fx_date->format('d M Y') }}</span></dd>
+    <dt>How it posted</dt><dd class="small">Dr Accounts Payable {{ money($p->allocated) }}@if($diff > 0) · Dr Exchange Gain / Loss {{ money($diff) }}@elseif($diff < 0) · Cr Exchange Gain / Loss {{ money(abs($diff)) }}@endif · Cr {{ $p->paymentMode?->name ?? 'bank' }} {{ money($p->netPaid()) }}@if($p->withheld() > 0) · Cr tax withheld {{ money($p->withheld()) }}@endif</dd>
+    <dt>Why</dt><dd class="small muted">The GHS allocation is the sum of the bills at their own invoice-date rates; the bank transferred {{ $p->currency }} {{ number_format((float) $p->fx_amount, 2) }} at {{ number_format((float) $p->fx_rate, 4) }} on the payment date. Add any separately withheld GRA tax, then compare with those booked allocations: the difference is a realised {{ $diff > 0 ? 'loss' : 'gain' }}, so the supplier is owed nothing more and Accounts Payable still equals the sum of the bills.</dd></dl>
+  @endif
   @if($p->wht_category || $p->withheld() > 0)
   <dl class="kv" id="whtPanel" style="grid-column:1/-1"><dt>Withholding tax</dt><dd>@if((float) $p->wht_amount > 0)<b>{{ money($p->wht_amount) }}</b> · {{ \App\Services\WhtService::label($p->wht_category) }} at {{ rtrim(rtrim(number_format($p->wht_rate, 2), '0'), '.') }}% of {{ money($p->wht_base) }}@else<span class="muted">none</span>@endif
       @if($p->wht_note)<div class="small muted">{{ $p->wht_note }}</div>@endif</dd>

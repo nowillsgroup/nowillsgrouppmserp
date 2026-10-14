@@ -21,9 +21,12 @@ use RuntimeException;
  * Base = the VAT-exclusive value paid. Suppliers holding a GRA exemption certificate are not withheld while it is valid.
  * Optional: appointed withholding VAT agents also withhold 7 % of the taxable value on standard-rated supplies.
  *
- * In Nowills a supplier payment's `amount` is what is cleared from the supplier's account (the bills it settles).
- * The supplier receives amount − WHT − withholding VAT; the rest is owed to GRA:
- *   Dr Accounts Payable (amount) / Cr bank (net) / Cr 2250 WHT Payable / Cr 2255 Withholding VAT Payable.
+ * For a payment in the property's own currency, `amount` is what is cleared from the supplier's account (the bills it
+ * settles); the supplier receives amount − WHT − withholding VAT, with the rest owed to GRA. For a v7.54 foreign
+ * transfer, `amount` and `netPaid()` are the GHS equivalent of the actual net amount the bank transferred, while the
+ * WHT base is the GHS bill allocation; tax is still a separate GHS payable and the realised exchange difference
+ * balances the journal:
+ *   Dr Accounts Payable / Exchange Gain or Loss / Cr bank / Cr 2250 WHT Payable / Cr 2255 Withholding VAT Payable.
  * Each withheld payment gets a numbered WHT credit certificate for the supplier. The monthly return lists them and
  * is due by the 15th of the following month; marking it as filed locks that month's withheld payments.
  */

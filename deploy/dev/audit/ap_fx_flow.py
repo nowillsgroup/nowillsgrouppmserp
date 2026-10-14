@@ -101,10 +101,10 @@ def forex_settings(p, changes):
             ["cash_cap_usd", "resident_cap_usd", "aggregate_days", "id_copy_inr", "max_margin", "fee_pct",
              "surrender_days", "licence", "franchiser", "channel_basis", "channel_stale_days",
              "ap_basis", "ap_stale_days", "ap_rate_date",
-             "enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert"]}
+             "enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert", "ap_pay", "ap_pay_deal"]}
     data.update(changes)
     data["section"] = "forex"
-    boxes = ["enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert"]
+    boxes = ["enabled", "allow_residents", "carry_rates", "channel_convert", "ap_convert", "ap_pay", "ap_pay_deal"]
     payload = {k: v for k, v in data.items() if v is not None and not (k in boxes and v == "0")}
     code, _, loc = p.post("/foreign/settings", payload, tok, referer="/foreign/settings")
     page = follow(p, loc, "/foreign/settings")

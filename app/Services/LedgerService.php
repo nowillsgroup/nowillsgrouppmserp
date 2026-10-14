@@ -298,8 +298,17 @@ class LedgerService
         }
         $amt = (float) $p->amount;
 
-        return ['date' => $p->date->toDateString(), 'reference' => $p->payment_no, 'narration' => 'Payment to '.($p->supplier?->name ?? 'supplier').($p->reference ? ' – '.$p->reference : ''),
-            'lines' => array_values(array_filter([[AccountHead::sys('accounts_payable'), $amt, $p->supplier?->name],
+        // v7.54 a payment made in the currency the supplier billed in: the AP control is debited with what the bills
+        // were booked at, the bank credited with what the payment actually cost in cedis, and the difference between
+        // the two — the realised exchange gain or loss — posted to Exchange Gain / Loss. Dr AP therefore still equals
+        // the sum of the bills it settled, which is what ApService::controlBalance() checks.
+        $fxDiff = $p->isForeign() ? round((float) $p->fx_diff, 2) : 0.0;
+
+        return ['date' => $p->date->toDateString(), 'reference' => $p->payment_no,
+            'narration' => 'Payment to '.($p->supplier?->name ?? 'supplier').($p->reference ? ' – '.$p->reference : '')
+                .($p->isForeign() ? ' ('.$p->fxLabel().' at '.number_format((float) $p->fx_rate, 4).')' : ''),
+            'lines' => array_values(array_filter([[AccountHead::sys('accounts_payable'), $fxDiff != 0.0 || $p->isForeign() ? round((float) $p->allocated, 2) : $amt, $p->supplier?->name],
+                $fxDiff != 0.0 ? [AccountHead::sys('forex_gain'), $fxDiff, 'Exchange difference on the '.$p->currency.' payment at '.number_format((float) $p->fx_rate, 4).' – '.($fxDiff > 0 ? 'loss' : 'gain')] : null,
                 [self::modeAccount($p->payment_mode_id, 'bank'), -$p->netPaid(), $p->paymentMode?->name],
                 // v4.4 Ghana: tax withheld at source is owed to GRA, not paid to the supplier
                 (float) $p->wht_amount > 0 ? [AccountHead::sys('wht_payable'), -(float) $p->wht_amount, 'WHT '.$p->wht_cert_no] : null,

@@ -6333,7 +6333,7 @@ class DatabaseSeeder extends Seeder
         }
         Auth::setUser($user);
         $bank = Models\PaymentMode::where('name', 'like', '%Bank%')->value('id');
-        // 7. v7.53 two bills in the supplier's own currency, booked at the board for their invoice date: an OTA's
+        // v7.53–v7.54 foreign-currency AP evidence: two bills in the supplier's own currency, booked at the board for their invoice date: an OTA's
         //    commission invoice from its Amsterdam entity in euros, and an international operator's base management fee
         //    in dollars, part-paid, so Accounts payable › Ageing shows what settling the rest would cost at today's board
         $ota = Models\Supplier::create(['wht_category' => 'none', 'name' => 'Booking.com B.V.', 'contact_person' => 'Partner settlements',
@@ -6352,6 +6352,19 @@ class DatabaseSeeder extends Seeder
                 ['account_head_id' => $heads['Internet & Telephone'] ?? $feeHead, 'description' => 'Reservation platform and channel-manager licence', 'amount' => 480, 'tax_rate' => 0]],
             'notes' => 'Billed in USD under the management agreement; paid from the dollar account.']);
         ApService::pay($operator, ['date' => $today->copy()->subDays(2)->toDateString(), 'payment_mode_id' => $bank, 'amount' => 40000, 'reference' => 'TT 558214'], [$mgmt->id => 40000]);
+        // v7.54 …and a slice of what is left is being settled in the dollars themselves: USD 1,000 out of the dollar
+        //    account at the board for the payment date. That costs more cedis than the slice of the bill was booked at,
+        //    and the difference is a realised exchange loss, posted to Exchange Gain / Loss rather than left to distort
+        //    what the supplier is owed. Accounts payable › Payments shows the bank's figure beside the cedis.
+        if (ForexService::apPay()) {
+            $payDate = $today->copy()->subDay()->toDateString();
+            $slice = 1000.0;
+            $alloc = round($slice * (float) $mgmt->fx_rate, 2);
+            if (ForexService::apPayRate('USD', $payDate) && $alloc <= $mgmt->fresh()->outstanding()) {
+                ApService::pay($operator, ['date' => $payDate, 'payment_mode_id' => $bank, 'currency' => 'USD', 'fx_amount' => $slice,
+                    'reference' => 'TT 771204', 'notes' => 'Part-settlement from the dollar account at the rate the bank used.'], [$mgmt->id => $alloc]);
+            }
+        }
     }
 
     /** Attendance from 1 July (or joining): a fixed weekly off, occasional absences and some overtime; deterministic per employee/day. */

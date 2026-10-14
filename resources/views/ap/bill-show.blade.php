@@ -64,7 +64,7 @@
   @forelse($rows as $a)
   <tr><td>{{ $a->date->format('d M Y') }}</td>
     <td>@if($bill->isDebitNote())<a href="{{ route('ap.bills.show', $a->invoice) }}">{{ $a->invoice->doc_no }}</a> <span class="tiny muted">{{ $a->invoice->supplier_ref }}</span>
-        @elseif($a->payment)<a href="{{ route('ap.payments.show', $a->payment) }}">{{ $a->payment->payment_no }}</a> <span class="tiny muted">{{ $a->payment->paymentMode?->name }} {{ $a->payment->reference }}</span>
+        @elseif($a->payment)<a href="{{ route('ap.payments.show', $a->payment) }}">{{ $a->payment->payment_no }}</a> <span class="tiny muted">{{ $a->payment->paymentMode?->name }} {{ $a->payment->reference }}{{ $a->payment->isForeign() ? ' · '.$a->payment->fxLabel().' @ '.number_format((float) $a->payment->fx_rate, 4) : '' }}</span>
         @else<a href="{{ route('ap.bills.show', $a->debitNote) }}">{{ $a->debitNote->doc_no }}</a> <span class="tiny muted">debit note</span>@endif</td>
     <td class="num">{{ money($a->amount, false) }}</td>
     <td class="right">@if(can_do('ap.pay'))<form method="post" action="{{ route('ap.allocations.delete', $a) }}" onsubmit="return confirm('Remove this allocation? The amount becomes unapplied supplier credit again.')">@csrf @method('delete')<button class="btn btn-ghost btn-sm" title="Un-apply"><x-icon name="x" size="sm"/></button></form>@endif</td></tr>

@@ -49,7 +49,9 @@
              hint="An invoice dated on a Sunday, or on a day the desk never set rates, still has to be booked. Beyond this the bill is refused. 0 means that date's board only."/>
     <x-field name="ap_rate_date" label="Read the board at" type="select" :placeholder="false" :value="$x['ap_rate_date']" class="span-all"
              :options="['document' => 'The invoice date - the transaction date, which is what accounting wants', 'business' => 'The board for today, whatever the invoice date']"
-             hint="Each line is converted at one rate and rounded on its own, so the lines always sum to what the ledger posts."/>
+             hint="This choice applies to invoice booking. A settlement always reads the board for its payment date. Each invoice line is rounded on its own, so the lines sum to what the ledger posts."/>
+    <label class="check span-all"><input type="checkbox" name="ap_pay" value="1" @checked($x['ap_pay'] === '1')> Let a foreign bill be settled in the currency it was billed in <span class="tiny muted">— the actual bank transfer is net of GRA withholding; the cedi tax stays separate, and the realised exchange difference posts to Exchange Gain / Loss</span></label>
+    <label class="check span-all"><input type="checkbox" name="ap_pay_deal" value="1" @checked($x['ap_pay_deal'] === '1')> Allow an explicitly typed bank deal rate on a payment <span class="tiny muted">— each payment still previews the dated board; a deal rate must be opted into on the payment and is checked against that board</span></label>
   </div></div>
   @if(can_do('forex.manage'))<button class="btn btn-primary" id="saveForexSettings"><x-icon name="check"/> Save forex settings</button>
   <span class="small muted ml-1"><a href="{{ route('masters.index', 'currencies') }}">Currencies</a> · GL 1060 Foreign Currency on Hand, 4085 / 4986</span>@endif

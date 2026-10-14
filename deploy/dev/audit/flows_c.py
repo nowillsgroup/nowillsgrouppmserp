@@ -422,7 +422,7 @@ def main():
         fl, d = submit_form(p, "/foreign/form-c/%s/reopen" % fid, r"/foreign/form-c/%s/reopen$" % fid, read=fp,
                             ok_words=("reopen", "open", "cannot"))
         record("Foreign Guests", "Form C: reopen", bool(fl), d)
-        fl, d = submit_form(p, "/foreign/settings", r"/foreign/settings$", read="/foreign/settings", ok_words=("saved",))
+        fl, d = submit_form(p, "/foreign/settings", r"/foreign/settings$", read="/foreign/settings", ok_words=("saved",), ticked_only=True)
         record("Foreign Guests", "settings: save", ok(fl, "saved"), d)
     step("Foreign Guests", "form c", formc)
 

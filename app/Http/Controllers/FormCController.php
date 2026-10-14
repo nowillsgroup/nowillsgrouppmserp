@@ -209,7 +209,7 @@ class FormCController extends Controller
                 'channel_basis' => 'required|in:reference,buy', 'channel_stale_days' => 'required|integer|min:0|max:90',
                 'ap_basis' => 'required|in:reference,buy', 'ap_stale_days' => 'required|integer|min:0|max:90', 'ap_rate_date' => 'required|in:document,business',
             ], ['cash_cap_usd.max' => 'Keep the cash limit at USD 10,000 or less – larger purchases belong at a bank.', 'resident_cap_usd.max' => 'Keep the cash limit at USD 10,000 or less.']);
-            foreach (['enabled', 'allow_residents', 'carry_rates', 'channel_convert', 'ap_convert'] as $b) {
+            foreach (['enabled', 'allow_residents', 'carry_rates', 'channel_convert', 'ap_convert', 'ap_pay', 'ap_pay_deal'] as $b) {
                 $d[$b] = $request->boolean($b);
             }
             ForexService::saveSettings($d);
