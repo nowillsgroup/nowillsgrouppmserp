@@ -128,7 +128,7 @@ class GuestPortalService
         }
         if ($req->category === 'housekeeping' && in_array($req->item, ['Clean my room now', 'Turn-down service', 'Change bed linen']) && $stay->room_id) {
             $type = match ($req->item) { 'Turn-down service' => 'turndown', 'Change bed linen' => 'linen_change', default => 'cleaning' };
-            $task = HousekeepingTask::where('room_id', $stay->room_id)->where('task_date', bdate()->toDateString())->whereIn('status', ['pending', 'in_progress'])
+            $task = HousekeepingTask::where('room_id', $stay->room_id)->whereDate('task_date', bdate()->toDateString())->whereIn('status', ['pending', 'in_progress'])
                 ->when($type !== 'cleaning', fn ($q) => $q->where('task_type', $type))->first();
             if ($task) {
                 $task->forceFill(['priority' => 'high', 'dnd_at' => null, 'notes' => trim(($task->notes ? $task->notes.' · ' : '').'Guest request '.$req->request_no)])->save();

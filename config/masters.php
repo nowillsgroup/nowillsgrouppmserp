@@ -95,6 +95,10 @@ return [
             'bank_name' => ['Bank name', 'text', 'nullable|string|max:80'], 'bank_account' => ['Bank account no.', 'text', 'nullable|string|max:40'],
             'bank_ifsc' => ['Bank sort code / branch', 'text', 'nullable|string|max:20'], 'tax_id' => ['TIN / Ghana Card PIN', 'text', 'nullable|string|max:30'],
             'social_security_no' => ['SSNIT number', 'text', 'nullable|string|max:30'],
+            'employment_type' => ['Employment type (Act 651 ss. 73–78)', 'select', 'nullable|in:permanent,fixed_term,weekly,casual',
+                ['permanent' => 'Permanent', 'fixed_term' => 'Fixed-term contract', 'weekly' => 'Weekly-paid', 'casual' => 'Casual / daily-rated (5% final tax)']], // v7.43
+            'tax_resident' => ['Tax resident (a non-resident is taxed at a flat 25%)', 'bool', 'boolean'], // v7.43
+            'tax_relief' => ['Personal reliefs per month, GH¢ (GRA: marriage 100, child education 50 a child, old age 125)', 'number', 'nullable|numeric|min:0|max:99999'], // v7.43
             'ot_eligible' => ['Eligible for overtime', 'bool', 'boolean'], 'is_active' => $active,
         ],
         'columns' => ['emp_code', 'name', 'department.name' => 'Department', 'designation', 'salary', 'user.username' => 'Login', 'is_active'], 'unique' => ['emp_code', 'user_id'],

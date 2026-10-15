@@ -298,8 +298,17 @@ class LedgerService
         }
         $amt = (float) $p->amount;
 
-        return ['date' => $p->date->toDateString(), 'reference' => $p->payment_no, 'narration' => 'Payment to '.($p->supplier?->name ?? 'supplier').($p->reference ? ' – '.$p->reference : ''),
-            'lines' => array_values(array_filter([[AccountHead::sys('accounts_payable'), $amt, $p->supplier?->name],
+        // v7.54 a payment made in the currency the supplier billed in: the AP control is debited with what the bills
+        // were booked at, the bank credited with what the payment actually cost in cedis, and the difference between
+        // the two — the realised exchange gain or loss — posted to Exchange Gain / Loss. Dr AP therefore still equals
+        // the sum of the bills it settled, which is what ApService::controlBalance() checks.
+        $fxDiff = $p->isForeign() ? round((float) $p->fx_diff, 2) : 0.0;
+
+        return ['date' => $p->date->toDateString(), 'reference' => $p->payment_no,
+            'narration' => 'Payment to '.($p->supplier?->name ?? 'supplier').($p->reference ? ' – '.$p->reference : '')
+                .($p->isForeign() ? ' ('.$p->fxLabel().' at '.number_format((float) $p->fx_rate, 4).')' : ''),
+            'lines' => array_values(array_filter([[AccountHead::sys('accounts_payable'), $fxDiff != 0.0 || $p->isForeign() ? round((float) $p->allocated, 2) : $amt, $p->supplier?->name],
+                $fxDiff != 0.0 ? [AccountHead::sys('forex_gain'), $fxDiff, 'Exchange difference on the '.$p->currency.' payment at '.number_format((float) $p->fx_rate, 4).' – '.($fxDiff > 0 ? 'loss' : 'gain')] : null,
                 [self::modeAccount($p->payment_mode_id, 'bank'), -$p->netPaid(), $p->paymentMode?->name],
                 // v4.4 Ghana: tax withheld at source is owed to GRA, not paid to the supplier
                 (float) $p->wht_amount > 0 ? [AccountHead::sys('wht_payable'), -(float) $p->wht_amount, 'WHT '.$p->wht_cert_no] : null,
@@ -379,7 +388,7 @@ class LedgerService
     /** One journal per day for stores movements that change inventory value (purchases/transfers excluded). */
     public static function forStockDay(string $date): ?array
     {
-        $moves = StockMovement::with('item', 'store')->where('date', $date)->whereNotIn('type', ['purchase', 'transfer_in', 'transfer_out'])->get();
+        $moves = StockMovement::with('item', 'store')->whereDate('date', $date)->whereNotIn('type', ['purchase', 'transfer_in', 'transfer_out'])->get();
         if ($moves->isEmpty()) {
             return null;
         }
@@ -443,6 +452,7 @@ class LedgerService
             'club_chg' => ($c = \App\Models\ClubCharge::with('membership', 'creditOf')->find($key)) ? ClubBillingService::forCharge($c) : null, // v5.1
             'club_pay' => ($p = \App\Models\ClubPayment::with('membership', 'paymentMode')->find($key)) ? ClubBillingService::forPayment($p) : null,
             'club_dp' => ($d = \App\Models\ClubDayPass::with('paymentMode')->find($key)) ? ClubBillingService::forDayPass($d) : null,
+            'club_tsale' => ($s = \App\Models\ClubTicketSale::with(['payments.paymentMode', 'items'])->find($key)) ? ClubBillingService::forTicketSale($s) : null, // v7.38
             'club_recog' => ClubBillingService::forRecognition($key),
             'lease_chg' => ($c = \App\Models\LeaseCharge::with('lease', 'creditOf')->find($key)) ? LeaseBillingService::forCharge($c) : null, // v5.2
             'lease_pay' => ($p = \App\Models\LeasePayment::with('lease', 'paymentMode')->find($key)) ? LeaseBillingService::forPayment($p) : null,
@@ -696,6 +706,8 @@ class LedgerService
                 ->each(fn ($p) => $run('club_pay', (string) $p->id, fn () => ClubBillingService::forPayment($p)));
             $scope(\App\Models\ClubDayPass::with('paymentMode'), 'date')->orderBy('id')->get()
                 ->each(fn ($d) => $run('club_dp', (string) $d->id, fn () => ClubBillingService::forDayPass($d)));
+            $scope(\App\Models\ClubTicketSale::with(['payments.paymentMode', 'items']), 'business_date')->orderBy('id')->get()
+                ->each(fn ($s) => $run('club_tsale', (string) $s->id, fn () => ClubBillingService::forTicketSale($s)));
             foreach (ClubBillingService::recognitionMonths($cutoff, $floor) as $mo) {
                 $run('club_recog', $mo, fn () => ClubBillingService::forRecognition($mo));
             }
@@ -742,14 +754,16 @@ class LedgerService
     /** Per-account debit/credit totals between two dates (inclusive); null from = since inception. $closing = false leaves out year-end closing entries (v5.6). */
     public static function totals(?string $from, string $to, bool $closing = true): \Illuminate\Support\Collection
     {
-        return GlLine::query()->when($from, fn ($q) => $q->where('date', '>=', $from))->where('date', '<=', $to)->when(! $closing, fn ($q) => $q->where('closing', false))
+        return GlLine::query()->when($from, fn ($q) => $q->whereDate('date', '>=', $from))->whereDate('date', '<=', $to)->when(! $closing, fn ($q) => $q->where('closing', false))
             ->groupBy('account_head_id')->selectRaw('account_head_id, SUM(debit) dr, SUM(credit) cr')->get()->keyBy('account_head_id');
     }
 
     /** Signed balance (debit − credit) of one system account up to a date. */
     public static function balance(string $sysKey, string $asOf): float
     {
-        return round((float) GlLine::where('account_head_id', AccountHead::sys($sysKey))->where('date', '<=', $asOf)->sum(DB::raw('debit - credit')), 2);
+        // whereDate, not where: SQLite keeps whatever shape the writer used ("Y-m-d" or "Y-m-d 00:00:00"),
+        // and a string comparison against a date-only bound silently drops the as-of day itself.
+        return round((float) GlLine::where('account_head_id', AccountHead::sys($sysKey))->whereDate('date', '<=', $asOf)->sum(DB::raw('debit - credit')), 2);
     }
 
     /** Sub-ledger vs control account checks as at a date. */
@@ -763,12 +777,12 @@ class LedgerService
 
     public static function controls(string $asOf): array
     {
-        $fo = FolioTransaction::where('is_void', false)->where('business_date', '<=', $asOf)
+        $fo = FolioTransaction::where('is_void', false)->whereDate('business_date', '<=', $asOf)
             ->selectRaw("SUM(CASE WHEN type='charge' THEN amount + tax_amount WHEN type='refund' THEN amount WHEN type IN ('payment','discount','allowance') THEN -amount ELSE 0 END) bal")->value('bal');
-        $clDebits = FolioTransaction::where('is_void', false)->where('type', 'payment')->where('category', 'city_ledger')->where('business_date', '<=', $asOf)->sum('amount');
-        $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->where('date', '<=', $asOf)->sum('amount');
+        $clDebits = FolioTransaction::where('is_void', false)->where('type', 'payment')->where('category', 'city_ledger')->whereDate('business_date', '<=', $asOf)->sum('amount');
+        $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOf)->sum('amount');
         $stock = DB::table('stock_movements as m')->join('inventory_items as i', 'i.id', '=', 'm.inventory_item_id')
-            ->where('m.hotel_id', Tenant::id())->where('m.date', '<=', $asOf)
+            ->where('m.hotel_id', Tenant::id())->whereDate('m.date', '<=', $asOf)
             ->selectRaw('SUM(ROUND(m.qty * COALESCE(NULLIF(m.rate, 0), i.last_cost), 2)) v')->value('v'); // each movement is posted at its rounded value
         $fa = AssetService::registerBalances($asOf);
 

@@ -153,7 +153,7 @@ class FbCostService
                 return $last;
             }
             $avg = StockMovement::where('type', 'purchase')->where('qty', '>', 0)->where('rate', '>', 0)
-                ->where('date', '>=', bdate()->copy()->subDays(90)->toDateString())
+                ->whereDate('date', '>=', bdate()->copy()->subDays(90)->toDateString())
                 ->groupBy('inventory_item_id')->select('inventory_item_id', DB::raw('SUM(qty * rate) / SUM(qty) as avg_cost'))->pluck('avg_cost', 'inventory_item_id');
             foreach ($avg as $id => $v) {
                 $last[$id] = round((float) $v, 4);
@@ -354,8 +354,8 @@ class FbCostService
         return self::$memo['creep'.Tenant::id()] ??= (function () {
             $costs = self::costs();
             $from = bdate()->copy()->subDays(self::cfg()['creep_days'])->toDateString();
-            $base = FbCostSnapshot::where('business_date', '<=', $from)
-                ->whereIn('id', FbCostSnapshot::where('business_date', '<=', $from)->groupBy('menu_item_id')->select(DB::raw('MAX(id)')))
+            $base = FbCostSnapshot::whereDate('business_date', '<=', $from)
+                ->whereIn('id', FbCostSnapshot::whereDate('business_date', '<=', $from)->groupBy('menu_item_id')->select(DB::raw('MAX(id)')))
                 ->get()->keyBy('menu_item_id');
             $out = [];
             foreach ($costs as $id => $cost) {
@@ -372,7 +372,7 @@ class FbCostService
     /** Plate cost of one dish per snapshot date (for the card's trend). */
     public static function history(int $menuItemId, int $days = 120): Collection
     {
-        return FbCostSnapshot::where('menu_item_id', $menuItemId)->where('business_date', '>=', bdate()->copy()->subDays($days)->toDateString())
+        return FbCostSnapshot::where('menu_item_id', $menuItemId)->whereDate('business_date', '>=', bdate()->copy()->subDays($days)->toDateString())
             ->orderBy('business_date')->get(['business_date', 'cost', 'price']);
     }
 
@@ -489,7 +489,7 @@ class FbCostService
             }
         }
         $itemCls = InventoryItem::leftJoin('item_categories as c', 'c.id', '=', 'inventory_items.item_category_id')->pluck('c.fb_class', 'inventory_items.id');
-        $moves = StockMovement::whereIn('store_id', self::fbStores())->whereBetween('date', [$from, $to])
+        $moves = StockMovement::whereIn('store_id', self::fbStores())->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereIn('type', ['consumption', 'issue', 'wastage', 'adjustment'])->with('item:id,last_cost')->get();
         foreach ($moves as $m) {
             $c = $itemCls[$m->inventory_item_id] ?? null;
@@ -507,7 +507,7 @@ class FbCostService
             };
             $out[$d][$c][$bucket] += $value;
         }
-        foreach (FbStaffMeal::whereBetween('business_date', [$from, $to])->get() as $sm) {
+        foreach (FbStaffMeal::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get() as $sm) {
             $d = $sm->business_date->toDateString();
             $out[$d]['food'] ??= $blank();
             $out[$d]['food']['staff_meals'] += $sm->total;
@@ -574,7 +574,7 @@ class FbCostService
             $n = ($sold[$r->menu_item_id] ?? 0) + ($comps[$r->menu_item_id] ?? 0);
             $ideal[$r->inventory_item_id] = ($ideal[$r->inventory_item_id] ?? 0) + $n * (float) $r->qty * 100 / max(1, (float) ($r->inventoryItem->yield_pct ?: 100));
         }
-        $actual = StockMovement::whereIn('store_id', self::fbStores())->whereBetween('date', [$from, $to])
+        $actual = StockMovement::whereIn('store_id', self::fbStores())->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereIn('type', ['consumption', 'issue', 'wastage', 'adjustment'])
             ->groupBy('inventory_item_id', 'type')->select('inventory_item_id', 'type', DB::raw('-SUM(qty) as used'))->get()->groupBy('inventory_item_id');
         $ids = collect(array_keys($ideal))->merge($actual->keys())->unique();
@@ -676,7 +676,7 @@ class FbCostService
         self::need($covers >= 1 && $covers <= 2000, 'Covers are 1 to 2,000.');
         $cpc = filled($d['cost_per_cover'] ?? null) ? (float) $d['cost_per_cover'] : self::cfg()['meal_cost'];
         self::need($cpc > 0 && $cpc <= 500, 'The cost per cover is more than 0 and at most 500.');
-        $m = FbStaffMeal::updateOrCreate(['business_date' => $on->toDateString(), 'meal' => $d['meal']],
+        $m = date_upsert(FbStaffMeal::class, ['business_date' => $on->toDateString(), 'meal' => $d['meal']],
             ['covers' => $covers, 'cost_per_cover' => round($cpc, 2), 'total' => round($covers * $cpc, 2), 'notes' => self::text($d['notes'] ?? null, 190), 'user_id' => $u->id]);
         self::flush();
         ActivityLogger::log('fbc', 'staff_meal', "Staff {$d['meal']} {$on->format('d M')}: {$covers} covers × ".money($cpc), $m);
@@ -717,7 +717,7 @@ class FbCostService
         return self::$memo['alerts'.Tenant::id()] ??= (function () {
             $d = self::dishes();
             $used = MenuItemRecipe::distinct()->pluck('inventory_item_id');
-            $mealsInUse = FbStaffMeal::where('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->exists();
+            $mealsInUse = FbStaffMeal::whereDate('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->exists();
 
             return [
                 'over' => $d->where('st', 'over')->count(),
@@ -725,7 +725,7 @@ class FbCostService
                 'creep' => $d->filter(fn ($m) => $m->creep && $m->creep['pct'] >= self::cfg()['creep_pct'])->count(),
                 'zero_cost' => InventoryItem::whereIn('id', $used)->where(fn ($q) => $q->whereNull('last_cost')->orWhere('last_cost', '<=', 0))->count(),
                 'unapproved' => FbRecipeCard::whereNull('approved_at')->whereIn('menu_item_id', MenuItemRecipe::distinct()->pluck('menu_item_id'))->count(),
-                'meals_missing' => $mealsInUse && ! FbStaffMeal::where('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
+                'meals_missing' => $mealsInUse && ! FbStaffMeal::whereDate('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
             ];
         })();
     }

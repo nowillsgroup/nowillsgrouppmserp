@@ -409,7 +409,7 @@ class CallAccountingService
     public static function import(string $text, string $source = 'import'): array
     {
         [$rows, $errors] = self::parse($text);
-        $batch = ($source === 'push' ? 'P' : 'I').now()->format('ymdHis');
+        $batch = ($source === 'push' ? 'P' : ($source === 'stream' ? 'S' : 'I')).now()->format('ymdHis');
         $sum = ['received' => count($rows) + count($errors), 'imported' => 0, 'duplicates' => 0, 'posted' => 0, 'pending' => 0, 'free' => 0, 'admin' => 0, 'charge' => 0.0, 'errors' => $errors, 'batch' => $batch];
         self::flush();
         foreach ($rows as $row) {

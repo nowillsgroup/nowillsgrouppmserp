@@ -25,6 +25,54 @@ class ReviewService
 
     public const MAX_RESPONSE = 4000;
 
+    /** Per-hotel webhook token for platform review pushes (auto-generated). */
+    public static function webhookToken(): string
+    {
+        $t = (string) setting('review_webhook_token');
+        if ($t === '') {
+            $t = \Illuminate\Support\Str::random(40);
+            \App\Models\Setting::updateOrCreate(['key' => 'review_webhook_token'], ['value' => $t]);
+            \App\Models\Setting::$version++;
+        }
+
+        return $t;
+    }
+
+    /**
+     * Ingest platform review pushes (the webhook twin of the feed pulls).
+     * Rows follow the importCsv field names; store() dedupes and runs the
+     * full analyse / match / case pipeline. Returns the intake summary.
+     */
+    public static function ingestWebhook(array $rows): array
+    {
+        $out = ['received' => 0, 'new' => 0, 'duplicates' => 0, 'errors' => []];
+        foreach ($rows as $i => $row) {
+            if (! is_array($row)) {
+                $out['errors'][] = 'row '.$i.': not an object';
+                continue;
+            }
+            $out['received']++;
+            try {
+                foreach (['reviewer_name', 'review_date', 'rating', 'body'] as $req) {
+                    if (! isset($row[$req]) || trim((string) $row[$req]) === '') {
+                        throw new \InvalidArgumentException("missing {$req}");
+                    }
+                }
+                $row['source'] = isset(\App\Models\OnlineReview::SOURCES[$row['source'] ?? '']) ? $row['source'] : 'other';
+                $row['rating_scale'] = $row['rating_scale'] ?? 5;
+                [, $isNew] = self::store($row);
+                $out[$isNew ? 'new' : 'duplicates']++;
+            } catch (\Throwable $e) {
+                $out['errors'][] = 'row '.$i.': '.$e->getMessage();
+            }
+        }
+        if ($out['new']) {
+            ActivityLogger::log('feedback', 'review_webhook', "Review webhook delivered {$out['new']} new review(s) ({$out['duplicates']} already seen)");
+        }
+
+        return $out;
+    }
+
     public static function dedupeHash(array $d): string
     {
         return ! empty($d['external_id'])
@@ -77,7 +125,7 @@ class ReviewService
             return false;
         }
         $res = Reservation::with('guest')->where('status', 'checked_out')
-            ->whereBetween('departure_date', [$r->review_date->copy()->subDays(60)->toDateString(), $r->review_date->copy()->addDays(3)->toDateString()])
+            ->whereDate('departure_date', '>=', $r->review_date->copy()->subDays(60)->toDateString())->whereDate('departure_date', '<=', $r->review_date->copy()->addDays(3)->toDateString())
             ->whereHas('guest', fn ($q) => $q->whereNull('privacy_status')->whereRaw("lower(concat(first_name, ' ', coalesce(last_name, ''))) = ?", [$name]))
             ->get();
         if ($res->pluck('guest_id')->unique()->count() !== 1) {

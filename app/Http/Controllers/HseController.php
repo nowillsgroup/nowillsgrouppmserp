@@ -51,7 +51,7 @@ class HseController extends Controller
             'cover' => HS::coverage(), 'heat' => HS::heatmap(),
             'live' => HsePermit::with(['issuer'])->whereIn('status', ['issued', 'requested'])->orderByRaw("FIELD(status, 'issued', 'requested')")->orderBy('ends_at')->get(),
             'recent' => HseAccident::with(['employee', 'guest'])->orderByDesc('occurred_at')->orderByDesc('id')->limit(6)->get(),
-            'reviews' => HseRisk::where('status', '!=', 'archived')->where(fn ($q) => $q->where('review_on', '<', bdate()->toDateString())->orWhere('status', 'pending'))->orderBy('review_on')->limit(6)->get(),
+            'reviews' => HseRisk::where('status', '!=', 'archived')->where(fn ($q) => $q->whereDate('review_on', '<', bdate()->toDateString())->orWhere('status', 'pending'))->orderBy('review_on')->limit(6)->get(),
             'trend' => $this->monthly(), 'lk' => $this->accidentLookups()]);
     }
 
@@ -117,7 +117,7 @@ class HseController extends Controller
         $scope = $r->query('scope', 'due');
         $items = HseEquipment::where('status', '!=', 'retired')
             ->when($r->filled('floor'), fn ($q) => $q->where('floor', $r->query('floor')))
-            ->when($scope === 'due', fn ($q) => $q->where(fn ($w) => $w->whereNull('next_check_on')->orWhere('next_check_on', '<=', bdate()->copy()->addDays(7)->toDateString())->orWhereIn('status', ['defective', 'out_of_service'])))
+            ->when($scope === 'due', fn ($q) => $q->where(fn ($w) => $w->whereNull('next_check_on')->orWhereDate('next_check_on', '<=', bdate()->copy()->addDays(7)->toDateString())->orWhereIn('status', ['defective', 'out_of_service'])))
             ->orderBy('floor')->orderBy('code')->get()->each(fn ($e) => $e->setAttribute('st', $e->state($today)));
 
         return view('hse.round', ['items' => $items, 'scope' => $scope, 'floors' => HseEquipment::whereNotNull('floor')->distinct()->orderBy('floor')->pluck('floor')]);

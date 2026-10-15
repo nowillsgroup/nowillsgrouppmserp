@@ -100,7 +100,7 @@ class KpiService
         }
         $to = $from->copy()->addDays($nights);
         $stays = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())->get(['arrival_date', 'departure_date']);
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get(['arrival_date', 'departure_date']);
         $sold = 0;
         for ($d = $from->copy(); $d->lt($to); $d->addDay()) {
             $sold += $stays->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d))->count();
@@ -189,13 +189,13 @@ class KpiService
     public static function openEvents()
     {
         return KpiAlertEvent::with('alert')->whereNull('acknowledged_at')
-            ->where('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())
+            ->whereDate('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())
             ->orderByRaw("FIELD(severity,'critical','warning','info')")->orderByDesc('business_date')->get();
     }
 
     public static function openCount(): int
     {
-        return KpiAlertEvent::whereNull('acknowledged_at')->where('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())->count();
+        return KpiAlertEvent::whereNull('acknowledged_at')->whereDate('business_date', '>=', bdate()->copy()->subDays(14)->toDateString())->count();
     }
 
     public static function save(array $d, User $by, ?KpiAlert $a = null): KpiAlert

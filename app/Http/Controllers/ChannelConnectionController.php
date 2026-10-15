@@ -32,12 +32,15 @@ class ChannelConnectionController extends Controller
         return [
             'name' => 'required|string|max:80',
             'code' => ['required', 'alpha_dash', 'max:20', Rule::unique('channel_connections', 'code')->where('hotel_id', Tenant::id())->ignore($c?->id)],
-            'provider' => 'required|in:'.implode(',', array_keys(ChannelConnection::PROVIDERS)),
+            'provider' => 'required|in:'.implode(',', array_keys(ChannelConnection::providerOptions())),
             'business_source_id' => 'nullable|owned:business_sources',
             'company_id' => 'nullable|owned:companies',
             'property_code' => 'nullable|string|max:40',
-            'endpoint_url' => 'nullable|required_if:provider,hub|url:http,https|max:500',
+            // Every adapter except the built-in simulator calls out to a URL; without it the connection can be saved
+            // but every test/push fails with "endpoint not set", so the form asks up front.
+            'endpoint_url' => 'nullable|required_if:provider,'.implode(',', ChannelConnection::endpointProviders()).'|url:http,https|max:500',
             'api_key' => 'nullable|string|max:255',
+            'api_secret' => 'nullable|string|max:255',
             'commission_pct' => 'required|numeric|min:0|max:50',
             'rate_markup_pct' => 'required|numeric|min:-50|max:100',
             'rate_rounding' => 'required|in:'.implode(',', array_keys(ChannelConnection::ROUNDING)),
@@ -91,9 +94,12 @@ class ChannelConnectionController extends Controller
 
     protected function attributes(array $data): array
     {
-        $attrs = collect($data)->except(['api_key'])->all();
+        $attrs = collect($data)->except(['api_key', 'api_secret'])->all();
         if (! empty($data['api_key'])) {   // blank on edit = keep the stored key
             $attrs['api_key'] = $data['api_key'];
+        }
+        if (! empty($data['api_secret'])) {   // blank on edit = keep the stored vendor secret
+            $attrs['api_secret'] = $data['api_secret'];
         }
 
         return $attrs;
@@ -271,12 +277,36 @@ class ChannelConnectionController extends Controller
             : "Push failed: {$p->error} – it will be retried automatically.");
     }
 
+    /** Probe the channel endpoint through its driver (v7.37 – no state changes). */
+    public function test(ChannelConnection $chconn)
+    {
+        $res = ChannelService::testConnection($chconn);
+
+        return back()->with($res['ok'] ? 'success' : 'error', ($res['ok'] ? 'Connection test passed. ' : 'Connection test failed. ').$res['message']);
+    }
+
     public function rotate(ChannelConnection $chconn)
     {
         $chconn->rotateSecret();
         ActivityLogger::log('channels', 'rotate_secret', "Shared secret rotated for {$chconn->name}", $chconn);
 
         return back()->with('warning', 'New shared secret generated – update it at the channel now; messages signed with the old secret are refused.');
+    }
+
+    /** v7.39 Pull-mode sync — fetch new/changed/cancelled bookings from pull channels (Booking.com EPS). */
+    public function pull(ChannelConnection $chconn)
+    {
+        try {
+            $s = \App\Services\ChannelService::pull($chconn->fresh());
+        } catch (\Throwable $e) {
+            return redirect()->route('cm.connections.show', $chconn)->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('cm.connections.show', $chconn)->with($s['rejected'] ? 'warning' : 'success',
+            "Pull complete: {$s['pulled']} message(s) – {$s['applied']} applied"
+            .($s['duplicates'] ? ", {$s['duplicates']} duplicate(s)" : '')
+            .($s['rejected'] ? ", {$s['rejected']} rejected" : '')
+            .($s['reservations'] ? ' → '.implode(', ', $s['reservations']) : '').'.');
     }
 
     public function simulate(Request $request, ChannelConnection $chconn)
@@ -292,6 +322,7 @@ class ChannelConnectionController extends Controller
             'rooms' => 'exclude_if:event,cancel|required|integer|min:1|max:5',
             'adults' => 'exclude_if:event,cancel|required|integer|min:1|max:6',
             'first_name' => 'exclude_if:event,cancel|required|string|max:80', 'last_name' => 'nullable|string|max:80', 'email' => 'nullable|email|max:255',
+            'currency' => 'exclude_if:event,cancel|nullable|string|size:3|exists:currencies,code',   // v7.50 the currency the OTA quotes in
         ]);
         abort_unless($data['event'] === 'cancel' || $chconn->roomMaps()->whereKey($data['room_map_id'])->exists(), 404);
         foreach (['arrival', 'departure'] as $k) {

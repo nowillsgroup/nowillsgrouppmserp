@@ -49,4 +49,27 @@ class BankStatement extends Model
     {
         return $this->period_from->format('d M').' – '.$this->period_to->format('d M Y');
     }
+
+    /** The lines came from a file rather than being typed in. */
+    public function isImported(): bool
+    {
+        return $this->source !== 'manual';
+    }
+
+    /**
+     * v7.48 What to call the way the lines arrived. `source` holds the format the file was read as — csv, xlsx,
+     * mt940 or camt (see BankRecService::FILE_FORMATS) — so a statement keeps saying where it came from.
+     */
+    public function sourceLabel(): string
+    {
+        if (! $this->isImported()) {
+            return 'Entered by hand';
+        }
+        if ($this->source === 'csv') {
+            return $this->file_name ?: 'CSV';       // the everyday case reads exactly as it always has
+        }
+        $fmt = \App\Services\BankRecService::FILE_FORMATS[$this->source] ?? strtoupper((string) $this->source);
+
+        return trim(($this->file_name ?: 'Imported file').' — '.$fmt);
+    }
 }

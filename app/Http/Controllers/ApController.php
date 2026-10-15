@@ -36,7 +36,7 @@ class ApController extends Controller
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->status, fn ($q, $s) => $s === 'unpaid' ? $q->whereIn('status', ['open', 'partial']) : $q->where('status', $s))
-            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->where('due_date', '<', $asOf))
+            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('due_date', '<', $asOf))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('doc_no', 'like', "%{$s}%")->orWhere('supplier_ref', 'like', "%{$s}%")));
         $open = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial']);
 
@@ -45,8 +45,8 @@ class ApController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
             'kpi' => [
                 'outstanding' => (float) (clone $open)->sum('total') - (float) (clone $open)->sum('allocated'),
-                'overdue' => (float) (clone $open)->where('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
-                'due7' => (float) (clone $open)->whereBetween('due_date', [$asOf, Carbon::parse($asOf)->addDays(7)->toDateString()])->get()->sum(fn ($b) => $b->outstanding()),
+                'overdue' => (float) (clone $open)->whereDate('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
+                'due7' => (float) (clone $open)->whereDate('due_date', '>=', $asOf)->whereDate('due_date', '<=', Carbon::parse($asOf)->addDays(7)->toDateString())->get()->sum(fn ($b) => $b->outstanding()),
                 'hold' => SupplierInvoice::where('status', 'on_hold')->count(),
                 'unbilled' => ApService::unbilledReceipts(),
             ],
@@ -67,6 +67,11 @@ class ApController extends Controller
             'receipts' => ApService::unbilledReceipts()->filter(fn ($p) => $p->billable() && ! $p->bill()->exists()),
             'againstOptions' => $supplier ? SupplierInvoice::where('supplier_id', $supplier->id)->where('type', 'invoice')->whereIn('status', ['open', 'partial', 'paid'])->latest('doc_date')->get() : collect(),
             'tolerance' => $po ? ApService::tolerance($po->receivedValue() ?: (float) $po->total) : null,
+            // v7.53 the payables side of the forex board: which currencies can be billed in, and at what rate today
+            'home' => strtoupper(trim((string) (hotel()?->currency ?: 'GHS'))),
+            'fxOn' => \App\Services\ForexService::apConvert(),
+            'fxBoard' => \App\Services\ForexService::apBoard(),
+            'fxPolicy' => \App\Services\ForexService::apPolicy(),
         ]);
     }
 
@@ -83,6 +88,7 @@ class ApController extends Controller
             'tax' => 'nullable|numeric|min:0|max:99999999',
             'notes' => 'nullable|string|max:500',
             'budget_reason' => 'nullable|string|max:255',
+            'currency' => 'nullable|string|size:3',   // v7.53 the supplier's own currency; blank is the property's
             'lines' => 'required_unless:mode,goods|array|max:30',
             'lines.*.account_head_id' => 'nullable|owned:account_heads',
             'lines.*.description' => 'nullable|string|max:200',
@@ -95,6 +101,17 @@ class ApController extends Controller
             'expense' => ApService::expenseBill(Supplier::findOrFail($data['supplier_id']), $data),
             'debit_note' => ApService::debitNote(Supplier::findOrFail($data['supplier_id']), $data),
         }, function ($doc) {
+            if ($doc->isForeign()) {   // v7.53 say what the bill was booked at, and when the board was not today's
+                $r = redirect()->route('ap.bills.show', $doc)
+                    ->with($doc->fxStale() ? 'warning' : 'success', "{$doc->doc_no} saved: {$doc->fxLabel()} at "
+                        .number_format((float) $doc->fx_rate, 4)." {$doc->fx_basis}, board of {$doc->fx_date->format('d M Y')} = ".money($doc->total)
+                        .($doc->fxStale() ? '. The board for the invoice date had no rate, so the most recent one within the window was used.' : '.'));
+                if ($doc->status === 'on_hold') {
+                    $r->with('warning', "{$doc->doc_no} is ON HOLD: the invoice differs from the goods receipt by ".money($doc->variance()).'.');
+                }
+
+                return $r;
+            }
             $r = redirect()->route('ap.bills.show', $doc)->with($doc->status === 'on_hold' ? 'warning' : 'success',
                 $doc->status === 'on_hold' ? "{$doc->doc_no} saved but ON HOLD: the invoice differs from the goods receipt by ".money($doc->variance()).'. It needs approval before it can be paid.' : "{$doc->doc_no} saved.");
             if ($doc->status !== 'on_hold' && \App\Services\BudgetService::$lastWarnings) {
@@ -111,6 +128,7 @@ class ApController extends Controller
         $credits = collect();
         if (in_array($bill->status, ['open', 'partial'])) {
             $credits = SupplierPayment::where('supplier_id', $bill->supplier_id)->whereNull('cancelled_at')->whereColumn('allocated', '<', 'amount')->get()
+                ->filter(fn ($p) => $p->unapplied() > 0.004) // a foreign-exchange loss is not supplier credit
                 ->map(fn ($p) => ['key' => 'p'.$p->id, 'label' => "{$p->payment_no} · ".$p->date->format('d M').' · unapplied '.money($p->unapplied()), 'free' => $p->unapplied()])
                 ->merge(SupplierInvoice::where('supplier_id', $bill->supplier_id)->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->get()
                     ->map(fn ($d) => ['key' => 'd'.$d->id, 'label' => "{$d->doc_no} · debit note · unapplied ".money($d->outstanding()), 'free' => $d->outstanding()]));
@@ -156,11 +174,24 @@ class ApController extends Controller
     {
         $payments = SupplierPayment::with('supplier', 'paymentMode')
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
-            ->when($request->from, fn ($q, $d) => $q->where('date', '>=', $d))->when($request->to, fn ($q, $d) => $q->where('date', '<=', $d))
+            ->when($request->from, fn ($q, $d) => $q->whereDate('date', '>=', $d))->when($request->to, fn ($q, $d) => $q->whereDate('date', '<=', $d))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('payment_no', 'like', "%{$s}%")->orWhere('reference', 'like', "%{$s}%")))
             ->latest('date')->latest('id')->paginate(30)->withQueryString();
 
         return view('ap.payments', ['payments' => $payments, 'suppliers' => Supplier::orderBy('name')->get(['id', 'name'])]);
+    }
+
+    /** v7.54 the payment-date board quote for the live foreign-payment form. */
+    public function payFxRate(Request $request)
+    {
+        $d = $request->validate(['currency' => 'required|string|size:3', 'date' => 'required|date']);
+        $q = \App\Services\ForexService::apPayRate(strtoupper($d['currency']), $d['date']);
+
+        return response()->json(['enabled' => \App\Services\ForexService::apPay(),
+            'deal_allowed' => \App\Services\ForexService::apPayDeal(),
+            'rate' => $q['rate'] ?? null, 'basis' => $q['basis'] ?? null, 'date' => $q['date'] ?? null,
+            'stale' => (bool) ($q['stale'] ?? false), 'carried' => (bool) ($q['carried'] ?? false),
+            'board_rate' => $q['board']['rate'] ?? ($q['rate'] ?? null), 'board_date' => $q['board']['date'] ?? ($q['date'] ?? null)]);
     }
 
     public function payCreate(Request $request)
@@ -176,6 +207,11 @@ class ApController extends Controller
             'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'gift_voucher'])->orderBy('id')->get(),
             'preselect' => array_map('intval', (array) $request->input('bills', [])),
             'whtOn' => \App\Services\WhtService::enabled(), // v4.4
+            // v7.54 paying a foreign bill in the currency it was billed in
+            'fxOn' => \App\Services\ForexService::apPay(),
+            'fxDeal' => \App\Services\ForexService::apPayDeal(),
+            'fxPay' => $supplier ? ApService::payCurrencies($supplier) : [],
+            'fxPolicy' => \App\Services\ForexService::apPolicy(),
         ]);
     }
 
@@ -183,14 +219,30 @@ class ApController extends Controller
     {
         $d = $request->validate([
             'supplier_id' => 'required|owned:suppliers', 'date' => 'required|date', 'payment_mode_id' => 'required|owned:payment_modes',
-            'amount' => 'required|numeric|min:0.01|max:99999999', 'reference' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:300',
+            // v7.54 nullable, not required: a payment in the supplier's own currency derives its cedi amount from the
+            // foreign figure and the rate, and ApService::pay() still refuses a cedi payment with no amount on it
+            'amount' => 'nullable|numeric|min:0|max:99999999', 'reference' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:300',
             'alloc' => 'nullable|array', 'alloc.*' => 'nullable|numeric|min:0',
             'wht_skip' => 'nullable|boolean', 'wht_reason' => 'nullable|string|max:200',
+            'currency' => 'nullable|string|size:3',          // v7.54 blank is the property's own currency
+            'fx_amount' => 'nullable|numeric|min:0|max:99999999', 'fx_rate' => 'nullable|numeric|min:0.0001|max:9999', 'fx_deal' => 'nullable|boolean',
         ]);
 
         return $this->attempt(fn () => ApService::pay(Supplier::findOrFail($d['supplier_id']), $d, $d['alloc'] ?? []),
-            fn ($p) => redirect()->route('ap.payments.show', $p)->with('success', "Payment {$p->payment_no} recorded".($p->unapplied() > 0 ? ' – '.money($p->unapplied()).' held as supplier credit.' : '.')
-                .($p->withheld() > 0 ? ' '.money($p->withheld())." withheld for GRA (certificate {$p->wht_cert_no}); pay the supplier ".money($p->netPaid()).'.' : '')));
+            function ($p) {
+                if ($p->isForeign()) {   // v7.54 say what the bank took, at what rate, and what the move cost
+                    $diff = $p->fxDifference();
+
+                    return redirect()->route('ap.payments.show', $p)->with('success', "Payment {$p->payment_no} recorded: {$p->fxLabel()} at "
+                        .number_format((float) $p->fx_rate, 4).' ('.($p->fx_basis === 'deal' ? "the bank's deal rate" : $p->fx_basis.' board of '.$p->fx_date->format('d M Y')).') = '.money($p->amount)
+                        .', settling '.money($p->allocated).' of bills — '
+                        .($diff != 0.0 ? money(abs($diff)).' realised exchange '.($diff > 0 ? 'loss' : 'gain').' posted to Exchange Gain / Loss.' : 'no exchange difference.')
+                        .($p->withheld() > 0 ? ' '.money($p->withheld())." withheld for GRA (certificate {$p->wht_cert_no})." : ''));
+                }
+
+                return redirect()->route('ap.payments.show', $p)->with('success', "Payment {$p->payment_no} recorded".($p->unapplied() > 0 ? ' – '.money($p->unapplied()).' held as supplier credit.' : '.')
+                    .($p->withheld() > 0 ? ' '.money($p->withheld())." withheld for GRA (certificate {$p->wht_cert_no}); pay the supplier ".money($p->netPaid()).'.' : ''));
+            });
     }
 
     public function payShow(SupplierPayment $spay)
@@ -217,7 +269,8 @@ class ApController extends Controller
         $keys = ['current', 'd30', 'd60', 'd90', 'd90p', 'unbilled', 'credit', 'balance'];
         $tot = collect($keys)->mapWithKeys(fn ($k) => [$k => round($rows->sum($k), 2)])->all();
 
-        return view('ap.ageing', compact('rows', 'tot', 'asOf'));
+        return view('ap.ageing', compact('rows', 'tot', 'asOf'))
+            ->with('fx', ApService::fxExposure($asOf));   // v7.53 open foreign-currency bills at today's board
     }
 
     public function statement(Request $request, Supplier $supplier)

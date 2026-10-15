@@ -20,7 +20,7 @@ class AccountsController extends Controller
     {
         $from = $request->input('from', bdate()->copy()->startOfMonth()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
-        $vouchers = Voucher::with('head', 'paymentMode', 'supplier', 'user')->whereBetween('date', [$from, $to])
+        $vouchers = Voucher::with('head', 'paymentMode', 'supplier', 'user')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->head, fn ($q, $h) => $q->where('account_head_id', $h))
             ->latest('date')->latest('id')->get();
@@ -101,9 +101,9 @@ class AccountsController extends Controller
     public function cashBook(Request $request)
     {
         $date = $request->input('date', bdate()->toDateString());
-        $folioPay = FolioTransaction::with('folio.guest', 'paymentMode')->where('business_date', $date)->whereIn('type', ['payment', 'refund'])->where('category', '!=', 'city_ledger')->where('is_void', false)->get();
-        $pos = PosOrder::with('paymentMode', 'outlet')->where('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get();
-        $vouchers = Voucher::with('head', 'paymentMode')->where('date', $date)->get();
+        $folioPay = FolioTransaction::with('folio.guest', 'paymentMode')->whereDate('business_date', $date)->whereIn('type', ['payment', 'refund'])->where('category', '!=', 'city_ledger')->where('is_void', false)->get();
+        $pos = PosOrder::with('paymentMode', 'outlet')->whereDate('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get();
+        $vouchers = Voucher::with('head', 'paymentMode')->whereDate('date', $date)->get();
 
         $rows = collect()
             ->concat($folioPay->map(fn ($t) => ['src' => 'Front Office', 'ref' => $t->folio->folio_no, 'desc' => $t->description.' – '.($t->folio->guest?->full_name), 'mode' => $t->paymentMode?->name ?? '—', 'in' => $t->type === 'payment' ? (float) $t->amount : 0, 'out' => $t->type === 'refund' ? (float) $t->amount : 0]))
@@ -117,14 +117,14 @@ class AccountsController extends Controller
     {
         $from = $request->input('from', bdate()->copy()->startOfMonth()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
-        $tx = FolioTransaction::whereBetween('business_date', [$from, $to])->where('is_void', false)->get();
+        $tx = FolioTransaction::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('is_void', false)->get();
         $charges = $tx->where('type', 'charge');
         $income = collect(config('pms.charge_categories'))->map(fn ($label, $cat) => $charges->where('category', $cat)->sum('amount'))->filter();
         $income['discounts'] = -$tx->whereIn('type', ['discount', 'allowance'])->sum('amount');
-        $posDirect = PosOrder::whereBetween('business_date', [$from, $to])->where('status', 'settled')->where('settlement', 'payment')->get();
+        $posDirect = PosOrder::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('status', 'settled')->where('settlement', 'payment')->get();
         $income['pos_direct'] = $posDirect->sum(fn ($o) => $o->total - $o->tax);
-        $otherIncome = Voucher::with('head')->where('type', 'receipt')->whereNull('company_id')->whereBetween('date', [$from, $to])->get()->groupBy('head.name')->map->sum('amount');
-        $expenses = Voucher::with('head')->where('type', 'payment')->whereBetween('date', [$from, $to])->get()->groupBy('head.name')->map->sum('amount');
+        $otherIncome = Voucher::with('head')->where('type', 'receipt')->whereNull('company_id')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()->groupBy('head.name')->map->sum('amount');
+        $expenses = Voucher::with('head')->where('type', 'payment')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()->groupBy('head.name')->map->sum('amount');
         $totalIncome = $income->sum() + $otherIncome->sum();
 
         return view('accounts.pnl', compact('from', 'to', 'income', 'otherIncome', 'expenses', 'totalIncome') + ['taxCollected' => $charges->sum('tax_amount') + $posDirect->sum('tax')]);

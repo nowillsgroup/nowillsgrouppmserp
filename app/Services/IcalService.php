@@ -152,8 +152,10 @@ class IcalService
             throw new RuntimeException('Import URL must be an http(s) address.');
         }
         $ips = @gethostbynamel($p['host']) ?: (filter_var($p['host'], FILTER_VALIDATE_IP) ? [$p['host']] : []);
+        // Dev / private networks: Developer settings → allow private addresses, or PMS_CHANNEL_ALLOW_PRIVATE=1.
+        $allowPrivate = setting('api_allow_private', '0') === '1' || env('PMS_CHANNEL_ALLOW_PRIVATE');
         foreach ($ips as $ip) {
-            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            if (! $allowPrivate && ! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
                 throw new RuntimeException('Import URL points to a private/internal address.');
             }
         }

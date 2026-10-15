@@ -63,7 +63,7 @@ class BusinessDevController extends Controller
             'pipeline' => BD::pipeline(), 'partners' => BD::partnerTotals($ytdFrom, bdate()->copy()->endOfYear()),
             'mix' => BD::marketMix($ytdFrom, bdate()->copy(), 'nationality')->take(6), 'segments' => BD::marketMix($ytdFrom, bdate()->copy(), 'segment'),
             'awaiting' => BdInitiative::with('owner')->where('stage', 'business_case')->whereNotNull('submitted_at')->orderBy('submitted_at')->get(),
-            'milestones' => BdMilestone::with('initiative', 'owner')->whereNull('done_at')->where('due_date', '<=', bdate()->copy()->addDays(14)->toDateString())
+            'milestones' => BdMilestone::with('initiative', 'owner')->whereNull('done_at')->whereDate('due_date', '<=', bdate()->copy()->addDays(14)->toDateString())
                 ->whereHas('initiative', fn ($q) => $q->whereIn('stage', ['idea', 'assessment', 'business_case', 'approved', 'implementation']))->orderBy('due_date')->limit(8)->get(),
             'lastShop' => BD::lastShop(), 'competitorCount' => BdCompetitor::where('is_active', true)->count()]);
     }

@@ -1,0 +1,1226 @@
+{
+    "pages": [
+        {
+            "module": "Front Office",
+            "label": "Room View",
+            "route": "frontdesk.rooms",
+            "perm": "frontdesk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Tape Chart",
+            "route": "frontdesk.tapechart",
+            "perm": "frontdesk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Walk-in Check-in",
+            "route": "frontdesk.walkin",
+            "perm": "frontdesk.checkin",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Arrivals",
+            "route": "frontdesk.arrivals",
+            "perm": "frontdesk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "In-House Guests",
+            "route": "frontdesk.inhouse",
+            "perm": "frontdesk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Departures",
+            "route": "frontdesk.departures",
+            "perm": "frontdesk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Guest Requests",
+            "route": "requests.index",
+            "perm": "requests.view",
+            "badge": "guest_requests",
+            "params": null
+        },
+        {
+            "module": "Front Office",
+            "label": "Offline Request Capture",
+            "route": "offline.guest_requests",
+            "perm": "requests.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Shift Log Book",
+            "route": "desk.logbook",
+            "perm": "logbook.view",
+            "badge": "desk_log",
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Shift Hand-over",
+            "route": "desk.handover",
+            "perm": "logbook.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Wake-up Calls",
+            "route": "desk.wakeups",
+            "perm": "desk.wakeup",
+            "badge": "desk_wakeups",
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Messages & Parcels",
+            "route": "desk.messages",
+            "perm": "desk.messages",
+            "badge": "desk_messages",
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Traces",
+            "route": "desk.traces",
+            "perm": "desk.traces",
+            "badge": "desk_traces",
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Lost & Found",
+            "route": "lostfound.index",
+            "perm": "lostfound.manage",
+            "badge": "desk_lf",
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "Desk Settings",
+            "route": "desk.settings",
+            "perm": "logbook.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Reservation Workspace",
+            "route": "reservations.workspace",
+            "perm": "reservations.view",
+            "badge": "ws_arrivals",
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "New Reservation",
+            "route": "reservations.create",
+            "perm": "reservations.create",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Reservation List",
+            "route": "reservations.index",
+            "perm": "reservations.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Availability",
+            "route": "reservations.availability",
+            "perm": "reservations.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Group Blocks",
+            "route": "blocks.index",
+            "perm": "reservations.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Rate Calendar",
+            "route": "rates.index",
+            "perm": "reservations.rates",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "Channel Manager",
+            "route": "cm.index",
+            "perm": "channels.view",
+            "badge": "channel_attention",
+            "params": null
+        },
+        {
+            "module": "Reservations",
+            "label": "iCal Feeds",
+            "route": "channels.index",
+            "perm": "channels.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "CRO Desk",
+            "route": "cro.index",
+            "perm": "cro.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "Enquiries",
+            "route": "cro.enquiries",
+            "perm": "cro.view",
+            "badge": "cro_attention",
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "Guest Lookup",
+            "route": "cro.guests",
+            "perm": "cro.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "Lost Business",
+            "route": "cro.lost",
+            "perm": "cro.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "CRO Performance",
+            "route": "cro.performance",
+            "perm": "cro.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Central Reservations",
+            "label": "CRO Settings",
+            "route": "cro.settings",
+            "perm": "cro.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Concierge Desk",
+            "route": "concierge.index",
+            "perm": "concierge.view",
+            "badge": "concierge_attention",
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Activity Bookings",
+            "route": "concierge.bookings",
+            "perm": "concierge.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Activities & Vendors",
+            "route": "concierge.catalogue",
+            "perm": "concierge.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Local Guide",
+            "route": "concierge.guide",
+            "perm": "concierge.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Vendor Settlements",
+            "route": "concierge.settlements",
+            "perm": "concierge.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Concierge",
+            "label": "Concierge Settings",
+            "route": "concierge.settings",
+            "perm": "concierge.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Inbox",
+            "route": "inbox.index",
+            "perm": "inbox.view",
+            "badge": "inbox_attention",
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Messaging Dashboard",
+            "route": "inbox.dashboard",
+            "perm": "inbox.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Broadcasts",
+            "route": "inbox.broadcasts",
+            "perm": "inbox.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Quick Replies",
+            "route": "inbox.replies",
+            "perm": "inbox.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Routing Rules",
+            "route": "inbox.rules",
+            "perm": "inbox.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Guest Messaging",
+            "label": "Messaging Settings",
+            "route": "inbox.settings",
+            "perm": "inbox.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Self-Service Kiosk",
+            "label": "Kiosk Dashboard",
+            "route": "kiosks.index",
+            "perm": "kiosk.view",
+            "badge": "kiosk_attention",
+            "params": null
+        },
+        {
+            "module": "Self-Service Kiosk",
+            "label": "Kiosks",
+            "route": "kiosks.devices",
+            "perm": "kiosk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Self-Service Kiosk",
+            "label": "Guest Visits",
+            "route": "kiosks.sessions",
+            "perm": "kiosk.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Self-Service Kiosk",
+            "label": "Kiosk Settings",
+            "route": "kiosks.settings",
+            "perm": "kiosk.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "TV Dashboard",
+            "route": "iptv.index",
+            "perm": "iptv.view",
+            "badge": "iptv_attention",
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "TVs & Screens",
+            "route": "iptv.devices",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "Channels & Guide",
+            "route": "iptv.channels",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "Movies & Rentals",
+            "route": "iptv.movies",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "Welcome Screens",
+            "route": "iptv.welcome",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "Information Pages",
+            "route": "iptv.pages",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "TV Messages",
+            "route": "iptv.messages",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "Usage Analytics",
+            "route": "iptv.analytics",
+            "perm": "iptv.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "IPTV & Guest Welcome",
+            "label": "IPTV Settings",
+            "route": "iptv.settings",
+            "perm": "iptv.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Form C (FRRO)",
+            "route": "fg.formc",
+            "perm": "formc.view",
+            "badge": "formc_attention",
+            "params": null
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Currency Exchange",
+            "route": "fg.fx",
+            "perm": "forex.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Exchange Rates",
+            "route": "fg.rates",
+            "perm": "forex.view",
+            "badge": "fx_rates",
+            "params": null
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Currency Position",
+            "route": "fg.position",
+            "perm": "forex.view",
+            "badge": "fx_surrender",
+            "params": null
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Currencies",
+            "route": "masters.index",
+            "perm": "forex.manage",
+            "badge": null,
+            "params": [
+                "currencies"
+            ]
+        },
+        {
+            "module": "Foreign Guests",
+            "label": "Foreign Guest Settings",
+            "route": "fg.settings",
+            "perm": "formc.manage",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Interfaces",
+            "label": "Call Accounting",
+            "route": "calls.index",
+            "perm": "calls.view",
+            "badge": "calls_pending",
+            "params": null
+        },
+        {
+            "module": "Interfaces",
+            "label": "Key Cards",
+            "route": "keys.index",
+            "perm": "keys.view",
+            "badge": "keys_overdue",
+            "params": null
+        },
+        {
+            "module": "Interfaces",
+            "label": "Interface Hub",
+            "route": "interfaces.index",
+            "perm": "interfaces.manage",
+            "badge": null,
+            "params": null
+        }
+    ],
+    "perm_registry_size": 351,
+    "perm_missing": [
+        "frontdesk.view (Room View)",
+        "frontdesk.view (Tape Chart)",
+        "frontdesk.checkin (Walk-in Check-in)",
+        "frontdesk.view (Arrivals)",
+        "frontdesk.view (In-House Guests)",
+        "frontdesk.view (Departures)",
+        "requests.view (Guest Requests)",
+        "requests.view (Offline Request Capture)",
+        "logbook.view (Shift Log Book)",
+        "logbook.view (Shift Hand-over)",
+        "desk.wakeup (Wake-up Calls)",
+        "desk.messages (Messages & Parcels)",
+        "desk.traces (Traces)",
+        "lostfound.manage (Lost & Found)",
+        "logbook.manage (Desk Settings)",
+        "reservations.view (Reservation Workspace)",
+        "reservations.create (New Reservation)",
+        "reservations.view (Reservation List)",
+        "reservations.view (Availability)",
+        "reservations.view (Group Blocks)",
+        "reservations.rates (Rate Calendar)",
+        "channels.view (Channel Manager)",
+        "channels.manage (iCal Feeds)",
+        "cro.view (CRO Desk)",
+        "cro.view (Enquiries)",
+        "cro.view (Guest Lookup)",
+        "cro.view (Lost Business)",
+        "cro.view (CRO Performance)",
+        "cro.manage (CRO Settings)",
+        "concierge.view (Concierge Desk)",
+        "concierge.view (Activity Bookings)",
+        "concierge.view (Activities & Vendors)",
+        "concierge.view (Local Guide)",
+        "concierge.view (Vendor Settlements)",
+        "concierge.manage (Concierge Settings)",
+        "inbox.view (Inbox)",
+        "inbox.view (Messaging Dashboard)",
+        "inbox.view (Broadcasts)",
+        "inbox.manage (Quick Replies)",
+        "inbox.manage (Routing Rules)",
+        "inbox.manage (Messaging Settings)",
+        "kiosk.view (Kiosk Dashboard)",
+        "kiosk.view (Kiosks)",
+        "kiosk.view (Guest Visits)",
+        "kiosk.manage (Kiosk Settings)",
+        "iptv.view (TV Dashboard)",
+        "iptv.view (TVs & Screens)",
+        "iptv.view (Channels & Guide)",
+        "iptv.view (Movies & Rentals)",
+        "iptv.view (Welcome Screens)",
+        "iptv.view (Information Pages)",
+        "iptv.view (TV Messages)",
+        "iptv.view (Usage Analytics)",
+        "iptv.manage (IPTV Settings)",
+        "formc.view (Form C (FRRO))",
+        "forex.view (Currency Exchange)",
+        "forex.view (Exchange Rates)",
+        "forex.view (Currency Position)",
+        "forex.manage (Currencies)",
+        "formc.manage (Foreign Guest Settings)",
+        "calls.view (Call Accounting)",
+        "keys.view (Key Cards)",
+        "interfaces.manage (Interface Hub)"
+    ],
+    "badge_missing": [],
+    "model_rows": {
+        "BusinessSource": {
+            "module": "Front Office",
+            "table": "business_sources",
+            "rows": 13,
+            "rows_hotel_1": 13
+        },
+        "Company": {
+            "module": "Front Office",
+            "table": "companies",
+            "rows": 17,
+            "rows_hotel_1": 17
+        },
+        "Floor": {
+            "module": "Front Office",
+            "table": "floors",
+            "rows": 4,
+            "rows_hotel_1": 4
+        },
+        "FormCRecord": {
+            "module": "Front Office",
+            "table": "form_c_records",
+            "rows": 57,
+            "rows_hotel_1": 57
+        },
+        "Guest": {
+            "module": "Front Office",
+            "table": "guests",
+            "rows": 121,
+            "rows_hotel_1": 121
+        },
+        "GuestDocument": {
+            "module": "Front Office",
+            "table": "guest_documents",
+            "rows": 29,
+            "rows_hotel_1": 29
+        },
+        "GuestRequest": {
+            "module": "Front Office",
+            "table": "guest_requests",
+            "rows": 12,
+            "rows_hotel_1": 12
+        },
+        "LostFoundItem": {
+            "module": "Front Office",
+            "table": "lost_found_items",
+            "rows": 7,
+            "rows_hotel_1": 7
+        },
+        "PaymentMode": {
+            "module": "Front Office",
+            "table": "payment_modes",
+            "rows": 9,
+            "rows_hotel_1": 9
+        },
+        "PosOrder": {
+            "module": "Front Office",
+            "table": "pos_orders",
+            "rows": 481,
+            "rows_hotel_1": 481
+        },
+        "RatePlan": {
+            "module": "Front Office",
+            "table": "rate_plans",
+            "rows": 12,
+            "rows_hotel_1": 12
+        },
+        "Reservation": {
+            "module": "Front Office",
+            "table": "reservations",
+            "rows": 201,
+            "rows_hotel_1": 201
+        },
+        "ReservationRoom": {
+            "module": "Front Office",
+            "table": "reservation_rooms",
+            "rows": 210,
+            "rows_hotel_1": 210
+        },
+        "Room": {
+            "module": "Front Office",
+            "table": "rooms",
+            "rows": 24,
+            "rows_hotel_1": 24
+        },
+        "RoomType": {
+            "module": "Front Office",
+            "table": "room_types",
+            "rows": 4,
+            "rows_hotel_1": 4
+        },
+        "UpsellOrder": {
+            "module": "Front Office",
+            "table": "upsell_orders",
+            "rows": 29,
+            "rows_hotel_1": 29
+        },
+        "User": {
+            "module": "Front Office",
+            "table": "users",
+            "rows": 29,
+            "rows_hotel_1": 28
+        },
+        "WakeupCall": {
+            "module": "Front Office",
+            "table": "wakeup_calls",
+            "rows": 7,
+            "rows_hotel_1": 7
+        },
+        "GuestMessage": {
+            "module": "Desk Operations",
+            "table": "guest_messages",
+            "rows": 5,
+            "rows_hotel_1": 5
+        },
+        "LogEntry": {
+            "module": "Desk Operations",
+            "table": "log_entries",
+            "rows": 13,
+            "rows_hotel_1": 13
+        },
+        "LostReport": {
+            "module": "Desk Operations",
+            "table": "lost_reports",
+            "rows": 2,
+            "rows_hotel_1": 2
+        },
+        "Trace": {
+            "module": "Desk Operations",
+            "table": "traces",
+            "rows": 5,
+            "rows_hotel_1": 5
+        },
+        "ChannelConnection": {
+            "module": "Reservations",
+            "table": "channel_connections",
+            "rows": 4,
+            "rows_hotel_1": 4
+        },
+        "ChannelMessage": {
+            "module": "Reservations",
+            "table": "channel_messages",
+            "rows": 10,
+            "rows_hotel_1": 10
+        },
+        "ChannelPush": {
+            "module": "Reservations",
+            "table": "channel_pushes",
+            "rows": 6,
+            "rows_hotel_1": 6
+        },
+        "ChannelRateMap": {
+            "module": "Reservations",
+            "table": "channel_rate_maps",
+            "rows": 18,
+            "rows_hotel_1": 18
+        },
+        "ChannelRestriction": {
+            "module": "Reservations",
+            "table": "channel_restrictions",
+            "rows": 2,
+            "rows_hotel_1": 2
+        },
+        "ChannelRoomMap": {
+            "module": "Reservations",
+            "table": "channel_room_maps",
+            "rows": 9,
+            "rows_hotel_1": 9
+        },
+        "EmailLog": {
+            "module": "Reservations",
+            "table": "email_logs",
+            "rows": 127,
+            "rows_hotel_1": 127
+        },
+        "Folio": {
+            "module": "Reservations",
+            "table": "folios",
+            "rows": 161,
+            "rows_hotel_1": 161
+        },
+        "Hotel": {
+            "module": "Reservations",
+            "table": "hotels",
+            "rows": 2
+        },
+        "MessageLog": {
+            "module": "Reservations",
+            "table": "message_logs",
+            "rows": 65,
+            "rows_hotel_1": 65
+        },
+        "OnlinePayment": {
+            "module": "Reservations",
+            "table": "online_payments",
+            "rows": 10,
+            "rows_hotel_1": 10
+        },
+        "OtaChannel": {
+            "module": "Reservations",
+            "table": "ota_channels",
+            "rows": 2,
+            "rows_hotel_1": 2
+        },
+        "RateContract": {
+            "module": "Reservations",
+            "table": "rate_contracts",
+            "rows": 4,
+            "rows_hotel_1": 4
+        },
+        "RateOverride": {
+            "module": "Reservations",
+            "table": "rate_overrides",
+            "rows": 14,
+            "rows_hotel_1": 14
+        },
+        "ReservationDeskView": {
+            "module": "Reservations",
+            "table": "reservation_desk_views",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "ReservationWaitlist": {
+            "module": "Reservations",
+            "table": "reservation_waitlists",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "RoomAmenity": {
+            "module": "Reservations",
+            "table": "room_amenities",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "RoomAmenityLink": {
+            "module": "Reservations",
+            "table": "room_amenity_links",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "RoomBlock": {
+            "module": "Reservations",
+            "table": "room_blocks",
+            "rows": 2,
+            "rows_hotel_1": 2
+        },
+        "RoomImage": {
+            "module": "Reservations",
+            "table": "room_images",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "RoomOutage": {
+            "module": "Reservations",
+            "table": "room_outages",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "Setting": {
+            "module": "Reservations",
+            "table": "settings",
+            "rows": 485,
+            "rows_hotel_1": 485
+        },
+        "TransportTrip": {
+            "module": "Reservations",
+            "table": "transport_trips",
+            "rows": 37,
+            "rows_hotel_1": 37
+        },
+        "BdCompetitor": {
+            "module": "Central Reservations",
+            "table": "bd_competitors",
+            "rows": 7,
+            "rows_hotel_1": 7
+        },
+        "CroEnquiry": {
+            "module": "Central Reservations",
+            "table": "cro_enquiries",
+            "rows": 28,
+            "rows_hotel_1": 28
+        },
+        "Activity": {
+            "module": "Concierge",
+            "table": "activities",
+            "rows": 7,
+            "rows_hotel_1": 7
+        },
+        "ActivityBooking": {
+            "module": "Concierge",
+            "table": "activity_bookings",
+            "rows": 21,
+            "rows_hotel_1": 21
+        },
+        "ActivityDeparture": {
+            "module": "Concierge",
+            "table": "activity_departures",
+            "rows": 14,
+            "rows_hotel_1": 14
+        },
+        "ActivityLog": {
+            "module": "Concierge",
+            "table": "activity_logs",
+            "rows": 2385,
+            "rows_hotel_1": 2385
+        },
+        "ActivitySettlement": {
+            "module": "Concierge",
+            "table": "activity_settlements",
+            "rows": 1,
+            "rows_hotel_1": 1
+        },
+        "ActivityVendor": {
+            "module": "Concierge",
+            "table": "activity_vendors",
+            "rows": 5,
+            "rows_hotel_1": 5
+        },
+        "ConciergePlace": {
+            "module": "Concierge",
+            "table": "concierge_places",
+            "rows": 12,
+            "rows_hotel_1": 12
+        },
+        "Conversation": {
+            "module": "Guest Messaging",
+            "table": "conversations",
+            "rows": 15,
+            "rows_hotel_1": 15
+        },
+        "ConversationMessage": {
+            "module": "Guest Messaging",
+            "table": "conversation_messages",
+            "rows": 48,
+            "rows_hotel_1": 48
+        },
+        "InboxBroadcast": {
+            "module": "Guest Messaging",
+            "table": "inbox_broadcasts",
+            "rows": 1,
+            "rows_hotel_1": 1
+        },
+        "InboxQuickReply": {
+            "module": "Guest Messaging",
+            "table": "inbox_quick_replies",
+            "rows": 8,
+            "rows_hotel_1": 8
+        },
+        "InboxRule": {
+            "module": "Guest Messaging",
+            "table": "inbox_rules",
+            "rows": 6,
+            "rows_hotel_1": 6
+        },
+        "Kiosk": {
+            "module": "Self-Service Kiosk",
+            "table": "kiosks",
+            "rows": 3,
+            "rows_hotel_1": 3
+        },
+        "KioskSession": {
+            "module": "Self-Service Kiosk",
+            "table": "kiosk_sessions",
+            "rows": 63,
+            "rows_hotel_1": 63
+        },
+        "TvChannel": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_channels",
+            "rows": 32,
+            "rows_hotel_1": 32
+        },
+        "TvCommand": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_commands",
+            "rows": 3,
+            "rows_hotel_1": 3
+        },
+        "TvDevice": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_devices",
+            "rows": 28,
+            "rows_hotel_1": 28
+        },
+        "TvEvent": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_events",
+            "rows": 728,
+            "rows_hotel_1": 728
+        },
+        "TvMessage": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_messages",
+            "rows": 9,
+            "rows_hotel_1": 9
+        },
+        "TvMovie": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_movies",
+            "rows": 12,
+            "rows_hotel_1": 12
+        },
+        "TvPage": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_pages",
+            "rows": 8,
+            "rows_hotel_1": 8
+        },
+        "TvPurchase": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_purchases",
+            "rows": 6,
+            "rows_hotel_1": 6
+        },
+        "TvSession": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_sessions",
+            "rows": 47,
+            "rows_hotel_1": 47
+        },
+        "TvWelcomeTemplate": {
+            "module": "IPTV & Guest Welcome",
+            "table": "tv_welcome_templates",
+            "rows": 8,
+            "rows_hotel_1": 8
+        },
+        "Currency": {
+            "module": "Foreign Guests",
+            "table": "currencies",
+            "rows": 12,
+            "rows_hotel_1": 12
+        },
+        "ForexExchange": {
+            "module": "Foreign Guests",
+            "table": "forex_exchanges",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "ForexRate": {
+            "module": "Foreign Guests",
+            "table": "forex_rates",
+            "rows": 168,
+            "rows_hotel_1": 168
+        },
+        "ForexSurrender": {
+            "module": "Foreign Guests",
+            "table": "forex_surrenders",
+            "rows": 0,
+            "rows_hotel_1": 0
+        },
+        "CallRecord": {
+            "module": "Interfaces",
+            "table": "call_records",
+            "rows": 20,
+            "rows_hotel_1": 20
+        },
+        "CallTariff": {
+            "module": "Interfaces",
+            "table": "call_tariffs",
+            "rows": 10,
+            "rows_hotel_1": 10
+        },
+        "InterfaceCommand": {
+            "module": "Interfaces",
+            "table": "interface_commands",
+            "rows": 15,
+            "rows_hotel_1": 15
+        },
+        "KeyCard": {
+            "module": "Interfaces",
+            "table": "key_cards",
+            "rows": 16,
+            "rows_hotel_1": 16
+        },
+        "KeyLoan": {
+            "module": "Interfaces",
+            "table": "key_loans",
+            "rows": 5,
+            "rows_hotel_1": 5
+        },
+        "MasterKey": {
+            "module": "Interfaces",
+            "table": "master_keys",
+            "rows": 7,
+            "rows_hotel_1": 7
+        },
+        "PhoneExtension": {
+            "module": "Interfaces",
+            "table": "phone_extensions",
+            "rows": 31,
+            "rows_hotel_1": 31
+        }
+    },
+    "roles": {
+        "Accountant": {
+            "perms": 98,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Administrator": {
+            "perms": 279,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Banquet Manager": {
+            "perms": 25,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Business Development Manager": {
+            "perms": 17,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Chief Engineer": {
+            "perms": 38,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Cost Controller": {
+            "perms": 10,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Digital Marketing Executive": {
+            "perms": 9,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Driver": {
+            "perms": 3,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "F&B Manager": {
+            "perms": 56,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Front Office Manager": {
+            "perms": 165,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "HR Manager": {
+            "perms": 27,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Health & Safety Officer": {
+            "perms": 17,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Housekeeping Supervisor": {
+            "perms": 45,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Kitchen / Chef": {
+            "perms": 28,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Laundry Attendant": {
+            "perms": 9,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Owner's Representative": {
+            "perms": 6,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Quality Manager": {
+            "perms": 16,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Receptionist": {
+            "perms": 75,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Reservations Agent (CRO)": {
+            "perms": 14,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Restaurant Cashier": {
+            "perms": 23,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Room Attendant": {
+            "perms": 3,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Sales & Marketing": {
+            "perms": 44,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Security Officer": {
+            "perms": 19,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Spa Desk / Therapist": {
+            "perms": 14,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Store Keeper": {
+            "perms": 14,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Sustainability Manager": {
+            "perms": 13,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Transport Desk / Concierge": {
+            "perms": 25,
+            "fo_perms": 0,
+            "fo_total": 31
+        },
+        "Valet / Parking Attendant": {
+            "perms": 4,
+            "fo_perms": 0,
+            "fo_total": 31
+        }
+    },
+    "commands": [
+        "channel:list",
+        "key:generate",
+        "make:channel",
+        "make:interface",
+        "make:request",
+        "pms:channel-push",
+        "pms:cro-expire",
+        "pms:frontdesk-run",
+        "pms:ical-sync",
+        "pms:interfaces",
+        "pms:pre-arrival"
+    ],
+    "business_date": "2026-10-13"
+}

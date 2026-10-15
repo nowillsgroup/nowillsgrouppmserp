@@ -25,8 +25,8 @@ class RateController extends Controller
         return view('rates.index', [
             'from' => $from, 'days' => $days, 'types' => $types,
             'grid' => RateService::calendar($types, $from, $days),
-            'overrides' => RateOverride::with('roomType', 'creator')->where('source', '!=', 'rm')->where('date_to', '>=', bdate()->toDateString())->orderBy('date_from')->get(),
-            'rmCount' => RateOverride::where('source', 'rm')->where('date_to', '>=', bdate()->toDateString())->count(),
+            'overrides' => RateOverride::with('roomType', 'creator')->where('source', '!=', 'rm')->whereDate('date_to', '>=', bdate()->toDateString())->orderBy('date_from')->get(),
+            'rmCount' => RateOverride::where('source', 'rm')->whereDate('date_to', '>=', bdate()->toDateString())->count(),
             'rmMode' => \App\Services\RevenueService::mode(),
         ]);
     }

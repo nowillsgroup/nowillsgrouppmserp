@@ -226,7 +226,7 @@ class InboxService
         $today = bdate()->toDateString();
 
         return ReservationRoom::where($mine)->where('status', 'checked_in')->orderByDesc('checked_in_at')->first()
-            ?? ReservationRoom::where($mine)->where('status', 'reserved')->whereBetween('arrival_date', [$today, bdate()->copy()->addDays(14)->toDateString()])
+            ?? ReservationRoom::where($mine)->where('status', 'reserved')->whereDate('arrival_date', '>=', $today)->whereDate('arrival_date', '<=', bdate()->copy()->addDays(14)->toDateString())
                 ->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative']))->orderBy('arrival_date')->first()
             ?? ReservationRoom::where($mine)->where('status', 'checked_out')->where('checked_out_at', '>=', now()->subDays(3))->orderByDesc('checked_out_at')->first();
     }
@@ -669,8 +669,8 @@ class InboxService
         $today = bdate()->toDateString();
         $q = ReservationRoom::with('guest', 'reservation.guest', 'room');
         match ($audience) {
-            'arrivals' => $q->where('status', 'reserved')->where('arrival_date', $today)->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative'])),
-            'departures' => $q->where('status', 'checked_in')->where('departure_date', $today),
+            'arrivals' => $q->where('status', 'reserved')->whereDate('arrival_date', $today)->whereHas('reservation', fn ($r) => $r->whereIn('status', ['confirmed', 'tentative'])),
+            'departures' => $q->where('status', 'checked_in')->whereDate('departure_date', $today),
             'floor' => $q->where('status', 'checked_in')->whereHas('room', fn ($r) => $r->where('floor_id', $floorId ?: 0)),
             default => $q->where('status', 'checked_in'),
         };

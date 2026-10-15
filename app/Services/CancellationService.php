@@ -97,7 +97,11 @@ class CancellationService
             }
         });
 
-        return [$effective, $fee, $quote];
+        // v7.42 the two-way loop: a booking that came from a channel is cancelled there too. Post-commit, and never
+        // fatal — ChannelService::cancelAtChannel() reports a refusal instead of rolling the cancellation back.
+        $channel = $r->refresh()->channel_connection_id ? ChannelService::cancelAtChannel($r) : null;
+
+        return [$effective, $fee, $quote, $channel];
     }
 
     /** Post the retention charge on the reservation's advance (standalone) folio. */

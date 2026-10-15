@@ -28,7 +28,7 @@ class RateService
     protected static function overrides(array $typeIds, Carbon $from, Carbon $to, bool $withRm = true): Collection
     {
         return RateOverride::whereIn('room_type_id', $typeIds)->when(! $withRm, fn ($q) => $q->where('source', '!=', 'rm'))
-            ->where('date_from', '<', $to->toDateString())->where('date_to', '>=', $from->toDateString())
+            ->whereDate('date_from', '<', $to->toDateString())->whereDate('date_to', '>=', $from->toDateString())
             ->orderByDesc('id')->get();
     }
 

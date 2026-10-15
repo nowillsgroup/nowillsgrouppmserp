@@ -112,7 +112,7 @@ class TransportController extends Controller
     protected function formData(): array
     {
         $stays = ReservationRoom::with('room', 'reservation.guest', 'guest')->where(fn ($q) => $q->where('status', 'checked_in')
-            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereBetween('arrival_date', [bdate()->toDateString(), bdate()->copy()->addDays(30)->toDateString()])))
+            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '>=', bdate()->toDateString())->whereDate('arrival_date', '<=', bdate()->copy()->addDays(30)->toDateString())))
             ->orderByRaw("CASE status WHEN 'checked_in' THEN 0 ELSE 1 END")->orderBy('arrival_date')->limit(300)->get();
 
         return [
@@ -415,7 +415,7 @@ class TransportController extends Controller
         $month = now()->startOfMonth();
         $vehicles = Vehicle::with('asset')->orderByDesc('is_active')->orderBy('code')->get();
         $tripStats = TransportTrip::where('status', 'completed')->where('scheduled_at', '>=', $month)->whereNotNull('vehicle_id')
-            ->selectRaw('vehicle_id, COUNT(*) n, SUM(GREATEST(COALESCE(odo_end,0) - COALESCE(odo_start,0), 0)) km, SUM(CASE WHEN billing <> \'complimentary\' THEN total ELSE 0 END) rev')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
+            ->selectRaw('vehicle_id, COUNT(*) n, SUM(CASE WHEN COALESCE(odo_end,0) > COALESCE(odo_start,0) THEN COALESCE(odo_end,0) - COALESCE(odo_start,0) ELSE 0 END) km, SUM(CASE WHEN billing <> \'complimentary\' THEN total ELSE 0 END) rev')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
         $cost = VehicleExpense::where('date', '>=', $month->toDateString())->selectRaw('vehicle_id, SUM(amount) amt, SUM(COALESCE(litres,0)) l')->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
         $drivers = Driver::with('user', 'employee')->orderByDesc('is_active')->orderBy('name')->get();
         $today = TransportTrip::whereDate('scheduled_at', now()->toDateString())->whereNotIn('status', ['cancelled'])->whereNotNull('driver_id')->selectRaw('driver_id, COUNT(*) n')->groupBy('driver_id')->pluck('n', 'driver_id');
@@ -428,7 +428,7 @@ class TransportController extends Controller
     public function expenses(Request $request)
     {
         $month = Carbon::parse(($request->input('month') ?: now()->format('Y-m')).'-01')->startOfMonth();
-        $q = VehicleExpense::with('vehicle', 'driver', 'creator')->whereBetween('date', [$month->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+        $q = VehicleExpense::with('vehicle', 'driver', 'creator')->whereDate('date', '>=', $month->toDateString())->whereDate('date', '<=', $month->copy()->endOfMonth()->toDateString())
             ->when($request->vehicle, fn ($q, $v) => $q->where('vehicle_id', $v))->when($request->kind, fn ($q, $k) => $q->where('kind', $k));
         $rows = (clone $q)->orderByDesc('date')->orderByDesc('id')->get();
 

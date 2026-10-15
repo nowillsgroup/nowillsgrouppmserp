@@ -538,7 +538,7 @@ class FeedbackService
     {
         $fb = GuestFeedback::whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->get(['id', 'nps', 'rating_overall', 'rating_room', 'rating_service', 'rating_food', 'rating_cleanliness', 'sentiment', 'aspects', 'source', 'created_at']);
         $inv = SurveyInvitation::whereBetween('sent_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])->selectRaw("count(*) n, sum(status = 'completed') c")->first();
-        $rev = OnlineReview::whereBetween('review_date', [$from->toDateString(), $to->toDateString()])->get(['id', 'source', 'rating5', 'status', 'sentiment', 'aspects', 'created_at', 'review_date', 'posted_at']);
+        $rev = OnlineReview::whereDate('review_date', '>=', $from->toDateString())->whereDate('review_date', '<=', $to->toDateString())->get(['id', 'source', 'rating5', 'status', 'sentiment', 'aspects', 'created_at', 'review_date', 'posted_at']);
         $answerable = $rev->where('status', '!=', 'ignored');
 
         return [
@@ -604,7 +604,7 @@ class FeedbackService
         $m = bdate()->copy()->startOfMonth()->subMonths($months - 1);
         for ($i = 0; $i < $months; $i++, $m->addMonth()) {
             $fb = GuestFeedback::whereBetween('created_at', [$m->copy()->startOfMonth(), $m->copy()->endOfMonth()])->get(['nps', 'rating_overall']);
-            $rv = OnlineReview::whereBetween('review_date', [$m->copy()->startOfMonth()->toDateString(), $m->copy()->endOfMonth()->toDateString()])->avg('rating5');
+            $rv = OnlineReview::whereDate('review_date', '>=', $m->copy()->startOfMonth()->toDateString())->whereDate('review_date', '<=', $m->copy()->endOfMonth()->toDateString())->avg('rating5');
             $out[$m->format('Y-m')] = ['label' => $m->format('M'), 'responses' => $fb->count(), 'nps' => self::npsOf($fb)['nps'],
                 'csat' => $fb->count() ? round($fb->avg('rating_overall'), 2) : null, 'reviews' => $rv !== null ? round((float) $rv, 2) : null];
         }

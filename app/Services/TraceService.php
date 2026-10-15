@@ -70,7 +70,7 @@ class TraceService
     {
         $next = $closing->copy()->addDay()->toDateString();
         $n = 0;
-        Trace::where('status', 'open')->where('trace_date', '<=', $closing->toDateString())->get()->each(function (Trace $t) use ($next, &$n) {
+        Trace::where('status', 'open')->whereDate('trace_date', '<=', $closing->toDateString())->get()->each(function (Trace $t) use ($next, &$n) {
             $t->forceFill(['carried_from' => $t->carried_from ?? $t->trace_date, 'trace_date' => $next])->save();
             $n++;
         });

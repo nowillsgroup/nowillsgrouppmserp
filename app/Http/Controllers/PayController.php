@@ -86,7 +86,7 @@ class PayController extends Controller
     /** Server-to-server notification from the gateway (no session, no CSRF, signature-verified). */
     public function webhook(Request $request, string $provider, string $code)
     {
-        abort_unless(in_array($provider, ['paystack', 'stripe', 'razorpay']), 404);
+        abort_unless(in_array($provider, ['paystack', 'stripe', 'razorpay', 'momo']), 404);
         $hotel = Hotel::where('code', strtoupper($code))->where('is_active', true)->first();
         abort_unless($hotel, 404);
         Tenant::set($hotel);

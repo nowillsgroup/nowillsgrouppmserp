@@ -345,7 +345,7 @@ class GuestPortalController extends Controller
         $CS = \App\Services\ConciergeService::class;
         $bookable = $CS::portalOn() && in_array($stay->status, ['reserved', 'checked_in'], true);
         $mine = \App\Models\ActivityBooking::with('activity.vendor')->where('reservation_room_id', $stay->id)->where(fn ($q) => $q->whereIn('status', \App\Models\ActivityBooking::OPEN)
-            ->orWhere('date', '>=', now()->subDays(1)->toDateString()))->orderBy('date')->orderBy('time')->limit(12)->get();
+            ->orWhereDate('date', '>=', now()->subDays(1)->toDateString()))->orderBy('date')->orderBy('time')->limit(12)->get();
         $places = \App\Models\ConciergePlace::where('portal_visible', true)->orderBy('sort_order')->orderBy('name')->get()->groupBy('category');
 
         return $this->page($stay, 'portal.explore', 'explore', ['activities' => $bookable ? $CS::portalActivities() : collect(), 'bookable' => $bookable, 'mine' => $mine, 'places' => $places,

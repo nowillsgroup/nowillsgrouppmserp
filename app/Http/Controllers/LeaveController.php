@@ -24,7 +24,7 @@ class LeaveController extends Controller
         $balances = $request->input('tab') === 'balances'
             ? $employees->mapWithKeys(fn ($e) => [$e->id => LeaveService::balances($e, $year)->keyBy(fn ($b) => $b['type']->id)]) : collect();
         $onLeave = LeaveRequest::with('employee', 'leaveType')->where('status', 'approved')
-            ->where('date_from', '<=', bdate()->toDateString())->where('date_to', '>=', bdate()->toDateString())->get();
+            ->whereDate('date_from', '<=', bdate()->toDateString())->whereDate('date_to', '>=', bdate()->toDateString())->get();
 
         return view('hr.leave', ['list' => $list, 'status' => $status, 'types' => $types, 'employees' => $employees, 'balances' => $balances, 'year' => $year,
             'onLeave' => $onLeave, 'counts' => LeaveRequest::selectRaw('status, COUNT(*) n')->groupBy('status')->pluck('n', 'status')]);

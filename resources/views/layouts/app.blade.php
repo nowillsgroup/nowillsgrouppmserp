@@ -96,6 +96,10 @@
             <span class="top-tool-icon top-tool-icon-moon"><x-icon name="moon" size="sm"/></span>
             <span class="top-tool-label">Dark</span>
           </button>
+          <button type="button" class="top-tool" id="nav-fullscreen" aria-label="Toggle fullscreen" title="Toggle fullscreen">
+            <span class="top-tool-icon top-tool-icon-blue" style="font-size:14px;line-height:1">⛶</span>
+            <span class="top-tool-label">Fullscreen</span>
+          </button>
           <div class="offline-indicator" data-offline-indicator role="status" aria-live="polite" title="Offline sync status">
             <span class="offline-indicator-dot" data-offline-dot></span><span data-offline-label>Online</span><span class="offline-indicator-pending" data-offline-pending></span>
           </div>
@@ -205,6 +209,12 @@ if ('serviceWorker' in navigator) {
     apply(next);
   });
 })();
+</script>
+<script>
+  // Global fullscreen toggle (header bar)
+  document.getElementById('nav-fullscreen')?.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
+  });
 </script>
 @stack('scripts')
 </body>

@@ -38,7 +38,7 @@ class LostFoundService
         }
 
         return ReservationRoom::with('guest', 'reservation.guest')->where('room_id', $roomId)
-            ->where('arrival_date', '<=', $found->toDateString())->where('departure_date', '>=', $found->copy()->subDays(3)->toDateString())
+            ->whereDate('arrival_date', '<=', $found->toDateString())->whereDate('departure_date', '>=', $found->copy()->subDays(3)->toDateString())
             ->whereIn('status', ['checked_in', 'checked_out'])->orderByRaw("status = 'checked_in' desc")->orderByDesc('departure_date')->first();
     }
 
@@ -211,7 +211,7 @@ class LostFoundService
         $roomId = $r->stay?->room_id;
 
         return LostFoundItem::with('room')->where('status', 'stored')
-            ->when($r->lost_date, fn ($q) => $q->where('found_date', '>=', $r->lost_date->copy()->subDays(2)->toDateString()))
+            ->when($r->lost_date, fn ($q) => $q->whereDate('found_date', '>=', $r->lost_date->copy()->subDays(2)->toDateString()))
             ->get()->map(function (LostFoundItem $i) use ($r, $words, $roomId) {
                 $hay = mb_strtolower($i->item_name.' '.$i->description);
                 $score = ($i->category === $r->category && $r->category !== 'other' ? 3 : 0)

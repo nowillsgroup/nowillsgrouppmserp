@@ -4,6 +4,8 @@
 @section('actions')
 @if(can_do('reports.view'))<a class="btn" href="{{ route('reports.show', 'online_reviews') }}"><x-icon name="chart"/> Review register</a>@endif
 @if(can_do('feedback.manage'))
+<a class="btn" href="#" data-modal="webhookModal" id="webhookBtn"><x-icon name="globe"/> Review webhook</a>
+<form method="post" action="{{ route('rep.reviews.pull') }}" class="inline" data-confirm="Pull new reviews from the configured platform feeds (Booking.com / Google / TripAdvisor …)?">@csrf<button class="btn" id="pullFeedBtn"><x-icon name="refresh"/> Pull from feeds</button></form>
 <a class="btn" href="#" data-modal="importModal" id="importBtn"><x-icon name="download"/> Import CSV</a>
 <a class="btn btn-primary" href="#" data-modal="addReview" id="addReviewBtn"><x-icon name="plus"/> Add review</a>
 @endif
@@ -72,3 +74,17 @@
 </form></div></div>
 @endif
 @endsection
+
+
+<div class="modal" id="webhookModal"><div class="modal-box">
+  <div class="modal-head"><h3>Review webhook</h3><button type="button" class="btn btn-sm" data-close><x-icon name="x"/></button></div>
+  <div class="modal-body">
+    <p class="muted">Platforms (or your own extractors) can push reviews straight into this inbox. The endpoint is stateless — the token identifies this property.</p>
+    <div class="x-field"><label>Endpoint URL</label>
+      <input readonly value="{{ url('/api/reviews/'.\App\Services\ReviewService::webhookToken()) }}" onclick="this.select()" id="webhookUrl">
+    </div>
+    <p class="small muted">POST JSON — one review or a batch:</p>
+    <pre class="small" style="white-space:pre-wrap;background:#0f172a0d;padding:8px;border-radius:6px">{{ '{"reviews": [{"source": "google", "external_id": "G-1001", "reviewer_name": "Ama Owusu", "review_date": "2026-10-12", "rating": 5, "rating_scale": 5, "title": "Great stay", "body": "…", "url": "https://…"}]}' }}</pre>
+  </div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Close</button></div>
+</div></div>

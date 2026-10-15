@@ -226,6 +226,55 @@ if (! function_exists('formc_badge')) {
     }
 }
 
+if (! function_exists('date_upsert')) {
+    /**
+     * v7.44 — updateOrCreate()/firstOrCreate() whose key contains a DATE column.
+     *
+     * SQLite is dynamically typed, so a `date` column keeps exactly the shape the writer handed
+     * over: Eloquent's cast stores "2026-10-05 00:00:00" while a toDateString() bound is
+     * "2026-10-05". updateOrCreate() matches its key with plain equality, so re-saving the same
+     * day never finds the first row and INSERTS A DUPLICATE instead. These helpers match the key
+     * by calendar day (whereDate), which is correct for either stored shape.
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $model
+     * @param  array<string, mixed>  $key  attributes that identify the row
+     * @param  array<string, mixed>  $values  attributes to write
+     */
+    function date_upsert(string $model, array $key, array $values): \Illuminate\Database\Eloquent\Model
+    {
+        $row = date_find($model, $key);
+        if ($row) {
+            $row->fill($values)->save();
+
+            return $row;
+        }
+
+        return $model::create($key + $values);
+    }
+}
+
+if (! function_exists('date_first_or_create')) {
+    /** v7.44 — firstOrCreate() that matches a DATE key by calendar day; never touches an existing row. */
+    function date_first_or_create(string $model, array $key, array $values = []): \Illuminate\Database\Eloquent\Model
+    {
+        return date_find($model, $key) ?? $model::create($key + $values);
+    }
+}
+
+if (! function_exists('date_find')) {
+    /** v7.44 — shared lookup: date-cast key columns are matched with whereDate, everything else with where. */
+    function date_find(string $model, array $key): ?\Illuminate\Database\Eloquent\Model
+    {
+        $probe = new $model;
+        $q = $model::query();
+        foreach ($key as $col => $val) {
+            $q->{$probe->hasCast($col, ['date', 'immutable_date']) ? 'whereDate' : 'where'}($col, $val);
+        }
+
+        return $q->first();
+    }
+}
+
 if (! function_exists('ordinal_day')) {
     /** 1 → 1st, 2 → 2nd, 11 → 11th, 23 → 23rd (v5.4). */
     function ordinal_day(int $n): string

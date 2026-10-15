@@ -13,7 +13,7 @@
   <x-field name="guest[email]" label="Email" type="email" :value="$guest->email"/>
   <x-field name="guest[nationality]" label="Nationality" :value="$guest->nationality ?? 'Ghana'"/>
   <x-field name="guest[city]" label="City" :value="$guest->city"/>
-  <x-field name="guest[id_type]" label="ID type" type="select" :options="config('pms.id_types')" :value="$guest->id_type"/>
+  <x-field name="guest[id_type]" label="ID type" type="select" :options="config('pms.id_types')" :value="$guest->id_type ?? (($guest->nationality ?? 'Ghana') === 'Ghana' ? 'ghana_card' : 'passport')"/>
   <x-field name="guest[id_number]" label="ID number" :value="$guest->id_number"/>
   @isset($fullGuest)
   <x-field name="guest[gender]" label="Gender" type="select" :options="['Male'=>'Male','Female'=>'Female','Other'=>'Other']" :value="$guest->gender"/>

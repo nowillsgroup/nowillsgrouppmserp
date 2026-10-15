@@ -145,7 +145,7 @@ class BlockService
     /** Night audit: release blocks whose cut-off has been reached. Returns count. */
     public static function releaseDue(Carbon $date): int
     {
-        $due = RoomBlock::whereIn('status', ['tentative', 'definite'])->where('cutoff_date', '<=', $date->toDateString())->get();
+        $due = RoomBlock::whereIn('status', ['tentative', 'definite'])->whereDate('cutoff_date', '<=', $date->toDateString())->get();
         $due->each(fn ($b) => self::release($b, 'cut-off '.$b->cutoff_date->format('d M')));
 
         return $due->count();

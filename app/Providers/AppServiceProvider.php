@@ -35,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
             $pdo->sqliteCreateFunction('YEAR', fn ($date) => (int) date('Y', strtotime((string) $date)), 1);
             $pdo->sqliteCreateFunction('MONTH', fn ($date) => (int) date('n', strtotime((string) $date)), 1);
             $pdo->sqliteCreateFunction('LEAST', fn (...$values) => min($values), -1);
+            $pdo->sqliteCreateFunction('GREATEST', fn (...$values) => max($values), -1); // was missing: /inventory/reorder and /transport/fleet 500'd without it
             $pdo->sqliteCreateFunction('FIND_IN_SET', fn ($needle, $haystack) => (($i = array_search((string) $needle, array_map('trim', explode(',', (string) $haystack)), true)) === false ? 0 : $i + 1), 2);
         };
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\ConnectionEstablished::class, function ($event) use ($registerSqliteFunctions): void {

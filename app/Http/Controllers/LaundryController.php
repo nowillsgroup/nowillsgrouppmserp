@@ -31,7 +31,7 @@ class LaundryController extends Controller
             ->orderByRaw("FIELD(status, 'ready', 'processing', 'collected', 'delivered', 'cancelled')")->orderBy('promised_at')->orderByDesc('id')
             ->paginate(25)->withQueryString();
         $day = bdate()->toDateString();
-        $posted = fn ($from) => (float) FolioTransaction::where('source_type', 'laundry')->where('is_void', false)->where('business_date', '>=', $from)->where('business_date', '<=', $day)->sum('amount');
+        $posted = fn ($from) => (float) FolioTransaction::where('source_type', 'laundry')->where('is_void', false)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $day)->sum('amount');
         $open = LaundryOrder::whereIn('status', LaundryOrder::OPEN)->selectRaw('status, COUNT(*) n, SUM(pieces) p')->groupBy('status')->get()->keyBy('status');
 
         return view('laundry.index', ['list' => $list, 'tab' => $tab, 'q' => $q, 'stats' => [

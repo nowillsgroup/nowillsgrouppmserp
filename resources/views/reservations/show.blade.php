@@ -40,7 +40,8 @@
           <dt>Bill to</dt><dd>{{ ucfirst($r->billing_instruction) }}</dd>
           <dt>OTA Ref</dt><dd>{{ $r->ota_reference ?? '—' }}</dd>
           @if($r->channel_connection_id)<dt>Channel</dt><dd id="resChannel">@if(can_do('channels.view') && $r->channel)<a href="{{ route('cm.connections.show', $r->channel) }}">{{ $r->channel->name }}</a>@else{{ $r->channel?->name ?? '—' }}@endif
-            <div class="tiny muted">{{ $r->channel_payment === 'channel_collect' ? 'Prepaid to channel – bill the OTA' : 'Guest pays at hotel' }} · {{ money($r->channel_amount) }} gross · commission {{ money($r->channel_commission) }}</div></dd>@endif
+            <div class="tiny muted">{{ $r->channel_payment === 'channel_collect' ? 'Prepaid to channel – bill the OTA' : 'Guest pays at hotel' }} · {{ money($r->channel_amount) }} gross · commission {{ money($r->channel_commission) }}</div>
+            @if($r->channel_currency)<div class="tiny" id="resFx">Sent as {{ $r->channel_currency }} {{ number_format((float) $r->channel_amount_fx, 2) }} · converted at {{ number_format((float) $r->channel_fx_rate, 4) }} ({{ $r->channel_fx_date?->format('d M Y') }} board)</div>@endif</dd>@endif
           <dt>Purpose</dt><dd>{{ $r->purpose ?? '—' }}</dd>
         </dl>
         @if($r->billing_instruction === 'company' && $r->company && in_array($r->status, ['confirmed', 'tentative', 'checked_in']) && ($r->company->onHold() || ! $r->company->direct_billing || (float) $r->company->credit_limit > 0))

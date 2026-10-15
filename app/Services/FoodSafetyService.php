@@ -375,7 +375,7 @@ class FoodSafetyService
     public static function checklistStatus(): Collection
     {
         $lists = FsChecklist::where('is_active', true)->orderByRaw("field(frequency,'daily','weekly','monthly')")->orderBy('due_time')->orderBy('name')->get();
-        $runs = FsChecklistRun::with('completer', 'signer')->whereIn('fs_checklist_id', $lists->pluck('id'))->where('period', '>=', now()->startOfMonth()->subDays(7)->toDateString())->get()
+        $runs = FsChecklistRun::with('completer', 'signer')->whereIn('fs_checklist_id', $lists->pluck('id'))->whereDate('period', '>=', now()->startOfMonth()->subDays(7)->toDateString())->get()
             ->keyBy(fn ($r) => $r->fs_checklist_id.'|'.$r->period->toDateString());
 
         return $lists->map(function ($c) use ($runs) {
@@ -432,7 +432,7 @@ class FoodSafetyService
             $out[] = ['item' => $text, 'ok' => $ok, 'note' => $note !== '' ? mb_substr($note, 0, 200) : null];
         }
         $run = DB::transaction(function () use ($c, $p, $out, $failed, $notes, $u) {
-            if (FsChecklistRun::where('fs_checklist_id', $c->id)->where('period', $p->toDateString())->lockForUpdate()->exists()) {
+            if (FsChecklistRun::where('fs_checklist_id', $c->id)->whereDate('period', $p->toDateString())->lockForUpdate()->exists()) {
                 throw new RuntimeException("{$c->name} is already completed for ".self::periodLabel($c, $p).'.');
             }
 

@@ -141,14 +141,15 @@
   <div class="card"><div class="card-body">
   @if($canManage)
   <form method="post" action="{{ route('roster.settings') }}" class="form-grid" id="rosterRules">@csrf
-    <x-field name="roster_min_rest_hours" label="Minimum rest between shifts (h)" type="number" step="0.5" min="0" max="24" :value="setting('roster_min_rest_hours', '11')" required/>
+    <x-field name="roster_min_rest_hours" label="Minimum rest between shifts (h) · s. 41" type="number" step="0.5" min="0" max="24" :value="setting('roster_min_rest_hours', '12')" required/>
+    <x-field name="roster_week_rest_hours" label="Longest unbroken rest in 7 days (h) · s. 42" type="number" step="1" min="0" max="168" :value="setting('roster_week_rest_hours', '48')" required/>
     <x-field name="roster_max_days" label="Maximum consecutive working days" type="number" min="1" max="14" :value="setting('roster_max_days', '6')" required/>
-    <x-field name="roster_week_hours" label="Normal working week (h)" type="number" step="0.5" min="1" max="84" :value="setting('roster_week_hours', '40')" required/>
+    <x-field name="roster_week_hours" label="Normal working week (h) · s. 33" type="number" step="0.5" min="1" max="84" :value="setting('roster_week_hours', '40')" required/>
     <x-field name="roster_swap_notice_hours" label="Swap requests close before the shift (h)" type="number" min="0" max="168" :value="setting('roster_swap_notice_hours', '12')" required/>
     <div><button class="btn btn-primary">Save rules</button></div>
   </form>
   @endif
-  <p class="tiny muted mt-1">The roster warns (it does not block) when a shift leaves less rest than the minimum, when someone works more consecutive days than allowed, and when planned hours exceed the normal week – Ghana's Labour Act 2003 (Act 651) sets 8 h a day / 40 h a week as normal hours, with overtime paid above that.</p>
+  <p class="tiny muted mt-1">The roster warns (it does not block) when a shift leaves less rest than the minimum, when the week holds no unbroken rest of 48 hours, when someone works more consecutive days than allowed, and when planned hours exceed the normal week – Ghana's Labour Act 2003 (Act 651) sets 8 h a day / 40 h a week as normal hours with overtime paid above that (ss. 33, 35), 12 consecutive hours of rest between two working days (s. 41) and 48 consecutive hours of rest in every seven (s. 42). Rest periods never include a public holiday (s. 43): the gazetted days are on <a href="{{ route('hr.holidays') }}">Public holidays</a>.</p>
   </div></div>
 </div>
 </div>

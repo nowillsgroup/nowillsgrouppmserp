@@ -237,7 +237,7 @@ class BusinessDevService
         self::need(count($lines) > 0, 'Enter at least one competitor rate (or mark it sold out).');
 
         return DB::transaction(function () use ($date, $ch, $own, $ownSold, $lines, $u, $d) {
-            $shop = BdRateShop::updateOrCreate(['stay_date' => $date->toDateString(), 'channel' => $ch],
+            $shop = date_upsert(BdRateShop::class, ['stay_date' => $date->toDateString(), 'channel' => $ch],
                 ['own_rate' => $own, 'own_sold_out' => $ownSold, 'shopped_on' => bdate()->toDateString(), 'shopped_by' => $u->id, 'note' => self::text($d['note'] ?? null, 255)]);
             BdRateShopLine::where('shop_id', $shop->id)->delete();
             foreach ($lines as $id => $l) {
@@ -258,14 +258,14 @@ class BusinessDevService
     /** date => shop (with lines) for a window, one channel */
     public static function shopGrid(Carbon $from, int $days, string $channel): Collection
     {
-        return BdRateShop::with('lines')->where('channel', $channel)->whereBetween('stay_date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])
+        return BdRateShop::with('lines')->where('channel', $channel)->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())
             ->get()->keyBy(fn ($s) => $s->stay_date->toDateString());
     }
 
     /** forward price position: our average rate vs the comp-set average over shops in the window (100 = at par) */
     public static function ratePosition(Carbon $from, int $days): array
     {
-        $shops = BdRateShop::with('lines')->whereBetween('stay_date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])->get()
+        $shops = BdRateShop::with('lines')->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())->get()
             ->filter(fn ($s) => $s->own_rate !== null && $s->compAverage() !== null);
         if ($shops->isEmpty()) {
             return ['shops' => 0, 'own' => null, 'comp' => null, 'index' => null, 'cheaper' => 0, 'dearer' => 0];
@@ -303,7 +303,7 @@ class BusinessDevService
         self::need(($oo === null) === ($oa === null), 'Give both our occupancy and our ADR from the report, or neither (the PMS figures are then used).');
         self::need($oo === null || (is_numeric($oo) && $oo >= 0 && $oo <= 100), 'Our occupancy is a percentage from 0 to 100.');
         self::need($oa === null || (is_numeric($oa) && $oa >= 0 && $oa < 1e8), 'Enter a valid ADR for us.');
-        $b = BdBenchmark::updateOrCreate(['month' => $m->toDateString()], ['comp_occupancy' => round((float) $occ, 2), 'comp_adr' => round((float) $adr, 2), 'source' => $src,
+        $b = date_upsert(BdBenchmark::class, ['month' => $m->toDateString()], ['comp_occupancy' => round((float) $occ, 2), 'comp_adr' => round((float) $adr, 2), 'source' => $src,
             'own_occupancy' => $oo === null ? null : round((float) $oo, 2), 'own_adr' => $oa === null ? null : round((float) $oa, 2),
             'note' => self::text($d['note'] ?? null, 255), 'entered_by' => $u->id]);
         ActivityLogger::log('bizdev', 'benchmark', "Comp-set benchmark for {$m->format('M Y')} saved", $b);
@@ -327,7 +327,7 @@ class BusinessDevService
     /** own vs comp set for a month: occupancy / ADR / RevPAR and the MPI / ARI / RGI indices (100 = fair share) */
     public static function indices(Carbon $month, ?BdBenchmark $b = null): array
     {
-        $b ??= BdBenchmark::where('month', $month->copy()->startOfMonth()->toDateString())->first();
+        $b ??= BdBenchmark::whereDate('month', $month->copy()->startOfMonth()->toDateString())->first();
         $own = self::ownStats($month) + ['source' => 'pms'];
         if ($b && $b->hasOwn()) {   // the report's "My Property" line wins – same definitions as the comp-set figures
             $own = ['available' => $own['available'], 'sold' => (float) $b->own_occupancy > 0 ? max(1, $own['sold']) : 0, 'occupancy' => (float) $b->own_occupancy, 'adr' => (float) $b->own_adr,
@@ -495,7 +495,7 @@ class BusinessDevService
     {
         $from ??= bdate()->copy()->startOfYear();
         $to ??= bdate()->copy()->endOfYear();
-        $v = CrmService::bookingValue(self::partnerQuery($p)->whereBetween('arrival_date', [$from->toDateString(), $to->toDateString()]));
+        $v = CrmService::bookingValue(self::partnerQuery($p)->whereDate('arrival_date', '>=', $from->toDateString())->whereDate('arrival_date', '<=', $to->toDateString()));
         $commission = $p->agreement === 'commission' && $p->commission_pct ? round($v['revenue'] * (float) $p->commission_pct / 100, 2) : 0.0;
 
         return $v + ['commission' => $commission, 'net' => round($v['revenue'] - $commission, 2),
@@ -719,7 +719,7 @@ class BusinessDevService
         $m = Carbon::parse($d['month'].'-01')->startOfDay();
         self::need($m->gte($i->live_date->copy()->startOfMonth()), 'That month is before the initiative went live.');
         self::need($m->lte(bdate()->copy()->startOfMonth()), 'You cannot record a future month.');
-        $r = BdResult::updateOrCreate(['initiative_id' => $i->id, 'month' => $m->toDateString()],
+        $r = date_upsert(BdResult::class, ['initiative_id' => $i->id, 'month' => $m->toDateString()],
             ['revenue' => self::money($d['revenue'] ?? 0, 'Revenue') ?? 0, 'cost' => self::money($d['cost'] ?? 0, 'Cost') ?? 0, 'note' => self::text($d['note'] ?? null, 255), 'entered_by' => $u->id]);
         ActivityLogger::log('bizdev', 'result', "Initiative {$i->number}: results for {$m->format('M Y')} recorded", $i);
 
@@ -750,13 +750,13 @@ class BusinessDevService
 
             return [
                 'approvals' => BdInitiative::where('stage', 'business_case')->whereNotNull('submitted_at')->count(),
-                'milestones' => BdMilestone::whereNull('done_at')->where('due_date', '<', bdate()->toDateString())
+                'milestones' => BdMilestone::whereNull('done_at')->whereDate('due_date', '<', bdate()->toDateString())
                     ->whereHas('initiative', fn ($q) => $q->whereIn('stage', ['idea', 'assessment', 'business_case', 'approved', 'implementation']))->count(),
                 'lapsed' => $flags->filter(fn ($f) => in_array('lapsed', $f, true))->count(),
                 'expiring' => $flags->filter(fn ($f) => in_array('expiring', $f, true))->count(),
                 'reviews' => $flags->filter(fn ($f) => in_array('review', $f, true))->count(),
                 'shops_stale' => BdCompetitor::where('is_active', true)->exists() && (! $last || $last->lt(bdate()->copy()->subDays(self::cfg()['shop_stale_days']))) ? 1 : 0,
-                'benchmark_missing' => BdCompetitor::where('is_active', true)->exists() && ! BdBenchmark::where('month', $prev->toDateString())->exists() ? 1 : 0,
+                'benchmark_missing' => BdCompetitor::where('is_active', true)->exists() && ! BdBenchmark::whereDate('month', $prev->toDateString())->exists() ? 1 : 0,
             ];
         })();
     }

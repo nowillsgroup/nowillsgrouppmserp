@@ -79,6 +79,17 @@
       </form>
     </div></div>
 
+    <div class="card mt-1" id="ticketCard"><div class="card-head"><h3><x-icon name="receipt"/> Walk-in ticket</h3></div><div class="card-body">
+      <form method="post" action="{{ route('club.ticket') }}" id="ticketForm">@csrf
+        <div class="form-grid">
+          <x-field name="code" label="Ticket / pass code" required placeholder="CLUB_DPASS-000123" class="span-2" id="ticket_code"/>
+          <div class="field"><label for="t_fac">Facility</label><select name="facility" id="t_fac">@foreach($F as $k => $l)<option value="{{ $k }}" @selected($facility === $k)>{{ $l }}</option>@endforeach</select></div>
+          <div class="field" style="align-self:flex-end"><button class="btn btn-primary" id="ticketGo">Check in</button></div>
+        </div>
+        <p class="tiny muted m-0">Scan or type the code printed on the outlet receipt (or the Day Passes list). Members use their card above — tickets are for walk-ins and guest passes.</p>
+      </form>
+    </div></div>
+
     <div class="card flush mt-1" id="inNow"><div class="card-head"><h3>In the club now ({{ $inNow->sum('pax') }})</h3></div>
       <div class="card-body table-wrap"><table class="table">
         <tbody>@forelse($inNow as $v)

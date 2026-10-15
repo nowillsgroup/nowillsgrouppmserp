@@ -53,7 +53,7 @@ class GstController extends Controller
             'failed' => Folio::with('guest', 'company')->where('irn_status', 'failed')->where('status', 'closed')->orderByDesc('invoice_date')->limit(8)->get(),
             'filings' => GstPeriod::with('filer')->orderByDesc('period')->limit(12)->get(),
             'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()),
-            'enabled' => EInvoiceService::enabled(), 'driver' => EInvoiceService::driver(),
+            'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'driver' => EInvoiceService::driver(),
         ]);
     }
 
@@ -74,14 +74,14 @@ class GstController extends Controller
                 ->when($request->status, fn ($q, $st) => $st === 'none' ? $q->whereNull('evat_status') : $q->where('evat_status', $st))
                 ->orderByRaw("CASE WHEN evat_status = 'generated' THEN 1 ELSE 0 END")->orderByDesc('business_date')->orderByDesc('id')->paginate(30)->withQueryString();
 
-            return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => null, 'bills' => $bills, 'enabled' => EInvoiceService::enabled(), 'posEnabled' => \App\Services\PosEvatService::enabled(),
+            return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => null, 'bills' => $bills, 'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'posEnabled' => \App\Services\PosEvatService::enabled(),
                 'driver' => EInvoiceService::driver(), 'logs' => EinvoiceLog::with('user')->whereNotNull('pos_order_id')->latest('id')->limit(15)->get()]);
         }
         $docs = $scope($base(), $tab)->with('guest', 'company', 'original:id,invoice_no')
             ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('invoice_no', 'like', "%$t%")->orWhere('buyer_gstin', 'like', "%$t%")->orWhere('buyer_name', 'like', "%$t%")))
             ->orderByDesc('invoice_date')->orderByDesc('id')->paginate(30)->withQueryString();
 
-        return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => $docs, 'bills' => null, 'enabled' => EInvoiceService::enabled(), 'posEnabled' => \App\Services\PosEvatService::enabled(), 'driver' => EInvoiceService::driver(),
+        return view('gst.einvoices', ['tab' => $tab, 'counts' => $counts, 'docs' => $docs, 'bills' => null, 'enabled' => EInvoiceService::enabled(), 'blocker' => EInvoiceService::registrationBlocker(), 'posEnabled' => \App\Services\PosEvatService::enabled(), 'driver' => EInvoiceService::driver(),
             'logs' => EinvoiceLog::with('user')->whereNull('pos_order_id')->latest('id')->limit(15)->get()]); // restaurant bills have their own log on their tab
     }
 
@@ -132,7 +132,8 @@ class GstController extends Controller
     public function settings()
     {
         return view('gst.settings', ['s' => collect(GstService::DEFAULTS)->map(fn ($v, $k) => setting($k, $v)),
-            'taxes' => \App\Models\Tax::orderBy('id')->get(), 'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()), 'hotel' => hotel()]);
+            'taxes' => \App\Models\Tax::orderBy('id')->get(), 'tin' => GstService::hotelTin(), 'tinOk' => GstService::validTin(GstService::hotelTin()), 'hotel' => hotel(),
+            'reg' => GstService::vatRegistration(), 'blocker' => EInvoiceService::registrationBlocker()]);   // v7.52 the Act 1151 test
     }
 
     public function saveSettings(Request $request)
@@ -140,6 +141,7 @@ class GstController extends Controller
         $data = $request->validate([
             'gst_einvoice_enabled' => 'boolean', 'gst_einvoice_auto' => 'boolean', 'gst_evat_pos' => 'boolean', 'gst_einvoice_driver' => 'required|in:sandbox,gra',
             'gst_evat_url' => 'nullable|url|max:255|required_if:gst_einvoice_driver,gra', 'gst_evat_key' => 'nullable|string|max:500', 'gst_evat_username' => 'nullable|string|max:60',
+            'tax_prices_inclusive' => 'required|in:0,1',
         ]);
         if ($data['gst_evat_url'] ?? null) {
             try {
@@ -152,7 +154,7 @@ class GstController extends Controller
             return back()->withInput()->withErrors(['gst_einvoice_enabled' => 'Set a valid hotel TIN in Hotel settings before switching on E-VAT.']);
         }
         $vals = ['gst_einvoice_enabled' => ! empty($data['gst_einvoice_enabled']) ? '1' : '0', 'gst_einvoice_auto' => ! empty($data['gst_einvoice_auto']) ? '1' : '0', 'gst_evat_pos' => ! empty($data['gst_evat_pos']) ? '1' : '0',
-            'gst_einvoice_driver' => $data['gst_einvoice_driver'], 'gst_evat_url' => (string) ($data['gst_evat_url'] ?? ''), 'gst_evat_username' => (string) ($data['gst_evat_username'] ?? '')];
+            'gst_einvoice_driver' => $data['gst_einvoice_driver'], 'gst_evat_url' => (string) ($data['gst_evat_url'] ?? ''), 'gst_evat_username' => (string) ($data['gst_evat_username'] ?? ''), 'tax_prices_inclusive' => $data['tax_prices_inclusive']];
         if (filled($data['gst_evat_key'] ?? null)) { // secret: blank keeps the stored value
             $vals['gst_evat_key'] = $data['gst_evat_key'];
         }
@@ -168,6 +170,7 @@ class GstController extends Controller
     public function retryAll()
     {
         abort_unless(EInvoiceService::enabled(), 422, 'E-VAT is switched off.');
+        abort_if($blocker = EInvoiceService::registrationBlocker(), 422, $blocker);   // v7.52 Act 1151
         $ok = 0;
         $bad = 0;
         // manual retry ignores the back-off; documents with data errors (not retryable) need fixing first
@@ -213,6 +216,9 @@ class GstController extends Controller
         abort_unless($folio->status === 'closed' && $folio->invoice_no, 422, 'Only issued documents can be submitted to E-VAT.');
         if (! EInvoiceService::enabled()) {
             return back()->with('error', 'E-VAT is switched off (Billing › GRA VAT › Settings).');
+        }
+        if ($blocker = EInvoiceService::registrationBlocker()) {          // v7.52 Act 1151
+            return back()->with('error', $blocker);
         }
         $ok = EInvoiceService::generate($folio, auth()->id());
 

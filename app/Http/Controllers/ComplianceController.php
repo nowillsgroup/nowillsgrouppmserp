@@ -48,7 +48,7 @@ class ComplianceController extends Controller
             $v += ['items' => $items];
         } elseif ($tab === 'calendar') {
             $start = bdate()->copy()->startOfMonth();
-            $items = Cs::active()->whereNotNull('expires_on')->where('expires_on', '<', $start->copy()->addMonths(12)->toDateString())->orderBy('expires_on')->get();
+            $items = Cs::active()->whereNotNull('expires_on')->whereDate('expires_on', '<', $start->copy()->addMonths(12)->toDateString())->orderBy('expires_on')->get();
             $months = [];
             for ($i = 0; $i < 12; $i++) {
                 $m = $start->copy()->addMonths($i);
@@ -59,7 +59,7 @@ class ComplianceController extends Controller
                 $k = $it->expires_on->format('Y-m');
                 isset($months[$k]) && $it->expires_on->gte($start) ? $months[$k]['items']->push($it) : $overdue->push($it);
             }
-            $v += ['months' => $months, 'overdue' => $overdue, 'yearFees' => $items->where('expires_on', '>=', $start)->sum('fee')];
+            $v += ['months' => $months, 'overdue' => $overdue, 'yearFees' => $items->where('expires_on', '>=', $start)->sum('fee')]; // Collection of models: Carbon-to-Carbon, already exact
         }
 
         return view('compliance.index', $v);

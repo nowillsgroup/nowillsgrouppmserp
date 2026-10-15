@@ -105,7 +105,7 @@ class LeaseService
         $t = Carbon::parse($to)->toDateString();
 
         return Lease::with('unit.room')->whereIn('status', ['draft', 'active', 'notice'])->whereHas('unit', fn ($q) => $q->whereNotNull('room_id'))
-            ->where('start_date', '<', $t)->get()
+            ->whereDate('start_date', '<', $t)->get()
             ->filter(fn ($l) => $l->lastDay()->copy()->addDay()->toDateString() > $f)
             ->map(fn ($l) => ['room_id' => $l->unit->room_id, 'room_type_id' => $l->unit->room?->room_type_id, 'from' => $l->start_date->toDateString(),
                 'to' => $l->lastDay()->copy()->addDay()->toDateString(), 'lease_no' => $l->lease_no])->values();
@@ -125,7 +125,7 @@ class LeaseService
         $to = Carbon::parse($lastDay)->addDay()->toDateString();
 
         return ReservationRoom::with('reservation')->where('room_id', $unit->room_id)->whereNotIn('status', ['cancelled', 'no_show', 'checked_out'])
-            ->where('arrival_date', '<', $to)->where('departure_date', '>', $from)->get()
+            ->whereDate('arrival_date', '<', $to)->whereDate('departure_date', '>', $from)->get()
             ->map(fn ($s) => ($s->reservation?->reservation_no ?? 'stay #'.$s->id).' ('.dmy($s->arrival_date).'–'.dmy($s->departure_date).')')->all();
     }
 
@@ -414,7 +414,7 @@ class LeaseService
         $cut = Carbon::parse($today)->subDays((int) self::cfg('lease_grace_days'))->toDateString();
         $n = 0;
         $charged = LeaseCharge::whereNotNull('late_fee_of_id')->whereNull('cancelled_at')->pluck('late_fee_of_id')->all();
-        foreach (LeaseCharge::with('lease.unit')->where('type', 'rent')->whereNull('cancelled_at')->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->whereNotIn('id', $charged ?: [0])->get() as $c) {
+        foreach (LeaseCharge::with('lease.unit')->where('type', 'rent')->whereNull('cancelled_at')->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->whereNotIn('id', $charged ?: [0])->get() as $c) {
             if (! $c->lease->isLive() && $c->lease->status !== 'ended') {
                 continue;
             }
@@ -442,11 +442,11 @@ class LeaseService
             throw new RuntimeException('Unknown meter.');
         }
         $date ??= self::today();
-        $prev = LeaseMeterReading::where('lease_unit_id', $unit->id)->where('meter', $meter)->where('date', '<=', $date)->orderByDesc('date')->orderByDesc('id')->first();
+        $prev = LeaseMeterReading::where('lease_unit_id', $unit->id)->where('meter', $meter)->whereDate('date', '<=', $date)->orderByDesc('date')->orderByDesc('id')->first();
         if ($prev && $reading < (float) $prev->reading - 0.004) {
             throw new RuntimeException("{$unit->code}: the ".strtolower(LeaseMeterReading::METERS[$meter][0]).' reading '.number_format($reading, 2).' is below the previous one ('.number_format((float) $prev->reading, 2).' on '.dmy($prev->date).').');
         }
-        $lease = Lease::where('lease_unit_id', $unit->id)->whereIn('status', ['active', 'notice', 'ended'])->where('start_date', '<=', $date)
+        $lease = Lease::where('lease_unit_id', $unit->id)->whereIn('status', ['active', 'notice', 'ended'])->whereDate('start_date', '<=', $date)
             ->orderByDesc('start_date')->get()->first(fn ($l) => $l->status !== 'ended' || $l->lastDay()->toDateString() >= Carbon::parse($date)->subDays(3)->toDateString());
         $cons = $kind === 'opening' || ! $prev ? 0.0 : round($reading - (float) $prev->reading, 2);
         $mode = $meter === 'electricity' ? 'elec_mode' : 'water_mode';
@@ -549,7 +549,7 @@ class LeaseService
         if ($c = self::roomConflicts($l->unit, $from, $end)) {
             throw new RuntimeException("Room {$l->unit->room?->room_no} has hotel bookings in the renewal period: ".implode(', ', $c).'.');
         }
-        if (Lease::where('lease_unit_id', $l->lease_unit_id)->whereKeyNot($l->id)->whereIn('status', ['draft', 'active', 'notice'])->where('start_date', '<=', $end)->exists()) {
+        if (Lease::where('lease_unit_id', $l->lease_unit_id)->whereKeyNot($l->id)->whereIn('status', ['draft', 'active', 'notice'])->whereDate('start_date', '<=', $end)->exists()) {
             throw new RuntimeException('Another lease on this unit starts before '.dmy($end).'.');
         }
         $newTerm = $l->term_months + $months;
@@ -565,7 +565,7 @@ class LeaseService
     {
         $today = $asOf ?? self::today();
         $done = [];
-        foreach (Lease::with('unit')->where('status', 'active')->where('auto_renew', true)->where('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())->get() as $l) {
+        foreach (Lease::with('unit')->where('status', 'active')->where('auto_renew', true)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(30)->toDateString())->get() as $l) {
             try {
                 self::renew($l, min(12, $l->term_months), null, $u);
                 $done[] = $l->lease_no;
@@ -606,7 +606,7 @@ class LeaseService
             }
             // bill up to the move-out date, then credit any rent / service charge billed beyond it
             self::bill($l->refresh(), $u, $date);
-            foreach (LeaseCharge::where('lease_id', $l->id)->whereIn('type', ['rent', 'service_charge'])->whereNull('cancelled_at')->where('period_end', '>', $date)->get() as $c) {
+            foreach (LeaseCharge::where('lease_id', $l->id)->whereIn('type', ['rent', 'service_charge'])->whereNull('cancelled_at')->whereDate('period_end', '>', $date)->get() as $c) {
                 $total = $c->period_start->diffInDays($c->period_end) + 1;
                 $unused = $c->period_start->toDateString() > $date ? $total : Carbon::parse($date)->diffInDays($c->period_end);
                 $amt = min(LeaseBillingService::creditable($c), round((float) $c->amount * $unused / $total, 2));

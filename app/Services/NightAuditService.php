@@ -21,18 +21,18 @@ class NightAuditService
         $d = bdate()->toDateString();
 
         return [
-            'pending_arrivals' => ReservationRoom::with('reservation.guest', 'roomType')->where('status', 'reserved')->where('arrival_date', '<=', $d)->get(),
-            'pending_departures' => ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->where('departure_date', '<=', $d)->get(),
-            'open_pos' => PosOrder::with('outlet')->whereIn('status', ['open', 'billed'])->where('business_date', '<=', $d)->get(),
+            'pending_arrivals' => ReservationRoom::with('reservation.guest', 'roomType')->where('status', 'reserved')->whereDate('arrival_date', '<=', $d)->get(),
+            'pending_departures' => ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->get(),
+            'open_pos' => PosOrder::with('outlet')->whereIn('status', ['open', 'billed'])->whereDate('business_date', '<=', $d)->get(),
             'in_house' => ReservationRoom::where('status', 'checked_in')->count(),
             // v3.4: Form C reports past their 24-hour deadline (a warning – the audit still runs)
             'formc_overdue' => FormCService::enabled() ? \App\Models\FormCRecord::with('stay.room')->where('status', 'pending')->where('deadline_at', '<=', now())->orderBy('deadline_at')->get() : collect(),
             // v3.5: front desk – open traces roll forward, urgent log items should be seen by the night manager (warnings only)
-            'desk_traces' => \App\Models\Trace::with('stay.room', 'reservation')->where('status', 'open')->where('trace_date', '<=', $d)->orderBy('trace_date')->get(),
+            'desk_traces' => \App\Models\Trace::with('stay.room', 'reservation')->where('status', 'open')->whereDate('trace_date', '<=', $d)->orderBy('trace_date')->get(),
             'desk_urgent' => \App\Models\LogEntry::where('status', 'open')->where('priority', 'urgent')->orderBy('id')->get(),
             // v3.9: meters not read today (warning – the next reading will simply cover two days) and lapsed critical licences
             'meters_missing' => UtilityService::cfg()['require_readings'] ? UtilityService::missing($d, true) : collect(),
-            'licences_expired' => \App\Models\ComplianceItem::where('status', '!=', 'archived')->where('is_critical', true)->whereNotNull('expires_on')->where('expires_on', '<', $d)->orderBy('expires_on')->get(),
+            'licences_expired' => \App\Models\ComplianceItem::where('status', '!=', 'archived')->where('is_critical', true)->whereNotNull('expires_on')->whereDate('expires_on', '<', $d)->orderBy('expires_on')->get(),
         ];
     }
 
@@ -126,8 +126,8 @@ class NightAuditService
             $carried = TraceService::carryForward($audit->business_date->copy()); // v3.5: unfinished traces move to the new business day
             $d = bdate()->toDateString();
             LogBookService::system('Night audit closed for '.$audit->business_date->format('D d M Y'),
-                'In house: '.ReservationRoom::where('status', 'checked_in')->count().'. Arrivals expected today: '.ReservationRoom::where('status', 'reserved')->where('arrival_date', $d)->count()
-                .'. Departures due today: '.ReservationRoom::where('status', 'checked_in')->where('departure_date', '<=', $d)->count().'.'
+                'In house: '.ReservationRoom::where('status', 'checked_in')->count().'. Arrivals expected today: '.ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $d)->count()
+                .'. Departures due today: '.ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->count().'.'
                 .($carried ? " {$carried} open trace(s) carried forward." : '')
                 .' Wake-up calls booked before noon: '.\App\Models\WakeupCall::where('status', 'scheduled')->where('call_at', '<=', bdate()->copy()->setTime(12, 0))->count().'.',
                 'handover');
@@ -177,13 +177,13 @@ class NightAuditService
         return DB::transaction(function () use ($markNoShows, $extendOverstays, $notes) {
             $hotel = Tenant::hotel()->fresh();
             $date = $hotel->business_date->copy();
-            if (NightAudit::where('business_date', $date->toDateString())->exists()) {
+            if (NightAudit::whereDate('business_date', $date->toDateString())->exists()) {
                 throw new RuntimeException('Night audit already completed for '.$date->format('d M Y'));
             }
             $noShows = 0;
             if ($markNoShows) {
                 $reservationIds = ReservationRoom::where('status', 'reserved')
-                    ->where('arrival_date', '<=', $date->toDateString())
+                    ->whereDate('arrival_date', '<=', $date->toDateString())
                     ->distinct()->orderBy('reservation_id')->pluck('reservation_id');
                 foreach ($reservationIds as $reservationId) {
                     // Lock the reservation before re-reading its stays. A front-desk
@@ -194,7 +194,7 @@ class NightAuditService
                         continue;
                     }
                     $stays = ReservationRoom::where('reservation_id', $res->id)
-                        ->where('status', 'reserved')->where('arrival_date', '<=', $date->toDateString())
+                        ->where('status', 'reserved')->whereDate('arrival_date', '<=', $date->toDateString())
                         ->lockForUpdate()->get();
                     if ($stays->isEmpty()) {
                         continue;
@@ -213,7 +213,7 @@ class NightAuditService
                 }
             }
             // Overstays: extend departure by one night so tariff keeps posting
-            foreach (ReservationRoom::where('status', 'checked_in')->where('departure_date', '<=', $date->toDateString())->get() as $s) {
+            foreach (ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $date->toDateString())->get() as $s) {
                 if (! $extendOverstays) {
                     throw new RuntimeException('Pending departures must be checked out first.');
                 }
@@ -236,13 +236,14 @@ class NightAuditService
             // Occupied rooms need daily service
             Room::where('status', 'occupied')->update(['hk_status' => 'dirty']);
 
-            $tx = FolioTransaction::where('business_date', $date->toDateString())->where('is_void', false)->get();
+            $tx = FolioTransaction::whereDate('business_date', $date->toDateString())->where('is_void', false)->get();
             $roomRev = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount');
             $otherRev = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount');
-            $posDirect = PosOrder::where('business_date', $date->toDateString())->where('status', 'settled')->where('settlement', 'payment')->get();
-            $otherRev += $posDirect->sum(fn ($o) => $o->total - $o->tax);
-            $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax');
-            $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total');
+            $posDirect = PosOrder::whereDate('business_date', $date->toDateString())->where('status', 'settled')->where('settlement', 'payment')->get();
+            $counter = \App\Services\RecreationService::counterTakings($date->toDateString()); // v7.38 desk passes + outlet takings — must be read before it is added into $otherRev
+            $otherRev += $posDirect->sum(fn ($o) => $o->total - $o->tax) + $counter['revenue'];
+            $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax') + $counter['tax'];
+            $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total') + $counter['collections'];
 
             $totalRooms = Room::where('is_active', true)->count();
             $occupied = $stays->count();
@@ -250,8 +251,8 @@ class NightAuditService
                 'business_date' => $date->toDateString(),
                 'rooms_total' => $totalRooms,
                 'rooms_occupied' => $occupied,
-                'arrivals' => ReservationRoom::whereDate('checked_in_at', '>=', $date)->where('arrival_date', $date->toDateString())->count(),
-                'departures' => ReservationRoom::where('status', 'checked_out')->where('departure_date', $date->toDateString())->count(),
+                'arrivals' => ReservationRoom::whereDate('checked_in_at', '>=', $date)->whereDate('arrival_date', $date->toDateString())->count(),
+                'departures' => ReservationRoom::where('status', 'checked_out')->whereDate('departure_date', $date->toDateString())->count(),
                 'no_shows' => $noShows,
                 'room_revenue' => $roomRev,
                 'other_revenue' => $otherRev,

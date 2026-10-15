@@ -445,7 +445,7 @@ class QaService
             'critical' => (int) $a->sum('critical_fails'), 'repeat' => (int) $a->sum('repeat_fails'),
             'mystery_avg' => ($m = $a->where('type', 'mystery'))->count() ? round((float) $m->avg('score_pct'), 1) : null,
             'open_actions' => QaAction::whereIn('status', QaAction::OPEN)->count(),
-            'overdue_actions' => QaAction::whereIn('status', QaAction::OPEN)->where('due_date', '<', bdate()->toDateString())->count(),
+            'overdue_actions' => QaAction::whereIn('status', QaAction::OPEN)->whereDate('due_date', '<', bdate()->toDateString())->count(),
             'to_verify' => QaAction::where('status', 'done')->count(),
             'closed' => $closed->count(), 'on_time' => $closed->count() ? round($closed->filter(fn ($x) => $x->completed_at->toDateString() <= $x->due_date->toDateString())->count() / $closed->count() * 100, 1) : null,
             'target' => self::cfg()['target_score']];
@@ -520,10 +520,10 @@ class QaService
     public static function alerts(): array
     {
         return self::$memo['alerts'.Tenant::id()] ??= [
-            'overdue_actions' => QaAction::whereIn('status', QaAction::OPEN)->where('due_date', '<', bdate()->toDateString())->count(),
+            'overdue_actions' => QaAction::whereIn('status', QaAction::OPEN)->whereDate('due_date', '<', bdate()->toDateString())->count(),
             'to_verify' => QaAction::where('status', 'done')->count(),
             'unassigned' => QaAction::whereIn('status', QaAction::OPEN)->whereNull('owner_id')->count(),
-            'audits_late' => QaAudit::whereIn('status', ['scheduled', 'in_progress'])->where('scheduled_for', '<', bdate()->toDateString())->count(),
+            'audits_late' => QaAudit::whereIn('status', ['scheduled', 'in_progress'])->whereDate('scheduled_for', '<', bdate()->toDateString())->count(),
             'checklists_due' => self::due()->where('state', 'due')->count(),
         ];
     }
@@ -537,7 +537,7 @@ class QaService
         try {
             $a = self::alerts();
             $u = auth()->user();
-            $mine = $u ? QaAction::whereIn('status', QaAction::OPEN)->where('owner_id', $u->id)->where('due_date', '<', bdate()->toDateString())->count() : 0;
+            $mine = $u ? QaAction::whereIn('status', QaAction::OPEN)->where('owner_id', $u->id)->whereDate('due_date', '<', bdate()->toDateString())->count() : 0;
 
             return self::canManage($u) ? $a['overdue_actions'] + $a['audits_late'] + $a['to_verify'] : $mine + $a['audits_late'];
         } catch (Throwable) {

@@ -103,7 +103,7 @@ class LearningService
     public static function employees(?int $departmentId = null): Collection
     {
         return Employee::with('department')->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('leaving_date')->orWhere('leaving_date', '>=', self::today()))
+            ->where(fn ($q) => $q->whereNull('leaving_date')->orWhereDate('leaving_date', '>=', self::today()))
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->orderBy('department_id')->orderBy('name')->get();
     }
@@ -239,9 +239,9 @@ class LearningService
 
             return [
                 'overdue' => $t['overdue'], 'expired' => $t['expired'], 'expiring' => $t['expiring'],
-                'review_overdue' => SopDocument::where('status', 'published')->where('review_due', '<', self::today())->count(),
-                'review_soon' => SopDocument::where('status', 'published')->whereBetween('review_due', [self::today(), $warn])->count(),
-                'to_complete' => TrainingSession::where('status', 'scheduled')->where('date', '<', self::today())->count(),
+                'review_overdue' => SopDocument::where('status', 'published')->whereDate('review_due', '<', self::today())->count(),
+                'review_soon' => SopDocument::where('status', 'published')->whereDate('review_due', '>=', self::today())->whereDate('review_due', '<=', $warn)->count(),
+                'to_complete' => TrainingSession::where('status', 'scheduled')->whereDate('date', '<', self::today())->count(),
             ];
         })();
     }

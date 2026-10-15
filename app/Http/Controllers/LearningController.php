@@ -49,7 +49,7 @@ class LearningController extends Controller
         return view('learning.index', [
             'm' => LS::matrix(), 'alerts' => LS::alerts(), 'depts' => LS::byDepartment(), 'gaps' => LS::gaps()->take(12), 'cfg' => LS::cfg(),
             'upcoming' => TrainingSession::with('course')->withCount('records')->where('status', 'scheduled')->orderBy('date')->orderBy('start_time')->limit(8)->get(),
-            'reviews' => SopDocument::where('status', 'published')->where('review_due', '<=', $warn)->orderBy('review_due')->limit(8)->get(),
+            'reviews' => SopDocument::where('status', 'published')->whereDate('review_due', '<=', $warn)->orderBy('review_due')->limit(8)->get(),
             'sops' => LS::sopOverview()->filter(fn ($r) => $r['required'] > $r['signed'])->sortBy('pct')->take(6)->values(),
             'yearHours' => (float) TrainingRecord::join('training_courses', 'training_courses.id', '=', 'training_records.training_course_id')
                 ->where('training_records.status', 'passed')->whereYear('training_records.completed_on', bdate()->year)->sum('training_courses.duration_hours'),
@@ -218,7 +218,7 @@ class LearningController extends Controller
             $q->whereHas('employee', fn ($w) => $w->where('department_id', (int) $r->department));
         }
         if ($r->filled('expiring')) {
-            $q->where('status', 'passed')->whereBetween('expires_on', [bdate()->toDateString(), bdate()->copy()->addDays((int) $r->expiring)->toDateString()]);
+            $q->where('status', 'passed')->whereDate('expires_on', '>=', bdate()->toDateString())->whereDate('expires_on', '<=', bdate()->copy()->addDays((int) $r->expiring)->toDateString());
         }
         if ($r->filled('q')) {
             $s = '%'.trim((string) $r->q).'%';
@@ -264,7 +264,7 @@ class LearningController extends Controller
     {
         $q = SopDocument::with('department', 'owner')->orderBy('code');
         if ($r->filled('status')) {
-            $r->status === 'review' ? $q->where('status', 'published')->where('review_due', '<', bdate()->toDateString()) : $q->where('status', $r->status);
+            $r->status === 'review' ? $q->where('status', 'published')->whereDate('review_due', '<', bdate()->toDateString()) : $q->where('status', $r->status);
         } else {
             $q->where('status', '!=', 'retired');
         }
@@ -397,7 +397,7 @@ class LearningController extends Controller
     {
         $e = $this->me();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Training & SOPs']);
         }
 
         return view('me.learning', ['e' => $e, 'mine' => LS::mine($e), 'cfg' => LS::cfg()]);

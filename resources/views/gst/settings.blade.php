@@ -12,7 +12,18 @@
         <li><span>TIN</span><b class="mono">{{ $tin ?? '—' }} {!! $tinOk ? '<span class="badge badge-green">valid</span> <span class="tiny muted">'.e(\App\Services\GstService::tinType($tin)).'</span>' : '<span class="badge badge-red">invalid</span>' !!}</b></li>
         <li><span>Address</span><b>{{ trim($hotel->address.', '.$hotel->city, ', ') ?: '—' }}</b></li>
         <li><span>Base currency</span><b>{{ $hotel->currency }} ({{ $hotel->currency_symbol }})</b></li>
+        <li><span>VAT registration</span><b id="vatStatus"><span class="badge {{ ['registered' => 'badge-green', 'must_register' => 'badge-red', 'approaching' => 'badge-amber', 'below_threshold' => 'badge-blue'][$reg['status']] }}">{{ $reg['status_label'] }}</span> <span class="tiny muted">{{ $reg['registered_at'] ? 'since '.\Illuminate\Support\Carbon::parse($reg['registered_at'])->format('d M Y') : 'no date recorded' }}</span></b></li>
+        <li><span>Supplies</span><b>{{ $reg['supply_kind_label'] }}</b></li>
+        <li><span>Registration threshold</span><b>{{ $reg['threshold_label'] }}</b></li>
+        <li><span>Taxable supplies, {{ $reg['window'] }}</span><b class="mono">{{ money($reg['turnover']['completed']) }}</b></li>
+        <li><span>The twelve months to today</span><b class="mono">{{ money($reg['turnover']['rolling']) }} <span class="tiny muted">{{ $reg['turnover']['open_period'] }} still open</span></b></li>
+        @if($reg['pct'] !== null)<li><span>Of the threshold</span><b>{{ $reg['pct'] }}%</b></li>@endif
       </ul>
+      <div class="alert {{ $reg['status'] === 'registered' ? ($blocker ? 'alert-warn' : 'alert-info') : ($reg['status'] === 'must_register' ? 'alert-error' : 'alert-warn') }} mt-1" id="vatTest">
+        <x-icon name="alert"/><div><b>{{ $reg['act'] }}.</b> {{ $reg['note'] }}
+          @if($blocker)<div class="mt-1"><b>E-VAT is not submitting:</b> {{ $blocker }}</div>@endif
+          <div class="tiny mt-1">Turnover is this property's own taxable base, month by month, from the same figures the filed VAT return uses — closed documents with credit notes negative, plus direct-settled outlet bills.</div>
+        </div></div>
       <p class="tiny muted mt-1">GRA TIN: P (individual), C (company), G (government), Q (other organisation) or V + 10 digits; individuals may use their Ghana Card PIN (GHA-123456789-0). Buyers with a valid TIN are B2B – their TIN is printed on the invoice and sent to E-VAT.</p>
     </div></div>
 
@@ -31,6 +42,11 @@
     </div></div>
   </div>
   <div>
+    <div class="card mt-1"><div class="card-head"><h3><x-icon name="money"/> Price entry</h3></div><div class="card-body">
+      <label class="check span-all"><input type="radio" name="tax_prices_inclusive" value="0" @checked(old('tax_prices_inclusive', $s['tax_prices_inclusive'] ?? '0') !== '1')> <span><b>Tax-exclusive</b> — prices are entered net of tax and the tax is added at the till (current behaviour)</span></label>
+      <label class="check span-all"><input type="radio" name="tax_prices_inclusive" value="1" @checked(old('tax_prices_inclusive', $s['tax_prices_inclusive'] ?? '0') === '1')> <span><b>Tax-inclusive</b> — prices include tax; the till extracts VAT, NHIL, GETFund and the Tourism Levy from the price</span></label>
+      <p class="tiny muted span-all">Applies to POS outlets, the recreation ticket outlet, club day passes and membership charges. Room rates keep their own per-rate-plan tax-inclusive setting.</p>
+    </div></div>
     <div class="card flush"><div class="card-head"><h3><x-icon name="layers"/> Tax components</h3>@if(can_do('masters.manage'))<a class="small" href="{{ route('masters.index', 'taxes') }}">Edit in Masters →</a>@endif</div>
       <div class="card-body table-wrap"><table class="table" id="taxTable"><thead><tr><th>Tax</th><th>Code</th><th>Authority</th><th class="num">Rate</th><th>Applies to</th><th>Status</th></tr></thead><tbody>
       @forelse($taxes as $t)<tr><td>{{ $t->name }}</td><td class="mono small">{{ $t->code ?? '—' }}</td><td class="small">{{ $t->authority ?? '—' }}</td><td class="num">{{ rtrim(rtrim(number_format($t->rate, 2), '0'), '.') }}%</td><td class="small">{{ ucfirst($t->applies_to) }}</td>

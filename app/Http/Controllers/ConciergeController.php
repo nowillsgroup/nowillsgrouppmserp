@@ -37,7 +37,7 @@ class ConciergeController extends Controller
     protected function stays()
     {
         return ReservationRoom::with('guest', 'room', 'reservation.guest')->where(fn ($q) => $q->where('status', 'checked_in')
-            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereBetween('arrival_date', [bdate()->toDateString(), bdate()->copy()->addDays(7)->toDateString()])))
+            ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '>=', bdate()->toDateString())->whereDate('arrival_date', '<=', bdate()->copy()->addDays(7)->toDateString())))
             ->get()->sortBy(fn ($s) => [$s->status === 'checked_in' ? 0 : 1, $s->room?->room_no ?? 'zzz'])->values();
     }
 
@@ -45,14 +45,14 @@ class ConciergeController extends Controller
     {
         CS::ensureDefaults();
         $date = $r->filled('date') && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $r->date) ? Carbon::parse($r->date) : bdate()->copy();
-        $waiting = ActivityBooking::with('activity.vendor')->where('status', 'requested')->where('date', '>=', bdate()->toDateString())->orderBy('date')->orderBy('time')->limit(30)->get();
-        $waitlist = ActivityBooking::with('activity')->where('status', 'waitlisted')->where('date', '>=', bdate()->toDateString())->orderBy('date')->orderBy('time')->limit(30)->get();
+        $waiting = ActivityBooking::with('activity.vendor')->where('status', 'requested')->whereDate('date', '>=', bdate()->toDateString())->orderBy('date')->orderBy('time')->limit(30)->get();
+        $waitlist = ActivityBooking::with('activity')->where('status', 'waitlisted')->whereDate('date', '>=', bdate()->toDateString())->orderBy('date')->orderBy('time')->limit(30)->get();
         $bal = CS::balances();
 
         return view('concierge.index', [
             'date' => $date, 'board' => CS::board($date), 'stats' => CS::monthStats(bdate()->copy()), 'alerts' => CS::alerts(), 'waiting' => $waiting, 'waitlist' => $waitlist,
             'payable' => $bal->sum('payable'), 'receivable' => $bal->sum('receivable'), 'cfg' => CS::cfg(),
-            'upcoming' => ActivityBooking::whereIn('status', ['requested', 'confirmed'])->whereBetween('date', [bdate()->copy()->addDay()->toDateString(), bdate()->copy()->addDays(7)->toDateString()])->count(),
+            'upcoming' => ActivityBooking::whereIn('status', ['requested', 'confirmed'])->whereDate('date', '>=', bdate()->copy()->addDay()->toDateString())->whereDate('date', '<=', bdate()->copy()->addDays(7)->toDateString())->count(),
         ]);
     }
 
@@ -64,7 +64,7 @@ class ConciergeController extends Controller
         }
         foreach (['from' => '>=', 'to' => '<='] as $k => $op) {
             if ($r->filled($k) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $r->$k)) {
-                $q->where('date', $op, $r->$k);
+                $q->whereDate('date', $op, $r->$k);
             }
         }
         if ($r->filled('vendor')) {

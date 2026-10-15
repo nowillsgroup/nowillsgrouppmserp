@@ -1,0 +1,388 @@
+[
+    {
+        "module": "Front Office",
+        "pages": [
+            {
+                "label": "Room View",
+                "route": "frontdesk.rooms",
+                "perm": "frontdesk.view"
+            },
+            {
+                "label": "Tape Chart",
+                "route": "frontdesk.tapechart",
+                "perm": "frontdesk.view"
+            },
+            {
+                "label": "Walk-in Check-in",
+                "route": "frontdesk.walkin",
+                "perm": "frontdesk.checkin"
+            },
+            {
+                "label": "Arrivals",
+                "route": "frontdesk.arrivals",
+                "perm": "frontdesk.view"
+            },
+            {
+                "label": "In-House Guests",
+                "route": "frontdesk.inhouse",
+                "perm": "frontdesk.view"
+            },
+            {
+                "label": "Departures",
+                "route": "frontdesk.departures",
+                "perm": "frontdesk.view"
+            },
+            {
+                "label": "Guest Requests",
+                "route": "requests.index",
+                "perm": "requests.view",
+                "badge": "guest_requests"
+            },
+            {
+                "label": "Offline Request Capture",
+                "route": "offline.guest_requests",
+                "perm": "requests.view"
+            }
+        ]
+    },
+    {
+        "module": "Desk Operations",
+        "pages": [
+            {
+                "label": "Shift Log Book",
+                "route": "desk.logbook",
+                "perm": "logbook.view",
+                "badge": "desk_log"
+            },
+            {
+                "label": "Shift Hand-over",
+                "route": "desk.handover",
+                "perm": "logbook.view"
+            },
+            {
+                "label": "Wake-up Calls",
+                "route": "desk.wakeups",
+                "perm": "desk.wakeup",
+                "badge": "desk_wakeups"
+            },
+            {
+                "label": "Messages & Parcels",
+                "route": "desk.messages",
+                "perm": "desk.messages",
+                "badge": "desk_messages"
+            },
+            {
+                "label": "Traces",
+                "route": "desk.traces",
+                "perm": "desk.traces",
+                "badge": "desk_traces"
+            },
+            {
+                "label": "Lost & Found",
+                "route": "lostfound.index",
+                "perm": "lostfound.manage",
+                "badge": "desk_lf"
+            },
+            {
+                "label": "Desk Settings",
+                "route": "desk.settings",
+                "perm": "logbook.manage"
+            }
+        ]
+    },
+    {
+        "module": "Reservations",
+        "pages": [
+            {
+                "label": "Reservation Workspace",
+                "route": "reservations.workspace",
+                "perm": "reservations.view",
+                "badge": "ws_arrivals"
+            },
+            {
+                "label": "New Reservation",
+                "route": "reservations.create",
+                "perm": "reservations.create"
+            },
+            {
+                "label": "Reservation List",
+                "route": "reservations.index",
+                "perm": "reservations.view"
+            },
+            {
+                "label": "Availability",
+                "route": "reservations.availability",
+                "perm": "reservations.view"
+            },
+            {
+                "label": "Group Blocks",
+                "route": "blocks.index",
+                "perm": "reservations.view"
+            },
+            {
+                "label": "Rate Calendar",
+                "route": "rates.index",
+                "perm": "reservations.rates"
+            },
+            {
+                "label": "Channel Manager",
+                "route": "cm.index",
+                "perm": "channels.view",
+                "badge": "channel_attention"
+            },
+            {
+                "label": "iCal Feeds",
+                "route": "channels.index",
+                "perm": "channels.manage"
+            }
+        ]
+    },
+    {
+        "module": "Central Reservations",
+        "pages": [
+            {
+                "label": "CRO Desk",
+                "route": "cro.index",
+                "perm": "cro.view"
+            },
+            {
+                "label": "Enquiries",
+                "route": "cro.enquiries",
+                "perm": "cro.view",
+                "badge": "cro_attention"
+            },
+            {
+                "label": "Guest Lookup",
+                "route": "cro.guests",
+                "perm": "cro.view"
+            },
+            {
+                "label": "Lost Business",
+                "route": "cro.lost",
+                "perm": "cro.view"
+            },
+            {
+                "label": "CRO Performance",
+                "route": "cro.performance",
+                "perm": "cro.view"
+            },
+            {
+                "label": "CRO Settings",
+                "route": "cro.settings",
+                "perm": "cro.manage"
+            }
+        ]
+    },
+    {
+        "module": "Concierge",
+        "pages": [
+            {
+                "label": "Concierge Desk",
+                "route": "concierge.index",
+                "perm": "concierge.view",
+                "badge": "concierge_attention"
+            },
+            {
+                "label": "Activity Bookings",
+                "route": "concierge.bookings",
+                "perm": "concierge.view"
+            },
+            {
+                "label": "Activities & Vendors",
+                "route": "concierge.catalogue",
+                "perm": "concierge.view"
+            },
+            {
+                "label": "Local Guide",
+                "route": "concierge.guide",
+                "perm": "concierge.view"
+            },
+            {
+                "label": "Vendor Settlements",
+                "route": "concierge.settlements",
+                "perm": "concierge.view"
+            },
+            {
+                "label": "Concierge Settings",
+                "route": "concierge.settings",
+                "perm": "concierge.manage"
+            }
+        ]
+    },
+    {
+        "module": "Guest Messaging",
+        "pages": [
+            {
+                "label": "Inbox",
+                "route": "inbox.index",
+                "perm": "inbox.view",
+                "badge": "inbox_attention"
+            },
+            {
+                "label": "Messaging Dashboard",
+                "route": "inbox.dashboard",
+                "perm": "inbox.view"
+            },
+            {
+                "label": "Broadcasts",
+                "route": "inbox.broadcasts",
+                "perm": "inbox.view"
+            },
+            {
+                "label": "Quick Replies",
+                "route": "inbox.replies",
+                "perm": "inbox.manage"
+            },
+            {
+                "label": "Routing Rules",
+                "route": "inbox.rules",
+                "perm": "inbox.manage"
+            },
+            {
+                "label": "Messaging Settings",
+                "route": "inbox.settings",
+                "perm": "inbox.manage"
+            }
+        ]
+    },
+    {
+        "module": "Self-Service Kiosk",
+        "pages": [
+            {
+                "label": "Kiosk Dashboard",
+                "route": "kiosks.index",
+                "perm": "kiosk.view",
+                "badge": "kiosk_attention"
+            },
+            {
+                "label": "Kiosks",
+                "route": "kiosks.devices",
+                "perm": "kiosk.view"
+            },
+            {
+                "label": "Guest Visits",
+                "route": "kiosks.sessions",
+                "perm": "kiosk.view"
+            },
+            {
+                "label": "Kiosk Settings",
+                "route": "kiosks.settings",
+                "perm": "kiosk.manage"
+            }
+        ]
+    },
+    {
+        "module": "IPTV & Guest Welcome",
+        "pages": [
+            {
+                "label": "TV Dashboard",
+                "route": "iptv.index",
+                "perm": "iptv.view",
+                "badge": "iptv_attention"
+            },
+            {
+                "label": "TVs & Screens",
+                "route": "iptv.devices",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "Channels & Guide",
+                "route": "iptv.channels",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "Movies & Rentals",
+                "route": "iptv.movies",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "Welcome Screens",
+                "route": "iptv.welcome",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "Information Pages",
+                "route": "iptv.pages",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "TV Messages",
+                "route": "iptv.messages",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "Usage Analytics",
+                "route": "iptv.analytics",
+                "perm": "iptv.view"
+            },
+            {
+                "label": "IPTV Settings",
+                "route": "iptv.settings",
+                "perm": "iptv.manage"
+            }
+        ]
+    },
+    {
+        "module": "Foreign Guests",
+        "pages": [
+            {
+                "label": "Form C (FRRO)",
+                "route": "fg.formc",
+                "perm": "formc.view",
+                "badge": "formc_attention"
+            },
+            {
+                "label": "Currency Exchange",
+                "route": "fg.fx",
+                "perm": "forex.view"
+            },
+            {
+                "label": "Exchange Rates",
+                "route": "fg.rates",
+                "perm": "forex.view",
+                "badge": "fx_rates"
+            },
+            {
+                "label": "Currency Position",
+                "route": "fg.position",
+                "perm": "forex.view",
+                "badge": "fx_surrender"
+            },
+            {
+                "label": "Currencies",
+                "route": "masters.index",
+                "params": [
+                    "currencies"
+                ],
+                "perm": "forex.manage"
+            },
+            {
+                "label": "Foreign Guest Settings",
+                "route": "fg.settings",
+                "perm": "formc.manage"
+            }
+        ]
+    },
+    {
+        "module": "Interfaces",
+        "pages": [
+            {
+                "label": "Call Accounting",
+                "route": "calls.index",
+                "perm": "calls.view",
+                "badge": "calls_pending"
+            },
+            {
+                "label": "Key Cards",
+                "route": "keys.index",
+                "perm": "keys.view",
+                "badge": "keys_overdue"
+            },
+            {
+                "label": "Interface Hub",
+                "route": "interfaces.index",
+                "perm": "interfaces.manage"
+            }
+        ]
+    }
+]

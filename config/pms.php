@@ -7,12 +7,15 @@
 */
 
 return [
-    'version' => '7.34.0',
+    'version' => '7.54.0',   // asset cache-buster + the sidebar stamp; docs/MODULES.md quotes it and modules_doc_check.py diffs the two
 
     'banquet_service_categories' => ['av' => 'Audio-visual', 'decor' => 'Décor & flowers', 'entertainment' => 'Entertainment', 'equipment' => 'Equipment & furniture', 'staffing' => 'Staffing', 'other' => 'Other'],
 
     // CSP frame-ancestors: "'self'" in production; "*" only when embedding in a preview iframe.
     'frame_ancestors' => env('PMS_FRAME_ANCESTORS', "'self'"),
+
+    // v7.37 – allow channel/test endpoints on private addresses (dev sandboxes only!)
+    'channel_allow_private' => (bool) env('PMS_CHANNEL_ALLOW_PRIVATE', false),
 
     'permissions' => [
         'Dashboard' => ['dashboard.view' => 'View dashboard'],
@@ -97,6 +100,7 @@ return [
             'club.members' => 'Enrol & edit memberships, card holders & photos, take member payments, renew, freeze', 'club.manage' => 'Plans & club settings, cancel memberships & charges, credit notes, refunds, override entry refusals'], // v5.1
         'Banquet' => ['banquet.view' => 'View events, diary, function sheets (BEO) & proposals', 'banquet.manage' => 'Create & edit events, holds, confirm, lost, cancel, attendance',
             'banquet.billing' => 'Take / refund deposits, bill events, waive cancellation fees', 'banquet.setup' => 'Venues, menu packages, services & banquet settings'],
+        'Car Rental' => ['rentals.view' => 'View the rental desk, fleet and bookings', 'rentals.manage' => 'Book, pick up and return vehicles, edit the fleet, cancel rentals'], // v7.40
         'Inventory' => ['inventory.view' => 'View stock', 'inventory.manage' => 'Purchase / issue / adjust stock'],
         'Food Safety' => ['foodsafety.view' => 'View HACCP records, the allergen matrix and food-safety dashboard', 'foodsafety.record' => 'Record temperatures, complete checklists, log food waste, print prep labels',
             'foodsafety.manage' => 'Equipment & critical limits, checklist templates, allergen declarations, review breaches, sign off checklists, cancel waste', 'foodsafety.certs' => 'Maintain food handler medical / hygiene certificates'], // v5.0
@@ -251,6 +255,7 @@ return [
                 ['label' => 'Desk Settings', 'route' => 'desk.settings', 'perm' => 'logbook.manage'],
             ]],
             ['label' => 'Reservations', 'icon' => 'calendar', 'children' => [
+                ['label' => 'Reservation Workspace', 'route' => 'reservations.workspace', 'perm' => 'reservations.view', 'badge' => 'ws_arrivals'],
                 ['label' => 'New Reservation', 'route' => 'reservations.create', 'perm' => 'reservations.create'],
                 ['label' => 'Reservation List', 'route' => 'reservations.index', 'perm' => 'reservations.view'],
                 ['label' => 'Availability', 'route' => 'reservations.availability', 'perm' => 'reservations.view'],
@@ -598,6 +603,11 @@ return [
                 ['label' => 'Day Passes', 'route' => 'club.passes', 'perm' => 'club.view'],
                 ['label' => 'Plans & Settings', 'route' => 'club.plans', 'perm' => 'club.view'],
             ]],
+            ['label' => 'Recreation Outlet', 'icon' => 'spa', 'children' => [ // v7.38 POS ticketing for walk-ins
+                ['label' => 'Ticket Outlet', 'route' => 'recreation.outlet', 'perm' => 'club.desk'],
+                ['label' => 'Ticket Sales', 'route' => 'recreation.sales', 'perm' => 'club.view'],
+                ['label' => 'Ticket Types', 'route' => 'recreation.types', 'perm' => 'club.manage'],
+            ]],
             ['label' => 'Spa & Activities', 'icon' => 'spa', 'children' => [
                 ['label' => 'Appointments', 'route' => 'spa.index', 'perm' => 'spa.view'],
                 ['label' => 'Services & Activities', 'route' => 'masters.index', 'params' => ['spa-services'], 'perm' => 'masters.manage'],
@@ -621,6 +631,7 @@ return [
                 ['label' => 'Employees', 'route' => 'masters.index', 'params' => ['employees'], 'perm' => 'hr.manage'],
                 ['label' => 'Attendance', 'route' => 'hr.attendance', 'perm' => 'hr.manage'],
                 ['label' => 'Monthly Register', 'route' => 'hr.register', 'perm' => 'hr.manage'],
+                ['label' => 'Public Holidays', 'route' => 'hr.holidays', 'perm' => 'hr.manage,roster.view,payroll.view'], // v7.43 Act 601 / Act 1142
                 ['label' => 'Leave Requests', 'route' => 'leave.index', 'perm' => 'hr.leave', 'badge' => 'leave_pending'],
                 ['label' => 'Duty Roster', 'route' => 'roster.index', 'perm' => 'roster.view', 'badge' => 'swap_pending'], // v4.9
                 ['label' => 'Time Clock', 'route' => 'clock.index', 'perm' => 'roster.view', 'badge' => 'timeclock_attention'],
@@ -707,6 +718,7 @@ return [
                 ['label' => 'SMS / WhatsApp Log', 'route' => 'messages.index', 'perm' => 'logs.view'],
                 ['label' => 'API & Webhooks', 'route' => 'developers.index', 'perm' => 'api.view', 'badge' => 'api_attention'],
                 ['label' => 'Database Backup', 'route' => 'settings.backup', 'perm' => 'settings.manage'],
+                ['label' => 'Data Migration', 'route' => 'migration.index', 'perm' => 'settings.manage'],
             ]],
         ]],
     ],

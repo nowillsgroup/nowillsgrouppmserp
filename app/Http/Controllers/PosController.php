@@ -289,14 +289,17 @@ class PosController extends Controller
             foreach ($menuLines as $k => $line) {
                 $m = MenuItem::findOrFail($line['id']);
                 $rate = round((float) $m->price + (float) ($modifierAmounts[$k] ?? 0), 2);
+                $rate = TaxService::splitPrice($rate, (float) $m->tax_rate, 'fnb')['net']; // v7.39 tax-inclusive support
                 $order->items()->create(['menu_item_id' => $m->id, 'item_name' => $m->name, 'qty' => $line['qty'], 'rate' => $rate, 'modifier_amount' => $modifierAmounts[$k] ?? 0, 'modifiers' => $modifierSnapshots[$k] ?? [], 'tax_rate' => $m->tax_rate, 'amount' => round($rate * $line['qty'], 2), 'kot_no' => $kot, 'notes' => $line['notes'] ?? null, 'allergy_flag' => $flags[$k], 'kitchen_status' => ! empty($line['hold']) ? 'held' : 'new']);
             }
             foreach ($openLines as $line) {
                 $rate = round((float) $line['price'], 2);
                 $qty = (float) $line['qty'];
+                $openRate = TaxService::rateFor('fnb', $rate);
+                $rate = TaxService::splitPrice($rate, $openRate, 'fnb')['net']; // v7.39 tax-inclusive support
                 $order->items()->create([
                     'menu_item_id' => null, 'item_name' => $line['name'], 'qty' => $qty, 'rate' => $rate,
-                    'tax_rate' => TaxService::rateFor('fnb', $rate), 'amount' => round($rate * $qty, 2), 'kot_no' => $kot,
+                    'tax_rate' => $openRate, 'amount' => round($rate * $qty, 2), 'kot_no' => $kot,
                     'notes' => $line['notes'], 'allergy_flag' => $openFlags['text'] ?? null, 'is_open' => true,
                     'kitchen_station' => $line['station'], 'food_type' => $line['food_type'],
                     'kitchen_status' => ! empty($line['hold']) ? 'held' : 'new',
@@ -666,19 +669,7 @@ class PosController extends Controller
                 }
             } elseif ($data['settlement'] === 'room_post') {
                 $stay = ReservationRoom::findOrFail($data['reservation_room_id']);
-                if ($stay->status !== 'checked_in') {
-                    throw ValidationException::withMessages(['reservation_room_id' => 'Room is not in-house.']);
-                }
-                $folio = FolioService::openForStay($stay);
-                $net = (float) $order->subtotal - (float) $order->discount + (float) $order->service_charge + (float) $order->round_off;
-                FolioService::charge($folio, 'fnb', "{$order->outlet->name} – Bill {$order->bill_no}", $net, false,
-                    ['tax_amount' => $order->tax, 'tax_rate' => $net > 0 ? round($order->tax * 100 / $net, 2) : 0, 'source_type' => 'pos', 'source_id' => $order->id]);
-                $order->reservation_room_id = $stay->id;
-                $order->folio_id = $folio->id;
-                $order->status = 'settled';
-                $order->settled_at = now();
-                $order->settled_by = auth()->id();
-                \App\Services\RecipeService::consume($order);
+                \App\Services\PosOpsService::postToRoom($order, $stay);
             } else {
                 $order->status = 'settled';
                 $order->settled_at = now();
@@ -807,7 +798,7 @@ class PosController extends Controller
         $to = $request->input('to', bdate()->toDateString());
         $search = trim((string) $request->input('q', ''));
         $orders = PosOrder::with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')
-            ->whereBetween('business_date', [$from, $to])
+            ->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(function ($match) use ($like) {

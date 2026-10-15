@@ -218,8 +218,8 @@ class DigitalMarketingService
             $vals[$k] = self::int($d[$k] ?? 0, $l);
         }
         self::need(! $vals['impressions'] || $vals['reach'] <= $vals['impressions'], 'Reach cannot be higher than impressions.');
-        $s = DmChannelStat::updateOrCreate(['channel_id' => $c->id, 'month' => $month->toDateString()], $vals);
-        if (! DmChannelStat::where('channel_id', $c->id)->where('month', '>', $month->toDateString())->exists()) {
+        $s = date_upsert(DmChannelStat::class, ['channel_id' => $c->id, 'month' => $month->toDateString()], $vals);
+        if (! DmChannelStat::where('channel_id', $c->id)->whereDate('month', '>', $month->toDateString())->exists()) {
             $c->update(['followers' => $vals['followers']]);
         }
         ActivityLogger::log('digital', 'stats', "{$c->name}: figures for {$month->format('M Y')} recorded", $c);
@@ -344,7 +344,11 @@ class DigitalMarketingService
         self::need(self::canContent($u));
         self::need($p->status === 'approved', 'Only approved posts can be marked as published.');
         $p->update(['status' => 'published', 'published_at' => now(), 'post_url' => self::url($url, 'The post link')]);
-        ActivityLogger::log('digital', 'publish', "Post “{$p->title}” published", $p);
+        $log = \App\Services\SocialPublishService::publish($p->fresh()); // v7.39 live Facebook / WhatsApp delivery
+        $p->update(['publish_log' => $log]);
+        $live = collect($log)->where('mode', 'live');
+        ActivityLogger::log('digital', 'publish', "Post “{$p->title}” published".($live->count()
+            ? ' – '.implode(', ', $live->map(fn ($r) => $r['channel'].': '.($r['ok'] ? 'posted' : 'FAILED'))->all()) : ''), $p);
     }
 
     public static function recordPostStats(DmPost $p, array $d, User $u): void
@@ -447,7 +451,7 @@ class DigitalMarketingService
         $v = ['impressions' => self::int($d['impressions'] ?? 0, 'Impressions'), 'clicks' => self::int($d['clicks'] ?? 0, 'Clicks'), 'spend' => self::money($d['spend'] ?? 0, 'Spend'),
             'conversions' => self::int($d['conversions'] ?? 0, 'Conversions'), 'conversion_value' => self::money($d['conversion_value'] ?? 0, 'Conversion value'), 'source' => $source];
         self::need(! $v['impressions'] || $v['clicks'] <= $v['impressions'], 'Clicks cannot exceed impressions.');
-        $existing = DmAdStat::where('campaign_id', $c->id)->where('date', $date->toDateString())->first();
+        $existing = DmAdStat::where('campaign_id', $c->id)->whereDate('date', $date->toDateString())->first();
         $existing ? $existing->update($v) : DmAdStat::create($v + ['campaign_id' => $c->id, 'date' => $date->toDateString()]);
 
         return ['created' => ! $existing];
@@ -533,7 +537,7 @@ class DigitalMarketingService
     /** spend / delivery / conversion / attribution figures for a campaign */
     public static function campaignStats(DmCampaign $c, ?Carbon $from = null, ?Carbon $to = null): array
     {
-        $q = DmAdStat::where('campaign_id', $c->id)->when($from, fn ($x) => $x->whereBetween('date', [$from->toDateString(), $to->toDateString()]));
+        $q = DmAdStat::where('campaign_id', $c->id)->when($from, fn ($x) => $x->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString()));
         $a = $q->selectRaw('COALESCE(SUM(impressions),0) i, COALESCE(SUM(clicks),0) c, COALESCE(SUM(spend),0) s, COALESCE(SUM(conversions),0) v, COALESCE(SUM(conversion_value),0) cv, MAX(date) last')->first();
         $linkIds = DmLink::where('campaign_id', $c->id)->pluck('id');
         $att = self::bookings($linkIds, $from, $to);
@@ -818,7 +822,7 @@ class DigitalMarketingService
                 'missed' => DmPost::where('status', 'approved')->where('scheduled_at', '<', now()->subHour())->count(),
                 'audits' => DmChannel::where('is_active', true)->get()->filter(fn ($c) => self::auditDue($c))->count(),
                 'over_budget' => $over,
-                'influencers' => DmInfluencer::where('status', 'hosted')->whereNotNull('due_date')->where('due_date', '<', bdate()->toDateString())->count(),
+                'influencers' => DmInfluencer::where('status', 'hosted')->whereNotNull('due_date')->whereDate('due_date', '<', bdate()->toDateString())->count(),
             ];
         })();
     }
@@ -838,11 +842,11 @@ class DigitalMarketingService
         $to = $month->copy()->endOfMonth();
         $prev = $from->copy()->subMonthNoOverflow();
         $social = DmChannel::where('is_active', true)->get()->filter(fn ($c) => $c->kind() === 'social')->pluck('id');
-        $st = fn (Carbon $m) => DmChannelStat::whereIn('channel_id', $social->all() ?: [0])->where('month', $m->toDateString())
+        $st = fn (Carbon $m) => DmChannelStat::whereIn('channel_id', $social->all() ?: [0])->whereDate('month', $m->toDateString())
             ->selectRaw('COALESCE(SUM(followers),0) f, COALESCE(SUM(reach),0) r, COALESCE(SUM(impressions),0) i, COALESCE(SUM(engagements),0) e, COALESCE(SUM(clicks),0) c, COUNT(*) n')->first();
         [$now, $before] = [$st($from), $st($prev)];
         $spend = (float) DmAdStat::whereBetween('date', [$from->toDateString(), $to->toDateString()])->sum('spend');
-        $fees = (float) DmInfluencer::whereIn('status', ['hosted', 'delivered'])->whereBetween('stay_from', [$from->toDateString(), $to->toDateString()])->sum('fee');
+        $fees = (float) DmInfluencer::whereIn('status', ['hosted', 'delivered'])->whereDate('stay_from', '>=', $from->toDateString())->whereDate('stay_from', '<=', $to->toDateString())->sum('fee');
         $budget = (float) MarketingBudget::where('year', $from->year)->where('month', $from->month)->where('line', 'digital')->sum('amount');
         $att = CrmService::bookingValue(Reservation::whereNotNull('dm_link_id')->whereBetween('created_at', [$from, $to]));
         $listings = DmChannel::where('is_active', true)->get()->filter(fn ($c) => $c->kind() === 'listing');
@@ -873,7 +877,7 @@ class DigitalMarketingService
             $m = $end->copy()->subMonthsNoOverflow($k);
             $from = $m->copy()->startOfMonth();
             $to = $m->copy()->endOfMonth();
-            $s = DmChannelStat::whereIn('channel_id', $social)->where('month', $from->toDateString())->selectRaw('COALESCE(SUM(followers),0) f, COALESCE(SUM(reach),0) r, COALESCE(SUM(engagements),0) e')->first();
+            $s = DmChannelStat::whereIn('channel_id', $social)->whereDate('month', $from->toDateString())->selectRaw('COALESCE(SUM(followers),0) f, COALESCE(SUM(reach),0) r, COALESCE(SUM(engagements),0) e')->first();
 
             return ['month' => $from, 'followers' => (int) $s->f, 'reach' => (int) $s->r, 'engagements' => (int) $s->e,
                 'spend' => round((float) DmAdStat::whereBetween('date', [$from->toDateString(), $to->toDateString()])->sum('spend'), 2),

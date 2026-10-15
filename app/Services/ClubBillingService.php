@@ -23,14 +23,13 @@ use RuntimeException;
  */
 class ClubBillingService
 {
-    public static function tax(float $net, ?float $rate = null): array
+    public static function tax(float $amount, ?float $rate = null): array
     {
         if ($rate === null) {
-            $rate = (float) TaxService::forCategory('club', abs($net))['rate'];
+            $rate = (float) TaxService::forCategory('club', abs($amount))['rate'];
         }
-        $tax = round($net * $rate / 100, 2);
-
-        return ['rate' => $rate, 'tax' => $tax, 'total' => round($net + $tax, 2)];
+        // v7.39 honours the Tax-settings inclusive/exclusive switch ($amount is the entered price).
+        return TaxService::splitPrice($amount, $rate, 'club');
     }
 
     /** Raise a charge on a membership. $o: date, period_start, period_end, due_date, credit_of_id, tax_rate. */
@@ -54,7 +53,7 @@ class ClubBillingService
             'description' => mb_substr($description, 0, 160),
             'period_start' => $o['period_start'] ?? null,
             'period_end' => $o['period_end'] ?? null,
-            'amount' => round($net, 2),
+            'amount' => $t['net'],
             'tax_rate' => $t['rate'],
             'tax' => $t['tax'],
             'total' => $t['total'],
@@ -257,8 +256,8 @@ class ClubBillingService
     /** Positive = the member owes; negative = in credit. */
     public static function balance(ClubMembership $m, ?string $asOf = null): float
     {
-        $ch = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('total');
-        $pay = ClubPayment::where('club_membership_id', $m->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))
+        $ch = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('total');
+        $pay = ClubPayment::where('club_membership_id', $m->id)->whereNull('voided_at')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
@@ -269,7 +268,7 @@ class ClubBillingService
     {
         $cut = Carbon::parse($date ?? bdate())->subDays((int) setting('club_grace_days', 7))->toDateString();
         $rows = ClubCharge::where('club_membership_id', $m->id)->whereNull('cancelled_at')->where('type', '!=', 'credit')
-            ->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
+            ->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')->orderBy('due_date')->get(['total', 'paid', 'due_date']);
 
         return [round($rows->sum(fn ($c) => (float) $c->total - (float) $c->paid), 2), $rows->first()?->due_date];
     }
@@ -278,7 +277,7 @@ class ClubBillingService
     public static function arrears(): \Illuminate\Support\Collection
     {
         $cut = bdate()->copy()->subDays((int) setting('club_grace_days', 7))->toDateString();
-        $rows = ClubCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->where('due_date', '<', $cut)->whereRaw('total - paid > 0.004')
+        $rows = ClubCharge::whereNull('cancelled_at')->where('type', '!=', 'credit')->whereDate('due_date', '<', $cut)->whereRaw('total - paid > 0.004')
             ->selectRaw('club_membership_id, SUM(total - paid) amt, MIN(due_date) since')->groupBy('club_membership_id')->get();
         $ms = ClubMembership::with('plan', 'company')->whereIn('id', $rows->pluck('club_membership_id'))->get()->keyBy('id');
 
@@ -308,7 +307,7 @@ class ClubBillingService
         }
         $start = $c->period_start->toDateString();
         $stop = self::stopDate($c);
-        $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->where('date', '<=', $d)->sum('amount');
+        $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->whereDate('date', '<=', $d)->sum('amount');
         if ($d >= $stop || $d >= $c->period_end->toDateString()) {
             return round((float) $c->amount + $credits, 2);
         }
@@ -325,8 +324,8 @@ class ClubBillingService
     public static function unearned(string $asOf): float
     {
         $sum = 0.0;
-        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->where('date', '<=', $asOf)->get() as $c) {
-            $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('amount');
+        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->get() as $c) {
+            $credits = (float) ClubCharge::where('credit_of_id', $c->id)->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('amount');
             $sum += (float) $c->amount + $credits - self::earned($c, $asOf);
         }
 
@@ -338,7 +337,7 @@ class ClubBillingService
     {
         $prev = Carbon::parse($from)->subDay()->toDateString();
         $sum = 0.0;
-        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->where('date', '<=', $to)->get() as $c) {
+        foreach (ClubCharge::with('membership')->where('type', 'subscription')->whereNull('cancelled_at')->whereDate('date', '<=', $to)->get() as $c) {
             $before = $c->date->toDateString() > $prev ? 0.0 : self::earned($c, $prev);
             $sum += self::earned($c, $to) - $before;
         }
@@ -412,8 +411,8 @@ class ClubBillingService
 
     public static function forDayPass(ClubDayPass $d): ?array
     {
-        if ($d->cancelled_at || $d->reservation_room_id || ! $d->payment_mode_id || (float) $d->total <= 0) {
-            return null; // room charges reach the ledger through the folio
+        if ($d->cancelled_at || $d->reservation_room_id || $d->sale_id || ! $d->payment_mode_id || (float) $d->total <= 0) {
+            return null; // room charges reach the ledger through the folio; outlet passes post via their sale
         }
 
         return ['date' => $d->date->toDateString(), 'reference' => $d->pass_no, 'narration' => 'Health club day pass – '.$d->name,
@@ -422,11 +421,33 @@ class ClubBillingService
                 ...LedgerService::taxLines((float) $d->tax, 'club', (float) $d->tax_rate)]];
     }
 
+    /** v7.38 Recreation outlet sale taken over the counter (split tenders). Room charges reach the ledger through the folio. */
+    public static function forTicketSale(\App\Models\ClubTicketSale $s): ?array
+    {
+        if ($s->status === 'void' || $s->reservation_room_id || (float) $s->total <= 0) {
+            return null;
+        }
+        $lines = [];
+        foreach ($s->payments as $pay) {
+            $lines[] = [LedgerService::modeAccount($pay->payment_mode_id, 'cash'), (float) $pay->amount, $pay->paymentMode?->name];
+        }
+        if ((float) $s->change_due > 0 && ($first = $s->payments->first())) {
+            $lines[] = [LedgerService::modeAccount($first->payment_mode_id, 'cash'), -(float) $s->change_due, 'Change given'];
+        }
+        foreach ($s->items as $it) {
+            $lines[] = [AccountHead::sys('rev_club_other'), -(float) $it->line_total, $it->description.' ('.$s->sale_no.')'];
+            $lines = array_merge($lines, LedgerService::taxLines((float) $it->tax, 'club', (float) $it->tax_rate));
+        }
+
+        return ['date' => ($s->business_date ?? $s->sold_at)->toDateString(), 'reference' => $s->sale_no,
+            'narration' => 'Recreation outlet '.$s->sale_no.($s->guest_name ? ' – '.$s->guest_name : ''), 'lines' => $lines];
+    }
+
     /** Members receivable per the sub-ledger at the end of $asOf. */
     public static function controlBalance(string $asOf): float
     {
-        $ch = ClubCharge::whereNull('cancelled_at')->where('date', '<=', $asOf)->sum('total');
-        $pay = ClubPayment::whereNull('voided_at')->where('date', '<=', $asOf)->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
+        $ch = ClubCharge::whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->sum('total');
+        $pay = ClubPayment::whereNull('voided_at')->whereDate('date', '<=', $asOf)->selectRaw("SUM(CASE WHEN kind='refund' THEN -amount ELSE amount END) s")->value('s');
 
         return round((float) $ch - (float) $pay, 2);
     }

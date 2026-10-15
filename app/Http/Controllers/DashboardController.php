@@ -27,13 +27,13 @@ class DashboardController extends Controller
         $total = $rooms->count();
         $occupied = $rooms->where('status', 'occupied')->count();
         $ooo = $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->count();
-        $arrivals = ReservationRoom::with('reservation.guest', 'roomType', 'room')->where('status', 'reserved')->where('arrival_date', $d)->get();
-        $departures = ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->where('departure_date', '<=', $d)->get();
+        $arrivals = ReservationRoom::with('reservation.guest', 'roomType', 'room')->where('status', 'reserved')->whereDate('arrival_date', $d)->get();
+        $departures = ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->get();
         $checkedOutToday = ReservationRoom::where('status', 'checked_out')->whereDate('checked_out_at', today())->count();
         $checkedInToday = ReservationRoom::where('status', 'checked_in')->whereDate('checked_in_at', today())->count();
 
-        $tx = FolioTransaction::where('business_date', $d)->where('is_void', false)->get();
-        $posToday = PosOrder::where('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')->get();
+        $tx = FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->get();
+        $posToday = PosOrder::whereDate('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')->get();
         $roomRevenue = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount');
         $otherRevenue = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + $posToday->sum(fn ($o) => $o->total - $o->tax);
         $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posToday->sum('total');

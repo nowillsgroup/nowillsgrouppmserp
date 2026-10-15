@@ -28,7 +28,7 @@ class PosEvatService
 {
     public static function enabled(): bool
     {
-        return EInvoiceService::enabled() && setting('gst_evat_pos', '1') === '1';
+        return EInvoiceService::enabled() && EInvoiceService::registrationBlocker() === null && setting('gst_evat_pos', '1') === '1';
     }
 
     public static function stampable(PosOrder $o): bool
@@ -207,7 +207,7 @@ class PosEvatService
     /** Settled outlet bills of the period that are not stamped (for the VAT return pre-filing checks). */
     public static function unstamped(string $from, string $to): int
     {
-        return self::enabled() ? PosOrder::where('status', 'settled')->where('settlement', 'payment')->where('total', '>', 0)->whereBetween('business_date', [$from, $to])
+        return self::enabled() ? PosOrder::where('status', 'settled')->where('settlement', 'payment')->where('total', '>', 0)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->where(fn ($q) => $q->whereNull('evat_status')->orWhere('evat_status', '!=', 'generated'))->count() : 0;
     }
 

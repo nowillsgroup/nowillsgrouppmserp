@@ -13,7 +13,17 @@
     <x-field name="city" label="City" :value="$hotel->city"/><x-field name="state" label="State / Region" :value="$hotel->state"/>
     <x-field name="country" label="Country" :value="$hotel->country"/><x-field name="pincode" label="Postal code / GPS address" :value="$hotel->pincode"/>
     <x-field name="phone" label="Phone" :value="$hotel->phone"/><x-field name="email" label="Email" type="email" :value="$hotel->email"/>
-    <x-field name="website" label="Website" type="url" :value="$hotel->website" class="span-2"/>
+    <x-field name="website" label="Website" :value="$hotel->website" class="span-2"
+             hint="With or without https:// — it prints on the letterhead and invoices exactly as entered."/>
+  </div></div>
+  <div class="card" id="vatRegistration"><div class="card-head"><h3>VAT registration</h3><span class="badge badge-blue">Act 1151</span></div><div class="card-body form-grid">
+    <x-field name="vat_supply_kind" label="What this property supplies" type="select" :placeholder="false" class="span-2"
+             :options="\App\Services\GstService::VAT_SUPPLY_KINDS" :value="$hotel->vat_supply_kind ?: 'services'"
+             hint="A supplier of services has no registration threshold — registration is mandatory whatever it turns over. The GH₵750,000 threshold applies to goods only."/>
+    <x-field name="vat_registered_at" label="On the GRA VAT register since" type="date" :value="$hotel->vat_registered_at?->toDateString()" class="span-2"/>
+    <label class="check span-all"><input type="checkbox" name="vat_registered" value="1" @checked($hotel->vat_registered)> This property is on the GRA VAT register</label>
+    <label class="check span-all"><input type="checkbox" name="supports_e_invoicing" value="1" @checked($hotel->supports_e_invoicing)> Able to e-invoice — a certified invoicing system connected to the GRA VSDC</label>
+    <p class="tiny muted span-all">E-invoicing is mandatory for every VAT-registered business, with no turnover threshold, so an unregistered property must not submit to the VSDC and must not charge VAT. Billing › GRA VAT › Settings runs the registration test against this property's own taxable turnover.</p>
   </div></div>
   <div class="card"><div class="card-head"><h3>Operations</h3></div><div class="card-body form-grid">
     <x-field name="currency" label="Currency code" :value="$hotel->currency" required/>

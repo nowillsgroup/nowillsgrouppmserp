@@ -101,7 +101,7 @@ class ReservationDeskController extends Controller
             'room' => $room,
             'outage' => $outage,
             'amenities' => ReservationDeskService::amenityNames($room),
-            'photo' => ReservationDeskService::photo($room),
+            'photo' => ReservationDeskService::photoPath($room),
             'title' => 'Room '.$room->room_no,
         ]);
     }

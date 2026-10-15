@@ -111,7 +111,7 @@ class ReservationDeskService
         } elseif ($focus === 'oos') {
             $rooms = $rooms->where('status', 'out_of_service')->values();
         } elseif ($focus === 'cleaning') {
-            $ids = HousekeepingTask::where('task_date', $date->toDateString())->where('status', 'in_progress')->pluck('room_id');
+            $ids = HousekeepingTask::whereDate('task_date', $date->toDateString())->where('status', 'in_progress')->pluck('room_id');
             $rooms = $rooms->whereIn('id', $ids)->values();
         } elseif ($focus === 'maintenance') {
             $ids = MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->pluck('room_id');
@@ -120,19 +120,19 @@ class ReservationDeskService
 
         $stays = ReservationRoom::with(['reservation.guest', 'reservation.source', 'reservation.company', 'room', 'roomType'])
             ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
-            ->where('arrival_date', '<', $to->toDateString())
-            ->where('departure_date', '>', $date->toDateString())
+            ->whereDate('arrival_date', '<', $to->toDateString())
+            ->whereDate('departure_date', '>', $date->toDateString())
             ->get();
         $stays = self::filterStays($stays, $request, $date);
 
         $roomIds = $rooms->pluck('id');
         $outages = RoomOutage::with('room')->where('status', 'active')
-            ->where('starts_on', '<', $to->toDateString())->where('ends_on', '>', $date->toDateString())
+            ->whereDate('starts_on', '<', $to->toDateString())->whereDate('ends_on', '>', $date->toDateString())
             ->get();
 
         $day = $date->toDateString();
         $arrivals = ReservationRoom::with(['reservation.guest', 'reservation.source', 'room', 'roomType', 'folio'])
-            ->where('arrival_date', $day)->whereIn('status', ['reserved', 'checked_in'])->orderBy('id')->get();
+            ->whereDate('arrival_date', $day)->whereIn('status', ['reserved', 'checked_in'])->orderBy('id')->get();
         if ($request->input('due') === 'in') {
             $arrivals = $arrivals->where('status', 'reserved')->values();
         }
@@ -140,15 +140,15 @@ class ReservationDeskService
             $arrivals = $arrivals->filter(fn ($s) => $s->reservation?->source?->type === 'walk_in')->values();
         }
         $departures = ReservationRoom::with(['reservation.guest', 'room', 'roomType', 'folio'])
-            ->where('departure_date', $day)->whereIn('status', ['checked_in', 'checked_out'])->orderBy('id')->get();
+            ->whereDate('departure_date', $day)->whereIn('status', ['checked_in', 'checked_out'])->orderBy('id')->get();
         $inhouse = ReservationRoom::with(['reservation.guest', 'reservation.company', 'room', 'roomType', 'folio'])
             ->where('status', 'checked_in')->orderBy('room_id')->get();
         $unassigned = ReservationRoom::with(['reservation.guest', 'roomType'])
-            ->where('status', 'reserved')->whereNull('room_id')->where('departure_date', '>', $day)
+            ->where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $day)
             ->orderBy('arrival_date')->get();
         $groups = Reservation::with(['guest', 'rooms.room', 'rooms.roomType', 'block.lines.roomType'])
             ->where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $date->toDateString())
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $date->toDateString())
             ->orderBy('arrival_date')->get();
 
         if ($focus === 'blocked') {
@@ -235,20 +235,20 @@ class ReservationDeskService
             ->when($request->q, fn ($w, $t) => $w->where(fn ($x) => $x->where('reservation_no', 'like', "%$t%")->orWhere('group_name', 'like', "%$t%")->orWhere('ota_reference', 'like', "%$t%")->orWhereHas('guest', fn ($g) => $g->whereNull('privacy_status')->search($t))))
             ->when($request->status, fn ($w, $s) => $w->where('status', $s))
             ->when($request->source, fn ($w, $s) => $w->where('business_source_id', $s))
-            ->when($request->from, fn ($w, $d) => $w->where('arrival_date', '>=', $d))
-            ->when($request->to, fn ($w, $d) => $w->where('arrival_date', '<=', $d))
+            ->when($request->from, fn ($w, $d) => $w->whereDate('arrival_date', '>=', $d))
+            ->when($request->to, fn ($w, $d) => $w->whereDate('arrival_date', '<=', $d))
             ->when($request->type, fn ($w, $t) => $w->where('booking_type', $t))
             ->when($request->channel, fn ($w, $c) => $w->where('ota_channel_id', (int) $c))
-            ->when($request->input('tab') === 'arrivals', fn ($w) => $w->where('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
+            ->when($request->input('tab') === 'arrivals', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
             ->when($request->input('tab') === 'inhouse', fn ($w) => $w->where('status', 'checked_in'))
-            ->when($request->input('tab') === 'stayover', fn ($w) => $w->where('status', 'checked_in')->where('departure_date', '>', $date))
-            ->when($request->input('tab') === 'dueout', fn ($w) => $w->where('status', 'checked_in')->where('departure_date', $date))
-            ->when($request->input('tab') === 'departures', fn ($w) => $w->where('departure_date', $date)->whereIn('status', ['checked_in', 'checked_out']))
+            ->when($request->input('tab') === 'stayover', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', '>', $date))
+            ->when($request->input('tab') === 'dueout', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', $date))
+            ->when($request->input('tab') === 'departures', fn ($w) => $w->whereDate('departure_date', $date)->whereIn('status', ['checked_in', 'checked_out']))
             ->when($request->input('tab') === 'unassigned', fn ($w) => $w->whereHas('rooms', fn ($r) => $r->whereNull('room_id')->where('status', 'reserved')))
             ->when($request->input('tab') === 'vip' || $request->boolean('vip'), fn ($w) => $w->whereHas('guest', fn ($g) => $g->where('is_vip', true))->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
             ->when($request->input('tab') === 'groups', fn ($w) => $w->where('booking_type', 'group')->whereNotIn('status', ['cancelled', 'no_show']))
             ->when($request->input('tab') === 'cancelled', fn ($w) => $w->where('status', 'cancelled'))
-            ->when($request->input('tab') === 'duein', fn ($w) => $w->where('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed']))
+            ->when($request->input('tab') === 'duein', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed']))
             ->when($request->input('tab') === 'noshow', fn ($w) => $w->where('status', 'no_show'))
             ->when($request->company, fn ($w, $c) => $w->where('company_id', (int) $c));
         $sort = $request->input('sort', 'arrival');
@@ -266,12 +266,12 @@ class ReservationDeskService
             $d = $date->copy()->addDays($i);
             $ds = $d->toDateString();
             $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-                ->where('arrival_date', '<=', $ds)->where('departure_date', '>', $ds);
+                ->whereDate('arrival_date', '<=', $ds)->whereDate('departure_date', '>', $ds);
             $rooms = (clone $covering)->count();
             $out[] = [
                 'date' => $d,
-                'arrivals' => ReservationRoom::where('arrival_date', $ds)->whereIn('status', ['reserved', 'checked_in'])->count(),
-                'departures' => ReservationRoom::where('departure_date', $ds)->whereIn('status', ['checked_in', 'checked_out'])->count(),
+                'arrivals' => ReservationRoom::whereDate('arrival_date', $ds)->whereIn('status', ['reserved', 'checked_in'])->count(),
+                'departures' => ReservationRoom::whereDate('departure_date', $ds)->whereIn('status', ['checked_in', 'checked_out'])->count(),
                 'rooms' => $rooms,
                 'occ' => $sellable ? round($rooms / $sellable * 100, 1) : 0,
                 'revenue' => (float) (clone $covering)->sum('rate'),
@@ -285,8 +285,8 @@ class ReservationDeskService
     public static function onTheBooks(Carbon $date): array
     {
         $sum = fn (int $days) => (float) ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $date->copy()->addDays($days)->toDateString())
-            ->where('departure_date', '>', $date->toDateString())
+            ->whereDate('arrival_date', '<', $date->copy()->addDays($days)->toDateString())
+            ->whereDate('departure_date', '>', $date->toDateString())
             ->sum('rate');
 
         return ['days14' => $sum(14), 'days30' => $sum(30)];
@@ -296,7 +296,7 @@ class ReservationDeskService
     public static function lateArrivals(Carbon $date)
     {
         return ReservationRoom::with(['reservation.guest', 'room'])
-            ->where('arrival_date', $date->toDateString())
+            ->whereDate('arrival_date', $date->toDateString())
             ->where('status', 'reserved')
             ->get()
             ->filter(fn ($s) => filled($s->reservation?->eta) && substr((string) $s->reservation->eta, 0, 5) < now()->format('H:i'))
@@ -311,8 +311,8 @@ class ReservationDeskService
 
         return ReservationRoom::with('reservation.source')
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $end)
-            ->where('departure_date', '>', $date->toDateString())
+            ->whereDate('arrival_date', '<', $end)
+            ->whereDate('departure_date', '>', $date->toDateString())
             ->get()
             ->groupBy(fn ($s) => $s->reservation?->source?->name ?? 'No source')
             ->map(fn ($g, $name) => ['source' => $name, 'rooms' => $g->count(), 'revenue' => (float) $g->sum('rate')])
@@ -324,7 +324,7 @@ class ReservationDeskService
     public static function walkInArrivals(Carbon $date)
     {
         return ReservationRoom::with(['reservation.guest', 'room'])
-            ->where('arrival_date', $date->toDateString())
+            ->whereDate('arrival_date', $date->toDateString())
             ->whereIn('status', ['reserved', 'checked_in'])
             ->whereHas('reservation.source', fn ($s) => $s->where('type', 'walk_in'))
             ->orderBy('id')
@@ -338,8 +338,8 @@ class ReservationDeskService
 
         return ReservationRoom::with(['reservation.guest', 'room'])
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<=', $d)
-            ->where('departure_date', '>', $d)
+            ->whereDate('arrival_date', '<=', $d)
+            ->whereDate('departure_date', '>', $d)
             ->get()
             ->filter(fn ($s) => in_array(self::stayLabel($s, $date), ['Complimentary', 'House use'], true))
             ->values();
@@ -352,8 +352,8 @@ class ReservationDeskService
         $end = $date->copy()->addDays($days)->toDateString();
         $window = ReservationRoom::with('roomType')
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $end)
-            ->where('departure_date', '>', $tonight)
+            ->whereDate('arrival_date', '<', $end)
+            ->whereDate('departure_date', '>', $tonight)
             ->get();
         $tonightIds = $window
             ->filter(fn ($s) => $s->arrival_date->toDateString() <= $tonight && $s->departure_date->toDateString() > $tonight)
@@ -379,7 +379,7 @@ class ReservationDeskService
         return Reservation::with(['guest', 'rooms.room'])
             ->where('booking_type', 'group')
             ->whereIn('status', ['tentative', 'confirmed'])
-            ->whereBetween('arrival_date', [$date->toDateString(), $date->copy()->addDays($days - 1)->toDateString()])
+            ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->orderBy('arrival_date')->orderBy('id')
             ->get();
     }
@@ -399,7 +399,7 @@ class ReservationDeskService
     {
         return ReservationRoom::with(['reservation.guest', 'room'])
             ->whereIn('status', ['reserved', 'checked_in'])
-            ->whereBetween('arrival_date', [$date->toDateString(), $date->copy()->addDays($days - 1)->toDateString()])
+            ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))
             ->orderBy('arrival_date')->orderBy('id')->get();
     }
@@ -407,15 +407,15 @@ class ReservationDeskService
     public static function kpis(Carbon $date): array
     {
         $d = $date->toDateString();
-        $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->where('arrival_date', '<=', $d)->where('departure_date', '>', $d);
+        $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $sold = (clone $covering)->count();
         $assigned = (clone $covering)->whereNotNull('room_id')->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
         $sellable = $roomRows->whereNotIn('status', ['out_of_order', 'out_of_service'])->count();
-        $posted = (float) FolioTransaction::where('business_date', $d)->where('is_void', false)->where('type', 'charge')->sum(DB::raw('amount + tax_amount'));
-        $roomPosted = (float) FolioTransaction::where('business_date', $d)->where('is_void', false)->where('type', 'charge')->where('category', 'room')->sum(DB::raw('amount + tax_amount'));
-        $deposits = (float) FolioTransaction::where('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', 'advance')->sum('amount');
+        $posted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->sum(DB::raw('amount + tax_amount'));
+        $roomPosted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->where('category', 'room')->sum(DB::raw('amount + tax_amount'));
+        $deposits = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', 'advance')->sum('amount');
         $openIds = Folio::where('status', 'open')->pluck('id');
         $outstanding = 0.0;
         if ($openIds->isNotEmpty()) {
@@ -425,18 +425,18 @@ class ReservationDeskService
         }
 
         return [
-            'arrivals' => ReservationRoom::where('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
+            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
-            'due_out' => ReservationRoom::where('status', 'checked_in')->where('departure_date', $d)->count(),
+            'due_out' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
             'available' => AvailabilityService::reservationRooms($d, $date->copy()->addDay()->toDateString())->count(),
             'occupancy' => $sellable ? round($assigned / $sellable * 100, 1) : null,
             'adr' => $sold ? round($onBooks / $sold, 2) : null,
             'on_books' => round($onBooks, 2),
             'posted' => round($posted, 2),
             'outstanding' => round($outstanding, 2),
-            'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->where('departure_date', '>', $d)->count(),
-            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->where('arrival_date', '<=', $d)->where('departure_date', '>', $d)->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->count(),
-            'groups' => Reservation::where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->where('arrival_date', '<=', $d)->where('departure_date', '>', $d)->count(),
+            'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $d)->count(),
+            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->count(),
+            'groups' => Reservation::where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
             'sellable' => $sellable,
             'sold' => $sold,
             'total' => $roomRows->count(),
@@ -445,15 +445,15 @@ class ReservationDeskService
             'vacant_clean' => $roomRows->where('status', 'vacant')->where('hk_status', 'clean')->count(),
             'vacant_dirty' => $roomRows->where('status', 'vacant')->where('hk_status', 'dirty')->count(),
             'inspected' => $roomRows->where('hk_status', 'inspected')->count(),
-            'cleaning' => HousekeepingTask::where('task_date', $d)->where('status', 'in_progress')->distinct()->count('room_id'),
+            'cleaning' => HousekeepingTask::whereDate('task_date', $d)->where('status', 'in_progress')->distinct()->count('room_id'),
             'maintenance' => MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->whereNotNull('room_id')->distinct()->count('room_id'),
             'ooo' => $roomRows->where('status', 'out_of_order')->count(),
             'oos' => $roomRows->where('status', 'out_of_service')->count(),
             'blocked' => RoomOutage::covering($d, $date->copy()->addDay())->distinct('room_id')->count('room_id'),
-            'stayover' => ReservationRoom::where('status', 'checked_in')->where('departure_date', '>', $d)->count(),
-            'due_in' => ReservationRoom::where('arrival_date', $d)->where('status', 'reserved')->count(),
-            'walkins' => Reservation::where('arrival_date', $d)->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereHas('source', fn ($s) => $s->where('type', 'walk_in'))->count(),
-            'noshow' => Reservation::where('status', 'no_show')->where('arrival_date', $d)->count(),
+            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '>', $d)->count(),
+            'due_in' => ReservationRoom::whereDate('arrival_date', $d)->where('status', 'reserved')->count(),
+            'walkins' => Reservation::whereDate('arrival_date', $d)->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereHas('source', fn ($s) => $s->where('type', 'walk_in'))->count(),
+            'noshow' => Reservation::where('status', 'no_show')->whereDate('arrival_date', $d)->count(),
             'cancelled' => Reservation::where('status', 'cancelled')->whereDate('cancelled_at', $d)->count(),
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
             'room_posted' => round($roomPosted, 2),
@@ -467,17 +467,17 @@ class ReservationDeskService
         $d = $date->toDateString();
 
         return [
-            'arrivals' => ReservationRoom::where('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
+            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
-            'stayover' => ReservationRoom::where('status', 'checked_in')->where('departure_date', '>', $d)->count(),
-            'dueout' => ReservationRoom::where('status', 'checked_in')->where('departure_date', $d)->count(),
-            'departures' => ReservationRoom::where('departure_date', $d)->whereIn('status', ['checked_in', 'checked_out'])->count(),
-            'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->where('departure_date', '>', $d)->count(),
-            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->where('departure_date', '>', $d)->count(),
+            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '>', $d)->count(),
+            'dueout' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
+            'departures' => ReservationRoom::whereDate('departure_date', $d)->whereIn('status', ['checked_in', 'checked_out'])->count(),
+            'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $d)->count(),
+            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->whereDate('departure_date', '>', $d)->count(),
             'groups' => Reservation::where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->count(),
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
             'cancelled' => Reservation::where('status', 'cancelled')->count(),
-            'duein' => ReservationRoom::where('arrival_date', $d)->where('status', 'reserved')->count(),
+            'duein' => ReservationRoom::whereDate('arrival_date', $d)->where('status', 'reserved')->count(),
             'noshow' => Reservation::where('status', 'no_show')->count(),
         ];
     }
@@ -554,7 +554,7 @@ class ReservationDeskService
             ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->max('updated_at'),
             Room::max('updated_at'),
             RoomOutage::max('updated_at'),
-            FolioTransaction::where('business_date', $d)->max('updated_at'),
+            FolioTransaction::whereDate('business_date', $d)->max('updated_at'),
         ];
 
         return md5(implode('|', $parts));
@@ -591,6 +591,16 @@ class ReservationDeskService
         return $room->images->firstWhere('is_primary', true) ?? $room->images->first()
             ?? $room->roomType?->images?->firstWhere('is_primary', true)
             ?? $room->roomType?->images?->first();
+    }
+
+    /**
+     * Web path for the room board photo. Uploaded room/type images win; the
+     * room-type media column seeded in v7.41 is the fallback, so a fresh build
+     * still shows the standard photos when nothing has been uploaded.
+     */
+    public static function photoPath(Room $room): ?string
+    {
+        return self::photo($room)?->path ?: $room->roomType?->image ?: null;
     }
 
     /** Same refusals as block(). Writes nothing. */
@@ -634,7 +644,7 @@ class ReservationDeskService
         }
         $room = Room::findOrFail($roomId);
         if (ReservationRoom::where('room_id', $room->id)->whereIn('status', ['reserved', 'checked_in'])
-            ->where('arrival_date', '<', $ends->toDateString())->where('departure_date', '>', $starts->toDateString())->exists()) {
+            ->whereDate('arrival_date', '<', $ends->toDateString())->whereDate('departure_date', '>', $starts->toDateString())->exists()) {
             throw new RuntimeException("Room {$room->room_no} has a reservation in that period. Move or shorten it before blocking.");
         }
         if (RoomOutage::covering($starts, $ends, $room->id)->exists()) {

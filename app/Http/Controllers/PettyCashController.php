@@ -51,7 +51,7 @@ class PettyCashController extends Controller
         return view('petty.index', $this->lookups() + [
             'floats' => $floats, 'stats' => $floats->mapWithKeys(fn ($f) => [$f->id => Petty::stats($f)]),
             'approvals' => Petty::approvals(),
-            'overdue' => PettyTxn::with('float', 'employee')->where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('due_date', '<', bdate()->toDateString())->orderBy('due_date')->get(),
+            'overdue' => PettyTxn::with('float', 'employee')->where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->whereDate('due_date', '<', bdate()->toDateString())->orderBy('due_date')->get(),
             'cfg' => collect(Petty::DEFAULTS)->map(fn ($v, $k) => Petty::cfg($k))->all(),
         ]);
     }

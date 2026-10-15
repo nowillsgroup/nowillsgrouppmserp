@@ -34,9 +34,12 @@ class InterfaceController extends Controller
     public function saveSettings(Request $request)
     {
         $data = $request->validate([
-            'pbx_enabled' => 'nullable|boolean', 'pbx_driver' => 'required|in:demo,offline', 'pbx_auto_post' => 'nullable|boolean', 'pbx_min_secs' => 'required|integer|min:0|max:60',
+            'pbx_enabled' => 'nullable|boolean', 'pbx_driver' => 'required|in:demo,offline,tcp', 'pbx_auto_post' => 'nullable|boolean', 'pbx_min_secs' => 'required|integer|min:0|max:60',
             'pbx_free_numbers' => 'nullable|string|max:300', 'pbx_strip_prefix' => 'nullable|string|max:3', 'pbx_format' => 'required|string|max:100', 'pbx_mask_digits' => 'nullable|boolean',
             'pbx_default_cos' => 'required|in:'.implode(',', array_keys(InterfaceService::COS)),
+            'pbx_tcp_host' => 'nullable|string|max:190', 'pbx_tcp_port' => 'nullable|integer|min:0|max:65535', 'pbx_tcp_timeout' => 'nullable|integer|min:1|max:60',
+            'pbx_tcp_ok' => 'nullable|string|max:120', 'pbx_smdr_host' => 'nullable|string|max:190', 'pbx_smdr_port' => 'nullable|integer|min:0|max:65535',
+            'pbx_cmd_checkin' => 'nullable|string|max:200', 'pbx_cmd_checkout' => 'nullable|string|max:200', 'pbx_cmd_cos' => 'nullable|string|max:200', 'pbx_cmd_move' => 'nullable|string|max:200',
             'lock_enabled' => 'nullable|boolean', 'lock_driver' => 'required|in:demo,offline', 'lock_system' => 'nullable|string|max:60', 'lock_max_cards' => 'required|integer|min:1|max:10',
             'lock_lost_fee' => 'required|numeric|min:0|max:100000', 'lock_checkout_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'], 'lock_grace_minutes' => 'required|integer|min:0|max:720',
             'lock_auto_issue' => 'required|integer|min:0|max:4', 'lock_areas' => 'nullable|string|max:200', 'lock_default_areas' => 'nullable|array', 'lock_master_hours' => 'required|integer|min:1|max:24',

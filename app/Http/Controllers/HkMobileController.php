@@ -35,12 +35,12 @@ class HkMobileController extends Controller
         $asId = $supervisor ? $request->integer('as') : null;
         $emp = $asId ? Employee::find($asId) : $me;
         $date = bdate()->toDateString();
-        $tasks = $emp ? HousekeepingTask::with('room.roomType', 'room.floor', 'room.currentStay.reservation.guest')->where('task_date', $date)->where('employee_id', $emp->id)
+        $tasks = $emp ? HousekeepingTask::with('room.roomType', 'room.floor', 'room.currentStay.reservation.guest')->whereDate('task_date', $date)->where('employee_id', $emp->id)
             ->orderByRaw("CASE status WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END")->orderBy('priority')->orderBy('id')->get() : collect();
 
         return view('housekeeping.my', [
             'emp' => $emp, 'me' => $me, 'supervisor' => $supervisor, 'tasks' => $tasks,
-            'inspect' => $supervisor ? HousekeepingTask::with('room', 'employee')->where('task_date', $date)->where('status', 'completed')->whereNull('inspection_status')
+            'inspect' => $supervisor ? HousekeepingTask::with('room', 'employee')->whereDate('task_date', $date)->where('status', 'completed')->whereNull('inspection_status')
                 ->whereNotNull('room_id')->where('task_type', '!=', 'inspection')->orderBy('completed_at')->get() : collect(),
             'attendants' => $supervisor ? HousekeepingService::attendants()->pluck('name', 'id') : collect(),
             'checklist' => HousekeepingService::checklist(),

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# WASM PHP CLI for the Nowills PMS dev runtime. Run from anywhere.
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUN="$DIR/node_modules/.bin-local/bun"
+if [ ! -x "$BUN" ]; then
+  echo "Runtime not installed — run deploy/dev/setup.sh first" >&2
+  exit 1
+fi
+# phpext side-module discovery scans node_modules upwards from cwd.
+cd "$DIR"
+exec "$BUN" "$DIR/php.mjs" "$@"

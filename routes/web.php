@@ -61,6 +61,11 @@ Route::post('/api/pbx/{token}', [Controllers\InterfaceController::class, 'push']
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('pbx.api.push');
+// v7.40 review-platform webhook – platforms push review rows; stateless, per-hotel 40-character token (Reputation > Reviews)
+Route::post('/api/reviews/{token}', [Controllers\ReviewController::class, 'webhook'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:120,1')
+    ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('reviews.webhook');
 // v4.0 REST API v1 – stateless JSON (bearer key per client; scopes, IP allow-list, per-key rate limit – see ApiAuthenticate)
 Route::prefix('api/v1')->name('apiv1.')->controller(Controllers\Api\V1Controller::class)
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
@@ -483,11 +488,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::put('/{chconn}', 'update')->name('update');
             Route::delete('/{chconn}', 'destroy')->name('destroy');
             Route::post('/{chconn}/mapping', 'mapping')->name('mapping');
+            Route::post('/{chconn}/test', 'test')->name('test');
             Route::post('/{chconn}/restrictions', 'restrict')->name('restrict');
             Route::delete('/{chconn}/restrictions/{chrestr}', 'unrestrict')->name('unrestrict');
             Route::post('/{chconn}/push', 'push')->name('push');
             Route::post('/{chconn}/rotate', 'rotate')->name('rotate');
             Route::post('/{chconn}/simulate', 'simulate')->name('simulate');
+            Route::post('/{chconn}/pull', 'pull')->name('pull');
         });
     });
 
@@ -564,6 +571,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('payments')->name('payments.')->controller(Controllers\OnlinePaymentController::class)->group(function () {
         Route::get('/', 'index')->middleware('perm:payments.view')->name('index');
         Route::post('/', 'store')->middleware('perm:payments.request')->name('store');
+        Route::post('/collect', 'collect')->middleware('perm:payments.request')->name('collect');
         Route::get('/payouts', 'payouts')->middleware('perm:payments.settle')->name('payouts');
         Route::post('/payouts', 'storePayout')->middleware('perm:payments.settle')->name('payouts.store');
         Route::post('/payouts/{gpo}/delete', 'destroyPayout')->middleware('perm:payments.settle')->whereNumber('gpo')->name('payouts.destroy');
@@ -705,6 +713,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::middleware('perm:frontdesk.checkout')->group(function () {
             Route::get('/stay/{stay}/check-out', 'checkOutForm')->name('checkout');
             Route::post('/stay/{stay}/check-out', 'checkOut')->name('checkout.store');
+            Route::post('/stay/{stay}/prepare-bill', 'prepareBill')->name('prepare');
         });
         Route::middleware('perm:frontdesk.roommove')->group(function () {
             Route::get('/stay/{stay}/move', 'moveForm')->name('move');
@@ -732,6 +741,9 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
 
     // ---- Reservations
     Route::prefix('reservations')->name('reservations.')->controller(Controllers\ReservationController::class)->group(function () {
+        // v7.41 Reservation Workspace — the room board
+        Route::get('/workspace', [Controllers\ReservationWorkspaceController::class, 'index'])->middleware('perm:reservations.view')->name('workspace');
+        Route::get('/workspace/report', [Controllers\ReservationWorkspaceController::class, 'report'])->middleware('perm:reservations.view')->name('workspace.report');
         Route::get('/', 'index')->middleware('perm:reservations.view')->name('index');
         Route::get('/availability', 'availability')->middleware('perm:reservations.view')->name('availability');
         Route::get('/api/rates', 'apiRates')->middleware('perm:reservations.view')->name('api.rates');
@@ -1193,6 +1205,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::middleware('perm:feedback.manage')->group(function () {
                 Route::post('/', 'store')->name('store');
                 Route::post('/import', 'import')->name('import');
+            Route::post('/pull', 'pull')->name('pull');
             });
             Route::middleware('perm:feedback.respond')->group(function () {
                 Route::post('/{review}/draft', 'draft')->name('draft');
@@ -1244,6 +1257,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/guest-requests', 'guestRequests')->middleware('perm:requests.view,requests.manage')->name('guest_requests');
         Route::get('/guest-requests/snapshot', 'guestRequestSnapshot')->middleware('perm:requests.view,requests.manage')->name('guest_requests.snapshot');
         Route::post('/sync', 'sync')->middleware('perm:housekeeping.manage,housekeeping.attendant,requests.manage')->name('sync');
+        // v7.39 desktop offline mode — multi-day cache-and-sync
+        Route::prefix('desktop')->name('desktop.')->controller(Controllers\DesktopSyncController::class)->group(function () {
+            Route::get('/', 'workspace')->middleware('perm:frontoffice.view,frontoffice.manage')->name('workspace');
+            Route::get('/pack', 'pack')->middleware('perm:frontoffice.view,frontoffice.manage')->name('pack');
+            Route::get('/delta', 'delta')->middleware('perm:frontoffice.view,frontoffice.manage')->name('delta');
+            Route::post('/sync', 'sync')->middleware('perm:frontoffice.manage')->name('sync');
+        });
     });
 
     // ---- Housekeeping / Maintenance / Lost & Found
@@ -1507,6 +1527,17 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/hr/attendance', [Controllers\HrController::class, 'attendance'])->middleware('perm:hr.manage')->name('hr.attendance');
     Route::post('/hr/attendance', [Controllers\HrController::class, 'saveAttendance'])->middleware('perm:hr.manage')->name('hr.attendance.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
+    // v7.43 public holidays – the gazetted Ghana calendar behind the roster, the register, leave and payroll
+    Route::get('/hr/holidays', [Controllers\HrController::class, 'holidays'])->middleware('perm:hr.manage,roster.view,payroll.view')->name('hr.holidays');
+    Route::post('/hr/holidays', [Controllers\HrController::class, 'saveHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.save');
+    Route::post('/hr/holidays/reset', [Controllers\HrController::class, 'resetHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.reset');
+    // v7.40 ESS review desk
+    Route::controller(Controllers\EssController::class)->middleware('perm:hr.manage')->group(function () {
+        Route::get('/hr/ess', 'desk')->name('hr.ess');
+        Route::post('/hr/ess/requests/{req}', 'decide')->whereNumber('req')->name('hr.ess.decide');
+        Route::post('/hr/ess/documents/{doc}', 'reviewDoc')->whereNumber('doc')->name('hr.ess.doc');
+        Route::post('/hr/ess/announce', 'announce')->name('hr.ess.announce');
+    });
 
     // v2.0 leave & payroll
     Route::prefix('hr/leave')->name('leave.')->controller(Controllers\LeaveController::class)->middleware('perm:hr.leave')->group(function () {
@@ -1557,6 +1588,14 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/swaps/{swap}/respond', 'respondSwap')->whereNumber('swap')->name('swap.respond');
         Route::post('/swaps/{swap}/cancel', 'cancelSwap')->whereNumber('swap')->name('swap.cancel');
         Route::post('/pin', 'pin')->middleware('throttle:5,1')->name('pin');
+    });
+    // v7.40 employee self-service: profile change requests, documents, announcements
+    Route::prefix('me')->name('me.')->controller(Controllers\EssController::class)->middleware('perm:hr.self')->group(function () {
+        Route::get('/profile', 'profile')->name('profile');
+        Route::post('/profile', 'profileUpdate')->middleware('throttle:20,1')->name('profile.update');
+        Route::get('/documents', 'documents')->name('documents');
+        Route::post('/documents', 'documentUpload')->middleware('throttle:20,1')->name('documents.upload');
+        Route::get('/announcements', 'announcements')->name('announcements');
     });
 
     // v4.9 duty roster & time clock
@@ -1625,6 +1664,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/{bstmt}', 'show')->whereNumber('bstmt')->name('show');
         Route::get('/{bstmt}/print', 'print')->whereNumber('bstmt')->name('print');
         Route::post('/{bstmt}/auto-match', 'autoMatch')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('automatch');
+        Route::post('/{bstmt}/book-fees', 'bookFees')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('bookfees');
         Route::post('/{bstmt}/match', 'match')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('match');
         Route::post('/{bstmt}/lines', 'addLine')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('lines.add');
         Route::post('/{bstmt}/closing', 'closing')->whereNumber('bstmt')->middleware('perm:bankrec.manage')->name('closing');
@@ -1663,6 +1703,21 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/count/{pcount}/approve', 'approveCount')->whereNumber('pcount')->middleware('perm:petty.approve')->name('count.approve');
         Route::post('/count/{pcount}/reject', 'rejectCount')->whereNumber('pcount')->middleware('perm:petty.approve')->name('count.reject');
     });
+    // v7.40 Car Rental — self-drive fleet + booking desk
+    Route::prefix('rentals')->name('rentals.')->controller(Controllers\RentalController::class)->group(function () {
+        Route::get('/', 'index')->middleware('perm:rentals.view')->name('index');
+        Route::get('/fleet', 'fleet')->middleware('perm:rentals.view')->name('fleet');
+        Route::middleware('perm:rentals.manage')->group(function () {
+            Route::post('/', 'store')->name('store');
+            Route::post('/vehicles', 'vehicleStore')->name('vehicles.store');
+            Route::post('/vehicles/{vehicle}', 'vehicleUpdate')->whereNumber('vehicle')->name('vehicles.update');
+            Route::post('/{rental}/pickup', 'pickup')->whereNumber('rental')->name('pickup');
+            Route::post('/{rental}/return', 'return')->whereNumber('rental')->name('return');
+            Route::post('/{rental}/cancel', 'cancel')->whereNumber('rental')->name('cancel');
+            Route::post('/{rental}/bill', 'bill')->whereNumber('rental')->name('bill');
+        });
+    });
+
     Route::prefix('accounts/expense-claims')->name('claims.')->controller(Controllers\ExpenseClaimController::class)->middleware('perm:claims.submit,claims.approve,claims.pay')->group(function () {
         Route::get('/', 'index')->middleware('perm:claims.approve,claims.pay')->name('index');
         Route::get('/mine', 'mine')->name('mine');
@@ -1691,6 +1746,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/bills/{bill}/apply', 'apply')->whereNumber('bill')->middleware('perm:ap.pay')->name('bills.apply');
         Route::delete('/allocations/{alloc}', 'unallocate')->whereNumber('alloc')->middleware('perm:ap.pay')->name('allocations.delete');
         Route::get('/payments', 'payments')->name('payments');
+        Route::get('/payments/fx-rate', 'payFxRate')->middleware('perm:ap.pay')->name('payments.fx-rate'); // v7.54 board on the selected settlement date
         Route::get('/payments/create', 'payCreate')->middleware('perm:ap.pay')->name('payments.create');
         Route::post('/payments', 'payStore')->middleware(['perm:ap.pay', 'throttle:60,1'])->name('payments.store');
         Route::get('/payments/{spay}', 'payShow')->whereNumber('spay')->name('payments.show');
@@ -2598,6 +2654,15 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/settings', [Controllers\SettingController::class, 'update'])->name('settings.update');
         Route::get('/settings/backup', [Controllers\SettingController::class, 'backup'])->name('settings.backup');
         Route::post('/settings/backup', [Controllers\SettingController::class, 'download'])->name('settings.backup.download');
+        // ---- v7.35 Data migration & cutover
+        Route::prefix('settings/migration')->name('migration.')->controller(Controllers\DataMigrationController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/template/{dataset}', 'template')->name('template');
+            Route::get('/{batch}', 'show')->whereNumber('batch')->name('show');
+            Route::post('/{batch}/validate', 'validate')->whereNumber('batch')->name('validate');
+            Route::post('/{batch}/apply', 'apply')->whereNumber('batch')->name('apply');
+        });
         Route::post('/settings/properties', [Controllers\SettingController::class, 'storeHotel'])->name('settings.hotels.store');
         Route::get('/settings/messaging', [Controllers\MessageController::class, 'settings'])->name('messages.settings');
         Route::post('/settings/messaging', [Controllers\MessageController::class, 'saveSettings'])->name('messages.settings.save');
@@ -2643,6 +2708,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/desk/check-in', 'checkIn')->middleware('perm:club.desk')->name('checkin');
             Route::post('/desk/guest', 'guest')->middleware('perm:club.desk')->name('guest');
             Route::post('/desk/resident', 'resident')->middleware('perm:club.desk')->name('resident');
+            Route::post('/desk/ticket', 'ticket')->middleware('perm:club.desk')->name('ticket');
             Route::post('/visits/{clubvisit}/check-out', 'checkOut')->middleware('perm:club.desk')->name('checkout');
             Route::get('/visits', 'visits')->middleware('perm:club.view')->name('visits');
             Route::get('/members', 'members')->middleware('perm:club.view')->name('members');
@@ -2691,6 +2757,20 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/classes/{clubclass}/{date}/book', 'book')->middleware('perm:club.desk')->where('date', '\d{4}-\d{2}-\d{2}')->name('classes.book');
             Route::post('/classes/{clubclass}/{date}/attendance', 'attendance')->middleware('perm:club.desk')->where('date', '\d{4}-\d{2}-\d{2}')->name('classes.attendance');
             Route::post('/bookings/{clubbooking}/cancel', 'cancel')->middleware('perm:club.desk')->name('bookings.cancel');
+        });
+    });
+
+    // ---- v7.38 Recreation ticketing (POS-style outlet, Wellness & Recreation)
+    Route::prefix('recreation')->name('recreation.')->group(function () {
+        Route::controller(Controllers\RecreationController::class)->group(function () {
+            Route::get('/outlet', 'outlet')->middleware('perm:club.desk')->name('outlet');
+            Route::post('/outlet/sell', 'sell')->middleware('perm:club.desk')->name('sell');
+            Route::get('/sales', 'sales')->middleware('perm:club.view')->name('sales');
+            Route::get('/sales/{sale}/receipt', 'receipt')->middleware('perm:club.view')->name('receipt');
+            Route::post('/sales/{sale}/void', 'void')->middleware('perm:club.manage')->name('void');
+            Route::get('/types', 'types')->middleware('perm:club.manage')->name('types');
+            Route::post('/types', 'saveType')->middleware('perm:club.manage')->name('types.store');
+            Route::put('/types/{type}', 'saveType')->middleware('perm:club.manage')->name('types.update');
         });
     });
 

@@ -54,7 +54,7 @@ class PettyCashService
 
     public static function balance(PettyFloat $f, ?string $asOf = null): float
     {
-        return round((float) PettyTxn::where('petty_float_id', $f->id)->where('status', 'posted')->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('effect'), 2);
+        return round((float) PettyTxn::where('petty_float_id', $f->id)->where('status', 'posted')->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('effect'), 2);
     }
 
     public static function pending(PettyFloat $f): float
@@ -126,7 +126,7 @@ class PettyCashService
         return PettyTxn::where('status', 'pending')->count()
             + PettyReplenishment::whereIn('status', ['requested', 'approved'])->count()
             + PettyCount::where('status', 'pending')->count()
-            + PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('due_date', '<', $today)->count();
+            + PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->whereDate('due_date', '<', $today)->count();
     }
 
     // ─────────────────────────── guards ───────────────────────────
@@ -317,7 +317,7 @@ class PettyCashService
         if (! $emp) {
             throw new RuntimeException('Choose the member of staff taking the cash.');
         }
-        if (PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('employee_id', $emp->id)->where('due_date', '<', bdate()->toDateString())->exists()) {
+        if (PettyTxn::where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->where('employee_id', $emp->id)->whereDate('due_date', '<', bdate()->toDateString())->exists()) {
             throw new RuntimeException("{$emp->name} has an overdue IOU – settle it first.");
         }
         $pending = $amount > (float) $f->voucher_limit;
@@ -636,7 +636,7 @@ class PettyCashService
     public static function book(PettyFloat $f, string $from, string $to): array
     {
         $open = self::balance($f, Carbon::parse($from)->subDay()->toDateString());
-        $rows = PettyTxn::with('head', 'employee', 'creator')->where('petty_float_id', $f->id)->where('status', 'posted')->whereBetween('date', [$from, $to])
+        $rows = PettyTxn::with('head', 'employee', 'creator')->where('petty_float_id', $f->id)->where('status', 'posted')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->orderBy('date')->orderBy('id')->get();
         $run = $open;
         foreach ($rows as $r) {

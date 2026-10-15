@@ -44,7 +44,7 @@ class MarketingPlanController extends Controller
 
         return view('sales.marketing', ['month' => $month, 'year' => $year, 'days' => MP::calendar($month), 'events' => $events, 'roi' => $roi, 'owners' => $this->owners(),
             'totals' => ['budget' => (float) $events->where('status', '!=', 'cancelled')->sum('budget'), 'spent' => (float) $events->whereIn('status', ['done', 'cancelled'])->sum('actual_cost'),
-                'leads' => (int) $done->sum('leads'), 'won' => $roi->sum('won_value'), 'upcoming' => $events->whereIn('status', ['planned', 'confirmed'])->where('start_date', '>=', bdate()->copy()->startOfDay())->count()]]);
+                'leads' => (int) $done->sum('leads'), 'won' => $roi->sum('won_value'), 'upcoming' => $events->whereIn('status', ['planned', 'confirmed'])->filter(fn ($e) => ($d = $e->start_date?->toDateString()) !== null && $d >= bdate()->toDateString())->count()]]);
     }
 
     public function show(MarketingEvent $mevent)

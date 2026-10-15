@@ -6,6 +6,7 @@ use App\Models;
 use App\Services\FolioService;
 use App\Services\HotelProvisioner;
 use App\Services\ApService;
+use App\Services\ForexService;
 use App\Services\LedgerService;
 use App\Services\StayService;
 use App\Services\TaxService;
@@ -28,11 +29,14 @@ class DatabaseSeeder extends Seeder
             'phone' => '+233 30 274 1234', 'email' => 'frontoffice@nowills.example', 'website' => 'www.nowills.example', 'tax_number' => 'C0001234567',
             'currency' => 'GHS', 'currency_symbol' => 'GH₵', 'timezone' => 'Africa/Accra', 'business_date' => $today->toDateString(),
             'invoice_footer' => 'Thank you for staying with us. Check-out time 11:00 AM. This is a computer generated invoice.',
+            // v7.52 on the GRA VAT register since before the demo window: a supplier of services has no threshold (Act 1151)
+            'vat_registered' => true, 'vat_registered_at' => '2019-04-01', 'vat_supply_kind' => 'services', 'supports_e_invoicing' => true,
         ]);
         $resort = Models\Hotel::create([
             'hotel_group_id' => $group->id, 'code' => 'NWRESORT', 'name' => 'Nowills Lake Resort', 'property_type' => 'resort',
             'address' => 'Kokrobite Beach Road', 'city' => 'Kokrobite', 'state' => 'Greater Accra', 'country' => 'Ghana', 'phone' => '+233 30 290 5678', 'tax_number' => 'C0007654321',
             'email' => 'resort@nowills.example', 'currency' => 'GHS', 'currency_symbol' => 'GH₵', 'timezone' => 'Africa/Accra', 'business_date' => $today->toDateString(),
+            'vat_registered' => true, 'vat_supply_kind' => 'services', 'supports_e_invoicing' => true,   // registered, no date on file
         ]);
 
         foreach ([$main, $resort] as $h) {
@@ -2178,11 +2182,17 @@ class DatabaseSeeder extends Seeder
         // ---------- Rooms ----------
         $floors = collect(['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor'])->map(fn ($f, $i) => Models\Floor::create(['name' => $f, 'sort_order' => $i]));
         $types = collect([
-            ['STD', 'Standard Room', 2800, 600, 300, 'AC, TV, Wi-Fi, Tea/Coffee maker'],
-            ['DLX', 'Deluxe Room', 4200, 800, 400, 'AC, Smart TV, Wi-Fi, Minibar, Work desk'],
-            ['EXE', 'Executive Suite', 7800, 1200, 600, 'Living area, Bathtub, Minibar, Lounge access'],
-            ['PRE', 'Presidential Suite', 15500, 2000, 1000, 'Private butler, Jacuzzi, Dining area, City view'],
-        ])->map(fn ($t) => Models\RoomType::create(['code' => $t[0], 'name' => $t[1], 'base_rate' => $t[2], 'extra_adult_rate' => $t[3], 'extra_child_rate' => $t[4], 'amenities' => $t[5], 'max_adults' => $t[0] === 'PRE' ? 4 : 3, 'description' => $t[1].' with modern amenities.']));
+            ['STD', 'Standard Room', 2800, 600, 300, 'AC, TV, Wi-Fi, Tea/Coffee maker', 24, 'images/rooms/std.jpg'],
+            ['DLX', 'Deluxe Room', 4200, 800, 400, 'AC, Smart TV, Wi-Fi, Minibar, Work desk', 32, 'images/rooms/dlx.jpg'],
+            ['EXE', 'Executive Suite', 7800, 1200, 600, 'Living area, Bathtub, Minibar, Lounge access', 48, 'images/rooms/exe.jpg'],
+            ['PRE', 'Presidential Suite', 15500, 2000, 1000, 'Private butler, Jacuzzi, Dining area, City view', 85, 'images/rooms/pre.jpg'],
+        ])->map(fn ($t) => Models\RoomType::create(['code' => $t[0], 'name' => $t[1], 'base_rate' => $t[2], 'extra_adult_rate' => $t[3], 'extra_child_rate' => $t[4], 'amenities' => $t[5], 'max_adults' => $t[0] === 'PRE' ? 4 : 3, 'description' => $t[1].' with modern amenities.',
+            // v7.41 room media. The migration that adds these two columns backfills
+            // them by code, but on a fresh build it runs before this seeder creates
+            // the types, so it matches nothing and the room board is left with no
+            // sizes and no photos. Seed them here as well; the migration backfill
+            // still serves databases that already had room types.
+            'size_sqm' => $t[6] ?? null, 'image' => $t[7] ?? null]));
         $layout = $rich ? [[101, 108, 0], [201, 208, 1], [301, 306, 2], [401, 402, 3]] : [[1, 6, 0], [11, 14, 1], [21, 22, 2]];
         foreach ($layout as $fi => [$a, $b, $ti]) {
             for ($n = $a; $n <= $b; $n++) {
@@ -2675,6 +2685,7 @@ class DatabaseSeeder extends Seeder
         $this->seedTables($rich, $user); // v3.2: restaurant table reservations, floor plan & waitlist
         $this->seedTransport($rich, $user); // v3.3: guest transport & fleet desk
         $this->seedForeign($rich, $user); // v3.4: Form C (FRRO) & forex desk
+        $this->seedApForeign($rich, $today, $user); // v7.53: supplier bills in a foreign currency, converted at that board
         $this->seedFrontDesk($rich, $user); // v3.5: log book, wake-up calls, messages & parcels, traces, lost & found
         $this->seedInterfaces($rich, $user); // v3.7: PABX tariffs / extensions / calls, key cards, master keys
         $this->seedVouchers($rich, $user); // v3.8: gift vouchers & stored-value cards – sold, redeemed, expired, promo campaign
@@ -3055,7 +3066,7 @@ class DatabaseSeeder extends Seeder
                     'buy_rate' => round($buy * $f, 4), 'carried' => $d === 0 && $code === 'CHF', 'set_by' => $d === 0 && $code === 'CHF' ? null : $acct->id]);
             }
         }
-        $rateOn = fn (string $code, Carbon $day) => Models\ForexRate::where('currency_id', $cur[$code]->id)->where('date', $day->toDateString())->first();
+        $rateOn = fn (string $code, Carbon $day) => Models\ForexRate::where('currency_id', $cur[$code]->id)->whereDate('date', $day->toDateString())->first();
         $pref = ['japan' => 'JPY', 'united kingdom' => 'GBP', 'germany' => 'EUR', 'spain' => 'EUR', 'india' => 'USD'];
         $foreignStays = Models\ReservationRoom::with('reservation.guest', 'guest', 'room')->whereIn('status', ['checked_in', 'checked_out'])
             ->where('checked_in_at', '>=', $bd->copy()->subDays(20))->orderBy('id')->get()->filter(fn ($st) => $FC::isForeign($FC::stayGuest($st)));
@@ -6299,6 +6310,61 @@ class DatabaseSeeder extends Seeder
         // 6. advance to CleanPro while its bill is on hold
         ApService::pay(Models\Supplier::find($po3->supplier_id), ['date' => $today->copy()->subDays(1)->toDateString(), 'payment_mode_id' => $cash, 'amount' => 3000, 'reference' => 'Advance', 'notes' => 'Advance against towel order']);
         unset($po4);
+    }
+
+    /**
+     * v7.53 — two supplier bills in the supplier's own currency, booked in cedis at the forex board for their invoice
+     * date, with the supplier's own document kept on the header. Called after seedForeign() because the board has to
+     * exist before a bill can be converted at it; a property with no board keeps a plain cedi ledger, and a refusal is
+     * not demo data, so this quietly does nothing there.
+     */
+    protected function seedApForeign(bool $rich, Carbon $today, Models\User $user): void
+    {
+        if (! $rich || ! ForexService::enabled()) {
+            return;
+        }
+        $heads = Models\AccountHead::pluck('id', 'name');
+        $otaHead = $heads['Marketing & OTA Commission'] ?? $heads['Agent Commission'] ?? null;
+        $feeHead = $heads['Management Fees – Base'] ?? $heads['Audit & Professional Fees'] ?? null;
+        $eurDate = $today->copy()->subDays(3)->toDateString();
+        $usdDate = $today->copy()->subDays(9)->toDateString();
+        if (! $otaHead || ! $feeHead || ! ForexService::boardRate('EUR', $eurDate) || ! ForexService::boardRate('USD', $usdDate)) {
+            return;
+        }
+        Auth::setUser($user);
+        $bank = Models\PaymentMode::where('name', 'like', '%Bank%')->value('id');
+        // v7.53–v7.54 foreign-currency AP evidence: two bills in the supplier's own currency, booked at the board for their invoice date: an OTA's
+        //    commission invoice from its Amsterdam entity in euros, and an international operator's base management fee
+        //    in dollars, part-paid, so Accounts payable › Ageing shows what settling the rest would cost at today's board
+        $ota = Models\Supplier::create(['wht_category' => 'none', 'name' => 'Booking.com B.V.', 'contact_person' => 'Partner settlements',
+            'email' => 'invoices@booking.example', 'address' => 'Keizersgracht 597, 1017 DR Amsterdam, Netherlands', 'payment_terms_days' => 14, 'is_local' => false,
+            'expense_head_id' => $otaHead ?? null]);
+        ApService::expenseBill($ota, ['supplier_ref' => 'BCOM-INV-'.$today->copy()->subDays(3)->format('Ym').'-88213', 'currency' => 'EUR',
+            'doc_date' => $today->copy()->subDays(3)->toDateString(),
+            'lines' => [['account_head_id' => $otaHead, 'description' => 'Commission on 41 reservations, Sep 2026', 'amount' => 4180.55, 'tax_rate' => 0]],
+            'notes' => 'Billed in EUR by the Amsterdam entity and settled monthly through the bank.']);
+        $operator = Models\Supplier::create(['wht_category' => 'none', 'name' => 'Meridian Hotels International Ltd.', 'contact_person' => 'Owner services',
+            'email' => 'fees@meridianhotels.example', 'address' => '110 High Holborn, London WC1V 6QT, United Kingdom', 'payment_terms_days' => 30, 'is_local' => false,
+            'expense_head_id' => $feeHead]);
+        $mgmt = ApService::expenseBill($operator, ['supplier_ref' => 'MHI/BMF/2026-09', 'currency' => 'USD',
+            'doc_date' => $today->copy()->subDays(9)->toDateString(),
+            'lines' => [['account_head_id' => $feeHead, 'description' => 'Base management fee, 3% of gross revenue, Sep 2026', 'amount' => 6250, 'tax_rate' => 0],
+                ['account_head_id' => $heads['Internet & Telephone'] ?? $feeHead, 'description' => 'Reservation platform and channel-manager licence', 'amount' => 480, 'tax_rate' => 0]],
+            'notes' => 'Billed in USD under the management agreement; paid from the dollar account.']);
+        ApService::pay($operator, ['date' => $today->copy()->subDays(2)->toDateString(), 'payment_mode_id' => $bank, 'amount' => 40000, 'reference' => 'TT 558214'], [$mgmt->id => 40000]);
+        // v7.54 …and a slice of what is left is being settled in the dollars themselves: USD 1,000 out of the dollar
+        //    account at the board for the payment date. That costs more cedis than the slice of the bill was booked at,
+        //    and the difference is a realised exchange loss, posted to Exchange Gain / Loss rather than left to distort
+        //    what the supplier is owed. Accounts payable › Payments shows the bank's figure beside the cedis.
+        if (ForexService::apPay()) {
+            $payDate = $today->copy()->subDay()->toDateString();
+            $slice = 1000.0;
+            $alloc = round($slice * (float) $mgmt->fx_rate, 2);
+            if (ForexService::apPayRate('USD', $payDate) && $alloc <= $mgmt->fresh()->outstanding()) {
+                ApService::pay($operator, ['date' => $payDate, 'payment_mode_id' => $bank, 'currency' => 'USD', 'fx_amount' => $slice,
+                    'reference' => 'TT 771204', 'notes' => 'Part-settlement from the dollar account at the rate the bank used.'], [$mgmt->id => $alloc]);
+            }
+        }
     }
 
     /** Attendance from 1 July (or joining): a fixed weekly off, occasional absences and some overtime; deterministic per employee/day. */

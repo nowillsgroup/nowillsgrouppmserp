@@ -27,7 +27,7 @@ class SelfServiceController extends Controller
     {
         $e = Employee::with('department')->where('user_id', auth()->id())->where('is_active', true)->first();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Payslips & Leave']);
         }
         $month = bdate()->copy()->startOfMonth();
 
@@ -36,7 +36,7 @@ class SelfServiceController extends Controller
             'slips' => Payslip::with('run')->where('employee_id', $e->id)->whereHas('run', fn ($q) => $q->whereIn('status', ['approved', 'paid']))->latest('id')->limit(12)->get(),
             'advances' => $e->advances()->whereNull('cancelled_at')->orderByDesc('date')->get()->filter(fn ($a) => $a->outstanding() > 0),
             'att' => PayrollService::attendanceSummary($e, $month, bdate()->copy()),
-            'recent' => Attendance::where('employee_id', $e->id)->where('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderByDesc('date')->get(),
+            'recent' => Attendance::where('employee_id', $e->id)->whereDate('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderByDesc('date')->get(),
             'month' => $month]);
     }
 
@@ -82,7 +82,7 @@ class SelfServiceController extends Controller
     {
         $e = Employee::with('department')->where('user_id', auth()->id())->where('is_active', true)->first();
         if (! $e) {
-            return view('me.unlinked');
+            return view('me.unlinked', ['title' => 'My Roster & Time Clock']);
         }
         $today = now()->toDateString();
         $from = now()->subDays(6)->toDateString();
@@ -93,7 +93,7 @@ class SelfServiceController extends Controller
 
         return view('me.roster', ['e' => $e, 'today' => $today, 'days' => $days, 'shifts' => $shifts,
             'open' => \App\Services\TimeClockService::openPunch($e),
-            'punches' => \App\Models\TimePunch::with('shift')->where('employee_id', $e->id)->where('work_date', '>=', now()->subDays(13)->toDateString())->orderByDesc('clock_in')->get(),
+            'punches' => \App\Models\TimePunch::with('shift')->where('employee_id', $e->id)->whereDate('work_date', '>=', now()->subDays(13)->toDateString())->orderByDesc('clock_in')->get(),
             'selfOn' => setting('timeclock_self', '1') === '1', 'ipOk' => \App\Services\TimeClockService::ipAllowed($request->ip()),
             'swaps' => (clone $swapIds)->with('requester', 'colleague', 'shift', 'colleagueShift', 'decider')->latest('id')->limit(15)->get(),
             'colleagues' => Employee::where('department_id', $e->department_id)->where('is_active', true)->whereKeyNot($e->id)->orderBy('name')->pluck('name', 'id'),

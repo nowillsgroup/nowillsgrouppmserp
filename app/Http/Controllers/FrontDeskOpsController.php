@@ -38,12 +38,12 @@ class FrontDeskOpsController extends Controller
             'open' => LogEntry::where('status', 'open'),
             'pinned' => LogBookService::pinnedQuery(),
             'all' => LogEntry::query(),
-            default => LogEntry::where('business_date', bdate()->toDateString()),
+            default => LogEntry::whereDate('business_date', bdate()->toDateString()),
         };
         $q->with('author', 'reads', 'stay.room', 'room', 'guest')->withCount('comments')
             ->when($request->query('department'), fn ($q, $d) => $q->where('department', $d))
             ->when($request->query('category'), fn ($q, $c) => $q->where('category', $c))
-            ->when($request->query('date'), fn ($q, $d) => $q->where('business_date', $d))
+            ->when($request->query('date'), fn ($q, $d) => $q->whereDate('business_date', $d))
             ->when(trim((string) $request->query('q')), fn ($q, $t) => $q->where(fn ($w) => $w->where('title', 'like', "%{$t}%")->orWhere('body', 'like', "%{$t}%")));
         $entries = $tab === 'open'
             ? $q->orderByRaw("FIELD(priority,'urgent','high','normal')")->orderByRaw('follow_up_at IS NULL')->orderBy('follow_up_at')->orderByDesc('id')->paginate(40)->withQueryString()
@@ -138,7 +138,7 @@ class FrontDeskOpsController extends Controller
     {
         return view('desk.handover', LogBookService::handover() + ['snap' => FrontDeskOpsService::snapshot(), 'shift' => FrontDeskOpsService::currentShift(),
             'wakeups' => WakeupCall::with('stay.room', 'stay.guest', 'stay.reservation.guest')->where('status', 'scheduled')->whereBetween('call_at', [now()->subHours(2), now()->addHours(12)])->orderBy('call_at')->get(),
-            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->where('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get(),
+            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->whereDate('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get(),
             'messages' => GuestMessage::with('stay.room', 'guest')->whereIn('status', GuestMessage::OPEN)->orderBy('id')->get()]);
     }
 
@@ -146,7 +146,7 @@ class FrontDeskOpsController extends Controller
     {
         return view('desk.handover-print', LogBookService::handover() + ['snap' => FrontDeskOpsService::snapshot(), 'shift' => FrontDeskOpsService::currentShift(),
             'wakeups' => WakeupCall::with('stay.room', 'stay.guest', 'stay.reservation.guest')->where('status', 'scheduled')->whereBetween('call_at', [now()->subHours(2), now()->addHours(12)])->orderBy('call_at')->get(),
-            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->where('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get()]);
+            'traces' => Trace::with('stay.room', 'reservation', 'guest')->where('status', 'open')->whereDate('trace_date', '<=', bdate()->toDateString())->orderBy('due_time')->get()]);
     }
 
     // ───────────────────────── wake-up calls ─────────────────────────
@@ -303,11 +303,11 @@ class FrontDeskOpsController extends Controller
         $dept = array_key_exists((string) $request->query('department'), TraceService::DEPARTMENTS) ? $request->query('department') : null;
         $with = ['stay.room', 'reservation', 'guest', 'creator', 'doer'];
         $isToday = $date->isSameDay(bdate());
-        $open = Trace::with($with)->where('status', 'open')->when($isToday, fn ($q) => $q->where('trace_date', '<=', $date->toDateString()), fn ($q) => $q->where('trace_date', $date->toDateString()))
+        $open = Trace::with($with)->where('status', 'open')->when($isToday, fn ($q) => $q->whereDate('trace_date', '<=', $date->toDateString()), fn ($q) => $q->whereDate('trace_date', $date->toDateString()))
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderBy('trace_date')->orderByRaw('due_time IS NULL')->orderBy('due_time')->get();
-        $closed = Trace::with($with)->where('status', '!=', 'open')->where(fn ($q) => $q->where('trace_date', $date->toDateString())->orWhereDate('done_at', $date->toDateString()))
+        $closed = Trace::with($with)->where('status', '!=', 'open')->where(fn ($q) => $q->whereDate('trace_date', $date->toDateString())->orWhereDate('done_at', $date->toDateString()))
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderByDesc('done_at')->get();
-        $upcoming = $isToday ? Trace::with($with)->where('status', 'open')->where('trace_date', '>', $date->toDateString())
+        $upcoming = $isToday ? Trace::with($with)->where('status', 'open')->whereDate('trace_date', '>', $date->toDateString())
             ->when($dept, fn ($q) => $q->where('department', $dept))->orderBy('trace_date')->limit(50)->get() : collect();
 
         return view('desk.traces', ['open' => $open, 'closed' => $closed, 'upcoming' => $upcoming, 'date' => $date, 'dept' => $dept, 'isToday' => $isToday,

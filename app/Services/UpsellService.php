@@ -458,7 +458,7 @@ class UpsellService
         if ($cfg['enabled'] && $cfg['auto_email']) {
             $from = bdate()->copy()->addDay()->toDateString();
             $to = bdate()->copy()->addDays($cfg['days_before'])->toDateString();
-            $due = Reservation::with('guest')->where('status', 'confirmed')->whereBetween('arrival_date', [$from, $to])
+            $due = Reservation::with('guest')->where('status', 'confirmed')->whereDate('arrival_date', '>=', $from)->whereDate('arrival_date', '<=', $to)
                 ->whereHas('guest', fn ($q) => $q->whereNotNull('email')->where('email', '!=', ''))
                 ->whereNotExists(fn ($q) => $q->from('upsell_presentations as p')->whereColumn('p.reservation_id', 'reservations.id')
                     ->where('p.channel', 'pre_arrival')->whereNotNull('p.sent_at'))

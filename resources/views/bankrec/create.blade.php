@@ -17,12 +17,13 @@
   <x-field name="closing_balance" label="Closing balance (per the statement)" type="number" step="0.01" :value="old('closing_balance')" hint="Leave blank to take it from the lines."/>
 
   <div class="field span-2"><label>Lines</label>
-    <label class="check"><input type="radio" name="mode" value="csv" @checked(old('mode', 'csv') === 'csv')> Import a CSV file (internet banking / MoMo merchant statement export)</label>
+    <label class="check"><input type="radio" name="mode" value="csv" @checked(old('mode', 'csv') === 'csv')> Import a statement file (internet banking, MoMo merchant export, SWIFT or ISO 20022)</label>
     <label class="check"><input type="radio" name="mode" value="manual" @checked(old('mode') === 'manual')> Type the lines in on the next screen</label>
   </div>
   <div class="span-2" id="csvBox">
     <div class="form-grid">
-      <div class="field"><label for="f_file">CSV file</label><input type="file" name="file" id="f_file" accept=".csv,.txt,text/csv"></div>
+      <div class="field"><label for="f_file">Statement file</label><input type="file" name="file" id="f_file" accept=".csv,.txt,.xlsx,.xlsm,.xml,.mt940,.sta,text/csv,text/plain,application/xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <span class="hint">CSV or tab-delimited text · Excel .xlsx · SWIFT MT940 / MT942 · ISO 20022 camt.052 / camt.053.</span></div>
       <x-field name="date_format" label="Dates in the file" type="select" :options="\App\Services\BankRecService::DATE_FORMATS" :placeholder="false" :value="old('date_format', 'auto')"/>
       <div class="field span-2"><label class="check"><input type="checkbox" name="invert" value="1" @checked(old('invert'))> Amounts are the bank’s view (money you receive shown as negative / debit)</label></div>
     </div>
@@ -33,6 +34,7 @@
         @endforeach
       </div>
     </details>
+    <p class="tiny muted mt-1">An Excel workbook, a SWIFT MT940 and a camt.053 are read straight into the same importer: dates, references, debits and credits are taken from the file’s own structure, an MT940’s running balance is rebuilt from its opening figure, and a batched camt entry is split into its individual transactions. Only an old Excel 97-2003 .xls has to be re-saved as .xlsx first.</p>
     <p class="tiny muted mt-1">Recognised headings include Date / Transaction Date / Value Date, Description / Narration / Details, Reference / Transaction ID, Debit / Withdrawal / Money Out, Credit / Deposit / Money In, Amount, Balance and Fee. Rows before the heading row, blank rows and opening / closing balance rows are skipped; lines already imported for this account are left out.</p>
   </div>
   <x-field name="notes" label="Notes" type="textarea" :value="old('notes')" class="span-2" maxlength="500"/>

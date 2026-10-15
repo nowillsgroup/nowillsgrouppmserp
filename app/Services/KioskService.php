@@ -466,7 +466,7 @@ class KioskService
         if ($stay->departure_date->lte(bdate())) {
             return ['not_eligible', 'The dates on this booking have passed. Our team will help you.'];
         }
-        if (ReservationRoom::where('reservation_id', $r->id)->where('status', 'reserved')->where('arrival_date', '<=', bdate()->toDateString())->count() > 1) {
+        if (ReservationRoom::where('reservation_id', $r->id)->where('status', 'reserved')->whereDate('arrival_date', '<=', bdate()->toDateString())->count() > 1) {
             return ['multi', 'Your booking has several rooms – our team will check you all in together.'];
         }
         if ($c['vip_desk'] && $g?->is_vip) {
@@ -1194,7 +1194,7 @@ class KioskService
         $kioskOuts = $sessions->where('kind', 'checkout')->filter(fn ($s) => collect($s->trail)->contains(fn ($t) => ($t[1] ?? '') === 'checkout'))->count();
         $done = KioskSession::where('status', 'completed')->where('kind', 'checkin')->where('started_at', '>=', now()->subDays(30))->get();
         $avg = $done->count() ? (int) round($done->avg(fn ($s) => $s->seconds())) : 0;
-        $arrivalsLeft = ReservationRoom::where('status', 'reserved')->where('arrival_date', $bd)->count();
+        $arrivalsLeft = ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $bd)->count();
 
         return [
             'kiosks' => Kiosk::orderBy('name')->get(),

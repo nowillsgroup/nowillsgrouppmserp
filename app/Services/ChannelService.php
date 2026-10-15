@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\ChannelAriState;
 use App\Models\ChannelConnection;
+use App\Services\Interfaces\ChannelDriver;
+use App\Services\Interfaces\ChannelDriverRegistry;
 use App\Models\ChannelMessage;
 use App\Models\ChannelPush;
 use App\Models\ChannelRateMap;
@@ -104,7 +106,7 @@ class ChannelService
     public static function pendingCount(ChannelConnection $c): int
     {
         return (int) DB::table('channel_dirty')->where('hotel_id', $c->hotel_id)->where('id', '>', $c->pushed_upto_id)
-            ->where('date', '>=', bdate()->toDateString())->distinct()->count(DB::raw("CONCAT(room_type_id, '|', `date`)"));
+            ->whereDate('date', '>=', bdate()->toDateString())->distinct()->count(DB::raw("CONCAT(room_type_id, '|', `date`)"));
     }
 
     public static function registerObservers(): void
@@ -279,6 +281,22 @@ class ChannelService
      * Push pending ARI changes (or a full refresh) to one connection. Returns the push log row, or null when there was
      * nothing to send.
      */
+    /** The transport driver for this connection (hub / simulator / mirror / vendor adapters). */
+    public static function driverFor(ChannelConnection $c): ChannelDriver
+    {
+        return ChannelDriverRegistry::for($c);
+    }
+
+    /** Probe the channel endpoint through its driver — no state changes. */
+    public static function testConnection(ChannelConnection $c): array
+    {
+        $res = self::driverFor($c)->test($c);
+        ActivityLogger::log('channels', $res['ok'] ? 'test_ok' : 'test_failed',
+            'Connection test '.($res['ok'] ? 'OK' : 'failed').' ('.self::driverFor($c)->id().'): '.$res['message'], $c);
+
+        return $res;
+    }
+
     public static function push(ChannelConnection $c, bool $full = false, ?int $userId = null): ?ChannelPush
     {
         if (! $c->is_active) {
@@ -294,7 +312,7 @@ class ChannelService
             $days = (int) $c->push_days;
         } else {
             $rows = DB::table('channel_dirty')->where('hotel_id', $c->hotel_id)->where('id', '>', $c->pushed_upto_id)->where('id', '<=', $maxId)
-                ->where('date', '>=', $today->toDateString())->where('date', '<', $horizon->toDateString())->get(['room_type_id', 'date']);
+                ->whereDate('date', '>=', $today->toDateString())->whereDate('date', '<', $horizon->toDateString())->get(['room_type_id', 'date']);
             foreach ($rows as $r) {
                 $only[$r->room_type_id][Carbon::parse($r->date)->toDateString()] = true;
             }
@@ -324,31 +342,9 @@ class ChannelService
         $requests = 0;
         $chunks = self::chunks($ari);
         try {
-            if ($c->isSimulator()) {
-                $requests = count($chunks);
-                self::saveStates($c, $ari);
-            } else {
-                if (! $c->endpoint_url) {
-                    throw new RuntimeException('No ARI endpoint URL configured.');
-                }
-                IcalService::assertSafeUrl($c->endpoint_url);
-                foreach ($chunks as $chunk) {
-                    $body = json_encode(self::payload($c, $chunk, $kind), JSON_UNESCAPED_SLASHES);
-                    $ts = (string) time();
-                    $headers = ['X-Nowills-Timestamp' => $ts, 'X-Nowills-Signature' => 'sha256='.self::sign($c->secret, $ts, $body), 'User-Agent' => 'NowillsPMS-Channel/1.0', 'Accept' => 'application/json'];
-                    if ($c->api_key) {
-                        $headers['Authorization'] = 'Bearer '.$c->api_key;
-                    }
-                    $res = Http::timeout(20)->withHeaders($headers)->withBody($body, 'application/json')->post($c->endpoint_url);
-                    $requests++;
-                    $http = $res->status();
-                    if (! $res->successful()) {
-                        $detail = rescue(fn () => $res->json('error') ?? $res->json('message'), null, false);
-                        throw new RuntimeException('Channel returned HTTP '.$res->status().($detail ? ': '.mb_substr(is_string($detail) ? $detail : json_encode($detail), 0, 200) : ''));
-                    }
-                    self::saveStates($c, $chunk);   // chunks delivered before a failure stay acknowledged
-                }
-            }
+            $result = self::driverFor($c)->pushAri($c, $chunks, $kind, fn (array $chunk) => self::saveStates($c, $chunk));
+            $requests = $result['requests'];
+            $http = $result['http'] ?? null;
         } catch (Throwable $e) {
             $status = 'failed';
             $error = mb_substr($e->getMessage(), 0, 500);
@@ -408,7 +404,7 @@ class ChannelService
     public static function prune(): void
     {
         $min = ChannelConnection::where('is_active', true)->min('pushed_upto_id');
-        DB::table('channel_dirty')->where('hotel_id', Tenant::id())->where(fn ($q) => $q->where('date', '<', bdate()->toDateString())
+        DB::table('channel_dirty')->where('hotel_id', Tenant::id())->where(fn ($q) => $q->whereDate('date', '<', bdate()->toDateString())
             ->when($min !== null, fn ($w) => $w->orWhere('id', '<=', $min)))->delete();
         ChannelPush::where('created_at', '<', now()->subDays(90))->delete();
         ChannelAriState::where('date', '<', bdate()->toDateString())->delete();
@@ -588,8 +584,22 @@ class ChannelService
             return self::attention($msg, 'unmapped_room', 'Room code(s) '.$unmapped->implode(', ').' are not mapped to a room type – map them, then reprocess.', $res);
         }
         $hotel = Tenant::hotel();
-        if (! empty($p['currency']) && strtoupper($p['currency']) !== strtoupper($hotel->currency ?: 'GHS')) {
-            throw new DomainException("Currency {$p['currency']} does not match the hotel currency {$hotel->currency}.");
+        $hotelCcy = strtoupper((string) ($hotel->currency ?: 'GHS'));
+        $ccy = strtoupper(trim((string) ($p['currency'] ?? '')));
+        // v7.50 An OTA sends what the guest paid in — Booking.com EUR, Expedia USD, a regional channel GHS. A booking
+        // in another currency used to be rejected here, so a hotel in Accra with a USD rate plan lost the booking into
+        // the inbox and somebody re-keyed it by hand at whatever rate they chose. It is now converted at the forex
+        // board, on the basis the forex settings choose, and the original is kept on the reservation.
+        $fx = null;
+        if ($ccy !== '' && $ccy !== $hotelCcy) {
+            if (! ForexService::channelConvert()) {
+                throw new DomainException("Currency {$ccy} does not match the hotel currency {$hotelCcy}, and converting channel bookings is off (Foreign Guests › Settings › Forex desk).");
+            }
+            $fx = ForexService::boardRate($ccy);
+            if (! $fx) {
+                return self::attention($msg, 'no_fx_rate', "The channel sent {$ccy} but the exchange board has no {$ccy} rate for "
+                    .dmy(bdate()->toDateString()).' or the '.ForexService::cfg()['channel_stale_days'].' days before it. Set one under Foreign Guests › Exchange Rates, then reprocess.', $res);
+            }
         }
         $arr = Carbon::parse($p['arrival'])->startOfDay();
         $dep = Carbon::parse($p['departure'])->startOfDay();
@@ -609,6 +619,14 @@ class ChannelService
             return ['type' => $types[$typeId], 'rate_map' => $rm, 'adults' => (int) $l['adults'], 'children' => (int) ($l['children'] ?? 0),
                 'amount' => round((float) $l['amount'], 2), 'room_code' => $l['room_code'], 'rate_code' => $l['rate_code'] ?? null];
         });
+        if ($fx) {
+            $lines = $lines->map(function ($l) use ($fx) {
+                $l['amount_fx'] = $l['amount'];
+                $l['amount'] = round($l['amount'] * $fx['rate'], 2);
+
+                return $l;
+            });
+        }
         // informational rate check against what we are publishing (before this booking moves occupancy-based prices)
         foreach ($lines as $l) {
             $expected = round(collect(RateService::quote($l['type'], $arr, $dep)['nights'])->sum(fn ($n) => self::price($c, $l['type'], $l['rate_map']?->ratePlan, (float) $n['rate'])), 2);
@@ -636,9 +654,22 @@ class ChannelService
             }
         }
         $g = $p['guest'];
-        $total = round((float) ($p['total'] ?? $lines->sum('amount')), 2);
+        $sent = isset($p['total']) ? round((float) $p['total'], 2) : null;
+        // channel_amount is what the reports sum and what the folio posts, so it is always the hotel currency;
+        // channel_amount_fx keeps the figure the channel actually sent
+        $totalFx = $fx ? ($sent ?? round((float) $lines->sum('amount_fx'), 2)) : null;
+        $total = $sent === null ? round((float) $lines->sum('amount'), 2) : ($fx ? round($sent * $fx['rate'], 2) : $sent);
         $model = $p['payment']['model'] ?? $c->payment_model;
-        $commission = isset($p['commission']) ? round((float) $p['commission'], 2) : round($total * (float) $c->commission_pct / 100, 2);
+        $commission = isset($p['commission'])
+            ? round((float) $p['commission'] * ($fx ? $fx['rate'] : 1), 2)
+            : round($total * (float) $c->commission_pct / 100, 2);
+        if ($fx) {
+            $warnings[] = 'Booked in '.$hotelCcy.': the channel sent '.$fx['code'].' '.number_format((float) $totalFx, 2)
+                .' at the '.$fx['basis'].' rate '.number_format($fx['rate'], 4).' from the '.dmy($fx['date']).' board → '
+                .money($total).'.'
+                .($fx['stale'] ? ' Today’s board is not set yet, so the most recent one within '.ForexService::cfg()['channel_stale_days'].' days was used.' : '')
+                .($fx['carried'] ? ' That rate was carried forward by the night audit and has not been reviewed.' : '');
+        }
         if ($res) {
             $guest = $res->guest;
             $guest->update(array_filter(['first_name' => $g['first_name'], 'last_name' => $g['last_name'] ?? null, 'email' => $g['email'] ?? null,
@@ -651,6 +682,7 @@ class ChannelService
         $data = ['guest_id' => $guest->id, 'company_id' => $c->company_id, 'business_source_id' => $c->business_source_id, 'arrival_date' => $arr->toDateString(),
             'departure_date' => $dep->toDateString(), 'adults' => $lines->sum('adults'), 'children' => $lines->sum('children'), 'status' => 'confirmed',
             'ota_reference' => $ref, 'channel_connection_id' => $c->id, 'channel_payment' => $model, 'channel_amount' => $total, 'channel_commission' => $commission,
+            'channel_currency' => $fx['code'] ?? null, 'channel_amount_fx' => $totalFx, 'channel_fx_rate' => $fx['rate'] ?? null, 'channel_fx_date' => $fx['date'] ?? null,
             'billing_instruction' => $model === 'channel_collect' && $c->company_id ? 'company' : 'guest',
             'special_request' => ! empty($p['remarks']) ? mb_substr($p['remarks'], 0, 1000) : ($res?->special_request), 'channel_attention' => $short ? 'overbooked' : null];
         $isNew = ! $res;
@@ -718,9 +750,108 @@ class ChannelService
         });
     }
 
+    /**
+     * v7.42 Outbound cancellation — the other half of the two-way loop.
+     *
+     * Every driver implements cancelBooking(), but nothing called it: a reservation cancelled at the desk stayed live
+     * at the OTA, so the room remained sold on the channel and the guest could still arrive holding a confirmation.
+     * Call this AFTER the PMS cancellation has committed (CancellationService::cancel does exactly that). It never
+     * throws and never rolls the cancellation back — a channel that refuses is written to the activity log and flagged
+     * on channel_attention so the desk cancels it at the channel by hand.
+     *
+     * A partial cancellation (one room of many) is deliberately not sent: the booking still stands at the channel.
+     * A no-show is not sent either — the OTA booking stands and its retention fee is claimed here.
+     *
+     * @return array{sent: bool, message: string}|null  null when this booking did not come from a live channel
+     */
+    public static function cancelAtChannel(Reservation $res): ?array
+    {
+        $c = $res->channel;
+        $ref = trim((string) $res->ota_reference);
+        if (! $c || ! $c->is_active || $ref === '' || $res->status !== 'cancelled') {
+            return null;
+        }
+        try {
+            $out = self::driverFor($c)->cancelBooking($c, $ref);
+        } catch (\Throwable $e) {
+            report($e);
+            $out = ['ok' => false, 'message' => get_class($e).': '.$e->getMessage()];
+        }
+        $sent = (bool) ($out['ok'] ?? false);
+        $message = mb_substr(trim((string) ($out['message'] ?? '')), 0, 200);
+        ActivityLogger::log('channels', $sent ? 'cancel_sent' : 'cancel_failed',
+            "{$c->name} {$ref} ({$res->reservation_no}): ".($message !== '' ? $message : ($sent ? 'cancelled at the channel.' : 'the channel did not answer.')), $res);
+
+        // Only ever touch our own flag: channel_attention also carries overbooking warnings, which must survive.
+        $flag = "Cancellation was not delivered to {$c->name} – cancel {$ref} at the channel by hand.";
+        $current = (string) $res->channel_attention;
+        if (! $sent) {
+            $res->forceFill(['channel_attention' => $flag])->save();
+        } elseif ($current !== '' && str_contains($current, 'Cancellation was not delivered')) {
+            $res->forceFill(['channel_attention' => null])->save();
+        }
+
+        return ['sent' => $sent, 'message' => $message];
+    }
+
     // ------------------------------------------------------------------ simulator & stats
 
     /** Build a realistic channel message for the built-in test channel and feed it through the normal inbound path. */
+    /**
+     * v7.39 Pull-mode sync (Booking.com EPS and other pull adapters): fetch the
+     * channel's new / modified / cancelled bookings and feed each one through
+     * receive() so the mapping pipeline applies it idempotently.
+     */
+    public static function pull(ChannelConnection $c): array
+    {
+        $since = $c->last_booking_at ?: now()->subDays(30);
+        $rows = self::driverFor($c)->pullBookings($c, $since);
+        $summary = ['pulled' => count($rows), 'applied' => 0, 'duplicates' => 0, 'rejected' => 0, 'reservations' => []];
+        foreach ($rows as $row) {
+            [$code, $body] = self::receive($c, self::canonicalRow($row));
+            if ($code === 200 && ($body['status'] ?? '') === 'duplicate') {
+                $summary['duplicates']++;
+            } elseif ($code === 200) {
+                $summary['applied']++;
+                if (! empty($body['reservation_no'])) {
+                    $summary['reservations'][] = $body['reservation_no'];
+                }
+            } else {
+                $summary['rejected']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    /** Raw driver rows → the canonical message shape receive() validates. Canonical rows pass through untouched. */
+    public static function canonicalRow(array $row): array
+    {
+        if (isset($row['event'], $row['booking_id'], $row['guest'])) {
+            return $row;
+        }
+        $name = trim((string) ($row['guest'] ?? ''));
+        $parts = preg_split('/\s+/', $name, 2) ?: ['Guest'];
+
+        return [
+            'event' => in_array($row['event'] ?? null, ['new', 'modify', 'cancel'], true) ? $row['event'] : 'new',
+            'booking_id' => (string) ($row['ref'] ?? $row['booking_id'] ?? ''),
+            'arrival' => $row['arrival'] ?? null,
+            'departure' => $row['departure'] ?? null,
+            'currency' => $row['currency'] ?? (Tenant::hotel()?->currency ?: 'GHS'),
+            'guest' => ['first_name' => $parts[0], 'last_name' => $parts[1] ?? null,
+                'email' => $row['email'] ?? null, 'phone' => $row['phone'] ?? null, 'country' => $row['country'] ?? null],
+            'rooms' => [[
+                'room_code' => (string) ($row['room_type'] ?? $row['room_code'] ?? ''),
+                'rate_code' => $row['rate_code'] ?? null,
+                'adults' => (int) ($row['adults'] ?? 2),
+                'children' => (int) ($row['children'] ?? 0),
+                'amount' => (float) ($row['rate'] ?? $row['amount'] ?? 0),
+            ]],
+            'total' => $row['rate'] ?? $row['total'] ?? null,
+        ];
+    }
+
     public static function simulate(ChannelConnection $c, array $in): array
     {
         if ($in['event'] === 'cancel') {
@@ -732,11 +863,20 @@ class ChannelService
         $quote = RateService::quote($map->roomType, $in['arrival'], $in['departure']);
         $amount = round(collect($quote['nights'])->sum(fn ($n) => self::price($c, $map->roomType, $rm?->ratePlan, (float) $n['rate'])), 2);
         $rooms = max(1, (int) ($in['rooms'] ?? 1));
+        // v7.50 A real OTA quotes in its own currency, so the simulator expresses the price we publish in the currency
+        // chosen, at the board rate. The booking then comes back through the same conversion and lands within the
+        // rounding a cent of that currency carries — on a real channel the figure the OTA sends is what the guest paid
+        // and is authoritative, which is why the conversion keeps it. With no rate on the board the figure is sent
+        // unchanged, which is how the held-for-a-human path can be seen from the UI.
+        $hotelCcy = strtoupper((string) (Tenant::hotel()->currency ?: 'GHS'));
+        $ccy = strtoupper(trim((string) ($in['currency'] ?? ''))) ?: $hotelCcy;
+        $board = $ccy !== $hotelCcy ? ForexService::boardRate($ccy) : null;
+        $sent = $board ? round($amount / $board['rate'], 2) : $amount;
         $payload = ['event' => $in['event'], 'booking_id' => $in['booking_id'] ?: $c->code.'-'.random_int(10000000, 99999999),
-            'arrival' => $in['arrival'], 'departure' => $in['departure'], 'currency' => Tenant::hotel()->currency ?: 'GHS',
+            'arrival' => $in['arrival'], 'departure' => $in['departure'], 'currency' => $ccy,
             'guest' => ['first_name' => $in['first_name'], 'last_name' => $in['last_name'] ?? null, 'email' => $in['email'] ?? null, 'phone' => $in['phone'] ?? null, 'country' => $in['country'] ?? 'India'],
-            'rooms' => array_fill(0, $rooms, ['room_code' => $map->channel_room_code, 'rate_code' => $rm?->channel_rate_code, 'adults' => (int) $in['adults'], 'children' => 0, 'amount' => $amount]),
-            'total' => round($amount * $rooms, 2), 'payment' => ['model' => $c->payment_model], 'remarks' => $in['remarks'] ?? null, 'created_at' => now()->toIso8601String()];
+            'rooms' => array_fill(0, $rooms, ['room_code' => $map->channel_room_code, 'rate_code' => $rm?->channel_rate_code, 'adults' => (int) $in['adults'], 'children' => 0, 'amount' => $sent]),
+            'total' => round($sent * $rooms, 2), 'payment' => ['model' => $c->payment_model], 'remarks' => $in['remarks'] ?? null, 'created_at' => now()->toIso8601String()];
 
         return self::receive($c, $payload);
     }
@@ -769,7 +909,7 @@ class ChannelService
     public static function parity(ChannelConnection $c, Carbon $from, int $days): array
     {
         $expected = self::ari($c, $from, $days);
-        $states = ChannelAriState::where('channel_connection_id', $c->id)->whereBetween('date', [$from->toDateString(), $from->copy()->addDays($days - 1)->toDateString()])
+        $states = ChannelAriState::where('channel_connection_id', $c->id)->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $from->copy()->addDays($days - 1)->toDateString())
             ->get()->groupBy('room_type_id')->map(fn ($g) => $g->keyBy(fn ($s) => $s->date->toDateString()));
         $out = [];
         foreach ($expected as $typeId => $byDate) {

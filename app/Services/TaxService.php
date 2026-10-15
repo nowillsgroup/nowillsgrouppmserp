@@ -49,6 +49,30 @@ class TaxService
         return round((float) self::applicable($appliesTo, $amount)->sum('rate'), 4);
     }
 
+    /** v7.39 Tax-settings switch: are entered prices tax-inclusive? Default: exclusive (tax added on top). */
+    public static function pricesInclusive(): bool
+    {
+        return setting('tax_prices_inclusive', '0') === '1';
+    }
+
+    /**
+     * Split an entered price into net + tax under the current mode.
+     * Exclusive: the entered figure is the net and tax is added on top.
+     * Inclusive: the entered figure is the gross; VAT/NHIL/GETFund/levy are extracted from it.
+     */
+    public static function splitPrice(float $entered, ?float $rate = null, string $category = 'other'): array
+    {
+        $rate ??= (float) self::forCategory($category, abs($entered))['rate'];
+        if (! self::pricesInclusive()) {
+            $tax = round($entered * $rate / 100, 2);
+
+            return ['rate' => $rate, 'net' => round($entered, 2), 'tax' => $tax, 'total' => round($entered + $tax, 2)];
+        }
+        $net = round($entered / (1 + $rate / 100), 2);
+
+        return ['rate' => $rate, 'net' => $net, 'tax' => round($entered - $net, 2), 'total' => round($entered, 2)];
+    }
+
     public static function roomTax(float $nightlyRate): array
     {
         $rate = self::rateFor('room', $nightlyRate);

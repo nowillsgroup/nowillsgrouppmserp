@@ -48,7 +48,7 @@ class PrivacyController extends Controller
     {
         return match ($tab) {
             'open' => $q->where('status', 'open'),
-            'overdue' => $q->where('status', 'open')->where('due_on', '<', $today),
+            'overdue' => $q->where('status', 'open')->whereDate('due_on', '<', $today),
             'unverified', 'completed', 'rejected' => $q->where('status', $tab),
             default => $q,
         };

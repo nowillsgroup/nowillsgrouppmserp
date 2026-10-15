@@ -24,10 +24,10 @@ class NightAuditController extends Controller
     public function show(NightAudit $audit)
     {
         $d = $audit->business_date->toDateString();
-        $tx = \App\Models\FolioTransaction::with('folio.guest', 'folio.stay.room', 'paymentMode')->where('business_date', $d)->where('is_void', false)->get();
+        $tx = \App\Models\FolioTransaction::with('folio.guest', 'folio.stay.room', 'paymentMode')->whereDate('business_date', $d)->where('is_void', false)->get();
 
         return view('nightaudit.show', ['a' => $audit, 'charges' => $tx->where('type', 'charge')->groupBy('category')->map(fn ($g) => ['net' => $g->sum('amount'), 'tax' => $g->sum('tax_amount')]),
             'payments' => $tx->where('type', 'payment')->groupBy(fn ($t) => $t->paymentMode?->name ?? 'City Ledger')->map->sum('amount'),
-            'pos' => \App\Models\PosOrder::with('outlet')->where('business_date', $d)->where('status', 'settled')->get()->groupBy('outlet.name')->map(fn ($g) => $g->sum('total'))]);
+            'pos' => \App\Models\PosOrder::with('outlet')->whereDate('business_date', $d)->where('status', 'settled')->get()->groupBy('outlet.name')->map(fn ($g) => $g->sum('total'))]);
     }
 }

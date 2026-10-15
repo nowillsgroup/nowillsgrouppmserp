@@ -10,7 +10,7 @@
 <form method="post" action="{{ route('payroll.recalc', $run) }}" class="inline">@csrf<button class="btn"><x-icon name="refresh"/> Recalculate</button></form>
 @endif
 @if($run->status === 'draft' && can_do('payroll.approve'))
-<form method="post" action="{{ route('payroll.approve', $run) }}" class="inline" onsubmit="return confirm('Approve {{ $run->run_no }}? Attendance and leave for {{ $run->label() }} will be locked and the payroll cost accrued in the ledger.')">@csrf
+<form method="post" action="{{ route('payroll.approve', $run) }}" class="inline" onsubmit="return confirm('Approve {{ $run->run_no }}? Attendance and leave for {{ $run->label() }} will be locked and the payroll cost accrued in the ledger.{{ ($variance['status'] ?? '') === 'over' ? ' This takes '.$variance['month_label'].' '.money($variance['variance']).' over the approved budget.' : '' }}')">@csrf
 <button class="btn btn-primary" @disabled($segregated) title="{{ $segregated ? 'You prepared this run – another approver must approve it' : '' }}"><x-icon name="check"/> Approve</button></form>
 @endif
 @if($run->status === 'approved' && can_do('payroll.approve'))
@@ -35,8 +35,12 @@
 <div class="alert alert-warn" id="runMinWage"><x-icon name="alert"/><div><b>Below the national minimum wage</b> ({{ money(\App\Services\StatutoryService::minWageMonthly()) }} a month): {{ $runBelowMin->pluck('name')->join(', ') }}. Raise the basic salary before approving.</div></div>
 @endif
 
+@if($holidays['count'])
+<div class="alert alert-info" id="runHolidays"><x-icon name="calendar"/><div><b>{{ $holidays['text'] }}</b> Everyone is paid for them whether they work or not (Act 651 s. 72, and s. 77 for temporary and casual workers); hours clocked on a holiday are paid on the OTH line at {{ rtrim(rtrim(number_format((float) setting('payroll_holiday_multiplier', '2'), 2), '0'), '.') }}×. Edit the calendar under <a href="{{ route('hr.holidays', ['year' => $run->period_start->year]) }}">Public holidays</a>.</div></div>
+@endif
+
 <div class="card"><div class="card-body grid g-2">
-  <dl class="kv"><dt>Period</dt><dd>{{ dmy($run->period_start) }} – {{ dmy($run->period_end) }} ({{ $run->period_start->daysInMonth }} days)</dd>
+  <dl class="kv"><dt>Period</dt><dd>{{ dmy($run->period_start) }} – {{ dmy($run->period_end) }} ({{ $run->period_start->daysInMonth }} days)<div class="tiny muted">PAYE bands: {{ $schedule['name'] }}</div></dd>
     <dt>Prepared by</dt><dd>{{ $run->generator?->name ?? '—' }} · {{ $run->generated_at?->format('d M H:i') }}</dd>
     @if($run->approved_at)<dt>Approved by</dt><dd>{{ $run->approver?->name }} · {{ $run->approved_at->format('d M H:i') }}</dd>@endif
     @if($run->notes)<dt>Notes</dt><dd>{{ $run->notes }}</dd>@endif
@@ -60,16 +64,36 @@
 @endforeach
 </div>
 
+@if(($variance['rows'] ?? collect())->isNotEmpty() || ($variance['note'] ?? ''))
+@php $vBadge = ['over' => ['badge-red', 'Over budget'], 'unbudgeted' => ['badge-amber', 'Account not budgeted'], 'within' => ['badge-green', 'Within budget'], 'none' => ['badge-slate', 'No approved budget']][$variance['status']] ?? ['badge-slate', '—']; @endphp
+<div class="card flush mt-2" id="budgetCard"><div class="card-head"><h3>Cost against budget</h3><span class="badge {{ $vBadge[0] }}">{{ $vBadge[1] }}</span>
+@if($variance['budget'])<a class="btn btn-sm btn-ghost" href="{{ route('budgets.show', $variance['budget']) }}" title="Open {{ $variance['budget']->budget_no }}"><x-icon name="external"/></a>@endif</div>
+<div class="card-body table-wrap"><table class="table table-compact" id="budgetTable">
+<thead><tr><th>Account charged</th><th class="num">This run</th><th class="num">Posted {{ $variance['month_label'] }}</th><th class="num">{{ $variance['posted_includes_run'] ? 'Month to date' : 'Month if approved' }}</th><th class="num">Budget</th><th class="num">Variance</th></tr></thead>
+<tbody>@forelse($variance['rows'] as $r)<tr>
+<td>{{ $r['account'] }}@if($r['unbudgeted']) <span class="badge badge-amber" title="The approved budget has no line for this account in {{ $variance['month_label'] }}">unbudgeted</span>@endif</td>
+<td class="num">{{ money($r['cost'], false) }}</td><td class="num muted">{{ money($r['posted'], false) }}</td><td class="num">{{ money($r['after'], false) }}</td>
+<td class="num">{{ $r['budgeted'] > 0 ? money($r['budgeted'], false) : '—' }}</td>
+<td class="num {{ $r['variance'] > 0.005 ? 'text-red bold' : 'muted' }}">{{ $r['budgeted'] > 0 ? ($r['variance'] > 0 ? '+' : '').money($r['variance'], false).($r['pct'] !== null ? ' ('.($r['pct'] > 0 ? '+' : '').$r['pct'].'%)' : '') : '—' }}</td></tr>
+@empty<tr><td class="muted small" colspan="6">{{ $variance['note'] }}</td></tr>@endforelse</tbody>
+@if($variance['rows']->isNotEmpty())<tfoot><tr class="bold"><td>Total</td><td class="num">{{ money($variance['cost'], false) }}</td><td class="num">{{ money($variance['posted'], false) }}</td><td class="num">{{ money($variance['after'], false) }}</td><td class="num">{{ money($variance['budgeted'], false) }}</td>
+<td class="num {{ $variance['variance'] > 0.005 ? 'text-red' : '' }}">{{ ($variance['variance'] > 0 ? '+' : '').money($variance['variance'], false) }}@if($variance['pct'] !== null) ({{ ($variance['pct'] > 0 ? '+' : '').$variance['pct'] }}%)@endif</td></tr></tfoot>@endif
+</table>
+<p class="tiny muted" style="margin:.5rem 0 0">{{ $variance['note'] }}@if($variance['budget']) Measured against {{ $variance['budget']->budget_no }} for {{ $variance['month_label'] }}, with the ledger read to {{ dmy($variance['cutoff']) }}. {{ $variance['posted_includes_run'] ? 'This run is already posted, so its cost is inside the posted column and is not added twice.' : 'Payroll is not the only thing that charges these accounts – casual labour, staff meals and accruals land on the same head, which is why the posted column is there.' }}@endif</p>
+</div></div>
+@endif
+
 <div class="card flush mt-2"><div class="card-head"><h3>Payslips</h3>@if($run->status === 'draft' && can_do('payroll.manage'))<button class="btn btn-sm btn-primary" data-modal="adjModal"><x-icon name="plus"/> One-off earning / recovery</button>@endif</div>
 <div class="card-body table-wrap"><table class="table table-compact" id="slipTable">
-<thead><tr><th>Code</th><th>Employee</th><th class="num" title="Paid days / days in month">Paid days</th><th class="num">LOP</th><th class="num">OT h</th><th class="num">Monthly basic</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Pay mode</th><th></th></tr></thead><tbody>
+<thead><tr><th>Code</th><th>Employee</th><th class="num" title="Paid days / days in month">Paid days</th><th class="num">LOP</th><th class="num" title="Public holidays in the month (Act 651 s. 72)">PH</th><th class="num">OT h</th><th class="num">Monthly basic</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Pay mode</th><th></th></tr></thead><tbody>
 @foreach($slips as $s)@php $manual = $s->lines->where('is_manual', true); @endphp
 <tr data-emp="{{ $s->employee->emp_code }}"><td class="small muted">{{ $s->employee->emp_code }}</td>
-<td><span class="bold">{{ $s->employee->name }}</span><div class="tiny muted">{{ $s->employee->designation }} · {{ $s->employee->department?->name }}</div>
+<td><span class="bold">{{ $s->employee->name }}</span>@if($s->employee->employment_type === 'casual') <span class="badge badge-amber" title="A casual worker's pay carries a final 5% tax instead of the bands (GRA)">casual</span>@endif @if(! $s->employee->tax_resident) <span class="badge badge-amber" title="A non-resident's employment income is taxed at a flat 25%">non-resident</span>@endif<div class="tiny muted">{{ $s->employee->designation }} · {{ $s->employee->department?->name }}@if($s->paye_basis) · {{ $s->paye_basis }}@endif</div>
 @foreach($manual as $m)<div class="tiny"><span class="badge {{ $m->kind === 'earning' ? 'badge-green' : 'badge-red' }}">{{ $m->kind === 'earning' ? '+' : '−' }} {{ money($m->amount, false) }}</span> {{ $m->name }}
 @if($run->status === 'draft' && can_do('payroll.manage'))<form method="post" action="{{ route('payroll.lines.remove', $m) }}" class="inline" onsubmit="return confirm('Remove this adjustment?')">@csrf @method('DELETE')<button class="btn btn-ghost btn-sm" style="padding:0 .25rem" title="Remove">×</button></form>@endif</div>@endforeach</td>
 <td class="num">{{ rtrim(rtrim(number_format($s->paid_days, 1), '0'), '.') }} / {{ $s->days_in_period }}</td>
 <td class="num {{ $s->lop_days > 0 ? 'text-red' : 'muted' }}">{{ $s->lop_days > 0 ? rtrim(rtrim(number_format($s->lop_days, 1), '0'), '.') : '–' }}</td>
+<td class="num {{ $s->holiday_days > 0 ? '' : 'muted' }}" title="{{ $s->holiday_hours > 0 ? rtrim(rtrim(number_format($s->holiday_hours, 2), '0'), '.').' h worked on a public holiday, paid at '.setting('payroll_holiday_multiplier', '2').'×' : 'paid, not worked' }}">{{ $s->holiday_days > 0 ? rtrim(rtrim(number_format($s->holiday_days, 1), '0'), '.') : '–' }}</td>
 <td class="num {{ $s->ot_hours > 0 ? '' : 'muted' }}">{{ $s->ot_hours > 0 ? rtrim(rtrim(number_format($s->ot_hours, 2), '0'), '.') : '–' }}</td>
 <td class="num small">{{ money($s->basic, false) }}</td><td class="num">{{ money($s->gross, false) }}</td><td class="num">{{ money($s->deductions, false) }}</td><td class="num bold">{{ money($s->net, false) }}</td>
 <td class="small">{{ $s->paymentMode?->name ?? '—' }}</td>
@@ -96,11 +120,21 @@
   <div class="field"><label>Type</label><select name="kind" class="input"><option value="earning">Earning (bonus, incentive, arrears)</option><option value="deduction">Deduction (recovery, fine)</option></select></div>
   <div class="field"><label>Amount <span class="req">*</span></label><input name="amount" type="number" step="0.01" min="0.01" class="input" required></div>
   <div class="field span-2"><label>Description <span class="req">*</span></label><input name="name" class="input" maxlength="80" required placeholder="e.g. Festival bonus"></div>
-  <label class="check span-2"><input type="checkbox" name="taxable" value="1" checked> Taxable earning</label>
+  <div class="field span-2"><label>Tax treatment</label><select name="component" id="adjTax" class="input">
+    <option value="">Ordinary earning — taxed on the GRA bands with the rest of the month's pay</option>
+    <option value="BONUS">Bonus / ex-gratia — GRA final tax (5% up to 15% of the year's basic, the excess on the bands; non-resident 20%)</option>
+  </select>
+    <div class="hint">GRA taxes a bonus apart from the monthly bands (Act 896 s. 114). Choose it for festival, performance or ex-gratia bonuses and payroll raises its own “Tax on bonus” deduction and reports it on the GRA return.</div></div>
+  <label class="check span-2" id="adjTaxableWrap"><input type="checkbox" name="taxable" id="adjTaxable" value="1" checked> Taxable earning</label>
   <p class="small muted span-2">Adjustments survive recalculation. Earnings are charged to Salaries &amp; Wages; recoveries reduce it.</p>
 </div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Add &amp; recalculate</button></div></form></div></div>
-<script>document.getElementById('adjSlip').addEventListener('change', e => document.getElementById('adjForm').action = e.target.value);</script>
+<script>document.getElementById('adjSlip').addEventListener('change', e => document.getElementById('adjForm').action = e.target.value);
+// A bonus is never taxed by the checkbox: the engine works out its own tax, so the box is taken out of the way.
+document.getElementById('adjTax').addEventListener('change', e => {
+  const bonus = e.target.value === 'BONUS', box = document.getElementById('adjTaxable');
+  box.checked = ! bonus; box.disabled = bonus; document.getElementById('adjTaxableWrap').style.opacity = bonus ? '.45' : '';
+});</script>
 @endif
 
 @if($run->status === 'approved' && can_do('payroll.approve'))

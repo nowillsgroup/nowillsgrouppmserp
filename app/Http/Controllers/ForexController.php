@@ -22,7 +22,7 @@ class ForexController extends Controller
         $from = $request->date('from') ?? bdate()->copy()->subDays(6);
         $to = $request->date('to') ?? bdate()->copy();
         $q = ForexExchange::with('currency', 'stay.room', 'creator')
-            ->whereBetween('business_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', $to->toDateString())
             ->when($request->filled('currency'), fn ($w) => $w->where('currency_id', $request->currency))
             ->when($request->filled('payout'), fn ($w) => $w->where('payout', $request->payout))
             ->when($request->filled('q'), fn ($w) => $w->where(fn ($x) => $x->where('exchange_no', 'like', '%'.$request->q.'%')->orWhere('guest_name', 'like', '%'.$request->q.'%')
@@ -118,8 +118,10 @@ class ForexController extends Controller
     {
         $date = bdate()->toDateString();
         $currencies = Currency::orderBy('sort_order')->orderBy('code')->get();
-        $prev = ForexRate::where('date', '<', $date)->orderByDesc('date')->get()->unique('currency_id')->keyBy('currency_id');
-        $history = ForexRate::with('currency')->where('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderBy('date')->get()->groupBy('currency_id');
+        // whereDate: the DATE column is stored with a 00:00:00 time part on SQLite,
+        // so bare date-string comparisons miss today's rows.
+        $prev = ForexRate::whereDate('date', '<', $date)->orderByDesc('date')->get()->unique('currency_id')->keyBy('currency_id');
+        $history = ForexRate::with('currency')->whereDate('date', '>=', bdate()->copy()->subDays(13)->toDateString())->orderBy('date')->get()->groupBy('currency_id');
 
         return view('forex.rates', ['currencies' => $currencies, 'today' => ForexService::todayRates(), 'prev' => $prev, 'history' => $history,
             'cfg' => ForexService::cfg(), 'alerts' => ForexService::alerts(), 'canEdit' => can_do('forex.manage')]);

@@ -206,8 +206,10 @@ class FormCController extends Controller
                 'cash_cap_usd' => 'required|integer|min:0|max:10000', 'resident_cap_usd' => 'required|integer|min:0|max:10000', 'aggregate_days' => 'required|integer|min:1|max:90',
                 'id_copy_inr' => 'required|integer|min:0|max:100000', 'max_margin' => 'required|numeric|min:0|max:15', 'fee_pct' => 'required|numeric|min:0|max:5',
                 'surrender_days' => 'required|integer|min:0|max:30', 'licence' => 'nullable|string|max:80', 'franchiser' => 'nullable|string|max:120',
+                'channel_basis' => 'required|in:reference,buy', 'channel_stale_days' => 'required|integer|min:0|max:90',
+                'ap_basis' => 'required|in:reference,buy', 'ap_stale_days' => 'required|integer|min:0|max:90', 'ap_rate_date' => 'required|in:document,business',
             ], ['cash_cap_usd.max' => 'Keep the cash limit at USD 10,000 or less – larger purchases belong at a bank.', 'resident_cap_usd.max' => 'Keep the cash limit at USD 10,000 or less.']);
-            foreach (['enabled', 'allow_residents', 'carry_rates'] as $b) {
+            foreach (['enabled', 'allow_residents', 'carry_rates', 'channel_convert', 'ap_convert', 'ap_pay', 'ap_pay_deal'] as $b) {
                 $d[$b] = $request->boolean($b);
             }
             ForexService::saveSettings($d);

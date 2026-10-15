@@ -48,7 +48,7 @@
   <td>{{ $b->supplier_ref ?? '—' }}</td>
   <td class="nowrap">{{ $b->doc_date->format('d M Y') }}</td>
   <td class="nowrap {{ $od ? 'text-red bold' : '' }}">{{ $b->isDebitNote() ? '—' : $b->due_date?->format('d M Y') }}@if($od)<div class="tiny">{{ $od }} days overdue</div>@endif</td>
-  <td class="num">{{ $b->isDebitNote() ? '−' : '' }}{{ money($b->total, false) }}@if($b->variance())<div class="tiny {{ $b->status === 'on_hold' ? 'text-red' : 'muted' }}">var {{ money($b->variance(), false) }}</div>@endif</td>
+  <td class="num">{{ $b->isDebitNote() ? '−' : '' }}{{ money($b->total, false) }}@if($b->isForeign())<div class="tiny muted">{{ $b->fxLabel() }} at {{ number_format((float) $b->fx_rate, 4) }}</div>@endif @if($b->variance())<div class="tiny {{ $b->status === 'on_hold' ? 'text-red' : 'muted' }}">var {{ money($b->variance(), false) }}</div>@endif</td>
   <td class="num">{{ money($b->allocated, false) }}</td>
   <td class="num bold">{{ money($b->outstanding(), false) }}</td>
   <td>{!! status_badge($b->status) !!}</td>

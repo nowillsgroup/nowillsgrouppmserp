@@ -244,7 +244,7 @@ class BudgetService
         $act = self::actuals($fy);
         $fyEnd = $months[12]->copy()->endOfMonth()->startOfDay();
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])
-            ->where('arrival_date', '<=', min($fyEnd, $cut)->toDateString())->where('departure_date', '>', $months[1]->toDateString())
+            ->whereDate('arrival_date', '<=', min($fyEnd, $cut)->toDateString())->whereDate('departure_date', '>', $months[1]->toDateString())
             ->get(['arrival_date', 'departure_date']);
         $out = [];
         foreach ($months as $m => $start) {
@@ -1041,7 +1041,7 @@ class BudgetService
         $warn = [];
         foreach ($new as $id => $amt) {
             $budget = isset($lines[$id]) ? array_sum(array_map(fn ($x) => $lines[$id]->month($x), $ms)) : 0.0;
-            $spent = (float) GlLine::where('account_head_id', $id)->where('closing', false)->whereBetween('date', [$from, $to])->sum(DB::raw('debit - credit'));
+            $spent = (float) GlLine::where('account_head_id', $id)->where('closing', false)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->sum(DB::raw('debit - credit'));
             if ($spent + $amt > $budget + 0.005) {
                 $warn[] = ['account' => $expense[$id], 'budget' => round($budget, 2), 'spent' => round($spent, 2), 'new' => round($amt, 2),
                     'over' => round($spent + $amt - $budget, 2), 'basis' => $cfg['control_basis']];

@@ -504,7 +504,7 @@ class BanquetSalesService
      */
     public static function diary(Carbon $from, Carbon $to, bool $withEnquiries = true): Collection
     {
-        return BanquetFunction::with('event')->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+        return BanquetFunction::with('event')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
             ->whereHas('event', fn ($q) => $q->whereIn('status', $withEnquiries ? ['enquiry', 'tentative', 'definite', 'completed'] : ['tentative', 'definite', 'completed']))
             ->orderBy('start_time')->get()->groupBy(fn ($f) => $f->banquet_hall_id.'|'.$f->date->toDateString());
     }

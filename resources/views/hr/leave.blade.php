@@ -21,6 +21,7 @@
 @endforeach</tr>@endforeach
 </tbody></table></div></div>
 <p class="small muted mt-1">Available = entitlement (pro-rata in the joining year) + carried forward − approved − pending. Unpaid leave has no limit and becomes loss of pay in payroll.</p>
+<p class="small muted mt-1"><b>Which of these the law gives:</b> EL is statutory — Act 651 s. 20 floors it at 15 working days on full pay, and s. 22 keeps a gazetted public holiday, certified sickness or confinement from eating into it. ML is statutory — s. 57, 12 weeks on full remuneration plus two more for an abnormal confinement or multiple births. CL, SL and <b>PL are contractual</b>: Ghana gives a father no statutory paternity leave, so the days shown for PL are this hotel's own policy or collective agreement — set them under Masters › Leave Types. Every paid type is paid by payroll the same way, and a public holiday inside any of them is not counted against the balance.</p>
 @else
 <form class="filters mb-1 flex gap-1 items-center" method="get"><input type="hidden" name="status" value="{{ $status }}"><select name="employee_id" class="input input-sm" style="width:auto;min-width:220px" data-autosubmit><option value="">All employees</option>@foreach($employees as $e)<option value="{{ $e->id }}" @selected(request('employee_id') == $e->id)>{{ $e->name }}</option>@endforeach</select></form>
 <div class="card flush"><div class="card-body table-wrap"><table class="table" id="leaveTable">
@@ -55,6 +56,7 @@
 <div class="modal-body form-grid">
   <div class="field span-2"><label>Employee <span class="req">*</span></label><select name="employee_id" class="input" required><option value="">— choose —</option>@foreach($employees as $e)<option value="{{ $e->id }}" @selected(old('employee_id') == $e->id)>{{ $e->name }} ({{ $e->emp_code }})</option>@endforeach</select></div>
   <div class="field span-2"><label>Leave type <span class="req">*</span></label><select name="leave_type_id" class="input" required>@foreach($types as $t)<option value="{{ $t->id }}" @selected(old('leave_type_id') == $t->id)>{{ $t->name }} ({{ $t->code }}){{ $t->is_paid ? '' : ' – unpaid' }}</option>@endforeach</select></div>
+  <div class="field span-2"><p class="tiny muted" style="margin:-.4rem 0 0">EL and ML are statutory (Act 651 ss. 20 and 57). CL, SL and PL are contractual — Ghana gives a father no statutory paternity leave, so PL is whatever this hotel's policy or collective agreement provides; set its days under Masters › Leave Types.</p></div>
   <div class="field"><label>From <span class="req">*</span></label><input type="date" name="date_from" class="input" required value="{{ old('date_from', bdate()->toDateString()) }}"></div>
   <div class="field"><label>To <span class="req">*</span></label><input type="date" name="date_to" class="input" required value="{{ old('date_to', bdate()->toDateString()) }}"></div>
   <label class="check span-2"><input type="checkbox" name="half_day" value="1"> Half day (single date)</label>

@@ -75,7 +75,7 @@ class PackageService
         return match ($p->rhythm) {
             'arrival' => $n === $arr,
             'departure' => $n === $last,
-            'once' => ! PackageEntitlement::where('reservation_room_id', $stay->id)->where('package_id', $p->id)->where('source', 'included')->where('night_date', '!=', $n)->exists(),
+            'once' => ! PackageEntitlement::where('reservation_room_id', $stay->id)->where('package_id', $p->id)->where('source', 'included')->whereDate('night_date', '!=', $n)->exists(),
             default => true,
         };
     }
@@ -169,8 +169,8 @@ class PackageService
             throw new RuntimeException('The end date is before the start date.');
         }
         $overlap = StayFixedCharge::where('reservation_room_id', $stay->id)->where('package_id', $p->id)->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $s->toDateString()))
-            ->when($e, fn ($q) => $q->where('start_date', '<=', $e->toDateString()))->exists();
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $s->toDateString()))
+            ->when($e, fn ($q) => $q->whereDate('start_date', '<=', $e->toDateString()))->exists();
         if ($overlap) {
             throw new RuntimeException("{$p->name} is already on this stay for those nights.");
         }
@@ -203,7 +203,7 @@ class PackageService
         $grace = (int) setting('pkg_grace_days', '0');
 
         return PackageEntitlement::query()->whereIn('status', ['open', 'partial'])->where('is_allowance', true)
-            ->whereBetween('service_date', [$on->copy()->subDays($grace)->toDateString(), $on->toDateString()]);
+            ->whereDate('service_date', '>=', $on->copy()->subDays($grace)->toDateString())->whereDate('service_date', '<=', $on->toDateString());
     }
 
     /**
@@ -332,7 +332,7 @@ class PackageService
             $out['cancelled']++;
         }
         $cut = $date->copy()->subDays((int) setting('pkg_grace_days', '0'))->toDateString();
-        foreach (PackageEntitlement::whereIn('status', ['open', 'partial'])->where('is_allowance', true)->where('service_date', '<=', $cut)->get() as $e) {
+        foreach (PackageEntitlement::whereIn('status', ['open', 'partial'])->where('is_allowance', true)->whereDate('service_date', '<=', $cut)->get() as $e) {
             $b = $e->remainingAmount();
             $e->update(['status' => 'expired', 'expired_date' => $date->toDateString(), 'breakage_amount' => $b]);
             $out['expired']++;
@@ -376,7 +376,7 @@ class PackageService
         $stays = ReservationRoom::with(['fixedCharges' => fn ($q) => $q->where('is_active', true)->whereNotNull('package_id')])
             ->whereIn('status', ['reserved', 'checked_in'])
             ->whereHas('reservation', fn ($q) => $q->whereNotIn('status', ['cancelled', 'tentative']))
-            ->where('arrival_date', '<=', $to->toDateString())->where('departure_date', '>=', $from->copy()->subDay()->toDateString())->get();
+            ->whereDate('arrival_date', '<=', $to->toDateString())->whereDate('departure_date', '>=', $from->copy()->subDay()->toDateString())->get();
         $plans = [];
         foreach ($stays as $s) {
             $lastNight = $s->departure_date->copy()->subDay()->max($s->arrival_date);
@@ -456,7 +456,7 @@ class PackageService
         $liab = AccountHead::sys('package_liability');
         $room = LedgerService::categoryAccount('room');
         $lines = [];
-        $alloc = PackageEntitlement::with('package')->where('night_date', $date)->where('status', '!=', 'cancelled')->where('amount', '>', 0)->get();
+        $alloc = PackageEntitlement::with('package')->whereDate('night_date', $date)->where('status', '!=', 'cancelled')->where('amount', '>', 0)->get();
         foreach ($alloc as $e) {
             if (! $e->package) {
                 continue;
@@ -471,7 +471,7 @@ class PackageService
                 $lines[] = [$liab, -$a, $e->package->name];
             }
         }
-        $used = PackageRedemption::with('package', 'entitlement')->where('business_date', $date)->whereNull('voided_at')->where('amount', '>', 0)->whereNotNull('package_entitlement_id')->get();
+        $used = PackageRedemption::with('package', 'entitlement')->whereDate('business_date', $date)->whereNull('voided_at')->where('amount', '>', 0)->whereNotNull('package_entitlement_id')->get();
         foreach ($used as $r) {
             if (! $r->package || ($r->entitlement?->status === 'cancelled')) {
                 continue;
@@ -479,7 +479,7 @@ class PackageService
             $lines[] = [$liab, (float) $r->amount, $r->redemption_no];
             $lines[] = [LedgerService::categoryAccount($r->package->category), -(float) $r->amount, $r->package->name.' used'];
         }
-        foreach (PackageEntitlement::with('package')->where('expired_date', $date)->where('status', 'expired')->where('breakage_amount', '>', 0)->get() as $e) {
+        foreach (PackageEntitlement::with('package')->whereDate('expired_date', $date)->where('status', 'expired')->where('breakage_amount', '>', 0)->get() as $e) {
             if (! $e->package) {
                 continue;
             }

@@ -1,0 +1,98 @@
+[
+ {
+  "module": "Front Office",
+  "flow": "guest request: log",
+  "ok": true,
+  "detail": "POST /guest-requests -> 302 /guest-requests | flash: Request GRQ-00013 logged."
+ },
+ {
+  "module": "Front Office",
+  "flow": "guest request: start",
+  "ok": true,
+  "detail": "POST /guest-requests/5/start -> 302 /guest-requests | flash: GRQ-00005: In progress."
+ },
+ {
+  "module": "Front Office",
+  "flow": "guest request: complete",
+  "ok": true,
+  "detail": "POST /guest-requests/5/done -> 302 /guest-requests | flash: GRQ-00005: Done."
+ },
+ {
+  "module": "Front Office",
+  "flow": "guest request: assign",
+  "ok": true,
+  "detail": "POST /guest-requests/5/assign -> 302 /guest-requests | flash: GRQ-00005 assigned to System Administrator."
+ },
+ {
+  "module": "Front Office",
+  "flow": "guest request portal: send link",
+  "ok": true,
+  "detail": "POST /guest-requests/stay/62/portal/send -> 302 /guest-requests | flash: Portal link sent by SMS."
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "log book: entry",
+  "ok": true,
+  "detail": "POST /desk/logbook -> 302 /desk/logbook | flash: Log book entry added \u2013 open for follow-up. / 1 urgent item(s) still open 1 follow-up(s) due now"
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "log book: resolve entry 16",
+  "ok": true,
+  "detail": "POST /desk/logbook/16/resolve -> 302 /desk/logbook/16 | flash: Entry resolved. / Resolved by System Administrator \u00b7 13 Oct 14:14 Engineering replaced the ballast"
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "wake-up: schedule",
+  "ok": true,
+  "detail": "POST /desk/wakeups -> 302 /desk/wakeups | flash: Wake-up call booked for Tue 13 Oct, 14:16."
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "wake-up: attempt answered",
+  "ok": true,
+  "detail": "POST /desk/wakeups/9/attempt -> 302 /desk/wakeups | flash: Room 101: wake-up call answered."
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "messages: log parcel + notify",
+  "ok": true,
+  "detail": "POST /desk/messages -> 302 /desk/messages | flash: Parcel MSG-00008 logged \u2013 guest notified by SMS. / Print the message slip to put in the guest's key box or slide under the door. / 1 parcel(s) for guests who have checked out \u2013 forward or return to se"
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "messages: deliver",
+  "ok": true,
+  "detail": "POST /desk/messages/8/deliver -> 302 /desk/messages | flash: MSG-00008 delivered. / 1 parcel(s) for guests who have checked out \u2013 forward or return to sender 4 item(s) waiting more than 60 minutes"
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "traces: set",
+  "ok": true,
+  "detail": "POST /desk/traces -> 302 /desk/traces | flash: Trace set for Tue 13 Oct (Front Office)."
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "traces: complete",
+  "ok": true,
+  "detail": "POST /desk/traces/6/done -> 302 /desk/traces | flash: Trace completed."
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "lost & found: log item",
+  "ok": true,
+  "detail": "POST /lost-found -> 302 /lost-found/10 | flash: Logged as LF-00010 \u2013 keep until 11 Apr 2027. Print the tag and store it in: Safe 2. / The probable owner Mr Rahul Verma is still in-house in room 101 \u2013 contact the guest and return the item before che"
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "lost & found: return to owner",
+  "ok": false,
+  "detail": "POST /lost-found/10/return -> 302 /lost-found/10 | flash: Record the claimant&#039;s photo ID before releasing a valuable. / The probable owner Mr Rahul Verma is still in-house in room 101 \u2013 contact the guest and return the item before check-out. / Valuable "
+ },
+ {
+  "module": "Desk Operations",
+  "flow": "desk settings: save",
+  "ok": true,
+  "detail": "POST /desk/settings -> 302 /desk/settings | flash: Front desk operations settings saved. | fields=17"
+ }
+]

@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# A SWIFT MT940 really does arrive with CRLF line ends, so the fixture is stored byte for byte
+# rather than normalised: bank_import_flow.php and the reader both have to cope with the real thing.
+*.mt940 -text

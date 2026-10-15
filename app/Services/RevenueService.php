@@ -210,7 +210,7 @@ class RevenueService
                     if ($rate <= 0 || $rate > 99999999) {
                         throw new RuntimeException("Invalid rate for {$type->name} on {$date}.");
                     }
-                    RateOverride::where('source', 'rm')->where('room_type_id', $type->id)->where('date_from', $date)->where('date_to', $date)->delete();
+                    RateOverride::where('source', 'rm')->where('room_type_id', $type->id)->whereDate('date_from', $date)->whereDate('date_to', $date)->delete();
                     $minStay = self::evaluate($type, Carbon::parse($date), (float) $base[$date]['rate'], $occ[$date] ?? [], $rules)['min_stay'];
                     if (abs($rate - (float) $base[$date]['rate']) < 0.01 && ! $minStay) {
                         $stats['reverted']++;
@@ -231,7 +231,7 @@ class RevenueService
     /** Remove revenue-managed overrides in a range (back to the base / seasonal rates). */
     public static function reset(Carbon $from, Carbon $to, ?array $typeIds = null): int
     {
-        $n = RateOverride::where('source', 'rm')->whereBetween('date_from', [$from->toDateString(), $to->toDateString()])
+        $n = RateOverride::where('source', 'rm')->whereDate('date_from', '>=', $from->toDateString())->whereDate('date_from', '<=', $to->toDateString())
             ->when($typeIds, fn ($q) => $q->whereIn('room_type_id', $typeIds))->delete();
         ActivityLogger::log('revenue', 'reset', "Removed {$n} revenue-managed day rate(s) {$from->format('d M')} – {$to->format('d M Y')}");
 
@@ -255,7 +255,7 @@ class RevenueService
     {
         $to = $from->copy()->addDays($days);
         $stays = ReservationRoom::whereIn('status', ['reserved', 'checked_in', 'checked_out'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())
             ->get(['id', 'room_type_id', 'arrival_date', 'departure_date', 'rate', 'extra_charge', 'status']);
         $held = AvailabilityService::heldRooms($from, $to);
         $out = [];
@@ -300,7 +300,7 @@ class RevenueService
         $to = $from->copy()->addDays(self::horizon());
         $stays = ReservationRoom::with('reservation:id,created_at,cancelled_at,status')
             ->whereIn('status', ['reserved', 'checked_in', 'checked_out', 'cancelled', 'no_show'])
-            ->where('arrival_date', '<', $to->toDateString())->where('departure_date', '>', $from->toDateString())
+            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())
             ->get()->filter(function ($s) use ($end) {
                 $r = $s->reservation;
                 if (! $r || $r->created_at->gt($end)) {
@@ -336,7 +336,7 @@ class RevenueService
             }
         }
         DB::transaction(function () use ($asOf, $rows) {
-            RmSnapshot::where('snapshot_date', $asOf->toDateString())->delete();
+            RmSnapshot::whereDate('snapshot_date', $asOf->toDateString())->delete();
             foreach (array_chunk($rows, 500) as $chunk) {
                 RmSnapshot::insert($chunk);
             }
@@ -359,7 +359,7 @@ class RevenueService
     /** An empty snapshot (nothing on the books) still counts as taken if the night audit ran that day. */
     protected static function snapshotTaken(string $date): bool
     {
-        return \App\Models\NightAudit::where('business_date', $date)->exists() && RmSnapshot::where('snapshot_date', '>', $date)->exists();
+        return \App\Models\NightAudit::whereDate('business_date', $date)->exists() && RmSnapshot::whereDate('snapshot_date', '>', $date)->exists();
     }
 
     /**
@@ -371,7 +371,7 @@ class RevenueService
         $today = bdate()->copy()->startOfDay();
         $start = $today->copy()->subDays($lookback);
         $stays = ReservationRoom::with('reservation:id,created_at')->whereIn('status', ['checked_in', 'checked_out'])
-            ->where('arrival_date', '<', $today->toDateString())->where('departure_date', '>', $start->toDateString())->get();
+            ->whereDate('arrival_date', '<', $today->toDateString())->whereDate('departure_date', '>', $start->toDateString())->get();
         $first = $stays->min('arrival_date'); // learn only from the period that has history (new installs)
         if ($first && $first->gt($start)) {
             $start = $first->copy()->startOfDay();

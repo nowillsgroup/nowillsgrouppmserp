@@ -6,7 +6,10 @@
 <div class="card"><div class="card-body grid g-3">
   <dl class="kv"><dt>Employee</dt><dd><b>{{ $e->name }}</b> · {{ $e->emp_code }}</dd><dt>Designation</dt><dd>{{ $e->designation ?? '—' }} · {{ $e->department?->name ?? '—' }}</dd><dt>Joined</dt><dd>{{ $e->joining_date ? dmy($e->joining_date) : '—' }}@if($e->leaving_date) · leaves {{ dmy($e->leaving_date) }}@endif</dd></dl>
   <dl class="kv"><dt>Monthly basic</dt><dd><b>{{ money($e->salary) }}</b></dd><dt>Paid by</dt><dd>{{ $e->paymentMode?->name ?? 'Default (bank)' }}@if($e->bank_account) · {{ $e->bank_name }} {{ $e->bank_account }}@endif</dd><dt>Overtime</dt><dd>{{ $e->ot_eligible ? 'Eligible' : 'Not eligible' }}</dd></dl>
-  <dl class="kv"><dt>TIN / Ghana Card</dt><dd>{{ $e->tax_id ?? '—' }}</dd><dt>SSNIT no.</dt><dd>{{ $e->social_security_no ?? '—' }}</dd></dl>
+  <dl class="kv"><dt>TIN / Ghana Card</dt><dd>{{ $e->tax_id ?? '—' }}</dd><dt>SSNIT no.</dt><dd>{{ $e->social_security_no ?? '—' }}</dd>
+    <dt>Employment type</dt><dd>{{ ['permanent' => 'Permanent', 'fixed_term' => 'Fixed-term contract', 'weekly' => 'Weekly-paid', 'casual' => 'Casual / daily-rated'][$e->employment_type] ?? ucfirst((string) $e->employment_type) }}@if($e->employment_type === 'casual') <span class="badge badge-amber">PAYE: final 5% of gross</span>@endif</dd>
+    <dt>Tax residence</dt><dd>{{ $e->tax_resident ? 'Resident – GRA monthly bands' : 'Non-resident – flat 25%' }}</dd><dt>Personal reliefs</dt><dd>{{ (float) $e->tax_relief > 0 ? money($e->tax_relief).' a month' : 'None claimed' }}</dd></dl>
+  <p class="tiny muted">Edit the TIN, SSNIT number, employment type, tax residence and personal reliefs under <a href="{{ route('masters.index', 'employees') }}">Masters › Employees</a>. GRA reliefs are annual: marriage {{ money(1200) }}, child education {{ money(600) }} a child, old age {{ money(1500) }}, aged dependant {{ money(1000) }}, education {{ money(2000) }} – enter the monthly twelfth of what the worker is entitled to.</p>
 </div></div>
 
 <div class="grid g-2 mt-2">

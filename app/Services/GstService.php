@@ -36,7 +36,7 @@ class GstService
 {
     public const DEFAULTS = [
         'gst_einvoice_enabled' => '0', 'gst_einvoice_driver' => 'sandbox', 'gst_einvoice_auto' => '1', 'gst_evat_pos' => '1',
-        'gst_evat_url' => '', 'gst_evat_key' => '', 'gst_evat_username' => '',
+        'gst_evat_url' => '', 'gst_evat_key' => '', 'gst_evat_username' => '', 'tax_prices_inclusive' => '0',
     ];
 
     /** TIN used on E-VAT for buyers without one (walk-in / cash customers). */
@@ -94,6 +94,144 @@ class GstService
             ($t[0] ?? '') === 'Q' => 'Organisation TIN',
             default => 'TIN',
         };
+    }
+
+    // ------------------------------------------------------------------ VAT registration (v7.52, Act 1151)
+
+    /**
+     * Act 1151 registration thresholds, in force 1 January 2026.
+     *
+     * A supplier of taxable GOODS registers once annual taxable supplies reach GH₵750,000, raised from GH₵200,000 by the
+     * Value Added Tax Act, 2025. A supplier of SERVICES has no threshold at all and must register whatever it turns
+     * over — which is what a hotel, a restaurant and a guest house are. GRA's own guidance is that "the 750,000
+     * threshold is only applicable to the supply of goods. Supply of services — there is no threshold." A property that
+     * does both falls on the services side, because it supplies services.
+     */
+    public const VAT_THRESHOLD_GOODS = 750000.0;
+
+    /** The Act 870 threshold to 31 December 2025, kept so a registration that predates Act 1151 still reads correctly. */
+    public const VAT_THRESHOLD_PRIOR = 200000.0;
+
+    public const VAT_SUPPLY_KINDS = [
+        'services' => 'Services — accommodation, food and beverage, events (no threshold: registration is mandatory)',
+        'goods' => 'Goods only — a shop or retail outlet (GH₵750,000 threshold)',
+        'both' => 'Both goods and services — treated as services, so no threshold',
+    ];
+
+    public const REGISTRATION_STATUS = [
+        'registered' => 'VAT registered',
+        'must_register' => 'Must register',
+        'approaching' => 'Approaching the threshold',
+        'below_threshold' => 'Below the threshold',
+    ];
+
+    /** Is this property on the GRA VAT register? Only a Ghana property can be. */
+    public static function vatRegistered(): bool
+    {
+        return self::isGhana() && (bool) (hotel()?->vat_registered);
+    }
+
+    /**
+     * One month's taxable base — the same figure the VAT return reaches, without building the whole return: the taxable
+     * value of every closed document (credit notes negative) plus the taxable value of direct-settled POS bills.
+     * vat_registration.php asserts this equals vatReturn()['totals']['taxable'] for the same month, so the registration
+     * test can never disagree with a return that has been filed.
+     */
+    public static function monthTaxable(string $period): float
+    {
+        $t = 0.0;
+        foreach (self::documents($period) as $d) {
+            $t += (float) self::componentTotals(self::lines($d))['taxable'];
+        }
+        foreach (self::posLines($period) as $p) {
+            $t += (float) $p['taxable'];
+        }
+
+        return round($t, 2);
+    }
+
+    /**
+     * Thirteen months of taxable turnover ending with the open business month, so two real twelve-month windows can be
+     * read off one scan: the twelve COMPLETED months, and the twelve months to today with this month still open. GRA
+     * tests any period of twelve months, so the registration test uses whichever window is larger.
+     */
+    public static function vatTurnover(?string $ending = null): array
+    {
+        $end = $ending ? Carbon::createFromFormat('Y-m-d', $ending.'-01') : bdate()->copy();
+        $rows = [];
+        for ($i = 12; $i >= 0; $i--) {
+            $period = $end->copy()->subMonthsNoOverflow($i)->format('Y-m');
+            $rows[] = ['period' => $period, 'taxable' => self::monthTaxable($period), 'open' => $i === 0];
+        }
+        $sum = fn (array $slice) => round(array_sum(array_column($slice, 'taxable')), 2);
+        $completed = $sum(array_slice($rows, 0, 12));
+        $rolling = $sum(array_slice($rows, 1, 12));
+
+        return ['months' => $rows, 'completed' => $completed, 'rolling' => $rolling, 'test' => max($completed, $rolling),
+            'completed_from' => $rows[0]['period'], 'completed_to' => $rows[11]['period'], 'open_period' => $rows[12]['period']];
+    }
+
+    /**
+     * The property's VAT registration record, and the Act 1151 test that says whether it is the right one.
+     *
+     * E-invoicing is mandatory for every VAT-registered business with no revenue threshold, so an unregistered property
+     * must not submit to the VSDC and a registered one must: EInvoiceService::eligible() gates on vatRegistered().
+     */
+    /** Per-request memo of vatRegistration(): a retry loop asks once per document and the turnover scan is 13 months. */
+    protected static array $regMemo = [];
+
+    public static function vatRegistration(bool $fresh = false): array
+    {
+        $h = hotel();
+        $key = (int) $h?->id;
+        if (! $fresh && isset(self::$regMemo[$key])) {
+            return self::$regMemo[$key];
+        }
+        $kind = array_key_exists((string) ($h->vat_supply_kind ?? ''), self::VAT_SUPPLY_KINDS) ? $h->vat_supply_kind : 'services';
+        $threshold = $kind === 'goods' ? self::VAT_THRESHOLD_GOODS : null;
+        $t = self::vatTurnover();
+        $registered = (bool) $h->vat_registered;
+        $pct = $threshold ? round($t['test'] / $threshold * 100, 1) : null;
+
+        if ($registered) {
+            $status = 'registered';
+        } elseif ($threshold === null || $t['test'] >= $threshold) {
+            $status = 'must_register';
+        } elseif ($pct >= 80) {
+            $status = 'approaching';
+        } else {
+            $status = 'below_threshold';
+        }
+        $completedWindow = Carbon::createFromFormat('Y-m', $t['completed_from'])->format('M Y').' to '.Carbon::createFromFormat('Y-m', $t['completed_to'])->format('M Y');
+        $note = match ($status) {
+            'registered' => 'On the GRA VAT register'.($h->vat_registered_at ? ' since '.$h->vat_registered_at->format('d F Y') : '').'. Every tax invoice and credit note this property issues must go to the VSDC — e-invoicing is mandatory for every VAT-registered business, with no turnover threshold.',
+            'must_register' => $threshold === null
+                ? 'This property supplies services, and Act 1151 sets no registration threshold for services: it must register for VAT with GRA whatever it turns over. Until it does, it must not charge VAT, and E-VAT submission stays off.'
+                : 'Taxable supplies of '.money($t['test']).' are at or past the '.money($threshold).' goods threshold — register with GRA.',
+            'approaching' => money($t['test']).' of the '.money($threshold).' goods threshold ('.$pct.'%) — registration becomes mandatory when the property reaches it.',
+            'below_threshold' => 'A goods supplier below the '.money($threshold).' threshold: '.money($t['test']).' of taxable supplies. Registration is voluntary, and E-VAT submission stays off until it registers.',
+        };
+        if ($registered && ! $h->supports_e_invoicing) {
+            $note .= ' The property is registered but is not marked as able to e-invoice — a VAT-registered business has to issue through a certified invoicing system.';
+        }
+        if (! $registered && $t['test'] > 0) {
+            $note .= ' Note that '.money($t['test']).' of taxable supplies has been recorded while unregistered: an unregistered business must not charge VAT, so check the tax rows under Masters › Taxes.';
+        }
+
+        $out = ['registered' => $registered, 'registered_at' => $h->vat_registered_at?->toDateString(), 'supply_kind' => $kind,
+            'supply_kind_label' => self::VAT_SUPPLY_KINDS[$kind], 'supports_e_invoicing' => (bool) $h->supports_e_invoicing,
+            'threshold' => $threshold, 'threshold_label' => $threshold === null ? 'None — services must register' : money($threshold),
+            'turnover' => $t, 'pct' => $pct, 'status' => $status, 'status_label' => self::REGISTRATION_STATUS[$status], 'note' => $note,
+            'window' => $completedWindow, 'act' => 'Value Added Tax Act, 2025 (Act 1151), effective 1 January 2026',
+            'tin' => self::hotelTin(), 'tin_ok' => self::validTin(self::hotelTin()), 'is_ghana' => self::isGhana()];
+
+        return self::$regMemo[$key] = $out;
+    }
+
+    /** Drop the memo — the hotel settings form has just changed the record it is built from. */
+    public static function flushRegistration(): void
+    {
+        self::$regMemo = [];
     }
 
     // ------------------------------------------------------------------ lines
@@ -358,7 +496,7 @@ class GstService
         [$from, $to] = self::monthRange($period);
 
         return Folio::with('original:id,invoice_no,invoice_date')->where('status', 'closed')->whereNotNull('invoice_no')
-            ->whereBetween('invoice_date', [$from, $to])->orderBy('invoice_date')->orderBy('id')->get();
+            ->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->orderBy('invoice_date')->orderBy('id')->get();
     }
 
     /** Direct-settled POS bills of the month split by tax rate (B2C receipts). */
@@ -370,7 +508,7 @@ class GstService
     public static function posLinesBetween(string $from, string $to): Collection
     {
         $out = collect();
-        foreach (PosOrder::with('items')->where('status', 'settled')->where('settlement', 'payment')->whereBetween('business_date', [$from, $to])->get() as $o) {
+        foreach (PosOrder::with('items')->where('status', 'settled')->where('settlement', 'payment')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get() as $o) {
             $items = $o->items->where('is_cancelled', false);
             $sub = (float) $items->sum('amount');
             $weighted = (float) $items->sum(fn ($i) => $i->amount * $i->tax_rate);
@@ -396,7 +534,7 @@ class GstService
         [$from, $to] = self::monthRange($period);
         $acct = AccountHead::sys('input_tax');
 
-        return $acct ? round((float) GlLine::where('account_head_id', $acct)->where('closing', false)->whereBetween('date', [$from, $to])->sum(DB::raw('debit - credit')), 2) : 0.0;
+        return $acct ? round((float) GlLine::where('account_head_id', $acct)->where('closing', false)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->sum(DB::raw('debit - credit')), 2) : 0.0;
     }
 
     /**
@@ -483,14 +621,14 @@ class GstService
             return ['label' => $label, 'from' => $all->first(), 'to' => $all->last(), 'total' => $all->count(), 'cancelled' => $cancelled->unique()->count(),
                 'net' => $all->count() - $cancelled->unique()->count(), 'gaps' => $gaps];
         };
-        $cx = GstCancelledDoc::whereBetween('doc_date', [$from, $to])->get();
+        $cx = GstCancelledDoc::whereDate('doc_date', '>=', $from)->whereDate('doc_date', '<=', $to)->get();
 
         return array_values(array_filter([
-            $series('Tax invoices', Folio::where('type', '!=', 'credit_note')->whereNotNull('invoice_no')->where('status', 'closed')->whereBetween('invoice_date', [$from, $to])->pluck('invoice_no'),
+            $series('Tax invoices', Folio::where('type', '!=', 'credit_note')->whereNotNull('invoice_no')->where('status', 'closed')->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->pluck('invoice_no'),
                 $cx->where('doc_type', 'invoice')->pluck('doc_no')),
-            $series('Restaurant receipts (POS)', PosOrder::whereNotNull('bill_no')->where('status', '!=', 'void')->whereBetween('business_date', [$from, $to])->pluck('bill_no'),
-                PosOrder::whereNotNull('bill_no')->where('status', 'void')->whereBetween('business_date', [$from, $to])->pluck('bill_no')),
-            $series('Credit notes', Folio::where('type', 'credit_note')->where('status', 'closed')->whereBetween('invoice_date', [$from, $to])->pluck('invoice_no'),
+            $series('Restaurant receipts (POS)', PosOrder::whereNotNull('bill_no')->where('status', '!=', 'void')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('bill_no'),
+                PosOrder::whereNotNull('bill_no')->where('status', 'void')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('bill_no')),
+            $series('Credit notes', Folio::where('type', 'credit_note')->where('status', 'closed')->whereDate('invoice_date', '>=', $from)->whereDate('invoice_date', '<=', $to)->pluck('invoice_no'),
                 $cx->where('doc_type', 'credit_note')->pluck('doc_no')),
         ]));
     }
@@ -543,11 +681,11 @@ class GstService
             }
         }
         $prev = Carbon::createFromFormat('Y-m-d', $period.'-01')->subMonth()->format('Y-m');
-        if (! GstPeriod::where('period', $prev)->exists() && Folio::whereNotNull('invoice_no')->where('invoice_date', '<', $period.'-01')->exists()) {
+        if (! GstPeriod::where('period', $prev)->exists() && Folio::whereNotNull('invoice_no')->whereDate('invoice_date', '<', $period.'-01')->exists()) {
             $out[] = ['block' => false, 'text' => 'The VAT return for '.Carbon::parse($prev.'-01')->format('M Y').' is not marked as filed.'];
         }
         $open = Folio::where('status', 'open')->whereNotNull('company_id')->whereHas('transactions', fn ($q) => $q->where('is_void', false)->where('type', 'charge')
-            ->where('business_date', '<=', self::monthRange($period)[1]))->where('type', '!=', 'credit_note')->count();
+            ->whereDate('business_date', '<=', self::monthRange($period)[1]))->where('type', '!=', 'credit_note')->count();
         if ($open && $period < bdate()->format('Y-m')) {
             $out[] = ['block' => false, 'text' => "{$open} company folio(s) with charges up to the month end are still open – invoices are dated when issued, so they belong to a later return."];
         }
@@ -580,7 +718,7 @@ class GstService
     public static function alerts(): array
     {
         $prev = bdate()->copy()->startOfMonth()->subMonth();
-        $unfiled = ! GstPeriod::where('period', $prev->format('Y-m'))->exists() && Folio::whereNotNull('invoice_no')->whereBetween('invoice_date', [$prev->toDateString(), $prev->copy()->endOfMonth()->toDateString()])->exists();
+        $unfiled = ! GstPeriod::where('period', $prev->format('Y-m'))->exists() && Folio::whereNotNull('invoice_no')->whereDate('invoice_date', '>=', $prev->toDateString())->whereDate('invoice_date', '<=', $prev->copy()->endOfMonth()->toDateString())->exists();
         $due = self::returnDue($prev->format('Y-m'));
 
         return ['failed' => Folio::where('irn_status', 'failed')->where('status', 'closed')->count(), 'pending' => Folio::where('irn_status', 'pending')->where('status', 'closed')->count(),

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\EinvoiceLog;
 use App\Models\Folio;
+use App\Models\Hotel;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -43,16 +44,43 @@ class EInvoiceService
         return ($d ?? self::driver()) === 'gra' ? 'GRA E-VAT API' : 'Sandbox (offline VSDC simulator)';
     }
 
-    /** All issued invoices and credit notes go through E-VAT (B2B and B2C). */
+    /**
+     * v7.52 Why this property may not submit to the VSDC, or null when it may.
+     *
+     * Act 1151 makes e-invoicing mandatory for every VAT-registered business with no revenue threshold, so the two
+     * directions both matter: a property that is NOT on the GRA VAT register must not submit, and one that is registered
+     * has to. Reads only the registration record, never the turnover test — a retry loop calls this per document.
+     */
+    public static function registrationBlocker(): ?string
+    {
+        if (! GstService::isGhana()) {
+            return null;                       // E-VAT is a Ghana obligation; enabled() already gates on the country
+        }
+        $h = hotel();
+        if (! $h?->vat_registered) {
+            return 'This property is not on the GRA VAT register, so it must not submit to the VSDC. Record the registration under Administration › Settings once GRA has registered it — a supplier of services has no turnover threshold and must register whatever it turns over.';
+        }
+        if (! $h->supports_e_invoicing) {
+            return 'This property is VAT-registered but is not marked as able to e-invoice. A registered business has to issue through a certified invoicing system, so either connect one or record why it cannot under Administration › Settings.';
+        }
+
+        return null;
+    }
+
+    /** All issued invoices and credit notes go through E-VAT (B2B and B2C) — for a property that may submit. */
     public static function eligible(Folio $f): bool
     {
-        return self::enabled() && $f->status === 'closed' && $f->invoice_no && ! $f->hasActiveIrn();
+        return self::enabled() && self::registrationBlocker() === null
+            && $f->status === 'closed' && $f->invoice_no && ! $f->hasActiveIrn();
     }
 
     /** Problems that must be fixed in the data before the VSDC can accept the document. */
     public static function validate(Folio $f): array
     {
         $e = [];
+        if ($blocker = self::registrationBlocker()) {
+            $e[] = $blocker;
+        }
         if (! GstService::validTin(GstService::hotelTin())) {
             $e[] = 'Hotel TIN is missing or invalid (Administration › Hotel settings).';
         }
@@ -137,6 +165,29 @@ class EInvoiceService
         self::log($f, 'generate', false, $res['code'], $res['message'], $payload, $res['raw'], $ms, $userId);
 
         return false;
+    }
+
+    /**
+     * v7.52 The registration record just changed, so the queue has to follow it.
+     *
+     * Registering a property makes every closed, unstamped document eligible again, so a document that failed on "not on
+     * the GRA VAT register" is put back to pending and the five-minute retry task picks it up instead of leaving it
+     * parked on an error that is no longer true. Deregistering stops submission — eligible() gates on the record, so
+     * nothing new is queued — and documents already stamped keep their stamp, because a stamped document cannot be
+     * cancelled and corrections are credit notes.
+     *
+     * @return array{cleared: int, registered: bool}
+     */
+    public static function registrationChanged(Hotel $hotel): array
+    {
+        if (! $hotel->vat_registered) {
+            return ['cleared' => 0, 'registered' => false];
+        }
+        $cleared = Folio::where('status', 'closed')->whereNotNull('invoice_no')
+            ->where('irn_status', 'failed')->where('irn_error', 'like', '%not on the GRA VAT register%')
+            ->update(['irn_status' => 'pending', 'irn_error' => null, 'irn_retryable' => true, 'irn_next_try_at' => null]);
+
+        return ['cleared' => (int) $cleared, 'registered' => true];
     }
 
     /** Send any E-VAT payload (invoice, refund, restaurant bill) through the configured driver: [normalised result, duration ms]. Never throws. */

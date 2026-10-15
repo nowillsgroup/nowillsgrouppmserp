@@ -53,6 +53,15 @@ class ForexService
         'forex_fee_pct' => '0',               // optional service fee on cash encashment (VAT-exempt financial service)
         'forex_surrender_days' => '7',
         'forex_carry_rates' => '1',           // night audit copies rates to the new day (flagged "carried")
+        'forex_channel_convert' => '1',       // v7.50 an OTA booking in a foreign currency is converted, not rejected
+        'forex_channel_basis' => 'reference', // v7.50 …at the reference rate, or at the buy rate the desk would give
+        'forex_channel_stale_days' => '7',    // v7.50 …using a board no older than this many days
+        'forex_ap_convert' => '1',            // v7.53 a supplier invoice in a foreign currency is converted, not refused
+        'forex_ap_basis' => 'reference',      // v7.53 …at the reference rate, or at the buy rate the desk would give
+        'forex_ap_stale_days' => '7',         // v7.53 …using a board no older than this many days
+        'forex_ap_rate_date' => 'document',   // v7.53 …read at the invoice date, which is what accounting wants, or at today's board
+        'forex_ap_pay' => '1',                // v7.54 a foreign bill may be settled in the currency it was billed in
+        'forex_ap_pay_deal' => '1',           // v7.54 …at the bank's deal rate from its advice, not only at the board
         'forex_licence' => '',                // BoG bureau licence / agency no. printed on the certificate
         'forex_franchiser' => '',             // bank / licensed bureau the hotel buys for
     ];
@@ -105,6 +114,13 @@ class ForexService
         foreach (['cash_cap_usd', 'resident_cap_usd', 'aggregate_days', 'id_copy_inr', 'surrender_days'] as $k) {
             $s[$k] = max(0, (int) $s[$k]);
         }
+        // v7.50 the channel-conversion policy: only two bases exist, and the staleness window is a small number of days
+        $s['channel_basis'] = in_array($s['channel_basis'] ?? '', ['reference', 'buy'], true) ? $s['channel_basis'] : 'reference';
+        $s['channel_stale_days'] = max(0, min(90, (int) ($s['channel_stale_days'] ?? self::BOARD_STALE_DAYS)));
+        // v7.53 the payables policy: the same two bases, the same kind of window, and a choice of which date to read
+        $s['ap_basis'] = in_array($s['ap_basis'] ?? '', ['reference', 'buy'], true) ? $s['ap_basis'] : 'reference';
+        $s['ap_stale_days'] = max(0, min(90, (int) ($s['ap_stale_days'] ?? self::BOARD_STALE_DAYS)));
+        $s['ap_rate_date'] = in_array($s['ap_rate_date'] ?? '', ['document', 'business'], true) ? $s['ap_rate_date'] : 'document';
         foreach (['max_margin', 'fee_pct'] as $k) {
             $s[$k] = max(0, (float) $s[$k]);
         }
@@ -133,13 +149,17 @@ class ForexService
 
     public static function rate(int $currencyId, ?string $date = null): ?ForexRate
     {
-        return ForexRate::where('currency_id', $currencyId)->where('date', $date ?? bdate()->toDateString())->first();
+        // whereDate, never where('date', …): the column is a DATE but the cast value
+        // is written as "Y-m-d 00:00:00", so an equality match on the bare date
+        // string finds nothing on SQLite and the desk reports a rate that exists as
+        // missing (which then blocks every exchange).
+        return ForexRate::where('currency_id', $currencyId)->whereDate('date', $date ?? bdate()->toDateString())->first();
     }
 
     /** Today's rates keyed by currency id. */
     public static function todayRates(?string $date = null): Collection
     {
-        return ForexRate::where('date', $date ?? bdate()->toDateString())->get()->keyBy('currency_id');
+        return ForexRate::whereDate('date', $date ?? bdate()->toDateString())->get()->keyBy('currency_id');
     }
 
     /** @param array $rows currency_id => ['reference' => , 'buy' => ] (blank rows ignored) */
@@ -183,7 +203,12 @@ class ForexService
             throw ValidationException::withMessages($errors);
         }
         foreach ($clean as $id => [$ref, $buy]) {
-            ForexRate::updateOrCreate(['currency_id' => $id, 'date' => $date], ['reference_rate' => $ref, 'buy_rate' => $buy, 'carried' => false, 'set_by' => auth()->id()]);
+            // Match on the date with whereDate: updateOrCreate() would compare the
+            // bare date string against a stored "Y-m-d 00:00:00", never find the row
+            // and then break the (hotel, currency, date) unique index with a 500.
+            $values = ['reference_rate' => $ref, 'buy_rate' => $buy, 'carried' => false, 'set_by' => auth()->id()];
+            $existing = ForexRate::where('currency_id', $id)->whereDate('date', $date)->first();
+            $existing ? $existing->update($values) : ForexRate::create(['currency_id' => $id, 'date' => $date] + $values);
         }
         if ($clean) {
             ActivityLogger::log('forex', 'rates', 'Exchange rates for '.bdate()->format('d M Y').' set: '.collect($clean)->map(fn ($r, $id) => $currencies[$id]->code.' '.$r[1])->implode(', '));
@@ -196,10 +221,10 @@ class ForexService
     public static function copyPrevious(bool $carried = false): int
     {
         $date = bdate()->toDateString();
-        $have = ForexRate::where('date', $date)->pluck('currency_id')->all();
+        $have = ForexRate::whereDate('date', $date)->pluck('currency_id')->all();
         $n = 0;
         foreach (Currency::where('is_active', true)->whereNotIn('id', $have)->get() as $c) {
-            $prev = ForexRate::where('currency_id', $c->id)->where('date', '<', $date)->orderByDesc('date')->first();
+            $prev = ForexRate::where('currency_id', $c->id)->whereDate('date', '<', $date)->orderByDesc('date')->first();
             if ($prev) {
                 ForexRate::create(['currency_id' => $c->id, 'date' => $date, 'reference_rate' => $prev->reference_rate, 'buy_rate' => $prev->buy_rate,
                     'carried' => $carried, 'set_by' => $carried ? null : auth()->id()]);
@@ -220,6 +245,142 @@ class ForexService
     }
 
     // ───────────────────────── quoting & limits ─────────────────────────
+
+    /** How far back a board rate may be used for a channel booking before the booking is held instead. */
+    public const BOARD_STALE_DAYS = 7;
+
+    /**
+     * v7.50 The rate a foreign-currency document is converted at, and where it came from.
+     *
+     * The board for the date asked for is used; if the desk has not set that day's rates, the most recent board within
+     * the staleness window is used instead and flagged, because the night audit normally carries rates forward and a
+     * booking that arrives before the desk opens — or an invoice dated on a Sunday — should not be lost over it.
+     * Beyond that window there is no honest rate to use and the caller holds the document for a human.
+     *
+     * `$policy` lets a caller bring its own basis and window: a channel booking uses the channel settings, a supplier
+     * invoice the payables ones (v7.53). With no policy the channel settings apply, exactly as before.
+     *
+     * @param  array{basis?: string, stale_days?: int}|null  $policy
+     * @return array{code: string, currency_id: int, rate: float, basis: string, date: string, carried: bool, stale: bool}|null
+     */
+    public static function boardRate(string $code, ?string $on = null, ?array $policy = null): ?array
+    {
+        $cur = Currency::where('code', strtoupper(trim($code)))->first();
+        if (! $cur) {
+            return null;
+        }
+        $on = $on ?: bdate()->toDateString();
+        $cfg = self::cfg();
+        $policy = $policy ?: [];
+        $staleDays = max(0, min(90, (int) ($policy['stale_days'] ?? $cfg['channel_stale_days'])));
+        $r = self::rate($cur->id, $on);
+        if (! $r) {
+            $floor = Carbon::parse($on)->subDays($staleDays)->toDateString();
+            $r = ForexRate::where('currency_id', $cur->id)
+                ->whereDate('date', '<=', $on)->whereDate('date', '>=', $floor)
+                ->orderByDesc('date')->first();
+        }
+        if (! $r) {
+            return null;
+        }
+        $basis = ($policy['basis'] ?? $cfg['channel_basis']) === 'buy' ? 'buy' : 'reference';
+        $rate = round((float) ($basis === 'buy' ? $r->buy_rate : $r->reference_rate), 4);
+        if ($rate <= 0) {
+            return null;
+        }
+
+        return ['code' => strtoupper((string) $cur->code), 'currency_id' => (int) $cur->id, 'rate' => $rate, 'basis' => $basis,
+            'date' => $r->date->toDateString(), 'carried' => (bool) $r->carried, 'stale' => $r->date->toDateString() !== $on];
+    }
+
+    /** v7.50 Whether a channel booking in a foreign currency is converted at the board or held for a human. */
+    public static function channelConvert(): bool
+    {
+        return self::enabled() && setting('forex_channel_convert', self::DEFAULTS['forex_channel_convert']) === '1';
+    }
+
+    /** v7.53 Whether a supplier invoice in a foreign currency is converted at the board or refused. */
+    public static function apConvert(): bool
+    {
+        return self::enabled() && setting('forex_ap_convert', self::DEFAULTS['forex_ap_convert']) === '1';
+    }
+
+    /** v7.54 May a foreign bill be settled in the currency the supplier billed in? */
+    public static function apPay(): bool
+    {
+        return self::enabled() && setting('forex_ap_pay', self::DEFAULTS['forex_ap_pay']) === '1';
+    }
+
+    /** v7.54 …and may the rate be the bank's deal rate from its advice, rather than the board? */
+    public static function apPayDeal(): bool
+    {
+        return setting('forex_ap_pay_deal', self::DEFAULTS['forex_ap_pay_deal']) === '1';
+    }
+
+    /**
+     * v7.54 The rate a payment in a foreign currency is converted at, with its provenance in the same shape
+     * boardRate() returns: a deal rate from the bank's advice when one is given and the policy allows it, otherwise
+     * the board for the payment date on the payables basis. `board` is always the board for that date, so a deal rate
+     * can be shown — and sanity-checked — against what the board said. Null means there is no rate to pay at.
+     */
+    public static function apPayRate(string $code, ?string $on = null, ?float $deal = null): ?array
+    {
+        $code = strtoupper(trim($code));
+        $on = $on ?: bdate()->toDateString();
+        $policy = self::apPolicy($on);
+        // A purchase invoice may follow the policy's document-date/business-date choice. A payment, however, is
+        // valued at the rate for the day the bank settled it — applying the invoice-date switch here would backdate
+        // the settlement and erase the very gain or loss this payment records.
+        $board = self::boardRate($code, $on, ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+        if ($deal !== null && $deal > 0) {
+            if (! self::apPayDeal()) {
+                return null;
+            }
+
+            return ['code' => $code, 'rate' => round((float) $deal, 4), 'basis' => 'deal', 'date' => $on,
+                'carried' => false, 'stale' => false, 'board' => $board];
+        }
+
+        return $board ? array_merge($board, ['board' => $board]) : null;
+    }
+
+    /**
+     * v7.53 The payables side of the board: its own basis, its own staleness window, and which date the rate is read at.
+     *
+     * The default reads the board for the invoice date, because that is the transaction date an invoice is translated
+     * at; a property that would rather book everything at the desk's board for today can say so in the forex settings.
+     */
+    public static function apPolicy(?string $docDate = null): array
+    {
+        $cfg = self::cfg();
+
+        return ['basis' => $cfg['ap_basis'], 'stale_days' => $cfg['ap_stale_days'],
+            'rate_date' => $cfg['ap_rate_date'],
+            'date' => $cfg['ap_rate_date'] === 'business' ? bdate()->toDateString() : ($docDate ?: bdate()->toDateString())];
+    }
+
+    /**
+     * v7.53 Every currency with a rate inside the payables staleness window, on the payables basis.
+     *
+     * The bill entry form uses it to quote the rate before the bill is saved, so whoever is keying a dollar invoice can
+     * see the cedi total it will book at — and can see that a currency with no rate on the board cannot be used at all.
+     *
+     * @return array<string, array{rate: float, basis: string, date: string, stale: bool, carried: bool, name: string, symbol: string}>
+     */
+    public static function apBoard(?string $date = null): array
+    {
+        $policy = self::apPolicy($date);
+        $out = [];
+        foreach (Currency::orderBy('sort_order')->orderBy('code')->get() as $c) {
+            $b = self::boardRate((string) $c->code, $policy['date'], ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+            if ($b) {
+                $out[$b['code']] = ['rate' => $b['rate'], 'basis' => $b['basis'], 'date' => $b['date'], 'stale' => $b['stale'],
+                    'carried' => $b['carried'], 'name' => (string) $c->name, 'symbol' => (string) $c->symbol];
+            }
+        }
+
+        return $out;
+    }
 
     public static function usdRate(): ?float
     {
@@ -248,7 +409,7 @@ class ForexService
         $days = self::cfg()['aggregate_days'];
         $from = bdate()->copy()->subDays(max(0, $days - 1))->toDateString();
 
-        return (float) ForexExchange::whereNull('voided_at')->where('payout', 'cash')->where('business_date', '>=', $from)
+        return (float) ForexExchange::whereNull('voided_at')->where('payout', 'cash')->whereDate('business_date', '>=', $from)
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
             ->where(fn ($q) => $q->when($g, fn ($w) => $w->orWhere('guest_id', $g->id))->when($passport, fn ($w) => $w->orWhere('passport_no', $passport)))
             ->sum('usd_equiv');
@@ -562,7 +723,7 @@ class ForexService
 
         return ['rates_missing' => $active->count() - $today->count(), 'carried' => $today->where('carried', true)->count(),
             'surrender_overdue' => $pos->where('overdue', true)->count(), 'surrender_days' => $cfg['surrender_days'], 'held_value' => round($pos->sum('cost'), 2),
-            'today' => ForexExchange::whereNull('voided_at')->where('business_date', bdate()->toDateString())->count()];
+            'today' => ForexExchange::whereNull('voided_at')->whereDate('business_date', bdate()->toDateString())->count()];
     }
 
     public static function attentionCount(): int

@@ -83,7 +83,7 @@ class ProcurementService
             $minQty = (float) ($d['min_qty'] ?? 0);
             if (! $p) {
                 SupplierPrice::where('supplier_id', $d['supplier_id'])->where('inventory_item_id', $d['inventory_item_id'])->where('min_qty', $minQty)
-                    ->whereNull('valid_to')->where('valid_from', '<', $d['valid_from'])
+                    ->whereNull('valid_to')->whereDate('valid_from', '<', $d['valid_from'])
                     ->update(['valid_to' => Carbon::parse($d['valid_from'])->subDay()->toDateString()]);
             }
             $p ??= new SupplierPrice(['created_by' => auth()->id()]);
@@ -590,9 +590,9 @@ class ProcurementService
      */
     public static function scorecard(string $from, string $to, ?int $supplierId = null): Collection
     {
-        $pos = PurchaseOrder::with('items', 'receipts')->whereBetween('po_date', [$from, $to])->whereNotIn('status', ['draft', 'cancelled'])
+        $pos = PurchaseOrder::with('items', 'receipts')->whereDate('po_date', '>=', $from)->whereDate('po_date', '<=', $to)->whereNotIn('status', ['draft', 'cancelled'])
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->groupBy('supplier_id');
-        $grns = GoodsReceipt::with('order', 'lines')->whereBetween('date', [$from, $to])->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->groupBy('supplier_id');
+        $grns = GoodsReceipt::with('order', 'lines')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->groupBy('supplier_id');
         $legacy = PurchaseOrder::where('status', 'received')->whereBetween('received_at', [$from.' 00:00:00', $to.' 23:59:59'])
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->whereDoesntHave('receipts')->get()->groupBy('supplier_id');
         $invites = RfqSupplier::whereNotNull('invited_at')->whereBetween('invited_at', [$from.' 00:00:00', $to.' 23:59:59'])
@@ -665,13 +665,13 @@ class ProcurementService
     public static function overdueDeliveries(): Collection
     {
         return PurchaseOrder::with('supplier')->whereIn('status', ['approved', 'partial'])->whereNotNull('expected_date')
-            ->where('expected_date', '<', bdate()->toDateString())->orderBy('expected_date')->get();
+            ->whereDate('expected_date', '<', bdate()->toDateString())->orderBy('expected_date')->get();
     }
 
     /** RFQs past their deadline (or closed) waiting for an award decision. */
     public static function readyToAward(): Collection
     {
-        return Rfq::withCount('quotes')->where(fn ($q) => $q->where('status', 'closed')->orWhere(fn ($w) => $w->where('status', 'sent')->where('respond_by', '<', bdate()->toDateString())))->get();
+        return Rfq::withCount('quotes')->where(fn ($q) => $q->where('status', 'closed')->orWhere(fn ($w) => $w->where('status', 'sent')->whereDate('respond_by', '<', bdate()->toDateString())))->get();
     }
 
     public static function attentionCount(): int

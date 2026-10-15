@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AccountHead;
 use App\Models\PaymentMode;
 use App\Models\Voucher;
+use App\Support\Tenant;
 
 /**
  * Standard hotel chart of accounts (USALI-inspired numbering).
@@ -157,6 +158,10 @@ class ChartOfAccounts
 
     public static function ensure(): void
     {
+        // the chart of accounts is per property, so a migration or CLI run with no current hotel must not write one
+        if (! Tenant::check()) {
+            return;
+        }
         AccountHead::flushSys();
         $heads = AccountHead::all();
         foreach (self::SYSTEM as $key => $def) {

@@ -7,6 +7,8 @@
   @if($c->is_active)
   <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline">@csrf<button class="btn" id="pushBtn"><x-icon name="refresh"/> Push changes</button></form>
   <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline" data-confirm="Send the full {{ $c->push_days }}-day availability, rates and restrictions to {{ $c->name }}?">@csrf<input type="hidden" name="full" value="1"><button class="btn" id="fullSyncBtn"><x-icon name="download"/> Full sync</button></form>
+  <form method="post" action="{{ route('cm.connections.test', $c) }}" class="inline">@csrf<button class="btn" id="testConnBtn"><x-icon name="globe"/> Test connection</button></form>
+  @if(can_do('channels.manage') && $c->provider !== 'simulator')<form method="post" action="{{ route('cm.connections.pull', $c) }}" class="inline">@csrf<button class="btn" id="pullBtn"><x-icon name="download"/> Pull bookings</button></form>@endif
   @endif
   <a class="btn" href="{{ route('cm.connections.edit', $c) }}" id="editConn"><x-icon name="edit"/> Edit</a>
   @if(! $c->reservations()->exists())<form method="post" action="{{ route('cm.connections.destroy', $c) }}" class="inline" data-confirm="Delete connection {{ $c->name }} with its mappings and logs?">@csrf @method('DELETE')<button class="btn btn-ghost btn-icon" title="Delete"><x-icon name="trash"/></button></form>@endif
@@ -89,9 +91,10 @@
   <div>
     <div class="card"><div class="card-head"><h3>{{ $c->name }}</h3>@include('channel-manager._health', ['conn' => $c])</div><div class="card-body"><dl class="kv">
       <dt>Code</dt><dd><code>{{ $c->code }}</code></dd>
-      <dt>Type</dt><dd>{{ \App\Models\ChannelConnection::PROVIDERS[$c->provider] ?? $c->provider }}</dd>
+      <dt>Type</dt><dd>{{ \App\Models\ChannelConnection::providerOptions()[$c->provider] ?? $c->provider }}</dd>
       <dt>Hotel ID</dt><dd>{{ $c->property_code ?: '—' }}</dd>
-      @if(! $c->isSimulator())<dt>ARI endpoint</dt><dd class="small" style="word-break:break-all">{{ $c->endpoint_url ?: '—' }}</dd><dt>API key</dt><dd>{{ $c->api_key ? '•••• stored (encrypted)' : '—' }}</dd>@endif
+      @if(! $c->isSimulator())<dt>Channel endpoint</dt><dd class="small" style="word-break:break-all">{{ $c->endpoint_url ?: '—' }}</dd><dt>API key</dt><dd>{{ $c->api_key ? '•••• stored (encrypted)' : '—' }}</dd>
+      <dt>API secret</dt><dd>{{ $c->api_secret ? '•••• stored (encrypted)' : '—' }}@if(! $c->api_secret && $c->provider === 'expedia') <span class="badge badge-amber">needed to sign requests</span>@endif</dd>@endif
       <dt>Commission</dt><dd>{{ rtrim(rtrim((string) $c->commission_pct, '0'), '.') }}%</dd>
       <dt>Rate markup</dt><dd>{{ (float) $c->rate_markup_pct ? ($c->rate_markup_pct > 0 ? '+' : '').rtrim(rtrim((string) $c->rate_markup_pct, '0'), '.').'%' : 'none (parity)' }} · {{ \App\Models\ChannelConnection::ROUNDING[$c->rate_rounding] ?? '' }}</dd>
       <dt>Collect</dt><dd>{{ $c->payment_model === 'channel_collect' ? 'Channel collect (prepaid)' : 'Hotel collect' }}</dd>
@@ -123,6 +126,9 @@
         <x-field name="arrival" label="Arrival" type="date" :value="bdate()->copy()->addDays(3)->toDateString()"/>
         <x-field name="departure" label="Departure" type="date" :value="bdate()->copy()->addDays(5)->toDateString()"/>
         <x-field name="adults" label="Adults" type="number" min="1" max="6" value="2"/>
+        <x-field name="currency" label="Currency the OTA quotes in" type="select" :placeholder="false" value=""
+                 :options="['' => (hotel()->currency ?: 'GHS').' (hotel)'] + \App\Models\Currency::where('is_active', true)->orderBy('code')->pluck('code', 'code')->all()"
+                 hint="A foreign currency is converted at the forex board — Foreign Guests › Settings › Forex desk."/>
         <x-field name="first_name" label="Guest first name" value="Test"/>
         <x-field name="last_name" label="Last name" value="Guest"/>
         <x-field name="email" label="Email" type="email" placeholder="optional"/>

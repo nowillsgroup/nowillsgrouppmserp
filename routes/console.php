@@ -47,3 +47,4 @@ Schedule::command('pms:upsell')->hourlyAt(20)->withoutOverlapping(); // v4.1: pr
 Schedule::command('pms:security')->everyFifteenMinutes()->withoutOverlapping(); // v4.2: visitor overstays, no-shows, overdue gate passes, ID retention
 Schedule::command('pms:reports-run')->everyFiveMinutes()->withoutOverlapping(); // v5.4: e-mail scheduled reports that are due
 Schedule::command('pms:cro-expire')->dailyAt('06:20')->withoutOverlapping(); // v6.4: lapse stale reservations enquiries (lost – no response)
+Schedule::command('pms:hr-run')->dailyAt('06:40')->withoutOverlapping(); // v7.43: public-holiday attendance, leave / swap SLAs, roster rest checks, payroll + SSNIT / Tier 2 / PAYE deadlines

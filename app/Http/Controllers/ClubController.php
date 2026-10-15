@@ -55,7 +55,7 @@ class ClubController extends Controller
             's' => ClubService::stats(),
             'occ' => ClubService::occupancy(),
             'arrears' => ClubBillingService::arrears()->take(8),
-            'expiring' => ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->whereBetween('end_date', [$today, Carbon::parse($today)->addDays(14)->toDateString()])
+            'expiring' => ClubMembership::with('plan')->whereIn('status', ['active', 'frozen'])->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', Carbon::parse($today)->addDays(14)->toDateString())
                 ->orderBy('end_date')->take(10)->get(),
             'inNow' => ClubService::openVisits()->with('member.membership')->latest('checked_in_at')->take(12)->get(),
             'denied' => ClubVisit::where('denied', true)->where('checked_in_at', '>=', now()->subDays(7))->latest('checked_in_at')->take(6)->get(),
@@ -124,6 +124,25 @@ class ClubController extends Controller
 
         return $this->attempt(fn () => ClubService::checkInResident($d['room_no'], $d['facility'], (int) ($d['pax'] ?? 1), $request->user(), $d['override'] ?? null),
             fn ($v) => "{$v->name} checked in at the ".strtolower(ClubPlan::FACILITIES[$v->facility]).($v->pax > 1 ? " ({$v->pax} people)" : '').'.');
+    }
+
+    /** v7.38 Walk-in ticket redemption — scan / type the code printed on the outlet receipt. */
+    public function ticket(Request $request)
+    {
+        $d = $request->validate(['code' => 'required|string|max:20', 'facility' => ['required', Rule::in(array_keys(ClubPlan::FACILITIES))], 'override' => 'nullable|string|max:200']);
+        $pass = ClubDayPass::where('pass_no', strtoupper(trim($d['code'])))->first();
+        if (! $pass) {
+            return back()->with('error', 'No ticket or pass with that code.');
+        }
+
+        try {
+            $v = ClubService::checkInPass($pass, $d['facility'], $request->user(), $d['override'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('club.desk', ['facility' => $d['facility']])
+            ->with('success', "Ticket {$pass->pass_no} ({$pass->name}, {$v->pax} pax) checked in at the ".strtolower(ClubPlan::FACILITIES[$v->facility]).'.');
     }
 
     public function checkOut(ClubVisit $clubvisit)
@@ -324,12 +343,12 @@ class ClubController extends Controller
     public function passes(Request $request)
     {
         $date = $request->query('date');
-        $rows = ClubDayPass::with('paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->where('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
-        $today = ClubDayPass::whereNull('cancelled_at')->where('date', bdate()->toDateString());
+        $rows = ClubDayPass::with('paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->whereDate('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
+        $today = ClubDayPass::whereNull('cancelled_at')->whereDate('date', bdate()->toDateString());
 
         return view('club.passes', ['rows' => $rows, 'date' => $date, 'modes' => $this->modes(),
             'todayCount' => (clone $today)->sum(\DB::raw('adults + children')), 'todayTotal' => (clone $today)->sum('total'),
-            'mtd' => ClubDayPass::whereNull('cancelled_at')->whereBetween('date', [bdate()->copy()->startOfMonth()->toDateString(), bdate()->toDateString()])->sum('amount'),
+            'mtd' => ClubDayPass::whereNull('cancelled_at')->whereDate('date', '>=', bdate()->copy()->startOfMonth()->toDateString())->whereDate('date', '<=', bdate()->toDateString())->sum('amount'),
             'adult' => (float) ClubService::cfg('club_daypass_adult'), 'child' => (float) ClubService::cfg('club_daypass_child'), 'rate' => ClubBillingService::tax(100)['rate']]);
     }
 

@@ -134,7 +134,7 @@ class FoodWasteService
     /** Totals for a date range, with F&B consumption cost for the waste %. */
     public static function summary(string $from, string $to): array
     {
-        $rows = FsWaste::with('item', 'menuItem')->whereNull('cancelled_at')->whereBetween('date', [$from, $to])->get();
+        $rows = FsWaste::with('item', 'menuItem')->whereNull('cancelled_at')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get();
         $consumed = abs((float) StockMovement::join('stores', 'stores.id', '=', 'stock_movements.store_id')->whereIn('stores.type', ['kitchen', 'bar'])
             ->whereIn('stock_movements.type', ['consumption', 'issue'])->whereBetween('stock_movements.date', [$from, $to])
             ->sum(DB::raw('stock_movements.qty * stock_movements.rate')));

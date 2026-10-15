@@ -306,15 +306,15 @@ class MarketingPlanService
     /** marketing events for the opportunity "source" picker: this year and last, not cancelled */
     public static function attributable(): Collection
     {
-        return MarketingEvent::where('status', '!=', 'cancelled')->where('start_date', '>=', bdate()->copy()->subMonths(18)->toDateString())
-            ->where('start_date', '<=', bdate()->copy()->addMonths(6)->toDateString())->orderByDesc('start_date')->get(['id', 'number', 'name', 'start_date']);
+        return MarketingEvent::where('status', '!=', 'cancelled')->whereDate('start_date', '>=', bdate()->copy()->subMonths(18)->toDateString())
+            ->whereDate('start_date', '<=', bdate()->copy()->addMonths(6)->toDateString())->orderByDesc('start_date')->get(['id', 'number', 'name', 'start_date']);
     }
 
     public static function calendar(Carbon $month): array
     {
         $start = $month->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
         $end = $month->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
-        $events = MarketingEvent::where('start_date', '<=', $end->toDateString())->where('end_date', '>=', $start->toDateString())->orderBy('start_date')->get();
+        $events = MarketingEvent::whereDate('start_date', '<=', $end->toDateString())->whereDate('end_date', '>=', $start->toDateString())->orderBy('start_date')->get();
         $days = [];
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
             $ds = $d->toDateString();

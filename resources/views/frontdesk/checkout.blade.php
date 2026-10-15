@@ -31,6 +31,27 @@
   <div>
     <div class="card"><div class="card-head"><h3>Summary</h3></div><div class="card-body">
       <p class="small">Opening this screen did not post a night. {{ $checkoutQuote }}</p>
+      @php $holds = \App\Services\StayService::checkoutHolds($stay); $postable = $holds['pos']['count'] || $holds['trips']['count'] || $holds['laundry']['count']; @endphp
+      @if ($holds['blocking'] > 0)
+      <div class="alert alert-warning" style="margin:8px 0">
+        <b>Check-out is refused until these reach the bill:</b>
+        <ul class="small" style="margin:4px 0 6px 18px">
+          @if ($holds['pos']['count'])<li>{{ $holds['pos']['count'] }} unsettled outlet bill(s) — {{ money($holds['pos']['total']) }}</li>@endif
+          @if ($holds['trips']['count'])<li>{{ $holds['trips']['count'] }} transport trip(s) billed to the room — {{ money($holds['trips']['total']) }}</li>@endif
+          @if ($holds['laundry']['count'])<li>{{ $holds['laundry']['count'] }} open laundry order(s) — {{ money($holds['laundry']['total']) }}</li>@endif
+          @if ($holds['activities']['count'])<li>{{ $holds['activities']['count'] }} activity booking(s) awaiting operator confirmation — {{ money($holds['activities']['total']) }}</li>@endif
+          @if ($holds['formc']['count'])<li>Form C {{ $holds['formc']['form_no'] }} not filed with the FRRO</li>@endif
+        </ul>
+        @if ($postable)
+        <form method="post" action="{{ route('frontdesk.prepare', $stay) }}">@csrf
+          <button class="btn btn-warning btn-sm">Post outstanding charges to this bill</button>
+          <span class="small muted">Outlet bills, laundry and transport go onto the folio at their own totals. Activities need the operator; Form C is filed from GRC.</span>
+        </form>
+        @else
+        <span class="small muted">Nothing here can be posted automatically — clear the items above in their own screens first.</span>
+        @endif
+      </div>
+      @endif
       <ul class="list">
       <li><span>Total charges (incl. tax)</span><b>{{ money($totals['charges']) }}</b></li>
       <li><span>of which tax</span><span>{{ money($totals['tax']) }}</span></li>

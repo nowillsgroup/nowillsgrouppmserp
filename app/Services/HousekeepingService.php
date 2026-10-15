@@ -58,7 +58,7 @@ class HousekeepingService
             foreach ($staff as $e) {
                 $load[$e->id] ??= 0;
             }
-            $floorsOf = HousekeepingTask::with('room')->where('task_date', $date)->whereNotNull('employee_id')->get()
+            $floorsOf = HousekeepingTask::with('room')->whereDate('task_date', $date)->whereNotNull('employee_id')->get()
                 ->groupBy('employee_id')->map(fn ($g) => $g->pluck('room.floor_id')->filter()->unique()->all())->all();
             $existing = HousekeepingTask::where('task_date', $date)->whereNotNull('room_id')->where('task_type', '!=', 'inspection')->pluck('room_id');
             $stayover = setting('hk_daily_stayover', '1') === '1';

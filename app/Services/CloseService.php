@@ -260,7 +260,7 @@ class CloseService
                 if ($to < $from) {
                     return ['fail', 'No business day of '.$mon.' has been audited yet.'];
                 }
-                $closed = \App\Models\AuditDay::where('status', 'closed')->whereBetween('business_date', [$from, $to])->pluck('business_date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
+                $closed = \App\Models\AuditDay::where('status', 'closed')->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->pluck('business_date')->map(fn ($d) => Carbon::parse($d)->toDateString())->all();
                 $missing = [];
                 for ($d = Carbon::parse($from); $d->toDateString() <= $to; $d->addDay()) {
                     if (! in_array($d->toDateString(), $closed, true)) {
@@ -336,7 +336,7 @@ class CloseService
                 if ($accts->isEmpty()) {
                     return ['na', 'Bank reconciliation not in use for '.$mon.'.'];
                 }
-                $missing = $accts->reject(fn ($a) => \App\Models\BankStatement::where('account_head_id', $a)->where('status', 'reconciled')->where('period_to', '>=', $E)->exists());
+                $missing = $accts->reject(fn ($a) => \App\Models\BankStatement::where('account_head_id', $a)->where('status', 'reconciled')->whereDate('period_to', '>=', $E)->exists());
                 if ($missing->isEmpty()) {
                     return ['pass', $accts->count().' account(s) reconciled to '.dmy($E).'.'];
                 }
@@ -352,12 +352,12 @@ class CloseService
                 if (($tr = TreasuryService::inTransit($E)) > 0) {
                     $notes[] = money($tr).' in transit at month end – confirm it was credited in the first days of the next month';
                 }
-                $pdc = \App\Models\ChequeReceived::where('status', 'pdc')->where('cheque_date', '<=', $E)->count();
+                $pdc = \App\Models\ChequeReceived::where('status', 'pdc')->whereDate('cheque_date', '<=', $E)->count();
                 if ($pdc) {
                     $notes[] = $pdc.' post-dated cheque(s) due by '.dmy($E).' not yet banked';
                 }
-                $old = \App\Models\ChequeReceived::whereNotNull('recognised_on')->where('recognised_on', '<=', Carbon::parse($E)->subDays(7)->toDateString())
-                    ->where(fn ($q) => $q->whereNull('left_on')->orWhere('left_on', '>', $E))->count();
+                $old = \App\Models\ChequeReceived::whereNotNull('recognised_on')->whereDate('recognised_on', '<=', Carbon::parse($E)->subDays(7)->toDateString())
+                    ->where(fn ($q) => $q->whereNull('left_on')->orWhereDate('left_on', '>', $E))->count();
                 if ($old) {
                     $notes[] = $old.' cheque(s) held more than a week at month end';
                 }
@@ -380,7 +380,7 @@ class CloseService
 
             case 'concierge': // v5.9 – warn only: open activity bookings dated in the month keep commission out of the books
                 $S = Carbon::parse($p->period.'-01')->toDateString();
-                $open = \App\Models\ActivityBooking::whereIn('status', \App\Models\ActivityBooking::OPEN)->whereBetween('date', [$S, $E])->count();
+                $open = \App\Models\ActivityBooking::whereIn('status', \App\Models\ActivityBooking::OPEN)->whereDate('date', '>=', $S)->whereDate('date', '<=', $E)->count();
                 if (! \App\Models\ActivityBooking::whereBetween('date', [$S, $E])->exists()) {
                     return ['na', 'No activity bookings this month.'];
                 }
@@ -394,7 +394,7 @@ class CloseService
                 return $n ? ['fail', $n.' expense claim(s) submitted by '.dmy($E).' still awaiting approval.'] : ['pass', 'No claims waiting.'];
 
             case 'ap_hold':
-                $q = \App\Models\SupplierInvoice::where('status', 'on_hold')->where('doc_date', '<=', $E);
+                $q = \App\Models\SupplierInvoice::where('status', 'on_hold')->whereDate('doc_date', '<=', $E);
 
                 return ($n = $q->count()) ? ['warn', $n.' supplier bill(s) on hold for price / quantity variances ('.money($q->sum('total')).') – accrue if the goods were received.'] : ['pass', 'No bills on hold.'];
 
@@ -413,7 +413,7 @@ class CloseService
                 if (! \App\Models\PayrollRun::exists()) {
                     return ['na', 'Payroll is not run in the system.'];
                 }
-                $run = \App\Models\PayrollRun::where('period_start', '<=', $E)->where('period_end', '>=', $S)->orderByDesc('id')->first();
+                $run = \App\Models\PayrollRun::whereDate('period_start', '<=', $E)->whereDate('period_end', '>=', $S)->orderByDesc('id')->first();
                 if (! $run) {
                     return ['fail', 'No payroll run for '.$mon.'.'];
                 }
@@ -422,7 +422,7 @@ class CloseService
 
             case 'statutory':
                 $prev = self::prev($p->period);
-                $pr = \App\Models\PayrollRun::whereIn('status', ['approved', 'paid'])->where('period_end', '>=', $prev.'-01')->where('period_end', '<=', Carbon::parse($prev.'-01')->endOfMonth()->toDateString())->first();
+                $pr = \App\Models\PayrollRun::whereIn('status', ['approved', 'paid'])->whereDate('period_end', '>=', $prev.'-01')->whereDate('period_end', '<=', Carbon::parse($prev.'-01')->endOfMonth()->toDateString())->first();
                 if (! $pr) {
                     return ['na', 'No approved payroll for '.Carbon::parse($prev.'-01')->format('M Y').'.'];
                 }
@@ -436,7 +436,7 @@ class CloseService
                 if (! \App\Models\InventoryItem::exists()) {
                     return ['na', 'Stores not in use.'];
                 }
-                $st = \App\Models\StockTake::where('status', 'posted')->whereBetween('count_date', [$S, Carbon::parse($E)->addDays(5)->toDateString()])->orderByDesc('count_date')->first();
+                $st = \App\Models\StockTake::where('status', 'posted')->whereDate('count_date', '>=', $S)->whereDate('count_date', '<=', Carbon::parse($E)->addDays(5)->toDateString())->orderByDesc('count_date')->first();
 
                 return $st ? ['pass', 'Stock take '.$st->take_no.' posted ('.dmy($st->count_date).').'] : ['warn', 'No stock take posted for '.$mon.' – stores are valued at the book balance.'];
         }

@@ -38,7 +38,7 @@
     <div class="field" data-settle="pay"><label for="dp_ref">Reference</label><input name="reference" id="dp_ref"></div>
     <div class="field" data-settle="room" hidden><label for="dp_room">Room no.</label><input name="room_no" id="dp_room" placeholder="101"></div>
   </div>
-  <p class="bold" id="dpTotal"></p><p class="tiny muted">Prices exclude VAT, NHIL, GETFund and Tourism Levy ({{ rtrim(rtrim(number_format($rate, 2), '0'), '.') }}%). A room charge appears on the guest's folio.</p></div>
+  <p class="bold" id="dpTotal"></p><p class="tiny muted">Prices are {{ \App\Services\TaxService::pricesInclusive() ? 'tax-inclusive' : 'exclusive of VAT, NHIL, GETFund and Tourism Levy ('.rtrim(rtrim(number_format($rate, 2), '0'), '.').'%)' }}. A room charge appears on the guest's folio.</p></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary" id="sellSave">Sell pass</button></div>
 </form></div></div>
 <div class="modal" id="cancelPassModal"><div class="modal-box"><form method="post" action="" data-reset>@csrf

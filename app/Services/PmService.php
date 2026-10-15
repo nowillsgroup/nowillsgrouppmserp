@@ -62,7 +62,7 @@ class PmService
     /** PM compliance for a period: tickets that fell due, done on time / late / still open. */
     public static function compliance(string $from, string $to): array
     {
-        $rows = MaintenanceRequest::with('schedule', 'asset', 'employee')->whereNotNull('pm_schedule_id')->whereBetween('due_date', [$from, $to])->get();
+        $rows = MaintenanceRequest::with('schedule', 'asset', 'employee')->whereNotNull('pm_schedule_id')->whereDate('due_date', '>=', $from)->whereDate('due_date', '<=', $to)->get();
         $onTime = $rows->filter(fn ($t) => $t->resolved_at && Carbon::parse($t->resolved_at)->startOfDay()->lte($t->due_date))->count();
         $late = $rows->filter(fn ($t) => $t->resolved_at && Carbon::parse($t->resolved_at)->startOfDay()->gt($t->due_date))->count();
         $open = $rows->filter(fn ($t) => ! $t->resolved_at)->count();
@@ -73,6 +73,6 @@ class PmService
 
     public static function overdueCount(): int
     {
-        return MaintenanceRequest::whereNotNull('pm_schedule_id')->whereIn('status', ['open', 'in_progress'])->where('due_date', '<', bdate()->toDateString())->count();
+        return MaintenanceRequest::whereNotNull('pm_schedule_id')->whereIn('status', ['open', 'in_progress'])->whereDate('due_date', '<', bdate()->toDateString())->count();
     }
 }

@@ -176,10 +176,10 @@ class RevenueAuthService
         $restored = 0;
         $today = bdate()->toDateString();
         foreach (RevenueAuthorisation::with('stay')->where('status', 'approved')->whereIn('kind', ['comp', 'house_use', 'rate'])->whereNull('applied_at')
-            ->where('date_from', '<=', $today)->get() as $a) {
+            ->whereDate('date_from', '<=', $today)->get() as $a) {
             $applied += self::apply($a) ? 1 : 0;
         }
-        foreach (RevenueAuthorisation::with('stay')->where('status', 'approved')->whereNotNull('applied_at')->whereNull('restored_at')->where('date_to', '<', $today)->get() as $a) {
+        foreach (RevenueAuthorisation::with('stay')->where('status', 'approved')->whereNotNull('applied_at')->whereNull('restored_at')->whereDate('date_to', '<', $today)->get() as $a) {
             $stay = $a->stay;
             if ($stay && in_array($stay->status, ['reserved', 'checked_in'], true) && abs((float) $stay->rate - ($a->kind === 'rate' ? (float) $a->amount : 0)) < 0.005) {
                 $stay->update(['rate' => $a->previous_rate]);

@@ -38,4 +38,15 @@ class ClubDayPass extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /** v7.38 ticket outlet sale that issued this pass (null for classic desk day passes). */
+    public function sale()
+    {
+        return $this->belongsTo(ClubTicketSale::class, 'sale_id');
+    }
+
+    public function ticketType()
+    {
+        return $this->belongsTo(ClubTicketType::class, 'ticket_type_id');
+    }
 }

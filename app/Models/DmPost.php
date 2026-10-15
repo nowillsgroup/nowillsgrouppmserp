@@ -20,7 +20,7 @@ class DmPost extends Model
 
     protected function casts(): array
     {
-        return ['channels' => 'array', 'scheduled_at' => 'datetime', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'published_at' => 'datetime'];
+        return ['channels' => 'array', 'publish_log' => 'array', 'scheduled_at' => 'datetime', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'published_at' => 'datetime'];
     }
 
     public function author()

@@ -18,6 +18,7 @@ use App\Models\Setting;
 use App\Models\Voucher;
 use App\Services\Payments\DemoGateway;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\MoMoGateway;
 use App\Services\Payments\PaystackGateway;
 use App\Services\Payments\RazorpayGateway;
 use App\Services\Payments\StripeGateway;
@@ -73,8 +74,33 @@ class OnlinePaymentService
     public static function gateway(?string $provider = null): Gateway
     {
         return match ($provider ?? self::provider()) {
-            'paystack' => new PaystackGateway, 'stripe' => new StripeGateway, 'razorpay' => new RazorpayGateway, default => new DemoGateway,
+            'paystack' => new PaystackGateway, 'stripe' => new StripeGateway, 'razorpay' => new RazorpayGateway,
+            'momo' => new MoMoGateway, default => new DemoGateway,
         };
+    }
+
+    /**
+     * v7.37 – request a Mobile Money collection (prompt to the customer's phone).
+     * The payment completes by webhook or "Check status"; on success complete()
+     * posts it to the folio exactly like a payment link.
+     */
+    public static function collect(OnlinePayment $p, string $phone, string $network): OnlinePayment
+    {
+        if (! $p->isPayable()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'This payment can no longer be collected ('.$p->status.').']);
+        }
+        /** @var \App\Services\Payments\CollectGateway $gw */
+        $gw = self::gateway('momo');
+        $res = $gw->collect($p, $phone, $network);
+        $p->forceFill(['provider' => 'momo', 'provider_ref' => $res['ref'], 'payer_phone' => $phone,
+            'channel' => 'momo:'.strtolower($network), 'last_error' => ($res['state'] ?? '') === 'failed' ? $res['message'] : null])->save();
+        if (($res['state'] ?? '') === 'paid') {
+            return self::complete($p, $res + ['currency' => $p->currency, 'amount' => (float) $p->amount], 'collect');
+        }
+        self::log($p, 'collect', ($res['state'] ?? '') === 'failed' ? 'failed' : 'pending',
+            $res['message'] ?? 'Collection requested from '.$phone, null, null, null);
+
+        return $p;
     }
 
     public static function currency(): string
@@ -673,9 +699,9 @@ class OnlinePaymentService
     public static function clearingBalance(?string $asOf = null): float
     {
         $modes = PaymentMode::where('type', 'online')->pluck('id');
-        $fx = FolioTransaction::where('is_void', false)->whereIn('payment_mode_id', $modes)->when($asOf, fn ($q) => $q->where('business_date', '<=', $asOf))
+        $fx = FolioTransaction::where('is_void', false)->whereIn('payment_mode_id', $modes)->when($asOf, fn ($q) => $q->whereDate('business_date', '<=', $asOf))
             ->selectRaw("SUM(CASE WHEN type='payment' THEN amount WHEN type='refund' THEN -amount ELSE 0 END) s")->value('s');
-        $out = GatewayPayout::when($asOf, fn ($q) => $q->where('date', '<=', $asOf))->sum('gross');
+        $out = GatewayPayout::when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))->sum('gross');
 
         return round((float) $fx - (float) $out, 2);
     }

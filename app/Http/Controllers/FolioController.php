@@ -33,7 +33,10 @@ class FolioController extends Controller
         $from = $request->input('from', bdate()->copy()->startOfMonth()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
         $folios = Folio::with(['guest', 'company', 'stay.room', 'original:id,invoice_no'])->whereNotNull('invoice_no')
-            ->whereRaw('COALESCE(invoice_date, DATE(closed_at)) BETWEEN ? AND ?', [$from, $to])
+            // a plain BETWEEN drops the last day: invoice_date is stored as a datetime
+            // string, so it is never <= the range's date-only upper bound
+            ->whereDate(DB::raw('COALESCE(invoice_date, closed_at)'), '>=', $from)
+            ->whereDate(DB::raw('COALESCE(invoice_date, closed_at)'), '<=', $to)
             ->when($request->type === 'invoice', fn ($q) => $q->where('type', '!=', 'credit_note'))->when($request->type === 'credit_note', fn ($q) => $q->where('type', 'credit_note'))
             ->when($request->supply, fn ($q, $s) => $q->where('supply_type', $s))
             ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('invoice_no', 'like', "%$t%")->orWhere('buyer_gstin', 'like', "%$t%")->orWhere('buyer_name', 'like', "%$t%")->orWhereHas('guest', fn ($g) => $g->search($t))))

@@ -34,8 +34,8 @@ class AuthorisationController extends Controller
         $today = bdate()->toDateString();
         $stays = ReservationRoom::with('room', 'guest', 'reservation')
             ->where(fn ($q) => $q->where('status', 'checked_in')
-                ->orWhere(fn ($q) => $q->where('status', 'reserved')->where('arrival_date', '<=', bdate()->copy()->addDays(14)->toDateString()))
-                ->orWhere(fn ($q) => $q->where('status', 'checked_out')->where('departure_date', '>=', bdate()->copy()->subDays(7)->toDateString())))
+                ->orWhere(fn ($q) => $q->where('status', 'reserved')->whereDate('arrival_date', '<=', bdate()->copy()->addDays(14)->toDateString()))
+                ->orWhere(fn ($q) => $q->where('status', 'checked_out')->whereDate('departure_date', '>=', bdate()->copy()->subDays(7)->toDateString())))
             ->orderBy('status')->orderBy('arrival_date')->get();
         $folios = Folio::with('guest', 'stay.room')->where('status', 'open')->orderByDesc('id')->limit(200)->get();
         $counts = RevenueAuthorisation::selectRaw('status, count(*) n')->groupBy('status')->pluck('n', 'status');

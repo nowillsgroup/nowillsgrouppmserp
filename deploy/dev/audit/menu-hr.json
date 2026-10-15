@@ -1,0 +1,303 @@
+[
+    {
+        "module": "Talent Management",
+        "pages": [
+            {
+                "label": "Talent Dashboard",
+                "route": "talent.index",
+                "params": null,
+                "perm": "talent.view",
+                "badge": "talent_attention",
+                "employee": false
+            },
+            {
+                "label": "Vacancies",
+                "route": "talent.vacancies",
+                "params": null,
+                "perm": "talent.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Applicants",
+                "route": "talent.applicants",
+                "params": null,
+                "perm": "talent.recruit",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "New Starters",
+                "route": "talent.starters",
+                "params": null,
+                "perm": "talent.recruit,talent.appraise",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Appraisals",
+                "route": "talent.appraisals",
+                "params": null,
+                "perm": "talent.appraise",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Discipline & Grievances",
+                "route": "talent.cases",
+                "params": null,
+                "perm": "talent.discipline",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Exits & Turnover",
+                "route": "talent.exits",
+                "params": null,
+                "perm": "talent.discipline",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Establishment",
+                "route": "talent.establishment",
+                "params": null,
+                "perm": "talent.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Talent Settings",
+                "route": "talent.settings",
+                "params": null,
+                "perm": "talent.manage",
+                "badge": null,
+                "employee": false
+            }
+        ]
+    },
+    {
+        "module": "HR & Payroll",
+        "pages": [
+            {
+                "label": "Employees",
+                "route": "masters.index",
+                "params": [
+                    "employees"
+                ],
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Attendance",
+                "route": "hr.attendance",
+                "params": null,
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Monthly Register",
+                "route": "hr.register",
+                "params": null,
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Leave Requests",
+                "route": "leave.index",
+                "params": null,
+                "perm": "hr.leave",
+                "badge": "leave_pending",
+                "employee": false
+            },
+            {
+                "label": "Duty Roster",
+                "route": "roster.index",
+                "params": null,
+                "perm": "roster.view",
+                "badge": "swap_pending",
+                "employee": false
+            },
+            {
+                "label": "Time Clock",
+                "route": "clock.index",
+                "params": null,
+                "perm": "roster.view",
+                "badge": "timeclock_attention",
+                "employee": false
+            },
+            {
+                "label": "Time Clock Kiosk",
+                "route": "clock.kiosk",
+                "params": null,
+                "perm": "timeclock.kiosk",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Service Charge & Tips",
+                "route": "sc.index",
+                "params": null,
+                "perm": "servicecharge.manage,servicecharge.approve",
+                "badge": "sc_attention",
+                "employee": false
+            },
+            {
+                "label": "Payroll Runs",
+                "route": "payroll.index",
+                "params": null,
+                "perm": "payroll.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Salary Advances",
+                "route": "payroll.advances",
+                "params": null,
+                "perm": "payroll.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Statutory Returns",
+                "route": "payroll.statutory",
+                "params": null,
+                "perm": "payroll.view",
+                "badge": "stat_overdue",
+                "employee": false
+            },
+            {
+                "label": "Pay Components",
+                "route": "payroll.components",
+                "params": null,
+                "perm": "payroll.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Leave Types",
+                "route": "masters.index",
+                "params": [
+                    "leave-types"
+                ],
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Departments",
+                "route": "masters.index",
+                "params": [
+                    "departments"
+                ],
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "My Payslips & Leave",
+                "route": "me.hr",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Roster & Time Clock",
+                "route": "me.roster",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Training & SOPs",
+                "route": "me.learning",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Appraisal",
+                "route": "talent.me",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Expense Claims",
+                "route": "claims.mine",
+                "params": null,
+                "perm": "claims.submit",
+                "badge": null,
+                "employee": true
+            }
+        ]
+    },
+    {
+        "module": "Learning & SOPs",
+        "pages": [
+            {
+                "label": "L&D Dashboard",
+                "route": "learning.index",
+                "params": null,
+                "perm": "learning.view",
+                "badge": "learning_attention",
+                "employee": false
+            },
+            {
+                "label": "Training Matrix",
+                "route": "learning.matrix",
+                "params": null,
+                "perm": "learning.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Training Sessions",
+                "route": "learning.sessions",
+                "params": null,
+                "perm": "learning.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Training Records",
+                "route": "learning.records",
+                "params": null,
+                "perm": "learning.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "Courses & Requirements",
+                "route": "learning.courses",
+                "params": null,
+                "perm": "learning.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "SOP Library",
+                "route": "learning.sops",
+                "params": null,
+                "perm": "learning.view",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "L&D Settings",
+                "route": "learning.settings",
+                "params": null,
+                "perm": "learning.manage",
+                "badge": null,
+                "employee": false
+            }
+        ]
+    }
+]

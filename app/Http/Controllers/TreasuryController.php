@@ -152,7 +152,7 @@ class TreasuryController extends Controller
         $banks = TS::accounts()->where('kind', 'bank')->values();
         $bookHeads = $books->where('status', 'active')->mapWithKeys(fn ($b) => [$b->id => (int) $b->account->account_head_id]);
         $linked = ChequeIssued::whereNotNull('supplier_payment_id')->where('status', '!=', 'void')->pluck('supplier_payment_id');
-        $payments = SupplierPayment::with('supplier', 'paymentMode')->whereNull('cancelled_at')->whereNotIn('id', $linked)->where('date', '>=', bdate()->copy()->subDays(120)->toDateString())
+        $payments = SupplierPayment::with('supplier', 'paymentMode')->whereNull('cancelled_at')->whereNotIn('id', $linked)->whereDate('date', '>=', bdate()->copy()->subDays(120)->toDateString())
             ->orderByDesc('date')->get()->filter(fn ($p) => in_array(LedgerService::modeAccount($p->payment_mode_id), $bookHeads->values()->all(), true))->values();
 
         return view('treasury.cheques', ['tab' => $tab, 'received' => $rq->paginate(40, ['*'], 'rpage')->withQueryString(), 'issued' => $iq->paginate(40, ['*'], 'ipage')->withQueryString(),
@@ -160,7 +160,7 @@ class TreasuryController extends Controller
             'heads' => AccountHead::where('is_active', true)->whereNotIn('group_name', ['Cash & Bank', 'Petty Cash'])->where(fn ($q) => $q->whereNull('system_key')->orWhereNotIn('system_key', TS::CONTROL_KEYS))->orderBy('code')->get(),
             'stats' => ['pdc' => ChequeReceived::where('status', 'pdc')->sum('amount'), 'in_hand' => ChequeReceived::where('status', 'in_hand')->sum('amount'),
                 'deposited' => ChequeReceived::where('status', 'deposited')->sum('amount'), 'unpresented' => ChequeIssued::where('status', 'issued')->sum('amount'),
-                'bounced' => ChequeReceived::where('status', 'bounced')->where('bounced_on', '>=', bdate()->copy()->subDays(90)->toDateString())->count()]]);
+                'bounced' => ChequeReceived::where('status', 'bounced')->whereDate('bounced_on', '>=', bdate()->copy()->subDays(90)->toDateString())->count()]]);
     }
 
     public function receiveCheque(Request $r)

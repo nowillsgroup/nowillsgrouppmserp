@@ -247,11 +247,10 @@ class StayService
         } else {
             $parts[] = 'Current balance is '.money($fig['balance']).'. Balance to settle would be '.money($fig['due']).'. The folio must be zero before checkout can close it.';
         }
-        $pos = PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->count();
-        if ($pos) {
-            $parts[] = $pos.' unsettled POS order(s) would block checkout.';
-        }
         $holds = self::checkoutHolds($stay);
+        if ($holds['pos']['count']) {
+            $parts[] = $holds['pos']['count'].' unsettled POS order(s) would block checkout.';
+        }
         $parts[] = $holds['trips']['count']
             ? 'Transport waiting on the room bill: '.money($holds['trips']['total']).' ('.$holds['trips']['count'].'). It blocks checkout until it is added or changed.'
             : 'Transport waiting on the room bill: none.';
@@ -261,11 +260,8 @@ class StayService
         $parts[] = $holds['laundry']['count']
             ? 'Open laundry not posted by checkout: '.money($holds['laundry']['total']).' ('.$holds['laundry']['count'].').'
             : 'Open laundry not posted by checkout: none.';
-        if (FormCService::enabled() && (FormCService::cfg()['block_checkout'] ?? '0') === '1') {
-            $fc = FormCRecord::where('reservation_room_id', $stay->id)->where('status', 'pending')->first();
-            if ($fc) {
-                $parts[] = 'Form C '.$fc->form_no.' is still pending and would block checkout.';
-            }
+        if ($holds['formc']['count']) {
+            $parts[] = 'Form C '.$holds['formc']['form_no'].' is still pending and would block checkout.';
         }
         $cards = KeyCard::where('reservation_room_id', $stay->id)->where('status', 'active')->count();
         if ($cards) {
@@ -282,12 +278,64 @@ class StayService
         $trips = TransportService::pendingForStay($stay->id);
         $acts = ConciergeService::pendingForStay($stay->id);
         $laundry = LaundryService::pendingForStay($stay->id);
+        // An unsettled POS order and a pending Form C stop doCheckOut() as well, so
+        // they belong in the same read-only picture: a checkout quote, the desk
+        // board and the day report must not disagree with the guard that runs.
+        $pos = PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->get();
+        $fc = (FormCService::enabled() && (FormCService::cfg()['block_checkout'] ?? '0') === '1')
+            ? FormCRecord::where('reservation_room_id', $stay->id)->where('status', 'pending')->first()
+            : null;
 
         return [
             'trips' => ['count' => $trips->count(), 'total' => round((float) $trips->sum('total'), 2)],
             'activities' => ['count' => $acts->count(), 'total' => round((float) $acts->sum('gross'), 2)],
             'laundry' => ['count' => $laundry->count(), 'total' => round((float) $laundry->sum('total'), 2)],
+            'pos' => ['count' => $pos->count(), 'total' => round((float) $pos->sum('total'), 2)],
+            'formc' => ['count' => $fc ? 1 : 0, 'total' => 0.0, 'form_no' => $fc?->form_no],
+            // Only these four actually refuse a checkout. Open laundry is posted
+            // separately and does not hold the guest at the desk.
+            'blocking' => ($pos->count() ? 1 : 0) + $trips->count() + $acts->count() + ($fc ? 1 : 0),
         ];
+    }
+
+    /**
+     * Post everything still sitting outside the folio onto it, so a departure
+     * can actually check out: unsettled outlet bills, pending laundry and
+     * transport trips billed to the room. Anything that needs a human first
+     * (guest QR items awaiting confirmation, laundry not yet processed, an
+     * activity waiting on its operator, Form C) is reported as skipped rather
+     * than forced. Returns counts, totals and the skip reasons.
+     */
+    public static function assembleBill(ReservationRoom $stay): array
+    {
+        if ($stay->status !== 'checked_in') {
+            throw new RuntimeException('Stay is not checked in.');
+        }
+        $done = ['pos' => 0, 'pos_total' => 0.0, 'laundry' => 0, 'laundry_total' => 0.0, 'trips' => 0, 'skipped' => []];
+
+        DB::transaction(function () use ($stay, &$done) {
+            foreach (PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->orderBy('id')->get() as $o) {
+                if ($o->items()->where('is_pending', true)->where('is_cancelled', false)->exists()) {
+                    $done['skipped'][] = "outlet bill {$o->order_no} has guest QR items awaiting confirmation";
+                    continue;
+                }
+                PosOpsService::postToRoom($o, $stay);
+                $done['pos']++;
+                $done['pos_total'] += (float) $o->total;
+            }
+            foreach (LaundryService::pendingForStay($stay->id) as $o) {
+                if (! in_array($o->status, ['processing', 'ready'], true) || (float) $o->total <= 0) {
+                    $done['skipped'][] = "laundry {$o->order_no} is {$o->statusLabel()}";
+                    continue;
+                }
+                LaundryService::deliver($o);
+                $done['laundry']++;
+                $done['laundry_total'] += (float) $o->total;
+            }
+            $done['trips'] = TransportService::postPendingForStay($stay);
+        });
+
+        return $done;
     }
 
     /** Fixed charges postPendingNights would add. Reads the folio; does not post. */
@@ -360,7 +408,7 @@ class StayService
             report($e);
         }
         // today's stay-over service becomes a departure clean
-        \App\Models\HousekeepingTask::where('room_id', $out->room_id)->where('task_date', bdate()->toDateString())->where('status', 'pending')->where('task_type', 'cleaning')
+        \App\Models\HousekeepingTask::where('room_id', $out->room_id)->whereDate('task_date', bdate()->toDateString())->where('status', 'pending')->where('task_type', 'cleaning')
             ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]);
         if ($out->reservation->status === 'checked_out') {
             try {

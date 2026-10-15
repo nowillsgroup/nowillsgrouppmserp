@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
 use App\Models\PosTable;
+use App\Models\ReservationRoom;
 use App\Support\Numbering;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -34,6 +35,36 @@ class PosOpsService
         }
         $o->save();
         $o->recalculate();
+    }
+
+    /**
+     * Post a running outlet bill onto an in-house guest folio. Extracted from
+     * the POS settle action so the front desk can assemble a departure bill
+     * (post every outstanding outlet bill at once) through the same code path
+     * a cashier uses, rather than a second implementation of the money logic.
+     */
+    public static function postToRoom(PosOrder $order, ReservationRoom $stay): PosOrder
+    {
+        if ($stay->status !== 'checked_in') {
+            throw new RuntimeException('Room is not in-house.');
+        }
+        $order = PosOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
+        self::assertRunning($order, 'Order');
+        $order->bill_no ??= Numbering::next('pos_bill');
+        $order->recalculate();
+        $folio = FolioService::openForStay($stay);
+        $net = (float) $order->subtotal - (float) $order->discount + (float) $order->service_charge + (float) $order->round_off;
+        FolioService::charge($folio, 'fnb', "{$order->outlet->name} – Bill {$order->bill_no}", $net, false,
+            ['tax_amount' => $order->tax, 'tax_rate' => $net > 0 ? round($order->tax * 100 / $net, 2) : 0, 'source_type' => 'pos', 'source_id' => $order->id]);
+        $order->reservation_room_id = $stay->id;
+        $order->folio_id = $folio->id;
+        $order->status = 'settled';
+        $order->settled_at = now();
+        $order->settled_by = auth()->id();
+        RecipeService::consume($order);
+        $order->save();
+
+        return $order;
     }
 
     protected static function assertUnpaid(PosOrder $o, string $what): void

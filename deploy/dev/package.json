@@ -1,0 +1,16 @@
+{
+  "name": "nowills-pms-dev-runtime",
+  "private": true,
+  "description": "Self-contained WASM PHP dev runtime for Nowills PMS (no system PHP/MySQL needed)",
+  "type": "module",
+  "dependencies": {
+    "@kirigami/php-wasm": "^8.5.11-4",
+    "@kirigami/phpext-fileinfo": "^0.1.0",
+    "@kirigami/phpext-gmp": "^0.1.1",
+    "@kirigami/phpext-intl": "^0.1.0",
+    "@kirigami/phpext-pdo_mysql": "^0.1.3",
+    "@kirigami/phpext-posix": "^0.1.1",
+    "@kirigami/phpext-soap": "^0.1.1",
+    "@kirigami/phpext-sodium": "^0.1.1"
+  }
+}

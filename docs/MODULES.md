@@ -1,7 +1,9 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.34.0.**
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.54.0** — the value of
+`config('pms.version')` — the asset cache-buster and the stamp in the sidebar. It moves with
+the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_check.py` fails if the two disagree.
 
 > Every entry carries a `perm` key checked by `RequirePermission` middleware, so what a
 > given user sees depends on their role. Some entries also carry a `badge` for live counts.
@@ -10,15 +12,29 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **52** | modules |
-| **358** | pages |
+| **53** | modules |
+| **361** | pages |
+
+Counted from the live `config('pms.menu')` registry and reconciled against it page for page on
+14 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
+link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. Until this pass the
+per-module lists were the historical v7.36–v7.38 inventory and named four things the sidebar does not
+menu; **every count, name and order below is now the live menu**, and each group heading carries its
+own page count. A page that is routed but not menued (Desktop Sync), a document that is routed per
+record rather than menued (a ticket sale receipt), and a module that is routed but absent from the
+sidebar altogether (Car Rental) are named in prose under the group or module they belong to and are
+*not* counted, because the sidebar is what this document inventories.
+
+`deploy/dev/audit/modules_doc_check.py` diffs this file against the live registry and the route list —
+counts, names, order, section keys, permission keys and every URI the prose names — and reports
+0 discrepancies. Run it after any change to `config/pms.php`.
 
 ---
 
 
 ## Dashboard & Operations
 
-`DASHBOARD` section · **4 modules**
+`DASHBOARD` section · **4 modules** · 4 menu pages
 
 - **Dashboard** — direct link
 - **Group Dashboard** — direct link
@@ -28,14 +44,15 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Front Office & Guest Services
 
-`OPERATIONS` section · **10 modules**
+`OPERATIONS` section · **10 modules** · 63 menu pages
 
 - **Front Office** — 8 pages
   - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture
+  - Routed but not menued: Desktop Sync, `/offline/desktop` (workspace, delta, pack, sync) — a real, working page, reachable by URL and from Offline Request Capture, that the sidebar does not list. Verified end to end in `docs/FRONT-OFFICE-AUDIT.md` (370 named routes, 228 of them writes).
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
-- **Reservations** — 7 pages
-  - New Reservation · Reservation List · Availability · Group Blocks · Rate Calendar · Channel Manager · iCal Feeds
+- **Reservations** — 8 pages
+  - Reservation Workspace · New Reservation · Reservation List · Availability · Group Blocks · Rate Calendar · Channel Manager · iCal Feeds
 - **Central Reservations** — 6 pages
   - CRO Desk · Enquiries · Guest Lookup · Lost Business · CRO Performance · CRO Settings
 - **Concierge** — 6 pages
@@ -53,7 +70,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Guest Relations & Commercial
 
-`OPERATIONS` section · **7 modules**
+`OPERATIONS` section · **7 modules** · 49 menu pages
 
 - **Guests & CRM** — 12 pages
   - Guest Profiles · Companies / Agents · Rate Contracts · Feedback & Reputation · Guest Cases · Loyalty Program · Privacy & Data · Marketing Dashboard · Campaigns · Guest Segments · Automations · Promo Codes
@@ -72,7 +89,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Revenue & Financial Management
 
-`FINANCE` section · **7 modules**
+`FINANCE` section · **7 modules** · 52 menu pages
 
 - **Revenue** — 4 pages
   - Revenue Dashboard · Pricing Grid · Pricing Rules · Upselling
@@ -83,15 +100,17 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 - **Income Audit** — 4 pages
   - Audit Days · Authorisations · Room Count · Room Discrepancies
 - **Accounts** — 24 pages
-  - Vouchers · City Ledger · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
+  - Vouchers · City Ledger · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation (imports CSV, Excel .xlsx, SWIFT MT940 and ISO 20022 camt.052/053 — v7.48, see [`BANK-STATEMENT-FORMATS.md`](BANK-STATEMENT-FORMATS.md)) · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
 - **Treasury** — 6 pages
   - Cash Position · Banking & Transfers · Cheque Registers · 13-week Cash Forecast · Cash-flow Statement · Bank Accounts
 - **Owner Reporting** — 6 pages
   - Owner Dashboard · USALI Statement · Monthly Owner Packs · Management Fees · FF&E Reserve & Capex · Agreement & Mapping
 
+- Routed but not menued: **Car Rental** (`OPERATIONS`) — `/rentals` (Rental Desk) and `/rentals/fleet` (Rental Fleet), with writes for a vehicle, pickup, return, billing and cancellation. Both pages render and both are permissioned; neither is in the sidebar, so neither is counted in the 7 modules or the 52 pages above.
+
 ## Housekeeping & Laundry
 
-`OPERATIONS` section · **2 modules**
+`OPERATIONS` section · **2 modules** · 9 menu pages
 
 - **Housekeeping** — 5 pages
   - Room Status · HK Tasks & Inspection · My Rooms (mobile) · Minibar Items · Maintenance
@@ -100,7 +119,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Food & Beverage
 
-`OPERATIONS` section · **6 modules**
+`OPERATIONS` section · **6 modules** · 57 menu pages
 
 - **POS / Restaurant** — 14 pages
   - POS Terminal · Orders & Bills · Floor Plan & Waitlist · Table Reservations · Kitchen Display · KOT Printers · Print Station · Menu Items · Menu Categories · Outlets · Tables · Table QR Codes · Modifiers & Add-ons · Reservation Settings
@@ -117,7 +136,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Accommodation & Property
 
-`OPERATIONS` section · **3 modules**
+`OPERATIONS` section · **3 modules** · 16 menu pages
 
 - **Apartments & Leases** — 5 pages
   - Leasing Dashboard · Leases · Units · Billing & Arrears · Meter Readings
@@ -128,7 +147,7 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Facilities & Security
 
-`OPERATIONS` section · **3 modules**
+`OPERATIONS` section · **3 modules** · 16 menu pages
 
 - **Engineering** — 3 pages
   - Utilities & Energy · Daily Meter Readings · Licences & Compliance
@@ -139,27 +158,31 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Wellness & Recreation
 
-`OPERATIONS` section · **2 modules**
+`OPERATIONS` section · **3 modules** · 13 menu pages
 
 - **Health Club** — 7 pages
   - Club Dashboard · Check-in Desk · Members · Billing & Renewals · Class Timetable · Day Passes · Plans & Settings
+- **Recreation Outlet** — 3 pages · v7.38
+  - Ticket Outlet · Ticket Sales · Ticket Types
+  - POS ticketing for walk-ins; club memberships are untouched by it. Each sale prints its own receipt at `/recreation/sales/{sale}/receipt`, which is a document per record rather than a menu page.
 - **Spa & Activities** — 3 pages
   - Appointments · Services & Activities · Treatment Rooms
 
 ## HR & Workforce
 
-`PEOPLE` section · **3 modules**
+`PEOPLE` section · **3 modules** · 36 menu pages
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
-- **HR & Payroll** — 19 pages
-  - Employees · Attendance · Monthly Register · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+- **HR & Payroll** — 20 pages · v7.43 reconciled (was listed as 23)
+  - Employees · Attendance · Monthly Register · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+  - Routed but not in the sidebar: My Profile (`/me/profile`), My Documents (`/me/documents`), My Announcements (`/me/announcements`) and the HR Self-Service Desk (`/hr/ess`) — all four render; v7.43 stopped the first three from returning a bare 404 for a login that is not linked to an employee record.
 - **Learning & SOPs** — 7 pages
   - L&D Dashboard · Training Matrix · Training Sessions · Training Records · Courses & Requirements · SOP Library · L&D Settings
 
 ## Quality, Safety & Sustainability
 
-`GOVERNANCE` section · **3 modules**
+`GOVERNANCE` section · **3 modules** · 27 menu pages
 
 - **Quality Assurance** — 6 pages
   - QA Dashboard · Audits · Corrective Actions · Standards · Checklists · QA Settings
@@ -170,9 +193,9 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 
 ## Administration & Configuration
 
-`GOVERNANCE` section · **2 modules**
+`GOVERNANCE` section · **2 modules** · 19 menu pages
 
 - **Masters** — 8 pages
   - Room Types · Rooms · Floors · Rate Plans · Taxes · Business Sources · Payment Modes · Item Categories
-- **Administration** — 10 pages
-  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup
+- **Administration** — 11 pages
+  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Data Migration

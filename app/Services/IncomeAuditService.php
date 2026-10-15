@@ -85,12 +85,12 @@ class IncomeAuditService
             throw new RuntimeException('Only closed business dates can be audited – '.dmy($date).' is still open.');
         }
 
-        return AuditDay::firstOrCreate(['business_date' => $date], ['status' => 'open']);
+        return date_first_or_create(AuditDay::class, ['business_date' => $date], ['status' => 'open']);
     }
 
     public static function isClosed(string $date): bool
     {
-        return AuditDay::where('business_date', $date)->where('status', 'closed')->exists();
+        return AuditDay::whereDate('business_date', $date)->where('status', 'closed')->exists();
     }
 
     /** FolioService::void guard: a closed day's figures cannot change. */
@@ -107,7 +107,7 @@ class IncomeAuditService
     public static function stayNights(string $date): Collection
     {
         return ReservationRoom::with('room', 'roomType', 'reservation', 'guest')->whereIn('status', ['checked_in', 'checked_out'])
-            ->where('arrival_date', '<=', $date)->where('departure_date', '>', $date)
+            ->whereDate('arrival_date', '<=', $date)->whereDate('departure_date', '>', $date)
             ->whereNotNull('checked_in_at')->whereDate('checked_in_at', '<=', $date)
             ->where(fn ($q) => $q->whereNull('checked_out_at')->orWhereDate('checked_out_at', '>', $date))->get();
     }
@@ -145,20 +145,21 @@ class IncomeAuditService
     /** Night-audit figures recomputed now, the figures reported when the day closed, and the GL income for the day. */
     public static function figures(string $date): array
     {
-        $tx = FolioTransaction::where('business_date', $date)->where('is_void', false)->get(['type', 'category', 'amount', 'tax_amount']);
-        $pos = PosOrder::where('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get(['total', 'tax']);
+        $tx = FolioTransaction::whereDate('business_date', $date)->where('is_void', false)->get(['type', 'category', 'amount', 'tax_amount']);
+        $pos = PosOrder::whereDate('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->get(['total', 'tax']);
         $charges = $tx->where('type', 'charge');
+        $counter = \App\Services\RecreationService::counterTakings($date); // v7.38 desk passes + outlet takings
         $now = [
             'room' => round((float) $charges->whereIn('category', ['room', 'extra_bed'])->sum('amount'), 2),
-            'other' => round((float) $charges->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + (float) $pos->sum(fn ($o) => $o->total - $o->tax), 2),
-            'tax' => round((float) $charges->sum('tax_amount') + (float) $pos->sum('tax'), 2),
-            'collections' => round((float) $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + (float) $pos->sum('total'), 2),
+            'other' => round((float) $charges->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + (float) $pos->sum(fn ($o) => $o->total - $o->tax) + $counter['revenue'], 2),
+            'tax' => round((float) $charges->sum('tax_amount') + (float) $pos->sum('tax') + $counter['tax'], 2),
+            'collections' => round((float) $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + (float) $pos->sum('total') + $counter['collections'], 2),
         ];
-        $na = NightAudit::where('business_date', $date)->first();
+        $na = NightAudit::whereDate('business_date', $date)->first();
         $reported = $na ? ['room' => (float) $na->room_revenue, 'other' => (float) $na->other_revenue, 'tax' => (float) $na->tax_collected, 'collections' => (float) $na->collections] : null;
         $diff = $reported ? array_map(fn ($k) => round($now[$k] - $reported[$k], 2), array_combine(array_keys($now), array_keys($now))) : null;
         $gl = (float) DB::table('gl_lines')->join('account_heads', 'account_heads.id', '=', 'gl_lines.account_head_id')
-            ->where('gl_lines.hotel_id', \App\Support\Tenant::id())->where('gl_lines.date', $date)->where('gl_lines.closing', false)->where('account_heads.type', 'income')
+            ->where('gl_lines.hotel_id', \App\Support\Tenant::id())->whereDate('gl_lines.date', $date)->where('gl_lines.closing', false)->where('account_heads.type', 'income')
             ->selectRaw('COALESCE(SUM(gl_lines.credit - gl_lines.debit), 0) v')->value('v');
 
         return ['now' => $now, 'reported' => $reported, 'diff' => $diff,
@@ -221,24 +222,24 @@ class IncomeAuditService
 
         // discounts & allowances above the limit
         $limit = (float) self::cfg('ia_discount_limit');
-        foreach (FolioTransaction::with('folio')->where('business_date', $date)->whereIn('type', ['discount', 'allowance'])->where('is_void', false)->where('amount', '>', $limit)->get() as $t) {
+        foreach (FolioTransaction::with('folio')->whereDate('business_date', $date)->whereIn('type', ['discount', 'allowance'])->where('is_void', false)->where('amount', '>', $limit)->get() as $t) {
             $auth = $t->source_type === 'rev_auth' ? \App\Models\RevenueAuthorisation::with('decider')->find($t->source_id) : RevenueAuthService::match(['discount'], null, $t->folio_id, null, (float) $t->amount);
             $out[] = self::f('discount', "tx|{$t->id}", ['ref_type' => 'folio', 'ref_id' => $t->folio_id, 'ref_label' => $t->folio?->folio_no, 'room_no' => $t->folio?->stay?->room?->room_no,
                 'detail' => ucfirst($t->type).' of '.money($t->amount).' – '.$t->description.' (limit '.money($limit).').', 'actual' => (float) $t->amount, 'amount' => (float) $t->amount, 'auth' => $auth]);
         }
 
         // voids and cancellations
-        foreach (FolioTransaction::with('folio')->where('business_date', $date)->where('is_void', true)->where('amount', '>', 0)->get() as $t) {
+        foreach (FolioTransaction::with('folio')->whereDate('business_date', $date)->where('is_void', true)->where('amount', '>', 0)->get() as $t) {
             $out[] = self::f('void', "tx|{$t->id}", ['ref_type' => 'folio', 'ref_id' => $t->folio_id, 'ref_label' => $t->folio?->folio_no, 'room_no' => $t->folio?->stay?->room?->room_no,
                 'severity' => $t->type === 'payment' ? 'high' : 'medium',
                 'detail' => 'Voided '.$t->type.': '.$t->description.' '.money($t->amount).' – reason: '.($t->void_reason ?: 'none given').'.', 'actual' => (float) $t->amount, 'amount' => (float) $t->amount]);
         }
-        foreach (PosOrder::with('outlet')->where('business_date', $date)->where('status', 'void')->get() as $o) {
+        foreach (PosOrder::with('outlet')->whereDate('business_date', $date)->where('status', 'void')->get() as $o) {
             $val = (float) $o->total ?: (float) PosOrderItem::where('pos_order_id', $o->id)->sum('amount');
             $out[] = self::f('void', "pos|{$o->id}", ['ref_type' => 'pos_order', 'ref_id' => $o->id, 'ref_label' => ($o->bill_no ?: $o->order_no).' · '.($o->outlet?->name ?? ''),
                 'detail' => 'POS order voided – reason: '.($o->void_reason ?: 'none given').'.', 'actual' => $val, 'amount' => $val]);
         }
-        $cancelled = PosOrderItem::whereHas('order', fn ($q) => $q->where('business_date', $date)->where('status', '!=', 'void'))->where('is_cancelled', true)->whereNotNull('kot_no')->get()->groupBy('pos_order_id');
+        $cancelled = PosOrderItem::whereHas('order', fn ($q) => $q->whereDate('business_date', $date)->where('status', '!=', 'void'))->where('is_cancelled', true)->whereNotNull('kot_no')->get()->groupBy('pos_order_id');
         foreach ($cancelled as $oid => $items) {
             $o = PosOrder::with('outlet')->find($oid);
             $out[] = self::f('void', "kot|{$oid}", ['ref_type' => 'pos_order', 'ref_id' => $oid, 'ref_label' => ($o->bill_no ?: $o->order_no).' · '.($o->outlet?->name ?? ''), 'severity' => 'low',
@@ -248,7 +249,7 @@ class IncomeAuditService
 
         // cashier over / short
         $ctol = (float) self::cfg('ia_cash_tolerance');
-        foreach (CashierShift::with('user')->where('business_date', $date)->where('status', 'closed')->get() as $sh) {
+        foreach (CashierShift::with('user')->whereDate('business_date', $date)->where('status', 'closed')->get() as $sh) {
             if (abs((float) $sh->variance) > $ctol + 0.004) {
                 $out[] = self::f('cash_variance', "{$sh->id}", ['ref_type' => 'shift', 'ref_id' => $sh->id, 'ref_label' => 'Shift #'.$sh->id.' · '.($sh->user?->name ?? ''),
                     'detail' => ((float) $sh->variance < 0 ? 'Cash short by ' : 'Cash over by ').money(abs((float) $sh->variance)).' (expected '.money($sh->expected_cash).', counted '.money($sh->counted_cash).').'.($sh->notes ? ' Note: '.$sh->notes : ''),
@@ -257,7 +258,7 @@ class IncomeAuditService
         }
 
         // POS bills left open
-        foreach (PosOrder::with('outlet', 'items')->where('business_date', $date)->where('status', 'open')->get() as $o) {
+        foreach (PosOrder::with('outlet', 'items')->whereDate('business_date', $date)->where('status', 'open')->get() as $o) {
             $val = (float) $o->items->where('is_cancelled', false)->sum('amount');
             if ($val > 0) {
                 $out[] = self::f('open_pos', "{$o->id}", ['ref_type' => 'pos_order', 'ref_id' => $o->id, 'ref_label' => $o->order_no.' · '.($o->outlet?->name ?? ''),
@@ -291,12 +292,12 @@ class IncomeAuditService
 
         // E-VAT clearance
         if (EInvoiceService::enabled()) {
-            foreach (Folio::where('status', 'closed')->whereNotNull('invoice_no')->where('invoice_date', $date)->where(fn ($q) => $q->whereNull('irn_status')->orWhere('irn_status', '!=', 'generated'))->get() as $fo) {
+            foreach (Folio::where('status', 'closed')->whereNotNull('invoice_no')->whereDate('invoice_date', $date)->where(fn ($q) => $q->whereNull('irn_status')->orWhere('irn_status', '!=', 'generated'))->get() as $fo) {
                 $out[] = self::f('einvoice', "folio|{$fo->id}", ['ref_type' => 'folio', 'ref_id' => $fo->id, 'ref_label' => $fo->invoice_no,
                     'detail' => "Invoice {$fo->invoice_no} has no GRA E-VAT signature".($fo->irn_status === 'failed' ? ' – the last attempt failed: '.mb_substr((string) $fo->irn_error, 0, 200) : '').'.', 'amount' => (float) $fo->totals()['charges']]);
             }
             if (PosEvatService::enabled()) {
-                foreach (PosOrder::where('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->where('total', '>', 0)->whereNotNull('bill_no')
+                foreach (PosOrder::whereDate('business_date', $date)->where('status', 'settled')->where('settlement', 'payment')->where('total', '>', 0)->whereNotNull('bill_no')
                     ->where(fn ($q) => $q->whereNull('evat_status')->orWhere('evat_status', '!=', 'generated'))->get() as $o) {
                     $out[] = self::f('einvoice', "pos|{$o->id}", ['ref_type' => 'pos_order', 'ref_id' => $o->id, 'ref_label' => $o->bill_no,
                         'detail' => "Restaurant bill {$o->bill_no} has no GRA E-VAT signature".($o->evat_status === 'failed' ? ' – '.mb_substr((string) $o->evat_error, 0, 200) : '').'.', 'amount' => (float) $o->total]);
@@ -305,7 +306,7 @@ class IncomeAuditService
         }
 
         // housekeeping room count
-        foreach (RoomCount::with('room', 'resolver')->where('business_date', $date)->where('result', '!=', 'ok')->get() as $rc) {
+        foreach (RoomCount::with('room', 'resolver')->whereDate('business_date', $date)->where('result', '!=', 'ok')->get() as $rc) {
             $out[] = self::f('room_count', "{$rc->room_id}", ['ref_type' => 'room_count', 'ref_id' => $rc->id, 'ref_label' => 'Room '.$rc->room?->room_no, 'room_no' => $rc->room?->room_no,
                 'severity' => $rc->result === 'ooo_mismatch' ? 'low' : 'high',
                 'detail' => RoomCount::RESULTS[$rc->result].': front office '.str_replace('_', ' ', $rc->fo_status).', housekeeping '.strtolower(RoomCount::HK[$rc->hk_status]).($rc->luggage ? ' (luggage in room)' : '').'.',
@@ -448,7 +449,7 @@ class IncomeAuditService
     public static function afterNightAudit(string $closedDate): void
     {
         RevenueAuthService::nightly();
-        $day = AuditDay::firstOrCreate(['business_date' => $closedDate], ['status' => 'open']);
+        $day = date_first_or_create(AuditDay::class, ['business_date' => $closedDate], ['status' => 'open']);
         if ($day->status === 'open') {
             self::run($day);
         }
@@ -527,7 +528,7 @@ class IncomeAuditService
 
     public static function stats(): array
     {
-        $days = AuditDay::where('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->get();
+        $days = AuditDay::whereDate('business_date', '>=', bdate()->copy()->subDays(30)->toDateString())->get();
 
         return [
             'open_days' => $days->where('status', 'open')->count(),
@@ -537,7 +538,7 @@ class IncomeAuditService
             'escalated' => (int) AuditFinding::where('status', 'escalated')->count(),
             'pending_auth' => RevenueAuthService::pendingCount(),
             'unaudited' => self::unaudited(),
-            'count_issues' => RoomCount::where('business_date', '>=', bdate()->copy()->subDays(2)->toDateString())->where('result', '!=', 'ok')->whereNull('resolution')->count(),
+            'count_issues' => RoomCount::whereDate('business_date', '>=', bdate()->copy()->subDays(2)->toDateString())->where('result', '!=', 'ok')->whereNull('resolution')->count(),
         ];
     }
 
@@ -545,7 +546,7 @@ class IncomeAuditService
     public static function unaudited(): int
     {
         $from = bdate()->copy()->subDays(7)->toDateString();
-        $have = AuditDay::where('business_date', '>=', $from)->pluck('business_date')->map(fn ($d) => $d->toDateString())->all();
+        $have = AuditDay::whereDate('business_date', '>=', $from)->pluck('business_date')->map(fn ($d) => $d->toDateString())->all();
         $n = 0;
         for ($d = Carbon::parse($from); $d->toDateString() < bdate()->toDateString(); $d->addDay()) {
             $n += in_array($d->toDateString(), $have, true) ? 0 : 1;

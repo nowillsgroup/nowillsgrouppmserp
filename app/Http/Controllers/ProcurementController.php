@@ -203,11 +203,11 @@ class ProcurementController extends Controller
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->item, fn ($q, $i) => $q->where('inventory_item_id', $i))
             ->when($request->state === 'active' || ! $request->state, fn ($q) => $q->validOn($on))
-            ->when($request->state === 'expired', fn ($q) => $q->where('valid_to', '<', $on))
-            ->when($request->state === 'future', fn ($q) => $q->where('valid_from', '>', $on))
+            ->when($request->state === 'expired', fn ($q) => $q->whereDate('valid_to', '<', $on))
+            ->when($request->state === 'future', fn ($q) => $q->whereDate('valid_from', '>', $on))
             ->join('inventory_items', 'inventory_items.id', '=', 'supplier_prices.inventory_item_id')->orderBy('inventory_items.name')->orderBy('supplier_prices.rate')
             ->select('supplier_prices.*')->paginate(50)->withQueryString();
-        $expiring = SupplierPrice::whereNotNull('valid_to')->whereBetween('valid_to', [$on, bdate()->copy()->addDays(14)->toDateString()])->count();
+        $expiring = SupplierPrice::whereNotNull('valid_to')->whereDate('valid_to', '>=', $on)->whereDate('valid_to', '<=', bdate()->copy()->addDays(14)->toDateString())->count();
 
         return view('procurement.prices', ['prices' => $prices, 'suppliers' => Supplier::where('is_active', true)->orderBy('name')->pluck('name', 'id'),
             'items' => InventoryItem::where('is_active', true)->orderBy('name')->get(['id', 'name', 'unit', 'last_cost']), 'expiring' => $expiring,
@@ -238,7 +238,7 @@ class ProcurementController extends Controller
         $from = $request->from ?: bdate()->copy()->startOfMonth()->toDateString();
         $to = $request->to ?: bdate()->toDateString();
         $grns = GoodsReceipt::with('order', 'supplier', 'store', 'receiver')->withSum('lines as rejected_qty', 'qty_rejected')
-            ->whereBetween('date', [$from, $to])->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->boolean('rejections'), fn ($q) => $q->where('rejected_value', '>', 0))
             ->latest('date')->latest('id')->paginate(30)->withQueryString();
 

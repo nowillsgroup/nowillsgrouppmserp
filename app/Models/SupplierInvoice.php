@@ -19,7 +19,9 @@ class SupplierInvoice extends Model
     protected function casts(): array
     {
         return ['doc_date' => 'date', 'due_date' => 'date', 'subtotal' => 'decimal:2', 'tax' => 'decimal:2', 'total' => 'decimal:2',
-            'grn_total' => 'decimal:2', 'allocated' => 'decimal:2', 'approved_at' => 'datetime', 'cancelled_at' => 'datetime'];
+            'grn_total' => 'decimal:2', 'allocated' => 'decimal:2', 'approved_at' => 'datetime', 'cancelled_at' => 'datetime',
+            // v7.53 the supplier's own document, when it was not billed in the property's currency
+            'fx_date' => 'date', 'fx_subtotal' => 'decimal:2', 'fx_tax' => 'decimal:2', 'fx_total' => 'decimal:2', 'fx_rate' => 'decimal:4'];
     }
 
     public function supplier()
@@ -72,6 +74,49 @@ class SupplierInvoice extends Model
     public function outstanding(): float
     {
         return $this->status === 'cancelled' ? 0.0 : round((float) $this->total - (float) $this->allocated, 2);
+    }
+
+    /** v7.53 True when the supplier billed in a currency other than the property's own. */
+    public function isForeign(): bool
+    {
+        return filled($this->currency)
+            && strtoupper(trim((string) $this->currency)) !== strtoupper(trim((string) (hotel()?->currency ?: '')));
+    }
+
+    /**
+     * v7.53 The outstanding balance in the supplier's own currency.
+     *
+     * Every hotel-currency figure on a converted bill is the supplier's figure at one rate, so the balance divides back
+     * out. Allocations are made in the hotel currency, which is where any rounding lives.
+     */
+    public function fxOutstanding(): float
+    {
+        if (! $this->isForeign() || ! (float) $this->fx_rate) {
+            return $this->outstanding();
+        }
+
+        return round($this->outstanding() / (float) $this->fx_rate, 2);
+    }
+
+    /** v7.53 An amount in the supplier's currency as it reads on the document: "USD 1,150.00". */
+    /**
+     * The supplier's own figure, printable whatever the bill is in: "EUR 4,280.00". On a bill in the property's own
+     * currency there is no foreign figure, so this falls back to that currency and the posted total — a template can
+     * call it unconditionally and never print a bare " 0.00".
+     */
+    public function fxLabel(?float $amount = null): string
+    {
+        $code = strtoupper(trim((string) ($this->currency ?: hotel()?->currency ?: 'GHS')));
+        $value = $amount ?? ($this->isForeign() ? (float) $this->fx_total : (float) $this->total);
+
+        return $code.' '.number_format($value, 2);
+    }
+
+    /** v7.53 True when the board this bill was booked at was not the board for the date asked for. */
+    public function fxStale(): bool
+    {
+        return $this->isForeign() && $this->fx_date
+            && $this->fx_date->toDateString() !== \App\Services\ForexService::apPolicy($this->doc_date?->toDateString())['date'];
     }
 
     public function variance(): float

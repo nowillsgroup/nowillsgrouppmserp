@@ -14,6 +14,7 @@ use App\Models\PayslipLine;
 use App\Models\Setting;
 use App\Models\StaffAdvance;
 use App\Services\ActivityLogger;
+use App\Services\HolidayService;
 use App\Services\PayrollService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -59,7 +60,10 @@ class PayrollController extends Controller
 
         return view('payroll.show', ['run' => $prun, 'slips' => $slips, 'byCode' => $byCode, 'journals' => $journals,
             'modes' => $slips->groupBy(fn ($s) => $s->paymentMode?->name ?? '—')->map(fn ($g) => ['n' => $g->count(), 'net' => $g->sum('net')]),
-            'segregated' => setting('payroll_segregation', '1') === '1' && (int) $prun->generated_by === (int) auth()->id()]);
+            'segregated' => setting('payroll_segregation', '1') === '1' && (int) $prun->generated_by === (int) auth()->id(),
+            'holidays' => HolidayService::payrollNote($prun->period_start, $prun->period_end),
+            'schedule' => PayrollService::scheduleFor($prun->period_start),
+            'variance' => PayrollService::budgetVariance($prun)]);
     }
 
     public function recalc(PayrollRun $prun)
@@ -135,7 +139,7 @@ class PayrollController extends Controller
     public function addLine(Request $request, Payslip $slip)
     {
         $d = $request->validate(['kind' => 'required|in:earning,deduction', 'name' => 'required|string|max:80', 'amount' => 'required|numeric|min:0.01|max:9999999',
-            'taxable' => 'nullable|boolean', 'account_head_id' => 'nullable|integer|owned:account_heads']);
+            'taxable' => 'nullable|boolean', 'component' => 'nullable|in:BONUS', 'account_head_id' => 'nullable|integer|owned:account_heads']);
 
         return $this->act(fn () => PayrollService::addAdjustment($slip, $d), 'Adjustment added and the payslip recalculated.');
     }
@@ -154,6 +158,8 @@ class PayrollController extends Controller
             'heads' => $this->expenseHeads(), 'liabilities' => AccountHead::where('type', 'liability')->where('is_active', true)->orderBy('code')->get()->mapWithKeys(fn ($h) => [$h->id => $h->code.' · '.$h->name]),
             'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'gift_voucher'])->pluck('name', 'id'),
             'slabs' => PayrollService::taxSlabs(),
+            'schedule' => PayrollService::scheduleFor(bdate()), 'schedules' => PayrollService::PAYE_SCHEDULES,
+            'overridden' => setting('payroll_paye_bands', '') !== '',
             'edit' => $request->edit ? PayComponent::find($request->edit) : null,
         ]);
     }
@@ -217,6 +223,12 @@ class PayrollController extends Controller
     {
         $d = $request->validate([
             'payroll_shift_hours' => 'required|numeric|min:1|max:16', 'payroll_ot_multiplier' => 'required|numeric|min:1|max:5',
+            'payroll_holiday_multiplier' => 'required|numeric|min:1|max:4', 'payroll_ot_junior_cap' => 'required|numeric|min:0|max:9999999',
+            'payroll_ot_junior_ratio' => 'required|numeric|min:0|max:1', 'payroll_ot_junior_rate' => 'required|numeric|min:0|max:100',
+            'payroll_ot_junior_excess_rate' => 'required|numeric|min:0|max:100', 'leave_count_all_days' => 'nullable|in:0,1',
+            'payroll_bonus_cap_pct' => 'required|numeric|min:0|max:100', 'payroll_bonus_rate' => 'required|numeric|min:0|max:100',
+            'payroll_bonus_nonresident_rate' => 'required|numeric|min:0|max:100',
+            'payroll_payday' => 'required|integer|min:1|max:28', 'payroll_notify' => 'nullable|in:0,1',
             'payroll_unmarked' => 'required|in:present,absent', 'payroll_advance_limit_months' => 'required|numeric|min:0|max:24', 'payroll_default_mode' => 'nullable|integer|owned:payment_modes',
             'tax_upto' => 'required|array|min:1|max:12', 'tax_upto.*' => 'nullable|numeric|min:0', 'tax_rate' => 'required|array', 'tax_rate.*' => 'nullable|numeric|min:0|max:100',
         ]);
@@ -235,7 +247,10 @@ class PayrollController extends Controller
         if (! $slabs || end($slabs)[0] !== null) {
             return back()->withInput()->with('error', 'The PAYE table needs an open-ended top band (leave "up to" blank).');
         }
-        foreach (['payroll_shift_hours', 'payroll_ot_multiplier', 'payroll_unmarked', 'payroll_advance_limit_months', 'payroll_default_mode'] as $k) {
+        foreach (['payroll_shift_hours', 'payroll_ot_multiplier', 'payroll_holiday_multiplier', 'payroll_unmarked', 'payroll_advance_limit_months', 'payroll_default_mode',
+            'payroll_ot_junior_cap', 'payroll_ot_junior_ratio', 'payroll_ot_junior_rate', 'payroll_ot_junior_excess_rate',
+            'payroll_bonus_cap_pct', 'payroll_bonus_rate', 'payroll_bonus_nonresident_rate', 'leave_count_all_days',
+            'payroll_payday', 'payroll_notify'] as $k) {
             Setting::updateOrCreate(['key' => $k], ['value' => (string) ($d[$k] ?? '')]);
         }
         Setting::updateOrCreate(['key' => 'payroll_paye_bands'], ['value' => json_encode($slabs)]);

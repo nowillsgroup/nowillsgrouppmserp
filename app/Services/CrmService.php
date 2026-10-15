@@ -122,7 +122,7 @@ class CrmService
         $bd = bdate()->copy();
         $cmp = ['gte' => '>=', 'lte' => '<=', 'eq' => '='];
         $flip = ['gte' => '<=', 'lte' => '>=', 'eq' => '=']; // "at least n days ago" = on or before the date
-        $upcoming = fn ($q) => $q->whereIn('status', ['confirmed', 'tentative'])->where('arrival_date', '>=', $bd->toDateString());
+        $upcoming = fn ($q) => $q->whereIn('status', ['confirmed', 'tentative'])->whereDate('arrival_date', '>=', $bd->toDateString());
         match ($f) {
             'stays_count', 'nights_count', 'total_revenue', 'loyalty_points' => $c->where($f, $cmp[$op], (float) $v),
             'days_since_stay' => $c->whereNotNull('last_stay_on')->whereDate('last_stay_on', $flip[$op], $bd->subDays((int) $v)->toDateString()),

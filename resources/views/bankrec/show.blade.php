@@ -12,6 +12,7 @@
 @section('actions')
 {!! status_badge($s->status) !!}
 @if($manage)<form method="post" action="{{ route('bankrec.automatch', $s) }}" class="inline">@csrf<button class="btn" id="autoMatchBtn"><x-icon name="refresh"/> Auto-match</button></form>@endif
+@if($manage)<form method="post" action="{{ route('bankrec.bookfees', $s) }}" class="inline" data-confirm="Book every fee / charge line on this statement to the charges account and match it?">@csrf<button class="btn" id="bookFeesBtn"><x-icon name="book"/> Book fee lines</button></form>@endif
 <a class="btn" href="{{ route('bankrec.print', $s) }}" target="_blank" id="printBrs"><x-icon name="print"/> Reconciliation statement</a>
 @if($draft && can_do('bankrec.approve'))<form method="post" action="{{ route('bankrec.finalise', $s) }}" class="inline" data-confirm="Finalise {{ $s->statement_no }}? The statement and its matches are locked.">@csrf<button class="btn btn-success" id="finaliseBtn" @disabled($blockers) title="{{ $blockers ? implode(' ', $blockers) : '' }}"><x-icon name="check"/> Finalise</button></form>@endif
 @if(! $draft && $isLatest && can_do('bankrec.approve'))<button class="btn" data-modal="reopenModal" id="reopenBtn"><x-icon name="edit"/> Reopen</button>@endif
@@ -32,7 +33,7 @@
 @endif
 
 <div class="stats">
-  <x-stat :label="$s->account->code.' '.$s->account->name" :value="$s->label()" icon="calendar" tone="slate" :sub="($s->source === 'csv' ? ($s->file_name ?: 'CSV import') : 'Entered by hand').' · '.$s->statement_no"/>
+  <x-stat :label="$s->account->code.' '.$s->account->name" :value="$s->label()" icon="calendar" tone="slate" :sub="$s->sourceLabel().' · '.$s->statement_no"/>
   <x-stat label="Opening → closing (statement)" :value="money($s->closing_balance)" icon="book" :tone="$sum['balances_ok'] ? 'blue' : 'red'" :sub="'from '.money($s->opening_balance).($sum['balances_ok'] ? '' : ' · lines give '.money($sum['computed_closing']))"/>
   <div id="recCounts" data-matched="{{ $c['matched'] }}" data-unmatched="{{ $c['unmatched'] }}" data-ignored="{{ $c['ignored'] }}" style="display:contents"><x-stat label="Lines matched" :value="$c['matched'].' / '.$c['total']" icon="check" :tone="$c['unmatched'] ? 'amber' : 'green'" :sub="$c['unmatched'].' to match · '.$c['ignored'].' ignored'"/></div>
   <div id="recDiff" data-diff="{{ number_format($sum['difference'], 2, '.', '') }}" style="display:contents"><x-stat label="Unexplained difference" :value="money($sum['difference'])" icon="alert" :tone="abs($sum['difference']) < 0.005 ? 'green' : 'red'" :sub="'book balance '.money($sum['book']).' at '.$s->period_to->format('d M')"/></div>

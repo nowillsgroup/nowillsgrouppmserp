@@ -579,7 +579,7 @@ class ConciergeService
     {
         $out = ['completed' => 0, 'lapsed' => 0];
         if (self::cfg()['auto_complete'] === '1') {
-            foreach (ActivityBooking::where('status', 'confirmed')->where('date', '<=', $closedDate)->orderBy('id')->get() as $b) {
+            foreach (ActivityBooking::where('status', 'confirmed')->whereDate('date', '<=', $closedDate)->orderBy('id')->get() as $b) {
                 try {
                     self::complete($b, null);
                     $out['completed']++;
@@ -588,7 +588,7 @@ class ConciergeService
                 }
             }
         }
-        foreach (ActivityBooking::whereIn('status', ['requested', 'waitlisted'])->where('date', '<=', $closedDate)->orderBy('id')->get() as $b) {
+        foreach (ActivityBooking::whereIn('status', ['requested', 'waitlisted'])->whereDate('date', '<=', $closedDate)->orderBy('id')->get() as $b) {
             try {
                 self::cancel($b, $b->status === 'waitlisted' ? 'No seat came free' : 'Not confirmed by the vendor in time', null, true);
                 $out['lapsed']++;
@@ -708,9 +708,9 @@ class ConciergeService
     {
         $asOf ??= LedgerService::cutoff();
         $posted = min($asOf, LedgerService::cutoff());
-        $charges = (float) FolioTransaction::where('source_type', 'concierge')->where('is_void', false)->where('type', 'charge')->where('business_date', '<=', $posted)->sum('amount');
-        $recognised = (float) ActivityBooking::where('collection', 'folio')->whereNotNull('recognised_on')->where('recognised_on', '<=', $asOf)->sum('commission');
-        $paid = (float) ActivitySettlement::where('status', 'posted')->where('date', '<=', $asOf)->sum('payable');
+        $charges = (float) FolioTransaction::where('source_type', 'concierge')->where('is_void', false)->where('type', 'charge')->whereDate('business_date', '<=', $posted)->sum('amount');
+        $recognised = (float) ActivityBooking::where('collection', 'folio')->whereNotNull('recognised_on')->whereDate('recognised_on', '<=', $asOf)->sum('commission');
+        $paid = (float) ActivitySettlement::where('status', 'posted')->whereDate('date', '<=', $asOf)->sum('payable');
 
         return round($charges - $recognised - $paid, 2);
     }
@@ -719,8 +719,8 @@ class ConciergeService
     public static function receivableBalance(?string $asOf = null): float
     {
         $asOf ??= LedgerService::cutoff();
-        $earned = (float) ActivityBooking::where('collection', 'vendor')->whereNotNull('recognised_on')->where('recognised_on', '<=', $asOf)->sum('commission');
-        $got = (float) ActivitySettlement::where('status', 'posted')->where('date', '<=', $asOf)->sum('receivable');
+        $earned = (float) ActivityBooking::where('collection', 'vendor')->whereNotNull('recognised_on')->whereDate('recognised_on', '<=', $asOf)->sum('commission');
+        $got = (float) ActivitySettlement::where('status', 'posted')->whereDate('date', '<=', $asOf)->sum('receivable');
 
         return round($earned - $got, 2);
     }
@@ -732,11 +732,11 @@ class ConciergeService
     {
         return self::$memo['alerts'] ??= (function () {
             $c = self::cfg();
-            $slow = ActivityBooking::where('status', 'requested')->where('created_at', '<', now()->subHours($c['confirm_hours']))->where('date', '>=', bdate()->toDateString())->count();
-            $soon = ActivityBooking::where('status', 'requested')->where('date', '<=', bdate()->copy()->addDay()->toDateString())->where('date', '>=', bdate()->toDateString())->count();
-            $wait = ActivityBooking::where('status', 'waitlisted')->where('date', '>=', bdate()->toDateString())->count();
+            $slow = ActivityBooking::where('status', 'requested')->where('created_at', '<', now()->subHours($c['confirm_hours']))->whereDate('date', '>=', bdate()->toDateString())->count();
+            $soon = ActivityBooking::where('status', 'requested')->whereDate('date', '<=', bdate()->copy()->addDay()->toDateString())->whereDate('date', '>=', bdate()->toDateString())->count();
+            $wait = ActivityBooking::where('status', 'waitlisted')->whereDate('date', '>=', bdate()->toDateString())->count();
             $risk = 0;
-            foreach (ActivityDeparture::with('activity')->where('status', 'open')->whereBetween('date', [bdate()->toDateString(), bdate()->copy()->addDays(2)->toDateString()])->get() as $d) {
+            foreach (ActivityDeparture::with('activity')->where('status', 'open')->whereDate('date', '>=', bdate()->toDateString())->whereDate('date', '<=', bdate()->copy()->addDays(2)->toDateString())->get() as $d) {
                 $n = $d->booked();
                 if ($n > 0 && $n < (int) $d->activity->min_pax) {
                     $risk++;
@@ -757,8 +757,8 @@ class ConciergeService
     /** the day's departures (with bookings) and on-request bookings for the concierge board */
     public static function board(Carbon $date): array
     {
-        $bookings = ActivityBooking::with('activity.vendor', 'departure')->where('date', $date->toDateString())->where('status', '!=', 'cancelled')->orderBy('time')->get();
-        $deps = ActivityDeparture::with('activity.vendor')->where('date', $date->toDateString())->orderBy('time')->get();
+        $bookings = ActivityBooking::with('activity.vendor', 'departure')->whereDate('date', $date->toDateString())->where('status', '!=', 'cancelled')->orderBy('time')->get();
+        $deps = ActivityDeparture::with('activity.vendor')->whereDate('date', $date->toDateString())->orderBy('time')->get();
         $rows = [];
         foreach ($deps as $d) {
             $list = $bookings->where('activity_departure_id', $d->id);

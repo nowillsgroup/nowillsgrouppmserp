@@ -69,7 +69,7 @@ class HousekeepingController extends Controller
     public function tasks(Request $request)
     {
         $date = $request->input('date', bdate()->toDateString());
-        $tasks = HousekeepingTask::with('room.floor', 'employee', 'inspector')->where('task_date', $date)
+        $tasks = HousekeepingTask::with('room.floor', 'employee', 'inspector')->whereDate('task_date', $date)
             ->when($request->status, fn ($q, $s) => $s === 'inspect' ? $q->where('status', 'completed')->whereNull('inspection_status')->whereNotNull('room_id')->where('task_type', '!=', 'inspection') : $q->where('status', $s))
             ->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END")->get();
         $staff = HousekeepingService::attendants();

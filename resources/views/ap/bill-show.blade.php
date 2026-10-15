@@ -29,6 +29,16 @@
     <div><div class="l">{{ $bill->isDebitNote() ? 'Applied' : 'Paid / credited' }}</div><div class="v green">{{ money($bill->allocated) }}</div></div>
     <div><div class="l">{{ $bill->isDebitNote() ? 'Unapplied credit' : 'Outstanding' }}</div><div class="v {{ $bill->outstanding() > 0 && ! $bill->isDebitNote() ? 'red' : '' }}" id="billOutstanding">{{ money($bill->outstanding()) }}</div></div>
   </div>
+  @if($bill->isForeign())
+  <div class="ap-summary" id="fxSummary">
+    <div><div class="l">Billed in {{ $bill->currency }}</div><div class="v">{{ $bill->fxLabel() }}</div></div>
+    <div><div class="l">Net + tax as billed</div><div class="v">{{ number_format((float) $bill->fx_subtotal, 2) }} + {{ number_format((float) $bill->fx_tax, 2) }}</div></div>
+    <div><div class="l">Board rate · {{ $bill->fx_basis }}</div><div class="v">{{ number_format((float) $bill->fx_rate, 4) }}</div></div>
+    <div><div class="l">Board of</div><div class="v">{{ $bill->fx_date?->format('d M Y') }} @if($bill->fxStale())<span class="badge badge-amber">carried forward</span>@endif</div></div>
+    <div><div class="l">Still owed in {{ $bill->currency }}</div><div class="v {{ $bill->fxOutstanding() > 0 ? 'red' : '' }}">{{ $bill->fxLabel($bill->fxOutstanding()) }}</div></div>
+  </div>
+  <p class="tiny muted">The ledger, the budget, ageing and every payment carry {{ money($bill->total) }}: each line was converted at the board above and rounded on its own, so the lines sum to what was posted. The supplier's own document is kept here beside it, and Accounts payable › Ageing re-values what is still open against the board as it stands.</p>
+  @endif
 </div></div>
 
 @if($bill->kind === 'goods' && ! $bill->isDebitNote())
@@ -54,7 +64,7 @@
   @forelse($rows as $a)
   <tr><td>{{ $a->date->format('d M Y') }}</td>
     <td>@if($bill->isDebitNote())<a href="{{ route('ap.bills.show', $a->invoice) }}">{{ $a->invoice->doc_no }}</a> <span class="tiny muted">{{ $a->invoice->supplier_ref }}</span>
-        @elseif($a->payment)<a href="{{ route('ap.payments.show', $a->payment) }}">{{ $a->payment->payment_no }}</a> <span class="tiny muted">{{ $a->payment->paymentMode?->name }} {{ $a->payment->reference }}</span>
+        @elseif($a->payment)<a href="{{ route('ap.payments.show', $a->payment) }}">{{ $a->payment->payment_no }}</a> <span class="tiny muted">{{ $a->payment->paymentMode?->name }} {{ $a->payment->reference }}{{ $a->payment->isForeign() ? ' · '.$a->payment->fxLabel().' @ '.number_format((float) $a->payment->fx_rate, 4) : '' }}</span>
         @else<a href="{{ route('ap.bills.show', $a->debitNote) }}">{{ $a->debitNote->doc_no }}</a> <span class="tiny muted">debit note</span>@endif</td>
     <td class="num">{{ money($a->amount, false) }}</td>
     <td class="right">@if(can_do('ap.pay'))<form method="post" action="{{ route('ap.allocations.delete', $a) }}" onsubmit="return confirm('Remove this allocation? The amount becomes unapplied supplier credit again.')">@csrf @method('delete')<button class="btn btn-ghost btn-sm" title="Un-apply"><x-icon name="x" size="sm"/></button></form>@endif</td></tr>

@@ -50,11 +50,11 @@ class TimeClockService
     /** The shift being worked at a moment: today's, or last night's overnight shift that has not ended yet. */
     public static function shiftAt(Employee $e, Carbon $at): ?RosterShift
     {
-        $y = RosterShift::where('employee_id', $e->id)->where('date', $at->copy()->subDay()->toDateString())->first();
+        $y = RosterShift::where('employee_id', $e->id)->whereDate('date', $at->copy()->subDay()->toDateString())->first();
         if ($y && $y->isShift() && $at->lt($y->endsAt())) {
             return $y;
         }
-        $t = RosterShift::where('employee_id', $e->id)->where('date', $at->toDateString())->first();
+        $t = RosterShift::where('employee_id', $e->id)->whereDate('date', $at->toDateString())->first();
 
         return $t && $t->isShift() ? $t : null;
     }
@@ -247,8 +247,8 @@ class TimeClockService
     public static function board(string $date, ?int $dept = null): Collection
     {
         $emps = RosterService::employees($dept, Carbon::parse($date))->keyBy('id');
-        $shifts = RosterShift::with('template')->whereIn('employee_id', $emps->keys())->where('date', $date)->get()->keyBy('employee_id');
-        $punches = TimePunch::whereIn('employee_id', $emps->keys())->where('work_date', $date)->orderBy('clock_in')->get()->groupBy('employee_id');
+        $shifts = RosterShift::with('template')->whereIn('employee_id', $emps->keys())->whereDate('date', $date)->get()->keyBy('employee_id');
+        $punches = TimePunch::whereIn('employee_id', $emps->keys())->whereDate('work_date', $date)->orderBy('clock_in')->get()->groupBy('employee_id');
         $leave = RosterService::leaveMap($emps->keys(), $date, $date);
         $now = now();
         $rows = collect();
@@ -310,7 +310,8 @@ class TimeClockService
         $done = 0;
         $blocked = [];
         $half = max(1.0, (float) setting('payroll_shift_hours', '9')) / 2;
-        DB::transaction(function () use ($date, $dept, $u, $half, &$done, &$blocked) {
+        $hol = HolidayService::on($date); // Act 651 s. 72: a gazetted public holiday is a paid, non-working day
+        DB::transaction(function () use ($date, $dept, $u, $half, $hol, &$done, &$blocked) {
             foreach (self::board($date, $dept) as $r) {
                 $e = $r['e'];
                 if ($r['status'] === 'leave') {
@@ -332,12 +333,16 @@ class TimeClockService
                     }
                 } elseif ($r['punches']->isNotEmpty()) {
                     $planned = $r['planned'] ?: (float) setting('payroll_shift_hours', '9') - 1;
-                    $att->fill(['status' => $r['worked'] + 0.001 < min($half, $planned / 2) ? 'H' : 'P', 'in_time' => self::effIn($r['punches']->first())->format('H:i'),
-                        'out_time' => $r['punches']->max('clock_out')->format('H:i'), 'remarks' => 'Time clock'.($r['flags'] ? ' – '.implode(', ', $r['flags']) : '')])->save();
+                    $att->fill(['status' => $hol ? 'PH' : ($r['worked'] + 0.001 < min($half, $planned / 2) ? 'H' : 'P'), 'in_time' => self::effIn($r['punches']->first())->format('H:i'),
+                        'out_time' => $r['punches']->max('clock_out')->format('H:i'),
+                        'remarks' => $hol ? 'Time clock – worked on a public holiday ('.$hol['name'].')' : 'Time clock'.($r['flags'] ? ' – '.implode(', ', $r['flags']) : '')])->save();
                 } elseif ($r['status'] === 'no_show') {
-                    $att->fill(['status' => 'A', 'in_time' => null, 'out_time' => null, 'remarks' => 'Time clock – rostered '.$r['shift']->label().', no clock-in'])->save();
+                    // a gazetted public holiday is paid and nobody is due at work on it (Act 651 s. 72), so it is not a no-show
+                    $att->fill(['status' => $hol ? 'PH' : 'A', 'in_time' => null, 'out_time' => null,
+                        'remarks' => $hol ? 'Public holiday – '.$hol['name'].' (rostered '.$r['shift']->label().', not worked)' : 'Time clock – rostered '.$r['shift']->label().', no clock-in'])->save();
                 } elseif ($r['status'] === 'off') {
-                    $att->fill(['status' => 'WO', 'in_time' => null, 'out_time' => null, 'remarks' => 'Rostered day off'])->save();
+                    $att->fill(['status' => $hol ? 'PH' : 'WO', 'in_time' => null, 'out_time' => null,
+                        'remarks' => $hol ? 'Public holiday – '.$hol['name'] : 'Rostered day off'])->save();
                 } else {
                     continue;
                 }
@@ -362,7 +367,7 @@ class TimeClockService
     public static function attentionCount(): int
     {
         return TimePunch::where('status', 'open')->where('clock_in', '<', now()->subHours(16))->count()
-            + TimePunch::where('status', 'closed')->where('work_date', '<', now()->toDateString())->distinct('employee_id')->count('employee_id');
+            + TimePunch::where('status', 'closed')->whereDate('work_date', '<', now()->toDateString())->distinct('employee_id')->count('employee_id');
     }
 
     /** Today at a glance for the dashboard. */

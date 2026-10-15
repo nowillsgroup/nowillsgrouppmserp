@@ -22,4 +22,21 @@
 @empty<tr><td colspan="11" class="empty">Nothing owed to suppliers.</td></tr>@endforelse
 </tbody>@if($rows->count())<tfoot><tr class="bold"><td colspan="2">Total</td>@foreach(['current', 'd30', 'd60', 'd90', 'd90p'] as $k)<td class="num">{{ money($tot[$k], false) }}</td>@endforeach<td class="num">−{{ money($tot['credit'], false) }}</td><td class="num">{{ money($tot['balance'], false) }}</td><td class="num">{{ money($tot['unbilled'], false) }}</td><td></td></tr></tfoot>@endif</table></div></div>
 <p class="small muted">Buckets are days past the due date (bill date + supplier terms). Goods received but not yet billed are aged from the receipt date. The balance ties to the Accounts Payable control account on the General Ledger page once the day is closed.</p>
+@if($fx['rows'])
+<div class="card" id="fxExposure"><div class="card-head"><h3>Foreign-currency exposure</h3><span class="badge badge-blue">at the board of {{ dmy($fx['as_of']) }}</span></div>
+<div class="card-body table-wrap"><table class="table">
+<thead><tr><th>Currency</th><th class="num">Open bills</th><th class="num">Still owed</th><th class="num">Booked in {{ $fx['home'] }}</th><th class="num">Board now</th><th class="num">Cost to settle</th><th class="num">Unrealised</th><th class="num">Settled in it</th><th class="num">Realised</th></tr></thead><tbody>
+@foreach($fx['rows'] as $r)
+<tr><td class="bold">{{ $r['currency'] }}@if(!$r['bills']) <span class="tiny muted">settled</span>@endif</td><td class="num">{{ $r['bills'] }}</td><td class="num">{{ number_format($r['foreign'], 2) }}</td>
+<td class="num">{{ money($r['booked'], false) }}</td>
+<td class="num">{{ $r['rate_now'] === null ? '—' : number_format($r['rate_now'], 4) }}@if($r['stale']) *@endif</td>
+<td class="num">{{ $r['at_board'] === null ? 'no rate' : money($r['at_board'], false) }}</td>
+<td class="num bold {{ ($r['movement'] ?? 0) > 0 ? 'text-red' : ((($r['movement'] ?? 0) < 0) ? 'green' : 'muted') }}">{{ $r['movement'] === null ? '—' : ($r['movement'] > 0 ? '+' : '').money($r['movement'], false) }}</td>
+<td class="num">{{ $r['payments'] ? $r['currency'].' '.number_format($r['paid_foreign'], 2) : '—' }}@if($r['payments'])<div class="tiny muted">{{ $r['payments'] }} payment(s)</div>@endif</td>
+<td class="num bold {{ $r['realised'] > 0 ? 'text-red' : ($r['realised'] < 0 ? 'green' : 'muted') }}">{{ $r['payments'] ? (($r['realised'] > 0 ? '+' : '').money($r['realised'], false)) : '—' }}</td></tr>
+@endforeach
+</tbody>@if(count($fx['rows']) > 1 || ($fx['payments'] ?? 0) > 0)<tfoot><tr class="bold"><td colspan="3">Total</td><td class="num">{{ money($fx['booked'], false) }}</td><td></td><td class="num">{{ $fx['at_board'] === null ? '—' : money($fx['at_board'], false) }}</td><td class="num {{ ($fx['movement'] ?? 0) > 0 ? 'text-red' : 'green' }}">{{ $fx['movement'] === null ? '—' : ($fx['movement'] > 0 ? '+' : '').money($fx['movement'], false) }}</td><td class="num">{{ ($fx['payments'] ?? 0) ? $fx['payments'].' payment(s)' : '—' }}</td><td class="num {{ ($fx['realised'] ?? 0) > 0 ? 'text-red' : (($fx['realised'] ?? 0) < 0 ? 'green' : 'muted') }}">{{ ($fx['payments'] ?? 0) ? (($fx['realised'] > 0 ? '+' : '').money($fx['realised'], false)) : '—' }}</td></tr></tfoot>@endif</table>
+<p class="small muted">A bill booked in a foreign currency stays an obligation in that currency: the ledger carries it at the board for its invoice date, and settling it later costs whatever the board says then. <b>Unrealised</b> is that difference on what is still open — reported, not posted, because a revaluation belongs to the period end. <b>Realised</b> is what settling in the currency itself has already posted to Exchange Gain / Loss: the gap between what the bank took in {{ $fx['home'] }} and what the bills it settled were booked at. * the board for that date had no rate, so the most recent one within the window was used.@if($fx['unpriced']) {{ $fx['unpriced'] }} of these currencies have no rate on the board at all and cannot be valued.@endif</p>
+</div></div>
+@endif
 @endsection

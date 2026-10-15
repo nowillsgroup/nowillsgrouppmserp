@@ -27,3 +27,6 @@ Homestead.yaml
 Thumbs.db
 /storage/app/backups
 /public/uploads
+
+# Python harness caches (deploy/dev/audit)
+__pycache__/

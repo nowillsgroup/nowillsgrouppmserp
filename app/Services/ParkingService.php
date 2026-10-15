@@ -166,7 +166,7 @@ class ParkingService
     {
         $date ??= bdate()->toDateString();
 
-        return ParkingPermit::where('parking_vehicle_id', $v->id)->where('status', 'active')->where('valid_from', '<=', $date)->where('valid_to', '>=', $date)->orderByDesc('valid_to')->first();
+        return ParkingPermit::where('parking_vehicle_id', $v->id)->where('status', 'active')->whereDate('valid_from', '<=', $date)->whereDate('valid_to', '>=', $date)->orderByDesc('valid_to')->first();
     }
 
     /** Everything the gate needs to know about a plate. */
@@ -473,7 +473,7 @@ class ParkingService
         foreach ($rows as $s) {
             $rate = self::nightRate($s);
             $stay = $s->stay;
-            if ($rate <= 0 || ! $stay || $stay->status !== 'checked_in' || ParkingCharge::where('parking_session_id', $s->id)->where('kind', 'night')->where('night', $date->toDateString())->exists()) {
+            if ($rate <= 0 || ! $stay || $stay->status !== 'checked_in' || ParkingCharge::where('parking_session_id', $s->id)->where('kind', 'night')->whereDate('night', $date->toDateString())->exists()) {
                 continue;
             }
             $folio = FolioService::openForStay($stay);
@@ -583,7 +583,7 @@ class ParkingService
                 $v = self::vehicleFor($d + ['owner_name' => $d['holder_name']]);
             }
             $clash = ParkingPermit::where('parking_vehicle_id', $v->id)->where('status', 'active')->when($p, fn ($q) => $q->whereKeyNot($p->id))
-                ->where('valid_from', '<=', $to->toDateString())->where('valid_to', '>=', $from->toDateString())->first();
+                ->whereDate('valid_from', '<=', $to->toDateString())->whereDate('valid_to', '>=', $from->toDateString())->first();
             self::need(! $clash, "{$v->plate_display} already has permit {$clash?->number} for those dates.");
             $emp = filled($d['employee_id'] ?? null) ? \App\Models\Employee::find((int) $d['employee_id']) : null;
             $p ??= new ParkingPermit(['number' => Numbering::next('parking_permit'), 'created_by' => $u->id, 'status' => 'active']);
@@ -628,8 +628,8 @@ class ParkingService
                 'requested' => ParkingSession::where('status', 'requested')->count(), 'ready' => ParkingSession::where('status', 'ready')->count(),
                 'in_today' => ParkingSession::where('status', '!=', 'cancelled')->where('entered_at', '>=', $dayStart)->count(),
                 'out_today' => ParkingSession::where('status', 'out')->where('exited_at', '>=', $dayStart)->count(),
-                'revenue_today' => (float) ParkingCharge::where('business_date', $b)->sum('amount'),
-                'revenue_mtd' => (float) ParkingCharge::whereBetween('business_date', [bdate()->copy()->startOfMonth()->toDateString(), $b])->sum('amount'),
+                'revenue_today' => (float) ParkingCharge::whereDate('business_date', $b)->sum('amount'),
+                'revenue_mtd' => (float) ParkingCharge::whereDate('business_date', '>=', bdate()->copy()->startOfMonth()->toDateString())->whereDate('business_date', '<=', $b)->sum('amount'),
                 'avg_wait' => $waits->count() ? round($waits->avg(), 1) : null, 'within_sla' => $waits->count() ? round($waits->filter(fn ($w) => $w <= $sla)->count() / $waits->count() * 100, 1) : null,
                 'retrievals' => $waits->count()];
         })();
@@ -638,7 +638,7 @@ class ParkingService
     public static function revenueTrend(int $days = 14): array
     {
         $from = bdate()->copy()->subDays($days - 1);
-        $rows = ParkingCharge::selectRaw('business_date d, kind, sum(amount) a')->whereBetween('business_date', [$from->toDateString(), bdate()->toDateString()])->groupBy('business_date', 'kind')->get();
+        $rows = ParkingCharge::selectRaw('business_date d, kind, sum(amount) a')->whereDate('business_date', '>=', $from->toDateString())->whereDate('business_date', '<=', bdate()->toDateString())->groupBy('business_date', 'kind')->get();
         $out = [];
         for ($d = $from->copy(); $d->lte(bdate()); $d->addDay()) {
             $k = $d->toDateString();
@@ -660,7 +660,7 @@ class ParkingService
                 'overstay' => ParkingSession::whereIn('status', ParkingSession::ACTIVE)->where('kind', 'visitor')->where('entered_at', '<', now()->subHours($c['overstay_hours']))->count(),
                 'departed' => ParkingSession::whereIn('status', ParkingSession::ACTIVE)->where('kind', 'guest')->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count(),
                 'full' => $occ->whereIn('state', ['full', 'nearly'])->map(fn ($o) => $o['zone']->name.' '.$o['pct'].'%')->values()->all(),
-                'permits_expiring' => ParkingPermit::where('status', 'active')->whereBetween('valid_to', [bdate()->toDateString(), bdate()->copy()->addDays(7)->toDateString()])->count(),
+                'permits_expiring' => ParkingPermit::where('status', 'active')->whereDate('valid_to', '>=', bdate()->toDateString())->whereDate('valid_to', '<=', bdate()->copy()->addDays(7)->toDateString())->count(),
             ];
         })();
     }

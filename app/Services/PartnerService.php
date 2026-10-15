@@ -678,10 +678,10 @@ class PartnerService
         $c = $u->company;
         $today = bdate()->copy()->startOfDay();
         $arrivals = Reservation::with('guest', 'rooms.roomType')->where('company_id', $c->id)->whereIn('status', ['confirmed', 'tentative'])
-            ->whereBetween('arrival_date', [$today->toDateString(), $today->copy()->addDays(60)->toDateString()])->orderBy('arrival_date')->limit(10)->get();
+            ->whereDate('arrival_date', '>=', $today->toDateString())->whereDate('arrival_date', '<=', $today->copy()->addDays(60)->toDateString())->orderBy('arrival_date')->limit(10)->get();
         $inHouse = ReservationRoom::with('guest', 'room', 'reservation')->where('status', 'checked_in')->whereHas('reservation', fn ($q) => $q->where('company_id', $c->id))->get();
         $ytd = ReservationRoom::whereHas('reservation', fn ($q) => $q->where('company_id', $c->id))->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
-            ->whereBetween('arrival_date', [$today->copy()->startOfYear()->toDateString(), $today->copy()->endOfYear()->toDateString()])->get();
+            ->whereDate('arrival_date', '>=', $today->copy()->startOfYear()->toDateString())->whereDate('arrival_date', '<=', $today->copy()->endOfYear()->toDateString())->get();
 
         return [
             'arrivals' => $arrivals, 'inHouse' => $inHouse,

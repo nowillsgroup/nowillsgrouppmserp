@@ -21,7 +21,7 @@ class MaintenanceController extends Controller
             'tickets' => MaintenanceRequest::with('room', 'employee', 'reporter', 'asset', 'schedule')
                 ->when($request->input('status', 'active') === 'active', fn ($q) => $q->whereIn('status', ['open', 'in_progress']))
                 ->when($request->input('status') === 'pm', fn ($q) => $q->whereNotNull('pm_schedule_id')->whereIn('status', ['open', 'in_progress']))
-                ->when($request->input('status') === 'overdue', fn ($q) => $q->whereIn('status', ['open', 'in_progress'])->where('due_date', '<', bdate()->toDateString()))
+                ->when($request->input('status') === 'overdue', fn ($q) => $q->whereIn('status', ['open', 'in_progress'])->whereDate('due_date', '<', bdate()->toDateString()))
                 ->when(! in_array($request->input('status', 'active'), ['active', 'all', 'pm', 'overdue']), fn ($q) => $q->where('status', $request->status))
                 ->when($request->filled('asset'), fn ($q) => $q->where('asset_id', $request->integer('asset')))
                 ->orderByRaw("CASE WHEN status IN ('open','in_progress') AND due_date < ? THEN 0 ELSE 1 END", [bdate()->toDateString()])

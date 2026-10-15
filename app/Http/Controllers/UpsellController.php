@@ -49,7 +49,7 @@ class UpsellController extends Controller
                 'today' => UpsellOrder::with('offer', 'stay.room', 'reservation.guest')->where('status', 'confirmed')->whereIn('kind', ['early_checkin', 'late_checkout'])
                     ->whereDate('service_date', $bd->toDateString())->get(),
                 'arrivals' => Reservation::with('guest')->where('status', 'confirmed')
-                    ->whereBetween('arrival_date', [$bd->copy()->addDay()->toDateString(), $bd->copy()->addDays($v['cfg']['days_before'])->toDateString()])
+                    ->whereDate('arrival_date', '>=', $bd->copy()->addDay()->toDateString())->whereDate('arrival_date', '<=', $bd->copy()->addDays($v['cfg']['days_before'])->toDateString())
                     ->withExists(['upsellPresentations as offered' => fn ($q) => $q->where('channel', 'pre_arrival')->whereNotNull('sent_at')])
                     ->withCount(['upsellOrders as upsells' => fn ($q) => $q->whereIn('status', ['requested', 'confirmed'])])
                     ->orderBy('arrival_date')->limit(25)->get()];
