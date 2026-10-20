@@ -81,6 +81,7 @@
   // ───────────────────────── the portal ─────────────────────────
   var root = $('tvApp');
   if (!root) return;
+  var preboot = $('tvPreboot');
   var BASE = root.getAttribute('data-base');
   var S = JSON.parse($('tvBoot').textContent);
   var T = S.t || {};
@@ -236,7 +237,7 @@
   }
 
   function render() {
-    document.body.className = 'tv tv-th-' + ((S.welcome && S.welcome.theme) || 'night') + (S.mode === 'signage' ? ' tv-signage-mode' : '');
+    document.body.className = 'tv tv-th-' + ((S.welcome && S.welcome.theme) || 'night') + (S.mode === 'signage' ? ' tv-signage-mode' : '') + ((screen === 'welcome' || screen === 'vacant') ? ' tv-welcome-mode' : '');
     renderTop();
     clear(stage);
     ticker.style.display = 'none';
@@ -247,6 +248,82 @@
 
   var TILES = [['tv', '📺'], ['movies', '🎬'], ['dining', '🍽'], ['services', '🛎'], ['messages', '✉'], ['bill', '🧾'], ['info', '🏨'], ['explore', '🌍'], ['checkout', '🔑'], ['feedback', '★']];
 
+  function homePreviewModal() {
+    // The guest has already entered the real home screen. Show a full-screen,
+    // non-interactive copy of that rendered screen so the preview matches the
+    // actual home layout, guest details, enabled tiles, and live top bar exactly.
+    var canvas = el('div', { cls: 'tv-home-preview-canvas', 'aria-hidden': 'true' }, [
+      top.cloneNode(true),
+      stage.cloneNode(true),
+      ticker.cloneNode(true),
+    ]);
+    Array.prototype.forEach.call(canvas.querySelectorAll('[data-f],button,a,input,select,textarea'), function (item) {
+      item.removeAttribute('data-f');
+      item.setAttribute('tabindex', '-1');
+    });
+
+    var toolbar = el('div', { cls: 'tv-home-preview-toolbar' }, [
+      el('div', { cls: 'tv-home-preview-copy' }, [
+        el('span', { cls: 'tv-home-preview-kicker', text: 'HOME SCREEN PREVIEW' }),
+        el('strong', { text: 'Your full TV home screen' }),
+      ]),
+      btn((T.continue || 'Continue') + ' to home ›', closeModal, 'tv-big tv-primary', { 'data-autofocus': '1' }),
+    ]);
+
+    modal = el('div', { cls: 'tv-modal tv-home-preview-modal' }, [canvas, toolbar]);
+    root.appendChild(modal);
+    focusFirst('[data-autofocus]');
+  }
+
+  function welcomeBackdrop() {
+    var layer = el('div', { cls: 'tv-welcome-backdrop', 'aria-hidden': 'true' });
+    var src = root.getAttribute('data-welcome-image') || (S.hotel && S.hotel.welcome_image) || '';
+    if (src && src.charAt(0) !== '/' && !/^[a-z][a-z0-9+.-]*:/i.test(src)) src = '/' + src;
+    if (src) {
+      var photo = el('img', { cls: 'tv-welcome-photo', src: src, alt: '' });
+      photo.onerror = function () { this.style.display = 'none'; };
+      layer.appendChild(photo);
+    }
+    layer.appendChild(el('div', { cls: 'tv-welcome-shade' }));
+    layer.appendChild(el('div', { cls: 'tv-welcome-frame' }));
+    return layer;
+  }
+
+  function welcomeBrand() {
+    var brand = el('div', { cls: 'tv-welcome-brand' });
+    var logoSrc = root.getAttribute('data-hotel-logo') || '';
+    if (logoSrc) {
+      var logo = el('img', { cls: 'tv-welcome-logo', src: logoSrc, alt: '' });
+      logo.onerror = function () { this.style.display = 'none'; };
+      brand.appendChild(el('span', { cls: 'tv-welcome-logo-frame', 'aria-hidden': 'true' }, [logo]));
+    } else {
+      brand.appendChild(el('span', { cls: 'tv-welcome-monogram', 'aria-hidden': 'true', text: '✦' }));
+    }
+    brand.appendChild(el('span', { cls: 'tv-welcome-brand-text' }, [
+      el('small', { text: T.welcome || 'Welcome' }),
+      el('strong', { text: (S.hotel && S.hotel.name) || '' }),
+    ]));
+    return brand;
+  }
+
+  function welcomeStayCard() {
+    var guest = S.guest || {};
+    var card = el('div', { cls: 'tv-welcome-stay-card' });
+    card.appendChild(el('div', { cls: 'tv-welcome-card-eyebrow', text: 'YOUR STAY' }));
+    var details = el('div', { cls: 'tv-welcome-stay-details' });
+    if (guest.room) details.appendChild(el('div', { cls: 'tv-welcome-stay-detail' }, [el('small', { text: T.room || 'Room' }), el('strong', { text: guest.room })]));
+    if (guest.departure) details.appendChild(el('div', { cls: 'tv-welcome-stay-detail' }, [el('small', { text: T.departure || 'Departure' }), el('strong', { text: guest.departure })]));
+    if (details.childNodes.length) card.appendChild(details);
+    if (S.wifi && S.wifi.name) {
+      card.appendChild(el('div', { cls: 'tv-welcome-wifi' }, [
+        el('div', { cls: 'tv-welcome-wifi-label' }, [el('span', { cls: 'tv-welcome-wifi-icon', text: '◔' }), el('span', { text: T.wifi || 'Wi-Fi' })]),
+        el('strong', { cls: 'tv-welcome-wifi-name', text: S.wifi.name }),
+        S.wifi.password ? el('span', { cls: 'tv-welcome-wifi-password', text: (T.password || 'Password') + ' · ' + S.wifi.password }) : null,
+      ]));
+    }
+    return details.childNodes.length || (S.wifi && S.wifi.name) ? card : null;
+  }
+
   var SCREENS = {
     off: function () {
       stage.appendChild(el('div', { cls: 'tv-center' }, [el('h1', { text: (T.welcome || 'Welcome') }), el('p', { cls: 'tv-lead', text: (S.hotel && S.hotel.name) || '' })]));
@@ -255,29 +332,47 @@
       stage.appendChild(el('div', { cls: 'tv-center' }, [el('h1', { text: (S.hotel && S.hotel.name) || '' }), el('p', { cls: 'tv-lead', text: 'This TV is not active. Please contact the front desk.' })]));
     },
     vacant: function () {
-      stage.appendChild(el('div', { cls: 'tv-center' }, [
-        el('p', { cls: 'tv-lead', text: T.vacant || 'Welcome to' }), el('h1', { text: (S.hotel && S.hotel.name) || '' }),
-        el('div', { cls: 'tv-row' }, [btn('📺 ' + (T.tv || 'Live TV'), function () { go('tv'); }, 'tv-big', { 'data-autofocus': '1' })]),
-      ]));
+      var city = S.hotel && S.hotel.city ? S.hotel.city : '';
+      var hotelName = (S.hotel && S.hotel.name) || 'Welcome';
+      var welcomeTo = T.vacant || 'Welcome to';
+      var copy = el('div', { cls: 'tv-welcome-main tv-welcome-main-vacant' }, [
+        el('p', { cls: 'tv-welcome-kicker', text: city ? welcomeTo + ' ' + city : welcomeTo }),
+        el('span', { cls: 'tv-welcome-rule', 'aria-hidden': 'true' }),
+        el('h1', { cls: 'tv-welcome-h', text: hotelName }),
+        el('div', { cls: 'tv-welcome-actions' }, [btn('📺 ' + (T.tv || 'Live TV'), function () { go('tv'); }, 'tv-big tv-primary', { 'data-autofocus': '1' })]),
+      ]);
+      var layout = el('div', { cls: 'tv-welcome-layout tv-welcome-layout-vacant' }, [welcomeBrand(), copy,
+        el('div', { cls: 'tv-welcome-footer' }, [el('span', { cls: 'tv-welcome-footer-line' }), el('span', { text: city ? city.toUpperCase() + ' · GHANA' : 'A PLACE TO UNWIND' })])]);
+      stage.appendChild(el('section', { cls: 'tv-welcome-screen tv-vacant-screen' }, [welcomeBackdrop(), layout]));
     },
     welcome: function () {
       var w = S.welcome || {};
-      var langs = el('div', { cls: 'tv-langs' });
+      var city = S.hotel && S.hotel.city ? S.hotel.city : '';
+      var langs = el('div', { cls: 'tv-langs tv-welcome-language-list' });
       Object.keys(S.langs || {}).forEach(function (l) {
         langs.appendChild(btn(S.langs[l], function () { setLang(l); }, l === S.lang ? 'on' : ''));
       });
       var body = el('div', { cls: 'tv-welcome-body' });
       String(w.body || '').split('\n').forEach(function (line) { if (line.trim()) body.appendChild(el('p', { text: line })); });
-      stage.appendChild(el('div', { cls: 'tv-welcome' }, [
-        el('h1', { cls: 'tv-welcome-h', text: w.headline || '' }), body,
-        S.wifi && S.wifi.name ? el('div', { cls: 'tv-wifi' }, [el('span', { text: '📶 ' + (T.wifi || 'Wi-Fi') }), el('b', { text: S.wifi.name }), el('span', { text: (T.password || 'Password') }), el('b', { text: S.wifi.password })]) : null,
-        el('div', { cls: 'tv-row' }, [btn((T.continue || 'Continue') + ' ›', function () {
-          api('POST', '/welcome', {}, function () {});
-          S.welcome.show = false;
-          go('home', true);
-        }, 'tv-big tv-primary', { 'data-autofocus': '1' })]),
-        langs,
-      ]));
+      var copy = el('div', { cls: 'tv-welcome-main' }, [
+        el('p', { cls: 'tv-welcome-kicker', text: city ? city.toUpperCase() + ' · A WARM WELCOME' : 'A WARM WELCOME' }),
+        el('span', { cls: 'tv-welcome-rule', 'aria-hidden': 'true' }),
+        el('h1', { cls: 'tv-welcome-h', text: w.headline || (T.welcome || 'Welcome') }),
+        body,
+      ]);
+      var actions = el('div', { cls: 'tv-welcome-actions' }, [btn((T.continue || 'Continue') + ' ›', function () {
+        api('POST', '/welcome', {}, function () {});
+        S.welcome.show = false;
+        go('home', true);
+        homePreviewModal();
+      }, 'tv-big tv-primary tv-welcome-continue', { 'data-autofocus': '1' }),
+      el('div', { cls: 'tv-welcome-language' }, [el('span', { cls: 'tv-welcome-language-label', text: T.language || 'Language' }), langs])]);
+      var footer = el('div', { cls: 'tv-welcome-footer' }, [
+        el('span', { cls: 'tv-welcome-footer-line' }),
+        el('span', { text: city ? city.toUpperCase() + ' · GHANA' : 'A PLACE TO UNWIND' }),
+      ]);
+      var layout = el('div', { cls: 'tv-welcome-layout' }, [welcomeBrand(), copy, welcomeStayCard(), actions, footer]);
+      stage.appendChild(el('section', { cls: 'tv-welcome-screen' }, [welcomeBackdrop(), layout]));
     },
     home: function () {
       if (Date.now() - lastHome > 600000) { logEvent('home'); lastHome = Date.now(); }
@@ -700,6 +795,9 @@
     if (S.mode === 'room') screen = S.welcome && S.welcome.show ? 'welcome' : 'home';
     else screen = S.mode;   // vacant / signage / off / unregistered
     render();
+    // Remove the server-rendered welcome only after the interactive TV screen is ready.
+    if (preboot && preboot.parentNode) preboot.parentNode.removeChild(preboot);
+    preboot = null;
   }
   function refresh(force) {
     api('GET', '/state', null, function (err, d) { if (!err && d) apply(d, force); });

@@ -25,14 +25,14 @@ const run = makeMutex();
 // ── dev preview auto-login ────────────────────────────────────────────────
 // The live preview should land inside the app, not on the marketing login
 // page. Requests without a session cookie are signed in behind the scenes as
-// the demo admin; `/` then redirects to the preview home (reservation desk).
-// Disable with PMS_DEV_AUTOLOGIN=0; tune with PMS_DEV_USER / PMS_DEV_PASS /
-// PMS_DEV_HOTEL / PMS_DEV_HOME.
+// the demo admin; `/` opens the configured preview home (the dashboard by
+// default). Disable with PMS_DEV_AUTOLOGIN=0; tune with PMS_DEV_USER /
+// PMS_DEV_PASS / PMS_DEV_HOTEL / PMS_DEV_HOME.
 const DEV_LOGIN = (process.env.PMS_DEV_AUTOLOGIN ?? '1') !== '0';
 const DEV_USER = process.env.PMS_DEV_USER ?? 'admin';
 const DEV_PASS = process.env.PMS_DEV_PASS ?? 'Admin@123';
 const DEV_HOTEL = process.env.PMS_DEV_HOTEL ?? 'NOWILLS';
-const DEV_HOME = process.env.PMS_DEV_HOME ?? '/reservations';
+const DEV_HOME = process.env.PMS_DEV_HOME ?? '/Dashboard';
 let devCookies = null;
 
 // ── /__dev — development changes index ────────────────────────────────────
@@ -41,6 +41,16 @@ let devCookies = null;
 // first. A small "dev changes" chip is injected into previewed pages so
 // this index is always one click away.
 const DEV_CHANGES = [
+  {
+    title: 'Hotel dashboard — a clear, professional property operations overview',
+    detail: 'The main dashboard has been rebuilt into a proper page layout with a focused welcome and business-date header, grouped room and guest-flow metrics, a separate revenue summary, aligned trend and arrival/departure panels, a full-width action centre, and a responsive grid of department snapshots. The previous page placed its dashboard content in the page-head actions area, which made the screen feel scattered; content now flows in the correct page section and adapts cleanly to smaller screens.',
+    screens: [['Hotel dashboard', '/Dashboard']],
+  },
+  {
+    title: 'Luxury IPTV guest welcome — Groove Esipong Beach Hotel photo and polished full-screen TV design',
+    detail: 'In-room TVs now greet checked-in guests with a cinematic hotel-photo backdrop, an elegant gold-accented personal welcome, room and departure details, Wi-Fi credentials, and language controls. Continue opens a full-screen preview of the exact TV home screen, including the guest details, top bar, enabled service tiles, and messages, before the guest enters it. IPTV Settings lets staff replace or restore the image; Welcome Screens includes a photo-backed staff preview even when no guests are checked in.',
+    screens: [['Actual guest-facing TV welcome', '/tv/vYifvlQdwEOU49o5MZRrFf9vwOpEmvaa757k6UYj'], ['Welcome Screens staff preview', '/iptv/welcome'], ['Hotel welcome-photo settings', '/iptv/settings']],
+  },
   {
     title: 'A foreign supplier bill could be booked in dollars but not paid in dollars — the exchange movement is now calculated, posted and explained',
     detail: 'v7.53 let Accounts payable book the invoice in the currency the supplier billed in and convert each line at the board, keeping the supplier document beside the GHS posting. The last uncomfortable step was the bank transfer: the bank took a foreign-currency amount at its rate on the day, but the system could only record a GHS payment, so a clerk had to calculate the cedi figure and nobody could say what the difference was between the bill rate and the settlement rate. A payment can now settle a foreign invoice in the same currency, allocated to the bills it clears and never left as an unexplained supplier credit. The payment date is looked up on its own board, using the payables basis and carry-forward window; the invoice-date switch does not backdate the settlement. The board quote is visible, and only an explicit checkbox followed by a rate typed from the bank advice makes it a deal rate, which is recorded as such. Six columns on supplier_payments preserve the currency, the amount the bank actually transferred, the rate and date, the basis, and the realised difference. GHS amount stays what left the bank; allocations stay what the invoices were booked at. The journal debits Accounts Payable for the allocated amount, credits the selected bank for what it actually cost, credits WHT and withholding VAT in GHS, and debits or credits the existing Exchange Gain / Loss chart account for the rest. Positive is a realised loss, negative a gain. The control account therefore falls by exactly what the bills owed, and it stays that way on the supplier statement too. WHT is the subtle part: the foreign amount is what the bank actually transferred after withholding, the tax base is the GHS allocation, and GRA remains a separate GHS liability — otherwise a rate loss looks like an unallocated advance and gets taxed a second time. ApService::controlBalance() and ApService::statement() both used to subtract the bank debit instead of the amount owed; the service harness caught the control account drifting and the supplier statement moving below zero, and both now use the allocation and show the difference as ours, not a charge to the supplier. The payment form gets its live board for the selected payment date, disables every bill in another currency, derives the actual bank debit from the foreign amount, the bill booking rates and the GHS tax quote, and previews the realised difference. An open payment stays reversible through the ordinary cancellation path. AP Ageing puts realised payments and unrealised open exposure in separate columns; a currency that is fully settled stays there so its posted gain or loss is not forgotten. The demo now settles USD 1,000 of the Meridian management invoice at 11.6700: GH₵ 11,670.00 left the bank, GH₵ 11,645.80 cleared the bill and the GH₵ 24.20 loss went to Exchange Gain / Loss; the remaining USD 2,295.28 still shows beside the separate unrealised movement. Verified by ap_fx_pay.php with 98 service and ledger assertions and ap_fx_pay_flow.py with 35 real form, controller, cancellation, statement and remittance assertions; both remove their test rows and journals. The v7.53 invoice harness still passes 84/0, its HTTP flow 43/0, the existing channel conversion harnesses still pass, and the complete route sweep continues to show no application 500s. docs/MULTI-CURRENCY.md now covers both increments; the feature-gap checker proves the settlement methods, migration, rate endpoint and both harnesses; the version stamp moves together to 7.54.0.',
@@ -478,9 +488,9 @@ function flattenHeaders(hdrs) {
   return out;
 }
 
-// The Arena live preview embeds this server in a cross-site iframe on an
-// https://{port}-{sandbox}.e2b.app origin. Loosen exactly what blocks that:
-// CSP frame-ancestors, X-Frame-Options, and SameSite on session cookies.
+// The Arena live preview embeds this server in a cross-site iframe. Loosen
+// frame-ancestors for HTTPS preview hosts in this dev-only proxy, plus
+// X-Frame-Options and SameSite on session cookies.
 let cssCache = null;
 async function inlineStylesheets(html) {
   if (!cssCache) {
@@ -496,7 +506,7 @@ function previewFriendly(h) {
   const csp = h.get('content-security-policy');
   if (csp) {
     h.set('content-security-policy', csp
-      .replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https://*.e2b.app")
+      .replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https:")
       // Sandboxed preview iframes get an opaque origin, where 'self' matches
       // nothing — allow the preview host explicitly so styles/images/scripts load.
       .replace(/default-src 'self'/i, "default-src 'self' https://*.e2b.app data: blob:")
@@ -594,7 +604,7 @@ const server = Bun.serve({
       // fetches are blocked (sandboxed iframes / strict CSP on the preview side).
       if (body && (head.get('content-type') ?? '').toLowerCase().includes('text/html')) {
         let html = await inlineStylesheets(new TextDecoder().decode(resp.bytes));
-        if (DEV_LOGIN && !html.includes('/__dev')) {
+        if (DEV_LOGIN && !url.pathname.startsWith('/tv/') && !html.includes('/__dev')) {
           html = html.replace(/<\/body>/i, `${DEV_CHIP}</body>`);
         }
         head.delete('content-length');
