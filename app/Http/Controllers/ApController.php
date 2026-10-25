@@ -72,6 +72,37 @@ class ApController extends Controller
             'fxOn' => \App\Services\ForexService::apConvert(),
             'fxBoard' => \App\Services\ForexService::apBoard(),
             'fxPolicy' => \App\Services\ForexService::apPolicy(),
+            'fxRateUrl' => route('ap.bills.fx-rate'),
+        ]);
+    }
+
+    /** Invoice-date Forex Desk quote and GRN comparison for the matched foreign-currency bill form. */
+    public function fxRate(Request $request)
+    {
+        $data = $request->validate([
+            'purchase_order_id' => 'required|integer|owned:purchase_orders',
+            'currency' => 'required|string|size:3', 'date' => 'required|date',
+        ]);
+        $po = PurchaseOrder::findOrFail($data['purchase_order_id']);
+        $currency = strtoupper(trim($data['currency']));
+        if (! $po->isForeign() || strtoupper((string) $po->currency) !== $currency) {
+            return response()->json(['message' => 'The bill currency must match the purchase order currency.'], 422);
+        }
+        if (! \App\Services\ForexService::apConvert()) {
+            return response()->json(['message' => 'Foreign-currency matched bills are switched off under Foreign Guests › Settings › Forex desk.'], 422);
+        }
+        $policy = \App\Services\ForexService::apPolicy($data['date']);
+        $board = \App\Services\ForexService::boardRate($currency, $data['date'], ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+        if (! $board) {
+            return response()->json(['message' => "There is no {$currency} rate on the forex board for {$data['date']}, and none in the {$policy['stale_days']} days before it."], 422);
+        }
+        [$fxSub, $fxTax] = $po->receivedForeignSplit();
+        $atInvoiceDate = round(round($fxSub * (float) $board['rate'], 2) + round($fxTax * (float) $board['rate'], 2), 2);
+
+        return response()->json($board + [
+            'grn_fx_total' => round($fxSub + $fxTax, 2), 'grn_local' => $po->receivedValue(),
+            'grn_at_invoice_date' => $atInvoiceDate, 'fx_movement' => round($atInvoiceDate - $po->receivedValue(), 2),
+            'tolerance' => ApService::tolerance($atInvoiceDate),
         ]);
     }
 
@@ -124,7 +155,7 @@ class ApController extends Controller
 
     public function show(SupplierInvoice $bill)
     {
-        $bill->load('supplier', 'purchaseOrder.items.item', 'lines.head', 'allocations.payment.paymentMode', 'allocations.debitNote', 'applications.invoice', 'creator', 'approver', 'againstInvoice');
+        $bill->load('supplier', 'purchaseOrder.items.item', 'purchaseOrder.receipts.lines.item', 'lines.head', 'allocations.payment.paymentMode', 'allocations.debitNote', 'applications.invoice', 'creator', 'approver', 'againstInvoice');
         $credits = collect();
         if (in_array($bill->status, ['open', 'partial'])) {
             $credits = SupplierPayment::where('supplier_id', $bill->supplier_id)->whereNull('cancelled_at')->whereColumn('allocated', '<', 'amount')->get()

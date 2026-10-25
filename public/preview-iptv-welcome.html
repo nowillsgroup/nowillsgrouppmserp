@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — IPTV TV Home Screen Preview</title>
+<style>
+/* ═══ TV CSS (from public/css/tv.css) ═══ */
+*{box-sizing:border-box}
+html{font-size:1.25vw}
+body.tv{margin:0;min-height:100vh;overflow:hidden;color:#fff;font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;background:#0b1220;-webkit-font-smoothing:antialiased}
+.tv-th-gold{background:radial-gradient(circle at 80% 10%,#b7791f 0,#7c2d12 38%,#1c1917 100%)}
+.tv-th-ocean{background:radial-gradient(circle at 80% 10%,#0e7490 0,#1e3a8a 40%,#0b1220 100%)}
+.tv-th-forest{background:radial-gradient(circle at 80% 10%,#15803d 0,#14532d 42%,#052e16 100%)}
+.tv-th-sunset{background:radial-gradient(circle at 80% 10%,#f59e0b 0,#be185d 42%,#312e81 100%)}
+.tv-th-night{background:radial-gradient(circle at 80% 10%,#4338ca 0,#1e1b4b 45%,#020617 100%)}
+body.tv::before{content:"";position:fixed;inset:auto 0 0 0;height:.35rem;background:repeating-linear-gradient(90deg,#facc15 0 2rem,#16a34a 2rem 4rem,#dc2626 4rem 6rem,#111 6rem 6.4rem);opacity:.85}
+#tvApp{position:relative;height:100%;display:flex;flex-direction:column;padding:1.4rem 1.8rem 1.2rem}
+.tv-top{display:flex;justify-content:space-between;align-items:center;font-size:1rem;opacity:.95;min-height:2rem}
+.tv-top-l b{font-size:1.15rem;letter-spacing:.02em;margin-right:1rem}.tv-top-l span{opacity:.75}
+.tv-top-r{display:flex;gap:1.2rem;align-items:center}.tv-clock{font-size:1.5rem;font-weight:700}.tv-date{opacity:.75}
+.tv-badge{background:#dc2626;border-radius:1rem;padding:.1rem .6rem;font-weight:700}
+.tv-stage{flex:1;min-height:0;display:flex;flex-direction:column}
+.tv-center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+.tv h1{font-size:3.2rem;margin:.2rem 0;font-weight:700;letter-spacing:-.01em}.tv h2{font-size:1.8rem;margin:.2rem 0}.tv h3{font-size:1.2rem;margin:.2rem 0 .6rem}
+.tv-lead{font-size:1.35rem;opacity:.9;max-width:52rem;line-height:1.45}.tv-muted{opacity:.7}
+.tv-row{display:flex;gap:1rem;justify-content:center;align-items:center;margin-top:1.2rem;flex-wrap:wrap}
+.tv-btn{font:inherit;font-size:1.05rem;color:#fff;background:rgba(255,255,255,.12);border:.12rem solid rgba(255,255,255,.18);border-radius:.8rem;padding:.6rem 1.2rem;cursor:pointer;outline:none;transition:transform .12s,background .12s}
+.tv-btn.on{background:rgba(250,204,21,.25);border-color:#facc15}
+.tv-big{font-size:1.35rem;padding:.9rem 2rem}.tv-small{font-size:.9rem;padding:.4rem .9rem}
+.tv-primary{background:#facc15;color:#1c1917;border-color:#facc15;font-weight:700}
+[data-f]:focus{transform:scale(1.06);box-shadow:0 0 0 .22rem #fff,0 .6rem 1.6rem rgba(0,0,0,.45);z-index:2;position:relative}
+.tv-primary:focus{background:#fde047}
+/* home */
+.tv-home{flex:1;display:grid;grid-template-columns:24rem 1fr;gap:1.5rem;min-height:0}
+.tv-home-side{background:rgba(0,0,0,.25);border-radius:1.4rem;padding:1.4rem;display:flex;flex-direction:column;gap:1rem}
+.tv-greet small{opacity:.75;font-size:1.05rem}.tv-greet h2{font-size:2rem}
+.tv-kv{display:grid;grid-template-columns:auto 1fr;gap:.25rem 1rem;font-size:1.05rem}.tv-kv span{opacity:.7}
+.tv-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:1.1rem;align-content:start}
+.tv-tiles-s{grid-template-columns:repeat(3,1fr)}
+.tv-tile{position:relative;font:inherit;color:#fff;background:rgba(255,255,255,.1);border:.12rem solid rgba(255,255,255,.14);border-radius:1.2rem;height:9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;font-size:1.15rem;cursor:pointer;outline:none;transition:transform .12s}
+.tv-tile:focus{background:rgba(250,204,21,.22);border-color:#facc15}
+.tv-tile-i{font-size:2.6rem;line-height:1}
+.tv-tile-badge{position:absolute;top:.6rem;right:.8rem;background:#dc2626;border-radius:1rem;padding:0 .5rem;font-weight:700;font-size:.95rem}
+.tv-ticker{position:absolute;left:0;right:0;bottom:.35rem;background:rgba(0,0,0,.55);padding:.55rem 2.4rem;font-size:1.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* screen header */
+.tv-h{display:flex;align-items:center;gap:1.2rem;margin-bottom:1rem}.tv-h h2{flex:1}
+
+/* ═══ POLISHED TV HOME SCREEN ═══ */
+/* Hotel photo background with gradient overlay for readability */
+#tvHomeScreen{position:absolute;inset:0;overflow:hidden;background:#0b1220}
+#tvHomeBg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 50%;transform:scale(1.02)}
+#tvHomeOverlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,14,22,.92) 0%,rgba(8,14,22,.78) 28%,rgba(8,14,22,.55) 58%,rgba(8,14,22,.38) 78%,rgba(8,14,22,.62) 100%),linear-gradient(0deg,rgba(8,14,22,.85),transparent 30%)}
+#tvHomeVignette{position:absolute;inset:0;box-shadow:inset 0 0 8rem rgba(0,0,0,.5)}
+
+/* Side panel — more polished with hotel branding */
+.tv-side-panel{position:relative;z-index:2;background:linear-gradient(160deg,rgba(10,20,28,.45),rgba(8,16,22,.25));border:1px solid rgba(255,255,255,.12);border-radius:1.2rem;padding:1.6rem 1.4rem;display:flex;flex-direction:column;gap:1.2rem;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-self:stretch}
+.tv-side-hotel{display:flex;align-items:center;gap:.7rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.tv-side-hotel .monogram{display:flex;align-items:center;justify-content:center;width:2.8rem;height:2.8rem;border-radius:50%;overflow:hidden;flex:none;background:rgba(8,18,19,.5);border:1px solid rgba(234,212,160,.2)}
+.tv-side-hotel .monogram img{width:100%;height:100%;object-fit:contain;padding:.2rem}
+.tv-side-hotel-text{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.tv-side-hotel-text small{color:var(--tv-lux-accent);font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.tv-side-hotel-text b{overflow:hidden;font-size:.95rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+
+.tv-greet{display:flex;flex-direction:column;gap:.2rem}
+.tv-greet .welcome-line{color:var(--tv-lux-accent);font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.tv-greet h2{font-size:2.2rem;margin:0;font-weight:700;color:#fff}
+
+.tv-stay-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem 1.1rem}
+.tv-stay-card-title{color:var(--tv-lux-accent);font-size:.62rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.7rem}
+.tv-stay-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem .8rem}
+.tv-stay-item{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.tv-stay-item small{color:rgba(255,255,255,.55);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase}
+.tv-stay-item b{overflow:hidden;font-size:.95rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.tv-stay-item .credit{color:#86efac}
+
+.tv-wifi-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:.85rem 1rem}
+.tv-wifi-row{display:flex;align-items:center;gap:.4rem;color:rgba(255,255,255,.7);font-size:.75rem}
+.tv-wifi-row .icon{color:var(--tv-lux-accent);font-size:1rem}
+.tv-wifi-name{display:block;margin-top:.25rem;font-size:.9rem;font-weight:600;color:#fff;letter-spacing:.02em}
+.tv-wifi-pass{display:block;margin-top:.1rem;font-size:.7rem;color:rgba(255,255,255,.55)}
+
+/* Right side — main content area */
+.tv-content{position:relative;z-index:2;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.tv-content-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;flex:none}
+.tv-content-header h2{font-size:1.5rem;font-weight:600;margin:0}
+.tv-content-header .sub{opacity:.6;font-size:.8rem}
+.tv-content-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:.3rem}
+.tv-content-scroll::-webkit-scrollbar{width:4px}
+.tv-content-scroll::-webkit-scrollbar-track{background:transparent}
+.tv-content-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+
+/* Featured promotion banner */
+.tv-featured{display:grid;grid-template-columns:1.4fr 1fr;gap:1rem;margin-bottom:1rem}
+.tv-featured-card{position:relative;border-radius:1.2rem;overflow:hidden;border:1px solid rgba(234,212,160,.2);background:rgba(0,0,0,.3);padding:1.3rem 1.5rem;display:flex;flex-direction:column;justify-content:center;min-height:8rem}
+.tv-featured-card .tag{display:inline-block;background:rgba(234,212,160,.2);color:var(--tv-lux-accent);font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:.2rem .6rem;border-radius:999px;margin-bottom:.6rem;width:max-content}
+.tv-featured-card h3{margin:0 0 .3rem;font-size:1.2rem;font-weight:650}
+.tv-featured-card p{margin:0;font-size:.85rem;opacity:.8;line-height:1.4}
+.tv-featured-card .price{margin-top:.5rem;font-size:1.1rem;font-weight:700;color:var(--tv-lux-accent)}
+.tv-featured-card .price small{font-size:.7rem;opacity:.6;font-weight:400}
+.tv-featured-side{display:flex;flex-direction:column;gap:.6rem}
+.tv-weather-card{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:1.2rem;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem}
+.tv-weather-card .icon{font-size:2.4rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.tv-weather-card .icon svg{width:2.6rem;height:2.6rem;stroke:var(--tv-lux-accent);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tv-weather-card .info{display:flex;flex-direction:column;gap:.1rem}
+.tv-weather-card .temp{font-size:1.6rem;font-weight:700}
+.tv-weather-card .desc{font-size:.75rem;opacity:.7}
+.tv-weather-card .meta{font-size:.68rem;opacity:.55}
+
+/* Improved tiles — smaller */
+.tv-tiles-polished{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem;align-content:start;flex:1;overflow-y:auto}
+.tv-tile-p{position:relative;font:inherit;color:#fff;background:linear-gradient(145deg,rgba(10,20,28,.85),rgba(8,16,22,.7));border:1px solid rgba(255,255,255,.15);border-radius:.9rem;height:5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;font-size:.85rem;cursor:pointer;outline:none;transition:all .15s;overflow:hidden}
+.tv-tile-p .icon{font-size:1.6rem;line-height:1;filter:drop-shadow(0 .2rem .4rem rgba(0,0,0,.4));display:flex;align-items:center;justify-content:center}
+.tv-tile-p .icon svg{width:1.7rem;height:1.7rem;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tv-tile-p:hover{background:linear-gradient(145deg,rgba(250,204,21,.15),rgba(10,20,28,.7));border-color:rgba(255,255,255,.25);transform:translateY(-.1rem) scale(1.03)}
+.tv-tile-p:focus{background:rgba(250,204,21,.22);border-color:#facc15;transform:scale(1.03)}
+.tv-tile-p .label{font-size:.85rem;font-weight:700;color:#fff;text-shadow:0 .1rem .3rem rgba(0,0,0,.5)}
+.tv-tile-p .sub{font-size:.58rem;opacity:.7;font-weight:500}
+.tv-tile-p .badge{position:absolute;top:.35rem;right:.45rem;background:#dc2626;border-radius:999px;padding:.05rem .35rem;font-size:.5rem;font-weight:700}
+.tv-tile-p .badge-gold{background:rgba(234,212,160,.25);color:var(--tv-lux-accent)}
+
+/* Polished ticker */
+.tv-ticker-p{position:relative;z-index:2;background:linear-gradient(90deg,rgba(10,20,28,.88),rgba(10,20,28,.7));border:1px solid rgba(255,255,255,.06);border-radius:.8rem;padding:.65rem 1.2rem;font-size:1rem;margin-top:.6rem;display:flex;align-items:center;gap:.8rem;overflow:hidden;white-space:nowrap}
+.tv-ticker-p .label{color:var(--tv-lux-accent);font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;flex:none}
+.tv-ticker-p .content{opacity:.85;overflow:hidden;text-overflow:ellipsis}
+
+/* Welcome screen styles (unchanged) */
+.tv-welcome{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:62rem;margin-left:4rem}
+.tv-welcome-h{font-size:4rem!important;line-height:1.1;text-shadow:0 .2rem 1.2rem rgba(0,0,0,.35)}
+.tv-welcome-body p{font-size:1.45rem;line-height:1.5;margin:.5rem 0;opacity:.95}
+.tv-welcome .tv-row{justify-content:flex-start}
+.tv-wifi{display:inline-grid;grid-template-columns:auto auto;gap:.3rem 1rem;background:rgba(0,0,0,.28);padding:.8rem 1.2rem;border-radius:1rem;margin-top:1rem;font-size:1.15rem;width:max-content}
+.tv-langs{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.4rem}
+
+/* Luxury welcome CSS */
+.tv-th-gold{--tv-lux-accent:#ead4a0;--tv-lux-accent-soft:rgba(234,212,160,.18)}
+.tv-th-ocean{--tv-lux-accent:#b7e1dc;--tv-lux-accent-soft:rgba(183,225,220,.17)}
+.tv-th-forest{--tv-lux-accent:#c3dfbd;--tv-lux-accent-soft:rgba(195,223,189,.17)}
+.tv-th-sunset{--tv-lux-accent:#f1c6a2;--tv-lux-accent-soft:rgba(241,198,162,.18)}
+.tv-th-night{--tv-lux-accent:#d8cefa;--tv-lux-accent-soft:rgba(216,206,250,.18)}
+body.tv-welcome-mode{background:#101b1c}
+body.tv-welcome-mode::before{display:none}
+body.tv-welcome-mode #tvApp{height:100vh;padding:0}
+body.tv-welcome-mode .tv-top{display:none}
+body.tv-welcome-mode .tv-stage{margin-top:0}
+.tv-welcome-screen{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;width:100%;overflow:hidden;background:#152321;color:#fff}
+.tv-welcome-backdrop{position:absolute;inset:0;background:#172522}
+.tv-welcome-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 50%;transform:scale(1.015)}
+.tv-welcome-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,14,16,.76) 0%,rgba(6,15,17,.65) 37%,rgba(6,15,17,.40) 63%,rgba(4,12,13,.14) 100%),linear-gradient(0deg,rgba(4,10,11,.56),transparent 38%),linear-gradient(180deg,rgba(4,10,11,.32),transparent 24%)}
+.tv-welcome-frame{position:absolute;inset:1rem;border:1px solid rgba(239,220,180,.28);border-radius:.35rem;pointer-events:none}
+.tv-welcome-layout{position:relative;z-index:1;display:grid;flex:1;min-height:0;width:100%;grid-template-columns:minmax(0,1fr) minmax(17rem,25rem);grid-template-rows:auto minmax(0,1fr) auto;column-gap:4vw;padding:2rem 5.2vw 1.9rem}
+.tv-welcome-brand{grid-column:1;grid-row:1;display:flex;align-items:center;gap:.75rem;align-self:start;max-width:70%;min-width:0}
+.tv-welcome-logo-frame,.tv-welcome-monogram{display:flex;align-items:center;justify-content:center;flex:none;width:3rem;height:3rem;border-radius:50%;overflow:hidden;background:rgba(8,18,19,.5);border:1px solid var(--tv-lux-accent,#ead4a0)}
+.tv-welcome-monogram img{width:100%;height:100%;object-fit:contain;padding:.25rem}
+.tv-welcome-brand-text{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.tv-welcome-brand-text small{color:var(--tv-lux-accent,#ead4a0);font-size:.63rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.tv-welcome-brand-text strong{overflow:hidden;color:#fff;font-size:1.02rem;font-weight:650;letter-spacing:.035em;text-overflow:ellipsis;white-space:nowrap}
+.tv-welcome-main{grid-column:1;grid-row:2;align-self:center;max-width:58rem;padding:.7rem 0 1rem}
+.tv-welcome-kicker{margin:0 0 .8rem;color:var(--tv-lux-accent,#ead4a0);font-size:.72rem;font-weight:750;letter-spacing:.21em;line-height:1.4;text-transform:uppercase}
+.tv-welcome-rule{display:block;width:3.15rem;height:.12rem;margin:.2rem 0 1.1rem;background:var(--tv-lux-accent,#ead4a0);box-shadow:0 0 .8rem var(--tv-lux-accent-soft,rgba(234,212,160,.18))}
+.tv-welcome-screen .tv-welcome-h{max-width:58rem;margin:.15rem 0 .8rem;color:#fff8e9;font-family:Georgia,"Times New Roman",serif;font-size:4.4rem!important;font-weight:400;letter-spacing:-.035em;line-height:1.07;text-shadow:0 .2rem 1.25rem rgba(0,0,0,.44);text-wrap:balance}
+.tv-welcome-body{max-width:45rem}
+.tv-welcome-body p,.tv-welcome-lead{margin:.35rem 0;color:rgba(255,255,255,.88);font-size:1.15rem;line-height:1.52;text-shadow:0 .1rem .6rem rgba(0,0,0,.3)}
+.tv-welcome-stay-card{grid-column:2;grid-row:2;align-self:end;width:100%;margin-bottom:1.1rem;padding:1.2rem 1.25rem;border:1px solid rgba(239,220,180,.38);border-radius:1rem;background:linear-gradient(145deg,rgba(14,27,27,.82),rgba(14,25,24,.62));box-shadow:0 1rem 2.8rem rgba(0,0,0,.24);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.tv-welcome-card-eyebrow{margin-bottom:.8rem;color:var(--tv-lux-accent,#ead4a0);font-size:.65rem;font-weight:800;letter-spacing:.19em;text-transform:uppercase}
+.tv-welcome-stay-details{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding-bottom:.9rem}
+.tv-welcome-stay-detail{display:flex;flex-direction:column;gap:.22rem;min-width:0}
+.tv-welcome-stay-detail small{color:rgba(255,255,255,.64);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
+.tv-welcome-stay-detail strong{overflow:hidden;color:#fff;font-size:1.1rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.tv-welcome-wifi{padding-top:.85rem;border-top:1px solid rgba(255,255,255,.16)}
+.tv-welcome-wifi-label{display:flex;align-items:center;gap:.45rem;color:rgba(255,255,255,.76);font-size:.8rem}
+.tv-welcome-wifi-icon{color:var(--tv-lux-accent,#ead4a0);font-size:1.1rem}
+.tv-welcome-wifi-name{display:block;margin-top:.32rem;color:#fff;font-size:1rem;letter-spacing:.025em}
+.tv-welcome-wifi-password{display:block;margin-top:.18rem;color:rgba(255,255,255,.7);font-size:.75rem}
+.tv-welcome-actions{grid-column:1;grid-row:3;display:flex;flex-direction:column;align-items:flex-start;gap:.65rem;align-self:end;min-width:0}
+.tv-welcome-screen .tv-welcome-continue{min-width:11rem;width:max-content;border:1px solid var(--tv-lux-accent,#ead4a0);border-radius:999px;background:var(--tv-lux-accent,#ead4a0);box-shadow:0 .45rem 1.5rem rgba(0,0,0,.22);color:#17201e;font-size:1rem;font-weight:750;letter-spacing:.01em}
+.tv-welcome-screen .tv-welcome-continue:focus{background:#fff2d1;border-color:#fff2d1}
+.tv-welcome-language{display:flex;flex-direction:column;gap:.28rem}
+.tv-welcome-language-label{color:rgba(255,255,255,.62);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase}
+.tv-welcome-language-list{display:flex;gap:.35rem;flex-wrap:wrap;margin:0}
+.tv-welcome-language-list .tv-btn{padding:.3rem .7rem;border:1px solid rgba(255,255,255,.23);border-radius:999px;background:rgba(7,15,16,.35);font-size:.7rem}
+.tv-welcome-language-list .tv-btn.on{border-color:var(--tv-lux-accent,#ead4a0);background:var(--tv-lux-accent-soft,rgba(234,212,160,.18));color:#fff}
+.tv-welcome-footer{grid-column:2;grid-row:3;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;align-self:end;padding-bottom:.35rem;color:rgba(255,255,255,.74);font-size:.63rem;font-weight:650;letter-spacing:.16em;text-align:right}
+.tv-welcome-footer-line{display:block;width:1.8rem;height:1px;background:var(--tv-lux-accent,#ead4a0)}
+.tv-welcome-layout-vacant{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+.tv-welcome-main-vacant{grid-column:1;max-width:60rem}
+.tv-welcome-main-vacant .tv-welcome-h{margin:.45rem 0;font-size:4.7rem!important}
+.tv-welcome-main-vacant .tv-welcome-lead{max-width:40rem}
+.tv-welcome-main-vacant .tv-welcome-actions{margin-top:1.25rem}
+.tv-welcome-layout-vacant .tv-welcome-footer{grid-column:1;justify-content:flex-start;text-align:left}
+
+/* Preview controls */
+.preview-bar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.1);padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;font-family:"Segoe UI",sans-serif;color:#fff}
+.preview-bar h1{margin:0;font-size:1rem;font-weight:600;letter-spacing:.03em}
+.preview-bar .sep{opacity:.3}
+.preview-bar button{font:inherit;font-size:.8rem;padding:.3rem .8rem;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:all .15s}
+.preview-bar button:hover{background:rgba(255,255,255,.15)}
+.preview-bar button.active{background:#ead4a0;color:#17201e;border-color:#ead4a0;font-weight:600}
+.preview-bar .lang-select{font-size:.8rem;padding:.3rem .6rem;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff}
+.preview-frame{position:absolute;top:2.8rem;left:0;right:0;bottom:0;overflow:auto}
+.preview-frame::-webkit-scrollbar{width:6px}
+.preview-frame::-webkit-scrollbar-track{background:#0b1220}
+.preview-frame::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+
+/* TV frame wrapper for demo — fills available space */
+.tv-frame{position:relative;width:100%;height:100%;border-radius:0;overflow:hidden;background:#000}
+.tv-frame-inner{position:absolute;inset:0;overflow:hidden}
+</style>
+</head>
+<body class="tv tv-th-forest" style="background:#0b1220;margin:0">
+
+<!-- Preview Content -->
+<div class="preview-frame" id="previewFrame" style="top:0">
+  <div class="tv-frame">
+    <div class="tv-frame-inner" id="tvFrameInner">
+
+      <!-- Welcome screen (hidden by default) -->
+      <section class="tv-welcome-screen" id="welcomeScreen" style="display:none">
+        <div class="tv-welcome-backdrop" aria-hidden="true">
+          <img class="tv-welcome-photo" src="/images/iptv/groove-esipong-beach-hotel.jpg" alt="">
+          <div class="tv-welcome-shade"></div>
+          <div class="tv-welcome-frame"></div>
+        </div>
+        <div class="tv-welcome-layout">
+          <div class="tv-welcome-brand">
+            <span class="tv-welcome-monogram"><img src="/images/iptv/groove-esipong-beach-resort-logo.png" alt="Groove Essipong Beach Resort"></span>
+            <span class="tv-welcome-brand-text">
+              <small id="brandWelcome">ACCRA · A WARM WELCOME</small>
+              <strong>Groove Beach Hotel</strong>
+            </span>
+          </div>
+          <div class="tv-welcome-main">
+            <p class="tv-welcome-kicker" id="kickerWelcome">ACCRA · A WARM WELCOME</p>
+            <span class="tv-welcome-rule" aria-hidden="true"></span>
+            <h1 class="tv-welcome-h" id="headlineWelcome">Akwaaba, Kwame!</h1>
+            <div class="tv-welcome-body">
+              <p>We are delighted to welcome you to Groove Beach Hotel. Relax, unwind, and make yourself at home.</p>
+              <p>Your stay with us begins now — enjoy everything our hotel has to offer.</p>
+            </div>
+          </div>
+          <div class="tv-welcome-stay-card">
+            <div class="tv-welcome-card-eyebrow">YOUR STAY</div>
+            <div class="tv-welcome-stay-details">
+              <div class="tv-welcome-stay-detail"><small>ROOM</small><strong>204</strong></div>
+              <div class="tv-welcome-stay-detail"><small>DEPARTURE</small><strong>27 Oct 2026</strong></div>
+              <div class="tv-welcome-stay-detail"><small>GUESTS</small><strong>2 Adults</strong></div>
+              <div class="tv-welcome-stay-detail"><small>NIGHTS</small><strong>3 Nights</strong></div>
+            </div>
+            <div class="tv-welcome-wifi">
+              <div class="tv-welcome-wifi-label"><span class="tv-welcome-wifi-icon">◔</span><span>Wi-Fi</span></div>
+              <strong class="tv-welcome-wifi-name">GrooveBeach-Guest</strong>
+              <span class="tv-welcome-wifi-password">Password · groove2026</span>
+            </div>
+          </div>
+          <div class="tv-welcome-actions">
+            <span class="tv-btn tv-big tv-primary tv-welcome-continue" onclick="showHome()">Continue ›</span>
+            <div class="tv-welcome-language">
+              <span class="tv-welcome-language-label">LANGUAGE</span>
+              <div class="tv-welcome-language-list">
+                <span class="tv-btn on">English</span>
+                <span class="tv-btn">Français</span>
+                <span class="tv-btn">Deutsch</span>
+                <span class="tv-btn">Español</span>
+                <span class="tv-btn">中文</span>
+              </div>
+            </div>
+          </div>
+          <div class="tv-welcome-footer">
+            <span class="tv-welcome-footer-line"></span>
+            <span>ACCRA · GHANA</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ POLISHED TV HOME SCREEN (default) ═══ -->
+      <div id="tvHomeScreen">
+        <!-- Hotel background image -->
+        <img id="tvHomeBg" src="/images/iptv/groove-esipong-beach-hotel.jpg" alt="Groove Beach Hotel" style="display:block">
+        <div id="tvHomeOverlay"></div>
+        <div id="tvHomeVignette"></div>
+
+        <div id="tvApp" style="height:100%;position:relative;z-index:2">
+          <!-- Main stage -->
+          <div class="tv-stage">
+            <div class="tv-home" style="grid-template-columns:24rem 1fr;gap:1.5rem">
+
+              <!-- Left side panel -->
+              <div class="tv-side-panel">
+                <!-- Hotel branding -->
+                <div class="tv-side-hotel">
+                  <span class="monogram"><img src="/images/iptv/groove-esipong-beach-resort-logo.png" alt="Groove Essipong Beach Resort"></span>
+                  <span class="tv-side-hotel-text">
+                    <small>WELCOME TO</small>
+                    <b>Groove Beach Hotel</b>
+                  </span>
+                </div>
+
+                <!-- Guest greeting -->
+                <div class="tv-greet">
+                  <span class="welcome-line">Akwaaba · Welcome · Bienvenue</span>
+                  <h2>Kwame</h2>
+                </div>
+
+                <!-- Stay details -->
+                <div class="tv-stay-card">
+                  <div class="tv-stay-card-title">YOUR STAY</div>
+                  <div class="tv-stay-grid">
+                    <div class="tv-stay-item"><small>Room</small><b>204</b></div>
+                    <div class="tv-stay-item"><small>Checkout</small><b>27 Oct</b></div>
+                    <div class="tv-stay-item"><small>Nights</small><b>3</b></div>
+                    <div class="tv-stay-item"><small>Balance</small><b class="credit">GH₵ 0.00</b></div>
+                  </div>
+                </div>
+
+                <!-- Wi-Fi -->
+                <div class="tv-wifi-card">
+                  <div class="tv-wifi-row"><span class="icon">◔</span><span>Wi-Fi</span></div>
+                  <strong class="tv-wifi-name">GrooveBeach-Guest</strong>
+                  <span class="tv-wifi-pass">Password · groove2026</span>
+                </div>
+              </div>
+
+              <!-- Right content area -->
+              <div class="tv-content">
+                <!-- Header -->
+                <div class="tv-content-header">
+                  <h2>TV Home</h2>
+                  <span class="sub">What would you like to explore?</span>
+                </div>
+
+                <!-- Scrollable content -->
+                <div class="tv-content-scroll">
+                  <!-- Featured + Weather -->
+                  <div class="tv-featured">
+                    <div class="tv-featured-card">
+                      <span class="tag">★ Featured · Beach Bar</span>
+                      <h3>Live Music Night</h3>
+                      <p>Live band at the Beach Bar — 20:00 tonight. Complimentary for in-house guests.</p>
+                      <div class="price">Free <small>· 8:00 PM</small></div>
+                    </div>
+                    <div class="tv-featured-side">
+                      <div class="tv-weather-card">
+                        <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></span>
+                        <div class="info">
+                          <span class="temp">31°C</span>
+                          <span class="desc">Clear skies</span>
+                          <span class="meta">Accra · Tide low 16:20</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tiles grid — sits just on top of ticker at bottom -->
+                <div class="tv-tiles-polished" style="margin-top:auto;margin-bottom:-2.8rem;position:relative;z-index:3">
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="label">Live TV</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16M16 4v16"/></svg></span><span class="label">Movies</span><span class="badge badge-gold">New</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h1a2 2 0 002-2V2M5 2v20M19 2v20M19 2c-2 0-3 2-3 4s1 4 3 4"/></svg></span><span class="label">Dining</span><span class="sub">Room service</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 18h18M6 18a6 6 0 1112 0M9 10V6M15 10V6M12 10V4"/></svg></span><span class="label">Services</span><span class="sub">Concierge</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span><span class="label">Bill</span><span class="badge">3</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg></span><span class="label">Hotel Info</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span class="label">Messages</span><span class="badge">2</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></span><span class="label">Weather</span><span class="sub">31°C clear</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 12h18M5 12V8a2 2 0 012-2h10a2 2 0 012 2v4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7M7 16h.01M17 16h.01"/></svg></span><span class="label">Transport</span><span class="sub">Airport · Tours</span></button>
+                  <button class="tv-tile-p"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 3 2 5 2 7v2a2 2 0 002 2h6a2 2 0 002-2v-2c0-2 2-4 2-7a7 7 0 00-7-7z"/><path d="M9 22h6"/></svg></span><span class="label">Spa & Wellness</span></button>
+                </div>
+
+                <!-- Ticker -->
+                <div class="tv-ticker-p" style="margin-top:-2.8rem">
+                  <span class="label">Now</span>
+                  <span class="content">☀️ Accra · 31°C · Clear skies · Tide low at 16:20 · Live music at the Beach Bar at 20:00 · Spa treatment of the day: couples massage</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vacant room welcome (hidden by default) -->
+      <section class="tv-welcome-screen tv-welcome-layout-vacant" id="vacantScreen" style="display:none">
+        <div class="tv-welcome-backdrop" aria-hidden="true">
+          <img class="tv-welcome-photo" src="/images/iptv/groove-esipong-beach-hotel.jpg" alt="">
+          <div class="tv-welcome-shade"></div>
+          <div class="tv-welcome-frame"></div>
+        </div>
+        <div class="tv-welcome-layout tv-welcome-layout-vacant">
+          <div class="tv-welcome-brand">
+            <span class="tv-welcome-monogram"><img src="/images/iptv/groove-esipong-beach-resort-logo.png" alt="Groove Essipong Beach Resort"></span>
+            <span class="tv-welcome-brand-text">
+              <small>WELCOME TO</small>
+              <strong>Groove Beach Hotel</strong>
+            </span>
+          </div>
+          <div class="tv-welcome-main tv-welcome-main-vacant">
+            <p class="tv-welcome-kicker">WELCOME TO ACCRA</p>
+            <span class="tv-welcome-rule" aria-hidden="true"></span>
+            <h1 class="tv-welcome-h">Groove Beach Hotel</h1>
+            <div class="tv-welcome-actions">
+              <span class="tv-btn tv-big tv-primary tv-welcome-continue">📺 Live TV</span>
+            </div>
+          </div>
+          <div class="tv-welcome-footer">
+            <span class="tv-welcome-footer-line"></span>
+            <span>ACCRA · GHANA</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+// Theme switching
+function setTheme(theme) {
+  document.body.className = 'tv tv-th-' + theme;
+  document.querySelectorAll('.preview-bar button').forEach(b => {
+    if (b.onclick && b.onclick.toString().includes('setTheme')) {
+      b.classList.toggle('active', b.textContent.trim() === theme.charAt(0).toUpperCase() + theme.slice(1));
+    }
+  });
+  var accents = {gold:'#ead4a0', ocean:'#b7e1dc', forest:'#c3dfbd', sunset:'#f1c6a2', night:'#d8cefa'};
+  document.documentElement.style.setProperty('--tv-lux-accent', accents[theme] || '#ead4a0');
+}
+
+// Screen switching
+function showWelcome() {
+  document.body.className = 'tv tv-th-forest tv-welcome-mode';
+  document.getElementById('welcomeScreen').style.display = 'flex';
+  document.getElementById('tvHomeScreen').style.display = 'none';
+  document.getElementById('vacantScreen').style.display = 'none';
+  setBtn('btn-welcome');
+}
+function showHome() {
+  document.body.className = 'tv tv-th-forest';
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('tvHomeScreen').style.display = 'block';
+  document.getElementById('vacantScreen').style.display = 'none';
+  setBtn('btn-home');
+}
+function showVacant() {
+  document.body.className = 'tv tv-th-forest tv-welcome-mode';
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('tvHomeScreen').style.display = 'none';
+  document.getElementById('vacantScreen').style.display = 'flex';
+  setBtn('btn-vacant');
+}
+function setBtn(id) {
+  document.querySelectorAll('.preview-bar button[id]').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Language switching
+var translations = {
+  en: {
+    kicker: 'ACCRA · A WARM WELCOME',
+    headline: 'Akwaaba, Kwame!',
+    body1: 'We are delighted to welcome you to Groove Beach Hotel. Relax, unwind, and make yourself at home.',
+    body2: 'Your stay with us begins now — enjoy everything our hotel has to offer.',
+    continue: 'Continue ›',
+    brand: 'ACCRA · A WARM WELCOME'
+  },
+  fr: {
+    kicker: 'ACCRA · UN CHALEUR ACCUEIL',
+    headline: 'Bienvenue, Kwame!',
+    body1: 'Nous sommes ravis de vous accueillir au Groove Beach Hotel. Détendez-vous et profitez de votre séjour.',
+    body2: 'Votre séjour chez nous commence maintenant — profitez de tout ce que notre hôtel a à offrir.',
+    continue: 'Continuer ›',
+    brand: 'ACCRA · UN CHALEUR ACCUEIL'
+  },
+  de: {
+    kicker: 'ACCRA · HEISSEN WILLKOMMEN',
+    headline: 'Herzlich willkommen, Kwame!',
+    body1: 'Wir freuen uns, Sie im Groove Beach Hotel begrüßen zu dürfen. Entspannen Sie sich und fühlen Sie sich wie zu Hause.',
+    body2: 'Ihr Aufenthalt bei uns beginnt jetzt — genießen Sie alles, was unser Hotel zu bieten hat.',
+    continue: 'Weiter ›',
+    brand: 'ACCRA · HEISSEN WILLKOMMEN'
+  },
+  es: {
+    kicker: 'ACCRA · UN CÁLID BIENVINIDO',
+    headline: '¡Bienvenido, Kwame!',
+    body1: 'Nos complace darle la bienvenida al Groove Beach Hotel. Relájese y disfrute de su estancia.',
+    body2: 'Su estancia con nosotros comienza ahora — disfrute de todo lo que nuestro hotel ofrece.',
+    continue: 'Continuar ›',
+    brand: 'ACCRA · UN CÁLID BIENVINIDO'
+  },
+  zh: {
+    kicker: '阿克拉 · 热烈欢迎',
+    headline: '欢迎，Kwame！',
+    body1: '我们很高兴欢迎您来到 Groove Beach Hotel。请放松身心，享受您的住宿。',
+    body2: '您的入住现在开始——尽情享受我们酒店的一切服务。',
+    continue: '继续 ›',
+    brand: '阿克拉 · 热烈欢迎'
+  }
+};
+
+function setLang(code) {
+  var t = translations[code] || translations.en;
+  document.getElementById('kickerWelcome').textContent = t.kicker;
+  document.getElementById('headlineWelcome').textContent = t.headline;
+  document.getElementById('brandWelcome').textContent = t.brand;
+  var body = document.querySelector('.tv-welcome-body');
+  if (body) {
+    body.innerHTML = '<p>' + t.body1 + '</p><p>' + t.body2 + '</p>';
+  }
+  var continueBtn = document.querySelector('.tv-welcome-continue');
+  if (continueBtn) continueBtn.textContent = t.continue;
+  var langs = document.querySelectorAll('.tv-welcome-language-list .tv-btn');
+  var labels = ['English','Français','Deutsch','Español','中文'];
+  langs.forEach((b, i) => b.classList.toggle('on', labels[i] === ({en:'English',fr:'Français',de:'Deutsch',es:'Español',zh:'中文'}[code])));
+}
+
+// Live clock
+function updateClock() {
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2,'0');
+  var m = String(now.getMinutes()).padStart(2,'0');
+  var el = document.getElementById('tvClock');
+  if (el) el.textContent = h + ':' + m;
+}
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>

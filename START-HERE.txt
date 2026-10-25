@@ -1,4 +1,4 @@
-Nowills PMS 7.34.0 — cPanel installation
+Nowills PMS 7.54.0 — cPanel installation
 Built from commit 103c96a
 
 This folder (nowills-pms) is the project root.

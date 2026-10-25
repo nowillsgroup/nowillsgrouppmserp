@@ -52,24 +52,30 @@ class FolioService
 
     public static function charge(Folio $folio, string $category, string $description, float $amount, ?bool $applyTax = true, array $extra = []): FolioTransaction
     {
-        self::assertOpen($folio);
-        $tax = $applyTax ? TaxService::forCategory($category, $amount) : ['rate' => 0, 'amount' => 0];
-        if (isset($extra['tax_rate'])) {
-            $tax = ['rate' => $extra['tax_rate'], 'amount' => round($amount * $extra['tax_rate'] / 100, 2)];
-            unset($extra['tax_rate']);
-        }
+        return DB::transaction(function () use ($folio, $category, $description, $amount, $applyTax, $extra) {
+            // Serialize charge posting with settlement/close so an opening-only
+            // folio cannot be closed without its newly posted charges being
+            // included in the decision to issue (or not issue) a tax invoice.
+            $folio = Folio::whereKey($folio->id)->lockForUpdate()->firstOrFail();
+            self::assertOpen($folio);
+            $tax = $applyTax ? TaxService::forCategory($category, $amount) : ['rate' => 0, 'amount' => 0];
+            if (isset($extra['tax_rate'])) {
+                $tax = ['rate' => $extra['tax_rate'], 'amount' => round($amount * $extra['tax_rate'] / 100, 2)];
+                unset($extra['tax_rate']);
+            }
 
-        return $folio->transactions()->create(array_merge([
-            'hotel_id' => $folio->hotel_id,
-            'business_date' => bdate()->toDateString(),
-            'type' => 'charge',
-            'category' => $category,
-            'description' => $description,
-            'amount' => round($amount, 2),
-            'tax_amount' => $tax['amount'],
-            'tax_rate' => $tax['rate'],
-            'posted_by' => auth()->id(),
-        ], $extra));
+            return $folio->transactions()->create(array_merge([
+                'hotel_id' => $folio->hotel_id,
+                'business_date' => bdate()->toDateString(),
+                'type' => 'charge',
+                'category' => $category,
+                'description' => $description,
+                'amount' => round($amount, 2),
+                'tax_amount' => $tax['amount'],
+                'tax_rate' => $tax['rate'],
+                'posted_by' => auth()->id(),
+            ], $extra));
+        });
     }
 
     public static function payment(Folio $folio, float $amount, int $paymentModeId, ?string $reference = null, string $category = 'settlement', string $type = 'payment', ?array $cheque = null): FolioTransaction
@@ -150,6 +156,9 @@ class FolioService
     public static function void(FolioTransaction $tx, string $reason): void
     {
         self::assertOpen($tx->folio);
+        if ($tx->isOpening()) {
+            throw new RuntimeException('Opening receivable balances are cutover records and cannot be voided as historical transactions. Correct an unused row in a new opening_ar batch before the opening TB is posted; otherwise use an approved live settlement or adjustment.');
+        }
         IncomeAuditService::assertCanVoid($tx); // v5.3: a day closed by the income audit is locked
         if (in_array($tx->source_type, ['online_payment', 'online_refund'])) {
             throw new RuntimeException('Online payments and refunds cannot be voided – refund the payment from Billing › Online Payments instead.');
@@ -165,21 +174,28 @@ class FolioService
     /** Settle and close the folio, generating a tax invoice number. */
     public static function close(Folio $folio): Folio
     {
-        DB::transaction(function () use ($folio) {
+        $openingOnly = false;
+        $closedFolio = DB::transaction(function () use ($folio, &$openingOnly) {
+            $folio = Folio::whereKey($folio->id)->lockForUpdate()->firstOrFail();
+            $openingOnly = $folio->transactions()->where('source_type', 'opening_ar')->where('type', 'opening_balance')->exists()
+                && ! $folio->activeTransactions()->where('type', 'charge')->exists();
             if (abs($folio->balance()) > 0.009) {
                 throw new RuntimeException('Folio balance must be zero before closing. Balance: '.money($folio->balance()));
             }
             $folio->update([
                 'status' => 'closed',
-                'invoice_no' => $folio->invoice_no ?: Numbering::next('invoice'),
+                'invoice_no' => $openingOnly ? null : ($folio->invoice_no ?: Numbering::next('invoice')),
                 'closed_at' => now(),
                 'closed_by' => auth()->id(),
             ]);
-            LoyaltyService::earn($folio);
+            if (! $openingOnly) {
+                LoyaltyService::earn($folio);
+            }
 
             return $folio;
         });
-        if (! $folio->isCreditNote()) {
+        $folio->setRawAttributes($closedFolio->getAttributes(), true);
+        if (! $openingOnly && ! $folio->isCreditNote()) {
             GstService::onClose($folio); // v3.0: invoice date, buyer snapshot, E-VAT stamp (outside the transaction – may call the GRA VSDC)
         }
 

@@ -1,0 +1,4 @@
+external_id,supplier_external_id,item_type,opening_date,document_date,due_date,supplier_ref,open_amount,currency,foreign_open_amount,fx_rate,fx_date,fx_basis,notes
+AP-OPEN-INV-1042,SUP-1001,bill,2026-10-22,2026-10-10,2026-11-09,INV-1042,1280.50,GHS,,,,,
+AP-OPEN-CREDIT-1002,SUP-1001,credit,2026-10-22,2026-10-20,,CR-1002,50.00,GHS,,,,,Unapplied supplier credit
+AP-OPEN-USD-1003,SUP-1002,bill,2026-10-22,2026-10-19,2026-11-18,USD-1003,1234.56,USD,100.00,12.3456,2026-10-19,legacy,Example foreign source carrying rate

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — POS Terminal</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+      <button class="sidebar-collapse" title="Collapse sidebar"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    </div>
+    <label class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="search" placeholder="Search modules…">
+    </label>
+    <nav class="nav">
+      <div class="nav-section-label">DASHBOARD</div>
+      <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Dashboard</a></div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg> Reports <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item"><a href="#">All Reports</a></div>
+          <div class="nav-item"><a href="#">My Reports &amp; Saved Views</a></div>
+        </div>
+      </div>
+      <div class="nav-section-label">OPERATIONS</div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> POS / Restaurant <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item nav-link-item active"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> POS Terminal</a></div>
+          <div class="nav-item"><a href="#">Orders &amp; Bills</a></div>
+          <div class="nav-item"><a href="#">Kitchen Display</a></div>
+          <div class="nav-item"><a href="#">KOT Printers</a></div>
+          <div class="nav-item"><a href="#">Print Station</a></div>
+          <div class="nav-item"><a href="#">Tables</a></div>
+          <div class="nav-item"><a href="#">Table QR Codes</a></div>
+          <div class="nav-item"><a href="#">Modifiers &amp; Add-ons</a></div>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <form class="top-search">
+        <svg class="i i-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Search guest, reservation, room, company, folio…  ( / )">
+      </form>
+      <div class="top-right">
+        <nav class="top-tools">
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span></button>
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg></span></button>
+          <span class="top-tool"><span class="top-tool-icon" style="background:var(--c-green-50);color:var(--c-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18M6 18a6 6 0 1112 0"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12Z"/><path d="M8.5 11h7M8.5 14.5h4"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></a>
+        </nav>
+        <span class="bdate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Sat, 24 Oct 2026</span>
+        <span class="hotel-switch"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;width:14px;height:14px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg> Groove Beach Hotel</span>
+        <div class="user-chip"><div class="avatar">AD</div></div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <div class="crumbs">Point of Sale / Groove Beach Bar &amp; Grill</div>
+          <h1>POS Terminal</h1>
+        </div>
+        <div class="actions">
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> Takeaway</button>
+          <button class="btn btn-accent"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 12h18M3 6h18M3 18h18"/></svg> Room Service</button>
+          <a class="btn" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Orders &amp; Bills</a>
+          <a class="btn" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Table QR</a>
+          <a class="btn" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Floor plan</a>
+        </div>
+      </div>
+
+      <!-- Workspace nav -->
+      <div class="pos-workspace-nav">
+        <a class="pos-workspace-link active"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> Terminal</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Orders &amp; Bills</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M5 6h14M5 18h14"/></svg> Kitchen</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> KOT Printers</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Print Station</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Tables</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Table QR</a>
+        <a class="pos-workspace-link"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg> Modifiers</a>
+      </div>
+
+      <!-- Mode tabs -->
+      <div class="pos-mode-tabs">
+        <span class="pos-mode-tab active"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Dine In</span>
+        <button type="button" class="pos-mode-tab"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg> Room Service</button>
+        <button type="button" class="pos-mode-tab"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> Take Away</button>
+      </div>
+
+      <!-- Outlet tabs -->
+      <div class="tabs">
+        <a class="active">Groove Beach Bar &amp; Grill</a>
+        <a>Poolside Bar</a>
+        <a>Lobby Café</a>
+      </div>
+
+      <!-- QR order alert -->
+      <div class="alert alert-warn qr-alert"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none;margin-top:.1rem"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><div><b>New guest orders (QR / portal) awaiting confirmation</b>
+        <a class="btn btn-sm btn-accent ml-1">Table 5 · 2 item(s)</a>
+        <a class="btn btn-sm btn-accent ml-1">Table 12 · 1 item(s)</a>
+      </div></div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat"><div class="ico" style="background:var(--c-blue-50);color:var(--c-blue)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><div><div class="v">14</div><div class="l">Tables</div></div></div>
+        <div class="stat"><div class="ico" style="background:var(--c-green-50);color:var(--c-green)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div><div><div class="v">6</div><div class="l">Running orders</div></div></div>
+        <div class="stat"><div class="ico" style="background:var(--c-amber-50);color:var(--c-amber)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><div><div class="v">5</div><div class="l">Free tables</div></div></div>
+        <div class="stat"><div class="ico" style="background:var(--c-purple-50);color:var(--c-purple)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div><div class="v">GH₵ 1,020.50</div><div class="l">Today's revenue</div></div></div>
+      </div>
+
+      <!-- Tables + Running orders -->
+      <div class="grid g-3-1">
+        <div class="card">
+          <div class="card-head">
+            <h3>Tables</h3>
+            <div class="legend">
+              <span><i style="background:#86efac"></i>Free</span>
+              <span><i style="background:#fca5a5"></i>Running</span>
+              <span><i style="background:#fcd34d"></i>Billed</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="tables-grid">
+              <button type="button" class="ptable free">
+                <div class="tn">1</div>
+                <div class="tiny muted">Terrace · 4 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">2</div>
+                  <div class="tiny muted">Terrace · 6 seats</div>
+                  <div class="small bold mt-1">GH₵ 185.00</div>
+                  <div class="tiny">3 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">3</div>
+                <div class="tiny muted">Terrace · 4 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">4<span class="badge badge-amber" style="margin-left:.3rem">QR 2</span></div>
+                  <div class="tiny muted">Terrace · 8 seats</div>
+                  <div class="small bold mt-1">GH₵ 92.00</div>
+                  <div class="tiny">5 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">5</div>
+                <div class="tiny muted">Main · 4 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable billed">
+                <a href="#" class="ptable-main">
+                  <div class="tn">6</div>
+                  <div class="tiny muted">Main · 2 seats</div>
+                  <div class="small bold mt-1">GH₵ 240.00</div>
+                  <div class="tiny">12 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">7</div>
+                <div class="tiny muted">Main · 6 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">8</div>
+                  <div class="tiny muted">Main · 4 seats</div>
+                  <div class="small bold mt-1">GH₵ 310.50</div>
+                  <div class="tiny">8 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">9</div>
+                <div class="tiny muted">Main · 2 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">10<span class="badge badge-amber" style="margin-left:.3rem">QR 1</span></div>
+                  <div class="tiny muted">Main · 4 seats</div>
+                  <div class="small bold mt-1">GH₵ 48.00</div>
+                  <div class="tiny">2 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">11</div>
+                <div class="tiny muted">Main · 8 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">12</div>
+                  <div class="tiny muted">Main · 6 seats</div>
+                  <div class="small bold mt-1">GH₵ 165.00</div>
+                  <div class="tiny">6 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+              <button type="button" class="ptable free">
+                <div class="tn">13</div>
+                <div class="tiny muted">Main · 4 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <button type="button" class="ptable free">
+                <div class="tn">14</div>
+                <div class="tiny muted">Main · 2 seats</div>
+                <div class="small text-green mt-1">Available</div>
+              </button>
+              <div class="ptable busy">
+                <a href="#" class="ptable-main">
+                  <div class="tn">15</div>
+                  <div class="tiny muted">Main · 6 seats</div>
+                  <div class="small bold mt-1">GH₵ 220.00</div>
+                  <div class="tiny">4 min ago</div>
+                </a>
+                <div class="ptable-actions">
+                  <a class="ptable-action" href="#" title="Edit order"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a>
+                  <a class="ptable-action" href="#" title="View invoice"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Running orders</h3></div>
+          <div class="card-body" style="padding-top:.3rem">
+            <ul class="list">
+              <li><div><a href="#" class="bold">POS-2026-0842</a><div class="tiny muted">Table 2 · Sarah Mensah</div></div><div class="right">GH₵ 185.00<br><span class="badge badge-green">open</span></div></li>
+              <li><div><a href="#" class="bold">POS-2026-0843</a><div class="tiny muted">Table 4 · Walk-in guest<span class="badge badge-amber">QR new</span></div></div><div class="right">GH₵ 92.00<br><span class="badge badge-green">open</span></div></li>
+              <li><div><a href="#" class="bold">POS-2026-0844</a><div class="tiny muted">Table 8 · James Kwame</div></div><div class="right">GH₵ 310.50<br><span class="badge badge-green">open</span></div></li>
+              <li><div><a href="#" class="bold">POS-2026-0845</a><div class="tiny muted">Table 10 · Walk-in guest<span class="badge badge-amber">QR new</span></div></div><div class="right">GH₵ 48.00<br><span class="badge badge-green">open</span></div></li>
+              <li><div><a href="#" class="bold">POS-2026-0846</a><div class="tiny muted">Table 12 · Aisha Bello</div></div><div class="right">GH₵ 165.00<br><span class="badge badge-amber">billed</span></div></li>
+              <li><div><a href="#" class="bold">POS-2026-0847</a><div class="tiny muted">Table 15 · Michael Osei</div></div><div class="right">GH₵ 220.00<br><span class="badge badge-green">open</span></div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

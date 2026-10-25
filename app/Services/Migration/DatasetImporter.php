@@ -25,6 +25,12 @@ interface DatasetImporter
      */
     public function columns(): array;
 
+    /** Example rows for a downloadable template; complex datasets may need several balanced examples. */
+    public function templateRows(): array;
+
+    /** Whether applying a validated batch is currently supported. */
+    public function supportsApply(): bool;
+
     /** Null when the row is importable, otherwise a human error message. */
     public function validateRow(array $row, ImportContext $ctx, int $rowNo): ?string;
 
@@ -34,6 +40,12 @@ interface DatasetImporter
      * @return array{status:string, message:?string, model_type:?string, model_id:?int}
      */
     public function importRow(array $row, ImportContext $ctx, bool $dryRun): array;
+
+    /** Optional cross-row validation before the importer processes a batch. */
+    public function validateBatch(array $rows, ImportContext $ctx): ?string;
+
+    /** Optional dataset-level finalization after row processing (e.g. reconcile a posting). */
+    public function afterRun(ImportContext $ctx, bool $dryRun): void;
 
     /**
      * Post-import reconciliation figures (dataset counts vs the live database).

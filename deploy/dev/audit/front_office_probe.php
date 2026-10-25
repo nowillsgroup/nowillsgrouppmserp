@@ -25,14 +25,19 @@ foreach ($menu as $sec) {
 
 $registry = config('pms.permissions');
 $flat = [];
-array_walk_recursive($registry, function ($v) use (&$flat) { if (is_string($v)) $flat[$v] = true; });
-// permissions may be keyed by name => label
-foreach ((array) $registry as $k => $v) { if (is_string($k)) $flat[$k] = true; }
+array_walk_recursive($registry, function ($label, $key) use (&$flat) {
+    if (is_string($key) && is_string($label)) $flat[$key] = true;
+});
 
 $permMissing = [];
+$foPerms = [];
 foreach ($pages as $p) {
-    if ($p['perm'] && !isset($flat[$p['perm']])) $permMissing[] = $p['perm'].' ('.$p['label'].')';
+    foreach (array_filter(array_map('trim', explode(',', (string) ($p['perm'] ?? '')))) as $key) {
+        $foPerms[$key] = true;
+        if (!isset($flat[$key])) $permMissing[] = $key.' ('.$p['label'].')';
+    }
 }
+$foPerms = array_keys($foPerms);
 
 // ---- 2. badge partial coverage ----
 $badgeSrc = file_get_contents('/app/resources/views/partials/sidebar-badge.blade.php');
@@ -69,13 +74,12 @@ foreach ($map as $mod => $d) {
 
 // ---- 4. role coverage: can the seeded roles actually reach these pages? ----
 $roles = [];
-$foPerms = array_values(array_unique(array_filter(array_column($pages, 'perm'))));
 if (class_exists('\\App\\Models\\Role')) {
     foreach (\App\Models\Role::all() as $r) {
         $have = [];
         foreach (['permissions'] as $rel) {
             if (method_exists($r, $rel)) {
-                try { $have = array_merge($have, collect($r->$rel)->pluck('name')->all()); } catch (\Throwable $e) {}
+                try { $have = array_merge($have, collect($r->$rel)->pluck('key')->all()); } catch (\Throwable $e) {}
             }
         }
         if (!$have && isset($r->permissions) && is_string($r->permissions)) $have = json_decode($r->permissions, true) ?: [];
