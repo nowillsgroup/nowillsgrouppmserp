@@ -1,19 +1,22 @@
-# Multi-currency supplier invoicing and settlement — v7.53–7.54
+# Multi-currency supplier invoicing, settlement and procurement — v7.53–7.54 + G4
 
-**Scope:** a supplier's invoice that arrives in the supplier's own currency — an OTA billing commission
-from its Amsterdam entity in euros, an international operator billing a management fee in dollars — and
-the path it takes through Accounts payable, all the way to the bank transfer that settles it.
-**Result:** a bill can be entered in the currency the supplier billed in, booked at the board and kept
-beside the cedi posting. A later payment can be made in that same currency, at the board for the payment
-date or at the rate on the bank's advice; the realised exchange difference is posted to Exchange Gain /
-Loss, while GRA withholding stays a separate GHS liability. The ledger, budget check, supplier balance,
-ageing, WHT return and bank reconciliation still have the cedi figures they expect. Open-bill revaluation
-is reported, never posted, until period end.
-**Evidence scripts:** `deploy/dev/audit/ap_fx.php` (84 checks — v7.53 invoice conversion),
+**Scope:** multi-currency supplier POs, GRNs, AP invoices and settlements — from an OTA commission
+billed by its Amsterdam entity in euros or an international operator's management fee in dollars, through
+the bank transfer that settles it.
+**Result:** manual foreign POs retain supplier-currency values and a PO-date rate for approvals; each GRN
+uses its receipt-date board for stock and the AP accrual; a matched bill uses the invoice-date board and
+separates receipt-to-invoice FX from genuine price/tax variance. Direct bills can also be entered in the
+supplier's currency. A later payment can be made in that same currency, at the board for the payment date
+or at the rate on the bank's advice; the realised exchange difference is posted to Exchange Gain / Loss,
+while GRA withholding stays a separate GHS liability. The ledger, budget check, supplier balance, ageing,
+WHT return and bank reconciliation still have the cedi figures they expect. Open-bill revaluation is
+reported, never posted, until period end.
+**Evidence scripts:** `deploy/dev/audit/ap_fx.php` (85 checks — v7.53 invoice conversion),
 `deploy/dev/audit/ap_fx_flow.py` (43 checks — invoice form to controller),
 `deploy/dev/audit/ap_fx_pay.php` (98 checks — v7.54 WHT-aware payment and journal),
 `deploy/dev/audit/ap_fx_pay_flow.py` (35 checks — settlement through the real payment form, detail, statement,
-remittance and ageing screen).
+remittance and ageing screen), and `deploy/dev/audit/procurement_fx.php` (37 rollback-only checks — G4 PO/GRN
+receipt-date FX, matched-bill accounting, FX quote endpoints, rendered procurement/AP screens, and AP register).
 
 ---
 
@@ -108,11 +111,7 @@ rather than a stack trace:
 2. **No rate on the board inside the window** — *"There is no USD rate on the forex board for 01 Aug 2026,
    and none in the 7 days before it. Set the rate under Foreign Guests › Exchange Rates, or enter the bill
    in GHS."*
-3. **A bill matched to a goods receipt** — *"A bill matched to a goods receipt is valued at the receipt,
-   which is in GHS. Enter it in GHS, or record the supplier's own document as a direct bill."* A
-   three-way match compares the bill to the receipt to the purchase order; converting one leg of it would
-   break the match and the stock valuation with it. Purchase-order currency is the next increment, not
-   this one.
+3. **A matched goods bill must use its PO currency.** Foreign-currency POs and GRNs are supported by G4: the PO is converted for approval values at its PO-date board, each GRN values stock and the AP accrual at that receipt-date board, and the matched supplier bill is converted at its invoice-date board. The foreign amounts are matched; receipt-to-invoice FX is posted separately to Exchange Gain / Loss, while genuine price/tax variance remains subject to AP tolerance and review. A document denominated differently from the PO cannot be matched; enter it as a direct bill or correct the PO currency.
 4. **A debit note in a third currency** — *"BILL-00008 was billed in EUR, so a debit note against it has
    to be in EUR too — the two are allocated against each other."* Left blank, a debit note **inherits**
    the currency of the bill it corrects.
@@ -226,14 +225,26 @@ bills is **reported, not posted**: revaluation belongs to period end and to a de
 the close uses. A payables screen quietly writing unrealised FX journals would be worse than no number
 at all.
 
+## G4: foreign-currency POs, GRNs and matched supplier bills
+
+`database/migrations/2026_10_21_000100_add_foreign_currency_to_purchase_orders_and_grns.php` adds nullable FX snapshots to POs, PO lines, GRNs, GRN lines, and the supplier invoice's receipt snapshot. Old records remain home-currency records; null FX fields are not backfilled or guessed.
+
+The manual PO form stores the supplier's unit prices and totals in the selected currency, alongside the PO-date Forex Desk rate, basis and board date. The PO's existing `subtotal`, `tax`, `total` and line `rate` remain in the property's currency; those values drive approval thresholds and purchase-price comparisons. A foreign PO cannot use the legacy one-step “mark received” action: it must be received through a GRN.
+
+Every foreign GRN reads the Forex Desk board for that GRN date, using the existing AP basis and carry-forward window. It stores both the original foreign amounts and the converted property-currency values. Stock movements and the GRN accrual use the converted local unit cost; the FX rate and the board's actual date/basis are retained on the GRN. A carried-forward rate is visible as such. A missing rate inside the configured window stops the receipt before stock or AP is changed.
+
+The matched supplier bill must use the PO's currency. Its amount is translated using the board for the **invoice date** (even when direct-bill policy is set to use business date). Matching compares the supplier-currency subtotal and tax represented by received goods to the invoice, then calculates the AP review threshold on the GRN amount revalued at the invoice-date rate:
+
+- **Receipt-to-invoice FX movement** = GRN foreign subtotal/tax at the invoice-date rate − the local GRN accrual at each receipt-date rate. A positive amount is an exchange loss; negative is a gain. When the bill posts, this is posted separately to the Exchange Gain / Loss system account.
+- **Price/tax variance** = supplier invoice local total − the received foreign amount revalued at invoice date. This alone is tested against AP tolerance and may put the bill on hold; it is posted to Purchase Price Variance after approval.
+
+The two posted movements net to the difference between the invoice-date payable and receipt-date AP accrual, without confusing FX movement with a supplier price/tax dispute. Paying the bill later still uses the existing AP settlement-date FX process.
+
+The first G4 flow is the manual PO form. RFQ quote entry and comparative sheets still require home-currency quotes; RFQ awards remain home-currency POs until cross-currency quote submission/comparison is designed.
+
 ## What this release deliberately does not do
 
-- **Purchase-order currency.** A PO, its receipt and its matched bill stay in the property's currency
-  (refusal 3 above). A supplier who bills goods in a foreign currency is recorded as a direct bill, with
-  the receipt matched by hand.
-- **Purchase-order currency.** A PO, its receipt and its matched bill stay in the property's currency
-  (refusal 3 above). A supplier who bills goods in a foreign currency is recorded as a direct bill, with
-  the receipt matched by hand.
+- **RFQ quote currency.** The RFQ portal and comparative quote sheet still require suppliers to quote in the property's currency, so RFQ awards remain home-currency POs. Foreign-currency POs are raised through the manual PO form; cross-currency RFQ comparison and foreign-currency quote submission are a separate increment.
 - **A separate foreign-currency bank subledger.** The payment journal and cash book carry the GHS
   equivalent of what left the bank; the transfer's original currency and amount stay on the payment for
   its audit trail and remittance. Bank-account revaluation and foreign-currency bank reconciliation are
@@ -255,7 +266,7 @@ presented as that day's board.
 
 ## Verification
 
-`deploy/dev/audit/ap_fx.php` — 84 checks: the four settings and both basis/date modes; the per-line
+`deploy/dev/audit/ap_fx.php` — 85 checks: the four settings and both basis/date modes; the per-line
 rounding, the tax conversion and the three refusals at the service layer; a real euro bill through
 `expenseBill()` with its journal, its note and all four model readers; a cedi bill proving the untouched
 path; debit-note inheritance and the third-currency refusal; the exposure arithmetic before and after a
@@ -275,3 +286,9 @@ the tax certificate side, controls, refusal paths and exposure.
 payment date, posts through `ApController::payStore()`, shows the payment in the register, supplier
 statement and remittance, separates realised from unrealised movement, cancels through the ordinary
 AP path and sweeps its own rows and journals from the disposable demo.
+
+`deploy/dev/audit/procurement_fx.php` — **37/37 checks passed on 21 Oct 2026**. The rollback-only
+transaction verifies PO-date valuation, receipt-date GRN/stock/AP values (including rejected goods),
+invoice-date matched-bill conversion and quote endpoints (including the stale-response guard), separate FX and price/tax ledger treatment,
+AP hold behavior, home-currency compatibility, and rendered PO, GRN and AP screens plus AP register. Test records and
+Forex Desk setting changes are rolled back.

@@ -21,8 +21,13 @@
   <button class="btn" data-modal="mailModal" title="E-mail {{ $folio->invoice_no ? 'invoice' : 'statement' }} to guest"><x-icon name="mail"/> E-mail</button>
 @endsection
 @section('content')
+@php $openingTx = $transactions->first(fn ($t) => $t->isOpening()); @endphp
+@if($openingTx)
+<div class="alert alert-info mb-1"><x-icon name="info"/><div><b>Opening receivable as at {{ $openingTx->opening_date?->format('d M Y') }}.</b> The source outstanding balance and reference are retained; historical revenue, tax, payment/refund and GL activity were not replayed. The opening trial balance establishes the receivable control once. This row cannot be voided or moved.</div></div>
+@endif
 <div class="stats">
   <x-stat label="Charges (incl. tax)" :value="money($totals['charges'])" icon="receipt" tone="blue"/>
+  @if(abs((float) $totals['opening']) > 0.004)<x-stat label="Opening balance" :value="money($totals['opening'])" icon="book" tone="amber"/>@endif
   <x-stat label="Discounts" :value="money($totals['discount'])" icon="star" tone="purple"/>
   <x-stat label="Payments" :value="money($totals['payments'] - $totals['refunds'])" icon="wallet" tone="green"/>
   <x-stat label="Balance" :value="money($totals['balance'])" icon="money" :tone="$totals['balance'] > 0 ? 'red' : 'teal'"/>
@@ -34,22 +39,23 @@
       <thead><tr>@if($folio->status === 'open' && can_do('folio.split'))<th style="width:28px"><input type="checkbox" title="Select all" onclick="document.querySelectorAll('.txsel').forEach(c => c.checked = this.checked); txCount()"></th>@endif<th>Date</th><th>Description</th><th>Category</th><th class="num">Amount</th><th class="num">Tax</th><th class="num">Debit</th><th class="num">Credit</th><th>By</th><th></th></tr></thead><tbody>
       @forelse($transactions as $t)
         <tr class="{{ $t->is_void ? 'void' : '' }}">
-          @if($folio->status === 'open' && can_do('folio.split'))<td>@unless($t->is_void)<input type="checkbox" class="txsel" name="tx[]" value="{{ $t->id }}" form="moveForm" onchange="txCount()">@endunless</td>@endif
+          @if($folio->status === 'open' && can_do('folio.split'))<td>@if(! $t->is_void && ! $t->isOpening())<input type="checkbox" class="txsel" name="tx[]" value="{{ $t->id }}" form="moveForm" onchange="txCount()">@endif</td>@endif
           <td class="nowrap">{{ $t->business_date->format('d M') }}</td>
-          <td>{{ $t->description }} @if($t->reference)<span class="tiny muted">#{{ $t->reference }}</span>@endif @if($t->paymentMode)<span class="badge badge-slate">{{ $t->paymentMode->name }}</span>@endif @if($t->company)<span class="badge badge-blue">{{ $t->company->name }}</span>@endif
+          <td>{{ $t->description }} @if($t->reference)<span class="tiny muted">#{{ $t->reference }}</span>@endif @if($t->isOpening())<span class="badge badge-amber">opening · {{ $t->opening_date?->format('d M Y') }}</span>@endif @if($t->paymentMode)<span class="badge badge-slate">{{ $t->paymentMode->name }}</span>@endif @if($t->company)<span class="badge badge-blue">{{ $t->company->name }}</span>@endif
+            @if($t->due_date)<div class="tiny muted">Source due {{ $t->due_date->format('d M Y') }}</div>@endif
             @if($t->cheque_number)<div class="tiny muted">Cheque {{ $t->cheque_number }} · {{ $t->cheque_bank_name ?: 'Bank not recorded' }}{{ $t->cheque_bank_branch ? ' · '.$t->cheque_bank_branch : '' }}</div>@endif
             @if($t->is_void)<div class="tiny text-red">Void: {{ $t->void_reason }}</div>@endif</td>
           <td class="small">{{ config('pms.charge_categories.'.$t->category, ucwords(str_replace('_',' ',$t->category))) }}</td>
-          <td class="num">{{ $t->type === 'charge' ? money($t->amount, false) : '' }}</td>
+          <td class="num">{{ $t->type === 'charge' || $t->isOpening() ? money($t->amount, false) : '' }}</td>
           <td class="num">{{ $t->type === 'charge' && $t->tax_amount > 0 ? money($t->tax_amount, false).' ('.(float)$t->tax_rate.'%)' : '' }}</td>
-          <td class="num">{{ in_array($t->type, ['charge','refund']) ? money($t->total, false) : '' }}</td>
+          <td class="num">{{ in_array($t->type, ['charge','refund']) || $t->isOpening() ? money($t->total, false) : '' }}</td>
           <td class="num">{{ in_array($t->type, ['payment','discount','allowance']) ? money($t->amount, false) : '' }}</td>
-          <td class="tiny muted">{{ $t->poster?->username ?? ($t->source_type === 'online_payment' ? 'online' : '') }}</td>
-          <td>@if(!$t->is_void && $folio->status === 'open' && can_do('folio.void') && ! in_array($t->source_type, ['online_payment', 'online_refund']))<button class="btn btn-sm btn-ghost" data-modal="voidModal" data-action="{{ route('folios.void', $t) }}" title="Void"><x-icon name="x" size="sm"/></button>@endif</td>
+          <td class="tiny muted">{{ $t->poster?->username ?? ($t->source_type === 'online_payment' ? 'online' : 'migration') }}</td>
+          <td>@if(!$t->is_void && ! $t->isOpening() && $folio->status === 'open' && can_do('folio.void') && ! in_array($t->source_type, ['online_payment', 'online_refund']))<button class="btn btn-sm btn-ghost" data-modal="voidModal" data-action="{{ route('folios.void', $t) }}" title="Void"><x-icon name="x" size="sm"/></button>@endif</td>
         </tr>
       @empty <tr><td colspan="9"><x-empty text="No transactions yet." icon="receipt"/></td></tr> @endforelse
       </tbody>
-      <tfoot><tr><td colspan="{{ $folio->status === 'open' && can_do('folio.split') ? 6 : 5 }}" class="right">Totals</td><td class="num">{{ money($totals['charges'] + $totals['refunds'], false) }}</td><td class="num">{{ money($totals['payments'] + $totals['discount'], false) }}</td><td colspan="2"></td></tr></tfoot>
+      <tfoot><tr><td colspan="{{ $folio->status === 'open' && can_do('folio.split') ? 6 : 5 }}" class="right">Totals</td><td class="num">{{ money($totals['charges'] + $totals['opening'] + $totals['refunds'], false) }}</td><td class="num">{{ money($totals['payments'] + $totals['discount'], false) }}</td><td colspan="2"></td></tr></tfoot>
     </table></div></div>
   <div>
     <div class="card"><div class="card-head"><h3>Folio Details</h3></div><div class="card-body"><dl class="kv">

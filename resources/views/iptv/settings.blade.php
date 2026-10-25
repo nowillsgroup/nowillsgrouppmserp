@@ -1,9 +1,16 @@
 @extends('layouts.app')
 @section('title', 'IPTV Settings')
 @section('crumbs') IPTV &amp; Guest Welcome / Settings @endsection
-@php $IS = \App\Services\IptvService::class; $L = \App\Support\TvLang::LANGS; $cb = fn ($k, $label) => '<label class="small tv-cb"><input type="checkbox" name="'.$k.'" value="1" '.(($raw['tv_'.$k] ?? '0') === '1' ? 'checked' : '').'> '.e($label).'</label>'; @endphp
+@push('head')
+<style>
+.tv-settings-image{height:10rem;position:relative;overflow:hidden;border-radius:14px;margin-bottom:1rem;background:#0d171a;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.tv-settings-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 55%}
+.tv-settings-image span{position:absolute;left:.85rem;bottom:.75rem;padding:.3rem .55rem;border:1px solid rgba(239,215,171,.42);border-radius:999px;background:rgba(6,15,17,.72);color:#fff5df;font-size:.63rem;font-weight:800;letter-spacing:.13em}
+</style>
+@endpush
+@php $welcomeImageUrl = parse_url(asset($welcomeImage), PHP_URL_PATH) ?: '/'.ltrim($welcomeImage, '/'); $IS = \App\Services\IptvService::class; $L = \App\Support\TvLang::LANGS; $cb = fn ($k, $label) => '<label class="small tv-cb"><input type="checkbox" name="'.$k.'" value="1" '.(($raw['tv_'.$k] ?? '0') === '1' ? 'checked' : '').'> '.e($label).'</label>'; @endphp
 @section('content')
-<form method="post" action="{{ route('iptv.settings.save') }}" id="tvSettingsForm">@csrf
+<form method="post" action="{{ route('iptv.settings.save') }}" id="tvSettingsForm" enctype="multipart/form-data">@csrf
 <div class="g-2">
   <div>
     <div class="card"><div class="card-head"><h3>Guest portal on the TV</h3></div><div class="card-body form-grid">
@@ -14,6 +21,11 @@
       <div class="span-all">{!! $cb('dining', 'In-room dining menu & ordering') !!}{!! $cb('requests', 'Service requests & wake-up calls') !!}{!! $cb('checkout', 'Express check-out request') !!}{!! $cb('feedback', 'Star-rating feedback') !!}{!! $cb('weather', 'Weather (open-meteo.com, no key needed)') !!}</div>
       <div class="field"><label>Front-desk extension shown</label><input name="desk_ext" maxlength="8" value="{{ $raw['tv_desk_ext'] }}"></div>
       <div class="field"><label>Latitude / longitude (weather)</label><div class="flex" style="gap:.3rem"><input name="lat" value="{{ $raw['tv_lat'] }}"><input name="lon" value="{{ $raw['tv_lon'] }}"></div></div>
+    </div></div>
+    <div class="card" id="tvWelcomeImage"><div class="card-head"><h3>Luxury welcome screen</h3><span class="tiny muted">Full-screen hotel photograph</span></div><div class="card-body">
+      <div class="tv-settings-image"><img src="{{ $welcomeImageUrl }}" alt="Current hotel photo shown behind the guest welcome"><span>ROOM TV WELCOME · HOTEL PHOTO</span></div>
+      <div class="field"><label for="tvWelcomeImageFile">Replace the welcome photo</label><input id="tvWelcomeImageFile" type="file" name="welcome_image_file" accept="image/jpeg,image/png,image/webp"><span class="tiny muted">JPG, PNG or WebP, up to 4 MB. The image appears full-screen behind the guest greeting.</span></div>
+      <label class="small tv-cb mt-1"><input type="checkbox" name="reset_welcome_image" value="1"> Restore the supplied Groove Esipong Beach Hotel photo</label>
     </div></div>
     <div class="card"><div class="card-head"><h3>Movies & privacy</h3></div><div class="card-body form-grid">
       <div class="span-all">{!! $cb('vod_enabled', 'Movie rentals (charged to the room folio)') !!}{!! $cb('pin_purchase', 'Rentals need the room PIN (given at check-in)') !!}{!! $cb('pin_bill', 'Viewing the bill needs the room PIN') !!}{!! $cb('adult', 'Offer adult titles (always PIN-protected)') !!}</div>

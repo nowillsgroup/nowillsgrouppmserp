@@ -43,12 +43,12 @@
 @php $od = ! $b->isDebitNote() && in_array($b->status, ['open', 'partial']) ? $b->daysOverdue() : 0; @endphp
 <tr>
   <td><a class="bold" href="{{ route('ap.bills.show', $b) }}">{{ $b->doc_no }}</a>
-    <div class="tiny muted">@if($b->isDebitNote())Debit note @elseif($b->kind === 'goods')Goods · <a href="{{ route('purchases.show', $b->purchase_order_id) }}">{{ $b->purchaseOrder?->po_no }}</a>@else Expense @endif</div></td>
+    <div class="tiny muted">@if($b->isOpening())Opening {{ $b->isDebitNote() ? 'supplier credit' : 'payable balance' }} as at {{ $b->opening_date?->format('d M Y') }}@elseif($b->isDebitNote())Debit note @elseif($b->kind === 'goods')Goods · <a href="{{ route('purchases.show', $b->purchase_order_id) }}">{{ $b->purchaseOrder?->po_no }}</a>@else Expense @endif</div></td>
   <td>{{ $b->supplier->name }}</td>
   <td>{{ $b->supplier_ref ?? '—' }}</td>
   <td class="nowrap">{{ $b->doc_date->format('d M Y') }}</td>
   <td class="nowrap {{ $od ? 'text-red bold' : '' }}">{{ $b->isDebitNote() ? '—' : $b->due_date?->format('d M Y') }}@if($od)<div class="tiny">{{ $od }} days overdue</div>@endif</td>
-  <td class="num">{{ $b->isDebitNote() ? '−' : '' }}{{ money($b->total, false) }}@if($b->isForeign())<div class="tiny muted">{{ $b->fxLabel() }} at {{ number_format((float) $b->fx_rate, 4) }}</div>@endif @if($b->variance())<div class="tiny {{ $b->status === 'on_hold' ? 'text-red' : 'muted' }}">var {{ money($b->variance(), false) }}</div>@endif</td>
+  <td class="num">{{ $b->isDebitNote() ? '−' : '' }}{{ money($b->total, false) }}@if($b->isForeign())<div class="tiny muted">{{ $b->fxLabel() }} at {{ number_format((float) $b->fx_rate, 4) }}@if($b->kind === 'goods' && ! $b->isDebitNote() && $b->fxDifference() != 0) · FX {{ $b->fxDifference() > 0 ? 'loss' : 'gain' }} {{ money(abs($b->fxDifference()), false) }}@endif</div>@endif @if($b->variance())<div class="tiny {{ $b->status === 'on_hold' ? 'text-red' : 'muted' }}">price/tax var {{ money($b->variance(), false) }}</div>@endif</td>
   <td class="num">{{ money($b->allocated, false) }}</td>
   <td class="num bold">{{ money($b->outstanding(), false) }}</td>
   <td>{!! status_badge($b->status) !!}</td>

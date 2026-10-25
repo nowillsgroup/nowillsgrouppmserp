@@ -3,6 +3,8 @@
 **Date:** 13 Oct 2026 · **Branch:** `arena/49a44449-nowillsgrouppmserp` · **Base:** `64083f4` · **Release:** v7.43
 **Question asked:** *are all the HR and workforce functions, features and modules fully developed — and built to meet Ghana's HR and payroll standards?*
 
+**Navigation follow-up (20 Oct 2026):** This report's 36-page count is the original v7.43 / 13 Oct audit snapshot. The current `HR & Workforce` menu has **40 pages** (HR & Payroll has 24): the HR Self-Service Desk and three employee pages are now listed. `hr_pages.json` and `menu-hr.json` were regenerated from the live menu, and the updated sweep returned **40/40 HTTP 200**, with no structural defects or stub markers. Employee links remain hidden unless the login has an active linked employee record; the default dev admin correctly sees the explanatory unlinked state on those pages. The current module totals are in [`MODULES.md`](MODULES.md), and the remediation is recorded in the 20 Oct whole-codebase audit.
+
 **Answer, in two parts.**
 
 1. **As software: yes.** The section is not a set of mock-ups. All **36** menu pages of the three
@@ -93,8 +95,8 @@ application (Laravel on WASM PHP 8.5.11, SQLite, dev server on :8000, hotel NOWI
 
 | Harness | What it does | Output |
 |---|---|---|
-| `deploy/dev/audit/menu-hr.json` · `hr_pages.json` | resolves the `PEOPLE` section of `config('pms.menu')` into pages, permissions and badges | 36 pages |
-| `deploy/dev/audit/hr_sweep.py` | GETs all 36, asserts the structural fingerprint (doctype first, exactly one `<html>`/`<body>`), counts tables/rows/forms/write buttons, hunts stub markers and empty phrases | `hr_http.json` — **36/36 = 200**, 0 stubs |
+| `deploy/dev/audit/menu-hr.json` · `hr_pages.json` | resolves the current `PEOPLE` section of `config('pms.menu')` into pages, permissions and badges | **40 current pages** (the original audit snapshot was 36) |
+| `deploy/dev/audit/hr_sweep.py` | GETs every current HR menu page, asserts the structural fingerprint (doctype first, exactly one `<html>`/`<body>`), counts tables/rows/forms/write buttons, hunts stub markers and empty phrases | `hr_http.json` — **40/40 = 200**, 0 stubs, 0 structural defects; empty states on unlinked ESS pages are expected |
 | `deploy/dev/audit/hr_paye_engine.php` | replays the tax engine against published GRA figures: schedule selection by month, Aug→Oct deltas for 6 incomes, all four GRA treatments, seeding of components/leave types/settings, the 2026 and 2027 holiday calendars | console transcript |
 | `deploy/dev/audit/hr_paye_check.php` | replays **every payslip of every payroll run** and recomputes the tax with the bands *in force for that month*, personal reliefs included | §6 tables — delta 0.00 on all four runs |
 | `deploy/dev/audit/hr_paye_flow.py` | drives the UI: recalculates the October draft, creates the September run through Payroll › New run, marks 21 Sep as a worked public holiday on HR › Attendance, recalculates, reads the statutory tabs | §8, §9 |

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HR & Workforce — HTTP render sweep of every menu page of the three HR modules.
 
-GETs the 36 menu pages resolved in deploy/dev/audit/hr_pages.json, asserts the
+GETs every HR menu page resolved in deploy/dev/audit/hr_pages.json, asserts the
 structural fingerprint enforced elsewhere in this repo (leading doctype, exactly
 one <html>/<body>), records how much real content each page carries (tables,
 rows, forms, write buttons, links), and hunts for stub markers (TODO / not

@@ -22,10 +22,18 @@ class FolioTransaction extends Model
     {
         return [
             'business_date' => 'date',
+            'opening_date' => 'date',
+            'due_date' => 'date',
             'is_void' => 'boolean',
             'amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
         ];
+    }
+
+    /** True for a cutover receivable balance that did not replay a historical posting. */
+    public function isOpening(): bool
+    {
+        return $this->opening_date !== null;
     }
 
     public function folio()

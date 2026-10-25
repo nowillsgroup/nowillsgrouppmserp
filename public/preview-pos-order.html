@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — POS Order Terminal</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+    </div>
+    <label class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="search" placeholder="Search modules…">
+    </label>
+    <nav class="nav">
+      <div class="nav-section-label">DASHBOARD</div>
+      <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Dashboard</a></div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg> Reports <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item"><a href="#">All Reports</a></div>
+          <div class="nav-item"><a href="#">My Reports &amp; Saved Views</a></div>
+        </div>
+      </div>
+      <div class="nav-section-label">OPERATIONS</div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> POS / Restaurant <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> POS Terminal</a></div>
+          <div class="nav-item nav-link-item active"><a href="#">Order Terminal</a></div>
+          <div class="nav-item"><a href="#">Orders &amp; Bills</a></div>
+          <div class="nav-item"><a href="#">Kitchen Display</a></div>
+          <div class="nav-item"><a href="#">KOT Printers</a></div>
+          <div class="nav-item"><a href="#">Modifiers &amp; Add-ons</a></div>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <form class="top-search"><svg class="i i-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Search guest, reservation, room, company, folio…  ( / )"></form>
+      <div class="top-right">
+        <nav class="top-tools">
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span></button>
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg></span></button>
+          <span class="top-tool"><span class="top-tool-icon" style="background:var(--c-green-50);color:var(--c-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18M6 18a6 6 0 1112 0"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12Z"/><path d="M8.5 11h7M8.5 14.5h4"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></a>
+        </nav>
+        <span class="bdate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Sat, 24 Oct 2026</span>
+        <span class="hotel-switch"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;width:14px;height:14px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg> Groove Beach Hotel</span>
+        <div class="user-chip"><div class="avatar">AD</div></div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <div><div class="crumbs">Point of Sale / Order Terminal</div><h1>Order Terminal — Table 2</h1></div>
+        <div class="actions">
+          <span class="badge badge-green">open</span>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M5 12h14M5 6h14M5 18h14"/></svg>Merge</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></svg>Split bill</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 8.5 8.5 21M18 18 16 16M21 15.5 8.5 3M6 18l-2-2"/></svg>Move</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M20.49 9A9 9 0 0 0 5.64 5.64L10.58 10M20.49 15A9 9 0 0 0 5.64 18.36L10.58 14M12 7v.01"/></svg>Allergies</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>Void</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Print Bill</button>
+          <button class="btn btn-accent"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Take payment</button>
+          <button class="btn btn-danger"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Refund payment</button>
+        </div>
+      </div>
+
+      <!-- Allergy banner (alert-error) -->
+      <div class="alert alert-error"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none;margin-top:.1rem"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><div><b>Guest allergies: Peanuts</b> – Sarah Mensah<div class="tiny">Items containing these are blocked until you confirm them with the chef; the KOT and kitchen display carry the warning.</div></div><button class="btn btn-sm btn-ghost">view</button></div>
+
+      <!-- Order context cells -->
+      <div class="pos-order-context">
+        <div class="pos-context-cell"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span><small>Table / service</small><b>Table 2 · Terrace</b></span></div>
+        <div class="pos-context-cell pos-context-action"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><small>Customer</small><b>Sarah Mensah</b></span></div>
+        <div class="pos-context-cell pos-context-action"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span><small>Pax</small><b>2</b></span></div>
+        <div class="pos-context-cell pos-context-action"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span><small>Waiter</small><b>Aduwa Duah</b></span></div>
+        <div class="pos-context-cell"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span><small>Ref. #</small><b>POS-2026-0842</b></span></div>
+      </div>
+
+      <!-- pos wrapper: grid 1fr 400px -->
+      <div class="pos">
+        <!-- Left: catalog -->
+        <div>
+          <div class="flex gap-1 mb-1">
+            <input class="input" placeholder="Search item name or code…" style="max-width:320px">
+            <button type="button" class="btn btn-accent"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 5v14M5 12h14"/></svg> Add open item</button>
+          </div>
+          <div class="pos-catalog">
+            <div class="pos-cats">
+              <button type="button" class="active">All</button>
+              <button type="button">Starters</button>
+              <button type="button">Mains</button>
+              <button type="button">Grills</button>
+              <button type="button">Bar &amp; Cocktails</button>
+              <button type="button">Desserts</button>
+              <button type="button">Beverages</button>
+            </div>
+            <div class="pos-items">
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot nonveg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot nonveg"></span><span class="tiny muted">PR01</span></span>
+                <b>Grilled Jumbo Prawns</b>
+                <span class="p">GH₵ 45.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg"></span><span class="tiny muted">ST02</span></span>
+                <b>Avocado Toast</b>
+                <span class="p">GH₵ 22.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot vegan"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot vegan"></span><span class="tiny muted">ST03</span></span>
+                <b>Waxy Grilled Plantain</b>
+                <span class="p">GH₵ 12.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot nonveg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot nonveg"></span><span class="tiny muted">SO01</span></span>
+                <b>Goats Light Soup</b>
+                <span class="p">GH₵ 28.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot nonveg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot nonveg"></span><span class="tiny muted">MN05</span></span>
+                <b>Banku &amp; Tilapia</b>
+                <span class="p">GH₵ 35.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg"></span><span class="tiny muted">SO02</span></span>
+                <b>Shito Sauce</b>
+                <span class="p">GH₵ 8.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot nonveg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot nonveg"></span><span class="tiny muted">GR01</span></span>
+                <b>Spiced Leg of Lamb</b>
+                <span class="p">GH₵ 78.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot egg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot egg"></span><span class="tiny muted">ST04</span></span>
+                <b>Caesar Salad</b>
+                <span class="p">GH₵ 25.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot nonveg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot nonveg"></span><span class="tiny muted">GR02</span></span>
+                <b>Grilled Beef Fillet</b>
+                <span class="p">GH₵ 72.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot vegan"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot vegan"></span><span class="tiny muted">CO01</span></span>
+                <b>Classic Margarita</b>
+                <span class="p">GH₵ 18.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot vegan"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot vegan"></span><span class="tiny muted">BE01</span></span>
+                <b>Fresh Juice Blends</b>
+                <span class="p">GH₵ 10.00</span>
+              </button>
+              <button type="button" class="pos-item">
+                <span class="pos-photo pos-photo-empty"><span class="veg-dot egg"></span></span>
+                <span class="pos-meta flex items-center gap-1"><span class="veg-dot egg"></span><span class="tiny muted">DE01</span></span>
+                <b>Chocolate Lava Cake</b>
+                <span class="p">GH₵ 15.00</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: cart -->
+        <div class="cart">
+          <!-- New items form -->
+          <form class="card" id="kotForm">
+            <div class="card-head"><h3>New items</h3><button type="button" class="btn btn-sm btn-ghost">Clear</button></div>
+            <div class="cart-table-head" aria-hidden="true"><span>Item / rate</span><span>Qty</span><span>Amount</span></div>
+            <div class="card-body cart-lines">
+              <div class="muted small">Tap a menu item, or add an open item. Tick Hold if the kitchen should wait.</div>
+            </div>
+            <div class="card-foot flex justify-between items-center"><b>0.00</b><button class="btn btn-accent" disabled><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Send KOT</button></div>
+            <details class="small" style="padding:.4rem .8rem .7rem">
+              <summary class="muted">Printer options</summary>
+              <label class="check"><input type="radio" name="print_to" value="auto" checked> Auto-route each dish to its station printer</label>
+              <label class="check"><input type="radio" name="print_to" value="combined"> One combined sheet</label>
+              <label class="check"><input type="radio" name="print_to" value="selected"> Only the printers I tick</label>
+              <div class="kot-picks" style="margin-top:.35rem">
+                <label class="check"><input type="checkbox" name="printers[]" value="1" checked> Kitchen — Hot <span class="tiny muted">station</span></label>
+                <label class="check"><input type="checkbox" name="printers[]" value="2" checked> Bar &amp; Beverage <span class="tiny muted">station</span></label>
+                <label class="check"><input type="checkbox" name="printers[]" value="3"> Grill — Captain <span class="tiny muted">captain</span></label>
+              </div>
+              <label class="check"><input type="checkbox" name="force_printers" value="1"> Send every item to each ticked printer (use when a station printer is down)</label>
+            </details>
+          </form>
+
+          <!-- Order card -->
+          <div class="card">
+            <div class="card-head">
+              <h3>Order POS-2026-0842</h3>
+              <span class="small muted">2 cover(s) · Sarah Mensah</span>
+            </div>
+            <div class="card-body cart-lines" style="padding-top:.2rem">
+              <!-- KOT-01 items -->
+              <div class="tiny muted mt-1">KOT #1 <a href="#">all printers</a> <a href="#">Kitchen — Hot</a></div>
+              <div class="cart-line">
+                <div><b class="small">Grilled Jumbo Prawns</b> <span class="badge badge-amber" style="font-size:.62rem" title="Kitchen status">preparing</span><div class="tiny muted">1 × GH₵ 45.00</div></div>
+                <b class="small">GH₵ 45.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="cart-line">
+                <div><b class="small">Avocado Toast</b> <span class="badge badge-amber" style="font-size:.62rem" title="Kitchen status">preparing</span><div class="tiny muted">1 × GH₵ 22.00</div></div>
+                <b class="small">GH₵ 22.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="cart-line">
+                <div><b class="small">Waxy Grilled Plantain</b> <span class="badge badge-slate" style="font-size:.62rem" title="Kitchen status">served</span><div class="tiny muted">1 × GH₵ 12.00</div></div>
+                <b class="small">GH₵ 12.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="cart-line">
+                <div><b class="small">Goats Light Soup</b> <span class="badge badge-amber" style="font-size:.62rem" title="Kitchen status">preparing</span><div class="tiny muted">1 × GH₵ 28.00</div></div>
+                <b class="small">GH₵ 28.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <!-- KOT-02 items -->
+              <div class="tiny muted mt-1">KOT #2 <a href="#">all printers</a> <a href="#">Bar &amp; Beverage</a></div>
+              <div class="cart-line">
+                <div><b class="small">Classic Margarita</b> <span class="badge badge-amber" style="font-size:.62rem" title="Kitchen status">preparing</span><div class="tiny muted">2 × GH₵ 18.00</div></div>
+                <b class="small">GH₵ 36.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="cart-line">
+                <div><b class="small">Fresh Juice Blends</b> <span class="badge badge-blue" style="font-size:.62rem" title="Kitchen status">held</span><div class="tiny muted">1 × GH₵ 10.00</div></div>
+                <b class="small">GH₵ 10.00</b>
+                <span class="nowrap"><button class="btn btn-sm btn-ghost" title="Give this dish away">Comp</button><button class="btn btn-sm btn-ghost btn-icon" title="Cancel item"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+            </div>
+
+            <!-- Totals -->
+            <div class="card-body" style="border-top:1px solid var(--c-border)">
+              <ul class="list">
+                <li><span>Subtotal</span><span>GH₵ 153.00</span></li>
+                <li><span>Discount</span><span>- GH₵ 0.00</span></li>
+                <li><span>Service charge</span><span>GH₵ 7.65</span></li>
+                <li><span>Tax</span><span>GH₵ 19.96</span></li>
+                <li style="font-size:1.15rem"><b>Total</b><b>GH₵ 180.61</b></li>
+              </ul>
+            </div>
+
+            <!-- Discount + bill -->
+            <div class="card-foot">
+              <div class="flex gap-1 mb-1">
+                <span class="tiny bold muted" style="white-space:nowrap">Apply discount</span>
+                <input class="input input-sm" type="number" step="0.01" min="0" placeholder="Amount" style="width:100px" aria-label="Discount amount">
+                <select class="input input-sm" style="width:70px"><option value="amount">Amt</option><option value="percent">%</option></select>
+                <input class="input input-sm" placeholder="Club card" style="width:100px" title="Health club card / membership no.">
+                <button class="btn btn-sm btn-primary" style="flex:1">Generate Bill</button>
+              </div>
+              <div class="flex gap-1">
+                <button class="btn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M20.49 9A9 9 0 0 0 5.64 5.64L10.58 10M20.49 15A9 9 0 0 0 5.64 18.36L10.58 14M12 7v.01"/></svg>Complimentary</button>
+                <button class="btn btn-accent" style="flex:1"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Take payment</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>
