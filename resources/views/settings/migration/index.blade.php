@@ -3,7 +3,7 @@
 @section('content')
 <div class="grid g-2">
   <div class="card"><div class="card-head"><h3>Import a legacy export</h3></div><div class="card-body">
-    <p class="muted">Cut guest, company, employee, room and reservation data over from a legacy PMS. Upload one CSV per dataset — start with companies, then guests, employees, rooms and finally reservations. Each upload is dry-run first; nothing is written until you press <b>Import</b> on the batch.</p>
+    <p class="muted">Cut master, stock and opening-balance data over from a legacy PMS. Upload one CSV per dataset in order — companies, guests, employees, rooms, suppliers, inventory items, opening stock, opening AP items, opening AR items, opening GL preflight, historical archive/preflight datasets, reservations, the optional read-only bank-account mapping preflight, and the paid supplier-history archive. Each upload is dry-run first. The open-items-only AP policy (unpaid bills + unapplied credits) is provisional and not yet user/finance-approved; confirm it before production use. Opening AP items populate the supplier subledger without historical GL postings; the opening GL dataset is preflight-only and will not post until all related subledgers and control-account reconciliations are ready. Bank mapping preflight uses non-sensitive legacy IDs and existing account codes only; it never applies Treasury mappings or imports account details.</p>
     <form method="post" action="{{ route('migration.store') }}" enctype="multipart/form-data" class="form-grid">
       @csrf
       <x-field name="dataset" label="Dataset" type="select" :options="array_combine($order, array_map(fn ($k) => $k.' — '.$importers[$k]->label(), $order))" :placeholder="false" :value="old('dataset', 'companies')"/>

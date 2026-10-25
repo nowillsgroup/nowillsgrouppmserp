@@ -136,10 +136,12 @@ PROSE = {
     "{endpoint}": "the mirror adapter endpoint placeholder",
     "{endpoint}/bookings": "the mirror adapter bookings path",
     "--hotel --host --port --mode=connect|listen --flush --once": "command flags of pms:pbx:listen",
-    "pms:import {companies,guests,employees,rooms,reservations} file.csv --hotel=1": "a usage example of pms:import",
+    "--dry-run": "the pms:import validation flag; apply is intentionally disabled for opening_gl and inventory_allergens, while both history datasets apply only to archives",
+    "pms:import {companies,guests,employees,rooms,suppliers,inventory_items,opening_stock,opening_ap,opening_ar,opening_gl,historical_stock,inventory_allergens,reservations,paid_supplier_history,bank_account_mappings} file.csv --hotel=1": "a usage example of pms:import",
     "PMS_DEV_AUTOLOGIN=0": "an environment variable of the dev server",
-    "arena/49a44449-nowillsgrouppmserp": "the working branch",
-    "6bb63c3": "a commit hash — checked against git history below",
+    "arena/49a44449-nowillsgrouppmserp": "the historical working branch",
+    "arena/c983888a-nowillsgrouppmserp": "the current working branch",
+    "210d279905ba78217ff35ad2afc8e9bd5e547234": "the shallow source snapshot commit — checked against git history below",
     "config('pms.version')": "a config accessor, not an artifact",
     "MIG": "an abbreviation used in prose",
     "Spatie": "a vendor namespace (diagnostics), not our code",
@@ -277,7 +279,19 @@ CLOSED = [
         "file:deploy/dev/audit/ap_fx_pay.php", "file:deploy/dev/audit/ap_fx_pay_flow.py", "doc:MULTI-CURRENCY.md"]),
     ("data migration toolkit (v7.35)", ["model:DataMigrationBatch", "model:DataMigrationRow", "model:DataMigrationIdMap",
                                         "class:MigrationService", "class:DatasetImporter", "class:BaseImporter", "class:ImportContext",
-                                          "class:CompanyImporter", "class:GuestImporter",
+                                          "class:CompanyImporter", "class:GuestImporter", "class:EmployeeImporter",
+                                        "class:RoomImporter", "class:SupplierImporter", "class:InventoryItemImporter",
+                                        "class:OpeningStockImporter", "class:OpeningApImporter", "class:OpeningArImporter", "class:OpeningGlImporter",
+                                        "class:HistoricalStockMovementImporter", "model:HistoricalStockMovementArchive",
+                                        "class:PaidSupplierHistoryArchiveImporter", "model:SupplierPaidHistoryArchive",
+                                        "class:InventoryAllergenPreflightImporter", "class:BankAccountMappingPreflightImporter", "class:ReservationImporter",
+                                        "file:deploy/dev/audit/opening_stock_migration.php", "file:deploy/dev/audit/opening_ap_migration.php",
+                                        "file:deploy/dev/audit/opening_ar_migration.php", "file:deploy/dev/audit/opening_gl_preflight.php",
+                                        "file:deploy/dev/audit/historical_stock_preflight.php", "file:deploy/dev/audit/paid_supplier_history_archive.php",
+                                        "file:deploy/dev/audit/inventory_allergen_preflight.php", "file:deploy/dev/audit/bank_account_mapping_preflight.php",
+                                        "file:database/migrations/2026_10_23_000200_add_opening_ar_metadata_to_folio_transactions.php",
+                                        "file:database/migrations/2026_10_23_000300_create_historical_stock_movement_archives.php",
+                                        "file:database/migrations/2026_10_23_000400_create_supplier_paid_history_archives.php",
                                         "command:pms:import", "route:settings/migration", "doc:DATA-MIGRATION.md"]),
 ]
 for label, evidence in CLOSED:
@@ -318,9 +332,13 @@ check("E the version the document claims", re.search(r"`config\('pms\.version'\)
 check("E the Laravel version the document claims", re.search(r"Laravel ([\d.]+)", text).group(1), facts["laravel"])
 check("E the module count the document claims", re.search(r"(\d+) modules", text).group(1), str(facts["menu"]["modules"]))
 check("E the page count the document claims", re.search(r"(\d+) pages", text).group(1), str(facts["menu"]["pages"]))
-head = run(["git", "cat-file", "-e", "6bb63c3^{commit}"])
+source_match = re.search(r"\*\*Branch / verified application source:\*\* `([^`]+)` @ `([0-9a-f]{40})`", text)
+source_branch, source_commit = source_match.groups()
+current_branch = run(["git", "branch", "--show-current"]).stdout.strip()
+check("E documented source branch matches the current worktree", source_branch, current_branch)
+head = run(["git", "cat-file", "-e", source_commit + "^{commit}"])
 check("E the commit the document names exists", head.returncode, 0)
-anc = run(["git", "merge-base", "--is-ancestor", "6bb63c3", "HEAD"])
+anc = run(["git", "merge-base", "--is-ancestor", source_commit, "HEAD"])
 check("E …and is an ancestor of HEAD", anc.returncode, 0)
 check("E the SiteMinder message names are in the driver",
       all(x in open(class_file("SiteMinderChannelDriver")).read() for x in ["OTA_AvailRateNotifyRQ", "OTA_HotelResModifyNotifRS"]), True)

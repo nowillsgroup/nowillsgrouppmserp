@@ -563,11 +563,14 @@ class ReservationController extends Controller
         // v2.7: a company with an active contract gets its negotiated price (net grid / % off; blackout nights at the public rate)
         $contract = ContractService::forCompany($request->integer('company_id') ?: null, $from);
         $cq = $contract ? ContractService::quote($contract, $type, $from, $to, max(1, $request->integer('adults') ?: 1)) : null;
+        // Return a plain JSON array; nested Eloquent collections can be encoded as object internals by some PHP runtimes.
+        $plans = RatePlan::where('room_type_id', $type->id)->where('is_active', true)
+            ->get(['id', 'name', 'meal_plan', 'rate'])->toArray();
         if ($cq) {
             return response()->json([
                 'base_rate' => (float) $type->base_rate, 'rate' => $cq['average'], 'total' => $cq['total'], 'nights' => $cq['nights'],
                 'min_stay' => $cq['min_stay'], 'stop_sell' => $cq['stop_sell'], 'seasons' => [], 'extra_adult' => $cq['extra_adult_rate'] ?? (float) $type->extra_adult_rate,
-                'max_adults' => $type->max_adults, 'plans' => RatePlan::where('room_type_id', $type->id)->where('is_active', true)->get(['id', 'name', 'meal_plan', 'rate']),
+                'max_adults' => $type->max_adults, 'plans' => $plans,
                 'contract' => ['id' => $contract->id, 'code' => $contract->code, 'name' => $contract->name, 'basis' => $contract->basisLabel(), 'meal_plan' => $contract->meal_plan,
                     'public_rate' => round($cq['public_total'] / max(1, $cq['count']), 2), 'contract_nights' => $cq['contract_nights'], 'nights' => $cq['count'],
                     'lra' => $contract->lra, 'why' => array_values(array_unique(array_filter(array_column($cq['nights'], 'why'))))],
@@ -578,7 +581,7 @@ class ReservationController extends Controller
             'base_rate' => (float) $type->base_rate, 'rate' => $q['average'], 'total' => $q['total'], 'nights' => $q['nights'],
             'min_stay' => $q['min_stay'], 'stop_sell' => $q['stop_sell'],
             'seasons' => array_values(array_unique(array_filter(array_column($q['nights'], 'season')))), 'extra_adult' => (float) $type->extra_adult_rate, 'max_adults' => $type->max_adults,
-            'plans' => RatePlan::where('room_type_id', $type->id)->where('is_active', true)->get(['id', 'name', 'meal_plan', 'rate']),
+            'plans' => $plans,
         ]);
     }
 

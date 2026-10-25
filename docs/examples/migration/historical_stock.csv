@@ -1,0 +1,3 @@
+external_id,item_external_id,store_name,cutover_date,movement_date,movement_type,quantity,unit_cost,reference,department,remarks
+HIST-MOVE-RECEIPT-001,ITEM-2001,Main Store,2026-10-22,2026-10-10,purchase,24.000,12.50,GRN-148,,Legacy receipt example; replace with source data
+HIST-MOVE-ISSUE-002,ITEM-2001,Main Store,2026-10-22,2026-10-17,issue,-3.250,12.50,ISS-083,Kitchen,Legacy issue example; replace with source data

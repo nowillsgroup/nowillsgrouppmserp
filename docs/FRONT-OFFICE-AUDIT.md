@@ -4,6 +4,8 @@
 **Question asked:** *is every function, feature and module of Front Office & Guest Services fully developed?*
 **Answer:** **Yes — with one exception, which was found, fixed and re-verified in this audit.** The section is not a set of mock-ups. All 63 menu pages render, all 370 routes resolve to real controller actions and views, all 31 permissions exist in both config and the database, and 126 scripted write flows plus 14 targeted device probes were driven through the running application and produced real rows, real folio movements and real documents. The single genuine defect was the **Foreign Guests exchange-rate desk**, which was completely unusable (HTTP 500 on save/copy, rates invisible, every exchange refused). It is fixed in this branch.
 
+**Navigation follow-up (20 Oct 2026):** The 63-page counts below are the 13 Oct audit snapshot. Desktop Sync is now listed under Front Office, bringing the live Front Office & Guest Services menu to **64 pages**. Its previous `frontoffice.view`/`frontoffice.manage` middleware keys were not registered; the routes now use `offline.desktop.view` and `offline.desktop.sync`, with the new permission definitions and built-in role grants covered by `navigation_permissions.php`. The front-office menu probe now resolves 64 pages with **0 undeclared permissions** and **0 missing badge keys**; Front Office Manager has **32/32** page permissions and Receptionist **22/32**. The live dev preview returned HTTP 200 for Desktop Sync, and the full menu documentation check is clean.
+
 ---
 
 ## 1. Scorecard
@@ -21,7 +23,7 @@
 | Write flows driven over HTTP | **126 scripted** (batches A–D) + **14 targeted** (batch E / device APIs) |
 | Genuine defects found | **1** — forex rate desk (fixed, verified) |
 | Business-rule refusals observed | all correct (each one is a documented guard, see §5) |
-| Stale documentation | `docs/MODULES.md` still lists FO&GS as 64 pages; the live menu registry carries **63** |
+| Stale documentation (at the time of the 13 Oct audit) | `docs/MODULES.md` then listed FO&GS as 64 pages vs the live 63; the 20 Oct follow-up exposed Desktop Sync, and both now show **64** |
 
 Per-module inventory (menu pages | GET routes | write routes | total):
 

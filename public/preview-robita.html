@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — Robita Smart Door Locks</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+.span-2{grid-column:span 2}
+.flex-wrap-check{display:flex;gap:.8rem;flex-wrap:wrap}
+.filter-bar{padding:.6rem 1rem;border-bottom:1px solid var(--c-border);display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.filter-bar .input{max-width:14rem}
+.last-log{margin:0;width:100%}
+.kv-row{display:flex;gap:.5rem;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--c-border)}
+.kv-row:last-child{border-bottom:0}
+.kv-row .k{width:12rem;font-weight:600;font-size:.8rem;color:var(--text-muted)}
+.kv-row .v{font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+      <button class="sidebar-collapse" title="Collapse sidebar"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    </div>
+    <label class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="search" placeholder="Search modules…">
+    </label>
+    <nav class="nav">
+      <div class="nav-section-label">DASHBOARD</div>
+      <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Dashboard</a></div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg> Reports <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item"><a href="#">All Reports</a></div>
+          <div class="nav-item"><a href="#">My Reports &amp; Saved Views</a></div>
+          <div class="nav-item"><a href="#">Scheduled Reports</a></div>
+          <div class="nav-item"><a href="#">KPI Alerts <span class="badge badge-red" style="margin-left:.4rem">3</span></a></div>
+        </div>
+      </div>
+
+      <div class="nav-section-label">OPERATIONS</div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Front Office &amp; Guest Services <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item nav-category open">
+            <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg> Interfaces <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+            <div class="nav-sub">
+              <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Call Accounting</a></div>
+              <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg> Key Cards</a></div>
+              <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg> Interface Hub</a></div>
+              <div class="nav-item nav-link-item active"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Robita Locks</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <form class="top-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input placeholder="Search guest, reservation, room, company, folio…  ( / )">
+      </form>
+      <div class="top-right">
+        <nav class="top-tools">
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span></button>
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg></span></button>
+          <span class="top-tool"><span class="top-tool-icon" style="background:var(--c-green-50);color:var(--c-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18M6 18a6 6 0 1112 0"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12Z"/><path d="M8.5 11h7M8.5 14.5h4"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span></a>
+        </nav>
+        <span class="bdate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Sat, 24 Oct 2026</span>
+        <span class="hotel-switch"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;width:14px;height:14px"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg> Groove Beach Hotel</span>
+        <div class="user-chip"><div class="avatar">AD</div></div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <div class="crumbs">Interfaces / Robita Locks</div>
+          <h1>Robita Smart Door Locks</h1>
+        </div>
+        <div class="flex" style="gap:.5rem;align-items:center;flex-wrap:wrap">
+          <a class="btn" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Devices</a>
+          <a class="btn" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Events</a>
+          <a class="btn btn-primary" href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Settings</a>
+        </div>
+      </div>
+
+      <!-- Demo mode alert -->
+      <div class="alert alert-info"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex:none;margin-top:.1rem"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><div><b>Demo mode.</b> Set a Robita cloud URL in Settings to enable live device communication. Commands are acknowledged locally without cloud calls.</div></div>
+
+      <!-- Stats row -->
+      <div class="stats">
+        <div class="stat tone-blue">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <div><div class="v">12</div><div class="l">Online devices</div><div class="tiny muted">14 registered</div></div>
+        </div>
+        <div class="stat tone-slate">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="m3 21 18 0M5 21V7l8-4v18M19 21V11l-6-4"/></svg></div>
+          <div><div class="v">14</div><div class="l">Total devices</div><div class="tiny muted">2 offline</div></div>
+        </div>
+        <div class="stat tone-green">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg></div>
+          <div><div class="v">38</div><div class="l">Active credentials</div><div class="tiny muted">cards issued to devices</div></div>
+        </div>
+        <div class="stat tone-teal">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div><div class="v">47</div><div class="l">Unlocks today</div><div class="tiny muted">1 alarm</div></div>
+        </div>
+        <div class="stat tone-amber">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11V9a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2"/></svg></div>
+          <div><div class="v">2</div><div class="l">Low battery</div><div class="tiny muted">needs replacement</div></div>
+        </div>
+        <div class="stat tone-red">
+          <div class="ico"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+          <div><div class="v">1</div><div class="l">Alarms today</div><div class="tiny muted">tamper / forced entry</div></div>
+        </div>
+      </div>
+
+      <!-- Device grid + Recent events -->
+      <div class="grid-2">
+        <!-- Door Lock Devices -->
+        <div class="card">
+          <div class="card-head">
+            <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Door Lock Devices</h3>
+            <div class="flex" style="gap:.4rem">
+              <button class="btn btn-sm btn-primary" onclick="document.getElementById('registerModal').classList.add('show')"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M12 5v14M5 12h14"/></svg> Register Device</button>
+              <a class="btn btn-sm" href="#">Manage all</a>
+            </div>
+          </div>
+          <div class="card-body table-wrap">
+            <table class="table table-compact">
+              <thead><tr><th>Device</th><th>Room</th><th>State</th><th>Battery</th><th>Signal</th><th>Last seen</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><b>Room 101 door</b><div class="small muted mono">RBT-S1-001234 · Robita S1</div></td>
+                  <td><b>101</b><div class="small muted">Sarah Mensah</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-green">92%</span></td>
+                  <td><span class="badge badge-green">Excellent</span></td>
+                  <td class="small muted">2 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 204 door</b><div class="small muted mono">RBT-S1-001235 · Robita S1</div></td>
+                  <td><b>204</b><div class="small muted">James Kwame</div></td>
+                  <td><span class="badge badge-amber">Unlocked</span></td>
+                  <td><span class="badge badge-green">88%</span></td>
+                  <td><span class="badge badge-green">Excellent</span></td>
+                  <td class="small muted">5 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 308 door</b><div class="small muted mono">RBT-S1-001236 · Robita S1</div></td>
+                  <td><b>308</b><div class="small muted">Aisha Bello</div></td>
+                  <td><span class="badge badge-red">Offline</span></td>
+                  <td><span class="muted">—</span></td>
+                  <td><span class="muted">—</span></td>
+                  <td class="small muted">3 hours ago</td>
+                  <td class="text-right"><span class="muted">—</span></td>
+                </tr>
+                <tr>
+                  <td><b>Room 412 door</b><div class="small muted mono">RBT-S1-001237 · Robita S1</div></td>
+                  <td><b>412</b><div class="small muted">Michael Osei</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-amber">34%</span></td>
+                  <td><span class="badge badge-blue">Good</span></td>
+                  <td class="small muted">10 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 501 door</b><div class="small muted mono">RBT-S1-001238 · Robita S1</div></td>
+                  <td><b>501</b><div class="small muted">Grace Adeyemi</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-red">12%</span></td>
+                  <td><span class="badge badge-amber">Fair</span></td>
+                  <td class="small muted">15 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 603 door</b><div class="small muted mono">RBT-S1-001239 · Robita S1</div></td>
+                  <td><b>603</b><div class="small muted">David Mensah</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-green">76%</span></td>
+                  <td><span class="badge badge-green">Excellent</span></td>
+                  <td class="small muted">1 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 705 door</b><div class="small muted mono">RBT-S1-001240 · Robita S1</div></td>
+                  <td><b>705</b><div class="small muted">Fatou Jallow</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-amber">28%</span></td>
+                  <td><span class="badge badge-blue">Good</span></td>
+                  <td class="small muted">8 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+                <tr>
+                  <td><b>Room 810 door</b><div class="small muted mono">RBT-S1-001241 · Robita S1</div></td>
+                  <td><b>810</b><div class="small muted">Peter Asante</div></td>
+                  <td><span class="badge badge-green">Locked</span></td>
+                  <td><span class="badge badge-green">81%</span></td>
+                  <td><span class="badge badge-green">Excellent</span></td>
+                  <td class="small muted">3 min ago</td>
+                  <td class="text-right"><a class="btn btn-sm" href="#">Control</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Access Events -->
+        <div class="card">
+          <div class="card-head">
+            <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Recent Access Events</h3>
+            <a class="btn btn-sm" href="#">View all</a>
+          </div>
+          <div class="card-body table-wrap">
+            <table class="table table-compact">
+              <thead><tr><th>Time</th><th>Device</th><th>Type</th><th>Method</th><th>User</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="small muted nowrap">10:42</td>
+                  <td>Room 101 door</td>
+                  <td><span class="badge badge-green">Unlock</span></td>
+                  <td class="small muted">Card</td>
+                  <td>Sarah Mensah</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:38</td>
+                  <td>Room 412 door</td>
+                  <td><span class="badge badge-blue">Remote unlock</span></td>
+                  <td class="small muted">Remote</td>
+                  <td>Front Desk (AD)</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:35</td>
+                  <td>Room 204 door</td>
+                  <td><span class="badge badge-green">Unlock</span></td>
+                  <td class="small muted">Fingerprint</td>
+                  <td>James Kwame</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:30</td>
+                  <td>Room 501 door</td>
+                  <td><span class="badge badge-red">Tamper</span><div class="small muted">jamming attempt</div></td>
+                  <td class="small muted">—</td>
+                  <td>Unknown</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:28</td>
+                  <td>Room 603 door</td>
+                  <td><span class="badge badge-green">Unlock</span></td>
+                  <td class="small muted">Card</td>
+                  <td>David Mensah</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:22</td>
+                  <td>Room 705 door</td>
+                  <td><span class="badge badge-amber">Low battery</span></td>
+                  <td class="small muted">—</td>
+                  <td>System</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:15</td>
+                  <td>Room 810 door</td>
+                  <td><span class="badge badge-green">Unlock</span></td>
+                  <td class="small muted">Card</td>
+                  <td>Peter Asante</td>
+                </tr>
+                <tr>
+                  <td class="small muted nowrap">10:08</td>
+                  <td>Room 101 door</td>
+                  <td><span class="badge badge-green">Unlock</span></td>
+                  <td class="small muted">Card</td>
+                  <td>Sarah Mensah</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cloud Connection -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-head">
+          <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg> Cloud Connection</h3>
+          <a class="btn btn-sm" href="#">Configure</a>
+        </div>
+        <div class="card-body">
+          <div class="kv-row"><div class="k">Status</div><div class="v"><span class="badge badge-slate">Demo mode</span></div></div>
+          <div class="kv-row"><div class="k">Cloud URL</div><div class="v mono small">Not configured</div></div>
+          <div class="kv-row"><div class="k">Webhook URL</div><div class="v mono small" style="font-size:.7rem">https://pms.nowillsgroup.com/api/robita/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0</div></div>
+          <div class="kv-row"><div class="k">Poll interval</div><div class="v">Webhook only</div></div>
+          <div class="kv-row"><div class="k">Default model</div><div class="v">Robita S1</div></div>
+          <div class="kv-row"><div class="k">Battery alert threshold</div><div class="v">20%</div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Register Device Modal -->
+  <div class="modal" id="registerModal"><div class="modal-box" style="max-width:720px">
+    <div class="modal-head"><h3>Register Robita Device</h3><button type="button" class="btn btn-sm" onclick="document.getElementById('registerModal').classList.remove('show')"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div><label>Serial Number</label><input class="input" placeholder="e.g. RBT-S1-001234"></div>
+        <div><label>Device Name</label><input class="input" placeholder="e.g. Room 101 door"></div>
+        <div><label>Model</label><input class="input" value="Robita S1" placeholder="Robita S1"></div>
+        <div>
+          <label>Device Type</label>
+          <select class="input">
+            <option value="door_lock">Room door lock</option>
+            <option value="common_area">Common area lock</option>
+            <option value="gate">Gate / entrance</option>
+          </select>
+        </div>
+        <div>
+          <label>Room</label>
+          <select class="input">
+            <option value="">— Not mapped —</option>
+            <option>101 — 1st floor</option>
+            <option>204 — 1st floor</option>
+            <option>308 — 2nd floor</option>
+            <option>412 — 2nd floor</option>
+            <option>501 — 3rd floor</option>
+            <option>603 — 3rd floor</option>
+            <option>705 — 4th floor</option>
+            <option>810 — 4th floor</option>
+          </select>
+        </div>
+        <div><label>Floor</label><input class="input" placeholder="e.g. 1st floor"></div>
+        <div><label>Location</label><input class="input" placeholder="e.g. Main entrance, Lobby"></div>
+        <div style="grid-column:1/-1"><label>Notes</label><input class="input" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="document.getElementById('registerModal').classList.remove('show')">Cancel</button><button class="btn btn-primary"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Register Device</button></div>
+  </div></div>
+</div>
+</body>
+</html>

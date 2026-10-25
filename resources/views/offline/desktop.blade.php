@@ -29,6 +29,7 @@
     </div>
   </div>
 
+  @if (auth()->user()->hasPermission('offline.desktop.sync'))
   <div class="card">
     <div class="card-head"><h3>Sync a desktop queue</h3></div>
     <div class="card-body">
@@ -42,6 +43,7 @@
     </form>
     </div>
   </div>
+  @endif
 </div>
 
 <div class="card">

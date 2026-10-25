@@ -115,3 +115,116 @@ button.tv-li{cursor:pointer}.tv-li span{flex:1}.tv-li small{opacity:.7}
 .tv-sg-msg{background:rgba(250,204,21,.14);border-radius:1rem;padding:1rem;margin-bottom:1rem}.tv-sg-msg b{font-size:1.3rem}.tv-sg-msg p{margin:.3rem 0 0;font-size:1.1rem}
 .tv-signage-mode .tv-ticker{font-size:1.4rem;padding:.8rem 2.4rem}
 .tv-sg-idle{background:transparent;text-align:center;padding-top:3rem}.tv-sg-idle b{font-size:3.2rem;color:#facc15}.tv-sg-idle p{font-size:1.4rem;opacity:.8}
+
+/* Luxury, cinematic guest welcome — 10-foot readability on hotel TVs */
+.tv-th-gold{--tv-lux-accent:#ead4a0;--tv-lux-accent-soft:rgba(234,212,160,.18)}
+.tv-th-ocean{--tv-lux-accent:#b7e1dc;--tv-lux-accent-soft:rgba(183,225,220,.17)}
+.tv-th-forest{--tv-lux-accent:#c3dfbd;--tv-lux-accent-soft:rgba(195,223,189,.17)}
+.tv-th-sunset{--tv-lux-accent:#f1c6a2;--tv-lux-accent-soft:rgba(241,198,162,.18)}
+.tv-th-night{--tv-lux-accent:#d8cefa;--tv-lux-accent-soft:rgba(216,206,250,.18)}
+body.tv-welcome-mode{background:#101b1c}
+body.tv-welcome-mode::before{display:none}
+body.tv-welcome-mode #tvApp{height:100vh;padding:0}
+body.tv-welcome-mode .tv-top{display:none}
+body.tv-welcome-mode .tv-stage{margin-top:0}
+.tv-welcome-screen{position:relative;display:flex;flex:1;min-height:0;width:100%;overflow:hidden;background:#152321;color:#fff}
+.tv-welcome-backdrop{position:absolute;inset:0;background:#172522}
+.tv-welcome-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 50%;transform:scale(1.015)}
+.tv-welcome-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,14,16,.76) 0%,rgba(6,15,17,.65) 37%,rgba(6,15,17,.40) 63%,rgba(4,12,13,.14) 100%),linear-gradient(0deg,rgba(4,10,11,.56),transparent 38%),linear-gradient(180deg,rgba(4,10,11,.32),transparent 24%)}
+.tv-welcome-frame{position:absolute;inset:1rem;border:1px solid rgba(239,220,180,.28);border-radius:.35rem;pointer-events:none}
+.tv-welcome-layout{position:relative;z-index:1;display:grid;flex:1;min-height:0;width:100%;grid-template-columns:minmax(0,1fr) minmax(17rem,25rem);grid-template-rows:auto minmax(0,1fr) auto;column-gap:4vw;padding:2rem 5.2vw 1.9rem}
+.tv-welcome-brand{grid-column:1;grid-row:1;display:flex;align-items:center;gap:.75rem;align-self:start;max-width:70%;min-width:0}
+.tv-welcome-logo-frame,.tv-welcome-monogram{display:flex;align-items:center;justify-content:center;flex:none;width:2.65rem;height:2.65rem;border:1px solid var(--tv-lux-accent,#ead4a0);border-radius:50%;background:rgba(8,18,19,.4);color:var(--tv-lux-accent,#ead4a0);font-family:Georgia,serif;font-size:1.35rem}
+.tv-welcome-logo{max-width:1.8rem;max-height:1.8rem;object-fit:contain}
+.tv-welcome-brand-text{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.tv-welcome-brand-text small{color:var(--tv-lux-accent,#ead4a0);font-size:.63rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.tv-welcome-brand-text strong{overflow:hidden;color:#fff;font-size:1.02rem;font-weight:650;letter-spacing:.035em;text-overflow:ellipsis;white-space:nowrap}
+.tv-welcome-main{grid-column:1;grid-row:2;align-self:center;max-width:58rem;padding:.7rem 0 1rem}
+.tv-welcome-kicker{margin:0 0 .8rem;color:var(--tv-lux-accent,#ead4a0);font-size:.72rem;font-weight:750;letter-spacing:.21em;line-height:1.4;text-transform:uppercase}
+.tv-welcome-rule{display:block;width:3.15rem;height:.12rem;margin:.2rem 0 1.1rem;background:var(--tv-lux-accent,#ead4a0);box-shadow:0 0 .8rem var(--tv-lux-accent-soft,rgba(234,212,160,.18))}
+.tv-welcome-screen .tv-welcome-h{max-width:58rem;margin:.15rem 0 .8rem;color:#fff8e9;font-family:Georgia,"Times New Roman",serif;font-size:4.4rem!important;font-weight:400;letter-spacing:-.035em;line-height:1.07;text-shadow:0 .2rem 1.25rem rgba(0,0,0,.44);text-wrap:balance}
+.tv-welcome-body{max-width:45rem}
+.tv-welcome-body p,.tv-welcome-lead{margin:.35rem 0;color:rgba(255,255,255,.88);font-size:1.15rem;line-height:1.52;text-shadow:0 .1rem .6rem rgba(0,0,0,.3)}
+.tv-welcome-stay-card{grid-column:2;grid-row:2;align-self:end;width:100%;margin-bottom:1.1rem;padding:1.2rem 1.25rem;border:1px solid rgba(239,220,180,.38);border-radius:1rem;background:linear-gradient(145deg,rgba(14,27,27,.82),rgba(14,25,24,.62));box-shadow:0 1rem 2.8rem rgba(0,0,0,.24);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+.tv-welcome-card-eyebrow{margin-bottom:.8rem;color:var(--tv-lux-accent,#ead4a0);font-size:.65rem;font-weight:800;letter-spacing:.19em;text-transform:uppercase}
+.tv-welcome-stay-details{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding-bottom:.9rem}
+.tv-welcome-stay-detail{display:flex;flex-direction:column;gap:.22rem;min-width:0}
+.tv-welcome-stay-detail small{color:rgba(255,255,255,.64);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase}
+.tv-welcome-stay-detail strong{overflow:hidden;color:#fff;font-size:1.1rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.tv-welcome-wifi{padding-top:.85rem;border-top:1px solid rgba(255,255,255,.16)}
+.tv-welcome-wifi-label{display:flex;align-items:center;gap:.45rem;color:rgba(255,255,255,.76);font-size:.8rem}
+.tv-welcome-wifi-icon{color:var(--tv-lux-accent,#ead4a0);font-size:1.1rem}
+.tv-welcome-wifi-name{display:block;margin-top:.32rem;color:#fff;font-size:1rem;letter-spacing:.025em}
+.tv-welcome-wifi-password{display:block;margin-top:.18rem;color:rgba(255,255,255,.7);font-size:.75rem}
+.tv-welcome-actions{grid-column:1;grid-row:3;display:flex;flex-direction:column;align-items:flex-start;gap:.65rem;align-self:end;min-width:0}
+.tv-welcome-screen .tv-welcome-continue{min-width:11rem;width:max-content;border:1px solid var(--tv-lux-accent,#ead4a0);border-radius:999px;background:var(--tv-lux-accent,#ead4a0);box-shadow:0 .45rem 1.5rem rgba(0,0,0,.22);color:#17201e;font-size:1rem;font-weight:750;letter-spacing:.01em}
+.tv-welcome-screen .tv-welcome-continue:focus{background:#fff2d1;border-color:#fff2d1}
+.tv-welcome-language{display:flex;flex-direction:column;gap:.28rem}
+.tv-welcome-language-label{color:rgba(255,255,255,.62);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase}
+.tv-welcome-language-list{display:flex;gap:.35rem;flex-wrap:wrap;margin:0}
+.tv-welcome-language-list .tv-btn{padding:.3rem .7rem;border:1px solid rgba(255,255,255,.23);border-radius:999px;background:rgba(7,15,16,.35);font-size:.7rem}
+.tv-welcome-language-list .tv-btn.on{border-color:var(--tv-lux-accent,#ead4a0);background:var(--tv-lux-accent-soft,rgba(234,212,160,.18));color:#fff}
+.tv-welcome-screen [data-f]:focus{position:relative;z-index:3;transform:translateY(-.1rem);outline:none;box-shadow:0 0 0 .14rem #fff,0 0 0 .28rem rgba(224,190,121,.9),0 .5rem 1.4rem rgba(0,0,0,.42)}
+.tv-welcome-footer{grid-column:2;grid-row:3;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;align-self:end;padding-bottom:.35rem;color:rgba(255,255,255,.74);font-size:.63rem;font-weight:650;letter-spacing:.16em;text-align:right}
+.tv-welcome-footer-line{display:block;width:1.8rem;height:1px;background:var(--tv-lux-accent,#ead4a0)}
+.tv-welcome-layout-vacant{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+.tv-welcome-main-vacant{grid-column:1;max-width:60rem}
+.tv-welcome-main-vacant .tv-welcome-h{margin:.45rem 0;font-size:4.7rem!important}
+.tv-welcome-main-vacant .tv-welcome-lead{max-width:40rem}
+.tv-welcome-main-vacant .tv-welcome-actions{margin-top:1.25rem}
+.tv-welcome-layout-vacant .tv-welcome-footer{grid-column:1;justify-content:flex-start;text-align:left}
+@media(max-width:1050px){
+  .tv-welcome-layout{grid-template-columns:minmax(0,1fr) minmax(14rem,21rem);column-gap:2.5vw;padding:1.45rem 4vw 1.35rem}
+  .tv-welcome-screen .tv-welcome-h{font-size:3.7rem!important}
+  .tv-welcome-stay-card{padding:1rem}
+}
+@media(max-height:700px){
+  .tv-welcome-layout{padding-top:1.1rem;padding-bottom:1rem}
+  .tv-welcome-brand{gap:.55rem}.tv-welcome-logo-frame,.tv-welcome-monogram{width:2.2rem;height:2.2rem}
+  .tv-welcome-screen .tv-welcome-h{font-size:3.2rem!important;margin:.1rem 0 .45rem}
+  .tv-welcome-kicker{margin-bottom:.45rem}.tv-welcome-rule{margin-bottom:.65rem}
+  .tv-welcome-stay-card{margin-bottom:.4rem;padding:.8rem 1rem}
+  .tv-welcome-stay-details{padding-bottom:.55rem}
+  .tv-welcome-wifi{padding-top:.55rem}
+}
+@media(max-width:760px){
+  .tv-welcome-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;padding:1.4rem 5vw 1.25rem}
+  .tv-welcome-main{grid-column:1;grid-row:2;max-width:100%}
+  .tv-welcome-screen .tv-welcome-h{font-size:3.2rem!important}
+  .tv-welcome-stay-card{grid-column:1;grid-row:3;display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:.1rem 0 .6rem;padding:.7rem .85rem}
+  .tv-welcome-card-eyebrow{grid-column:1/-1;margin:0}
+  .tv-welcome-stay-details{padding:0}
+  .tv-welcome-wifi{padding:0 0 0 .75rem;border-top:0;border-left:1px solid rgba(255,255,255,.16)}
+  .tv-welcome-actions{grid-column:1;grid-row:4;gap:.45rem}
+  .tv-welcome-footer{display:none}
+  .tv-welcome-layout-vacant{grid-template-rows:auto 1fr auto}
+  .tv-welcome-layout-vacant .tv-welcome-main{grid-row:2}
+  .tv-welcome-layout-vacant .tv-welcome-footer{display:flex;grid-row:3}
+}
+@media(max-aspect-ratio:4/3){
+  .tv-welcome-photo{object-position:56% center}
+  .tv-welcome-shade{background:linear-gradient(90deg,rgba(5,14,16,.82),rgba(6,15,17,.56)),linear-gradient(0deg,rgba(4,10,11,.55),transparent 44%)}
+}
+
+/* Full-screen preview of the rendered TV home; only the confirmation toolbar floats above it. */
+.tv-modal.tv-home-preview-modal{display:block;padding:0;background:rgba(2,6,23,.12);overflow:hidden}
+.tv-home-preview-canvas{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;padding:1.3rem 2.4rem 1.6rem;overflow:hidden;color:#fff}
+.tv-home-preview-canvas .tv-stage{flex:1;min-height:0;margin-top:1rem}
+.tv-home-preview-canvas .tv-home{min-height:0}
+.tv-home-preview-canvas .tv-ticker{z-index:1}
+.tv-home-preview-toolbar{position:absolute;z-index:2;left:50%;bottom:1.1rem;display:flex;align-items:center;justify-content:space-between;gap:1.2rem;width:min(46rem,calc(100% - 2.4rem));padding:.65rem .8rem .65rem 1.1rem;border:1px solid rgba(234,212,160,.55);border-radius:1rem;background:rgba(10,20,23,.94);box-shadow:0 .9rem 2.4rem rgba(0,0,0,.42);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transform:translateX(-50%)}
+.tv-home-preview-copy{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.tv-home-preview-kicker{color:#ead4a0;font-size:.58rem;font-weight:800;letter-spacing:.18em}
+.tv-home-preview-copy strong{overflow:hidden;font-size:.88rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.tv-home-preview-toolbar .tv-big{flex:none;padding:.55rem 1rem;font-size:.8rem;white-space:nowrap}
+@media(max-width:760px){
+  .tv-home-preview-canvas{padding:1rem 4vw 1.25rem}
+  .tv-home-preview-toolbar{bottom:.55rem;gap:.5rem;width:calc(100% - 1rem);padding:.45rem .5rem .45rem .7rem;border-radius:.75rem}
+  .tv-home-preview-kicker{font-size:.5rem;letter-spacing:.12em}
+  .tv-home-preview-copy strong{font-size:.68rem}
+  .tv-home-preview-toolbar .tv-big{padding:.4rem .65rem;font-size:.62rem}
+}
+@media(max-height:600px){
+  .tv-home-preview-toolbar{bottom:.45rem;padding-top:.4rem;padding-bottom:.4rem}
+  .tv-home-preview-toolbar .tv-big{padding-top:.35rem;padding-bottom:.35rem}
+}

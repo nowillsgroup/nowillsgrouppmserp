@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', ($bill->isDebitNote() ? 'Debit Note ' : 'Supplier Bill ').$bill->doc_no)
+@section('title', ($bill->isOpening() ? ($bill->isDebitNote() ? 'Opening Supplier Credit ' : 'Opening Supplier Bill ') : ($bill->isDebitNote() ? 'Debit Note ' : 'Supplier Bill ')).$bill->doc_no)
 @section('crumbs') <a href="{{ route('ap.bills') }}">Supplier Bills</a> / {{ $bill->doc_no }} @endsection
 @section('actions')
 {!! status_badge($bill->status) !!}
@@ -7,49 +7,71 @@
 @if(! $bill->isDebitNote() && in_array($bill->status, ['open', 'partial']) && can_do('ap.pay'))<a class="btn btn-success" href="{{ route('ap.payments.create', ['supplier' => $bill->supplier_id, 'bills' => [$bill->id]]) }}"><x-icon name="money"/> Pay</a>@endif
 @if(! $bill->isDebitNote() && $bill->status !== 'cancelled' && can_do('ap.manage'))<a class="btn" href="{{ route('ap.bills.create', ['mode' => 'debit_note', 'supplier' => $bill->supplier_id, 'against' => $bill->id]) }}"><x-icon name="minus"/> Debit note</a>@endif
 @if($bill->status === 'on_hold' && can_do('ap.approve'))<button class="btn btn-primary" data-modal="approveModal"><x-icon name="check"/> Approve variance</button>@endif
-@if($bill->status !== 'cancelled' && can_do('ap.manage'))<button class="btn btn-danger" data-modal="cancelModal"><x-icon name="x"/> Cancel</button>@endif
+@if(! $bill->isOpening() && $bill->status !== 'cancelled' && can_do('ap.manage'))<button class="btn btn-danger" data-modal="cancelModal"><x-icon name="x"/> Cancel</button>@endif
 @endsection
 @section('content')
-@php $od = ! $bill->isDebitNote() && in_array($bill->status, ['open', 'partial']) ? $bill->daysOverdue() : 0; @endphp
+@php $od = ! $bill->isDebitNote() && in_array($bill->status, ['open', 'partial']) ? $bill->daysOverdue() : 0; $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS'))); @endphp
+@if($bill->isOpening())
+<div class="alert alert-info"><x-icon name="info"/><div><b>Opening AP item as at {{ $bill->opening_date?->format('d M Y') }}.</b> This is the outstanding balance only; paid-bill and payment history was not replayed, and no historical GL journal was created. The full opening trial balance will establish the AP control once. Future payments and credits use the normal AP workflow. This cutover item cannot be cancelled as a historical bill.</div></div>
+@endif
 @if($bill->status === 'on_hold')
-<div class="alert alert-warn"><x-icon name="lock"/><div><b>On hold – price variance {{ money($bill->variance()) }}.</b> The supplier invoice ({{ money($bill->total) }}) differs from the goods received ({{ money($bill->grn_total) }}) by more than the tolerance of {{ money(\App\Services\ApService::tolerance((float) $bill->grn_total)) }}. It is not posted and cannot be paid until someone with approval rights releases it – or raise a debit note / ask the supplier for a corrected invoice.</div></div>
+<div class="alert alert-warn"><x-icon name="lock"/><div><b>On hold – price/tax variance {{ money($bill->variance()) }}.</b>
+  @if($bill->isForeign() && $bill->kind === 'goods')The supplier invoice at its invoice-date rate ({{ money($bill->total) }}) differs from the received foreign amount revalued at that same rate ({{ money($bill->grnAtInvoiceRate()) }}) by more than the tolerance of {{ money(\App\Services\ApService::tolerance($bill->grnAtInvoiceRate())) }}. The separate receipt-to-invoice FX movement is {{ money($bill->fxDifference()) }} and is not part of the AP review threshold.
+  @else The supplier invoice ({{ money($bill->total) }}) differs from the goods received ({{ money($bill->grn_total) }}) by more than the tolerance of {{ money(\App\Services\ApService::tolerance((float) $bill->grn_total)) }}.
+  @endif It is not posted and cannot be paid until someone with approval rights releases it – or raise a debit note / ask the supplier for a corrected invoice.</div></div>
 @endif
 @if($bill->status === 'cancelled')<div class="alert alert-error"><x-icon name="x"/><div><b>Cancelled</b> {{ $bill->cancelled_at?->format('d M Y H:i') }} – {{ $bill->cancel_reason }}</div></div>@endif
 
 <div class="card"><div class="card-body grid g-3">
   <dl class="kv"><dt>Supplier</dt><dd><b>{{ $bill->supplier->name }}</b></dd><dt>{{ $bill->isDebitNote() ? 'Credit note no.' : 'Invoice no.' }}</dt><dd>{{ $bill->supplier_ref ?? '—' }}</dd>
-    <dt>Type</dt><dd>{{ $bill->isDebitNote() ? 'Debit note' : ($bill->kind === 'goods' ? 'Goods (matched to receipt)' : 'Expense / service') }}</dd>
+    <dt>Type</dt><dd>{{ $bill->isOpening() ? ($bill->isDebitNote() ? 'Opening supplier credit' : 'Opening payable balance') : ($bill->isDebitNote() ? 'Debit note' : ($bill->kind === 'goods' ? 'Goods (matched to receipt)' : 'Expense / service')) }}</dd>
     @if($bill->purchaseOrder)<dt>Purchase order</dt><dd><a href="{{ route('purchases.show', $bill->purchaseOrder) }}">{{ $bill->purchaseOrder->po_no }}</a></dd>@endif
     @if($bill->againstInvoice)<dt>Against bill</dt><dd><a href="{{ route('ap.bills.show', $bill->againstInvoice) }}">{{ $bill->againstInvoice->doc_no }}</a></dd>@endif</dl>
   <dl class="kv"><dt>Date</dt><dd>{{ $bill->doc_date->format('d M Y') }}</dd>@if(! $bill->isDebitNote())<dt>Due</dt><dd class="{{ $od ? 'text-red bold' : '' }}">{{ $bill->due_date?->format('d M Y') }}{{ $od ? " · {$od} days overdue" : '' }}</dd>@endif
     <dt>Entered by</dt><dd>{{ $bill->creator?->name ?? '—' }} · {{ $bill->created_at->format('d M H:i') }}</dd>
     @if($bill->approved_at)<dt>Approved by</dt><dd>{{ $bill->approver?->name }} · {{ $bill->approved_at->format('d M H:i') }}</dd>@endif</dl>
   <div class="ap-summary">
-    <div><div class="l">Total</div><div class="v">{{ money($bill->total) }}</div></div>
+    <div><div class="l">{{ $bill->isOpening() ? 'Opening balance' : 'Total' }}</div><div class="v">{{ money($bill->total) }}</div></div>
     <div><div class="l">{{ $bill->isDebitNote() ? 'Applied' : 'Paid / credited' }}</div><div class="v green">{{ money($bill->allocated) }}</div></div>
     <div><div class="l">{{ $bill->isDebitNote() ? 'Unapplied credit' : 'Outstanding' }}</div><div class="v {{ $bill->outstanding() > 0 && ! $bill->isDebitNote() ? 'red' : '' }}" id="billOutstanding">{{ money($bill->outstanding()) }}</div></div>
   </div>
   @if($bill->isForeign())
   <div class="ap-summary" id="fxSummary">
-    <div><div class="l">Billed in {{ $bill->currency }}</div><div class="v">{{ $bill->fxLabel() }}</div></div>
-    <div><div class="l">Net + tax as billed</div><div class="v">{{ number_format((float) $bill->fx_subtotal, 2) }} + {{ number_format((float) $bill->fx_tax, 2) }}</div></div>
-    <div><div class="l">Board rate · {{ $bill->fx_basis }}</div><div class="v">{{ number_format((float) $bill->fx_rate, 4) }}</div></div>
-    <div><div class="l">Board of</div><div class="v">{{ $bill->fx_date?->format('d M Y') }} @if($bill->fxStale())<span class="badge badge-amber">carried forward</span>@endif</div></div>
+    <div><div class="l">{{ $bill->isOpening() ? 'Open balance in '.$bill->currency : 'Billed in '.$bill->currency }}</div><div class="v">{{ $bill->fxLabel() }}</div></div>
+    <div><div class="l">{{ $bill->isOpening() ? 'Foreign balance carried forward' : 'Net + tax as billed' }}</div><div class="v">{{ number_format((float) $bill->fx_subtotal, 2) }} + {{ number_format((float) $bill->fx_tax, 2) }}</div></div>
+    <div><div class="l">{{ $bill->isOpening() ? 'Source carrying rate · '.$bill->fx_basis : 'Board rate · '.$bill->fx_basis }}</div><div class="v">{{ number_format((float) $bill->fx_rate, 4) }}</div></div>
+    <div><div class="l">{{ $bill->isOpening() ? 'Source rate date' : 'Board of' }}</div><div class="v">{{ $bill->fx_date?->format('d M Y') }} @if($bill->fxStale())<span class="badge badge-amber">carried forward</span>@endif</div></div>
     <div><div class="l">Still owed in {{ $bill->currency }}</div><div class="v {{ $bill->fxOutstanding() > 0 ? 'red' : '' }}">{{ $bill->fxLabel($bill->fxOutstanding()) }}</div></div>
+    @if($bill->kind === 'goods' && ! $bill->isDebitNote())<div><div class="l">Receipt-to-invoice FX movement</div><div class="v {{ $bill->fxDifference() > 0 ? 'red' : 'green' }}">{{ money(abs($bill->fxDifference())) }} {{ $bill->fxDifference() > 0 ? 'loss' : ($bill->fxDifference() < 0 ? 'gain' : 'no movement') }}</div></div>@endif
   </div>
-  <p class="tiny muted">The ledger, the budget, ageing and every payment carry {{ money($bill->total) }}: each line was converted at the board above and rounded on its own, so the lines sum to what was posted. The supplier's own document is kept here beside it, and Accounts payable › Ageing re-values what is still open against the board as it stands.</p>
+  @if($bill->isOpening())
+    <p class="tiny muted">This foreign balance and its source carrying rate are retained for the cutover AP subledger. No legacy FX journal was replayed; subsequent settlement uses the normal AP currency rules.</p>
+  @else
+    <p class="tiny muted">The ledger carries {{ money($bill->total) }}, and the budget, ageing and payments use that same local-currency amount. @if($bill->kind === 'goods')The supplier's invoice subtotal and tax were converted at the invoice-date board; the receipt-date accrual remains beside it, with receipt-to-invoice FX and genuine price/tax variance tracked and posted separately.@else Each line was converted at the board above and rounded on its own, so the lines sum to what was posted. The supplier's own document is kept here beside it; Accounts payable › Ageing re-values what is still open against the board as it stands.@endif</p>
+  @endif
   @endif
 </div></div>
 
 @if($bill->kind === 'goods' && ! $bill->isDebitNote())
-<div class="card"><div class="card-head"><h3>Three-way match</h3></div><div class="card-body table-wrap"><table class="table table-compact" id="matchTable">
-<thead><tr><th></th><th class="num">Purchase order / goods received</th><th class="num">Supplier invoice</th><th class="num">Difference</th></tr></thead><tbody>
-@php $po = $bill->purchaseOrder; @endphp
-<tr><td>Subtotal</td><td class="num">{{ money($po->subtotal, false) }}</td><td class="num">{{ money($bill->subtotal, false) }}</td><td class="num">{{ money($bill->subtotal - $po->subtotal, false) }}</td></tr>
-<tr><td>Tax</td><td class="num">{{ money($po->tax, false) }}</td><td class="num">{{ money($bill->tax, false) }}</td><td class="num">{{ money($bill->tax - $po->tax, false) }}</td></tr>
-<tr class="bold"><td>Total</td><td class="num">{{ money($bill->grn_total, false) }}</td><td class="num">{{ money($bill->total, false) }}</td><td class="num {{ $bill->variance() ? ($bill->status === 'on_hold' ? 'text-red' : 'text-amber') : 'text-green' }}">{{ $bill->variance() ? money($bill->variance(), false) : 'Matched' }}</td></tr>
+@php
+  $po = $bill->purchaseOrder;
+  [$grnSub, $grnTax] = $po->receivedSplit();
+  $grnFxRate = $bill->isForeign() ? (float) $bill->fx_rate : 1.0;
+  $grnInvoiceSub = $bill->isForeign() ? round((float) $bill->grn_fx_subtotal * $grnFxRate, 2) : $grnSub;
+  $grnInvoiceTax = $bill->isForeign() ? round((float) $bill->grn_fx_tax * $grnFxRate, 2) : $grnTax;
+  $subFxMove = round($grnInvoiceSub - $grnSub, 2);
+  $taxFxMove = round($grnInvoiceTax - $grnTax, 2);
+  $poGrnLines = $po->receipts->flatMap(fn ($g) => $g->lines);
+@endphp
+<div class="card"><div class="card-head"><h3>Three-way match · receipt-rate value vs invoice-rate bill</h3></div><div class="card-body table-wrap"><table class="table table-compact" id="matchTable">
+<thead><tr><th></th><th class="num">GRN · receipt-date value ({{ $home }})</th><th class="num">GRN · invoice-date equivalent ({{ $home }})</th><th class="num">Supplier bill ({{ $home }})</th><th class="num">Price/tax variance ({{ $home }})</th><th class="num">FX movement ({{ $home }})</th></tr></thead><tbody>
+<tr><td>Subtotal</td><td class="num">{{ money($grnSub, false) }}</td><td class="num">{{ money($grnInvoiceSub, false) }}</td><td class="num">{{ money($bill->subtotal, false) }}</td><td class="num">{{ money($bill->subtotal - $grnInvoiceSub, false) }}</td><td class="num">{{ money($subFxMove, false) }}</td></tr>
+<tr><td>Tax</td><td class="num">{{ money($grnTax, false) }}</td><td class="num">{{ money($grnInvoiceTax, false) }}</td><td class="num">{{ money($bill->tax, false) }}</td><td class="num">{{ money($bill->tax - $grnInvoiceTax, false) }}</td><td class="num">{{ money($taxFxMove, false) }}</td></tr>
+<tr class="bold"><td>Total</td><td class="num">{{ money($bill->grn_total, false) }}</td><td class="num">{{ money($bill->grnAtInvoiceRate(), false) }}</td><td class="num">{{ money($bill->total, false) }}</td><td class="num {{ $bill->variance() ? ($bill->status === 'on_hold' ? 'text-red' : 'text-amber') : 'text-green' }}">{{ $bill->variance() ? money($bill->variance(), false) : 'Matched' }}</td><td class="num {{ $bill->fxDifference() > 0 ? 'text-red' : ($bill->fxDifference() < 0 ? 'text-green' : 'muted') }}">{{ $bill->fxDifference() ? money($bill->fxDifference(), false) : '—' }}</td></tr>
+@if($bill->isForeign())<tr class="small muted"><td>Foreign totals · {{ $bill->currency }}</td><td class="num">{{ number_format((float) $bill->grn_fx_total, 2) }}</td><td class="num">{{ number_format((float) $bill->grn_fx_total, 2) }}</td><td class="num">{{ number_format((float) $bill->fx_total, 2) }}</td><td class="num">{{ number_format((float) $bill->fx_total - (float) $bill->grn_fx_total, 2) }}</td><td class="num">—</td></tr>@endif
 </tbody></table>
-<details class="mt-1"><summary class="small">Items received ({{ $po->items->count() }})</summary><table class="table table-compact">@foreach($po->items as $l)<tr><td>{{ $l->item->name }}</td><td class="num">{{ (float) $l->qty }} {{ $l->item->unit }}</td><td class="num">{{ money($l->rate, false) }}</td><td class="num">{{ money($l->amount, false) }}</td></tr>@endforeach</table></details>
+<details class="mt-1"><summary class="small">Items received ({{ $po->items->count() }})</summary><table class="table table-compact">@if($bill->isForeign())<thead><tr><th>Item</th><th class="num">Accepted</th><th class="num">Rate · {{ $bill->currency }}</th><th class="num">Received · {{ $bill->currency }}</th><th class="num">Stock value · {{ $home }}</th></tr></thead>@endif
+@foreach($po->items as $l)@php $grnLines = $poGrnLines->where('purchase_order_item_id', $l->id); @endphp<tr><td>{{ $l->item->name }}</td><td class="num">{{ $bill->isForeign() ? $grnLines->sum('qty_accepted') : (float) $l->qty }} {{ $l->item->unit }}</td><td class="num">{{ $bill->isForeign() ? number_format((float) $l->fx_unit_rate, 4) : money($l->rate, false) }}</td><td class="num">{{ $bill->isForeign() ? number_format((float) $grnLines->sum('fx_amount'), 2) : money($l->amount, false) }}</td>@if($bill->isForeign())<td class="num">{{ money($grnLines->sum('amount'), false) }}</td>@endif</tr>@endforeach</table></details>
 </div></div>
 @else
 <div class="card flush"><div class="card-body table-wrap"><table class="table"><thead><tr><th>Account</th><th>Description</th><th class="num">Amount</th><th class="num">Tax %</th><th class="num">Tax</th><th class="num">Total</th></tr></thead><tbody>
@@ -84,22 +106,24 @@
   @forelse($journals as $j)
     <div class="small"><a href="{{ route('gl.journals.show', $j) }}">{{ $j->journal_no }}</a> · {{ $j->date->format('d M Y') }} · {{ money($j->total) }} {{ $j->reversal_of_id ? '(reversal)' : ($j->reversed_by_id ? '(reversed)' : '') }}</div>
   @empty
-    <p class="small muted" style="margin:0">@if($bill->status === 'on_hold')Nothing posts while the bill is on hold.@elseif($bill->kind === 'goods' && ! $bill->isDebitNote() && ! $bill->variance())Matched bill – nothing further to post.@else Posts with the ledger sync once {{ $bill->doc_date->format('d M') }} is closed by the night audit.@endif</p>
+    <p class="small muted" style="margin:0">@if($bill->isOpening())No historical journal was created for this opening item; its balance is reconciled to the AP control in the opening trial balance. Future payments and live credit notes post through the normal AP workflow.@elseif($bill->status === 'on_hold')Nothing posts while the bill is on hold.@elseif($bill->kind === 'goods' && ! $bill->isDebitNote() && ! $bill->variance() && ! $bill->fxDifference())Matched bill – nothing further to post.@elseif($bill->kind === 'goods' && ! $bill->isDebitNote())Posts genuine price/tax variance to Purchase Price Variance and receipt-to-invoice currency movement separately to Exchange Gain / Loss, with the ledger sync once {{ $bill->doc_date->format('d M') }} is closed.@else Posts with the ledger sync once {{ $bill->doc_date->format('d M') }} is closed by the night audit.@endif</p>
   @endforelse
   @if($bill->notes)<hr><div class="small" style="white-space:pre-line">{{ $bill->notes }}</div>@endif
 </div></div>
 </div>
 
+@if(! $bill->isOpening())
 <div class="modal" id="cancelModal"><div class="modal-box"><form method="post" action="{{ route('ap.bills.cancel', $bill) }}">@csrf
 <div class="modal-head"><h3>Cancel {{ $bill->doc_no }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
 <div class="modal-body"><p class="small">@if($bill->allocated > 0)<b>{{ money($bill->allocated) }}</b> applied to this document will be released back as unapplied supplier credit. @endif Any ledger posting is reversed.</p>
 <div class="field"><label>Reason <span class="req">*</span></label><input name="reason" required maxlength="200" class="input"></div></div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Cancel document</button></div></form></div></div>
+@endif
 
 @if($bill->status === 'on_hold')
 <div class="modal" id="approveModal"><div class="modal-box"><form method="post" action="{{ route('ap.bills.approve', $bill) }}">@csrf
 <div class="modal-head"><h3>Approve price variance</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-<div class="modal-body"><p>Accept the supplier's invoice of <b>{{ money($bill->total) }}</b> against goods received of <b>{{ money($bill->grn_total) }}</b>. The variance of <b>{{ money($bill->variance()) }}</b> is posted to Purchase Price Variance.</p>
+<div class="modal-body"><p>Accept the genuine price/tax variance of <b>{{ money($bill->variance()) }}</b> on this supplier invoice. @if($bill->isForeign())The invoice is valued at {{ $bill->fxLabel() }} using the invoice-date board; receipt-to-invoice FX movement of <b>{{ money($bill->fxDifference()) }}</b> remains separate and posts to Exchange Gain / Loss.@endif The approved price/tax variance is posted to Purchase Price Variance.</p>
 <div class="field"><label>Approval note</label><input name="note" maxlength="200" class="input" placeholder="e.g. Market price increase confirmed with chef"></div></div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Approve</button></div></form></div></div>
 @endif

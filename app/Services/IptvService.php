@@ -56,7 +56,7 @@ class IptvService
 {
     public const DEFAULTS = [
         'tv_enabled' => '1', 'tv_name_mode' => 'title_last', 'tv_default_lang' => 'en', 'tv_langs' => 'en,fr,es,pt,de,zh',
-        'tv_welcome_on' => '1', 'tv_reset_on_checkout' => '1', 'tv_heartbeat' => '20', 'tv_offline_min' => '5',
+        'tv_welcome_on' => '1', 'tv_welcome_image' => 'images/iptv/groove-esipong-beach-hotel.jpg', 'tv_reset_on_checkout' => '1', 'tv_heartbeat' => '20', 'tv_offline_min' => '5',
         'tv_vod_enabled' => '1', 'tv_pin_purchase' => '1', 'tv_pin_bill' => '0', 'tv_adult' => '0', 'tv_max_rentals' => '5',
         'tv_dining' => '1', 'tv_requests' => '1', 'tv_checkout' => '1', 'tv_feedback' => '1',
         'tv_weather' => '1', 'tv_lat' => '5.6037', 'tv_lon' => '-0.1870', 'tv_desk_ext' => '0',
@@ -90,7 +90,7 @@ class IptvService
             return [
                 'enabled' => $b('tv_enabled'), 'name_mode' => isset(self::NAME_MODES[$s('tv_name_mode')]) ? $s('tv_name_mode') : 'title_last',
                 'langs' => $langs, 'default_lang' => in_array($s('tv_default_lang'), $langs, true) ? $s('tv_default_lang') : $langs[0],
-                'welcome' => $b('tv_welcome_on'), 'reset_on_checkout' => $b('tv_reset_on_checkout'),
+                'welcome' => $b('tv_welcome_on'), 'welcome_image' => self::welcomeImagePath($s('tv_welcome_image')), 'reset_on_checkout' => $b('tv_reset_on_checkout'),
                 'heartbeat' => max(10, min(120, (int) $s('tv_heartbeat'))), 'offline_min' => max(2, min(240, (int) $s('tv_offline_min'))),
                 'vod' => $b('tv_vod_enabled'), 'pin_purchase' => $b('tv_pin_purchase'), 'pin_bill' => $b('tv_pin_bill'), 'adult' => $b('tv_adult'),
                 'max_rentals' => max(0, min(20, (int) $s('tv_max_rentals'))),
@@ -101,6 +101,16 @@ class IptvService
                 'signage_events' => $b('tv_signage_events'), 'signage_text' => mb_substr($s('tv_signage_text'), 0, 300),
             ];
         })();
+    }
+
+    protected static function welcomeImagePath(string $path): string
+    {
+        $path = trim($path);
+        $valid = preg_match('#^(?:images/iptv|uploads/iptv)/[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:jpe?g|png|webp)$#i', $path)
+            && ! str_contains($path, '..')
+            && is_file(public_path($path));
+
+        return $valid ? $path : self::DEFAULTS['tv_welcome_image'];
     }
 
     public static function ensureDefaults(): void
@@ -169,6 +179,11 @@ class IptvService
         $out['tv_power_channel'] = $pc === '' ? '' : (string) (int) $pc;
         $out['tv_desk_ext'] = mb_substr(trim((string) ($d['desk_ext'] ?? '')), 0, 8);
         $out['tv_signage_text'] = mb_substr(trim((string) ($d['signage_text'] ?? '')), 0, 300);
+        if (array_key_exists('welcome_image', $d)) {
+            $image = trim((string) $d['welcome_image']);
+            self::need(self::welcomeImagePath($image) === $image, 'Choose a valid hotel welcome photo.');
+            $out['tv_welcome_image'] = $image;
+        }
         foreach (['enabled', 'welcome_on', 'reset_on_checkout', 'vod_enabled', 'pin_purchase', 'pin_bill', 'adult', 'dining', 'requests', 'checkout', 'feedback', 'weather', 'signage_events'] as $k) {
             $out['tv_'.$k] = ! empty($d[$k]) ? '1' : '0';
         }
@@ -539,7 +554,7 @@ class IptvService
         $h = hotel();
         $em = self::emergency();
         $base = [
-            'hotel' => ['name' => $h?->name, 'city' => $h?->city], 'device' => ['name' => $dev->name, 'place' => $dev->place(), 'kind' => $dev->kind],
+            'hotel' => ['name' => $h?->name, 'city' => $h?->city, 'welcome_image' => $c['welcome_image']], 'device' => ['name' => $dev->name, 'place' => $dev->place(), 'kind' => $dev->kind],
             'now' => now()->toIso8601String(), 'heartbeat' => $c['heartbeat'],
             'emergency' => $em ? ['id' => $em->id, 'title' => $em->title, 'body' => $em->body, 'at' => $em->starts_at->format('H:i')] : null,
             'weather' => $c['weather'] ? ['lat' => $c['lat'], 'lon' => $c['lon']] : null, 'desk_ext' => $c['desk_ext'],
