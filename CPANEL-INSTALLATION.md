@@ -13,7 +13,7 @@ This ZIP contains the **complete Nowills PMS application** — all files needed 
 - **Billing Reconciliation** — AP/AR reconciliation with foreign currency support
 - **Migration Importers** — Opening balances, inventory, supplier importers
 - **Preview Files** — HTML previews for POS Terminal, Order Terminal, Robita Locks
-- **.env.example** — environment configuration template
+- **Web Installer** — `install.php` — browser-based setup, no SSH needed
 - **Apache .htaccess** — ready for cPanel/Apache
 
 ## Installation Steps (cPanel)
@@ -29,66 +29,24 @@ This ZIP contains the **complete Nowills PMS application** — all files needed 
 2. Choose "Extract to: current directory"
 3. All files will be placed in their correct locations
 
-### 3. Configure Environment
-1. Copy `.env.example` to `.env`:
-   - In File Manager, go to the extracted files
-   - Duplicate `.env.example` and rename to `.env`
-2. Edit `.env` and update:
-   ```
-   APP_URL=https://yourdomain.com
-   DB_HOST=localhost
-   DB_PORT=3306
-   DB_DATABASE=your_database_name
-   DB_USERNAME=your_database_user
-   DB_PASSWORD=your_database_password
-   ```
-3. Save the file
-
-### 4. Set Permissions
-Make these directories writable (cPanel → File Manager → Permissions):
+### 3. Set Permissions
+Make these directories writable (cPanel → File Manager → Change Permissions):
 - `storage/` → 755
 - `bootstrap/cache/` → 755
-- `public/uploads/` → 777 (if it exists)
 
-### 5. Run Migrations
-**Option A — cPanel Terminal:**
-1. Open **Terminal** in cPanel
-2. Navigate: `cd /path/to/your/app`
-3. Run: `php artisan migrate`
+### 4. Open the Web Installer
+1. Visit `https://yourdomain.com/install.php` in your browser
+2. The installer will:
+   - Check PHP version and extensions
+   - Let you enter database credentials
+   - Test the database connection
+   - Write `.env` with your settings and a generated APP_KEY
+   - Run all database migrations
+   - Clear cache
+3. Click **Test Connection** to verify your database
+4. Click **Install Application** to complete setup
 
-**Option B — Temporary web route (no Terminal needed):**
-1. Create `migrate.php` in the app root:
-   ```php
-   <?php
-   require __DIR__.'/build/vendor/autoload.php';
-   $app = require __DIR__.'/bootstrap/app.php';
-   $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-   $kernel->call('migrate');
-   echo "Migration complete";
-   ```
-2. Visit `https://yourdomain.com/migrate.php` in your browser
-3. Delete `migrate.php` after completion
-
-### 6. Generate App Key
-Run: `php artisan key:generate`
-(Or add `APP_KEY=` to `.env` and run migrations — Laravel will auto-generate it)
-
-### 7. Clear Cache
-```bash
-php artisan cache:clear
-php artisan config:clear
-php artisan view:clear
-php artisan route:clear
-```
-(Use the temporary web route method above if Terminal is unavailable)
-
-### 8. Seed Database (Optional)
-To populate demo data:
-```bash
-php artisan db:seed
-```
-
-### 9. Verify in Browser
+### 5. Verify in Browser
 1. Visit `https://yourdomain.com` — you should see the login page
 2. Log in with your admin credentials
 3. Check that these menus appear:
@@ -99,30 +57,45 @@ php artisan db:seed
    - `https://yourdomain.com/preview-pos-order.html`
    - `https://yourdomain.com/preview-robita.html`
 
+### 6. Secure the Installer (Optional)
+After installation completes, delete `install.php` from cPanel File Manager:
+- Right-click `install.php` → **Delete**
+
 ## Important Notes
 
 - **No Composer needed** — all dependencies are pre-installed in `build/vendor/`
-- **No SSH needed** — everything works through cPanel File Manager and Terminal
-- **PHP version** — requires PHP 8.3+ (check cPanel → Select PHP Version)
+- **No SSH needed** — the web installer handles everything
+- **PHP version** — requires PHP 8.3+ (check cPanel → Select PHP Version → MultiPHP Manager)
+- **Required extensions** — `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `ctype`, `json`, `dom`, `xml`, `fileinfo`
 - **Database** — MySQL 5.7+ or MariaDB 10.3+
 - **Backup** — always backup your database before running migrations
 
 ## Troubleshooting
 
-### Blank page / 500 error
-- Check `storage/logs/laravel.log` for errors
-- Verify `.env` has correct database credentials
-- Ensure `APP_KEY` is set in `.env`
+### Installer shows "PHP Version Error"
+- In cPanel, go to **MultiPHP Manager** and select PHP 8.3 or 8.4 for your domain
+
+### Installer shows "Missing Extensions"
+- In cPanel, go to **MultiPHP INI Editor** or contact your host to enable the required extensions
+
+### Database connection fails
+- Verify database name, username, and password
+- Check that the database user has ALL PRIVILEGES on the database
+- Try `localhost` instead of `127.0.0.1` as the database host
 
 ### Migration fails
 - Check database user has CREATE TABLE privileges
-- Verify `.env` database settings are correct
-- Try: `php artisan migrate:fresh` (drops all tables first — **only on fresh installs**)
+- Verify `.env` database settings are correct (check `storage/logs/laravel.log`)
+
+### Blank page / 500 error after install
+- Check `storage/logs/laravel.log` for errors
+- Ensure `storage/` and `bootstrap/cache/` are writable (755)
+- Verify `APP_KEY` is set in `.env`
 
 ### CSS/JS not loading
 - Ensure files are in `public/css/` and `public/js/`
-- Check `.htaccess` is in the `public/` directory
-- Verify `public/` is the web root in cPanel
+- Check `public/.htaccess` exists
+- Verify document root points to `public/` (or the root `.htaccess` handles it)
 
 ### Robita Locks menu not showing
 - Check that `robita.manage` permission is assigned to your user role
