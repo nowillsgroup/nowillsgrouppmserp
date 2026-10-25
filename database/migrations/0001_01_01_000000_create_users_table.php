@@ -11,6 +11,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('hotel_groups')) {
+            return;
+        }
+
         Schema::create('hotel_groups', function (Blueprint $t) {
             $t->id();
             $t->string('code', 30)->unique();
@@ -18,6 +22,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('hotels')) {
+            return;
+        }
 
         Schema::create('hotels', function (Blueprint $t) {
             $t->id();
@@ -47,6 +55,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('roles')) {
+            return;
+        }
+
         Schema::create('roles', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -57,6 +69,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'name']);
         });
 
+                if (Schema::hasTable('permissions')) {
+            return;
+        }
+
         Schema::create('permissions', function (Blueprint $t) {
             $t->id();
             $t->string('key', 80)->unique();
@@ -64,11 +80,19 @@ return new class extends Migration
             $t->string('label');
         });
 
+                if (Schema::hasTable('permission_role')) {
+            return;
+        }
+
         Schema::create('permission_role', function (Blueprint $t) {
             $t->foreignId('role_id')->constrained()->cascadeOnDelete();
             $t->foreignId('permission_id')->constrained()->cascadeOnDelete();
             $t->primary(['role_id', 'permission_id']);
         });
+
+                if (Schema::hasTable('users')) {
+            return;
+        }
 
         Schema::create('users', function (Blueprint $t) {
             $t->id();
@@ -92,11 +116,19 @@ return new class extends Migration
             $t->unique(['hotel_id', 'username']);
         });
 
+                if (Schema::hasTable('password_reset_tokens')) {
+            return;
+        }
+
         Schema::create('password_reset_tokens', function (Blueprint $t) {
             $t->string('email')->primary();
             $t->string('token');
             $t->timestamp('created_at')->nullable();
         });
+
+                if (Schema::hasTable('sessions')) {
+            return;
+        }
 
         Schema::create('sessions', function (Blueprint $t) {
             $t->string('id')->primary();
@@ -107,6 +139,10 @@ return new class extends Migration
             $t->integer('last_activity')->index();
         });
 
+                if (Schema::hasTable('settings')) {
+            return;
+        }
+
         Schema::create('settings', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -114,6 +150,10 @@ return new class extends Migration
             $t->text('value')->nullable();
             $t->unique(['hotel_id', 'key']);
         });
+
+                if (Schema::hasTable('activity_logs')) {
+            return;
+        }
 
         Schema::create('activity_logs', function (Blueprint $t) {
             $t->id();

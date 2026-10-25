@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+                if (Schema::hasTable('offline_sync_operations')) {
+            return;
+        }
+
         Schema::create('offline_sync_operations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('hotel_id')->constrained()->cascadeOnDelete();

@@ -17,6 +17,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('channel_connections')) {
+            return;
+        }
+
         Schema::create('channel_connections', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -48,6 +52,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('channel_room_maps')) {
+            return;
+        }
+
         Schema::create('channel_room_maps', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -61,6 +69,10 @@ return new class extends Migration
             $t->unique(['channel_connection_id', 'channel_room_code']);
         });
 
+                if (Schema::hasTable('channel_rate_maps')) {
+            return;
+        }
+
         Schema::create('channel_rate_maps', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -72,6 +84,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['channel_connection_id', 'room_type_id', 'channel_rate_code'], 'chan_rate_code_unique');
         });
+
+                if (Schema::hasTable('channel_restrictions')) {
+            return;
+        }
 
         Schema::create('channel_restrictions', function (Blueprint $t) {
             $t->id();
@@ -89,6 +105,10 @@ return new class extends Migration
             $t->index(['channel_connection_id', 'date_from']);
         });
 
+                if (Schema::hasTable('channel_dirty')) {
+            return;
+        }
+
         Schema::create('channel_dirty', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -97,6 +117,10 @@ return new class extends Migration
             $t->timestamp('created_at')->nullable();
             $t->index(['hotel_id', 'id']);
         });
+
+                if (Schema::hasTable('channel_pushes')) {
+            return;
+        }
 
         Schema::create('channel_pushes', function (Blueprint $t) {
             $t->id();
@@ -117,6 +141,10 @@ return new class extends Migration
             $t->index(['channel_connection_id', 'id']);
         });
 
+                if (Schema::hasTable('channel_ari_states')) {
+            return;
+        }
+
         Schema::create('channel_ari_states', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -131,6 +159,10 @@ return new class extends Migration
             $t->timestamp('pushed_at')->nullable();
             $t->unique(['channel_connection_id', 'room_type_id', 'date'], 'chan_ari_unique');
         });
+
+                if (Schema::hasTable('channel_messages')) {
+            return;
+        }
 
         Schema::create('channel_messages', function (Blueprint $t) {
             $t->id();

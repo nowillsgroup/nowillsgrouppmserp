@@ -33,6 +33,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'irn_status']);
         });
 
+                if (Schema::hasTable('gst_cancelled_docs')) {
+            return;
+        }
+
         Schema::create('gst_cancelled_docs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -49,6 +53,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'doc_date']);
         });
+
+                if (Schema::hasTable('einvoice_logs')) {
+            return;
+        }
 
         Schema::create('einvoice_logs', function (Blueprint $t) {
             $t->id();
@@ -67,6 +75,10 @@ return new class extends Migration
             $t->timestamp('created_at')->nullable();
             $t->index(['hotel_id', 'folio_id']);
         });
+
+                if (Schema::hasTable('gst_periods')) {
+            return;
+        }
 
         Schema::create('gst_periods', function (Blueprint $t) {
             $t->id();

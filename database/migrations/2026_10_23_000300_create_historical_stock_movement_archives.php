@@ -12,6 +12,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('historical_stock_movement_archives')) {
+            return;
+        }
+
         Schema::create('historical_stock_movement_archives', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

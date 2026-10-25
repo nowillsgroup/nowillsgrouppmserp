@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('packages')) {
+            return;
+        }
+
         Schema::create('packages', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -38,6 +42,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('rate_plan_packages')) {
+            return;
+        }
+
         Schema::create('rate_plan_packages', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -50,6 +58,10 @@ return new class extends Migration
         Schema::table('stay_fixed_charges', function (Blueprint $t) {
             $t->foreignId('package_id')->nullable()->after('reservation_room_id')->constrained()->nullOnDelete();
         });
+
+                if (Schema::hasTable('package_entitlements')) {
+            return;
+        }
 
         Schema::create('package_entitlements', function (Blueprint $t) {
             $t->id();
@@ -77,6 +89,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'service_date', 'status']);
             $t->index(['hotel_id', 'night_date']);
         });
+
+                if (Schema::hasTable('package_redemptions')) {
+            return;
+        }
 
         Schema::create('package_redemptions', function (Blueprint $t) {
             $t->id();

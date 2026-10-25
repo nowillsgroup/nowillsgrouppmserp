@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('robita_devices')) {
+            return;
+        }
+
         Schema::create('robita_devices', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('hotel_id')->index();
@@ -39,6 +43,10 @@ return new class extends Migration
             $table->index('last_seen_at');
         });
 
+                if (Schema::hasTable('robita_events')) {
+            return;
+        }
+
         Schema::create('robita_events', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('hotel_id')->index();
@@ -64,6 +72,10 @@ return new class extends Migration
             $table->index(['robita_device_id', 'event_at']);
             $table->index('event_at');
         });
+
+                if (Schema::hasTable('robita_credentials')) {
+            return;
+        }
 
         Schema::create('robita_credentials', function (Blueprint $table) {
             $table->id();

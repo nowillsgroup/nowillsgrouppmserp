@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('dm_channels')) {
+            return;
+        }
+
         Schema::create('dm_channels', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -33,6 +37,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'name']);
         });
+                if (Schema::hasTable('dm_channel_stats')) {
+            return;
+        }
+
         Schema::create('dm_channel_stats', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -46,6 +54,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['channel_id', 'month']);
         });
+                if (Schema::hasTable('dm_campaigns')) {
+            return;
+        }
+
         Schema::create('dm_campaigns', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -66,6 +78,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'utm_campaign']);
             $t->index(['hotel_id', 'status']);
         });
+                if (Schema::hasTable('dm_ad_stats')) {
+            return;
+        }
+
         Schema::create('dm_ad_stats', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -81,6 +97,10 @@ return new class extends Migration
             $t->unique(['campaign_id', 'date']);
             $t->index(['hotel_id', 'date']);
         });
+                if (Schema::hasTable('dm_links')) {
+            return;
+        }
+
         Schema::create('dm_links', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -98,6 +118,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+                if (Schema::hasTable('dm_link_clicks')) {
+            return;
+        }
+
         Schema::create('dm_link_clicks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -109,6 +133,10 @@ return new class extends Migration
             $t->index(['link_id', 'clicked_at']);
             $t->index(['hotel_id', 'clicked_at']);
         });
+                if (Schema::hasTable('dm_posts')) {
+            return;
+        }
+
         Schema::create('dm_posts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -135,6 +163,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'scheduled_at']);
             $t->index(['hotel_id', 'status']);
         });
+                if (Schema::hasTable('dm_influencers')) {
+            return;
+        }
+
         Schema::create('dm_influencers', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

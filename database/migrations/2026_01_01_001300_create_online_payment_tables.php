@@ -12,6 +12,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('online_payments')) {
+            return;
+        }
+
         Schema::create('online_payments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -50,6 +54,10 @@ return new class extends Migration
             $t->index(['provider', 'provider_ref']);
         });
 
+                if (Schema::hasTable('online_payment_events')) {
+            return;
+        }
+
         Schema::create('online_payment_events', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -66,6 +74,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'provider', 'event_id']);
         });
 
+                if (Schema::hasTable('online_refunds')) {
+            return;
+        }
+
         Schema::create('online_refunds', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -78,6 +90,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('gateway_payouts')) {
+            return;
+        }
 
         Schema::create('gateway_payouts', function (Blueprint $t) {
             $t->id();

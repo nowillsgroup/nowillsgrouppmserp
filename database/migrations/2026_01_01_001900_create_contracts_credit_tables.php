@@ -25,6 +25,10 @@ return new class extends Migration
             $t->foreignId('account_manager_id')->nullable()->constrained('users')->nullOnDelete();
         });
 
+                if (Schema::hasTable('rate_contracts')) {
+            return;
+        }
+
         Schema::create('rate_contracts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -54,6 +58,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'company_id', 'status']);
         });
 
+                if (Schema::hasTable('rate_contract_rates')) {
+            return;
+        }
+
         Schema::create('rate_contract_rates', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -68,6 +76,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('rate_contract_blackouts')) {
+            return;
+        }
+
         Schema::create('rate_contract_blackouts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -77,6 +89,10 @@ return new class extends Migration
             $t->string('reason', 100)->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('contract_allotments')) {
+            return;
+        }
 
         Schema::create('contract_allotments', function (Blueprint $t) {
             $t->id();
@@ -89,6 +105,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('release_days')->default(7);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('credit_logs')) {
+            return;
+        }
 
         Schema::create('credit_logs', function (Blueprint $t) {
             $t->id();

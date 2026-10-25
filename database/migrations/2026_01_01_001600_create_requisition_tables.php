@@ -21,6 +21,10 @@ return new class extends Migration
             $t->decimal('monthly_budget', 14, 2)->nullable()->after('default_store_id');
         });
 
+                if (Schema::hasTable('requisitions')) {
+            return;
+        }
+
         Schema::create('requisitions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -50,6 +54,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('requisition_lines')) {
+            return;
+        }
+
         Schema::create('requisition_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('requisition_id')->constrained()->cascadeOnDelete();
@@ -60,6 +68,10 @@ return new class extends Migration
             $t->string('remarks', 190)->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('store_issues')) {
+            return;
+        }
 
         Schema::create('store_issues', function (Blueprint $t) {
             $t->id();
@@ -80,6 +92,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'issue_no']);
         });
 
+                if (Schema::hasTable('store_issue_lines')) {
+            return;
+        }
+
         Schema::create('store_issue_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('store_issue_id')->constrained()->cascadeOnDelete();
@@ -90,6 +106,10 @@ return new class extends Migration
             $t->decimal('amount', 14, 2)->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('store_pars')) {
+            return;
+        }
 
         Schema::create('store_pars', function (Blueprint $t) {
             $t->id();

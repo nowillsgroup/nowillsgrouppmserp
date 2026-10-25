@@ -16,6 +16,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('club_ticket_types')) {
+            return;
+        }
+
         Schema::create('club_ticket_types', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -31,6 +35,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('club_ticket_sales')) {
+            return;
+        }
 
         Schema::create('club_ticket_sales', function (Blueprint $t) {
             $t->id();
@@ -59,6 +67,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'sold_at']);
         });
 
+                if (Schema::hasTable('club_ticket_sale_items')) {
+            return;
+        }
+
         Schema::create('club_ticket_sale_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('sale_id')->constrained('club_ticket_sales')->cascadeOnDelete();
@@ -72,6 +84,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('passes')->default(0);           // day-pass credentials issued
             $t->timestamps();
         });
+
+                if (Schema::hasTable('club_ticket_payments')) {
+            return;
+        }
 
         Schema::create('club_ticket_payments', function (Blueprint $t) {
             $t->id();

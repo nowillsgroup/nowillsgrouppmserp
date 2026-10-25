@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('parking_zones')) {
+            return;
+        }
+
         Schema::create('parking_zones', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -30,6 +34,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('parking_vehicles')) {
+            return;
+        }
 
         Schema::create('parking_vehicles', function (Blueprint $t) {
             $t->id();
@@ -51,6 +59,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'plate']);
         });
 
+                if (Schema::hasTable('parking_permits')) {
+            return;
+        }
+
         Schema::create('parking_permits', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -70,6 +82,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'number']);
         });
+
+                if (Schema::hasTable('parking_sessions')) {
+            return;
+        }
 
         Schema::create('parking_sessions', function (Blueprint $t) {
             $t->id();
@@ -116,6 +132,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
             $t->index(['hotel_id', 'entered_at']);
         });
+
+                if (Schema::hasTable('parking_charges')) {
+            return;
+        }
 
         Schema::create('parking_charges', function (Blueprint $t) {
             $t->id();

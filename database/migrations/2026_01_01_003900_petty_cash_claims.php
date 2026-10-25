@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('petty_floats')) {
+            return;
+        }
+
         Schema::create('petty_floats', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -24,6 +28,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('petty_replenishments')) {
+            return;
+        }
 
         Schema::create('petty_replenishments', function (Blueprint $t) {
             $t->id();
@@ -45,6 +53,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('petty_txns')) {
+            return;
+        }
 
         Schema::create('petty_txns', function (Blueprint $t) {
             $t->id();
@@ -83,6 +95,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('petty_counts')) {
+            return;
+        }
+
         Schema::create('petty_counts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -102,6 +118,10 @@ return new class extends Migration
             $t->foreignId('variance_txn_id')->nullable()->constrained('petty_txns')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('expense_claims')) {
+            return;
+        }
 
         Schema::create('expense_claims', function (Blueprint $t) {
             $t->id();
@@ -128,6 +148,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
             $t->index(['hotel_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('expense_claim_lines')) {
+            return;
+        }
 
         Schema::create('expense_claim_lines', function (Blueprint $t) {
             $t->id();

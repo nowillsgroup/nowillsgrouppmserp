@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('shift_templates')) {
+            return;
+        }
+
         Schema::create('shift_templates', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -29,6 +33,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('roster_weeks')) {
+            return;
+        }
+
         Schema::create('roster_weeks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -40,6 +48,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'department_id', 'week_start']);
         });
+
+                if (Schema::hasTable('roster_shifts')) {
+            return;
+        }
 
         Schema::create('roster_shifts', function (Blueprint $t) {
             $t->id();
@@ -58,6 +70,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('shift_swaps')) {
+            return;
+        }
+
         Schema::create('shift_swaps', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -74,6 +90,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('time_punches')) {
+            return;
+        }
 
         Schema::create('time_punches', function (Blueprint $t) {
             $t->id();
@@ -106,6 +126,10 @@ return new class extends Migration
             $t->boolean('sc_eligible')->default(true)->after('sc_points');
         });
 
+                if (Schema::hasTable('tip_collections')) {
+            return;
+        }
+
         Schema::create('tip_collections', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -123,6 +147,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'tip_no']);
             $t->index(['hotel_id', 'date']);
         });
+
+                if (Schema::hasTable('sc_distributions')) {
+            return;
+        }
 
         Schema::create('sc_distributions', function (Blueprint $t) {
             $t->id();
@@ -149,6 +177,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'dist_no']);
         });
+
+                if (Schema::hasTable('sc_distribution_lines')) {
+            return;
+        }
 
         Schema::create('sc_distribution_lines', function (Blueprint $t) {
             $t->id();

@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('budgets')) {
+            return;
+        }
+
         Schema::create('budgets', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'fiscal_year', 'kind']);
         });
 
+                if (Schema::hasTable('budget_lines')) {
+            return;
+        }
+
         Schema::create('budget_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -52,6 +60,10 @@ return new class extends Migration
             $t->unique(['budget_id', 'account_head_id']);
         });
 
+                if (Schema::hasTable('budget_stats')) {
+            return;
+        }
+
         Schema::create('budget_stats', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -63,6 +75,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['budget_id', 'month']);
         });
+
+                if (Schema::hasTable('budget_comments')) {
+            return;
+        }
 
         Schema::create('budget_comments', function (Blueprint $t) {
             $t->id();
@@ -77,6 +93,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'period']);
         });
+
+                if (Schema::hasTable('budget_events')) {
+            return;
+        }
 
         Schema::create('budget_events', function (Blueprint $t) {
             $t->id();

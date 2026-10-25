@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('cro_enquiries')) {
+            return;
+        }
+
         Schema::create('cro_enquiries', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();   // the property the caller asked for
@@ -58,6 +62,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'created_at']);
             $t->index('referred_hotel_id');
         });
+
+                if (Schema::hasTable('cro_contacts')) {
+            return;
+        }
 
         Schema::create('cro_contacts', function (Blueprint $t) {
             $t->id();

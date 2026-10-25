@@ -19,6 +19,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('audit_days')) {
+            return;
+        }
+
         Schema::create('audit_days', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -40,6 +44,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'business_date']);
         });
+
+                if (Schema::hasTable('revenue_authorisations')) {
+            return;
+        }
 
         Schema::create('revenue_authorisations', function (Blueprint $t) {
             $t->id();
@@ -66,6 +74,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('room_counts')) {
+            return;
+        }
+
         Schema::create('room_counts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -83,6 +95,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'business_date', 'room_id']);
         });
+
+                if (Schema::hasTable('audit_findings')) {
+            return;
+        }
 
         Schema::create('audit_findings', function (Blueprint $t) {
             $t->id();

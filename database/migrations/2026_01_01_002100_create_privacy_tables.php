@@ -26,6 +26,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'privacy_status']);
         });
 
+                if (Schema::hasTable('privacy_requests')) {
+            return;
+        }
+
         Schema::create('privacy_requests', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -62,6 +66,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'due_on']);
         });
 
+                if (Schema::hasTable('privacy_request_events')) {
+            return;
+        }
+
         Schema::create('privacy_request_events', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -71,6 +79,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamp('created_at')->useCurrent();
         });
+
+                if (Schema::hasTable('pii_access_logs')) {
+            return;
+        }
 
         Schema::create('pii_access_logs', function (Blueprint $t) {
             $t->id();
@@ -86,6 +98,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'guest_id']);
         });
 
+                if (Schema::hasTable('privacy_retention_runs')) {
+            return;
+        }
+
         Schema::create('privacy_retention_runs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -95,6 +111,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamp('created_at')->useCurrent();
         });
+
+                if (Schema::hasTable('data_breaches')) {
+            return;
+        }
 
         Schema::create('data_breaches', function (Blueprint $t) {
             $t->id();

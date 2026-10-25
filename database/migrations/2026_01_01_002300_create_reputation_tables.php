@@ -19,6 +19,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('surveys')) {
+            return;
+        }
+
         Schema::create('surveys', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -34,6 +38,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('survey_questions')) {
+            return;
+        }
+
         Schema::create('survey_questions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -47,6 +55,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('survey_invitations')) {
+            return;
+        }
 
         Schema::create('survey_invitations', function (Blueprint $t) {
             $t->id();
@@ -96,6 +108,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'guest_id']);
         });
 
+                if (Schema::hasTable('feedback_answers')) {
+            return;
+        }
+
         Schema::create('feedback_answers', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -105,6 +121,10 @@ return new class extends Migration
             $t->text('value_text')->nullable();
             $t->index(['question_id', 'value_int']);
         });
+
+                if (Schema::hasTable('online_reviews')) {
+            return;
+        }
 
         Schema::create('online_reviews', function (Blueprint $t) {
             $t->id();
@@ -142,6 +162,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'review_date']);
         });
 
+                if (Schema::hasTable('feedback_cases')) {
+            return;
+        }
+
         Schema::create('feedback_cases', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -174,6 +198,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'due_at']);
         });
 
+                if (Schema::hasTable('feedback_case_events')) {
+            return;
+        }
+
         Schema::create('feedback_case_events', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -183,6 +211,10 @@ return new class extends Migration
             $t->text('note')->nullable();
             $t->timestamp('created_at')->nullable();
         });
+
+                if (Schema::hasTable('review_templates')) {
+            return;
+        }
 
         Schema::create('review_templates', function (Blueprint $t) {
             $t->id();

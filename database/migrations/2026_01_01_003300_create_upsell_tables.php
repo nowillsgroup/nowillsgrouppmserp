@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('upsell_offers')) {
+            return;
+        }
+
         Schema::create('upsell_offers', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -42,6 +46,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('upsell_orders')) {
+            return;
+        }
+
         Schema::create('upsell_orders', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -73,6 +81,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'service_date']);
             $t->index(['upsell_offer_id', 'service_date']);
         });
+
+                if (Schema::hasTable('upsell_presentations')) {
+            return;
+        }
 
         Schema::create('upsell_presentations', function (Blueprint $t) {
             $t->id();

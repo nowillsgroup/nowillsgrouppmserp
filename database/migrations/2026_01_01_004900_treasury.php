@@ -20,6 +20,10 @@ return new class extends Migration
             $t->string('cf_class', 12)->nullable()->after('group_name');   // cash | operating | noncash | investing | financing
         });
 
+                if (Schema::hasTable('treasury_accounts')) {
+            return;
+        }
+
         Schema::create('treasury_accounts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -41,6 +45,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'account_head_id']);
         });
+
+                if (Schema::hasTable('treasury_transfers')) {
+            return;
+        }
 
         Schema::create('treasury_transfers', function (Blueprint $t) {
             $t->id();
@@ -78,6 +86,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('cheques_received')) {
+            return;
+        }
+
         Schema::create('cheques_received', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -110,6 +122,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('cheque_books')) {
+            return;
+        }
+
         Schema::create('cheque_books', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -122,6 +138,10 @@ return new class extends Migration
             $t->string('status', 10)->default('active');                // active | used | cancelled
             $t->timestamps();
         });
+
+                if (Schema::hasTable('cheques_issued')) {
+            return;
+        }
 
         Schema::create('cheques_issued', function (Blueprint $t) {
             $t->id();
@@ -144,6 +164,10 @@ return new class extends Migration
             $t->unique(['cheque_book_id', 'cheque_no']);
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('cash_forecast_lines')) {
+            return;
+        }
 
         Schema::create('cash_forecast_lines', function (Blueprint $t) {
             $t->id();

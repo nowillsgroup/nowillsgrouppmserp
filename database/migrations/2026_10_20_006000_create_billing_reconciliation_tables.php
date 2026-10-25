@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('billing_reconciliations')) {
+            return;
+        }
+
         Schema::create('billing_reconciliations', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -27,6 +31,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'period_from', 'period_to']);
             $t->index(['hotel_id', 'status', 'period_from']);
         });
+
+        if (Schema::hasTable('billing_reconciliation_items')) {
+            return;
+        }
 
         Schema::create('billing_reconciliation_items', function (Blueprint $t) {
             $t->id();
