@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Groove Beach Hotel · Nowills PMS</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/dashboard.css">
+<style>
+
+/* Preview-specific additions (not in app.css / dashboard.css) */
+.donut{background:conic-gradient(#dc2626 0 76%,#16a34a 76% 93%,#94a3b8 93% 100%)}
+.donut>div{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut b{font-size:1.4rem}
+.donut .tiny{font-size:.62rem;color:var(--c-muted)}
+.dash-shortcuts-card .quick a{display:flex;align-items:center;gap:.5rem;border:1px solid var(--c-border);border-radius:6px;color:var(--c-text);text-decoration:none}
+.dash-shortcuts-card .quick a:hover{border-color:var(--c-primary);text-decoration:none}
+.dash-shortcuts-card .quick a svg{stroke:var(--c-primary)}
+.dash-module-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dash-stay-grid{grid-template-columns:1fr 1fr}
+.dash-room-card .card-body{display:flex;align-items:center;gap:.8rem;padding:.9rem}
+.dash-activity-card .card-body{max-height:360px;overflow:auto}
+.dash-activity-card .list li{align-items:flex-start;line-height:1.4}
+.dash-stay-grid .list li{gap:.75rem;align-items:center}
+.dash-room-card .list li{padding:.4rem 0;font-size:.79rem}
+.dash-alert-list li>span:first-child svg{flex:none;margin-top:.12rem;width:14px;height:14px;stroke:var(--c-muted);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dash-alert-list li>a,.dash-alert-list li>b{flex:none;white-space:nowrap;font-size:.76rem;font-weight:700;color:var(--c-primary);text-decoration:none}
+.dash-module-grid .list li{align-items:flex-start;line-height:1.4}
+.dash-module-grid .progress{margin-top:.25rem}
+.dash-module-grid .card-body>.mb-1:last-child{margin-bottom:0}
+.dash-attention-card .card-head{align-items:center;padding:.85rem 1.05rem}
+.dash-attention-card .card-head h3{font-size:1rem}
+.dash-attention-card .card-body{padding:.9rem 1rem 1rem}
+.dash-welcome{border-left:4px solid var(--c-primary);background:linear-gradient(105deg,#fff,var(--c-primary-50))}
+.dash-welcome h2{margin:0;font-size:1.28rem;letter-spacing:-.02em}
+.dash-welcome p{margin:.22rem 0 0;color:var(--c-muted);font-size:.84rem}
+.dash-eyebrow{display:block;margin-bottom:.22rem;color:var(--c-primary);font-size:.67rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.dash-section-kicker{display:block;margin-bottom:.22rem;color:var(--c-primary);font-size:.67rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.dash-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin:0 0 .65rem}
+.dash-section-heading h2{margin:0;font-size:.98rem;font-weight:750;letter-spacing:-.01em}
+.dash-section-heading p{margin:.12rem 0 0;color:var(--c-muted);font-size:.76rem}
+.dash-section-note{color:var(--c-muted);font-size:.72rem;white-space:nowrap}
+.dash-business-date{display:flex;flex:none;flex-direction:column;gap:.08rem;padding:.55rem .85rem;border:1px solid var(--c-border);border-radius:10px;background:#fff;text-align:right}
+.dash-business-date span{color:var(--c-muted);font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.dash-business-date strong{font-size:.83rem}
+.dash-card-subtitle{margin:.12rem 0 0;color:var(--c-muted);font-size:.75rem;font-weight:400}
+.dash-snapshot-label{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .58rem;border:1px solid var(--c-primary-100);border-radius:999px;background:var(--c-primary-50);color:var(--c-primary-600);font-size:.68rem;font-weight:700;white-space:nowrap}
+.dash-snapshot-label::before{display:block;flex:none;width:7px;height:7px;border-radius:50%;background:var(--c-primary);content:""}
+.dash-page-actions{display:flex;align-items:center;justify-content:flex-end;gap:.5rem;flex-wrap:wrap}
+.dash-alert-list li{display:flex;align-items:center;gap:.7rem;padding:.62rem .72rem;border:1px solid var(--c-border);border-radius:10px;background:var(--c-bg);font-size:.78rem;line-height:1.35}
+.dash-alert-list li:hover{border-color:var(--c-border-strong);background:#fff}
+.dash-alert-list li>span:first-child{display:flex;align-items:flex-start;gap:.42rem;flex:1;min-width:0}
+.dash-alert-list li:has(.text-red){border-color:rgba(220,38,38,.27);background:var(--c-red-50)}
+.dash-alert-list li:has(.text-amber){border-color:rgba(217,119,6,.27);background:var(--c-amber-50)}
+.dash-chart-head{align-items:center}
+.dash-chart-head h3{margin:0;font-size:.98rem}
+.dash-chart-card .card-body{padding:.8rem 1.1rem 1rem}
+.dash-chart-card .card-head{min-height:58px}
+.dash-main-grid .dash-sidebar>.card{margin-bottom:.85rem}
+.dash-main-grid .dash-sidebar>.card:last-child{margin-bottom:0}
+.dash-module-grid>.card{min-width:0;height:100%;margin:0}
+.dash-module-grid .card-head{min-height:48px;padding:.75rem .9rem}
+.dash-module-grid .card-body{padding:.85rem .95rem}
+.dash-room-card .card-body{gap:.8rem}
+@media(max-width:1200px){.dash-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-main-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.dash-stats-rooms,.dash-stats-finance{grid-template-columns:repeat(2,1fr)}.dash-stay-grid{grid-template-columns:1fr}.dash-alert-list{grid-template-columns:1fr}.dash-notices{grid-template-columns:1fr}}
+@media(max-width:480px){.dash-stats-rooms,.dash-stats-finance{grid-template-columns:1fr}.dash-module-grid{grid-template-columns:1fr}}
+.dash-welcome-copy{min-width:0}
+.dash-notices .card{height:100%;margin:0}
+.dash-notice-card .card-head{min-height:48px}
+.dash-kpi-list li{align-items:flex-start}
+.dash-pinned-reports{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.dash-main-column>.card,.dash-sidebar>.card{margin-bottom:.85rem}
+.dash-main-column>.card:last-child,.dash-sidebar>.card:last-child{margin-bottom:0}
+.dash-main-column,.dash-sidebar{min-width:0}
+
+/* Icon-only topbar */
+.top-tool{padding:.35rem .3rem;width:36px;height:36px;justify-content:center}
+.top-tool .top-tool-icon{width:30px;height:30px}
+.top-tool .top-tool-icon svg{width:17px;height:17px}
+.top-tool-label{display:none}
+.bdate{display:flex;align-items:center;gap:.45rem;background:var(--c-primary-50);color:var(--c-primary-600);border:1px solid var(--c-primary-100);padding:.35rem .75rem;border-radius:999px;font-weight:600;font-size:.85rem;white-space:nowrap}
+.bdate svg{width:15px;height:15px}
+.hotel-switch{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--c-text-2);cursor:pointer;white-space:nowrap}
+.hotel-switch svg{width:15px;height:15px}
+.user-chip{padding:.3rem;border-radius:999px}
+.user-chip:hover{background:var(--c-slate-50)}
+.top-right{gap:.4rem}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+      <button class="sidebar-collapse" title="Collapse sidebar"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    </div>
+    <label class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="search" placeholder="Search modules…">
+    </label>
+    <nav class="nav">
+      <div class="nav-section-label">DASHBOARD</div>
+      <div class="nav-item active"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Dashboard</a></div>
+      <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Group Dashboard</a></div>
+      <div class="nav-item"><a href="#"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg> Night Audit</a></div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg> Reports <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item"><a href="#">All Reports</a></div>
+          <div class="nav-item"><a href="#">My Reports &amp; Saved Views</a></div>
+          <div class="nav-item"><a href="#">Scheduled Reports</a></div>
+          <div class="nav-item"><a href="#">KPI Alerts <span class="badge badge-red" style="margin-left:.4rem">3</span></a></div>
+        </div>
+      </div>
+
+      <div class="nav-section-label">OPERATIONS</div>
+      <div class="nav-item nav-category open">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg> Front Office &amp; Guest Services <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <div class="nav-sub">
+          <div class="nav-item nav-category open">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg> Front Office <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+            <div class="nav-sub">
+              <div class="nav-item"><a href="#">Room View</a></div>
+              <div class="nav-item"><a href="#">Tape Chart</a></div>
+              <div class="nav-item"><a href="#">Walk-in Check-in</a></div>
+              <div class="nav-item"><a href="#">Arrivals</a></div>
+              <div class="nav-item"><a href="#">In-House Guests</a></div>
+              <div class="nav-item"><a href="#">Departures</a></div>
+              <div class="nav-item"><a href="#">Guest Requests <span class="badge badge-amber" style="margin-left:.4rem">2</span></a></div>
+            </div>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5v14z"/></svg> Desk Operations <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg> Reservations <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg> Central Reservations <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> Concierge <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Guest Messaging <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Self-Service Kiosk <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> IPTV &amp; Guest Welcome <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+          <div class="nav-item nav-category">
+            <button style="font-size:.84rem"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> Foreign Guests <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/></svg> Housekeeping &amp; Maintenance <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/></svg> F&amp;B &amp; POS <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg> Finance &amp; Accounting <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 17a3 3 0 100-6M7 7a3 3 0 100 6"/></svg> Sales &amp; Marketing <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z"/><path d="M22 11h-6M19 8v6"/></svg> People &amp; Payroll <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+
+      <div class="nav-section-label">GOVERNANCE</div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg> Inventory &amp; Purchasing <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg> Fixed Assets &amp; Engineering <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Quality, Safety &amp; Sustainability <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <div class="nav-item nav-category">
+        <button><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg> Administration &amp; Configuration <svg class="i chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+    </nav>
+    <div class="side-profile">
+      <a href="#"><div class="avatar">AD</div><div class="side-profile-copy"><b>Albert Dede</b><small>Administrator</small></div></a>
+      <form><button type="button" title="Sign out"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button></form>
+    </div>
+    <div class="side-foot">v7.40 · GVBEH</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <form class="top-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input placeholder="Search guest, reservation, room, company, folio…  ( / )">
+      </form>
+      <div class="top-right">
+        <nav class="top-tools">
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
+          <button class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg></span></button>
+          <span class="top-tool"><span class="top-tool-icon" style="background:var(--c-green-50);color:var(--c-green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></span></span>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18M6 18a6 6 0 1112 0"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span></a>
+          <a class="top-tool"><span class="top-tool-icon top-tool-icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg></span></a>
+        </nav>
+        <span class="bdate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Sat, 24 Oct 2026</span>
+        <span class="hotel-switch"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;width:14px;height:14px"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg> Groove Beach Hotel</span>
+        <div class="user-chip">
+          <div class="avatar">AD</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <div class="crumbs">Operations · Groove Beach Hotel</div>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> New reservation</a>
+        </div>
+      </div>
+
+      <div class="dashboard-page">
+        <!-- WELCOME -->
+        <section class="dash-welcome">
+          <div class="dash-welcome-copy">
+            <span class="dash-eyebrow">PROPERTY OPERATIONS</span>
+            <h2>Welcome back, Albert Dede</h2>
+            <p>Here is today's operating picture for Groove Beach Hotel.</p>
+          </div>
+          <div class="dash-business-date"><span>Business date</span><strong>Saturday, 24 Oct 2026</strong></div>
+        </section>
+
+        <!-- ROOMS & GUEST FLOW -->
+        <section class="dash-section">
+          <div class="dash-section-heading">
+            <div><span class="dash-section-kicker">ROOMS &amp; GUEST FLOW</span><h2>Property at a glance</h2><p>Current room position and today's guest movement.</p></div>
+            <span class="dash-section-note">Live property snapshot</span>
+          </div>
+          <div class="stats dash-stats dash-stats-rooms">
+            <div class="stat tone-blue"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 012-2h14a2 2 0 012 2v6M3 18h18M3 18v3M21 18v3M7 10V6a2 2 0 012-2h6a2 2 0 012 2v4"/></svg></div><div><div class="v">76%</div><div class="l">Occupancy (23/30 rooms)</div></div></div>
+            <div class="stat tone-green"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M5 12h12"/></svg></div><div><div class="v">8 / 12</div><div class="l">Arrivals Today</div></div></div>
+            <div class="stat tone-amber"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></div><div><div class="v">6</div><div class="l">Departures Pending</div></div></div>
+            <div class="stat tone-purple"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div><div class="v">42</div><div class="l">In-House Guests</div></div></div>
+          </div>
+        </section>
+
+        <!-- REVENUE SNAPSHOT -->
+        <section class="dash-section dash-finance-section">
+          <div class="dash-section-heading">
+            <div><span class="dash-section-kicker">TODAY'S PERFORMANCE</span><h2>Revenue snapshot</h2><p>Daily revenue and collection measures for the current business date.</p></div>
+            <span class="dash-section-note">Amounts in property currency</span>
+          </div>
+          <div class="stats dash-stats dash-stats-finance">
+            <div class="stat tone-blue"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div><div><div class="v">GH₵ 18,420</div><div class="l">Room Revenue (today)</div></div></div>
+            <div class="stat tone-teal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg></div><div><div class="v">GH₵ 3,250</div><div class="l">Other Revenue (today)</div></div></div>
+            <div class="stat tone-green"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 100 4h4v-4z"/></svg></div><div><div class="v">GH₵ 15,800</div><div class="l">Collections (today)</div></div></div>
+            <div class="stat tone-purple"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg></div><div><div class="v">GH₵ 801</div><div class="l">ADR (today)</div></div></div>
+          </div>
+        </section>
+
+        <!-- NOTICES -->
+        <div class="dash-notices">
+          <div class="card dash-notice-card">
+            <div class="card-head"><h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg> KPI alerts <span class="badge badge-red">3</span></h3><a class="small" href="#">Acknowledge</a></div>
+            <div class="card-body" style="padding-top:.3rem">
+              <ul class="dash-kpi-list">
+                <li><span><span class="badge badge-red">critical</span> 1 master key overdue — not returned by the sign-out period</span><span class="tiny" style="color:var(--c-muted)">24 Oct</span></li>
+                <li><span><span class="badge badge-amber">warning</span> 2 guests in-house without a working key card</span><span class="tiny" style="color:var(--c-muted)">24 Oct</span></li>
+                <li><span><span class="badge badge-blue">info</span> 1 channel sync failure on Booking.com</span><span class="tiny" style="color:var(--c-muted)">24 Oct</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="card dash-notice-card">
+            <div class="card-head"><h3>Pinned reports</h3><a class="small" href="#">Manage</a></div>
+            <div class="card-body dash-pinned-reports">
+              <a class="btn-soft">Daily Revenue</a>
+              <a class="btn-soft">Room Occupancy</a>
+              <a class="btn-soft">Folio Aging</a>
+              <a class="btn-soft">Housekeeping Status</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAIN GRID -->
+        <div class="dash-main-grid">
+          <div class="dash-main-column">
+            <!-- BAR CHART -->
+            <div class="card dash-chart-card">
+              <div class="card-head dash-chart-head">
+                <div><h3>Daily revenue &amp; occupancy</h3><p class="dash-card-subtitle">Last 14 audit days · hover a bar to see revenue and occupancy.</p></div>
+                <a class="btn btn-sm btn-ghost" href="#">Details</a>
+              </div>
+              <div class="card-body">
+                <div class="bar-chart">
+                  <div class="col"><div class="b" style="height:45%" data-v="GH₵ 12,400 · 62%"></div><small>11/10</small></div>
+                  <div class="col"><div class="b" style="height:52%" data-v="GH₵ 14,800 · 71%"></div><small>12/10</small></div>
+                  <div class="col"><div class="b" style="height:38%" data-v="GH₵ 10,900 · 55%"></div><small>13/10</small></div>
+                  <div class="col"><div class="b" style="height:61%" data-v="GH₵ 17,200 · 78%"></div><small>14/10</small></div>
+                  <div class="col"><div class="b" style="height:48%" data-v="GH₵ 13,500 · 64%"></div><small>15/10</small></div>
+                  <div class="col"><div class="b" style="height:55%" data-v="GH₵ 15,600 · 70%"></div><small>16/10</small></div>
+                  <div class="col"><div class="b" style="height:42%" data-v="GH₵ 11,800 · 58%"></div><small>17/10</small></div>
+                  <div class="col"><div class="b" style="height:67%" data-v="GH₵ 18,900 · 82%"></div><small>18/10</small></div>
+                  <div class="col"><div class="b" style="height:59%" data-v="GH₵ 16,400 · 75%"></div><small>19/10</small></div>
+                  <div class="col"><div class="b" style="height:44%" data-v="GH₵ 12,600 · 60%"></div><small>20/10</small></div>
+                  <div class="col"><div class="b" style="height:57%" data-v="GH₵ 16,100 · 72%"></div><small>21/10</small></div>
+                  <div class="col"><div class="b" style="height:36%" data-v="GH₵ 10,200 · 52%"></div><small>22/10</small></div>
+                  <div class="col"><div class="b" style="height:63%" data-v="GH₵ 17,800 · 80%"></div><small>23/10</small></div>
+                  <div class="col"><div class="b" style="height:72%" data-v="GH₵ 21,670 · 76%"></div><small>24/10</small></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ARRIVALS + DEPARTURES -->
+            <div class="grid dash-stay-grid">
+              <div class="card">
+                <div class="card-head"><h3>Expected Arrivals</h3><a class="small" href="#">View all</a></div>
+                <div class="card-body">
+                  <ul class="list">
+                    <li><div><b>Kwame Mensah</b><div class="tiny">RES-2026-1047 · Room 204 · Ready</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                    <li><div><b>Sarah Adeyemi</b><div class="tiny">RES-2026-1048 · Room 205 · Ready</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                    <li><div><b>James Obeng</b><div class="tiny">RES-2026-1049 · Room 301 · Ready</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                    <li><div><b>Grace Akuffo</b><div class="tiny">RES-2026-1050 · Room 302 · Housekeeping</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                    <li><div><b>Michael Dede</b><div class="tiny">RES-2026-1051 · Room 101 · Ready</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                    <li><div><b>Nina Larbi</b><div class="tiny">RES-2026-1052 · Room 102 · Ready</div></div><a class="btn btn-sm btn-success">Check-in</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-head"><h3>Due Departures</h3><a class="small" href="#">View all</a></div>
+                <div class="card-body">
+                  <ul class="list">
+                    <li><div><b>102 · Nina Larbi</b><div class="tiny">RES-2026-1045 · To settle GH₵ 420.00 · not posted</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                    <li><div><b>205 · Sarah Adeyemi</b><div class="tiny">RES-2026-1048 · To settle GH₵ 680.00 · not posted</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                    <li><div><b>101 · Michael Dede</b><div class="tiny">RES-2026-1046 · To settle GH₵ 550.00 · not posted</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                    <li><div><b>303 · Peter Quartey</b><div class="tiny">RES-2026-1044 · No folio</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                    <li><div><b>203 · Akosua Boateng</b><div class="tiny">RES-2026-1043 · To settle GH₵ 390.00 · not posted</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                    <li><div><b>304 · Samuel Yeboah</b><div class="tiny">RES-2026-1042 · To settle GH₵ 720.00 · not posted</div></div><a class="btn btn-sm btn-warning">Check-out</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- RECENT ACTIVITY -->
+            <div class="card dash-activity-card">
+              <div class="card-head"><h3>Recent Activity</h3><a class="small" href="#">Activity log</a></div>
+              <div class="card-body">
+                <ul class="list">
+                  <li><div><span class="badge badge-slate">keys</span> Encoded 2 key cards for room 204 (Kwame Mensah)</div><span class="tiny">A. Dede · 2 min ago</span></li>
+                  <li><div><span class="badge badge-slate">frontdesk</span> Checked in Sarah Adeyemi to room 205</div><span class="tiny">A. Dede · 15 min ago</span></li>
+                  <li><div><span class="badge badge-slate">pos</span> Restaurant bill GH₵ 180.00 posted to folio 204</div><span class="tiny">N. Larbi · 32 min ago</span></li>
+                  <li><div><span class="badge badge-slate">housekeeping</span> Room 101 marked clean</div><span class="tiny">Cleaning Team A · 1 hr ago</span></li>
+                  <li><div><span class="badge badge-slate">reservations</span> New booking RES-2026-1053 from Booking.com</div><span class="tiny">System · 2 hrs ago</span></li>
+                  <li><div><span class="badge badge-slate">frontdesk</span> Checked out Nina Larbi from room 102</div><span class="tiny">A. Dede · 3 hrs ago</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- SIDEBAR -->
+          <aside class="dash-sidebar">
+            <div class="card dash-room-card">
+              <div class="card-head"><h3>Room Status</h3><a class="small" href="#">View rooms</a></div>
+              <div class="card-body" style="display:flex;gap:.8rem;align-items:center">
+                <div class="donut"><div><b>76%</b><div class="tiny">occupied</div></div></div>
+                <ul class="list" style="flex:1">
+                  <li><span><span class="badge badge-red">Occupied</span></span><b>23</b></li>
+                  <li><span><span class="badge badge-green">Vacant</span></span><b>4</b></li>
+                  <li><span><span class="badge badge-slate">Out of order</span></span><b>2</b></li>
+                  <li><span><span class="badge badge-amber">Dirty</span></span><b>1</b></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card dash-shortcuts-card">
+              <div class="card-head"><h3>Shortcuts</h3></div>
+              <div class="card-body">
+                <div class="quick">
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Room View</a>
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 4v18M16 4v18"/></svg>Tape Chart</a>
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/></svg>POS</a>
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 00-7 7c0 3 2 5 2 7v2a2 2 0 002 2h6a2 2 0 002-2v-2c0-2 2-4 2-7a7 7 0 00-7-7z"/></svg>Housekeeping</a>
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Night Audit</a>
+                  <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg>Reports</a>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- ACTION CENTRE -->
+        <section class="dash-section dash-attention-section">
+          <div class="card dash-attention-card">
+            <div class="card-head">
+              <div><h3>Action centre</h3><p class="dash-card-subtitle">Operational alerts and follow-ups, grouped in one place.</p></div>
+              <span class="dash-snapshot-label">Across departments</span>
+            </div>
+            <div class="card-body">
+              <ul class="dash-alert-list">
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg> Open maintenance tickets</span><a href="#">3</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/></svg> Running POS orders</span><a href="#">5</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg> New bookings today</span><b>4</b></li>
+                <li class="text-amber"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg> Rate contracts expiring soon</span><a href="#">2</a></li>
+                <li class="text-red"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Companies on credit hold</span><a href="#">1</a></li>
+                <li class="text-red"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> OTA overbookings to resolve</span><a href="#">1</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Wake-up calls due now / late</span><a href="#">3 / 1</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg> Guest messages / parcels waiting at the desk</span><a href="#">5 / 2</a></li>
+                <li class="text-amber"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg> Online reviews waiting &gt; 48 h</span><a href="#">2 / 1</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Currencies without today's exchange rate</span><a href="#">1</a></li>
+                <li class="text-red"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4z"/></svg> Foreign currency to surrender to the bank</span><a href="#">2</a></li>
+                <li><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 5-5"/></svg> Business source: Direct bookings (30 days)</span><b>18</b></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- DEPARTMENT SNAPSHOT -->
+        <section class="dash-section dash-module-section">
+          <div class="dash-section-heading"><div><span class="dash-section-kicker">MORE PROPERTY SIGNALS</span><h2>Department snapshots</h2><p>Finance, guest services, facilities and upcoming events.</p></div></div>
+          <div class="dash-module-grid">
+            <div class="card">
+              <div class="card-head"><h3>Budget · Oct 2026</h3><a class="small" href="#">Budget vs Actual</a></div>
+              <div class="card-body" style="padding-top:.3rem">
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Revenue MTD</span><span><b>GH₵ 182,400</b> <span style="color:var(--c-muted)">/ GH₵ 190,000</span></span></div><div class="progress"><span class="green" style="width:96%"></span></div><div class="tiny text-green" style="font-size:.68rem">+GH₵ 7,600 (+4.0%) vs budget to 24 Oct</div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>GOP MTD</span><span><b>GH₵ 48,200</b> <span style="color:var(--c-muted)">/ GH₵ 52,000</span></span></div><div class="progress"><span class="green" style="width:93%"></span></div><div class="tiny text-green" style="font-size:.68rem">-GH₵ 3,800 (-7.3%) vs budget to 24 Oct</div></div>
+                <div class="small" style="margin-top:.5rem"><a href="#" class="text-amber" style="color:var(--c-amber)">1 variance needs an explanation</a></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Phones &amp; keys · today</h3><a class="small" href="#">Interface hub</a></div>
+              <div class="card-body" style="padding-top:.3rem">
+                <ul class="list">
+                  <li><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg> Calls / billed to guests</span><a href="#">12 · GH₵ 180.00</a></li>
+                  <li class="text-amber"><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg> Calls to review</span><a href="#">2</a></li>
+                  <li><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Working guest key cards</span><a href="#">47</a></li>
+                  <li class="text-red"><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 18h18M6 18a6 6 0 1112 0"/></svg> Master keys out / overdue</span><a href="#">4 / 1</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Security</h3><a class="small" href="#">Open</a></div>
+              <div class="card-body" style="padding-top:.3rem">
+                <ul class="list">
+                  <li><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z"/></svg> Visitors on site</span><a href="#">5 · 12 today</a></li>
+                  <li class="text-amber"><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg> Waiting for the guest's OK</span><a href="#">1</a></li>
+                  <li class="text-red"><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Visitor passes expired</span><a href="#">2</a></li>
+                  <li><span class="text-red"><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z"/></svg> Open incidents</span><a href="#">3 · 1 high</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Gift vouchers</h3><a class="small" href="#">All vouchers</a></div>
+              <div class="card-body" style="padding-top:.3rem">
+                <ul class="list">
+                  <li><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4z"/></svg> Outstanding liability</span><a href="#">GH₵ 4,250 · 12 live</a></li>
+                  <li><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Sold / redeemed today</span><span><b>GH₵ 850</b> / GH₵ 320</span></li>
+                  <li class="text-amber"><span><svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Expiring in 7 days</span><a href="#">3 · GH₵ 680</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Business Source Mix (30 days)</h3></div>
+              <div class="card-body">
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Direct</span><b>42</b></div><div class="progress"><span style="width:100%"></span></div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Booking.com</span><b>28</b></div><div class="progress"><span style="width:67%"></span></div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Airbnb</span><b>15</b></div><div class="progress"><span style="width:36%"></span></div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Expedia</span><b>12</b></div><div class="progress"><span style="width:29%"></span></div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Walk-in</span><b>8</b></div><div class="progress"><span style="width:19%"></span></div></div>
+                <div class="mb-1"><div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Corporate</span><b>6</b></div><div class="progress"><span style="width:14%"></span></div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Upcoming Banquets</h3><a class="small" href="#">Diary</a></div>
+              <div class="card-body" style="padding-top:.3rem">
+                <ul class="list">
+                  <li><div><a href="#"><b>Akwaaba Wedding Reception</b></a><div class="tiny">28 Oct · Grand Hall · 120 pax</div></div><span class="badge badge-green">Confirmed</span></li>
+                  <li><div><a href="#"><b>Groove Corporate Retreat</b></a><div class="tiny">02 Nov · Seaside Hall · 45 pax</div></div><span class="badge badge-blue">Tentative</span></li>
+                  <li><div><a href="#"><b>Xmas Gala Dinner</b></a><div class="tiny">20 Dec · Grand Hall · 200 pax</div></div><span class="badge badge-amber">Deposit due</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

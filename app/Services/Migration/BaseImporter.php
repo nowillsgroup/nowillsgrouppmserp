@@ -9,6 +9,23 @@ use Illuminate\Support\Carbon;
  */
 abstract class BaseImporter implements DatasetImporter
 {
+    /** Default CSV template contains the column examples in one row. */
+    public function templateRows(): array
+    {
+        $example = [];
+        foreach ($this->columns() as $name => $spec) {
+            $example[$name] = $spec['example'] ?? '';
+        }
+
+        return [$example];
+    }
+
+    /** Ordinary migration datasets apply after validation unless explicitly staged. */
+    public function supportsApply(): bool
+    {
+        return true;
+    }
+
     /** Accept the date shapes legacy PMS exports tend to use. */
     protected function date(?string $v): ?string
     {
@@ -65,6 +82,17 @@ abstract class BaseImporter implements DatasetImporter
     protected function externalId(?string $v): ?string
     {
         return $this->str($v, 100);
+    }
+
+    /** Cross-row validation is opt-in; ordinary master-data imports need none. */
+    public function validateBatch(array $rows, ImportContext $ctx): ?string
+    {
+        return null;
+    }
+
+    /** Dataset-level finalization is opt-in; ordinary master-data imports need none. */
+    public function afterRun(ImportContext $ctx, bool $dryRun): void
+    {
     }
 
     /**

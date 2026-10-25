@@ -21,6 +21,11 @@ class PurchaseOrder extends Model
             'received_at' => 'datetime',
             'approved_at' => 'datetime',
             'closed_at' => 'datetime',
+            'fx_date' => 'date',
+            'fx_subtotal' => 'decimal:2',
+            'fx_tax' => 'decimal:2',
+            'fx_total' => 'decimal:2',
+            'fx_rate' => 'decimal:4',
         ];
     }
 
@@ -117,6 +122,34 @@ class PurchaseOrder extends Model
         $g = GoodsReceipt::where('purchase_order_id', $this->id)->selectRaw('SUM(subtotal) s, SUM(tax) t')->first();
 
         return [round((float) $g->s, 2), round((float) $g->t, 2)];
+    }
+
+    /** Foreign-currency accepted subtotal / tax across posted GRNs, before conversion to the property currency. */
+    public function receivedForeignSplit(?string $asOf = null): array
+    {
+        if (! $this->isForeign()) {
+            return [0.0, 0.0];
+        }
+        $g = GoodsReceipt::where('purchase_order_id', $this->id)
+            ->when($asOf, fn ($q) => $q->whereDate('date', '<=', $asOf))
+            ->selectRaw('SUM(fx_subtotal) s, SUM(fx_tax) t')->first();
+
+        return [round((float) $g->s, 2), round((float) $g->t, 2)];
+    }
+
+    public function isForeign(): bool
+    {
+        return filled($this->currency)
+            && strtoupper(trim((string) $this->currency)) !== strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+    }
+
+    /** Supplier's original PO total, with home-currency fallback for existing orders. */
+    public function fxLabel(?float $amount = null): string
+    {
+        $code = strtoupper(trim((string) ($this->currency ?: hotel()?->currency ?: 'GHS')));
+        $value = $amount ?? ($this->isForeign() ? (float) $this->fx_total : (float) $this->total);
+
+        return $code.' '.number_format($value, 2);
     }
 
     /** Whether the supplier bill can be matched now: all goods in (or the balance short-closed). */

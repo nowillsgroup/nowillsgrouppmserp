@@ -11,6 +11,11 @@ class GoodsReceiptLine extends Model
 
     protected $guarded = ['id', 'hotel_id'];
 
+    protected function casts(): array
+    {
+        return ['fx_unit_rate' => 'decimal:4', 'fx_amount' => 'decimal:2', 'fx_tax_amount' => 'decimal:2'];
+    }
+
     public function receipt()
     {
         return $this->belongsTo(GoodsReceipt::class, 'goods_receipt_id');
