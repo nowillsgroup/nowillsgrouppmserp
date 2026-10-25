@@ -96,8 +96,8 @@ class LedgerService
 
     public static function forFolioTx(FolioTransaction $t): ?array
     {
-        if ($t->is_void) {
-            return null;
+        if ($t->is_void || $t->isOpening()) {
+            return null; // the opening trial balance establishes these receivable controls once
         }
         $a = (float) $t->amount;
         $tax = (float) $t->tax_amount;
@@ -253,7 +253,8 @@ class LedgerService
         return [
             'date' => $g->date->toDateString(),
             'reference' => $g->grn_no,
-            'narration' => 'Goods received – '.($name ?? 'supplier').' ('.($g->order?->po_no ?? 'PO').')',
+            'narration' => 'Goods received – '.($name ?? 'supplier').' ('.($g->order?->po_no ?? 'PO').')'
+                .($g->isForeign() ? ' — '.$g->fxLabel().' at '.number_format((float) $g->fx_rate, 4)." {$g->fx_basis}, board of {$g->fx_date->format('d M Y')}" : ''),
             'lines' => [
                 [AccountHead::sys('inventory'), (float) $g->subtotal + ($claimable ? 0 : $tax), null],
                 [AccountHead::sys('input_tax'), $claimable ? $tax : 0, null],
@@ -268,6 +269,9 @@ class LedgerService
      */
     public static function forSupplierInvoice(SupplierInvoice $d): ?array
     {
+        if ($d->isOpening()) {
+            return null; // opening AP control is established once by the full trial-balance cutover
+        }
         if (in_array($d->status, ['on_hold', 'cancelled'])) {
             return null;
         }
@@ -275,8 +279,22 @@ class LedgerService
         $sign = $d->isDebitNote() ? -1 : 1;
         $name = $d->supplier?->name;
         if ($d->kind === 'goods' && ! $d->isDebitNote()) {
-            $v = $d->variance();
-            $lines = [[AccountHead::sys('price_variance'), $v, $d->purchaseOrder?->po_no], [$ap, -$v, $name]];
+            // The GRN already established the receipt-date stock cost and AP accrual. At invoice date, separate the
+            // receipt-to-bill FX movement from any genuine supplier price/tax variance.
+            $variance = $d->variance();
+            $fx = $d->fxDifference();
+            $lines = [];
+            if ($variance != 0.0) {
+                $lines[] = [AccountHead::sys('price_variance'), $variance, $d->purchaseOrder?->po_no];
+                $lines[] = [$ap, -$variance, $name];
+            }
+            if ($fx != 0.0) {
+                $lines[] = [AccountHead::sys('forex_gain'), $fx, 'Receipt-to-invoice exchange movement on '.$d->currency];
+                $lines[] = [$ap, -$fx, $name];
+            }
+            if (! $lines) {
+                return null;
+            }
         } else {
             $claimable = setting('gl_input_tax', '1') === '1';
             $lines = [];
@@ -778,8 +796,9 @@ class LedgerService
     public static function controls(string $asOf): array
     {
         $fo = FolioTransaction::where('is_void', false)->whereDate('business_date', '<=', $asOf)
-            ->selectRaw("SUM(CASE WHEN type='charge' THEN amount + tax_amount WHEN type='refund' THEN amount WHEN type IN ('payment','discount','allowance') THEN -amount ELSE 0 END) bal")->value('bal');
-        $clDebits = FolioTransaction::where('is_void', false)->where('type', 'payment')->where('category', 'city_ledger')->whereDate('business_date', '<=', $asOf)->sum('amount');
+            ->selectRaw("SUM(CASE WHEN type='charge' THEN amount + tax_amount WHEN type='opening_balance' AND category='opening_ar' THEN amount WHEN type='refund' THEN amount WHEN type IN ('payment','discount','allowance') THEN -amount ELSE 0 END) bal")->value('bal');
+        $clDebits = FolioTransaction::where('is_void', false)->whereIn('type', ['payment', 'opening_balance'])
+            ->where('category', 'city_ledger')->whereDate('business_date', '<=', $asOf)->sum('amount');
         $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOf)->sum('amount');
         $stock = DB::table('stock_movements as m')->join('inventory_items as i', 'i.id', '=', 'm.inventory_item_id')
             ->where('m.hotel_id', Tenant::id())->whereDate('m.date', '<=', $asOf)

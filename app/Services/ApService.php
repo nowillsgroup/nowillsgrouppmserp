@@ -159,12 +159,13 @@ class ApService
             .($diff != 0.0 ? ' — '.money(abs($diff)).' realised exchange '.($diff > 0 ? 'loss' : 'gain').' to Exchange Gain / Loss' : ' — no exchange difference');
     }
 
-    public static function fxNote(?array $fx, ?array $board = null): string
+    public static function fxNote(?array $fx, ?array $board = null, ?float $postedTotal = null): string
     {
         if (! $fx) {
             return '';
         }
-        $rounding = round((float) $fx['fx_total'] * (float) $fx['fx_rate'] - ((float) $fx['fx_subtotal'] + (float) $fx['fx_tax']), 2);
+        $rate = (float) $fx['fx_rate'];
+        $rounding = $postedTotal === null ? 0.0 : round($postedTotal - round((float) $fx['fx_total'] * $rate, 2), 2);
 
         return " ({$fx['currency']} ".number_format((float) $fx['fx_total'], 2).' at '.number_format((float) $fx['fx_rate'], 4)
             .' '.$fx['fx_basis'].', board of '.Carbon::parse($fx['fx_date'])->format('d M Y')
@@ -179,6 +180,9 @@ class ApService
      */
     public static function postNow(SupplierInvoice|SupplierPayment $doc): void
     {
+        if ($doc instanceof SupplierInvoice && $doc->isOpening()) {
+            return; // the opening trial balance establishes this AP control position once
+        }
         $cutoff = setting('gl_cutoff');
         $date = ($doc instanceof SupplierPayment ? $doc->date : $doc->doc_date)?->toDateString();
         if (! $cutoff || ! $date || $date > $cutoff) {
@@ -197,7 +201,7 @@ class ApService
 
     // ─────────────────────────── bills ───────────────────────────
 
-    /** Bill for goods received against a purchase order (3-way match: PO → goods receipt → supplier invoice). */
+    /** Bill for goods received against a purchase order (3-way match: PO → GRN → supplier invoice). */
     public static function billFromReceipt(PurchaseOrder $po, array $d): SupplierInvoice
     {
         $bill = DB::transaction(function () use ($po, $d) {
@@ -211,31 +215,74 @@ class ApService
             }
             $date = $d['doc_date'] ?? bdate()->toDateString();
             self::checkDate($date, 'bill date');
-            // v7.53 a matched bill is valued at the goods receipt, and a receipt is valued at the purchase order, which
-            // carries no currency: converting here would break the three-way match and the stock valuation with it
-            if (! empty($d['currency']) && strtoupper(trim((string) $d['currency'])) !== strtoupper(trim((string) (hotel()?->currency ?: 'GHS')))) {
-                throw new RuntimeException('A bill matched to a goods receipt is valued at the receipt, which is in '.hotel()?->currency
-                    .'. Enter it in '.hotel()?->currency.', or record the supplier\'s own document as a direct bill.');
+            $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+            $poCurrency = $po->isForeign() ? strtoupper((string) $po->currency) : $home;
+            $currency = strtoupper(trim((string) ($d['currency'] ?? $home))) ?: $home;
+            if ($currency !== $poCurrency) {
+                throw new RuntimeException("A bill matched to {$po->po_no} must be in {$poCurrency}, the currency on the purchase order. Record a differently denominated supplier document as a direct bill.");
             }
             self::duplicateRef($po->supplier_id, $d['supplier_ref'] ?? null, 'invoice');
-            [$recSub, $recTax] = $po->receivedSplit(); // v4.8: GRN value for part deliveries / short-closed POs
+            [$recSub, $recTax] = $po->receivedSplit();
             $grnValue = $po->receivedValue();
-            $sub = round((float) ($d['subtotal'] ?? $recSub), 2);
-            $tax = round((float) ($d['tax'] ?? $recTax), 2);
-            if ($sub <= 0 || $tax < 0) {
-                throw new RuntimeException('Enter the amounts shown on the supplier invoice.');
+            $fx = null;
+            $fxBoard = null;
+            $grnFxSub = null;
+            $grnFxTax = null;
+            $grnAtInvoiceRate = $grnValue;
+
+            if ($po->isForeign()) {
+                if (! ForexService::apConvert()) {
+                    throw new RuntimeException("Foreign-currency matched bills are switched off under Foreign Guests › Settings › Forex desk.");
+                }
+                $policy = ForexService::apPolicy($date);
+                // Goods bills use the actual invoice date even if the direct-expense setting is configured for business date.
+                $fxBoard = ForexService::boardRate($poCurrency, $date, ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+                if (! $fxBoard) {
+                    throw new RuntimeException("There is no {$poCurrency} rate on the forex board for ".Carbon::parse($date)->format('d M Y')
+                        .', and none in the '.$policy['stale_days'].' days before it. Set the rate under Foreign Guests › Exchange Rates.');
+                }
+                [$grnFxSub, $grnFxTax] = $po->receivedForeignSplit();
+                $fxSub = round((float) ($d['subtotal'] ?? $grnFxSub), 2);
+                $fxTax = round((float) ($d['tax'] ?? $grnFxTax), 2);
+                if ($fxSub <= 0 || $fxTax < 0) {
+                    throw new RuntimeException('Enter the supplier invoice subtotal and tax in '.$poCurrency.'.');
+                }
+                $rate = (float) $fxBoard['rate'];
+                $sub = round($fxSub * $rate, 2);
+                $tax = round($fxTax * $rate, 2);
+                $fx = ['currency' => $poCurrency, 'fx_subtotal' => $fxSub, 'fx_tax' => $fxTax, 'fx_total' => round($fxSub + $fxTax, 2),
+                    'fx_rate' => $rate, 'fx_date' => $fxBoard['date'], 'fx_basis' => $fxBoard['basis']];
+                $grnAtInvoiceRate = round(round($grnFxSub * $rate, 2) + round($grnFxTax * $rate, 2), 2);
+            } else {
+                $sub = round((float) ($d['subtotal'] ?? $recSub), 2);
+                $tax = round((float) ($d['tax'] ?? $recTax), 2);
+                if ($sub <= 0 || $tax < 0) {
+                    throw new RuntimeException('Enter the amounts shown on the supplier invoice.');
+                }
             }
+
             $total = round($sub + $tax, 2);
-            $variance = round($total - $grnValue, 2);
-            $hold = abs($variance) > self::tolerance($grnValue);
-            $bill = SupplierInvoice::create([
+            $variance = round($total - $grnAtInvoiceRate, 2);
+            $hold = abs($variance) > self::tolerance($grnAtInvoiceRate);
+            $bill = SupplierInvoice::create(array_merge([
                 'doc_no' => Numbering::next('supplier_bill'), 'type' => 'invoice', 'kind' => 'goods', 'supplier_id' => $po->supplier_id, 'purchase_order_id' => $po->id,
                 'supplier_ref' => $d['supplier_ref'] ?? null, 'doc_date' => $date, 'due_date' => self::dueDate($po->supplier, $date, $d['due_date'] ?? null),
                 'subtotal' => $sub, 'tax' => $tax, 'total' => $total, 'grn_total' => $grnValue, 'status' => $hold ? 'on_hold' : 'open',
+                'grn_fx_subtotal' => $grnFxSub, 'grn_fx_tax' => $grnFxTax, 'grn_fx_total' => $grnFxSub === null ? null : round($grnFxSub + $grnFxTax, 2),
                 'notes' => $d['notes'] ?? null, 'created_by' => auth()->id(),
-            ]);
+            ], $fx ?: []));
             $po->forceFill(['invoice_no' => $bill->supplier_ref ?? $po->invoice_no])->save();
-            ActivityLogger::log('ap', 'bill', "Supplier bill {$bill->doc_no} for {$po->po_no}: ".money($total).($variance ? ' (variance '.money($variance).($hold ? ', on hold' : '').')' : ' – matched'), $bill);
+            $note = $bill->isForeign() ? self::fxNote($fx, $fxBoard, (float) $bill->total) : '';
+            $message = "Supplier bill {$bill->doc_no} for {$po->po_no}: ".money($total).$note;
+            if ($variance) {
+                $message .= ' (price/tax variance '.money($variance).($hold ? ', on hold' : '').')';
+            } else {
+                $message .= ' – price/tax matched';
+            }
+            if ($bill->isForeign() && $bill->fxDifference() != 0.0) {
+                $message .= '; receipt-to-invoice FX movement '.money($bill->fxDifference());
+            }
+            ActivityLogger::log('ap', 'bill', $message, $bill);
 
             return $bill;
         });
@@ -269,7 +316,7 @@ class ApService
                 'subtotal' => $sub, 'tax' => $tax, 'total' => round($sub + $tax, 2), 'status' => 'open', 'notes' => $notes, 'created_by' => auth()->id(),
             ], $fx ?: []));
             $bill->lines()->createMany($lines);
-            ActivityLogger::log('ap', 'bill', "Expense bill {$bill->doc_no} from {$s->name}: ".money($bill->total).self::fxNote($fx, $board), $bill);
+            ActivityLogger::log('ap', 'bill', "Expense bill {$bill->doc_no} from {$s->name}: ".money($bill->total).self::fxNote($fx, $board, (float) $bill->total), $bill);
             if ($over) {
                 ActivityLogger::log('budget', 'over_budget', "Expense bill {$bill->doc_no} over budget: ".BudgetService::describe($over).(trim((string) ($d['budget_reason'] ?? '')) !== '' ? ' – reason: '.trim($d['budget_reason']) : ''), $bill);
             }
@@ -310,7 +357,7 @@ class ApService
                 'subtotal' => $sub, 'tax' => $tax, 'total' => round($sub + $tax, 2), 'status' => 'open', 'notes' => $d['notes'] ?? null, 'created_by' => auth()->id(),
             ], $fx ?: []));
             $dn->lines()->createMany($lines);
-            ActivityLogger::log('ap', 'debit_note', "Debit note {$dn->doc_no} to {$s->name}: ".money($dn->total).self::fxNote($fx, $board), $dn);
+            ActivityLogger::log('ap', 'debit_note', "Debit note {$dn->doc_no} to {$s->name}: ".money($dn->total).self::fxNote($fx, $board, (float) $dn->total), $dn);
             if ($against && in_array($against->status, ['open', 'partial'])) {
                 $amt = min($dn->total, $against->fresh()->outstanding());
                 if ($amt > 0) {
@@ -350,6 +397,9 @@ class ApService
         }
         if (! trim($reason)) {
             throw new RuntimeException('A reason is required.');
+        }
+        if ($doc->isOpening()) {
+            throw new RuntimeException('Opening AP items are cutover balances and cannot be cancelled through the historical-bill workflow. Correct an unapplied row in a new opening_ap batch before the opening TB is posted, or enter an approved live credit/adjustment after cutover.');
         }
 
         DB::transaction(function () use ($doc, $reason) {
@@ -517,6 +567,14 @@ class ApService
         }
         if ($amount <= 0 || $amount - $bill->outstanding() > 0.004) {
             throw new RuntimeException("Bill {$bill->doc_no}: at most ".money($bill->outstanding()).' is outstanding.');
+        }
+        if ($dn) {
+            $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+            $billCurrency = $bill->isForeign() ? strtoupper((string) $bill->currency) : $home;
+            $creditCurrency = $dn->isForeign() ? strtoupper((string) $dn->currency) : $home;
+            if ($billCurrency !== $creditCurrency) {
+                throw new RuntimeException("The bill is in {$billCurrency} but the supplier credit is in {$creditCurrency}; allocate credits only to bills in the same currency.");
+            }
         }
         $a = ApAllocation::create(['supplier_invoice_id' => $bill->id, 'supplier_payment_id' => $p?->id, 'debit_note_id' => $dn?->id,
             'amount' => $amount, 'date' => $date ?? bdate()->toDateString(), 'user_id' => auth()->id()]);
@@ -768,7 +826,9 @@ class ApService
                 $d->kind === 'goods' => $d->variance(),
                 default => (float) $d->total,
             };
-            $label = $d->isDebitNote() ? 'Debit note' : ($d->kind === 'goods' ? 'Bill (matched to receipt'.($d->variance() ? ', price variance' : '').($d->status === 'on_hold' ? ', ON HOLD' : '').')' : 'Expense bill');
+            $label = $d->isOpening()
+                ? ($d->isDebitNote() ? 'Opening supplier credit' : 'Opening payable balance')
+                : ($d->isDebitNote() ? 'Debit note' : ($d->kind === 'goods' ? 'Bill (matched to receipt'.($d->variance() ? ', price variance' : '').($d->status === 'on_hold' ? ', ON HOLD' : '').')' : 'Expense bill'));
             $rows->push(['date' => $d->doc_date->toDateString(), 'doc' => $d->doc_no, 'type' => $label, 'ref' => $d->supplier_ref,
                 'dr' => $amt < 0 ? -$amt : 0.0, 'cr' => $amt > 0 ? $amt : 0.0, 'info' => $d->kind === 'goods' && ! $d->isDebitNote() ? money($d->total) : null, 'link' => route('ap.bills.show', $d)]);
         }

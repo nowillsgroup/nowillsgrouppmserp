@@ -288,7 +288,7 @@ class IptvController extends Controller
                 : IS::welcome($stay, $lang) + ['template' => null]);
         }
 
-        return view('iptv.welcome', ['list' => TvWelcomeTemplate::orderBy('language')->orderByDesc('priority')->orderBy('name')->get(), 'stays' => $stays, 'preview' => $preview,
+        return view('iptv.welcome', ['list' => TvWelcomeTemplate::orderBy('language')->orderByDesc('priority')->orderBy('name')->get(), 'stays' => $stays, 'preview' => $preview, 'welcomeImage' => IS::cfg()['welcome_image'],
             'shown' => TvSession::whereNotNull('tv_welcome_template_id')->selectRaw('tv_welcome_template_id, COUNT(*) n')->groupBy('tv_welcome_template_id')->pluck('n', 'tv_welcome_template_id')]);
     }
 
@@ -385,12 +385,48 @@ class IptvController extends Controller
 
     public function settings()
     {
-        return view('iptv.settings', ['cfg' => IS::cfg(), 'raw' => collect(IS::DEFAULTS)->map(fn ($v, $k) => setting($k, $v))->all(), 'setupUrl' => route('tv.setup', hotel()->code),
+        return view('iptv.settings', ['cfg' => IS::cfg(), 'raw' => collect(IS::DEFAULTS)->map(fn ($v, $k) => setting($k, $v))->all(), 'welcomeImage' => IS::cfg()['welcome_image'], 'setupUrl' => route('tv.setup', hotel()->code),
             'channels' => TvChannel::where('is_active', true)->orderBy('number')->get(['number', 'name'])]);
     }
 
     public function saveSettings(Request $r)
     {
-        return $this->attempt(fn () => IS::saveSettings($r->all()), 'IPTV settings saved.');
+        $r->validate([
+            'welcome_image_file' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'reset_welcome_image' => 'nullable|boolean',
+        ]);
+
+        $data = $r->input();
+        $uploadedPath = null;
+        if ($r->hasFile('welcome_image_file')) {
+            $directory = public_path('uploads/iptv');
+            if (! is_dir($directory) && ! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+                return back()->withInput()->with('error', 'The TV photo upload folder could not be created. Check public/uploads permissions.');
+            }
+            $file = $r->file('welcome_image_file');
+            $filename = 'welcome-'.hotel()->id.'-'.bin2hex(random_bytes(8)).'.'.$file->extension();
+            try {
+                $file->move($directory, $filename);
+            } catch (\Throwable $e) {
+                return back()->withInput()->with('error', 'The hotel welcome photo could not be saved. Check public/uploads permissions.');
+            }
+            $uploadedPath = 'uploads/iptv/'.$filename;
+            $data['welcome_image'] = $uploadedPath;
+        } elseif ($r->boolean('reset_welcome_image')) {
+            $data['welcome_image'] = IS::DEFAULTS['tv_welcome_image'];
+        }
+
+        return $this->attempt(function () use ($data, $uploadedPath) {
+            try {
+                IS::saveSettings($data);
+            } catch (\Throwable $e) {
+                if ($uploadedPath && is_file(public_path($uploadedPath))) {
+                    @unlink(public_path($uploadedPath));
+                }
+                throw $e;
+            }
+
+            return 'IPTV settings saved.';
+        }, 'IPTV settings saved.');
     }
 }

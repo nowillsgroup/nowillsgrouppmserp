@@ -90,7 +90,7 @@ class ManagementReportService
     {
         $asOn = $asOn->copy()->startOfDay();
         $bills = FolioTransaction::where('category', 'city_ledger')->where('is_void', false)->whereNotNull('company_id')->whereDate('business_date', '<=', $asOn)
-            ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'amount'])->groupBy('company_id');
+            ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'due_date', 'amount'])->groupBy('company_id');
         $paid = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOn)->get(['company_id', 'amount'])->groupBy('company_id')->map->sum('amount');
         $companies = Company::whereIn('id', $bills->keys()->merge($paid->keys())->unique())->orderBy('name')->get();
 
@@ -108,8 +108,11 @@ class ManagementReportService
                 if ($open <= 0) {
                     continue;
                 }
-                $age = (int) $bill->business_date->diffInDays($asOn);
-                $oldest ??= $age;
+                $dueDate = $bill->due_date?->copy() ?? $bill->business_date->copy()->addDays((int) $c->credit_days);
+                $age = $dueDate->lt($asOn) ? max(0, (int) $dueDate->diffInDays($asOn)) : 0;
+                if ($age > 0) {
+                    $oldest = max($oldest ?? 0, $age);
+                }
                 $b[$age <= 30 ? 'b0' : ($age <= 60 ? 'b30' : ($age <= 90 ? 'b60' : 'b90'))] += $open;
             }
             $outstanding = array_sum($b) - $credit; // leftover credit = advance / on-account

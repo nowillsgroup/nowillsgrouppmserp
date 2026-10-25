@@ -1,290 +1,322 @@
 [
- {
-  "module": "Talent Management",
-  "label": "Talent Dashboard",
-  "uri": "/talent",
-  "action": "index",
-  "perm": "talent.view",
-  "badge": "talent_attention"
- },
- {
-  "module": "Talent Management",
-  "label": "Vacancies",
-  "uri": "/talent/vacancies",
-  "action": "vacancies",
-  "perm": "talent.view",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Applicants",
-  "uri": "/talent/applicants",
-  "action": "applicants",
-  "perm": "talent.recruit",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "New Starters",
-  "uri": "/talent/starters",
-  "action": "starters",
-  "perm": "talent.recruit,talent.appraise",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Appraisals",
-  "uri": "/talent/appraisals",
-  "action": "appraisals",
-  "perm": "talent.appraise",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Discipline & Grievances",
-  "uri": "/talent/cases",
-  "action": "cases",
-  "perm": "talent.discipline",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Exits & Turnover",
-  "uri": "/talent/exits",
-  "action": "exits",
-  "perm": "talent.discipline",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Establishment",
-  "uri": "/talent/establishment",
-  "action": "establishment",
-  "perm": "talent.view",
-  "badge": null
- },
- {
-  "module": "Talent Management",
-  "label": "Talent Settings",
-  "uri": "/talent/settings",
-  "action": "settings",
-  "perm": "talent.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Employees",
-  "uri": "/masters/employees",
-  "action": "index",
-  "perm": "hr.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Attendance",
-  "uri": "/hr/attendance",
-  "action": "attendance",
-  "perm": "hr.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Monthly Register",
-  "uri": "/hr/register",
-  "action": "register",
-  "perm": "hr.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Public Holidays",
-  "uri": "/hr/holidays",
-  "action": "holidays",
-  "perm": "hr.manage,roster.view,payroll.view",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Leave Requests",
-  "uri": "/hr/leave",
-  "action": "index",
-  "perm": "hr.leave",
-  "badge": "leave_pending"
- },
- {
-  "module": "HR & Payroll",
-  "label": "Duty Roster",
-  "uri": "/hr/roster",
-  "action": "roster",
-  "perm": "roster.view",
-  "badge": "swap_pending"
- },
- {
-  "module": "HR & Payroll",
-  "label": "Time Clock",
-  "uri": "/hr/time-clock",
-  "action": "clock",
-  "perm": "roster.view",
-  "badge": "timeclock_attention"
- },
- {
-  "module": "HR & Payroll",
-  "label": "Time Clock Kiosk",
-  "uri": "/hr/time-clock/kiosk",
-  "action": "kiosk",
-  "perm": "timeclock.kiosk",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Service Charge & Tips",
-  "uri": "/accounts/service-charge",
-  "action": "index",
-  "perm": "servicecharge.manage,servicecharge.approve",
-  "badge": "sc_attention"
- },
- {
-  "module": "HR & Payroll",
-  "label": "Payroll Runs",
-  "uri": "/payroll",
-  "action": "index",
-  "perm": "payroll.view",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Salary Advances",
-  "uri": "/payroll/advances",
-  "action": "advances",
-  "perm": "payroll.view",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Statutory Returns",
-  "uri": "/payroll/statutory",
-  "action": "index",
-  "perm": "payroll.view",
-  "badge": "stat_overdue"
- },
- {
-  "module": "HR & Payroll",
-  "label": "Pay Components",
-  "uri": "/payroll/components",
-  "action": "components",
-  "perm": "payroll.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Leave Types",
-  "uri": "/masters/leave-types",
-  "action": "index",
-  "perm": "hr.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "Departments",
-  "uri": "/masters/departments",
-  "action": "index",
-  "perm": "hr.manage",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "My Payslips & Leave",
-  "uri": "/me/hr",
-  "action": "index",
-  "perm": "hr.self",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "My Roster & Time Clock",
-  "uri": "/me/roster",
-  "action": "roster",
-  "perm": "hr.self",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "My Training & SOPs",
-  "uri": "/me/learning",
-  "action": "mine",
-  "perm": "hr.self",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "My Appraisal",
-  "uri": "/talent/me",
-  "action": "me",
-  "perm": "hr.self",
-  "badge": null
- },
- {
-  "module": "HR & Payroll",
-  "label": "My Expense Claims",
-  "uri": "/accounts/expense-claims/mine",
-  "action": "mine",
-  "perm": "claims.submit",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "L&D Dashboard",
-  "uri": "/learning",
-  "action": "index",
-  "perm": "learning.view",
-  "badge": "learning_attention"
- },
- {
-  "module": "Learning & SOPs",
-  "label": "Training Matrix",
-  "uri": "/learning/matrix",
-  "action": "matrix",
-  "perm": "learning.view",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "Training Sessions",
-  "uri": "/learning/sessions",
-  "action": "sessions",
-  "perm": "learning.view",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "Training Records",
-  "uri": "/learning/records",
-  "action": "records",
-  "perm": "learning.view",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "Courses & Requirements",
-  "uri": "/learning/courses",
-  "action": "courses",
-  "perm": "learning.view",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "SOP Library",
-  "uri": "/learning/sops",
-  "action": "sops",
-  "perm": "learning.view",
-  "badge": null
- },
- {
-  "module": "Learning & SOPs",
-  "label": "L&D Settings",
-  "uri": "/learning/settings",
-  "action": "settings",
-  "perm": "learning.manage",
-  "badge": null
- }
+    {
+        "module": "Talent Management",
+        "label": "Talent Dashboard",
+        "uri": "/talent",
+        "action": "index",
+        "perm": "talent.view",
+        "badge": "talent_attention"
+    },
+    {
+        "module": "Talent Management",
+        "label": "Vacancies",
+        "uri": "/talent/vacancies",
+        "action": "vacancies",
+        "perm": "talent.view",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Applicants",
+        "uri": "/talent/applicants",
+        "action": "applicants",
+        "perm": "talent.recruit",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "New Starters",
+        "uri": "/talent/starters",
+        "action": "starters",
+        "perm": "talent.recruit,talent.appraise",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Appraisals",
+        "uri": "/talent/appraisals",
+        "action": "appraisals",
+        "perm": "talent.appraise",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Discipline & Grievances",
+        "uri": "/talent/cases",
+        "action": "cases",
+        "perm": "talent.discipline",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Exits & Turnover",
+        "uri": "/talent/exits",
+        "action": "exits",
+        "perm": "talent.discipline",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Establishment",
+        "uri": "/talent/establishment",
+        "action": "establishment",
+        "perm": "talent.view",
+        "badge": null
+    },
+    {
+        "module": "Talent Management",
+        "label": "Talent Settings",
+        "uri": "/talent/settings",
+        "action": "settings",
+        "perm": "talent.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Employees",
+        "uri": "/masters/employees",
+        "action": "index",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Attendance",
+        "uri": "/hr/attendance",
+        "action": "attendance",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Monthly Register",
+        "uri": "/hr/register",
+        "action": "register",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Public Holidays",
+        "uri": "/hr/holidays",
+        "action": "holidays",
+        "perm": "hr.manage,roster.view,payroll.view",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Leave Requests",
+        "uri": "/hr/leave",
+        "action": "index",
+        "perm": "hr.leave",
+        "badge": "leave_pending"
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Duty Roster",
+        "uri": "/hr/roster",
+        "action": "roster",
+        "perm": "roster.view",
+        "badge": "swap_pending"
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Time Clock",
+        "uri": "/hr/time-clock",
+        "action": "clock",
+        "perm": "roster.view",
+        "badge": "timeclock_attention"
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Time Clock Kiosk",
+        "uri": "/hr/time-clock/kiosk",
+        "action": "kiosk",
+        "perm": "timeclock.kiosk",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Service Charge & Tips",
+        "uri": "/accounts/service-charge",
+        "action": "index",
+        "perm": "servicecharge.manage,servicecharge.approve",
+        "badge": "sc_attention"
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Payroll Runs",
+        "uri": "/payroll",
+        "action": "index",
+        "perm": "payroll.view",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Salary Advances",
+        "uri": "/payroll/advances",
+        "action": "advances",
+        "perm": "payroll.view",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Statutory Returns",
+        "uri": "/payroll/statutory",
+        "action": "index",
+        "perm": "payroll.view",
+        "badge": "stat_overdue"
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Pay Components",
+        "uri": "/payroll/components",
+        "action": "components",
+        "perm": "payroll.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Leave Types",
+        "uri": "/masters/leave-types",
+        "action": "index",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "Departments",
+        "uri": "/masters/departments",
+        "action": "index",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "HR Self-Service Desk",
+        "uri": "/hr/ess",
+        "action": "desk",
+        "perm": "hr.manage",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Profile",
+        "uri": "/me/profile",
+        "action": "profile",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Documents",
+        "uri": "/me/documents",
+        "action": "documents",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Announcements",
+        "uri": "/me/announcements",
+        "action": "announcements",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Payslips & Leave",
+        "uri": "/me/hr",
+        "action": "index",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Roster & Time Clock",
+        "uri": "/me/roster",
+        "action": "roster",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Training & SOPs",
+        "uri": "/me/learning",
+        "action": "mine",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Appraisal",
+        "uri": "/talent/me",
+        "action": "me",
+        "perm": "hr.self",
+        "badge": null
+    },
+    {
+        "module": "HR & Payroll",
+        "label": "My Expense Claims",
+        "uri": "/accounts/expense-claims/mine",
+        "action": "mine",
+        "perm": "claims.submit",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "L&D Dashboard",
+        "uri": "/learning",
+        "action": "index",
+        "perm": "learning.view",
+        "badge": "learning_attention"
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "Training Matrix",
+        "uri": "/learning/matrix",
+        "action": "matrix",
+        "perm": "learning.view",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "Training Sessions",
+        "uri": "/learning/sessions",
+        "action": "sessions",
+        "perm": "learning.view",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "Training Records",
+        "uri": "/learning/records",
+        "action": "records",
+        "perm": "learning.view",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "Courses & Requirements",
+        "uri": "/learning/courses",
+        "action": "courses",
+        "perm": "learning.view",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "SOP Library",
+        "uri": "/learning/sops",
+        "action": "sops",
+        "perm": "learning.view",
+        "badge": null
+    },
+    {
+        "module": "Learning & SOPs",
+        "label": "L&D Settings",
+        "uri": "/learning/settings",
+        "action": "settings",
+        "perm": "learning.manage",
+        "badge": null
+    }
 ]

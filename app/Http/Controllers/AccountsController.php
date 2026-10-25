@@ -80,9 +80,11 @@ class AccountsController extends Controller
     public function companyLedger(Company $company)
     {
         $debits = FolioTransaction::with('folio.guest')->where('category', 'city_ledger')->where('company_id', $company->id)->where('is_void', false)->get()
-            ->map(fn ($t) => ['date' => $t->business_date, 'ref' => $t->folio->invoice_no ?? $t->folio->folio_no, 'desc' => 'Bill – '.($t->folio->guest?->full_name), 'debit' => (float) $t->amount, 'credit' => 0, 'folio' => $t->folio]);
+            ->map(fn ($t) => ['date' => $t->business_date, 'due' => $t->due_date, 'ref' => $t->reference ?: ($t->folio->invoice_no ?? $t->folio->folio_no),
+                'desc' => $t->isOpening() ? $t->description : 'Bill – '.($t->folio->guest?->full_name),
+                'debit' => (float) $t->amount, 'credit' => 0, 'folio' => $t->folio]);
         $credits = Voucher::where('type', 'receipt')->where('company_id', $company->id)->get()
-            ->map(fn ($v) => ['date' => $v->date, 'ref' => $v->voucher_no, 'desc' => 'Receipt '.($v->reference ? '#'.$v->reference : ''), 'debit' => 0, 'credit' => (float) $v->amount, 'folio' => null]);
+            ->map(fn ($v) => ['date' => $v->date, 'due' => null, 'ref' => $v->voucher_no, 'desc' => 'Receipt '.($v->reference ? '#'.$v->reference : ''), 'debit' => 0, 'credit' => (float) $v->amount, 'folio' => null]);
         $rows = $debits->concat($credits)->sortBy(fn ($r) => $r['date']->format('Y-m-d'))->values();
 
         return view('accounts.company', ['company' => $company, 'rows' => $rows, 'paymentModes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'gift_voucher'])->pluck('name', 'id')]);

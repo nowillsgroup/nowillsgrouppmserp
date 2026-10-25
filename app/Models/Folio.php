@@ -26,9 +26,10 @@ class Folio extends Model
         $discount = $tx->whereIn('type', ['discount', 'allowance'])->sum('amount');
         $payments = $tx->where('type', 'payment')->sum('amount');
         $refunds = $tx->where('type', 'refund')->sum('amount');
-        $balance = round($charges - $discount - $payments + $refunds, 2);
+        $opening = $tx->where('type', 'opening_balance')->sum('amount');
+        $balance = round($charges + $opening - $discount - $payments + $refunds, 2);
 
-        return compact('charges', 'tax', 'discount', 'payments', 'refunds', 'balance');
+        return compact('charges', 'opening', 'tax', 'discount', 'payments', 'refunds', 'balance');
     }
 
     public function balance(): float
