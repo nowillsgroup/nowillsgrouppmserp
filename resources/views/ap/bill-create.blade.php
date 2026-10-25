@@ -6,6 +6,7 @@
   $today = bdate()->toDateString();
   $minDate = \App\Services\LedgerService::lockDate() ? \Illuminate\Support\Carbon::parse(\App\Services\LedgerService::lockDate())->addDay()->toDateString() : null;
   $tab = fn ($m) => route('ap.bills.create', array_filter(['mode' => $m, 'supplier' => $m !== 'goods' ? $supplier?->id : null]));
+  $poForeign = $mode === 'goods' && $po?->isForeign();
 @endphp
 <div class="tabs" id="billModes">
   <a href="{{ $tab('goods') }}" class="{{ $mode === 'goods' ? 'active' : '' }}">Goods – match receipt ({{ $receipts->count() }})</a>
@@ -23,25 +24,38 @@
       <p class="muted">Every received purchase order already has a bill. Receive goods on a <a href="{{ route('purchases.index') }}">purchase order</a> first, or enter an expense bill.</p>
     @else
     <table class="table table-compact"><thead><tr><th>PO</th><th>Supplier</th><th>Received</th><th>Supplier inv.</th><th class="num">GRN value</th><th></th></tr></thead><tbody>
-    @foreach($receipts as $r)<tr><td class="bold">{{ $r->po_no }}</td><td>{{ $r->supplier->name }}</td><td>{{ dmy($r->grnDate()) }}</td><td>{{ $r->invoice_no ?? '—' }}</td><td class="num">{{ money($r->receiptValue ?? $r->total) }}@if($r->status === 'closed')<div class="tiny muted">short-closed</div>@endif</td><td class="right"><a class="btn btn-sm btn-primary" href="{{ route('ap.bills.create', ['po' => $r->id]) }}">Select</a></td></tr>@endforeach
+    @foreach($receipts as $r)<tr><td class="bold">{{ $r->po_no }}</td><td>{{ $r->supplier->name }}</td><td>{{ dmy($r->grnDate()) }}</td><td>{{ $r->invoice_no ?? '—' }}</td><td class="num">{{ money($r->receiptValue ?? $r->total) }}@if($r->isForeign())@php [$rFxSub, $rFxTax] = $r->receivedForeignSplit(); @endphp<div class="tiny muted">{{ $r->currency }} {{ number_format($rFxSub + $rFxTax, 2) }}</div>@endif @if($r->status === 'closed')<div class="tiny muted">short-closed</div>@endif</td><td class="right"><a class="btn btn-sm btn-primary" href="{{ route('ap.bills.create', ['po' => $r->id]) }}">Select</a></td></tr>@endforeach
     </tbody></table>
     @endif
   </div></div>
   @else
   <input type="hidden" name="purchase_order_id" value="{{ $po->id }}">
-  @php [$recSub, $recTax] = $po->receivedSplit(); $recVal = $po->receivedValue() ?: (float) $po->total; $byGrn = $po->hasGrns(); @endphp
+  @php
+    [$recSub, $recTax] = $po->receivedSplit();
+    [$recFxSub, $recFxTax] = $po->receivedForeignSplit();
+    $recVal = $po->receivedValue() ?: (float) $po->total;
+    $byGrn = $po->hasGrns();
+    $billSub = $poForeign ? $recFxSub : $recSub;
+    $billTax = $poForeign ? $recFxTax : $recTax;
+    $currency = $poForeign ? $po->currency : $home;
+  @endphp
+  <input type="hidden" name="currency" value="{{ $currency }}">
   <div class="card"><div class="card-head"><h3>Three-way match · {{ $po->po_no }} · {{ $po->supplier->name }}</h3><a class="small" href="{{ route('ap.bills.create', ['mode' => 'goods']) }}">change</a></div>
+  @if($poForeign)<div class="notice notice-blue" style="margin:0 1rem">This PO is in <b>{{ $po->currency }}</b>. Enter the invoice subtotal and tax in {{ $po->currency }}. The Forex Desk board on the invoice date values the payable; the receipt-date stock/AP value stays fixed, with FX movement posted separately from price/tax variance.</div>@endif
   <div class="card-body grid g-2">
-    <div class="table-wrap"><table class="table table-compact"><thead><tr><th>Item received</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>
-      @foreach($po->items as $l)@php $q = $byGrn ? (float) $l->received_qty : (float) $l->qty; @endphp<tr><td>{{ $l->item->name }}@if($byGrn && $q < (float) $l->qty)<div class="tiny muted">ordered {{ (float) $l->qty }}</div>@endif</td><td class="num">{{ $q }} {{ $l->item->unit }}</td><td class="num">{{ money($l->rate, false) }}</td><td class="num">{{ money($byGrn ? round($q * $l->rate, 2) : $l->amount, false) }}</td></tr>@endforeach
-    </tbody><tfoot><tr><td colspan="3" class="right">Subtotal</td><td class="num">{{ money($recSub, false) }}</td></tr><tr><td colspan="3" class="right">Tax</td><td class="num">{{ money($recTax, false) }}</td></tr><tr><td colspan="3" class="right bold">Goods receipt value</td><td class="num bold" id="grnTotal" data-v="{{ $recVal }}">{{ money($recVal, false) }}</td></tr></tfoot></table></div>
+    <div class="table-wrap"><table class="table table-compact"><thead><tr><th>Item received</th><th class="num">Qty</th><th class="num">Rate · {{ $currency }}</th><th class="num">Amount · {{ $currency }}</th></tr></thead><tbody>
+      @foreach($po->items as $l)@php $q = $byGrn ? (float) $l->received_qty : (float) $l->qty; $lineRate = $poForeign ? (float) $l->fx_unit_rate : (float) $l->rate; @endphp<tr><td>{{ $l->item->name }}@if($byGrn && $q < (float) $l->qty)<div class="tiny muted">ordered {{ (float) $l->qty }}</div>@endif</td><td class="num">{{ $q }} {{ $l->item->unit }}</td><td class="num">{{ $poForeign ? number_format($lineRate, 4) : money($lineRate, false) }}</td><td class="num">{{ $poForeign ? number_format($byGrn ? round($q * $lineRate, 2) : (float) $l->fx_amount, 2) : money($byGrn ? round($q * $lineRate, 2) : $l->amount, false) }}</td></tr>@endforeach
+    </tbody><tfoot><tr><td colspan="3" class="right">Goods received · subtotal</td><td class="num">{{ $poForeign ? number_format($recFxSub, 2) : money($recSub, false) }}</td></tr><tr><td colspan="3" class="right">Tax</td><td class="num">{{ $poForeign ? number_format($recFxTax, 2) : money($recTax, false) }}</td></tr><tr><td colspan="3" class="right bold">Goods receipt value · {{ $currency }}</td><td class="num bold" id="grnTotal" data-v="{{ $recVal }}">{{ $poForeign ? number_format($recFxSub + $recFxTax, 2) : money($recVal, false) }}</td></tr>
+      @if($poForeign)<tr><td colspan="4" class="small muted">Property-currency stock/AP accrual at each receipt-date Forex Desk board (home value {{ money($recVal, false) }}): @foreach($po->receipts as $g) <span>{{ $g->grn_no }} · {{ number_format((float) $g->fx_rate, 4) }} {{ $g->fx_basis }} board {{ $g->fx_date?->format('d M Y') }}@if($g->fx_date && $g->fx_date->toDateString() !== $g->date->toDateString()) <span class="badge badge-amber">carried forward</span>@endif ({{ money($g->total, false) }})</span>@if(! $loop->last); @endif @endforeach</td></tr>@endif
+    </tfoot></table></div>
     <div>
-      <p class="small muted" style="margin-top:0">Enter the amounts exactly as printed on the supplier's invoice. If the invoice total differs from the goods receipt by more than <b>{{ money($tolerance) }}</b> the bill is saved <b>on hold</b> and must be approved before it can be paid.</p>
+      <p class="small muted" style="margin-top:0">Enter the amounts exactly as printed on the supplier's invoice in <b>{{ $currency }}</b>. @if($poForeign)A genuine price/tax variance above the invoice-date tolerance shown below is saved <b>on hold</b> for AP review; currency movement between receipt and invoice dates is booked separately to Exchange Gain / Loss.@else A genuine price/tax variance over <b>{{ money($tolerance) }}</b> is saved <b>on hold</b> for AP review.@endif</p>
       <div class="form-grid">
-        <div class="field"><label>Invoice subtotal <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="subtotal" id="invSub" value="{{ old('subtotal', $recSub) }}" required></div>
-        <div class="field"><label>Invoice tax</label><input type="number" step="0.01" min="0" name="tax" id="invTax" value="{{ old('tax', $recTax) }}"></div>
+        <div class="field"><label>Invoice subtotal · {{ $currency }} <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="subtotal" id="invSub" value="{{ old('subtotal', $billSub) }}" required></div>
+        <div class="field"><label>Invoice tax · {{ $currency }}</label><input type="number" step="0.01" min="0" name="tax" id="invTax" value="{{ old('tax', $billTax) }}"></div>
       </div>
-      <div class="match-box" id="matchBox" data-tol="{{ $tolerance }}"><span>Invoice total <b id="invTotal">0.00</b></span><span>Variance <b id="invVar">0.00</b></span><span id="matchState" class="badge">—</span></div>
+      <div class="match-box" id="matchBox" data-foreign="{{ $poForeign ? '1' : '0' }}" data-tol="{{ $tolerance }}" data-po="{{ $po->id }}" data-currency="{{ $currency }}" data-fx-url="{{ $fxRateUrl }}"><span>Invoice total · {{ $currency }} <b id="invTotal">0.00</b></span><span>Price/tax variance · {{ $home }} <b id="invVar">0.00</b></span>@if($poForeign)<span>Receipt-to-invoice FX · {{ $home }} <b id="fxMovement">—</b></span>@endif<span id="matchState" class="badge">—</span></div>
+      <div class="tiny muted" id="matchFxInfo" style="margin-top:.4rem"></div>
     </div>
   </div></div>
   @endif
@@ -104,7 +118,7 @@
 
 @if(($mode === 'goods' && $po) || ($mode !== 'goods' && $supplier))
 <div class="flex gap-2" style="justify-content:flex-end"><a class="btn" href="{{ route('ap.bills') }}">Cancel</a><button class="btn btn-primary" id="saveBill"><x-icon name="check"/> Save {{ $mode === 'debit_note' ? 'debit note' : 'bill' }}</button></div>
-<p class="small muted">@if($mode === 'goods')A matched bill posts nothing new to the ledger – the goods receipt already credited Accounts Payable. Only a price variance is posted (to Purchase Price Variance).@elseif($mode === 'expense')Posts Dr expense accounts{{ setting('gl_input_tax', '1') === '1' ? ' + Dr Input Tax Credit' : ' (tax included in cost)' }} / Cr Accounts Payable on the invoice date.@else Posts Dr Accounts Payable / Cr the chosen accounts{{ setting('gl_input_tax', '1') === '1' ? ' and Input Tax Credit' : '' }}. Unapplied debit notes stay as supplier credit and can be applied to any bill.@endif</p>
+<p class="small muted">@if($mode === 'goods')The GRN already posted stock, input tax and Accounts Payable at the receipt-date rate. The bill revalues the foreign payable at the invoice-date rate: receipt-to-invoice FX goes to Exchange Gain / Loss, while genuine price/tax variance goes to Purchase Price Variance and may be held for AP review.@elseif($mode === 'expense')Posts Dr expense accounts{{ setting('gl_input_tax', '1') === '1' ? ' + Dr Input Tax Credit' : ' (tax included in cost)' }} / Cr Accounts Payable on the invoice date.@else Posts Dr Accounts Payable / Cr the chosen accounts{{ setting('gl_input_tax', '1') === '1' ? ' and Input Tax Credit' : '' }}. Unapplied debit notes stay as supplier credit and can be applied to any bill.@endif</p>
 @endif
 </form>
 @endsection
@@ -119,14 +133,62 @@
   }
   const box = document.getElementById('matchBox');
   if (box) {
-    const sub = document.getElementById('invSub'), tax = document.getElementById('invTax'), grn = +document.getElementById('grnTotal').dataset.v, tol = +box.dataset.tol;
-    const upd = () => {
-      const t = f(f(sub.value) + f(tax.value)), v = f(t - grn), st = document.getElementById('matchState');
-      document.getElementById('invTotal').textContent = fx(t); document.getElementById('invVar').textContent = (v > 0 ? '+' : '') + fx(v);
-      st.textContent = v === 0 ? 'Matched' : (Math.abs(v) <= tol ? 'Within tolerance' : 'Will be held for approval');
-      st.className = 'badge ' + (v === 0 ? 'badge-green' : (Math.abs(v) <= tol ? 'badge-amber' : 'badge-red'));
-    };
-    sub.addEventListener('input', upd); tax.addEventListener('input', upd); upd();
+    const sub = document.getElementById('invSub'), tax = document.getElementById('invTax'), st = document.getElementById('matchState');
+    const foreign = box.dataset.foreign === '1';
+    const save = document.getElementById('saveBill'), docDate = document.getElementById('docDate');
+    if (!foreign) {
+      const grn = +document.getElementById('grnTotal').dataset.v, tol = +box.dataset.tol;
+      const upd = () => {
+        const t = f(f(sub.value) + f(tax.value)), v = f(t - grn);
+        document.getElementById('invTotal').textContent = fx(t); document.getElementById('invVar').textContent = (v > 0 ? '+' : '') + fx(v);
+        st.textContent = v === 0 ? 'Matched' : (Math.abs(v) <= tol ? 'Within tolerance' : 'Will be held for approval');
+        st.className = 'badge ' + (v === 0 ? 'badge-green' : (Math.abs(v) <= tol ? 'badge-amber' : 'badge-red'));
+      };
+      sub.addEventListener('input', upd); tax.addEventListener('input', upd); upd();
+    } else {
+      let quote = null, loading = false, requestNo = 0;
+      const info = document.getElementById('matchFxInfo');
+      const update = () => {
+        const foreignTotal = f(f(sub.value) + f(tax.value));
+        document.getElementById('invTotal').textContent = fx(foreignTotal);
+        if (!quote) {
+          document.getElementById('invVar').textContent = '—';
+          document.getElementById('fxMovement').textContent = '—';
+          st.textContent = loading ? 'Getting invoice-date rate…' : 'Rate unavailable';
+          st.className = 'badge badge-amber';
+          if (save) save.disabled = true;
+          return;
+        }
+        const billSubtotal = f(f(sub.value) * quote.rate), billTax = f(f(tax.value) * quote.rate);
+        const variance = f(billSubtotal + billTax - quote.grn_at_invoice_date), tolerance = +quote.tolerance;
+        document.getElementById('invVar').textContent = (variance > 0 ? '+' : '') + fx(variance);
+        const fxMove = f(quote.fx_movement);
+        document.getElementById('fxMovement').textContent = (fxMove > 0 ? '+' : '') + fx(fxMove);
+        st.textContent = variance === 0 ? 'Price/tax matched' : (Math.abs(variance) <= tolerance ? 'Within tolerance' : 'Will be held for AP review');
+        st.className = 'badge ' + (variance === 0 ? 'badge-green' : (Math.abs(variance) <= tolerance ? 'badge-amber' : 'badge-red'));
+        if (save) save.disabled = f(sub.value) <= 0;
+      };
+      const getQuote = async () => {
+        const current = ++requestNo;
+        quote = null; loading = true; update();
+        info.textContent = 'Loading the Forex Desk quote for the invoice date…';
+        const params = new URLSearchParams({purchase_order_id: box.dataset.po, currency: box.dataset.currency, date: docDate.value});
+        try {
+          const response = await fetch(box.dataset.fxUrl + '?' + params.toString(), {headers: {Accept: 'application/json'}, credentials: 'same-origin'});
+          const data = await response.json();
+          if (current !== requestNo) return;
+          if (!response.ok) throw new Error(data.message || 'The invoice-date Forex Desk rate is unavailable.');
+          quote = data; loading = false; update();
+          const carried = data.stale ? ' · carried forward within the configured window' : '';
+          info.textContent = '1 ' + box.dataset.currency + ' = ' + Number(data.rate).toFixed(4) + ' {{ $home }} · ' + data.basis + ' board of ' + data.date + carried + '. AP price/tax review limit: {{ $home }} ' + Number(data.tolerance).toFixed(2) + '. Receipt-to-invoice FX movement is excluded from the price/tax variance test.';
+        } catch (error) {
+          if (current !== requestNo) return;
+          loading = false; info.textContent = error.message; update();
+        }
+      };
+      sub.addEventListener('input', update); tax.addEventListener('input', update);
+      docDate.addEventListener('change', getQuote); getQuote();
+    }
   }
   const body = document.querySelector('#billLines tbody');
   if (body) {

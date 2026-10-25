@@ -1,0 +1,2 @@
+external_id,name,code,category,unit,reorder_level,last_cost,tax_rate,yield_pct,is_active
+ITEM-2001,Bottled water 500 ml,BEV-WATER-500,Beverages,bottle,24,12.50,15,100,1

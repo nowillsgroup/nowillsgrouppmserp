@@ -10,6 +10,11 @@ class PurchaseOrderItem extends Model
 
     protected $guarded = ['id'];
 
+    protected function casts(): array
+    {
+        return ['fx_unit_rate' => 'decimal:4', 'fx_amount' => 'decimal:2', 'fx_tax_amount' => 'decimal:2'];
+    }
+
     public function order()
     {
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');

@@ -3,15 +3,22 @@
   $ghana = \App\Services\GstService::isGhana();
   $isCn = $folio->isCreditNote();
   $issued = (bool) $folio->invoice_no;
+  $openingTxs = collect($tx)->filter(fn ($t) => $t->isOpening());
+  $openingOnly = $openingTxs->isNotEmpty() && ! $folio->activeTransactions()->where('type', 'charge')->exists();
+  $openingBalance = (float) $openingTxs->sum('amount');
   $snap = $issued && $folio->supply_type;   // buyer frozen at issue (v3.0)
-  $docDate = $folio->invoice_date ?? $folio->closed_at ?? now();
+  $docDate = $folio->invoice_date ?? $folio->closed_at ?? ($openingOnly ? $openingTxs->first()->opening_date : now());
   $lbl = \App\Services\TaxService::labels();
 @endphp
-@section('title', ($isCn ? 'Credit note ' : 'Invoice ').($folio->invoice_no ?? $folio->folio_no))
-@section('doctitle', $isCn ? ($folio->status === 'cancelled' ? 'CREDIT NOTE – CANCELLED' : 'CREDIT NOTE') : ($issued ? ($ghana ? 'VAT INVOICE' : 'INVOICE') : 'PRO-FORMA BILL'))
-@section('docmeta')<div class="small">{{ $isCn ? 'Credit note' : 'Invoice' }} no.: <b id="docNo">{{ $folio->invoice_no ?? 'Draft' }}</b><br>Date: {{ $docDate->format('d M Y') }}@if(! $isCn)<br>Folio: {{ $folio->folio_no }}@endif
-  @if($isCn && $folio->original)<br>Against invoice: <b>{{ $folio->original->invoice_no }}</b> dt. {{ $folio->original->invoice_date?->format('d M Y') }}@endif
-  @if($ghana && $issued)<br>Currency: {{ $currentHotel->currency ?: 'GHS' }}@endif</div>@endsection
+@section('title', $openingOnly ? 'Opening receivable statement '.$folio->folio_no : (($isCn ? 'Credit note ' : 'Invoice ').($folio->invoice_no ?? $folio->folio_no)))
+@section('doctitle', $openingOnly ? 'OPENING RECEIVABLE STATEMENT – NOT A TAX INVOICE' : ($isCn ? ($folio->status === 'cancelled' ? 'CREDIT NOTE – CANCELLED' : 'CREDIT NOTE') : ($issued ? ($ghana ? 'VAT INVOICE' : 'INVOICE') : 'PRO-FORMA BILL')))
+@section('docmeta')<div class="small">
+  @if($openingOnly)Opening receivable as at {{ $openingTxs->first()->opening_date?->format('d M Y') }}<br>Source document: <b>{{ $openingTxs->first()->reference }}</b><br>Not a tax invoice · Folio {{ $folio->folio_no }}
+  @else{{ $isCn ? 'Credit note' : 'Invoice' }} no.: <b id="docNo">{{ $folio->invoice_no ?? 'Draft' }}</b><br>Date: {{ $docDate->format('d M Y') }}@if(! $isCn)<br>Folio: {{ $folio->folio_no }}@endif
+    @if($isCn && $folio->original)<br>Against invoice: <b>{{ $folio->original->invoice_no }}</b> dt. {{ $folio->original->invoice_date?->format('d M Y') }}@endif
+    @if($ghana && $issued)<br>Currency: {{ $currentHotel->currency ?: 'GHS' }}@endif
+  @endif
+</div>@endsection
 @section('content')
 @if($folio->irn && $folio->irn_status === 'generated')
 <div id="irnBlock" style="display:flex;gap:1rem;align-items:center;border:1px solid #cbd5e1;border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem">
@@ -22,6 +29,9 @@
     @if($folio->evat_signature)<div><b>Signature:</b> <span style="font-family:monospace">{{ $folio->evat_signature }}</span></div>@endif
     @if(\App\Services\EInvoiceService::driver() === 'sandbox')<div class="tiny text-2">Sandbox stamp – for testing only, not reported to the Ghana Revenue Authority.</div>@endif</div>
 </div>
+@endif
+@if($openingTxs->isNotEmpty())
+<div class="alert alert-info"><b>Opening receivable as at {{ $openingTxs->first()->opening_date?->format('d M Y') }}.</b> Source reference {{ $openingTxs->first()->reference }} is carried forward separately from new charges and is excluded from revenue, tax and this tax-invoice total. {{ $openingOnly ? 'This is an opening-balance statement, not a newly issued invoice.' : 'Only current charge lines below are invoiced.' }}</div>
 @endif
 <div class="grid g-2 mb-2">
   <dl class="kv" id="buyerBox">
@@ -42,13 +52,14 @@
 @if($isCn && ($folio->note_reason || $folio->note_remarks))<p class="small mb-2"><b>Reason:</b> {{ \App\Models\Folio::NOTE_REASONS[$folio->note_reason] ?? $folio->note_reason }}{{ $folio->note_remarks ? ' – '.$folio->note_remarks : '' }}</p>@endif
 <table class="table table-compact" id="invLines">
   <thead><tr><th>Date</th><th>Particulars</th><th class="num">Amount</th><th class="num">Tax</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>
-  @foreach($tx as $t)<tr><td class="nowrap">{{ $t->business_date->format('d/m/y') }}</td><td>{{ $t->description }}{{ $t->paymentMode ? ' – '.$t->paymentMode->name : '' }}</td>
-    <td class="num">{{ $t->type === 'charge' ? money($t->amount, false) : '' }}</td><td class="num">{{ $t->type === 'charge' && (float) $t->tax_amount != 0 ? money($t->tax_amount, false).' @'.(float) $t->tax_rate.'%' : '' }}</td>
-    <td class="num">{{ in_array($t->type, ['charge','refund']) ? money($t->total, false) : '' }}</td><td class="num">{{ in_array($t->type, ['payment','discount','allowance']) ? money($t->amount, false) : '' }}</td></tr>@endforeach
+  @foreach($tx as $t)<tr><td class="nowrap">{{ $t->business_date->format('d/m/y') }}</td><td>{{ $t->description }}{{ $t->paymentMode ? ' – '.$t->paymentMode->name : '' }} @if($t->isOpening())<span class="badge badge-amber">opening · {{ $t->opening_date?->format('d M Y') }}</span>@endif</td>
+    <td class="num">{{ $t->type === 'charge' || $t->isOpening() ? money($t->amount, false) : '' }}</td><td class="num">{{ $t->type === 'charge' && (float) $t->tax_amount != 0 ? money($t->tax_amount, false).' @'.(float) $t->tax_rate.'%' : '' }}</td>
+    <td class="num">{{ in_array($t->type, ['charge','refund']) || $t->isOpening() ? money($t->total, false) : '' }}</td><td class="num">{{ in_array($t->type, ['payment','discount','allowance']) ? money($t->amount, false) : '' }}</td></tr>@endforeach
   </tbody>
   <tfoot>
-    <tr><td colspan="4" class="right">Total</td><td class="num">{{ money($totals['charges'] + $totals['refunds'], false) }}</td><td class="num">{{ money($totals['payments'] + $totals['discount'], false) }}</td></tr>
-    <tr><td colspan="4" class="right">Balance</td><td colspan="2" class="num">{{ money($totals['balance']) }}</td></tr>
+    <tr><td colspan="4" class="right">Current charges / transactions (opening balance excluded)</td><td class="num">{{ money($totals['charges'] + $totals['refunds'], false) }}</td><td class="num">{{ money($totals['payments'] + $totals['discount'], false) }}</td></tr>
+    @if($openingTxs->isNotEmpty())<tr><td colspan="4" class="right">Opening receivable carried forward (not a new charge or tax)</td><td class="num">{{ money($openingBalance, false) }}</td><td></td></tr>@endif
+    <tr><td colspan="4" class="right">Overall folio balance</td><td colspan="2" class="num">{{ money($totals['balance']) }}</td></tr>
   </tfoot>
 </table>
 @if($lines->count())

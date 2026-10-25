@@ -1,0 +1,4 @@
+external_id,supplier_external_id,cutover_date,record_type,document_ref,document_date,currency,amount,bill_external_id,payment_external_id,credit_external_id,remarks
+AP-HIST-BILL-001,SUP-1001,2026-10-22,paid_bill,INV-7842,2026-09-22,GHS,1250.00,,,,Example only; source bill confirmed paid before cutover
+AP-HIST-PAYMENT-001,SUP-1001,2026-10-22,payment,PAY-4471,2026-10-12,GHS,1250.00,,,,Example only; no AP/GL posting
+AP-HIST-ALLOC-001,SUP-1001,2026-10-22,allocation,PAY-4471 to INV-7842,2026-10-12,GHS,1250.00,AP-HIST-BILL-001,AP-HIST-PAYMENT-001,,Example source link only

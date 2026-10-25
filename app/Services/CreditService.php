@@ -29,7 +29,7 @@ class CreditService
         $asOn = bdate()->copy()->startOfDay();
         $bills = FolioTransaction::where('category', 'city_ledger')->where('is_void', false)->whereNotNull('company_id')
             ->when($companyIds !== null, fn ($q) => $q->whereIn('company_id', $companyIds))
-            ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'amount'])->groupBy('company_id');
+            ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'due_date', 'amount'])->groupBy('company_id');
         $paid = Voucher::where('type', 'receipt')->whereNotNull('company_id')->when($companyIds !== null, fn ($q) => $q->whereIn('company_id', $companyIds))
             ->get(['company_id', 'amount'])->groupBy('company_id')->map->sum('amount');
         $pending = Folio::where('status', 'open')->whereNotNull('company_id')->when($companyIds !== null, fn ($q) => $q->whereIn('company_id', $companyIds))
@@ -55,7 +55,7 @@ class CreditService
                     continue;
                 }
                 $age = (int) $b->business_date->diffInDays($asOn);
-                $due = $b->business_date->copy()->addDays((int) $c->credit_days);
+                $due = $b->due_date?->copy() ?? $b->business_date->copy()->addDays((int) $c->credit_days);
                 $open[] = ['date' => $b->business_date, 'due' => $due, 'age' => $age, 'amount' => $left, 'overdue_days' => max(0, (int) $due->diffInDays($asOn, false))];
                 if ($due->lt($asOn)) {
                     $overdue += $left;

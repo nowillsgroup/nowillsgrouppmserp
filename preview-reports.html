@@ -1,0 +1,2518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — Report Centre (469 Reports)</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+body { margin: 0; font-family: system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: #1a1a2e; color: #a0a0b0; overflow-y: auto; padding: 16px 0; }
+.sidebar h2 { font-size: 14px; color: #fff; margin: 0 16px 12px; text-transform: uppercase; letter-spacing: 1px; }
+.sidebar .group { padding: 6px 16px; font-size: 12px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s; }
+.sidebar .group:hover { background: #252540; color: #fff; }
+.sidebar .group.active { background: #2d2d4a; border-left-color: #6c5ce7; color: #fff; }
+.sidebar .count { float: right; font-size: 10px; background: #333350; padding: 1px 6px; border-radius: 10px; }
+.main { margin-left: 260px; padding: 24px 32px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.topbar h1 { margin: 0; font-size: 22px; color: #1a1a2e; }
+.search { padding: 8px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; width: 300px; }
+.group-header { margin: 32px 0 12px; font-size: 18px; color: #1a1a2e; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+.report-card { background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 8px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); cursor: pointer; transition: box-shadow 0.2s; }
+.report-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.report-card .icon { width: 36px; height: 36px; border-radius: 8px; background: #ede7ff; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.report-card .info { flex: 1; }
+.report-card .info .title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+.report-card .info .desc { font-size: 12px; color: #666; margin-top: 2px; }
+.report-card .filter { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #e8f5e9; color: #2e7d32; flex-shrink: 0; }
+.filter-range { background: #e3f2fd !important; color: #1565c0 !important; }
+.filter-date { background: #fff3e0 !important; color: #e65100 !important; }
+.filter-none { background: #f3e5f5 !important; color: #6a1b9a !important; }
+.detail { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.detail h3 { margin: 0 0 8px; font-size: 18px; color: #1a1a2e; }
+.detail .desc { color: #666; font-size: 14px; margin-bottom: 16px; }
+.detail table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.detail th { text-align: left; padding: 8px 12px; background: #f5f5f5; border-bottom: 2px solid #e0e0e0; color: #333; font-weight: 600; }
+.detail td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #444; }
+.detail .note { margin-top: 16px; padding: 12px 16px; background: #f5f5f5; border-radius: 8px; font-size: 13px; color: #666; }
+.back-btn { display: inline-block; margin-bottom: 16px; cursor: pointer; color: #6c5ce7; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>Nowills PMS Reports</h2>
+<div class="group" onclick="showAll()">All Reports <span class="count">469</span></div><div class="group" onclick="showGroup('Accounts')">Accounts <span class="count">21</span></div>
+<div class="group" onclick="showGroup('Banquet & Events')">Banquet & Events <span class="count">5</span></div>
+<div class="group" onclick="showGroup('Billing')">Billing <span class="count">10</span></div>
+<div class="group" onclick="showGroup('Budget & Planning')">Budget & Planning <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Central Reservations')">Central Reservations <span class="count">5</span></div>
+<div class="group" onclick="showGroup('Channel Manager')">Channel Manager <span class="count">9</span></div>
+<div class="group" onclick="showGroup('Compliance & HSE')">Compliance & HSE <span class="count">15</span></div>
+<div class="group" onclick="showGroup('Concierge & Activities')">Concierge & Activities <span class="count">5</span></div>
+<div class="group" onclick="showGroup('F&B & POS')">F&B & POS <span class="count">35</span></div>
+<div class="group" onclick="showGroup('Feedback & Reputation')">Feedback & Reputation <span class="count">10</span></div>
+<div class="group" onclick="showGroup('Fixed Assets & Engineering')">Fixed Assets & Engineering <span class="count">5</span></div>
+<div class="group" onclick="showGroup('Food Safety')">Food Safety <span class="count">6</span></div>
+<div class="group" onclick="showGroup('Foreign Guests & Forex')">Foreign Guests & Forex <span class="count">6</span></div>
+<div class="group" onclick="showGroup('Front Office')">Front Office <span class="count">35</span></div>
+<div class="group" onclick="showGroup('General Ledger')">General Ledger <span class="count">14</span></div>
+<div class="group" onclick="showGroup('Guest Messaging')">Guest Messaging <span class="count">7</span></div>
+<div class="group" onclick="showGroup('HR & People')">HR & People <span class="count">3</span></div>
+<div class="group" onclick="showGroup('Health Club & Spa')">Health Club & Spa <span class="count">9</span></div>
+<div class="group" onclick="showGroup('Hotel Group & Owner Reporting')">Hotel Group & Owner Reporting <span class="count">9</span></div>
+<div class="group" onclick="showGroup('Hotel Interfaces')">Hotel Interfaces <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Housekeeping')">Housekeeping <span class="count">5</span></div>
+<div class="group" onclick="showGroup('IPTV & Guest Technology')">IPTV & Guest Technology <span class="count">13</span></div>
+<div class="group" onclick="showGroup('Inventory & Purchasing')">Inventory & Purchasing <span class="count">25</span></div>
+<div class="group" onclick="showGroup('Laundry & Linen')">Laundry & Linen <span class="count">7</span></div>
+<div class="group" onclick="showGroup('Learning & Development')">Learning & Development <span class="count">11</span></div>
+<div class="group" onclick="showGroup('Management & MIS')">Management & MIS <span class="count">11</span></div>
+<div class="group" onclick="showGroup('Marketing & CRM')">Marketing & CRM <span class="count">18</span></div>
+<div class="group" onclick="showGroup('Partner & Organiser Portals')">Partner & Organiser Portals <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Payroll')">Payroll <span class="count">20</span></div>
+<div class="group" onclick="showGroup('Property & Utilities')">Property & Utilities <span class="count">10</span></div>
+<div class="group" onclick="showGroup('Quality Assurance')">Quality Assurance <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Revenue Management')">Revenue Management <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Sales & Business Development')">Sales & Business Development <span class="count">18</span></div>
+<div class="group" onclick="showGroup('Security')">Security <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Self-Service Kiosk')">Self-Service Kiosk <span class="count">5</span></div>
+<div class="group" onclick="showGroup('Sustainability & ESG')">Sustainability & ESG <span class="count">13</span></div>
+<div class="group" onclick="showGroup('System & Administration')">System & Administration <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Talent Management')">Talent Management <span class="count">12</span></div>
+<div class="group" onclick="showGroup('Tax & Statutory')">Tax & Statutory <span class="count">8</span></div>
+<div class="group" onclick="showGroup('Transport & Parking')">Transport & Parking <span class="count">13</span></div>
+<div class="group" onclick="showGroup('Treasury & Payments')">Treasury & Payments <span class="count">15</span></div>
+</div>
+<div class="main">
+<div class="topbar">
+<h1>Report Centre — 469 Reports in 41 Categories</h1>
+<input type="text" class="search" placeholder="Search 469 reports..." oninput="searchReports(this.value)">
+</div>
+<div id="report-list"><div class="group-header">Accounts (21 reports)</div>
+<div class="report-card" onclick="showReport('allotment_utilisation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Allotment Utilisation</div><div class="desc">Per allotment line: room nights allotted in the period, picked up, released unso...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ap_ageing')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">AP Ageing (Suppliers)</div><div class="desc">Supplier balances by days past due, with unbilled goods receipts and unapplied c...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('ap_allocations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">AP Allocation Register</div><div class="desc">Every AP allocation of a payment to invoices</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ap_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Supplier Bill Register</div><div class="desc">Bills & debit notes in the period: match variance, paid and outstanding</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ar_aging')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">AR Ageing (City Ledger)</div><div class="desc">Company outstanding by age bucket, FIFO against receipts</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('bank_reconciliation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Bank Reconciliation Summary</div><div class="desc">Per bank / Mobile Money / clearing account at a date: book balance, latest state...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('bank_statement_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Bank Statement Lines</div><div class="desc">Imported statement lines in the period: statement, date, details, money in / out...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('billing_reconciliation_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Billing Reconciliation Item Register</div><div class="desc">Every folio/invoice reconciled against cash and city ledger</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('billing_reconciliations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Billing Reconciliation Register</div><div class="desc">Every billing reconciliation period with preparer and reviewer</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('close_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Close Event Register</div><div class="desc">Every period-end close event</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('contract_production')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Contract Production</div><div class="desc">Per rate contract: bookings, room nights and revenue for stays in the period, AD...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('credit_exposure')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Credit Exposure</div><div class="desc">Every direct-billing account: limit, city ledger, overdue, in-house balances, to...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('expense_claim_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Expense Claim Line Register</div><div class="desc">Every expense claim line with amount and VAT</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('expense_claims')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Staff Expense Claims Register</div><div class="desc">Claims submitted in the period: claimant, department, title, amount, input VAT, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('expenses')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Expense Report</div><div class="desc">Payment vouchers by head</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('petty_cash_book')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Petty Cash Book</div><div class="desc">Every posted petty cash movement in the period per float: top-ups, vouchers, IOU...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('petty_counts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Petty Cash Count Register</div><div class="desc">Every petty cash count with counted amount and variance</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('petty_expenses')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Petty Cash Spending by Account</div><div class="desc">Vouchers and settled IOUs in the period by expense account and float, with input...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('petty_replenishments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Petty Cash Replenishment Register</div><div class="desc">Every petty cash replenishment request</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('supplier_paid_history_archives')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Supplier Paid History Archive Register</div><div class="desc">Every archived supplier payment from pre-cutover data</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('uncleared_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Uncleared Items</div><div class="desc">Book entries not yet on a bank statement and statement lines not in the books, a...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="group-header">Banquet & Events (5 reports)</div>
+<div class="report-card" onclick="showReport('banquet')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banquet Event Report</div><div class="desc">Events in the period: functions, venues, peak pax, value, deposits and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('banquet_pipeline')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banquet Sales Pipeline</div><div class="desc">Enquiries, tentative holds, definite and lost business by event month – count, v...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('function_forecast')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Function Forecast (Kitchen & Ops)</div><div class="desc">Upcoming tentative and definite functions with covers, menu and set-up – for pur...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('organiser_attendees')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Organiser Attendee Register</div><div class="desc">Every banquet event attendee with tag and contact</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('venue_utilisation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Venue Utilisation</div><div class="desc">Per venue: functions, days and hours booked, occupancy of a 16-hour day, covers ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Billing (10 reports)</div>
+<div class="report-card" onclick="showReport('cashier_movements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cashier Movement Register</div><div class="desc">Every cashier movement: kind, amount, shift, user</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cashier_shifts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cashier Shift Register</div><div class="desc">Cashier shift summary: opening, cash in, POS, cash out, tip, closing balance and...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('collection')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Collection Report</div><div class="desc">Payments by mode and cashier</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('credit_logs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Credit Log Register</div><div class="desc">Every credit issued to a guest folio</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('invoices')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Invoice Register</div><div class="desc">Closed folios / invoices</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('online_payments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Online Payments</div><div class="desc">Payment links paid, refunded, pending or expired in the period, with gateway tra...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('outstanding')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Ledger / Outstanding</div><div class="desc">Open folios with balances</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Daily Revenue Report</div><div class="desc">Revenue by charge category</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('tax')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Tax (VAT & Levies) Report</div><div class="desc">Taxable value with VAT, NHIL, GETFund and Tourism Levy by category and rate</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('voids')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Void & Discount Report</div><div class="desc">Voided transactions and discounts (audit)</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Budget & Planning (8 reports)</div>
+<div class="report-card" onclick="showReport('budget_annual')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Annual Budget – Monthly Phasing</div><div class="desc">The active budget for the fiscal year: every income and expense account by month...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('budget_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Budget Event Register</div><div class="desc">Every budget adjustment event</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('budget_kpis')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rooms KPIs vs Budget</div><div class="desc">Per fiscal month: occupancy, ADR, RevPAR, room-nights and room revenue – budget ...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('budget_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Budget Line Register</div><div class="desc">Every budget line by department and category</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('budget_stats')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Budget Stats Register</div><div class="desc">Monthly budget vs actual by department</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('budget_vs_actual')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Budget vs Actual (P&L)</div><div class="desc">Month and year-to-date actuals from the general ledger against the active budget...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('forecast_vs_budget')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Forecast vs Budget</div><div class="desc">Full-year active re-forecast against the approved budget per account, with actua...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('variance_commentary')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Variance Commentary Log</div><div class="desc">Explanations recorded for budget variances in the period: month, account, actual...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Central Reservations (5 reports)</div>
+<div class="report-card" onclick="showReport('cro_agents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">CRO Agent Performance</div><div class="desc">Per reservations agent: enquiries, bookings, referrals, denials, regrets, conver...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cro_demand')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Unconstrained Demand</div><div class="desc">By stay date: capacity, rooms on the books, rooms denied and regretted, and occu...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cro_enquiries')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Reservations Enquiry Register</div><div class="desc">Every enquiry logged in the period with the stay asked, channel, agent, value an...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cro_lost_business')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Lost Business (Denials & Regrets)</div><div class="desc">Lost enquiries by reason: denials (could not offer) and regrets (guest declined)...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cro_referrals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sister-Hotel Referrals</div><div class="desc">Turnaways referred between the hotels of the group: origin and receiving hotel, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Channel Manager (9 reports)</div>
+<div class="report-card" onclick="showReport('channel_ari_states')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel ADR/Index Register</div><div class="desc">Daily ADR and index by channel</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('channel_messages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Message Register</div><div class="desc">Every message sent to or received from a channel</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('channel_parity')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Parity Exceptions</div><div class="desc">Every room-night where what a channel last acknowledged (availability, restricti...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('channel_production')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Production</div><div class="desc">Per OTA connection: bookings received in the period, room nights, gross revenue,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('channel_rate_maps')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Rate Map Register</div><div class="desc">Every rate mapping between PMS and channel</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('channel_restrictions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Restriction Register</div><div class="desc">Every channel availability restriction by date and room type</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('channel_room_maps')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Room Map Register</div><div class="desc">Every room type mapping between PMS and channel</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('channel_sync_log')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Sync Log</div><div class="desc">ARI pushes per channel and day: deltas and full refreshes, room-nights sent, fai...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ota_channels')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">OTA Channel Register</div><div class="desc">Every OTA channel with integration status and mapping</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Compliance & HSE (15 reports)</div>
+<div class="report-card" onclick="showReport('compliance_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Compliance Event Register</div><div class="desc">Every compliance event</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('compliance_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Licences & Compliance Register</div><div class="desc">Every licence, permit, certificate, insurance, inspection and AMC with expiry / ...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('data_breaches')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Data Breach Register</div><div class="desc">Every reported data breach with severity and closure tracking</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hse_accidents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Accident & Near-Miss Register</div><div class="desc">Accidents, injuries, near misses and dangerous occurrences with the person, inju...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('hse_checks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fire Equipment Inspection Log</div><div class="desc">Visual checks and contractor services in the period: item, result, faults found,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('hse_drills')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fire Drill Log</div><div class="desc">Drills in the period by shift: evacuation time against the target, roll call, gu...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('hse_equipment')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fire Equipment Register</div><div class="desc">Every fire and life-safety item with GNFS tag, location, last and next visual ch...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hse_permits')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Permit-to-Work Register</div><div class="desc">Permits requested in the period by type: location, contractor, period, requester...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('hse_risks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Risk Register</div><div class="desc">Live risk assessments: hazard, who is at risk, initial and residual rating on th...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hse_wardens')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HSE Warden Register</div><div class="desc">Every fire warden, first aider and fire team member with training status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('pii_access')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">PII Access Log</div><div class="desc">Every reveal of masked identifiers, ID-document and e-signature view and persona...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pm_compliance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Preventive Maintenance Compliance</div><div class="desc">PM tickets that fell due in the period: done on time, late or still open, with d...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('privacy_request_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Privacy Request Event Register</div><div class="desc">Every event in a data privacy request lifecycle</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('privacy_requests')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Privacy Request Register</div><div class="desc">Data-subject requests received in the period: type, channel, identity check, dea...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('privacy_retention')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Retention & Erasure Log</div><div class="desc">Per day: ID scans and signatures deleted, message contents purged, profiles anon...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Concierge & Activities (5 reports)</div>
+<div class="report-card" onclick="showReport('activity_departures')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Activity Departure Register</div><div class="desc">Every activity departure with bookings and seat availability</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('concierge_bookings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Activity Bookings Register</div><div class="desc">Every activity / excursion booking in the period: operator, guest, party, source...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('concierge_sales')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Activity Sales & Commission</div><div class="desc">Per activity: bookings, guests, sold value, average booking, commission earned, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('concierge_staff')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Concierge Sales by Staff</div><div class="desc">Bookings, guests, sold value and commission by the staff member (or guest portal...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('concierge_vendors')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Operator Statement & Balances</div><div class="desc">Per tour operator: finished bookings, commission, settlements paid / received an...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">F&B & POS (35 reports)</div>
+<div class="report-card" onclick="showReport('banquet_event_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banquet Event Item Register</div><div class="desc">Every item line on a banquet event</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('banquet_packages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banquet Package Register</div><div class="desc">Every banquet package with items, price and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('banquet_services')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banquet Service Register</div><div class="desc">Every banquet service offered: name, price, pax and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fb_cost_snapshots')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">F&B Cost Snapshot Register</div><div class="desc">Every periodic food cost snapshot</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fb_recipe_cards')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">F&B Recipe Card Register</div><div class="desc">Every recipe card with ingredients, quantities and cost</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fb_staff_meals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">F&B Staff Meal Register</div><div class="desc">Every staff meal served with cost per cover and total</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fb_yield_tests')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">F&B Yield Test Register</div><div class="desc">Every yield test with gross/trim/loss/usable quantities</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('kot_print_jobs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">KOT Print Job Register</div><div class="desc">Every kitchen order ticket print job</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kot_printers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">KOT Printer Register</div><div class="desc">Every kitchen order ticket printer with configuration and usage</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('menu_categories')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Category Register</div><div class="desc">Every menu category with item count</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('menu_item_recipes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Item Recipes Register</div><div class="desc">Detailed register of Menu Item Recipes records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('menu_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Item Register</div><div class="desc">Every menu item with category, price, cost and active status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('menu_modifier_groups')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Modifier Groups Register</div><div class="desc">Detailed register of Menu Modifier Groups records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('menu_modifiers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Modifiers Register</div><div class="desc">Detailed register of Menu Modifiers records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('outlet_service_periods')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Outlet Service Period Register</div><div class="desc">Every F&B outlet service period by day</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('package_allocation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Package Allocation & Breakage</div><div class="desc">Per package: value allocated out of room revenue and add-ons, used at the outlet...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('package_consumption')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Package Consumption Register</div><div class="desc">Every cover / allowance recorded at the Meal Desk: room, guest, package, covers,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('package_forecast')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Meal Cover Forecast</div><div class="desc">Breakfast / lunch / dinner covers per service date: actual entitlements for past...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_bills')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Bill Register</div><div class="desc">All settled / void bills</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_comps')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Complimentary / Non-Chargeable Items</div><div class="desc">Every complimentary POS item in the period, including item-level comps and whole...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_evat_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Restaurant Bills E-VAT Register</div><div class="desc">Bills settled at the outlets in the period: customer TIN, taxable value, VAT and...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Item-wise Sales</div><div class="desc">Quantity and value by menu item</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_payments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">POS Tender Register</div><div class="desc">Every POS payment and refund by tender, reference, cashier and bill</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_sales')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Outlet Sales Summary</div><div class="desc">Bills, covers and sales by outlet</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pos_tables')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">POS Table Register</div><div class="desc">Every POS table with outlet, capacity and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('spa_rooms')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Spa Room Register</div><div class="desc">Every spa room with type, capacity and active</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('table_bookings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Table Booking Register</div><div class="desc">Every restaurant booking, walk-in and waitlist party in the period: time, party,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('table_covers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Covers & No-Shows by Day</div><div class="desc">Day by day: bookings, booked / walk-in / waitlist covers seated, no-shows, cance...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('table_turns')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Table Turns & Utilisation</div><div class="desc">Per table: parties, covers, average party, average time at the table, turns per ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('table_waitlist')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Waitlist Performance</div><div class="desc">Day by day: parties waitlisted, seated and walked away, average quoted and actua...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fbc_food_cost')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Daily Food & Beverage Cost Flash</div><div class="desc">Per day: food and beverage revenue, theoretical cost, cost consumed, employee me...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fbc_menu_engineering')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Engineering Analysis</div><div class="desc">Kasavana & Smith worksheet for the period: items sold, menu mix %, average price...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fbc_price_changes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Menu Price Change Log</div><div class="desc">Menu price changes in the period with old and new price, plate cost at the time,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fbc_recipe_costs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Recipe Costing Register</div><div class="desc">Every menu item with price, plate cost at the current costing basis and trim yie...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fbc_variance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Ideal vs Actual Usage Variance</div><div class="desc">Per ingredient: ideal usage from portions sold × recipe (grossed up for yield) a...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Feedback & Reputation (10 reports)</div>
+<div class="report-card" onclick="showReport('dept_scores')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Department Scorecard</div><div class="desc">Per department: average survey rating, positive and negative mentions in comment...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('feedback_answers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Feedback Answer Register</div><div class="desc">Every survey answer given by a guest</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('feedback_case_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Feedback Case Event Register</div><div class="desc">Every event in the lifecycle of a feedback case</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('feedback_cases')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Service Recovery Cases</div><div class="desc">Cases opened in the period: department, severity, owner, hours to first contact ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('feedback_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Feedback Register</div><div class="desc">Every survey, portal and web feedback response in the period with recommend scor...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('nps_trend')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">NPS & Satisfaction Trend</div><div class="desc">Month by month: surveys sent, response rate, promoters / passives / detractors, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('online_reviews')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Online Review Register</div><div class="desc">Reviews from TripAdvisor, Google, Booking.com and others by review date: rating,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('survey_invitations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Survey Invitation Register</div><div class="desc">Every survey invitation sent to a guest</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('survey_questions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Survey Question Register</div><div class="desc">Every survey question by template</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('surveys')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Survey Register</div><div class="desc">Every guest survey with template, period and response count</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Fixed Assets & Engineering (5 reports)</div>
+<div class="report-card" onclick="showReport('asset_categories')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Asset Category Register</div><div class="desc">Every fixed asset category with depreciation method</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('asset_dep_runs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Asset Depreciation Run Register</div><div class="desc">Every depreciation run</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('asset_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fixed Asset Register</div><div class="desc">Every asset held at a date: category, location, cost, accumulated depreciation a...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('asset_schedule')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fixed Asset Schedule (Roll-forward)</div><div class="desc">Per asset for the period: opening cost, additions, disposals, depreciation charg...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('pm_schedules')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">PM Schedule Register</div><div class="desc">Every preventive maintenance schedule by asset and frequency</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Food Safety (6 reports)</div>
+<div class="report-card" onclick="showReport('food_waste')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Food Waste Analysis</div><div class="desc">Food waste by item and reason with quantity and cost; raw & unserved dishes (pos...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fs_certificates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">FS Certificate Register</div><div class="desc">Every food safety certificate with expiry and status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fs_equipment')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">FS Equipment Register</div><div class="desc">Every food safety equipment with calibration dates</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('fs_labels')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">FS Label Register</div><div class="desc">Every food safety label with allergen information</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('haccp_checklists')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HACCP Checklist Compliance</div><div class="desc">Checklist periods due in the range: completed on time or missed, failed items an...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('haccp_temperatures')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HACCP Temperature Log</div><div class="desc">Every temperature reading in the period – equipment checks, receiving, cooking, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Foreign Guests & Forex (6 reports)</div>
+<div class="report-card" onclick="showReport('foreign_arrivals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Foreign Arrivals by Nationality</div><div class="desc">Per nationality: guests, stays, room nights, average stay, share of foreign arri...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('forex_position')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Currency Position & Surrenders</div><div class="desc">Per currency: opening balance, bought, surrendered to the bank, closing balance,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('forex_rates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Forex Rate Board History</div><div class="desc">Every posted forex rate with buy rate, margin and setter</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('forex_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Currency Exchange Register</div><div class="desc">Every foreign currency purchase: guest, passport, currency, amount, rate, cedi v...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('forex_surrenders')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Forex Surrender Register</div><div class="desc">Foreign exchange surrendered to the bank with realised gain/loss</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('formc_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Form C (FRRO) Register</div><div class="desc">Every foreign national who checked in: nationality, passport, visa, room, deadli...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Front Office (35 reports)</div>
+<div class="report-card" onclick="showReport('logbook_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Shift Log Book Register</div><div class="desc">Every log book entry in the period by date and shift: category, priority, depart...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('lost_found_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Lost & Found Register</div><div class="desc">Items found in the period: item no., category, where found, finder, storage, pro...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('traces_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Traces Register</div><div class="desc">Traces due in the period by department: text, booking, completed on time, carrie...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('wakeup_calls')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Wake-up Call Performance</div><div class="desc">Every wake-up call due in the period: room, guest, source, attempts, answered / ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('activity_bookings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Activity Booking Register</div><div class="desc">Every activity booking with guest, date and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('arrivals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Arrival List</div><div class="desc">Expected arrivals for the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cancellations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cancellation & No-Show</div><div class="desc">Cancelled and no-show reservations</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('company')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Company-wise Business</div><div class="desc">Room nights & revenue by company/agent</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('departures')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Departure List</div><div class="desc">Expected departures for the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('guest_documents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Document Register</div><div class="desc">ID scans, photos, visas and other guest documents</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('guest_requests')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Requests & Response Times</div><div class="desc">Portal / phone requests by type: volumes, response & completion times, SLA breac...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inhouse')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">In-House Guest List</div><div class="desc">All guests currently checked in</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('loyalty_entries')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Loyalty Entry Register</div><div class="desc">Every loyalty point earning and redemption</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('nationality')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Nationality Report</div><div class="desc">Guest arrivals by nationality</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('occupancy')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Occupancy Statistics</div><div class="desc">Day-wise occupancy, ADR and RevPAR</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('police')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Police / Form-C Report</div><div class="desc">Foreign national check-ins</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('reservation_amendments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Reservation Amendment Log</div><div class="desc">Every amendment to a reservation</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('reservation_desk_views')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Reservation Desk View Register</div><div class="desc">Every saved reservation desk view</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('reservation_waitlist')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Reservation Waitlist Register</div><div class="desc">Every waitlist entry with dates, party and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('reservations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Reservation Register</div><div class="desc">Reservations created in the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('room_amenities')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Amenity Register</div><div class="desc">Every room amenity with name, type and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('room_amenity_links')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Amenity Link Register</div><div class="desc">Every room-to-amenity mapping</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('room_block_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Block Line Register</div><div class="desc">Every room block allocation by room type</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('room_blocks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Block Register</div><div class="desc">Every room block allocation: group, room type, dates, rooms and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('room_counts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Count Register</div><div class="desc">Daily room count by type and status — available, occupied, out of order, blocked</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('room_images')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Image Register</div><div class="desc">Every room photo uploaded to the system</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('room_moves')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Move Register</div><div class="desc">Every guest room move with from, to and reason</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('room_outages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Outage Register</div><div class="desc">Every room outage with reason, dates and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('source')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Business Source Analysis</div><div class="desc">Room nights & revenue by source</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('stay_fixed_charges')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Stay Fixed Charge Register</div><div class="desc">Every stay fixed charge applied to a reservation</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('upsell_offers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Upsell Offer Register</div><div class="desc">Every upsell offer with type, value and active</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('wakeup_attempts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Wakeup Attempt Register</div><div class="desc">Every wakeup call attempt with status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('upsell_conversion')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Upsell Conversion by Channel</div><div class="desc">Guests shown offers per channel, how many opened them and how many bought – conv...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('upsell_incentives')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Staff Upsell Incentives</div><div class="desc">Per staff member: desk upsells confirmed, sales value, incentive earned and the ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('upsell_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Upsell Revenue by Offer</div><div class="desc">Per offer: confirmed orders and revenue split by channel (pre-arrival, desk, in-...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">General Ledger (14 reports)</div>
+<div class="report-card" onclick="showReport('accrual_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Accruals & Prepayments Register</div><div class="desc">Accrued expenses, prepaid expenses and deferred income: amount, posted, balance ...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('balance_sheet')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Balance Sheet</div><div class="desc">Assets, liabilities and equity as at a date</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('close_status')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Period Close Status</div><div class="desc">Month-end close by period: checklist cleared, waivers, preparer and approver, da...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('fiscal_year_closes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Fiscal Year Close Register</div><div class="desc">Every fiscal year close with closing journal and performer</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gl_journals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">General Ledger Journals</div><div class="desc">Every GL journal with entry, period and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gl_pnl')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Profit & Loss (GL)</div><div class="desc">Income statement from the double-entry ledger, by account group</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ia_authorisations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Comps, Discounts & Rate Authorisations</div><div class="desc">Complimentary and house-use rooms, below-expected rates and folio discounts requ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ia_findings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Audit Exceptions Register</div><div class="desc">Every income-audit exception raised for business dates in the period: check, sev...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ia_rate_variance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Rate Variance</div><div class="desc">Each occupied room night: tariff charged against the expected rate (rate plan, c...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('ia_reconciliation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Daily Revenue Reconciliation</div><div class="desc">Per business date: night-audit report vs the baseline at close vs now for room /...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('journal_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Journal Register (Day Book)</div><div class="desc">Every journal line posted in the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('period_end_postings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Period-end Postings</div><div class="desc">Journals made from schedules and recurring templates in the period, with auto-re...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('recurring_journals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Recurring Journal Register</div><div class="desc">Every recurring journal template</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('trial_balance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Trial Balance</div><div class="desc">Opening, period movement and closing balance of every account</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Guest Messaging (7 reports)</div>
+<div class="report-card" onclick="showReport('guest_messages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Messages & Parcels</div><div class="desc">Messages and parcels taken for guests: from, channel, how and when the guest was...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_agents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Messaging Team Performance</div><div class="desc">Per staff member: conversations, replies, internal notes, average first response...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_broadcasts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Inbox Broadcasts Register</div><div class="desc">Detailed register of Inbox Broadcasts records</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_conversations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Conversations</div><div class="desc">Every guest conversation started in the period: channel (portal chat, WhatsApp, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_quick_replies')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Inbox Quick Replies Register</div><div class="desc">Detailed register of Inbox Quick Replies records</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_response')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Messaging Response Times by Day</div><div class="desc">Per day: conversations, guest messages, staff, automatic and broadcast replies, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inbox_topics')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Messaging Topics & Automatic Answers</div><div class="desc">What guests write about: conversations per team with channel mix and rating, and...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">HR & People (3 reports)</div>
+<div class="report-card" onclick="showReport('hr_announcements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HR Announcement Register</div><div class="desc">Every internal HR announcement</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hr_documents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HR Document Register</div><div class="desc">Every employee document with verification status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hr_profile_updates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">HR Profile Update Register</div><div class="desc">Every employee profile change request with approval status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Health Club & Spa (9 reports)</div>
+<div class="report-card" onclick="showReport('club_attendance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Attendance & Utilisation</div><div class="desc">Visits by day and facility (members, hotel guests, day passes, members\</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('club_classes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Class Schedule</div><div class="desc">Every club class with instructor, capacity and bookings</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('club_members')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Membership Register</div><div class="desc">Memberships current in the period by plan, with term, card holders, balance and ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('club_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Revenue & Deferred Fees</div><div class="desc">Membership fees earned day by day, joining fees, guest & day passes, credit note...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('club_ticket_payments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Ticket Payment Register</div><div class="desc">Every payment on a club ticket sale</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('club_ticket_sale_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Ticket Sale Item Register</div><div class="desc">Every line on a club ticket sale</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('club_ticket_sales')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Ticket Sale Register</div><div class="desc">Every club ticket sale with type, price and guest</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('club_ticket_types')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Club Ticket Type Register</div><div class="desc">Every club ticket type with category, price and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('spa_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Spa & Activity Revenue</div><div class="desc">Appointments and revenue by service and therapist</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Hotel Group & Owner Reporting (9 reports)</div>
+<div class="report-card" onclick="showReport('ffe_reserve')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">FF&E Reserve Ledger & Capex</div><div class="desc">Reserve opening balance, contributions, interest, capex drawdowns and adjustment...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('hotel_groups')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Hotel Group Register</div><div class="desc">Every management group with affiliated hotel count</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hotel_kpis')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Hotel KPIs by Month</div><div class="desc">Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied r...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('management_agreements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Management Agreement Register</div><div class="desc">Every hotel management agreement with fee structure</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('management_fees')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Management Fee Calculation</div><div class="desc">Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the own...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('owner_queries')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Owner Query Register</div><div class="desc">Every query raised by an owner on a statement, with replies</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('owner_statements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Owner Statement Register</div><div class="desc">Every issued owner statement with status and acknowledgement</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('usali_departments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">USALI Departmental Schedules</div><div class="desc">Every ledger account under its USALI department and category (revenue, cost of s...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('usali_summary')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">USALI Summary Operating Statement</div><div class="desc">USALI 11th edition statement for any period: revenue by department, departmental...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Hotel Interfaces (8 reports)</div>
+<div class="report-card" onclick="showReport('admin_call_usage')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Administrative Call Usage</div><div class="desc">Calls from administrative and public extensions by department and extension: cal...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('api_usage')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">API Usage by Client</div><div class="desc">Per API client and call: requests, successes, client (4xx) and server (5xx) erro...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('call_log')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Call Accounting Log</div><div class="desc">Every call from the PABX in the period: time, extension, room / guest, number (m...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('call_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Telephone Revenue & Margin</div><div class="desc">Guest calls by class: calls, minutes, carrier cost, amount charged and margin – ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('interface_commands')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Interface Command Register</div><div class="desc">Every interface command sent to a hotel system</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('key_card_audit')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Key Card Audit</div><div class="desc">Guest key cards encoded in the period: room, holder, type, valid until, status, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('master_key_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Master Key Register</div><div class="desc">Master-key sign-outs in the period: key, holder, purpose, out, due, returned, la...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('webhook_deliveries')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Webhook Delivery Performance</div><div class="desc">Per endpoint and event: events queued, delivered, still retrying and given up, f...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Housekeeping (5 reports)</div>
+<div class="report-card" onclick="showReport('hk_productivity')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Attendant Productivity</div><div class="desc">Rooms, credits, minutes per room, DND and re-cleans per attendant</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('maintenance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Maintenance Report</div><div class="desc">Tickets raised in the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('minibar')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Minibar Sales</div><div class="desc">Minibar consumption posted to guest folios</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('minibar_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Minibar Item Register</div><div class="desc">Every minibar item with price, stock and active</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('room_status')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Room Status Report</div><div class="desc">Current occupancy and housekeeping status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">IPTV & Guest Technology (13 reports)</div>
+<div class="report-card" onclick="showReport('iptv_channels')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Channel Line-up & Viewing</div><div class="desc">Every channel: number, category, language, stream, guide id, programmes still ah...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('iptv_devices')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV & Screen Register</div><div class="desc">Every in-room TV and lobby screen: room / location, platform, model, MAC, serial...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('iptv_engagement')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Engagement by Day</div><div class="desc">Per day: TVs used, screen actions, welcome screens seen, channel views, movie re...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('iptv_messages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Message & Emergency Log</div><div class="desc">Room messages, broadcasts and emergency alerts sent to TVs in the period: audien...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('iptv_orders')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Orders & Requests from the TV</div><div class="desc">In-room dining orders, service requests, express check-outs and wake-up calls gu...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('iptv_vod')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Movie Rentals (Pay TV)</div><div class="desc">Movie rentals in the period: room, guest, title, amount before tax, VAT & levies...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('tv_commands')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Command Register</div><div class="desc">Every IPTV command sent to a device</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_message_reads')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Message Read Register</div><div class="desc">Every IPTV message read on a device</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_movies')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Movie Register</div><div class="desc">Every movie available on the IPTV system</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_pages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Page Register</div><div class="desc">Every IPTV page: name, type, content and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_programmes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Programme Register</div><div class="desc">Every TV programme with channel, time and duration</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_sessions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Session Register</div><div class="desc">Every IPTV viewing session with guest and device</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('tv_welcome_templates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">TV Welcome Template Register</div><div class="desc">Every guest welcome template on the TV system</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Inventory & Purchasing (25 reports)</div>
+<div class="report-card" onclick="showReport('consumption')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Consumption / Issue Report</div><div class="desc">Issues and wastage by item</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('dept_consumption')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Department Consumption vs Budget</div><div class="desc">Stock issued to each department in the period (expensed, transferred to its stor...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('goods_received')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Goods Received Register</div><div class="desc">Every delivery in the period by GRN and item: delivered, rejected (with reason) ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('grn_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Goods Receipt Line Register</div><div class="desc">Every goods receipt line with quantity and cost</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('historical_stock_movement_archives')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Historical Stock Movement Archive</div><div class="desc">Archived stock movements</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('inventory_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Inventory Item Register</div><div class="desc">Every inventory item: name, category, unit, par, stock, value and status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('item_categories')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Item Category Register</div><div class="desc">Every inventory item category</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('open_purchase_orders')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Open Purchase Orders & Overdue Deliveries</div><div class="desc">Approved and part-received PO lines still to be delivered on the date: ordered, ...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('po_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Purchase Order Item Register</div><div class="desc">Every item line on a purchase order</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('purchases')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Purchase Register</div><div class="desc">Purchase orders in the period</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('req_pending')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Outstanding Requisition Lines</div><div class="desc">Approved quantities not yet issued: balance, stock in the issuing store and age ...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('req_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Requisition Register</div><div class="desc">Store requisitions raised in the period: department, status, requested / approve...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('requisition_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Requisition Line Register</div><div class="desc">Every line on a purchase requisition</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rfq_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RFQ Line Register</div><div class="desc">Every item line on a request for quotation</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rfq_quote_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RFQ Quote Line Register</div><div class="desc">Every line on an RFQ quote</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rfq_quotes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RFQ Quote Register</div><div class="desc">Every quote received on an RFQ</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rfq_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RFQ Register</div><div class="desc">Every request for quotation with status and totals</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rfq_suppliers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RFQ Supplier Register</div><div class="desc">Every supplier invited to an RFQ</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('stock_take_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Stock Take Line Register</div><div class="desc">Every line on a stock take</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('stock_takes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Stock Take Register</div><div class="desc">Every stock take with period, status and variances</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('store_issue_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Store Issue Line Register</div><div class="desc">Every line on a store issue slip</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('store_pars')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Store Par Register</div><div class="desc">Every store par level by item and store</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('supplier_invoice_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Supplier Invoice Line Register</div><div class="desc">Every line on a supplier invoice</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('supplier_prices')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Supplier Price Register</div><div class="desc">Every supplier price by item and currency</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('supplier_scorecard')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Supplier Scorecard</div><div class="desc">Supplier performance in the period: on-time delivery, fill rate, quality (reject...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Laundry & Linen (7 reports)</div>
+<div class="report-card" onclick="showReport('laundry_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Laundry Items Register</div><div class="desc">Detailed register of Laundry Items records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('laundry_order_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Laundry Order Lines Register</div><div class="desc">Detailed register of Laundry Order Lines records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('laundry_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Laundry Register</div><div class="desc">Guest & walk-in laundry orders collected in the period: pieces, express surcharg...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('linen_batch_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Linen Batch Lines Register</div><div class="desc">Detailed register of Linen Batch Lines records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('linen_batches')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Linen Batch Register</div><div class="desc">Every linen batch: type, quantity, status, laundry cycle and outstanding</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('linen_losses')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Linen Losses & Write-offs</div><div class="desc">Linen discarded as damaged or lost (on the floors or by the laundry) in the peri...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('linen_par')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Linen Stock & Par</div><div class="desc">Every linen type by location (clean, floors, soiled, at laundry) against par, wi...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Learning & Development (11 reports)</div>
+<div class="report-card" onclick="showReport('sop_acknowledgement')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">SOP Sign-off Status</div><div class="desc">Every published SOP that staff must sign: version, effective date, review due, s...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sop_acknowledgements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">SOP Acknowledgement Register</div><div class="desc">Every employee acknowledgement of a SOP</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sop_documents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">SOP Document Register</div><div class="desc">Every SOP document</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sop_versions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">SOP Version Register</div><div class="desc">Every version of a SOP</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('training_compliance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Matrix Compliance</div><div class="desc">Every employee against the training their department / job title requires: curre...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('training_courses')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Course Register</div><div class="desc">Every training course with hours and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('training_expiry')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Certificates Expiring</div><div class="desc">Staff certificates (fire, first aid, food hygiene…) expiring in the date range –...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('training_hours')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Hours & Spend by Department</div><div class="desc">Training hours delivered, staff trained, hours per head, cost and cost per head ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('training_records')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Records Register</div><div class="desc">Every training outcome in the period: employee, course, in-house session or exte...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('training_requirements')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Requirement Register</div><div class="desc">Every training requirement by course and department</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('training_sessions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Training Session Register</div><div class="desc">Every training session scheduled and attended</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Management & MIS (11 reports)</div>
+<div class="report-card" onclick="showReport('email_logs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Email Log Register</div><div class="desc">Every email sent from the system</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('flash')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Flash Report (Day / MTD / YTD)</div><div class="desc"></div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('guest_history')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Top Guests</div><div class="desc">Repeat guests by stays and revenue</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kpi_alert_log')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">KPI Alert Log</div><div class="desc">KPI threshold breaches by business date, actual vs threshold, acknowledgement</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kpi_alerts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">KPI Alert Register</div><div class="desc">Every KPI threshold breach alert</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('message_logs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Message Log Register</div><div class="desc">Every user activity message log</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('mis')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Night Audit MIS</div><div class="desc">Night audit statistics</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('report_schedules')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Report Schedule Register</div><div class="desc">Every scheduled report with frequency and recipients</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('report_views')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Report View Register</div><div class="desc">Every saved report view</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('rpt_deliveries')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Scheduled Report Deliveries</div><div class="desc">Every scheduled / sent-now report e-mail: period, recipients, rows, failures</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('user_activity')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">User Activity Summary</div><div class="desc">Actions per user and module</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Marketing & CRM (18 reports)</div>
+<div class="report-card" onclick="showReport('concierge_places')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Concierge Place Register</div><div class="desc">Every concierge recommendation with category and rating</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('crm_campaigns')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Campaign & Automation Performance</div><div class="desc">Per campaign / automation: recipients, delivered, skipped, clicks, CTR, unsubscr...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('crm_guest_value')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Guest Value (RFM)</div><div class="desc">Every guest with a stay: recency, frequency and monetary scores, value segment, ...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('crm_promos')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Promo Code Redemptions</div><div class="desc">Bookings made with each promo code in the period: room nights, revenue after dis...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cro_contacts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">CRO Contact Register</div><div class="desc">Every CRO contact with company, role and status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('digital_content')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Content Calendar & Approvals</div><div class="desc">Posts scheduled in the period with channels, status, approver, approval turnarou...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('digital_influencers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Influencer Collaborations</div><div class="desc">Creator collaborations: fee, complimentary value, reach, engagements, cost per e...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('digital_links')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Tracked Link Attribution</div><div class="desc">Clicks, unique visitors, device mix and credited direct bookings, nights and rev...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('digital_paid')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Paid Media Performance</div><div class="desc">Paid campaigns: spend vs budget, impressions, clicks, CTR, CPC, platform convers...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('digital_social')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Social Media Performance</div><div class="desc">Followers at start / end, growth, reach, impressions, engagements, engagement ra...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('dm_ad_stats')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Digital Marketing Ad Stats</div><div class="desc">Daily ad performance by channel: impressions, clicks, cost and conversions</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('dm_link_clicks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Digital Marketing Link Clicks</div><div class="desc">Every tracked link click with source and device</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_budget')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Budget vs Actual</div><div class="desc">Marketing budget by line for the months in the period against actual spend and c...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_collateral')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Collateral Register</div><div class="desc">Every brochure, video, photo and other marketing asset</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_consent_logs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Consent Log Register</div><div class="desc">Every marketing consent change recorded</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_messages')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Message Register</div><div class="desc">Every marketing message with delivery and engagement status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_roi')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Event ROI</div><div class="desc">Marketing events starting in the period: budget, actual cost, leads, cost per le...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('marketing_segments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Marketing Segment Register</div><div class="desc">Every guest segment with campaign and journey counts</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Partner & Organiser Portals (8 reports)</div>
+<div class="report-card" onclick="showReport('organiser_access')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Organiser Portal Access Audit</div><div class="desc">Security trail of organiser logins: sign-ins, failed passwords, lock-outs, sign-...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('organiser_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Organiser Portal Events</div><div class="desc">Every event the hotel shares online right now: organiser, functions, status, act...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('organiser_payments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Organiser Portal Online Payments</div><div class="desc">Every online deposit and balance payment event organisers made in the portal dur...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('organiser_requests')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Organiser Requests & Response Times</div><div class="desc">Change requests, cancellations and quote requests received in the period with wh...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('partner_access')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Partner Portal Access Audit</div><div class="desc">Security trail of partner logins: sign-ins, failed passwords, lock-outs, sign-ou...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('partner_bookings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Partner Portal Bookings</div><div class="desc">Every booking corporate clients and travel agents made in the partner portal dur...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('partner_production')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Partner Portal Production by Partner</div><div class="desc">Per corporate client / travel agent: active logins, sign-ins, portal bookings, r...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('partner_requests')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Partner Requests & Response Times</div><div class="desc">Booking approvals, change requests and group quotes received in the period with ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Payroll (20 reports)</div>
+<div class="report-card" onclick="showReport('attendance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Attendance Register</div><div class="desc">Daily attendance summary by employee</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('employee_pay_components')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Employee Pay Component Register</div><div class="desc">Every pay component for each employee</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('leave_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Leave Register</div><div class="desc">Leave requests overlapping the period: employee, type, dates, days, status and a...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('leave_types')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Leave Type Register</div><div class="desc">Every leave type: name, days, accrual rate and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('pay_components')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Pay Components Register</div><div class="desc">Detailed register of Pay Components records</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('paye_schedule')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">PAYE Monthly Schedule (GRA)</div><div class="desc">Per approved payroll month and employee: TIN / Ghana Card, basic, allowances, gr...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('payroll_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Payroll Register</div><div class="desc">Per employee and month: paid days, LOP, overtime, earnings, each statutory deduc...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('payroll_statutory')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Statutory Dues Summary</div><div class="desc">Per month and liability: employee deductions + employer contributions owed (SSNI...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('roster_vs_actual')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Roster vs Actual</div><div class="desc">Per employee: rostered shifts and planned hours against time-clock hours worked,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('roster_weeks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Roster Week Register</div><div class="desc">Every roster week with shift assignments and coverage</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sc_distribution_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Payroll Distribution Line Register</div><div class="desc">Every payslip line distributed to an employee</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('service_charge_distribution')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Service Charge Distribution</div><div class="desc">Service charge & tips shared with staff for distributions in the period: points,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('shift_swaps')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Shift Swap Register</div><div class="desc">Every approved or requested shift swap between employees</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('shift_templates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Shift Templates Register</div><div class="desc">Detailed register of Shift Templates records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('ssnit_schedule')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">SSNIT Contribution Schedule</div><div class="desc">Per approved payroll month and employee: SSNIT number, Ghana Card, basic salary,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('staff_advances')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Staff Advance Register</div><div class="desc">Every staff advance with amount, repayment and balance</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('statutory_remittances')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Statutory Remittance Register</div><div class="desc">SSNIT, Tier 2 and PAYE payments made in the period: month, payee, amount, due da...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('time_punches_detail')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Time Punch Detail</div><div class="desc">Every time punch: employee, in/out, hours and exceptions</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('timesheet')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Timesheet (Time Clock)</div><div class="desc">Every time punch in the period: rostered shift, clock-in / out, source (self-ser...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('tip_collections')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Tip Collection Register</div><div class="desc">Every tip collection by employee and shift</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Property & Utilities (10 reports)</div>
+<div class="report-card" onclick="showReport('energy_kpis')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Energy & Water KPIs</div><div class="desc">Per day: occupied rooms, guests, kWh, kWh per occupied room, water per guest nig...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('lease_arrears')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Tenant Arrears Ageing</div><div class="desc">Overdue tenant invoices after the grace period by age (0–30, 31–60, 61–90, 90+ d...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('lease_expiry')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Lease Expiry & Renewals</div><div class="desc">Leases ending, on notice or due for a rent review in the period (from the start ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('lease_inspections')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Lease Inspection Register</div><div class="desc">Every property inspection with condition and damage costs</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('lease_meter_readings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Lease Meter Reading Register</div><div class="desc">Every lease utility meter reading with consumption and charge</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('lease_rent_roll')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rent Roll</div><div class="desc">Every unit with its tenant, term, cycle, monthly rent & service charge, deposit ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('meter_readings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Meter Reading Register</div><div class="desc">Every utility meter reading with consumption, cost and anomaly flags</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('utility_bill_reconciliation')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Utility Bill Reconciliation</div><div class="desc">Bills dated in the period: units billed vs metered, variance, charges, effective...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('utility_bills')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Utility Bill Register</div><div class="desc">Every utility bill with meter, period and amount</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('utility_consumption')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Utility Consumption by Meter</div><div class="desc">Per meter: readings, days covered, consumption, daily average, cost, estimated r...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Quality Assurance (8 reports)</div>
+<div class="report-card" onclick="showReport('qa_actions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Corrective Action Log</div><div class="desc">Corrective actions raised in the period with owner, priority, due date, status, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('qa_audit_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">QA Audit Item Register</div><div class="desc">Every audit finding with result, criticality and corrective action</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('qa_audits')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">QA Audit Register</div><div class="desc">Every audit completed in the period with checklist, department, auditor, score a...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('qa_department_scores')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">QA Scores by Department</div><div class="desc">Average audit score per department and checklist type against the pass mark and ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('qa_standard_failures')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Standards Failure Analysis</div><div class="desc">Every standard failed in the period: times checked, times failed, fail rate, rep...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('qa_standards')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">QA Standard Register</div><div class="desc">Every quality audit standard with department and criticality</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('qa_template_compliance')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Audit Schedule Compliance</div><div class="desc">Each recurring checklist: audits required by its frequency in the period, audits...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('review_templates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Review Template Register</div><div class="desc">Every guest review survey template</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Revenue Management (8 reports)</div>
+<div class="report-card" onclick="showReport('rate_contract_blackouts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Contract Blackout Register</div><div class="desc">Every blackout date on a rate contract</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('rate_contract_rates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Contract Rate Register</div><div class="desc">Every contracted rate from OTA and channel manager</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('rate_overrides')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Override Register</div><div class="desc">Every rate override applied to a plan, date range or room type</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('rate_plans')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Plan Register</div><div class="desc">Every rate plan: name, room type, base rate, channels and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('rm_forecast')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Forecast & On the Books</div><div class="desc">Per night: rooms booked & held, ADR, revenue, 7-day pickup and forecast occupanc...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rm_pickup')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Booking Pace (Pickup)</div><div class="desc">Per booking date: new bookings, room nights, revenue, average lead time & rate, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rm_snapshots')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">RM Snapshot Register</div><div class="desc">Every revenue management snapshot with revenue</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('yield_rules')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Yield Rule Register</div><div class="desc">Every yield management rule with conditions, days and priority</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Sales & Business Development (18 reports)</div>
+<div class="report-card" onclick="showReport('business_sources')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Business Source Register</div><div class="desc">Every business source: name, type, commission and active</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('account_production')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Account Production</div><div class="desc">Room nights, stays and room revenue per corporate / agency account for the perio...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('agent_commissions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Agent Commission Register</div><div class="desc">Every agent commission earned and paid</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('bd_benchmark')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Comp-Set Benchmark (MPI / ARI / RGI)</div><div class="desc">Monthly occupancy, ADR and RevPAR against the competitive set with the penetrati...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('bd_competitors')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">BD Competitor Register</div><div class="desc">Every tracked competitor hotel</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('bd_initiatives')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Initiative Portfolio</div><div class="desc">Business development initiatives by stage: investment, annual revenue & net, pay...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('bd_market_mix')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Market Mix</div><div class="desc">Room nights and revenue by source market (guest nationality) and segment with sh...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('bd_milestones')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">BD Milestone Register</div><div class="desc">Every milestone with initiative, owner and overdue status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('bd_partners')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Partnership Production</div><div class="desc">Bookings, room nights, revenue and commission credited to each strategic partner...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('bd_rate_shop')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rate Shop</div><div class="desc">Our public rate vs the competitive set by stay date and channel: comp average, g...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('bd_rate_shop_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">BD Rate Shop Line Register</div><div class="desc">Every competitor rate captured during a shop</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('bd_results')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">BD Result Register</div><div class="desc">Monthly revenue and cost by initiative</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sales_activity')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sales Activity Report</div><div class="desc">Completed sales calls, visits, site inspections, meetings and entertainment in t...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('sales_contacts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sales Contact Register</div><div class="desc">Every sales contact with company, role and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('sales_opportunities')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sales Opportunity Register</div><div class="desc">Every sales opportunity with value, stage and close date</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('sales_pipeline')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sales Pipeline</div><div class="desc">Every open opportunity: account, owner, stage, expected close, room nights, valu...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('sales_targets')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Sales Targets vs Actual</div><div class="desc">Each salesperson per month in the period: room-night, revenue and activity targe...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('sales_win_loss')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Win / Loss Analysis</div><div class="desc">Opportunities won and lost in the period by type, source and salesperson; win ra...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Security (8 reports)</div>
+<div class="report-card" onclick="showReport('gate_pass_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gate Pass Item Register</div><div class="desc">Every item issued on a gate pass with outstanding value</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gate_pass_returns')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gate Pass Return Register</div><div class="desc">Every returned gate pass with receiver and line count</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('security_gatepasses')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gate Pass Register</div><div class="desc">Gate passes raised in the period with party, purpose, items, value, approval, ga...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('security_incident_updates')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Security Incident Update Register</div><div class="desc">Every update on a security incident</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('security_incidents')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Security Incident Register</div><div class="desc">Incidents in the period by type and severity with location, guest, injuries, los...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('security_outstanding')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Goods Outside the Property</div><div class="desc">Returnable gate-pass items still out at a date: party, quantity outstanding, est...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('security_visitors')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Visitor Register</div><div class="desc">Every visitor in the period: pass, name, masked ID, whom they visited, purpose, ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('security_watch')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Security Watch Register</div><div class="desc">Every security watch assignment</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Self-Service Kiosk (5 reports)</div>
+<div class="report-card" onclick="showReport('kiosk_adoption')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Kiosk Adoption by Day</div><div class="desc">Per day: check-ins, how many were done at the kiosk and the share, check-outs at...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kiosk_assist')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Kiosk Assistance Requests</div><div class="desc">Visits the kiosk handed to the front desk: reason, note, when, how long until so...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kiosk_payments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Kiosk Payments</div><div class="desc">Deposits, walk-in stays and bill balances guests paid by QR at the kiosk: paymen...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kiosk_sessions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Kiosk Guest Visits</div><div class="desc">Every kiosk visit in the period: kiosk, service (check-in / check-out / walk-in)...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('kiosks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Kiosk Register</div><div class="desc">Every self-service kiosk with location and active status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Sustainability & ESG (13 reports)</div>
+<div class="report-card" onclick="showReport('carbon_footprint')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Carbon Footprint (Scope 1 & 2)</div><div class="desc">Consumption × emission factor per energy source: t CO₂e, share, per occupied roo...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('esg_carbon')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Carbon Inventory by Scope (GHG Protocol / HCMI)</div><div class="desc">Scope 1 fuels and refrigerant leaks, Scope 2 grid electricity, Scope 3 water, wa...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('esg_checklist_items')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Checklist Item Register</div><div class="desc">Every ESG checklist item</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_communities')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Community Register</div><div class="desc">Every community engagement</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_green')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Green-Stay Nights</div><div class="desc">Nights on which a green-stay room was not serviced: room, guest, loyalty points ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('esg_green_stays')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Green Stay Register</div><div class="desc">Every green stay initiative</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_initiatives')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Green Initiative Register</div><div class="desc">Every initiative: category, owner, status, capital cost, annual saving, simple p...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_laundry_months')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Laundry Month Register</div><div class="desc">Monthly laundry consumption</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_local_spend')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Local Sourcing Spend</div><div class="desc">Supplier bills in the period by supplier (net of debit notes, before tax) with t...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('esg_policies')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Policy Register</div><div class="desc">Every ESG policy</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_refrigerants')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">F-gas (Refrigerant) Log</div><div class="desc">Refrigerant added and recovered in the period by system: gas, GWP, work done, te...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('esg_targets')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">ESG Target Register</div><div class="desc">Every ESG target</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('esg_waste')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Waste Register & Diversion</div><div class="desc">Waste consignments in the period: stream, disposal route, weight, department, co...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">System & Administration (8 reports)</div>
+<div class="report-card" onclick="showReport('api_idempotency_keys')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">API Idempotency Key Register</div><div class="desc">Every API idempotency key recorded</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('data_migration_batches')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Data Migration Batch Register</div><div class="desc">Every data migration batch with row counts</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('data_migration_rows')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Data Migration Row Register</div><div class="desc">Every migrated row</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('log_entry_comments')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Log Entry Comment Register</div><div class="desc">Every comment added to an activity log entry</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('log_entry_reads')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Log Entry Read Register</div><div class="desc">Every time a user read an activity log entry</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('offline_sync_operations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Offline Sync Operation Register</div><div class="desc">Every offline sync operation with payload and result</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('permissions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Permission Register</div><div class="desc">Every system permission and its assigned roles</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('settings')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">System Setting Register</div><div class="desc">Every system configuration setting</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="group-header">Talent Management (12 reports)</div>
+<div class="report-card" onclick="showReport('talent_appraisals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Appraisal Results</div><div class="desc">Appraisals in cycles ending in the period: reviewer, goals and competency scores...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('talent_cycles')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Cycle Register</div><div class="desc">Every recruitment cycle: position, department, status and pipeline</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_discipline')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Discipline & Grievance Register</div><div class="desc">Disciplinary cases and grievances in the period: category, severity, query and h...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('talent_exits')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Leavers & Turnover</div><div class="desc">Leavers with a last day in the period: type, length of service, statutory notice...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('talent_headcount')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Headcount vs Establishment</div><div class="desc">Per department on a date: approved establishment, staff in post, gap, open posts...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('talent_interviews')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Interview Register</div><div class="desc">Every interview scheduled with candidate, panel and outcome</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_offers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Offer Register</div><div class="desc">Every offer letter issued with position, salary and status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_pipeline')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Recruitment Funnel & Sources</div><div class="desc">Applicants received in the period by vacancy: screened, interviewed, offered, hi...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('talent_probations')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Probation Register</div><div class="desc">Every probationary employee with completion status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_scorecards')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Scorecard Register</div><div class="desc">Every performance scorecard with rating and reviewer</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_tasks')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Talent Task Register</div><div class="desc">Every recruitment task with assignee, due date and status</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('talent_vacancies')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Vacancy Register & Time to Fill</div><div class="desc">Vacancies raised in the period: department, posts, salary range, reason, request...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Tax & Statutory (8 reports)</div>
+<div class="report-card" onclick="showReport('credit_notes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Credit Note Register</div><div class="desc">Credit notes issued in the period against earlier invoices: reason, taxable valu...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('einvoice_logs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Einvoice Logs Register</div><div class="desc">Detailed register of Einvoice Logs records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('einvoice_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">E-VAT Register</div><div class="desc">Invoices and credit notes dated in the period: buyer TIN, value, E-VAT SDC ID, r...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gst_cancelled_docs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gst Cancelled Docs Register</div><div class="desc">Detailed register of Gst Cancelled Docs records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('gst_periods')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gst Periods Register</div><div class="desc">Detailed register of Gst Periods records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('hsn_summary')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">VAT & Levies by Category</div><div class="desc">Outward supplies by charge category and rate for the period: taxable value, VAT,...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('wht_periods')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Wht Periods Register</div><div class="desc">Detailed register of Wht Periods records</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('wht_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Withholding Tax Register (GRA)</div><div class="desc">Supplier payments in the period with the tax withheld: supplier TIN, nature of p...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Transport & Parking (13 reports)</div>
+<div class="report-card" onclick="showReport('car_rentals')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Car Rental Register</div><div class="desc">Every car rental with guest, vehicle and dates</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('parking_occupancy')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Car Park Occupancy by Zone</div><div class="desc">Each zone: bays, tickets by guest / visitor / permit, average stay, peak vehicle...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('parking_permits')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Parking Permit Register</div><div class="desc">Staff, tenant and contractor permits with vehicle, zone, validity, days left, fe...</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('parking_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Parking Revenue by Day</div><div class="desc">Parking revenue per business date: guest nights posted to room folios, visitor e...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('parking_sessions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Parking Ticket Register</div><div class="desc">Every parking ticket issued in the period: plate, guest / visitor / permit, vale...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('parking_valet')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Valet Retrieval Performance</div><div class="desc">Valet cars brought round per runner: average and longest minutes from request to...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('parking_vehicles')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Parking Vehicle Register</div><div class="desc">Every parking vehicle entry</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('rental_vehicles')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Rental Vehicle Register</div><div class="desc">Every rental vehicle with type, capacity and active</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('transport_drivers')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Driver Performance</div><div class="desc">Per driver: trips, km, hours on duty, on-time departures, no-shows, revenue and ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('transport_revenue')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Transport Revenue by Day</div><div class="desc">Day by day: pick-ups, drops and transfers, fares to the room bill, direct and co...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('transport_tariffs')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Transport Tariff Register</div><div class="desc">Every airport, local and tour transport tariff</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('transport_trips')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Transfer Register</div><div class="desc">Every pick-up, drop and local transfer in the period: time, guest, route, flight...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('transport_vehicles')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Vehicle Utilisation & Running Cost</div><div class="desc">Per vehicle: trips, km driven, hours on the road, revenue, fuel & other running ...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="group-header">Treasury & Payments (15 reports)</div>
+<div class="report-card" onclick="showReport('bank_matches')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Bank Reconciliation Match Register</div><div class="desc">Every bank transaction matched to a payment</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cash_flow')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cash-flow Statement (IAS 7)</div><div class="desc">Indirect method: profit, non-cash add-backs and working capital, investing and f...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cash_forecast_lines')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cash Forecast Line Register</div><div class="desc">Every cash forecast line by date and source</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('cash_position')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cash Position</div><div class="desc">Book balance per bank, MoMo, cash box, float and clearing account as at a date, ...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('cheque_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Cheque Register</div><div class="desc">Cheques received (post-dated, in hand, banked, cleared, bounced) and cheques wri...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gateway_payouts')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gateway Payout Register</div><div class="desc">Every gateway payout with amount, fees and status</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('gift_voucher_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Gift Voucher Register</div><div class="desc">Every voucher issued in the period: type, sold / promotional, purchaser & recipi...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('online_payment_events')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Online Payment Event Register</div><div class="desc">Every online payment webhook event received</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('online_refunds')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Online Refund Register</div><div class="desc">Every online refund with payment, amount and reason</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('payment_modes')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Payment Mode Register</div><div class="desc">Every payment mode: name, type, active and config</div></div>
+  <div class="filter filter-none">none</div>
+</div>
+<div class="report-card" onclick="showReport('transfer_register')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Banking & Transfer Register</div><div class="desc">Cash / cheque bankings, settlement sweeps and bank transfers: requested, approve...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('voucher_breakage')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Voucher Breakage & Cancellations</div><div class="desc">Balances that lapsed at expiry (breakage income / promotional cost released) and...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('voucher_liability')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Voucher Liability (Outstanding)</div><div class="desc">Unspent voucher balances as at a date by expiry bucket – reconciled to GL 2120 G...</div></div>
+  <div class="filter filter-date">date</div>
+</div>
+<div class="report-card" onclick="showReport('voucher_redemptions')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Voucher Redemptions</div><div class="desc">Every redemption and reversal: where it was spent (front office folio / outlet b...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+<div class="report-card" onclick="showReport('voucher_sales')">
+  <div class="icon">📊</div>
+  <div class="info"><div class="title">Voucher Sales Summary</div><div class="desc">Per voucher type: vouchers sold and given away, value sold, reloads, redeemed an...</div></div>
+  <div class="filter filter-range">range</div>
+</div>
+</div>
+<div id="detail-area"></div>
+</div>
+<script>
+function showAll() { document.getElementById('report-list').style.display = 'block'; document.getElementById('detail-area').innerHTML = ''; }
+function showGroup(g) { document.getElementById('report-list').style.display = 'block'; }
+function searchReports(q) {
+  q = q.toLowerCase();
+  var cards = document.querySelectorAll('.report-card');
+  cards.forEach(function(card) {
+    var text = card.textContent.toLowerCase();
+    card.style.display = text.includes(q) ? 'flex' : 'none';
+  });
+  var headers = document.querySelectorAll('.group-header');
+  headers.forEach(function(h) {
+    var next = h.nextElementSibling;
+    var hasVisible = false;
+    while (next && !next.classList.contains('group-header')) {
+      if (next.style.display !== 'none') { hasVisible = true; break; }
+      next = next.nextElementSibling;
+    }
+    h.style.display = hasVisible ? 'block' : 'none';
+  });
+}
+function showReport(slug) {
+  var area = document.getElementById('detail-area');
+  area.innerHTML = '<div class="back-btn" onclick="showAll()">← Back to reports</div>' +
+    '<div class="detail"><h3>Report Detail Preview</h3>' +
+    '<div class="desc">Click "Back to reports" to return. This is a static preview of the report page layout.</div>' +
+    '<table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody>' +
+    '<tr><td>Date Range</td><td>Filter by date range</td></tr>' +
+    '<tr><td>Summary</td><td>Key metrics and totals</td></tr>' +
+    '<tr><td>Data Table</td><td>Detailed rows with columns</td></tr>' +
+    '<tr><td>Note</td><td>Explanatory notes</td></tr>' +
+    '</tbody></table>' +
+    '<div class="note">Report slug: ' + slug + '. This preview shows the layout; actual data renders when the PHP backend is available.</div>' +
+    '</div>';
+  area.scrollIntoView({{behavior: 'smooth'}});
+}
+</script>
+</body>
+</html>

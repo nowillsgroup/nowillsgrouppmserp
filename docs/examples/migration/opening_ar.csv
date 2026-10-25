@@ -1,0 +1,3 @@
+external_id,item_type,opening_date,document_date,due_date,source_ref,open_amount,guest_external_id,company_external_id,notes
+AR-OPEN-GUEST-1042,guest_folio,2026-10-22,2026-10-10,,FOL-1042,1280.50,G-2001,,Outstanding guest folio balance
+AR-OPEN-COMPANY-2055,company_invoice,2026-10-22,2026-10-02,2026-11-01,INV-2055,2450.00,G-2002,C-1001,Outstanding city-ledger invoice
