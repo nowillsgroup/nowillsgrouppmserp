@@ -2,100 +2,136 @@
 
 ## What's in this ZIP
 
-This ZIP contains all updated and new files for the Nowills PMS. The archive has a **flat root** — files are at the top level with their correct relative paths (e.g., `app/Http/Controllers/RobitaController.php`). No Composer or SSH is required.
+This ZIP contains the **complete Nowills PMS application** — all files needed for a fresh cPanel installation. The archive has a **flat root** (no top-level folder), so when you extract it, files land in their correct relative paths directly.
 
-## Files Included
-
+### Included
+- **Complete Laravel application** — all app code, controllers, models, services, views, routes, config
+- **Composer dependencies** — pre-installed in `build/vendor/` (no Composer needed)
+- **Public assets** — CSS, JS, fonts in `public/`
 - **Robita Lock Module** — Smart key door lock management (devices, credentials, events, settings)
 - **POS Module** — Point of Sale terminal, order terminal, menu catalog, cart, KOT printing, settlement
 - **Billing Reconciliation** — AP/AR reconciliation with foreign currency support
 - **Migration Importers** — Opening balances, inventory, supplier importers
-- **Preview Files** — HTML previews for POS Terminal, Order Terminal, Robita Locks, and other modules
-- **Updated Core Files** — Controllers, models, services, config, routes, views
+- **Preview Files** — HTML previews for POS Terminal, Order Terminal, Robita Locks
+- **.env.example** — environment configuration template
+- **Apache .htaccess** — ready for cPanel/Apache
 
 ## Installation Steps (cPanel)
 
 ### 1. Download and Upload
-1. Download the ZIP file from Google Drive
-2. In cPanel, open **File Manager** and navigate to your Laravel app root directory
+1. Download `nowillsgrouppmserp-cpanel.zip` from Google Drive
+2. In cPanel, open **File Manager** and navigate to where you want the app
 3. Click **Upload** and select the ZIP file
-4. Wait for the upload to complete
+4. Wait for upload to complete
 
 ### 2. Extract
-1. Right-click the uploaded ZIP and select **Extract**
-2. Choose "Extract to: current directory" (or the app root)
-3. The files will be placed in their correct locations
+1. Right-click the uploaded ZIP → **Extract**
+2. Choose "Extract to: current directory"
+3. All files will be placed in their correct locations
 
-### 3. Verify Files
-Check that the following new files are present:
-- `app/Http/Controllers/RobitaController.php`
-- `app/Services/RobitaService.php`
-- `app/Models/RobitaDevice.php`
-- `app/Models/RobitaCredential.php`
-- `app/Models/RobitaEvent.php`
-- `database/migrations/2026_10_25_000100_create_robita_devices_table.php`
-- `resources/views/robita/index.blade.php`
-- `resources/views/robita/devices.blade.php`
-- `resources/views/robita/events.blade.php`
-- `resources/views/robita/settings.blade.php`
-- `public/preview-pos.html`
-- `public/preview-pos-order.html`
-- `public/preview-robita.html`
+### 3. Configure Environment
+1. Copy `.env.example` to `.env`:
+   - In File Manager, go to the extracted files
+   - Duplicate `.env.example` and rename to `.env`
+2. Edit `.env` and update:
+   ```
+   APP_URL=https://yourdomain.com
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_DATABASE=your_database_name
+   DB_USERNAME=your_database_user
+   DB_PASSWORD=your_database_password
+   ```
+3. Save the file
 
-### 4. Run Migrations
-1. In cPanel, open **Terminal** (or use the command line if available)
-2. Navigate to your app directory: `cd /path/to/your/app`
-3. Run the migration: `php artisan migrate`
+### 4. Set Permissions
+Make these directories writable (cPanel → File Manager → Permissions):
+- `storage/` → 755
+- `bootstrap/cache/` → 755
+- `public/uploads/` → 777 (if it exists)
 
-If Terminal is not available, you can run migrations via a temporary route:
-- Create a file `migrate.php` in the app root with:
-  ```php
-  <?php require __DIR__.'/vendor/autoload.php';
-  $app = require __DIR__.'/bootstrap/app.php';
-  $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-  $kernel->call('migrate');
-  ```
-- Access `https://yourdomain.com/migrate.php` in your browser
-- Delete `migrate.php` after migrations complete
+### 5. Run Migrations
+**Option A — cPanel Terminal:**
+1. Open **Terminal** in cPanel
+2. Navigate: `cd /path/to/your/app`
+3. Run: `php artisan migrate`
 
-### 5. Clear Cache
-Run these commands (or use the temporary route method above):
+**Option B — Temporary web route (no Terminal needed):**
+1. Create `migrate.php` in the app root:
+   ```php
+   <?php
+   require __DIR__.'/build/vendor/autoload.php';
+   $app = require __DIR__.'/bootstrap/app.php';
+   $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+   $kernel->call('migrate');
+   echo "Migration complete";
+   ```
+2. Visit `https://yourdomain.com/migrate.php` in your browser
+3. Delete `migrate.php` after completion
+
+### 6. Generate App Key
+Run: `php artisan key:generate`
+(Or add `APP_KEY=` to `.env` and run migrations — Laravel will auto-generate it)
+
+### 7. Clear Cache
 ```bash
 php artisan cache:clear
 php artisan config:clear
 php artisan view:clear
 php artisan route:clear
 ```
+(Use the temporary web route method above if Terminal is unavailable)
 
-### 6. Verify in Browser
-1. Log into the PMS admin panel
-2. Check that the **Robita Locks** menu appears under **Front Office → Interfaces**
-3. Check that the **POS Terminal** menu appears under **Operations → POS / Restaurant**
-4. Visit `https://yourdomain.com/preview-pos.html` to see the POS preview
-5. Visit `https://yourdomain.com/preview-pos-order.html` to see the Order Terminal preview
+### 8. Seed Database (Optional)
+To populate demo data:
+```bash
+php artisan db:seed
+```
+
+### 9. Verify in Browser
+1. Visit `https://yourdomain.com` — you should see the login page
+2. Log in with your admin credentials
+3. Check that these menus appear:
+   - **Front Office → Interfaces → Robita Locks**
+   - **Operations → POS / Restaurant → POS Terminal**
+4. Preview pages:
+   - `https://yourdomain.com/preview-pos.html`
+   - `https://yourdomain.com/preview-pos-order.html`
+   - `https://yourdomain.com/preview-robita.html`
 
 ## Important Notes
 
-- **No Composer needed** — all dependencies are already in `vendor/` on your existing installation
-- **No SSH needed** — everything can be done through cPanel File Manager and Terminal
-- **Database backup** — always backup your database before running migrations
-- **Permissions** — ensure the `storage/` and `bootstrap/cache/` directories are writable
-- **Preview server** — the preview HTML files are static and can be served directly by the web server (Apache/Nginx). No Node.js server is needed for production.
+- **No Composer needed** — all dependencies are pre-installed in `build/vendor/`
+- **No SSH needed** — everything works through cPanel File Manager and Terminal
+- **PHP version** — requires PHP 8.3+ (check cPanel → Select PHP Version)
+- **Database** — MySQL 5.7+ or MariaDB 10.3+
+- **Backup** — always backup your database before running migrations
 
 ## Troubleshooting
 
+### Blank page / 500 error
+- Check `storage/logs/laravel.log` for errors
+- Verify `.env` has correct database credentials
+- Ensure `APP_KEY` is set in `.env`
+
 ### Migration fails
-- Check that the `robita_devices`, `robita_events`, `robita_credentials` tables don't already exist
-- Verify database connection settings in `.env`
+- Check database user has CREATE TABLE privileges
+- Verify `.env` database settings are correct
+- Try: `php artisan migrate:fresh` (drops all tables first — **only on fresh installs**)
+
+### CSS/JS not loading
+- Ensure files are in `public/css/` and `public/js/`
+- Check `.htaccess` is in the `public/` directory
+- Verify `public/` is the web root in cPanel
 
 ### Robita Locks menu not showing
-- Check that the `robita.manage` permission is assigned to your user role
-- Verify the menu entry in `config/pms.php` under "Interfaces"
+- Check that `robita.manage` permission is assigned to your user role
+- Verify menu entry in `config/pms.php` under "Interfaces"
 
 ### POS Terminal not accessible
-- Check that the `pos.view` permission is assigned
-- Verify the POS menu entries in `config/pms.php`
+- Check that `pos.view` permission is assigned
+- Verify POS menu entries in `config/pms.php`
 
 ### Preview pages show blank
-- Verify that `public/css/app.css` is accessible at `https://yourdomain.com/css/app.css`
-- Check that the preview HTML files are in the `public/` directory
+- Verify `public/css/app.css` is accessible at `https://yourdomain.com/css/app.css`
+- Check that preview HTML files are in the `public/` directory
