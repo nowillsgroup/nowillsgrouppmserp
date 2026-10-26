@@ -119,9 +119,16 @@ class DesktopSyncService
         return [
             'meta' => ['version' => self::VERSION, 'generated_at' => $snapshot->toIso8601String(), 'since' => $since->toIso8601String(), 'cursor' => $cursor->toIso8601String()],
             'rooms' => \App\Models\Room::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('number')->get(),
+            'room_types' => \App\Models\RoomType::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->get(['id', 'name', 'updated_at']),
+            'rate_plans' => RatePlan::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->get(['id', 'name', 'updated_at']),
+            'payment_modes' => PaymentMode::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->get(['id', 'name', 'updated_at']),
             'stays' => ReservationRoom::whereHas('room', fn ($q) => $q->where('hotel_id', $hotelId))
                 ->where('updated_at', '>', $since)->orderBy('arrival_date')->get(),
             'reservations' => \App\Models\Reservation::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('arrival_date')->get(),
+            'guests' => Guest::where('hotel_id', $hotelId)->where('updated_at', '>', $since)
+                ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'updated_at']),
+            'folios' => Folio::where('hotel_id', $hotelId)->where('updated_at', '>', $since)
+                ->get(['id', 'reservation_room_id', 'updated_at']),
             'folio_transactions' => \App\Models\FolioTransaction::whereHas('folio', fn ($q) => $q->where('hotel_id', $hotelId))
                 ->where('updated_at', '>', $since)->orderBy('id')->get(),
         ];

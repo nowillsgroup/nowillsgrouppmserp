@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Desktop deltas now refresh all sections in the downloaded operating pack',
+    detail: 'The full pack included room types, rate plans, payment modes, guests and folios, but the delta endpoint returned only rooms, stays, reservations and folio transactions. A change to a rate or guest contact after a download therefore left the disconnected workstation stale until the next full pack. Delta responses now include all five missing sections, scoped to the active hotel and limited to the same compact fields used in the pack; the offline guide lists the complete delta contract. A rollback-safe audit updates one row in each section and confirms all five appear in the delta. Asset version moves to 7.64.0.',
+    screens: [['Offline desktop workspace — refresh cached reference and guest data from delta', '/offline/desktop']],
+  },
+  {
     title: 'Desktop cache cursors now protect updates made during a pack or delta read',
     detail: 'Pack and delta responses used a cursor captured at the end of the read. A record changed while its table was being exported could be absent from the returned dataset yet still have an updated_at earlier than that late cursor, so the next delta would never send it. The cursor is now anchored just before the read begins, with a one-second overlap to account for database timestamp precision. This may repeat a small number of rows in the next delta, which is safe for an upsert cache, but prevents updates during export from being skipped. An audit checks both pack and delta watermarks against their snapshot times. Asset version moves to 7.63.0.',
     screens: [['Offline desktop workspace — pack and delta cursors for cache refresh', '/offline/desktop']],

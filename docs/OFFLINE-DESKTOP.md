@@ -21,8 +21,10 @@ draft caching.
    `applied` | `duplicate` | `rejected` (rejects are persisted to the sync log
    for audit; a rejected id may be retried, an applied one reports `duplicate`).
 4. **Refresh the cache** — `GET /offline/desktop/delta?since={cursor}` returns
-   everything changed since the watermark (rooms, stays, reservations, folio
-   transactions) so the desktop does not need a full re-export.
+   changes to rooms, room types, rate plans, payment modes, stays, reservations,
+   guests, folios and folio transactions so the desktop does not need a full
+   re-export. The cursor overlaps the read by one second; clients should upsert
+   by row id so a repeated boundary row is harmless.
 
 ## Operations
 
