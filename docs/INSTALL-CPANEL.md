@@ -3,6 +3,10 @@
 For **shared and reseller cPanel hosting** — the kind where you get File Manager, phpMyAdmin and
 Cron Jobs, but no SSH, no Composer and no Artisan.
 
+> On **CyberPanel / OpenLiteSpeed** (Hostinger VPS and similar) use
+> [INSTALL-CYBERPANEL.md](INSTALL-CYBERPANEL.md) instead: document roots, PHP versions, cron paths
+> and git deploys all work differently there.
+
 If you have SSH access, the shorter route in the [README](../README.md#installation) works and is
 preferable. Everything below is the no-shell path.
 
