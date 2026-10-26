@@ -322,6 +322,32 @@ if ($raw > 0) {
     add('M', 'Views', "{$raw} raw {!! !!} output(s) that are not a known-safe helper", 'resources/views', 'Confirm each one cannot carry guest-supplied text (XSS).');
 }
 
+/* ── 7b. Staff lookups without a hotel filter ───────────────────────────────
+ * User is the one model with no global scope (auth boundary), so every staff
+ * query has to carry the hotel filter itself. v7.56 shipped nine that did not. */
+walk($root.'/app', function ($path) {
+    if (str_contains($path, '/app/Console/') || str_contains($path, '/Controllers/Auth/')) {
+        return; // no tenant yet: console options, login, 2FA challenge
+    }
+    foreach (file($path) as $i => $ln) {
+        foreach (['visibleToHotel', 'hotel_id', 'Tenant::id', 'hotel()->id', 'recipient_users'] as $ok) {
+            if (str_contains($ln, $ok)) {
+                continue 2;
+            }
+        }
+        if (preg_match('/->(?:update|delete)\(/', $ln)) {
+            continue; // targeting a known id (e.g. deactivating an employee's own login)
+        }
+        if (str_contains($ln, 'audit-ok')) {
+            continue; // the reason is written next to the call
+        }
+        $probe = str_replace('\\App\\Models\\', '', $ln);
+        if (preg_match('/(?<![A-Za-z])User::(where|find|findOrFail|pluck|whereIn|orderBy|all|get|query)\b/', $probe)) {
+            add('M', 'Tenant isolation', 'User query with no hotel filter — one property can see another property\'s staff', rel($path).':'.($i + 1), 'Start the query from User::visibleToHotel().');
+        }
+    }
+}, 'php');
+
 /* ── 8. Left-over debugging ────────────────────────────────────────────────── */
 $debug = [];
 foreach (['app', 'routes', 'resources/views'] as $d) {

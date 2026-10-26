@@ -39,7 +39,7 @@ class PettyCashController extends Controller
             'heads' => AccountHead::where('type', 'expense')->where('is_active', true)->orderBy('code')->get()->mapWithKeys(fn ($h) => [$h->id => $h->label])->all(),
             'modes' => PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'bank', 'wallet'])->orderBy('name')->pluck('name', 'id')->all(),
             'employees' => Employee::where('is_active', true)->orderBy('name')->get()->mapWithKeys(fn ($e) => [$e->id => $e->name.' ('.$e->emp_code.')'])->all(),
-            'users' => User::where('is_active', true)->orderBy('name')->pluck('name', 'id')->all(),
+            'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all(),
             'departments' => Department::orderBy('name')->pluck('name', 'id')->all(),
         ];
     }

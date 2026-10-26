@@ -148,7 +148,7 @@ class LearningController extends Controller
         $upcoming = TrainingSession::with('course')->withCount('records')->where('status', 'scheduled')->orderBy('date')->orderBy('start_time')->get();
 
         return view('learning.sessions', ['sessions' => $q->paginate(30)->withQueryString(), 'upcoming' => $upcoming, 'courses' => TrainingCourse::where('is_active', true)->orderBy('name')->get(),
-            'users' => User::where('is_active', true)->orderBy('name')->get(), 'cfg' => LS::cfg(), 'preset' => $r->integer('course') ?: null]);
+            'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->get(), 'cfg' => LS::cfg(), 'preset' => $r->integer('course') ?: null]);
     }
 
     public function session(TrainingSession $tsession)
@@ -317,14 +317,14 @@ class LearningController extends Controller
     public function sopCreate()
     {
         return view('learning.sop_form', ['d' => new SopDocument(['category' => 'operations', 'requires_ack' => true, 'review_months' => 12, 'owner_id' => auth()->id()]),
-            'depts' => $this->depts(), 'users' => User::where('is_active', true)->orderBy('name')->get()]);
+            'depts' => $this->depts(), 'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->get()]);
     }
 
     public function sopEdit(SopDocument $sop)
     {
         abort_if($sop->status === 'retired', 404);
 
-        return view('learning.sop_form', ['d' => $sop, 'depts' => $this->depts(), 'users' => User::where('is_active', true)->orderBy('name')->get()]);
+        return view('learning.sop_form', ['d' => $sop, 'depts' => $this->depts(), 'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->get()]);
     }
 
     protected function sopData(Request $r): array

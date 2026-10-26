@@ -251,7 +251,7 @@ class TalentService
 
     public static function saveLineManagers(array $rows): void
     {
-        $users = User::where('is_active', true)->pluck('id')->all();
+        $users = User::visibleToHotel()->where('is_active', true)->pluck('id')->all();
         foreach (Employee::where('is_active', true)->get() as $e) {
             $v = $rows[$e->id] ?? null;
             $v = filled($v) ? (int) $v : null;
@@ -452,7 +452,7 @@ class TalentService
         self::need(filled($d['scheduled_at'] ?? null) && $at, 'Enter the interview date and time.');
         $panel = collect((array) ($d['panel'] ?? []))->map(fn ($x) => (int) $x)->filter()->unique()->values();
         self::need($panel->isNotEmpty(), 'Choose at least one panel member.');
-        self::need(User::where('is_active', true)->whereIn('id', $panel)->count() === $panel->count(), 'Every panel member must be an active user.');
+        self::need(User::visibleToHotel()->where('is_active', true)->whereIn('id', $panel)->count() === $panel->count(), 'Every panel member must be an active user.');
         $i = TalentInterview::create(['applicant_id' => $a->id, 'round' => $a->interviews()->count() + 1, 'kind' => $kind, 'scheduled_at' => $at,
             'location' => self::text($d['location'] ?? null, 120), 'panel' => $panel->all(), 'status' => 'scheduled', 'created_by' => $u->id]);
         if ($a->stage === 'screening') {
@@ -755,7 +755,7 @@ class TalentService
     {
         self::need(self::can($u, 'appraise'), 'Only HR can change the reviewer.');
         self::need($a->status !== 'signed', 'The appraisal is signed off.');
-        $r = User::where('is_active', true)->find((int) $userId);
+        $r = User::visibleToHotel()->where('is_active', true)->find((int) $userId);
         self::need((bool) $r, 'Choose an active user as reviewer.');
         self::need($r->id !== $a->employee->user_id, 'An employee cannot review their own appraisal.');
         $a->update(['reviewer_id' => $r->id]);

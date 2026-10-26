@@ -222,7 +222,7 @@ class RequisitionController extends Controller
 
         return view('requisitions.setup', [
             'departments' => $depts,
-            'users' => User::where('is_active', true)->orderBy('name')->pluck('name', 'id'),
+            'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->pluck('name', 'id'),
             'heads' => AccountHead::where('type', 'expense')->where('is_active', true)->orderBy('code')->get()->mapWithKeys(fn ($h) => [$h->id => $h->code.' – '.$h->name]),
             'stores' => Store::orderBy('name')->pluck('name', 'id'),
             'settings' => Setting::whereIn('key', ['req_auto_approve_below', 'req_over_budget'])->pluck('value', 'key'),

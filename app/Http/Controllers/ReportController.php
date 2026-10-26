@@ -2463,7 +2463,7 @@ class ReportController extends Controller
 
     protected function r_upsell_incentives($from, $to): array
     {
-        $users = \App\Models\User::pluck('name', 'id');
+        $users = \App\Models\User::visibleToHotel()->pluck('name', 'id');
         $rows = $this->upsellOrdersIn($from, $to)->whereNotNull('sold_by')->where('status', 'confirmed')->groupBy('sold_by')
             ->map(fn ($g, $uid) => ['staff' => $users[$uid] ?? '#'.$uid, 'orders' => $g->count(), 'amount' => (float) $g->sum('amount'),
                 'incentive' => (float) $g->sum('incentive_amount'),
@@ -3441,7 +3441,7 @@ class ReportController extends Controller
 
     protected function r_user_activity($from, $to): array
     {
-        $users = User::pluck('name', 'id');
+        $users = User::visibleToHotel()->pluck('name', 'id');
         $rows = ActivityLog::whereBetween('created_at', [$from, $to->copy()->endOfDay()])->get(['user_id', 'module'])->groupBy(fn ($l) => $l->user_id.'|'.$l->module)
             ->map(function ($g, $k) use ($users) {
                 [$u, $m] = explode('|', $k);

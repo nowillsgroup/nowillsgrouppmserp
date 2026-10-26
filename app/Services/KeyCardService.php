@@ -260,7 +260,7 @@ class KeyCardService
             if ($key->status !== 'available') {
                 throw new RuntimeException("{$key->key_no} is not available ({$key->status}).");
             }
-            $user = $userId ? User::find($userId) : null;
+            $user = $userId ? User::visibleToHotel()->find($userId) : null;
             $holder = mb_substr(trim((string) $holder), 0, 80) ?: $user?->name;
             if (! $holder) {
                 throw new RuntimeException('Who is taking the key?');

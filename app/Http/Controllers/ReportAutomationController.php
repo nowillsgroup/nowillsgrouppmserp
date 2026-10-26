@@ -80,7 +80,7 @@ class ReportAutomationController extends Controller
         $reports = collect(ReportController::REPORTS)->filter(fn ($r) => $u->hasPermission($r[4] ?? 'reports.view'))->map(fn ($r) => $r[1])->sort();
 
         return view('reports.schedules', compact('schedules', 'deliveries', 'reports') + [
-            'stats' => RS::stats(), 'users' => User::where('is_active', true)->whereNotNull('email')->orderBy('name')->get(['id', 'name', 'email']),
+            'stats' => RS::stats(), 'users' => User::visibleToHotel()->where('is_active', true)->whereNotNull('email')->orderBy('name')->get(['id', 'name', 'email']),
             'views' => RS::viewsFor($u), 'editing' => $request->integer('edit') ? ReportSchedule::find($request->integer('edit')) : null,
         ]);
     }
@@ -172,7 +172,7 @@ class ReportAutomationController extends Controller
 
         return view('reports.alerts', compact('alerts', 'events') + [
             'open' => KpiService::openCount(), 'date' => KpiService::defaultDate(),
-            'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name', 'email', 'phone']),
+            'users' => User::visibleToHotel()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email', 'phone']),
             'editing' => $request->integer('edit') ? KpiAlert::find($request->integer('edit')) : null,
         ]);
     }

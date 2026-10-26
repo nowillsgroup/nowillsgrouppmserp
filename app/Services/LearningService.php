@@ -343,7 +343,7 @@ class LearningService
         if ($cap !== null && ($cap < 1 || $cap > 500)) {
             throw new RuntimeException('Capacity is between 1 and 500 (leave it empty for no limit).');
         }
-        $trainer = ! empty($d['trainer_id']) ? User::findOrFail((int) $d['trainer_id']) : null;
+        $trainer = ! empty($d['trainer_id']) ? User::visibleToHotel()->findOrFail((int) $d['trainer_id']) : null;
         $s = TrainingSession::create(['number' => Numbering::next('training_session'), 'training_course_id' => $c->id, 'date' => $date, 'start_time' => $start, 'end_time' => $end,
             'venue' => trim((string) ($d['venue'] ?? '')) ?: self::cfg()['venue'], 'trainer_id' => $trainer?->id, 'trainer_name' => trim((string) ($d['trainer_name'] ?? '')) ?: ($trainer ? null : $c->provider),
             'capacity' => $cap, 'cost' => max(0, (float) ($d['cost'] ?? 0)), 'notes' => $d['notes'] ?? null, 'status' => 'scheduled', 'created_by' => $u->id]);
@@ -628,7 +628,7 @@ class LearningService
         $data = ['code' => $code, 'title' => mb_substr($title, 0, 150), 'category' => $d['category'], 'summary' => $d['summary'] ?? null, 'body' => (string) ($d['body'] ?? ''),
             'department_id' => ! empty($d['department_id']) ? Department::findOrFail((int) $d['department_id'])->id : null,
             'requires_ack' => (bool) ($d['requires_ack'] ?? false), 'ack_departments' => $depts ?: null,
-            'review_months' => max(1, min(60, (int) ($d['review_months'] ?? 12))), 'owner_id' => ! empty($d['owner_id']) ? User::findOrFail((int) $d['owner_id'])->id : $u->id];
+            'review_months' => max(1, min(60, (int) ($d['review_months'] ?? 12))), 'owner_id' => ! empty($d['owner_id']) ? User::visibleToHotel()->findOrFail((int) $d['owner_id'])->id : $u->id];
         if ($doc) {
             $cur = $doc->current;
             $data['has_draft'] = ! $cur || $cur->body !== $data['body'] || $cur->title !== $data['title'];

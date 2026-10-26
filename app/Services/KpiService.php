@@ -156,7 +156,7 @@ class KpiService
     {
         $ch = $a->channels ?? [];
         $sent = 0;
-        $users = User::whereIn('id', $a->recipient_users ?? [])->where('is_active', true)->get();
+        $users = User::whereIn('id', $a->recipient_users ?? [])->where('is_active', true)->get(); // audit-ok: ids were validated against the hotel when the alert was saved
         if (in_array('email', $ch, true)) {
             $emails = array_unique(array_map('strtolower', array_merge($users->pluck('email')->filter()->all(),
                 preg_split('/[\s,;]+/', (string) $a->recipient_emails, -1, PREG_SPLIT_NO_EMPTY))));
@@ -207,7 +207,7 @@ class KpiService
             throw new RuntimeException('Choose whether the alert fires below or above the threshold.');
         }
         $channels = array_values(array_intersect($d['channels'] ?? [], ['email', 'sms']));
-        $users = User::whereIn('id', $d['recipient_users'] ?? [])->where('is_active', true)->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $users = User::visibleToHotel()->whereIn('id', $d['recipient_users'] ?? [])->where('is_active', true)->pluck('id')->map(fn ($i) => (int) $i)->all();
         $emails = preg_split('/[\s,;]+/', (string) ($d['recipient_emails'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
         foreach ($emails as $e) {
             if (! filter_var($e, FILTER_VALIDATE_EMAIL)) {
@@ -224,7 +224,7 @@ class KpiService
         if (in_array('email', $channels, true) && ! $users && ! $emails) {
             throw new RuntimeException('E-mail is ticked but there are no recipients.');
         }
-        if (in_array('sms', $channels, true) && ! $phones && ! User::whereIn('id', $users)->whereNotNull('phone')->exists()) {
+        if (in_array('sms', $channels, true) && ! $phones && ! User::whereIn('id', $users)->whereNotNull('phone')->exists()) { // audit-ok: $users already filtered by visibleToHotel() above
             throw new RuntimeException('SMS is ticked but no recipient has a phone number.');
         }
         $data = ['name' => trim($d['name'] ?? '') ?: self::metricLabel($d['metric']).' '.$d['operator'].' '.$d['threshold'],

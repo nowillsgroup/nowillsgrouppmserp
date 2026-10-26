@@ -489,7 +489,7 @@ class InboxService
     public static function assign(Conversation $c, ?int $userId, User $by): Conversation
     {
         self::need(self::canReply($by));
-        $u = $userId ? User::where('is_active', true)->find($userId) : null;
+        $u = $userId ? User::visibleToHotel()->where('is_active', true)->find($userId) : null;
         self::need(! $userId || ($u && self::canReply($u)), 'That colleague cannot answer guest messages.');
         $c->forceFill(['assigned_to' => $u?->id])->save();
         self::store($c, 'system', $u ? ($u->id === $by->id ? "{$by->name} took the conversation." : "{$by->name} assigned the conversation to {$u->name}.") : "{$by->name} unassigned the conversation.");
@@ -827,7 +827,7 @@ class InboxService
             $hours[(int) $m->created_at->format('G')]++;
         }
         $rated = Conversation::whereNotNull('csat')->where('closed_at', '>=', now()->subDays(30))->pluck('csat');
-        $agents = $replies->groupBy('user_id')->map(fn ($g, $uid) => ['user' => User::find($uid), 'replies' => $g->count(), 'avg' => (int) round($g->avg('response_sec')),
+        $agents = $replies->groupBy('user_id')->map(fn ($g, $uid) => ['user' => User::visibleToHotel()->find($uid), 'replies' => $g->count(), 'avg' => (int) round($g->avg('response_sec')),
             'within' => round($g->filter(fn ($r) => $r->response_sec <= $sla * 60)->count() * 100 / max(1, $g->count()))])->sortByDesc('replies')->values();
 
         return [
