@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'The desktop sync workspace no longer clears an unaccepted operation queue',
+    detail: 'The manual queue form treated every HTTP response as a successful sync, displayed “Sync complete” even for validation failures, and reloaded the page. That could erase the only copy of a queue that was rejected or not received. It now checks the HTTP status and response shape, shows per-operation results in an accessible status area, removes only applied or already-duplicate operations from the editor, and leaves rejected or unconfirmed operations available for correction and retry. On network or server errors, the original queue remains untouched. Asset version moves to 7.61.0.',
+    screens: [['Offline desktop workspace — sync results with rejected operations retained for correction', '/offline/desktop']],
+  },
+  {
     title: 'Desktop offline sync now honors the requested room-night cutoff',
     detail: 'The multi-day desktop sync contract documents desk.nights with an until date, but its apply path ignored that payload field and used occurred_at (or the current time) instead. A workstation replaying a multi-day queue could therefore post fewer or more room nights than the operation explicitly requested. The handler now parses and uses payload.until, falls back to occurred_at and then now only when until is absent, and returns the actual cutoff in its receipt. Invalid until values are rejected. The reservation delta query also ordered by a nonexistent arrival column even though the schema calls it arrival_date; it now uses the real column. The audit replays a night operation with deliberately different until and occurred_at values inside a transaction and confirms the recorded cutoff matches until. Asset version moves to 7.60.0.',
     screens: [['Offline desktop workspace — download pack, refresh delta and sync operation queue', '/offline/desktop']],

@@ -41,6 +41,7 @@
       </div>
       <button class="btn btn-primary" id="doSync"><x-icon name="refresh"/> Sync queue</button>
     </form>
+      <div id="syncResult" class="alert" role="status" aria-live="polite" hidden style="white-space:pre-wrap;margin-top:12px"></div>
     </div>
   </div>
   @endif
@@ -80,21 +81,42 @@ document.getElementById('syncForm')?.addEventListener('submit', (e) => {
   if (!ta || !ta.value.trim()) { e.preventDefault(); return; }
   e.preventDefault();
   let ops;
+  let queueWasArray;
   try {
     const parsed = JSON.parse(ta.value);
-    ops = Array.isArray(parsed) ? parsed : parsed.operations;
+    queueWasArray = Array.isArray(parsed);
+    ops = queueWasArray ? parsed : parsed.operations;
   } catch { alert('The operations box is not valid JSON.'); return; }
   if (!Array.isArray(ops) || !ops.length) { alert('Provide a JSON array of operations.'); return; }
+  const result = document.getElementById('syncResult');
   fetch(@json(route('offline.desktop.sync')), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' },
     body: JSON.stringify({ device_id: document.querySelector('[name=device_id]').value || null, operations: ops }),
-  }).then(r => r.json()).then(res => {
-    const counts = {};
-    (res.results ?? []).forEach(r => counts[r.status] = (counts[r.status] ?? 0) + 1);
-    alert('Sync complete: ' + Object.entries(counts).map(([k, v]) => v + ' ' + k).join(', '));
-    location.reload();
-  }).catch(() => alert('The sync request failed.'));
+  }).then(async response => {
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(body.results)) {
+      throw new Error(body.message || JSON.stringify(body.errors || body) || 'The server did not accept the sync queue.');
+    }
+    return body;
+  }).then(res => {
+    const byId = new Map(res.results.map(item => [item.operation_id, item]));
+    const remaining = ops.filter(op => {
+      const item = byId.get(op.operation_id);
+      return !item || !['applied', 'duplicate'].includes(item.status);
+    });
+    ta.value = queueWasArray
+      ? JSON.stringify(remaining, null, 2)
+      : JSON.stringify({ device_id: document.querySelector('[name=device_id]').value || null, operations: remaining }, null, 2);
+    const lines = res.results.map(item => `${item.status}: ${item.operation_id}${item.error ? ` — ${item.error}` : ''}`);
+    result.hidden = false;
+    result.className = 'alert ' + (remaining.length ? 'alert-warning' : 'alert-success');
+    result.textContent = `Sync returned ${res.results.length} result(s). ${remaining.length} operation(s) remain in the editor for correction or retry.\n\n` + lines.join('\n');
+  }).catch(error => {
+    result.hidden = false;
+    result.className = 'alert alert-danger';
+    result.textContent = `Sync failed; the pasted queue was kept unchanged. ${error.message}`;
+  });
 });
 </script>
 @endpush
