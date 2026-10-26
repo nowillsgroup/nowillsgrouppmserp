@@ -261,7 +261,8 @@
 
   async function queueTaskAction(taskId, action, baseUpdatedAt, checked = [], notes = null) {
     const current = await allOutbox();
-    await Promise.all(current.filter(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId)).map(row => deleteOutbox(row.operation_id)));
+    const pending = current.find(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId));
+    if (pending) throw new Error('This task already has a queued change. Sync it before recording another action.');
     const row = { operation_id: uuid(), hotel, operation: 'housekeeping.task', payload: { task_id: Number(taskId), action, checked, notes }, base_updated_at: baseUpdatedAt, created_at: new Date().toISOString() };
     await saveOutbox(row);
     await updatePending();
@@ -355,7 +356,7 @@
     renderWorkspace();
     queueTaskAction(task.id, action, task.updated_at, checked, notes).then(() => {
       if (!navigator.onLine) notify('Saved on this device. It will sync automatically when online.', 'info');
-    }).catch(() => { Object.assign(task, previous); renderWorkspace(); notify('This task change could not be saved locally.', 'error'); });
+    }).catch(error => { Object.assign(task, previous); renderWorkspace(); notify(error?.message || 'This task change could not be saved locally.', 'error'); });
   });
 
   window.addEventListener('online', () => { setConnectionState(); syncOutbox().then(() => fetchSnapshot()); });

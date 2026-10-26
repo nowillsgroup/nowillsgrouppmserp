@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline housekeeping no longer drops an earlier task action when another action is queued',
+    detail: 'The task outbox replaced any pending action for the same task with the latest click. That only works for simple state-setting actions; inspection failure followed by a reclean action, or task completion followed by inspection, requires the first action to reach the server before the next one. Replacing it could make the remaining action invalid against the server state. The workspace now keeps the first unsynced task action and asks staff to sync before recording another action for that task. Optimistic UI state is restored when the second action is blocked. Room-status changes remain safely coalescible. Asset version moves to 7.70.0.',
+    screens: [['Offline housekeeping — queued task actions must sync before another action is recorded', '/offline/housekeeping']],
+  },
+  {
     title: 'Offline conflict checks now require a real, non-future snapshot timestamp',
     detail: 'Housekeeping offline conflict protection used strtotime(), which accepts relative values such as “now”. A client could replace its stale snapshot timestamp with a fresh relative value and bypass the stale-write check. The server now requires an ISO 8601 timestamp and rejects snapshot times more than five minutes ahead, while accepting the exact offset format returned by the snapshot API. A rollback-safe audit confirms both relative and future values are rejected without changing the room. Asset version moves to 7.69.0.',
     screens: [['Offline housekeeping — stale updates require a valid server snapshot timestamp', '/offline/housekeeping']],
