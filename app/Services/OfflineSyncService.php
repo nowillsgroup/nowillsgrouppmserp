@@ -352,11 +352,19 @@ class OfflineSyncService
     protected static function baseTimestamp(array $raw, array $payload): string
     {
         $value = (string) ($raw['base_updated_at'] ?? $payload['base_updated_at'] ?? '');
-        if ($value === '' || ! strtotime($value)) {
-            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp is required for conflict protection.']]);
+        if (! preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$/D', $value)) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp must be an ISO 8601 date-time.']]);
+        }
+        try {
+            $timestamp = Carbon::parse($value);
+        } catch (Throwable) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp must be an ISO 8601 date-time.']]);
+        }
+        if ($timestamp->gt(now()->addMinutes(5))) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp cannot be more than 5 minutes ahead.']]);
         }
 
-        return $value;
+        return $timestamp->toIso8601String();
     }
 
     protected static function mayActOnTask(HousekeepingTask $task, User $user): bool

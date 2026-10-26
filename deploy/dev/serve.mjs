@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline conflict checks now require a real, non-future snapshot timestamp',
+    detail: 'Housekeeping offline conflict protection used strtotime(), which accepts relative values such as “now”. A client could replace its stale snapshot timestamp with a fresh relative value and bypass the stale-write check. The server now requires an ISO 8601 timestamp and rejects snapshot times more than five minutes ahead, while accepting the exact offset format returned by the snapshot API. A rollback-safe audit confirms both relative and future values are rejected without changing the room. Asset version moves to 7.69.0.',
+    screens: [['Offline housekeeping — stale updates require a valid server snapshot timestamp', '/offline/housekeeping']],
+  },
+  {
     title: 'Retries of unsupported offline operations now return the same rejection',
     detail: 'The first unsupported offline operation correctly stored a rejected receipt, but a retry after a lost response tried to insert that same operation id again. The unique-key exception was then returned as a generic retryable failure, leaving the client to retry forever. Unsupported operations now check the stored receipt under the same transaction/lock pattern as supported operations and replay the original rejection idempotently. A rollback-safe audit submits the same unsupported operation twice and verifies both responses match. Asset version moves to 7.68.0.',
     screens: [['Offline sync operation log — unsupported operations replay their original rejection', '/offline/housekeeping']],
