@@ -75,7 +75,7 @@
 
 <template id="lineTpl">
   <tr>
-    <td><select class="input input-sm" data-k="room_type_id" required><option value="">Select</option>@foreach($roomTypes as $t)<option value="{{ $t->id }}" data-rate="{{ $t->base_rate }}">{{ $t->name }}</option>@endforeach</select></td>
+    <td><input type="hidden" data-k="stay_id" value=""><select class="input input-sm" data-k="room_type_id" required><option value="">Select</option>@foreach($roomTypes as $t)<option value="{{ $t->id }}" data-rate="{{ $t->base_rate }}">{{ $t->name }}</option>@endforeach</select></td>
     <td><select class="input input-sm" data-k="rate_plan_id"><option value="">Rack rate</option></select></td>
     <td><select class="input input-sm" data-k="room_id"><option value="">Auto-assign</option></select></td>
     <td><input class="input input-sm" type="number" min="1" max="10" data-k="adults" value="2" style="width:64px" required></td>
@@ -121,6 +121,7 @@ function seasonRate(tr){ const type = tr.querySelector('[data-k=room_type_id]').
       r.title = q.seasons.length ? 'Season: ' + q.seasons.join(', ') : 'Rack rate'; r.style.borderColor = q.seasons.length ? 'var(--c-amber-500, #f59e0b)' : ''; }
     total(); }); }
 function addLine(d = {}){ const tr = document.getElementById('lineTpl').content.firstElementChild.cloneNode(true); tbody.appendChild(tr);
+  tr.querySelector('[data-k=stay_id]').value = d.stay_id ?? '';
   const t = tr.querySelector('[data-k=room_type_id]'), p = tr.querySelector('[data-k=rate_plan_id]'), r = tr.querySelector('[data-k=rate]');
   if (d.room_type_id) { t.value = d.room_type_id; fillPlans(tr, d.rate_plan_id); loadRooms(tr, d.room_id); }
   if (d.adults) tr.querySelector('[data-k=adults]').value = d.adults; if (d.children) tr.querySelector('[data-k=children]').value = d.children;
