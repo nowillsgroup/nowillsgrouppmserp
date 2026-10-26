@@ -166,7 +166,7 @@ class DesktopSyncService
         }
         $at = self::occurredAt($raw, $payload);
 
-        return match ($operation) {
+        $dispatch = fn () => match ($operation) {
             'desk.check_in' => self::opCheckIn($operationId, $payload, $at, $deviceId, $user),
             'desk.check_out' => self::opCheckOut($operationId, $payload, $at, $deviceId, $user),
             'desk.charge' => self::opCharge($operationId, $payload, $at, $deviceId, $user),
@@ -174,6 +174,8 @@ class DesktopSyncService
             'desk.nights' => self::opNights($operationId, $payload, $at, $deviceId, $user),
             default => self::rejected($operationId, $operation ?: 'unknown', $payload, $deviceId, $user, 'This offline operation is not supported.'),
         };
+
+        return $at ? \App\Support\BusinessDateContext::run($at, $dispatch) : $dispatch();
     }
 
     protected static function occurredAt(array $raw, array $payload): ?\Illuminate\Support\Carbon
@@ -183,10 +185,15 @@ class DesktopSyncService
             return null;
         }
         try {
-            return \Illuminate\Support\Carbon::parse($v);
+            $at = \Illuminate\Support\Carbon::parse($v);
         } catch (\Throwable) {
             throw ValidationException::withMessages(['occurred_at' => ['occurred_at must be a date-time.']]);
         }
+        if ($at->lt(now()->subDays(31)) || $at->gt(now()->addMinutes(5))) {
+            throw ValidationException::withMessages(['occurred_at' => ['occurred_at must be within the last 31 days and no more than 5 minutes ahead.']]);
+        }
+
+        return $at;
     }
 
     // ------------------------------------------------------------------ ops

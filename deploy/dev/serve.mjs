@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline desk operations now post to their real business date',
+    detail: 'DesktopSyncService accepted occurred_at but used it only in the receipt; charges and other operations were still posted under the date of the later sync, defeating back-dated offline work. The sync now scopes a business-date context to each operation, so the existing PMS services apply the event date without changing the property’s configured business date. The context is restored even if an operation fails. To keep a stale or manipulated client from moving ledger entries arbitrarily, occurred_at is limited to the last 31 days and at most five minutes in the future, matching the maximum desktop pack window with small clock skew. A rollback-safe audit confirms an offline charge gets yesterday’s business_date, the normal hotel date is restored, and an event 32 days old is rejected. Asset version moves to 7.62.0.',
+    screens: [['Offline desktop sync — backdated operations reconcile to their recorded business date', '/offline/desktop']],
+  },
+  {
     title: 'The desktop sync workspace no longer clears an unaccepted operation queue',
     detail: 'The manual queue form treated every HTTP response as a successful sync, displayed “Sync complete” even for validation failures, and reloaded the page. That could erase the only copy of a queue that was rejected or not received. It now checks the HTTP status and response shape, shows per-operation results in an accessible status area, removes only applied or already-duplicate operations from the editor, and leaves rejected or unconfirmed operations available for correction and retry. On network or server errors, the original queue remains untouched. Asset version moves to 7.61.0.',
     screens: [['Offline desktop workspace — sync results with rejected operations retained for correction', '/offline/desktop']],
