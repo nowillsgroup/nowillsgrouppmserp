@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('kiosks')) {
+            return;
+        }
+
         Schema::create('kiosks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
             $t->index(['pairing_code', 'status']);
         });
+
+                if (Schema::hasTable('kiosk_sessions')) {
+            return;
+        }
 
         Schema::create('kiosk_sessions', function (Blueprint $t) {
             $t->id();

@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('bd_competitors')) {
+            return;
+        }
+
         Schema::create('bd_competitors', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -31,6 +35,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'name']);
         });
+                if (Schema::hasTable('bd_rate_shops')) {
+            return;
+        }
+
         Schema::create('bd_rate_shops', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -44,6 +52,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'stay_date', 'channel']);
         });
+                if (Schema::hasTable('bd_rate_shop_lines')) {
+            return;
+        }
+
         Schema::create('bd_rate_shop_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -53,6 +65,10 @@ return new class extends Migration
             $t->boolean('sold_out')->default(false);
             $t->unique(['shop_id', 'competitor_id']);
         });
+                if (Schema::hasTable('bd_benchmarks')) {
+            return;
+        }
+
         Schema::create('bd_benchmarks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -67,6 +83,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'month']);
         });
+                if (Schema::hasTable('bd_partners')) {
+            return;
+        }
+
         Schema::create('bd_partners', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -95,6 +115,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'status']);
         });
+                if (Schema::hasTable('bd_initiatives')) {
+            return;
+        }
+
         Schema::create('bd_initiatives', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -121,6 +145,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'stage']);
         });
+                if (Schema::hasTable('bd_milestones')) {
+            return;
+        }
+
         Schema::create('bd_milestones', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -132,6 +160,10 @@ return new class extends Migration
             $t->foreignId('done_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+                if (Schema::hasTable('bd_results')) {
+            return;
+        }
+
         Schema::create('bd_results', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

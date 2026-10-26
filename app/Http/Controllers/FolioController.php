@@ -194,8 +194,11 @@ class FolioController extends Controller
     public function close(Folio $folio)
     {
         abort_if($folio->stay && $folio->stay->status === 'checked_in', 422, 'Use check-out to close an in-house folio.');
-        FolioService::close($folio);
+        $folio = FolioService::close($folio);
         ActivityLogger::log('folio', 'close', "Closed {$folio->folio_no}, invoice {$folio->invoice_no}", $folio);
+        if (! $folio->invoice_no) {
+            return redirect()->route('folios.show', $folio)->with('success', 'Opening receivable settled. No new tax invoice was issued for the historical balance.');
+        }
 
         return redirect()->route('folios.invoice', $folio)->with('success', 'Folio settled. Invoice '.$folio->invoice_no);
     }
@@ -278,6 +281,9 @@ class FolioController extends Controller
             $lines = $folio->transactions()->whereIn('id', $data['tx'])->where('is_void', false)->lockForUpdate()->get();
             if ($lines->count() !== count(array_unique($data['tx']))) {
                 throw new \RuntimeException('Some selected lines are void or do not belong to this folio.');
+            }
+            if ($lines->contains(fn ($line) => $line->isOpening())) {
+                throw new \RuntimeException('Opening receivable balances cannot be split or moved; correct the unapplied source row in an opening_ar batch before posting the opening trial balance.');
             }
             $folio->transactions()->whereIn('id', $lines->pluck('id'))->update(['folio_id' => $target->id]);
             $desc = $lines->count().' line(s) ('.money($lines->sum(fn ($t) => $t->type === 'charge' ? $t->amount + $t->tax_amount : 0)).' charges)';

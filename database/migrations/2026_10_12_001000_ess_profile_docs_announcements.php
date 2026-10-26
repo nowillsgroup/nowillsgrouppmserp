@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('hr_profile_updates')) {
+            return;
+        }
+
         Schema::create('hr_profile_updates', function (Blueprint $t) {
             $t->id();
             $t->unsignedBigInteger('hotel_id')->index();
@@ -21,6 +25,10 @@ return new class extends Migration
             $t->string('review_note', 500)->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('hr_documents')) {
+            return;
+        }
 
         Schema::create('hr_documents', function (Blueprint $t) {
             $t->id();
@@ -38,6 +46,10 @@ return new class extends Migration
             $t->timestamp('reviewed_at')->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('hr_announcements')) {
+            return;
+        }
 
         Schema::create('hr_announcements', function (Blueprint $t) {
             $t->id();

@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('inbox_rules')) {
+            return;
+        }
+
         Schema::create('inbox_rules', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -31,6 +35,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'is_active', 'sort']);
         });
 
+                if (Schema::hasTable('inbox_quick_replies')) {
+            return;
+        }
+
         Schema::create('inbox_quick_replies', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -44,6 +52,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'shortcut']);
         });
+
+                if (Schema::hasTable('inbox_broadcasts')) {
+            return;
+        }
 
         Schema::create('inbox_broadcasts', function (Blueprint $t) {
             $t->id();
@@ -63,6 +75,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'created_at']);
         });
+
+                if (Schema::hasTable('conversations')) {
+            return;
+        }
 
         Schema::create('conversations', function (Blueprint $t) {
             $t->id();
@@ -96,6 +112,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'channel', 'handle']);
             $t->index(['reservation_room_id']);
         });
+
+                if (Schema::hasTable('conversation_messages')) {
+            return;
+        }
 
         Schema::create('conversation_messages', function (Blueprint $t) {
             $t->id();

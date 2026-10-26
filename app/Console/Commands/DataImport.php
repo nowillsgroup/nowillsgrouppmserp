@@ -16,7 +16,7 @@ use Illuminate\Console\Command;
 class DataImport extends Command
 {
     protected $signature = 'pms:import
-        {dataset : One of: companies, guests, employees, rooms, reservations}
+        {dataset : One of: companies, guests, employees, rooms, suppliers, inventory_items, opening_stock, opening_ap, opening_ar, opening_gl, historical_stock, inventory_allergens, reservations, paid_supplier_history, bank_account_mappings}
         {file : Path to the CSV export}
         {--hotel= : Hotel (property) id to import into}
         {--source= : Label of the legacy system / export date}
@@ -39,7 +39,30 @@ class DataImport extends Command
             return self::FAILURE;
         }
         Tenant::set($hotel);
-        $this->info("Importing {$dataset} into {$hotel->name} (id {$hotel->id})".($this->option('dry-run') ? ' [dry run]' : ''));
+        if (! isset(MigrationService::DATASETS[$dataset])) {
+            $this->error('Unknown dataset. Choose: '.implode(', ', array_keys(MigrationService::DATASETS)));
+
+            return self::FAILURE;
+        }
+        $importer = MigrationService::importer($dataset);
+        if (! $this->option('dry-run') && ! $importer->supportsApply()) {
+            $message = match ($dataset) {
+                'opening_gl' => 'Opening GL is preflight-only. Re-run with --dry-run; posting remains disabled pending AP-policy approval, subledger sign-off and duplicate-posting controls.',
+                'inventory_allergens' => 'Inventory allergen declarations are preflight-only. Re-run with --dry-run; no allergen declarations are imported or verified. Review source evidence with Food Safety staff.',
+                'bank_account_mappings' => 'Bank account mappings are read-only preflight only. Re-run with --dry-run; no Treasury account, statement, ID map or GL entry is created or changed.',
+                default => 'This dataset is preflight-only. Re-run with --dry-run; no apply path is available.',
+            };
+            $this->error($message);
+
+            return self::FAILURE;
+        }
+        $mode = $this->option('dry-run') ? ' [dry run]' : match ($dataset) {
+            'historical_stock' => ' [archive-only; no operational stock or GL]',
+            'paid_supplier_history' => ' [archive-only; no AP subledger or GL]',
+            'bank_account_mappings' => ' [read-only mapping preflight; no Treasury, statement, ID-map or GL writes]',
+            default => '',
+        };
+        $this->info("Importing {$dataset} into {$hotel->name} (id {$hotel->id})".$mode);
 
         $batch = MigrationService::register(
             $hotel,

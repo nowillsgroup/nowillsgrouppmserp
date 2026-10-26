@@ -21,6 +21,10 @@ return new class extends Migration
             $t->boolean('closing')->default(false)->after('memo');
         });
 
+                if (Schema::hasTable('close_periods')) {
+            return;
+        }
+
         Schema::create('close_periods', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -45,6 +49,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'period']);
         });
 
+                if (Schema::hasTable('close_tasks')) {
+            return;
+        }
+
         Schema::create('close_tasks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -64,6 +72,10 @@ return new class extends Migration
             $t->unique(['close_period_id', 'key']);
         });
 
+                if (Schema::hasTable('close_events')) {
+            return;
+        }
+
         Schema::create('close_events', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -73,6 +85,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamp('created_at')->nullable();
         });
+
+                if (Schema::hasTable('accruals')) {
+            return;
+        }
 
         Schema::create('accruals', function (Blueprint $t) {
             $t->id();
@@ -102,6 +118,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('recurring_journals')) {
+            return;
+        }
+
         Schema::create('recurring_journals', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -123,6 +143,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('period_postings')) {
+            return;
+        }
+
         Schema::create('period_postings', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -138,6 +162,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'source', 'source_id', 'period', 'kind'], 'period_postings_unique');
             $t->index(['hotel_id', 'period']);
         });
+
+                if (Schema::hasTable('fiscal_year_closes')) {
+            return;
+        }
 
         Schema::create('fiscal_year_closes', function (Blueprint $t) {
             $t->id();

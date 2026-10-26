@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('rental_vehicles')) {
+            return;
+        }
+
         Schema::create('rental_vehicles', function (Blueprint $t) {
             $t->id();
             $t->unsignedBigInteger('hotel_id')->index();
@@ -28,6 +32,10 @@ return new class extends Migration
             $t->string('notes', 500)->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('car_rentals')) {
+            return;
+        }
 
         Schema::create('car_rentals', function (Blueprint $t) {
             $t->id();

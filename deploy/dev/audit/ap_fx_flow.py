@@ -200,7 +200,7 @@ has("billed in USD", page, "Billed in USD")
 has("with its own net and tax", page, "1,490.75 + 0.00")
 has("the rate and basis", page, "%.4f" % usd_rate)
 has("what is still owed, read back in dollars", page, "Still owed in USD")
-has("and explains that the ledger carries cedis", page, "each line was converted at the board above")
+has("and explains that the ledger carries cedis", page, "The ledger carries")
 text = Pms.text(page)
 ok("the posted total is the two lines converted and rounded separately", "{:,.2f}".format(want_sub) in text, True)
 print()
@@ -251,7 +251,7 @@ ok("a currency the board has never heard of does not create a bill", "bills/crea
 has("it says there is no rate, and where to set one", fl, "no ZZZ rate on the forex board")
 has("and points at the board the rate is set on", fl, "Foreign Guests › Exchange Rates")
 
-# a bill matched to a goods receipt is valued at the receipt, which is in cedis
+# a matched goods bill must use the currency recorded on its purchase order
 goods = p.get("/ap/bills/create?mode=goods")
 pos = [x for x in opts(region(goods, 'id="billForm"'), "purchase_order_id") if x]
 if pos:
@@ -259,10 +259,10 @@ if pos:
     gtok = token_of(goods)
     gsub = re.search(r'name="doc_date"[^>]*value="([^"]+)"', gform)
     gd = {"mode": "goods", "purchase_order_id": pos[0], "supplier_ref": nextref("grn"),
-          "doc_date": gsub.group(1) if gsub else "", "subtotal": "100.00", "tax": "0", "currency": "USD"}
+          "doc_date": gsub.group(1) if gsub else "", "subtotal": "100.00", "tax": "0", "currency": "ZZZ"}
     code, loc, page = post_bill(p, gform, gtok, gd, "/ap/bills/create?mode=goods")
     fl = " ".join(Pms.flash(page))
-    has("a goods-receipt bill in a foreign currency is refused", fl, "valued at the receipt")
+    has("a matched goods bill in a different currency is refused", fl, "currency on the purchase order")
 else:
     print("  skip  %-62s no received, unbilled purchase order in the demo" % "goods-receipt refusal")
 

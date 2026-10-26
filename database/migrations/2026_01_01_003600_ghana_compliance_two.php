@@ -48,6 +48,10 @@ return new class extends Migration
             $t->string('wht_cert_no', 20)->nullable()->after('wht_note');
             $t->index(['hotel_id', 'date', 'wht_amount']);
         });
+                if (Schema::hasTable('wht_periods')) {
+            return;
+        }
+
         Schema::create('wht_periods', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

@@ -23,6 +23,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'source', 'date_from']);
         });
 
+                if (Schema::hasTable('yield_rules')) {
+            return;
+        }
+
         Schema::create('yield_rules', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -45,6 +49,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'is_active']);
         });
+
+                if (Schema::hasTable('rm_snapshots')) {
+            return;
+        }
 
         Schema::create('rm_snapshots', function (Blueprint $t) {
             $t->id();

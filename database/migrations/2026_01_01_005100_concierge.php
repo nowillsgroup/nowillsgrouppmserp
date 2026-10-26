@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('activity_vendors')) {
+            return;
+        }
+
         Schema::create('activity_vendors', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -31,6 +35,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('activities')) {
+            return;
+        }
 
         Schema::create('activities', function (Blueprint $t) {
             $t->id();
@@ -67,6 +75,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('activity_departures')) {
+            return;
+        }
+
         Schema::create('activity_departures', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -81,6 +93,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['activity_id', 'date', 'time']);
         });
+
+                if (Schema::hasTable('activity_settlements')) {
+            return;
+        }
 
         Schema::create('activity_settlements', function (Blueprint $t) {
             $t->id();
@@ -102,6 +118,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'number']);
         });
+
+                if (Schema::hasTable('activity_bookings')) {
+            return;
+        }
 
         Schema::create('activity_bookings', function (Blueprint $t) {
             $t->id();
@@ -152,6 +172,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'date', 'status']);
         });
+
+                if (Schema::hasTable('concierge_places')) {
+            return;
+        }
 
         Schema::create('concierge_places', function (Blueprint $t) {
             $t->id();

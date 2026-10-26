@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('vehicles')) {
+            return;
+        }
+
         Schema::create('vehicles', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'reg_no']);
         });
 
+                if (Schema::hasTable('drivers')) {
+            return;
+        }
+
         Schema::create('drivers', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -54,6 +62,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'phone']);
         });
+
+                if (Schema::hasTable('transport_tariffs')) {
+            return;
+        }
 
         Schema::create('transport_tariffs', function (Blueprint $t) {
             $t->id();
@@ -71,6 +83,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'name']);
         });
+
+                if (Schema::hasTable('transport_trips')) {
+            return;
+        }
 
         Schema::create('transport_trips', function (Blueprint $t) {
             $t->id();
@@ -126,6 +142,10 @@ return new class extends Migration
             $t->index(['vehicle_id', 'busy_from']);
             $t->index(['driver_id', 'busy_from']);
         });
+
+                if (Schema::hasTable('vehicle_expenses')) {
+            return;
+        }
 
         Schema::create('vehicle_expenses', function (Blueprint $t) {
             $t->id();

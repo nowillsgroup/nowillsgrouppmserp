@@ -19,6 +19,248 @@ use App\Models\Room;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Voucher;
+use App\Models\Activity;
+use App\Models\ActivityBooking;
+use App\Models\ActivityDeparture;
+use App\Models\AgentCommission;
+use App\Models\ApAllocation;
+use App\Models\ApiClient;
+use App\Models\ApiIdempotencyKey;
+use App\Models\Asset;
+use App\Models\AssetCategory;
+use App\Models\AssetDepRun;
+use App\Models\Attendance;
+use App\Models\BankMatch;
+use App\Models\BanquetEventItem;
+use App\Models\BanquetHall;
+use App\Models\BanquetPackage;
+use App\Models\BanquetService;
+use App\Models\BdCompetitor;
+use App\Models\BdMilestone;
+use App\Models\BdRateShopLine;
+use App\Models\BdResult;
+use App\Models\BillingReconciliation;
+use App\Models\BillingReconciliationItem;
+use App\Models\Budget;
+use App\Models\BudgetEvent;
+use App\Models\BudgetLine;
+use App\Models\BudgetStat;
+use App\Models\BusinessSource;
+use App\Models\CarRental;
+use App\Models\CashForecastLine;
+use App\Models\CashierMovement;
+use App\Models\CashierShift;
+use App\Models\ChannelAriState;
+use App\Models\ChannelMessage;
+use App\Models\ChannelRateMap;
+use App\Models\ChannelRestriction;
+use App\Models\ChannelRoomMap;
+use App\Models\CloseEvent;
+use App\Models\ClubClass;
+use App\Models\ClubPlan;
+use App\Models\ClubTicketPayment;
+use App\Models\ClubTicketSale;
+use App\Models\ClubTicketSaleItem;
+use App\Models\ClubTicketType;
+use App\Models\ComplianceEvent;
+use App\Models\ConciergePlace;
+use App\Models\CreditLog;
+use App\Models\CroContact;
+use App\Models\Currency;
+use App\Models\DataBreach;
+use App\Models\DataMigrationBatch;
+use App\Models\DataMigrationRow;
+use App\Models\Department;
+use App\Models\DmAdStat;
+use App\Models\DmChannel;
+use App\Models\DmLinkClick;
+use App\Models\EinvoiceLog;
+use App\Models\EmailLog;
+use App\Models\Employee;
+use App\Models\EmployeePayComponent;
+use App\Models\EsgChecklistItem;
+use App\Models\EsgCommunity;
+use App\Models\EsgGreenStay;
+use App\Models\EsgInitiative;
+use App\Models\EsgLaundryMonth;
+use App\Models\EsgPolicy;
+use App\Models\EsgTarget;
+use App\Models\ExpenseClaimLine;
+use App\Models\FbCostSnapshot;
+use App\Models\FbRecipeCard;
+use App\Models\FbStaffMeal;
+use App\Models\FbYieldTest;
+use App\Models\FeedbackAnswer;
+use App\Models\FeedbackCase;
+use App\Models\FeedbackCaseEvent;
+use App\Models\FiscalYearClose;
+use App\Models\Floor;
+use App\Models\ForexRate;
+use App\Models\ForexSurrender;
+use App\Models\FsCertificate;
+use App\Models\FsEquipment;
+use App\Models\FsLabel;
+use App\Models\GatePass;
+use App\Models\GatePassItem;
+use App\Models\GatePassReturn;
+use App\Models\GatewayPayout;
+use App\Models\GlJournal;
+use App\Models\GoodsReceipt;
+use App\Models\GoodsReceiptLine;
+use App\Models\GstCancelledDoc;
+use App\Models\GstPeriod;
+use App\Models\GuestDocument;
+use App\Models\HistoricalStockMovementArchive;
+use App\Models\Hotel;
+use App\Models\HotelGroup;
+use App\Models\HrAnnouncement;
+use App\Models\HrDocument;
+use App\Models\HrProfileUpdate;
+use App\Models\HseWarden;
+use App\Models\InboxBroadcast;
+use App\Models\InboxQuickReply;
+use App\Models\InterfaceCommand;
+use App\Models\InventoryItem;
+use App\Models\ItemCategory;
+use App\Models\Kiosk;
+use App\Models\KotPrintJob;
+use App\Models\KotPrinter;
+use App\Models\KpiAlert;
+use App\Models\LaundryItem;
+use App\Models\LaundryOrder;
+use App\Models\LaundryOrderLine;
+use App\Models\Lease;
+use App\Models\LeaseInspection;
+use App\Models\LeaseMeterReading;
+use App\Models\LeaseUnit;
+use App\Models\LeaveType;
+use App\Models\LinenBatch;
+use App\Models\LinenBatchLine;
+use App\Models\LinenType;
+use App\Models\LogEntry;
+use App\Models\LogEntryComment;
+use App\Models\LogEntryRead;
+use App\Models\LoyaltyEntry;
+use App\Models\ManagementAgreement;
+use App\Models\MarketingCollateral;
+use App\Models\MarketingConsentLog;
+use App\Models\MarketingMessage;
+use App\Models\MarketingSegment;
+use App\Models\MenuCategory;
+use App\Models\MenuItem;
+use App\Models\MenuItemRecipe;
+use App\Models\MenuModifier;
+use App\Models\MenuModifierGroup;
+use App\Models\MessageLog;
+use App\Models\MeterReading;
+use App\Models\MinibarItem;
+use App\Models\OfflineSyncOperation;
+use App\Models\OnlinePayment;
+use App\Models\OnlinePaymentEvent;
+use App\Models\OnlineRefund;
+use App\Models\OrganiserAttendee;
+use App\Models\OtaChannel;
+use App\Models\Outlet;
+use App\Models\OutletServicePeriod;
+use App\Models\OwnerQuery;
+use App\Models\OwnerStatement;
+use App\Models\ParkingVehicle;
+use App\Models\PaymentMode;
+use App\Models\Permission;
+use App\Models\PettyCount;
+use App\Models\PettyReplenishment;
+use App\Models\PmSchedule;
+use App\Models\PosTable;
+use App\Models\PrivacyRequestEvent;
+use App\Models\PurchaseOrderItem;
+use App\Models\QaAuditItem;
+use App\Models\QaStandard;
+use App\Models\RateContract;
+use App\Models\RateContractBlackout;
+use App\Models\RateContractRate;
+use App\Models\RateOverride;
+use App\Models\RatePlan;
+use App\Models\RecurringJournal;
+use App\Models\RentalVehicle;
+use App\Models\ReportSchedule;
+use App\Models\ReportView;
+use App\Models\Requisition;
+use App\Models\RequisitionLine;
+use App\Models\ReservationAmendment;
+use App\Models\ReservationDeskView;
+use App\Models\ReservationWaitlist;
+use App\Models\ReviewTemplate;
+use App\Models\Rfq;
+use App\Models\RfqLine;
+use App\Models\RfqQuote;
+use App\Models\RfqQuoteLine;
+use App\Models\RfqSupplier;
+use App\Models\RmSnapshot;
+use App\Models\RoomAmenity;
+use App\Models\RoomAmenityLink;
+use App\Models\RoomBlock;
+use App\Models\RoomBlockLine;
+use App\Models\RoomCount;
+use App\Models\RoomImage;
+use App\Models\RoomMove;
+use App\Models\RoomOutage;
+use App\Models\RoomType;
+use App\Models\RosterWeek;
+use App\Models\SalesContact;
+use App\Models\SalesOpportunity;
+use App\Models\ScDistributionLine;
+use App\Models\SecurityIncidentUpdate;
+use App\Models\SecurityWatch;
+use App\Models\Setting;
+use App\Models\ShiftSwap;
+use App\Models\ShiftTemplate;
+use App\Models\SopAcknowledgement;
+use App\Models\SopDocument;
+use App\Models\SopVersion;
+use App\Models\SpaRoom;
+use App\Models\StaffAdvance;
+use App\Models\StayFixedCharge;
+use App\Models\StockTake;
+use App\Models\StockTakeLine;
+use App\Models\Store;
+use App\Models\StoreIssue;
+use App\Models\StoreIssueLine;
+use App\Models\StorePar;
+use App\Models\Supplier;
+use App\Models\SupplierInvoice;
+use App\Models\SupplierInvoiceLine;
+use App\Models\SupplierPaidHistoryArchive;
+use App\Models\SupplierPrice;
+use App\Models\Survey;
+use App\Models\SurveyInvitation;
+use App\Models\SurveyQuestion;
+use App\Models\TalentCycle;
+use App\Models\TalentInterview;
+use App\Models\TalentOffer;
+use App\Models\TalentProbation;
+use App\Models\TalentScorecard;
+use App\Models\TalentTask;
+use App\Models\TimePunch;
+use App\Models\TipCollection;
+use App\Models\TrainingCourse;
+use App\Models\TrainingRequirement;
+use App\Models\TrainingSession;
+use App\Models\TransportTariff;
+use App\Models\TvCommand;
+use App\Models\TvMessage;
+use App\Models\TvMessageRead;
+use App\Models\TvMovie;
+use App\Models\TvPage;
+use App\Models\TvProgramme;
+use App\Models\TvSession;
+use App\Models\TvWelcomeTemplate;
+use App\Models\UpsellOffer;
+use App\Models\UtilityBill;
+use App\Models\Vehicle;
+use App\Models\WakeupAttempt;
+use App\Models\WakeupCall;
+use App\Models\WhtPeriod;
+use App\Models\YieldRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -30,271 +272,476 @@ use Illuminate\Support\Collection;
 class ReportController extends Controller
 {
     /** slug => [group, title, description, filter mode] */
-    public const REPORTS = [
-        'arrivals' => ['Front Office', 'Arrival List', 'Expected arrivals for the period', 'range'],
-        'departures' => ['Front Office', 'Departure List', 'Expected departures for the period', 'range'],
-        'inhouse' => ['Front Office', 'In-House Guest List', 'All guests currently checked in', 'none'],
-        'reservations' => ['Front Office', 'Reservation Register', 'Reservations created in the period', 'range'],
-        'cancellations' => ['Front Office', 'Cancellation & No-Show', 'Cancelled and no-show reservations', 'range'],
-        'occupancy' => ['Front Office', 'Occupancy Statistics', 'Day-wise occupancy, ADR and RevPAR', 'range'],
-        'source' => ['Front Office', 'Business Source Analysis', 'Room nights & revenue by source', 'range'],
-        'company' => ['Front Office', 'Company-wise Business', 'Room nights & revenue by company/agent', 'range'],
-        'nationality' => ['Front Office', 'Nationality Report', 'Guest arrivals by nationality', 'range'],
-        'police' => ['Front Office', 'Police / Form-C Report', 'Foreign national check-ins', 'range'],
-        'room_status' => ['Housekeeping', 'Room Status Report', 'Current occupancy and housekeeping status', 'none'],
-        'maintenance' => ['Housekeeping', 'Maintenance Report', 'Tickets raised in the period', 'range'],
-        'guest_requests' => ['Front Office', 'Guest Requests & Response Times', 'Portal / phone requests by type: volumes, response & completion times, SLA breaches, ratings', 'range'],
-        'hk_productivity' => ['Housekeeping', 'Attendant Productivity', 'Rooms, credits, minutes per room, DND and re-cleans per attendant', 'range'],
-        'minibar' => ['Housekeeping', 'Minibar Sales', 'Minibar consumption posted to guest folios', 'range'],
-        'spa_revenue' => ['Spa & Activities', 'Spa & Activity Revenue', 'Appointments and revenue by service and therapist', 'range'],
-        'revenue' => ['Billing', 'Daily Revenue Report', 'Revenue by charge category', 'range'],
+        public const REPORTS = [
+        'allotment_utilisation' => ['Accounts', 'Allotment Utilisation', 'Per allotment line: room nights allotted in the period, picked up, released unsold and still held – is the account using what it asked for?', 'range', 'contracts.view'],
+        'ap_ageing' => ['Accounts', 'AP Ageing (Suppliers)', 'Supplier balances by days past due, with unbilled goods receipts and unapplied credits', 'date', 'ap.view'],
+        'ap_allocations' => ['Accounts', 'AP Allocation Register', 'Every AP allocation of a payment to invoices', 'range', 'accounts.view'],
+        'ap_register' => ['Accounts', 'Supplier Bill Register', 'Bills & debit notes in the period: match variance, paid and outstanding', 'range', 'ap.view'],
+        'ar_aging' => ['Accounts', 'AR Ageing (City Ledger)', 'Company outstanding by age bucket, FIFO against receipts', 'date'],
+        'bank_reconciliation' => ['Accounts', 'Bank Reconciliation Summary', 'Per bank / Mobile Money / clearing account at a date: book balance, latest statement balance, deposits in transit, unpresented payments, statement items not in the books and the unexplained difference', 'date', 'bankrec.view'],
+        'bank_statement_lines' => ['Accounts', 'Bank Statement Lines', 'Imported statement lines in the period: statement, date, details, money in / out, status, how matched and the book entries they cleared', 'range', 'bankrec.view'],
+        'billing_reconciliation_items' => ['Accounts', 'Billing Reconciliation Item Register', 'Every folio/invoice reconciled against cash and city ledger', 'range', 'accounts.view'],
+        'billing_reconciliations' => ['Accounts', 'Billing Reconciliation Register', 'Every billing reconciliation period with preparer and reviewer', 'range', 'accounts.view'],
+        'close_events' => ['Accounts', 'Close Event Register', 'Every period-end close event', 'range', 'accounts.view'],
+        'contract_production' => ['Accounts', 'Contract Production', 'Per rate contract: bookings, room nights and revenue for stays in the period, ADR vs public rate, cancellations and progress against the room-night target', 'range', 'contracts.view'],
+        'credit_exposure' => ['Accounts', 'Credit Exposure', 'Every direct-billing account: limit, city ledger, overdue, in-house balances, total exposure, available credit and hold status', 'none', 'credit.view'],
+        'expense_claim_lines' => ['Accounts', 'Expense Claim Line Register', 'Every expense claim line with amount and VAT', 'range', 'accounts.view'],
+        'expense_claims' => ['Accounts', 'Staff Expense Claims Register', 'Claims submitted in the period: claimant, department, title, amount, input VAT, status, approver, payment date and method', 'range', 'claims.approve'],
+        'expenses' => ['Accounts', 'Expense Report', 'Payment vouchers by head', 'range'],
+        'petty_cash_book' => ['Accounts', 'Petty Cash Book', 'Every posted petty cash movement in the period per float: top-ups, vouchers, IOUs and settlements, count differences and claims paid in cash, with opening, running and closing balances', 'range', 'petty.view'], // v4.7
+        'petty_counts' => ['Accounts', 'Petty Cash Count Register', 'Every petty cash count with counted amount and variance', 'none', 'accounts.view'],
+        'petty_expenses' => ['Accounts', 'Petty Cash Spending by Account', 'Vouchers and settled IOUs in the period by expense account and float, with input VAT, NHIL & GETFund recovered on VAT invoices', 'range', 'petty.view'],
+        'petty_replenishments' => ['Accounts', 'Petty Cash Replenishment Register', 'Every petty cash replenishment request', 'none', 'accounts.view'],
+        'supplier_paid_history_archives' => ['Accounts', 'Supplier Paid History Archive Register', 'Every archived supplier payment from pre-cutover data', 'range', 'accounts.view'],
+        'uncleared_items' => ['Accounts', 'Uncleared Items', 'Book entries not yet on a bank statement and statement lines not in the books, at a date, with days outstanding', 'date', 'bankrec.view'],
+        'banquet' => ['Banquet & Events', 'Banquet Event Report', 'Events in the period: functions, venues, peak pax, value, deposits and status', 'range', 'banquet.view'],
+        'banquet_pipeline' => ['Banquet & Events', 'Banquet Sales Pipeline', 'Enquiries, tentative holds, definite and lost business by event month – count, value and conversion', 'range', 'banquet.view'],
+        'function_forecast' => ['Banquet & Events', 'Function Forecast (Kitchen & Ops)', 'Upcoming tentative and definite functions with covers, menu and set-up – for purchasing and staffing', 'range', 'banquet.view'],
+        'organiser_attendees' => ['Banquet & Events', 'Organiser Attendee Register', 'Every banquet event attendee with tag and contact', 'none', 'banquet.view'],
+        'venue_utilisation' => ['Banquet & Events', 'Venue Utilisation', 'Per venue: functions, days and hours booked, occupancy of a 16-hour day, covers and revenue', 'range', 'banquet.view'],
+        'cashier_movements' => ['Billing', 'Cashier Movement Register', 'Every cashier movement: kind, amount, shift, user', 'range', 'frontoffice.view'],
+        'cashier_shifts' => ['Billing', 'Cashier Shift Register', 'Cashier shift summary: opening, cash in, POS, cash out, tip, closing balance and variance', 'range', 'frontoffice.view'],
         'collection' => ['Billing', 'Collection Report', 'Payments by mode and cashier', 'range'],
-        'tax' => ['Billing', 'Tax (VAT & Levies) Report', 'Taxable value with VAT, NHIL, GETFund and Tourism Levy by category and rate', 'range'],
+        'credit_logs' => ['Billing', 'Credit Log Register', 'Every credit issued to a guest folio', 'range', 'frontoffice.view'],
         'invoices' => ['Billing', 'Invoice Register', 'Closed folios / invoices', 'range'],
         'online_payments' => ['Billing', 'Online Payments', 'Payment links paid, refunded, pending or expired in the period, with gateway transaction, fees and payouts', 'range', 'payments.view'],
-        'laundry_register' => ['Laundry & Linen', 'Laundry Register', 'Guest & walk-in laundry orders collected in the period: pieces, express surcharge, amount, status and where it was charged', 'range', 'laundry.view'],
-        'linen_par' => ['Laundry & Linen', 'Linen Stock & Par', 'Every linen type by location (clean, floors, soiled, at laundry) against par, with shortfall and stock value', 'none', 'laundry.view'],
-        'linen_losses' => ['Laundry & Linen', 'Linen Losses & Write-offs', 'Linen discarded as damaged or lost (on the floors or by the laundry) in the period, at cost', 'range', 'laundry.view'],
-        'asset_register' => ['Fixed Assets', 'Fixed Asset Register', 'Every asset held at a date: category, location, cost, accumulated depreciation and net book value', 'date', 'assets.view'],
-        'asset_schedule' => ['Fixed Assets', 'Fixed Asset Schedule (Roll-forward)', 'Per asset for the period: opening cost, additions, disposals, depreciation charge and closing net book value – ties to the balance sheet', 'range', 'assets.view'],
-        'pm_compliance' => ['Fixed Assets', 'Preventive Maintenance Compliance', 'PM tickets that fell due in the period: done on time, late or still open, with days late and technician', 'range', 'maintenance.manage'],
-        'req_register' => ['Inventory', 'Requisition Register', 'Store requisitions raised in the period: department, status, requested / approved / issued value, fill rate and turnaround', 'range', 'requisitions.view'],
-        'dept_consumption' => ['Inventory', 'Department Consumption vs Budget', 'Stock issued to each department in the period (expensed, transferred to its store, ad-hoc) against its pro-rated budget, with cost per occupied room', 'range', 'requisitions.view'],
-        'req_pending' => ['Inventory', 'Outstanding Requisition Lines', 'Approved quantities not yet issued: balance, stock in the issuing store and age – the store\'s to-do list', 'none', 'requisitions.view'],
-        'voids' => ['Billing', 'Void & Discount Report', 'Voided transactions and discounts (audit)', 'range'],
         'outstanding' => ['Billing', 'Guest Ledger / Outstanding', 'Open folios with balances', 'none'],
-        'pos_sales' => ['POS', 'Outlet Sales Summary', 'Bills, covers and sales by outlet', 'range'],
-        'pos_items' => ['POS', 'Item-wise Sales', 'Quantity and value by menu item', 'range'],
-        'pos_bills' => ['POS', 'Bill Register', 'All settled / void bills', 'range'],
-        'pos_payments' => ['POS', 'POS Tender Register', 'Every POS payment and refund by tender, reference, cashier and bill', 'range', 'pos.view'],
-        'pos_comps' => ['POS', 'Complimentary / Non-Chargeable Items', 'Every complimentary POS item in the period, including item-level comps and whole-bill non-chargeable settlements, with value, reason, authorizer and bill context', 'range', 'pos.view'],
-        // v3.2 restaurant table reservations
-        'table_bookings' => ['POS', 'Table Booking Register', 'Every restaurant booking, walk-in and waitlist party in the period: time, party, table, source, occasion, status, minutes late, time at the table and the bill', 'range', 'tables.view'],
-        'table_covers' => ['POS', 'Covers & No-Shows by Day', 'Day by day: bookings, booked / walk-in / waitlist covers seated, no-shows, cancellations, no-show rate and online share', 'range', 'tables.view'],
-        'table_turns' => ['POS', 'Table Turns & Utilisation', 'Per table: parties, covers, average party, average time at the table, turns per day, seat utilisation and linked sales', 'range', 'tables.view'],
-        'table_waitlist' => ['POS', 'Waitlist Performance', 'Day by day: parties waitlisted, seated and walked away, average quoted and actual wait and the share seated within the quote', 'range', 'tables.view'],
-        // v3.3 guest transport & fleet
-        'transport_trips' => ['Transport', 'Transfer Register', 'Every pick-up, drop and local transfer in the period: time, guest, route, flight, car, driver, km, minutes late, fare, billing and status', 'range', 'transport.view'],
-        'transport_vehicles' => ['Transport', 'Vehicle Utilisation & Running Cost', 'Per vehicle: trips, km driven, hours on the road, revenue, fuel & other running costs, cost per km, km per litre and margin', 'range', 'transport.view'],
-        'transport_drivers' => ['Transport', 'Driver Performance', 'Per driver: trips, km, hours on duty, on-time departures, no-shows, revenue and last trip', 'range', 'transport.view'],
-        'transport_revenue' => ['Transport', 'Transport Revenue by Day', 'Day by day: pick-ups, drops and transfers, fares to the room bill, direct and complimentary, extras, no-shows and cancellations', 'range', 'transport.view'],
-        // v3.4 foreign guests: Form C & forex desk
-        'formc_register' => ['Foreign Guests', 'Form C (FRRO) Register', 'Every foreign national who checked in: nationality, passport, visa, room, deadline, when the Form C was filed, FRRO reference, hours taken and the departure report', 'range', 'formc.view'],
-        'foreign_arrivals' => ['Foreign Guests', 'Foreign Arrivals by Nationality', 'Per nationality: guests, stays, room nights, average stay, share of foreign arrivals and Form C filed on time', 'range', 'formc.view'],
-        'forex_register' => ['Foreign Guests', 'Currency Exchange Register', 'Every foreign currency purchase: guest, passport, currency, amount, rate, cedi value, amount paid, cash or bill credit and voids (RBI money-changing register)', 'range', 'forex.view'],
-        'forex_position' => ['Foreign Guests', 'Currency Position & Surrenders', 'Per currency: opening balance, bought, surrendered to the bank, closing balance, cost, realised value and exchange gain / loss', 'range', 'forex.view'],
-        'logbook_register' => ['Desk Operations', 'Shift Log Book Register', 'Every log book entry in the period by date and shift: category, priority, department, author, open / resolved, time to resolve and how many staff read it', 'range', 'logbook.view'],
-        'wakeup_calls' => ['Desk Operations', 'Wake-up Call Performance', 'Every wake-up call due in the period: room, guest, source, attempts, answered / no answer / missed / cancelled and minutes late for the first attempt', 'range', 'desk.wakeup'],
-        'guest_messages' => ['Desk Operations', 'Guest Messages & Parcels', 'Messages and parcels taken for guests: from, channel, how and when the guest was told, delivery time and outcome', 'range', 'desk.messages'],
-        'traces_register' => ['Desk Operations', 'Traces Register', 'Traces due in the period by department: text, booking, completed on time, carried forward by the night audit or cancelled', 'range', 'desk.traces'],
-        'lost_found_register' => ['Desk Operations', 'Lost & Found Register', 'Items found in the period: item no., category, where found, finder, storage, probable owner and the outcome (returned with ID / courier, disposed with witness)', 'range', 'lostfound.manage'],
-        'banquet' => ['Banquet', 'Banquet Event Report', 'Events in the period: functions, venues, peak pax, value, deposits and status', 'range', 'banquet.view'],
-        'banquet_pipeline' => ['Banquet', 'Banquet Sales Pipeline', 'Enquiries, tentative holds, definite and lost business by event month – count, value and conversion', 'range', 'banquet.view'],
-        'venue_utilisation' => ['Banquet', 'Venue Utilisation', 'Per venue: functions, days and hours booked, occupancy of a 16-hour day, covers and revenue', 'range', 'banquet.view'],
-        'function_forecast' => ['Banquet', 'Function Forecast (Kitchen & Ops)', 'Upcoming tentative and definite functions with covers, menu and set-up – for purchasing and staffing', 'range', 'banquet.view'],
-        'crm_campaigns' => ['CRM & Marketing', 'Campaign & Automation Performance', 'Per campaign / automation: recipients, delivered, skipped, clicks, CTR, unsubscribes, attributed bookings, room nights and revenue', 'range', 'crm.view'],
-        'crm_promos' => ['CRM & Marketing', 'Promo Code Redemptions', 'Bookings made with each promo code in the period: room nights, revenue after discount, discount given and cancellations', 'range', 'crm.view'],
-        'crm_guest_value' => ['CRM & Marketing', 'Guest Value (RFM)', 'Every guest with a stay: recency, frequency and monetary scores, value segment, consent and last stay – who to win back, who to reward', 'none', 'crm.view'],
-        'contract_production' => ['Contracts & Credit', 'Contract Production', 'Per rate contract: bookings, room nights and revenue for stays in the period, ADR vs public rate, cancellations and progress against the room-night target', 'range', 'contracts.view'],
-        'allotment_utilisation' => ['Contracts & Credit', 'Allotment Utilisation', 'Per allotment line: room nights allotted in the period, picked up, released unsold and still held – is the account using what it asked for?', 'range', 'contracts.view'],
-        'sales_pipeline' => ['Sales & Marketing', 'Sales Pipeline', 'Every open opportunity: account, owner, stage, expected close, room nights, value, probability and weighted value – with stage totals', 'none', 'sales.view'], // v6.1
-        'sales_win_loss' => ['Sales & Marketing', 'Win / Loss Analysis', 'Opportunities won and lost in the period by type, source and salesperson; win rate, value won and the reasons business was lost', 'range', 'sales.view'],
-        'sales_activity' => ['Sales & Marketing', 'Sales Activity Report', 'Completed sales calls, visits, site inspections, meetings and entertainment in the period by salesperson, with spend', 'range', 'sales.view'],
-        'account_production' => ['Sales & Marketing', 'Account Production', 'Room nights, stays and room revenue per corporate / agency account for the period vs the same period last year, with on-the-books business and account manager', 'range', 'sales.view'],
-        'sales_targets' => ['Sales & Marketing', 'Sales Targets vs Actual', 'Each salesperson per month in the period: room-night, revenue and activity targets against production of their accounts', 'range', 'sales.view'],
-        'marketing_roi' => ['Sales & Marketing', 'Marketing Event ROI', 'Marketing events starting in the period: budget, actual cost, leads, cost per lead, opportunities and revenue won, ROI', 'range', 'sales.view'],
-        'marketing_budget' => ['Sales & Marketing', 'Marketing Budget vs Actual', 'Marketing budget by line for the months in the period against actual spend and committed (planned) events', 'range', 'sales.view'],
-        'digital_social' => ['Digital Marketing', 'Social Media Performance', 'Followers at start / end, growth, reach, impressions, engagements, engagement rate and posts per social channel', 'range', 'digital.view'], // v6.2
-        'digital_paid' => ['Digital Marketing', 'Paid Media Performance', 'Paid campaigns: spend vs budget, impressions, clicks, CTR, CPC, platform conversions & ROAS, and bookings / revenue attributed in the PMS', 'range', 'digital.view'],
-        'digital_links' => ['Digital Marketing', 'Tracked Link Attribution', 'Clicks, unique visitors, device mix and credited direct bookings, nights and revenue per tracked link and UTM source / medium', 'range', 'digital.view'],
-        'digital_content' => ['Digital Marketing', 'Content Calendar & Approvals', 'Posts scheduled in the period with channels, status, approver, approval turnaround, reach and engagement; missed slots highlighted', 'range', 'digital.view'],
-        'digital_influencers' => ['Digital Marketing', 'Influencer Collaborations', 'Creator collaborations: fee, complimentary value, reach, engagements, cost per engagement, bookings via link and rating', 'range', 'digital.view'],
+        'revenue' => ['Billing', 'Daily Revenue Report', 'Revenue by charge category', 'range'],
+        'tax' => ['Billing', 'Tax (VAT & Levies) Report', 'Taxable value with VAT, NHIL, GETFund and Tourism Levy by category and rate', 'range'],
+        'voids' => ['Billing', 'Void & Discount Report', 'Voided transactions and discounts (audit)', 'range'],
+        'budget_annual' => ['Budget & Planning', 'Annual Budget – Monthly Phasing', 'The active budget for the fiscal year: every income and expense account by month with section totals, GOP and net profit', 'date', 'budget.view'],
+        'budget_events' => ['Budget & Planning', 'Budget Event Register', 'Every budget adjustment event', 'none', 'budget.view'],
+        'budget_kpis' => ['Budget & Planning', 'Rooms KPIs vs Budget', 'Per fiscal month: occupancy, ADR, RevPAR, room-nights and room revenue – budget against actual', 'date', 'budget.view'],
+        'budget_lines' => ['Budget & Planning', 'Budget Line Register', 'Every budget line by department and category', 'none', 'budget.view'],
+        'budget_stats' => ['Budget & Planning', 'Budget Stats Register', 'Monthly budget vs actual by department', 'none', 'budget.view'],
+        'budget_vs_actual' => ['Budget & Planning', 'Budget vs Actual (P&L)', 'Month and year-to-date actuals from the general ledger against the active budget (current month pro-rated), variances, % and full-year budget / forecast', 'date', 'budget.view'],
+        'forecast_vs_budget' => ['Budget & Planning', 'Forecast vs Budget', 'Full-year active re-forecast against the approved budget per account, with actuals to date and the remaining forecast', 'date', 'budget.view'],
+        'variance_commentary' => ['Budget & Planning', 'Variance Commentary Log', 'Explanations recorded for budget variances in the period: month, account, actual, budget, variance, comment and author', 'range', 'budget.view'],
+        'cro_agents' => ['Central Reservations', 'CRO Agent Performance', 'Per reservations agent: enquiries, bookings, referrals, denials, regrets, conversion vs target, booked and lost revenue, average call length', 'range', 'cro.view'],
+        'cro_demand' => ['Central Reservations', 'Unconstrained Demand', 'By stay date: capacity, rooms on the books, rooms denied and regretted, and occupancy with and without denials – the demand revenue management should price for', 'range', 'cro.view'],
         'cro_enquiries' => ['Central Reservations', 'Reservations Enquiry Register', 'Every enquiry logged in the period with the stay asked, channel, agent, value and outcome – booked, referred to a sister hotel, or lost (denial / regret, reason, competitor)', 'range', 'cro.view'],
         'cro_lost_business' => ['Central Reservations', 'Lost Business (Denials & Regrets)', 'Lost enquiries by reason: denials (could not offer) and regrets (guest declined) with count, room nights, value, share, and turnaways kept in the group by referral', 'range', 'cro.view'],
-        'cro_demand' => ['Central Reservations', 'Unconstrained Demand', 'By stay date: capacity, rooms on the books, rooms denied and regretted, and occupancy with and without denials – the demand revenue management should price for', 'range', 'cro.view'],
-        'cro_agents' => ['Central Reservations', 'CRO Agent Performance', 'Per reservations agent: enquiries, bookings, referrals, denials, regrets, conversion vs target, booked and lost revenue, average call length', 'range', 'cro.view'],
         'cro_referrals' => ['Central Reservations', 'Sister-Hotel Referrals', 'Turnaways referred between the hotels of the group: origin and receiving hotel, guest, stay, reason and room revenue kept in the group', 'range', 'cro.view'],
+        'channel_ari_states' => ['Channel Manager', 'Channel ADR/Index Register', 'Daily ADR and index by channel', 'none', 'channel.view'],
+        'channel_messages' => ['Channel Manager', 'Channel Message Register', 'Every message sent to or received from a channel', 'none', 'channel.view'],
+        'channel_parity' => ['Channel Manager', 'Rate Parity Exceptions', 'Every room-night where what a channel last acknowledged (availability, restrictions, prices) differs from what the PMS publishes now', 'range', 'channels.view'],
+        'channel_production' => ['Channel Manager', 'Channel Production', 'Per OTA connection: bookings received in the period, room nights, gross revenue, commission, net revenue, ADR, lead time, length of stay, cancellations and prepaid share', 'range', 'channels.view'],
+        'channel_rate_maps' => ['Channel Manager', 'Channel Rate Map Register', 'Every rate mapping between PMS and channel', 'none', 'channel.view'],
+        'channel_restrictions' => ['Channel Manager', 'Channel Restriction Register', 'Every channel availability restriction by date and room type', 'none', 'channel.view'],
+        'channel_room_maps' => ['Channel Manager', 'Channel Room Map Register', 'Every room type mapping between PMS and channel', 'none', 'channel.view'],
+        'channel_sync_log' => ['Channel Manager', 'Channel Sync Log', 'ARI pushes per channel and day: deltas and full refreshes, room-nights sent, failures, average duration and the last error', 'range', 'channels.view'],
+        'ota_channels' => ['Channel Manager', 'OTA Channel Register', 'Every OTA channel with integration status and mapping', 'none', 'channel.view'],
+        'compliance_events' => ['Compliance & HSE', 'Compliance Event Register', 'Every compliance event', 'none', 'compliance.view'],
+        'compliance_register' => ['Compliance & HSE', 'Licences & Compliance Register', 'Every licence, permit, certificate, insurance, inspection and AMC with expiry / next due, days left and status as at a date', 'date', 'compliance.view'],
+        'data_breaches' => ['Compliance & HSE', 'Data Breach Register', 'Every reported data breach with severity and closure tracking', 'none', 'compliance.view'],
+        'hse_accidents' => ['Compliance & HSE', 'Accident & Near-Miss Register', 'Accidents, injuries, near misses and dangerous occurrences with the person, injury, days lost, Act 328 notice and investigation status; LTIFR for the period', 'range', 'hse.view'],
+        'hse_checks' => ['Compliance & HSE', 'Fire Equipment Inspection Log', 'Visual checks and contractor services in the period: item, result, faults found, certificate, engineering ticket and who checked', 'range', 'hse.view'],
+        'hse_drills' => ['Compliance & HSE', 'Fire Drill Log', 'Drills in the period by shift: evacuation time against the target, roll call, guests evacuated, result and improvements', 'range', 'hse.view'],
+        'hse_equipment' => ['Compliance & HSE', 'Fire Equipment Register', 'Every fire and life-safety item with GNFS tag, location, last and next visual check, contractor service due, expiry and state (in order / due / overdue / defective / expired)', 'none', 'hse.view'],
+        'hse_permits' => ['Compliance & HSE', 'Permit-to-Work Register', 'Permits requested in the period by type: location, contractor, period, requester and issuer, fire watch / gas test / isolation, close-out time and late close-outs', 'range', 'hse.view'],
+        'hse_risks' => ['Compliance & HSE', 'Risk Register', 'Live risk assessments: hazard, who is at risk, initial and residual rating on the 5 × 5 matrix, owner, acceptance and review date', 'none', 'hse.view'],
+        'hse_wardens' => ['Compliance & HSE', 'HSE Warden Register', 'Every fire warden, first aider and fire team member with training status', 'none', 'compliance.view'],
+        'pii_access' => ['Compliance & HSE', 'PII Access Log', 'Every reveal of masked identifiers, ID-document and e-signature view and personal-data export in the period, by user', 'range', 'privacy.view'],
+        'pm_compliance' => ['Compliance & HSE', 'Preventive Maintenance Compliance', 'PM tickets that fell due in the period: done on time, late or still open, with days late and technician', 'range', 'maintenance.manage'],
+        'privacy_request_events' => ['Compliance & HSE', 'Privacy Request Event Register', 'Every event in a data privacy request lifecycle', 'none', 'compliance.view'],
+        'privacy_requests' => ['Compliance & HSE', 'Privacy Request Register', 'Data-subject requests received in the period: type, channel, identity check, deadline, days taken, on time / late / open and the outcome', 'range', 'privacy.view'],
+        'privacy_retention' => ['Compliance & HSE', 'Retention & Erasure Log', 'Per day: ID scans and signatures deleted, message contents purged, profiles anonymised or restricted (on request / by policy), legal holds completed', 'range', 'privacy.view'],
+        'activity_departures' => ['Concierge & Activities', 'Activity Departure Register', 'Every activity departure with bookings and seat availability', 'range', 'activity.view'],
+        'concierge_bookings' => ['Concierge & Activities', 'Activity Bookings Register', 'Every activity / excursion booking in the period: operator, guest, party, source, paid to hotel or operator, sold value, commission, status and settlement', 'range', 'concierge.view'], // v5.9
+        'concierge_sales' => ['Concierge & Activities', 'Activity Sales & Commission', 'Per activity: bookings, guests, sold value, average booking, commission earned, cancellations, no-shows, portal share and take-up', 'range', 'concierge.view'],
+        'concierge_staff' => ['Concierge & Activities', 'Concierge Sales by Staff', 'Bookings, guests, sold value and commission by the staff member (or guest portal) that made them – the base for concierge incentives', 'range', 'concierge.view'],
+        'concierge_vendors' => ['Concierge & Activities', 'Operator Statement & Balances', 'Per tour operator: finished bookings, commission, settlements paid / received and unsettled balances owed each way, with licence expiry', 'range', 'concierge.view'],
+        'logbook_register' => ['Front Office', 'Shift Log Book Register', 'Every log book entry in the period by date and shift: category, priority, department, author, open / resolved, time to resolve and how many staff read it', 'range', 'logbook.view'],
+        'lost_found_register' => ['Front Office', 'Lost & Found Register', 'Items found in the period: item no., category, where found, finder, storage, probable owner and the outcome (returned with ID / courier, disposed with witness)', 'range', 'lostfound.manage'],
+        'traces_register' => ['Front Office', 'Traces Register', 'Traces due in the period by department: text, booking, completed on time, carried forward by the night audit or cancelled', 'range', 'desk.traces'],
+        'wakeup_calls' => ['Front Office', 'Wake-up Call Performance', 'Every wake-up call due in the period: room, guest, source, attempts, answered / no answer / missed / cancelled and minutes late for the first attempt', 'range', 'desk.wakeup'],
+        'banquet_event_items' => ['F&B & POS', 'Banquet Event Item Register', 'Every item line on a banquet event', 'none', 'fnb.view'],
+        'banquet_packages' => ['F&B & POS', 'Banquet Package Register', 'Every banquet package with items, price and active', 'none', 'fnb.view'],
+        'banquet_services' => ['F&B & POS', 'Banquet Service Register', 'Every banquet service offered: name, price, pax and active', 'none', 'fnb.view'],
+        'fb_cost_snapshots' => ['F&B & POS', 'F&B Cost Snapshot Register', 'Every periodic food cost snapshot', 'none', 'fnb.view'],
+        'fb_recipe_cards' => ['F&B & POS', 'F&B Recipe Card Register', 'Every recipe card with ingredients, quantities and cost', 'none', 'fnb.view'],
+        'fb_staff_meals' => ['F&B & POS', 'F&B Staff Meal Register', 'Every staff meal served with cost per cover and total', 'none', 'fnb.view'],
+        'fb_yield_tests' => ['F&B & POS', 'F&B Yield Test Register', 'Every yield test with gross/trim/loss/usable quantities', 'none', 'fnb.view'],
+        'kot_print_jobs' => ['F&B & POS', 'KOT Print Job Register', 'Every kitchen order ticket print job', 'range', 'fnb.view'],
+        'kot_printers' => ['F&B & POS', 'KOT Printer Register', 'Every kitchen order ticket printer with configuration and usage', 'range', 'fnb.view'],
+        'menu_categories' => ['F&B & POS', 'Menu Category Register', 'Every menu category with item count', 'none', 'fnb.view'],
+        'menu_item_recipes' => ['F&B & POS', 'Menu Item Recipes Register', 'Detailed register of Menu Item Recipes records', 'none', 'fnb.view'],
+        'menu_items' => ['F&B & POS', 'Menu Item Register', 'Every menu item with category, price, cost and active status', 'none', 'fnb.view'],
+        'menu_modifier_groups' => ['F&B & POS', 'Menu Modifier Groups Register', 'Detailed register of Menu Modifier Groups records', 'none', 'fnb.view'],
+        'menu_modifiers' => ['F&B & POS', 'Menu Modifiers Register', 'Detailed register of Menu Modifiers records', 'none', 'fnb.view'],
+        'outlet_service_periods' => ['F&B & POS', 'Outlet Service Period Register', 'Every F&B outlet service period by day', 'none', 'fnb.view'],
+        'package_allocation' => ['F&B & POS', 'Package Allocation & Breakage', 'Per package: value allocated out of room revenue and add-ons, used at the outlets, expired as breakage, still open, extras charged; take-up rate', 'range', 'packages.view'],
+        'package_consumption' => ['F&B & POS', 'Package Consumption Register', 'Every cover / allowance recorded at the Meal Desk: room, guest, package, covers, value, extras and how they were settled, voids', 'range', 'packages.view'],
+        'package_forecast' => ['F&B & POS', 'Meal Cover Forecast', 'Breakfast / lunch / dinner covers per service date: actual entitlements for past days, on-the-books forecast from today (in-house + confirmed reservations)', 'range', 'packages.view'], // v5.5
+        'pos_bills' => ['F&B & POS', 'Bill Register', 'All settled / void bills', 'range'],
+        'pos_comps' => ['F&B & POS', 'Complimentary / Non-Chargeable Items', 'Every complimentary POS item in the period, including item-level comps and whole-bill non-chargeable settlements, with value, reason, authorizer and bill context', 'range', 'pos.view'],
+        'pos_evat_register' => ['F&B & POS', 'Restaurant Bills E-VAT Register', 'Bills settled at the outlets in the period: customer TIN, taxable value, VAT and levies, E-VAT receipt number and status', 'range', 'gst.view'],
+        'pos_items' => ['F&B & POS', 'Item-wise Sales', 'Quantity and value by menu item', 'range'],
+        'pos_payments' => ['F&B & POS', 'POS Tender Register', 'Every POS payment and refund by tender, reference, cashier and bill', 'range', 'pos.view'],
+        'pos_sales' => ['F&B & POS', 'Outlet Sales Summary', 'Bills, covers and sales by outlet', 'range'],
+        'pos_tables' => ['F&B & POS', 'POS Table Register', 'Every POS table with outlet, capacity and active', 'none', 'fnb.view'],
+        'spa_rooms' => ['F&B & POS', 'Spa Room Register', 'Every spa room with type, capacity and active', 'range', 'fnb.view'],
+        'table_bookings' => ['F&B & POS', 'Table Booking Register', 'Every restaurant booking, walk-in and waitlist party in the period: time, party, table, source, occasion, status, minutes late, time at the table and the bill', 'range', 'tables.view'],
+        'table_covers' => ['F&B & POS', 'Covers & No-Shows by Day', 'Day by day: bookings, booked / walk-in / waitlist covers seated, no-shows, cancellations, no-show rate and online share', 'range', 'tables.view'],
+        'table_turns' => ['F&B & POS', 'Table Turns & Utilisation', 'Per table: parties, covers, average party, average time at the table, turns per day, seat utilisation and linked sales', 'range', 'tables.view'],
+        'table_waitlist' => ['F&B & POS', 'Waitlist Performance', 'Day by day: parties waitlisted, seated and walked away, average quoted and actual wait and the share seated within the quote', 'range', 'tables.view'],
+        'fbc_food_cost' => ['F&B & POS', 'Daily Food & Beverage Cost Flash', 'Per day: food and beverage revenue, theoretical cost, cost consumed, employee meals and officers\' checks credited, cost of sales and cost % against target', 'range', 'fbc.view'],
+        'fbc_menu_engineering' => ['F&B & POS', 'Menu Engineering Analysis', 'Kasavana & Smith worksheet for the period: items sold, menu mix %, average price, plate cost, contribution margin and class (Star / Plowhorse / Puzzle / Dog) with the action', 'range', 'fbc.view'],
+        'fbc_price_changes' => ['F&B & POS', 'Menu Price Change Log', 'Menu price changes in the period with old and new price, plate cost at the time, cost % before and after, reason and user', 'range', 'fbc.view'],
+        'fbc_recipe_costs' => ['F&B & POS', 'Recipe Costing Register', 'Every menu item with price, plate cost at the current costing basis and trim yields, gross profit, cost % against its target, suggested price and recipe-card status', 'none', 'fbc.view'], // v6.8
+        'fbc_variance' => ['F&B & POS', 'Ideal vs Actual Usage Variance', 'Per ingredient: ideal usage from portions sold × recipe (grossed up for yield) against consumption, issues, waste and count adjustments from the kitchen, bar and outlet stores, with the value', 'range', 'fbc.view'],
+        'dept_scores' => ['Feedback & Reputation', 'Department Scorecard', 'Per department: average survey rating, positive and negative mentions in comments and reviews, net sentiment, cases, high-severity and past-SLA cases', 'range', 'feedback.view'],
+        'feedback_answers' => ['Feedback & Reputation', 'Feedback Answer Register', 'Every survey answer given by a guest', 'none', 'feedback.view'],
+        'feedback_case_events' => ['Feedback & Reputation', 'Feedback Case Event Register', 'Every event in the lifecycle of a feedback case', 'none', 'feedback.view'],
+        'feedback_cases' => ['Feedback & Reputation', 'Service Recovery Cases', 'Cases opened in the period: department, severity, owner, hours to first contact and to resolve, SLA, recovery action, goodwill points and outcome', 'range', 'feedback.view'],
+        'feedback_register' => ['Feedback & Reputation', 'Guest Feedback Register', 'Every survey, portal and web feedback response in the period with recommend score, overall rating, sentiment, complaint areas, comments and the recovery case', 'range', 'feedback.view'],
+        'nps_trend' => ['Feedback & Reputation', 'NPS & Satisfaction Trend', 'Month by month: surveys sent, response rate, promoters / passives / detractors, NPS, average overall rating, negative comments, online rating and review response rate', 'range', 'feedback.view'],
+        'online_reviews' => ['Feedback & Reputation', 'Online Review Register', 'Reviews from TripAdvisor, Google, Booking.com and others by review date: rating, sentiment, matched guest, response status, who posted it and hours to respond', 'range', 'feedback.view'],
+        'survey_invitations' => ['Feedback & Reputation', 'Survey Invitation Register', 'Every survey invitation sent to a guest', 'none', 'feedback.view'],
+        'survey_questions' => ['Feedback & Reputation', 'Survey Question Register', 'Every survey question by template', 'none', 'feedback.view'],
+        'surveys' => ['Feedback & Reputation', 'Survey Register', 'Every guest survey with template, period and response count', 'range', 'feedback.view'],
+        'asset_categories' => ['Fixed Assets & Engineering', 'Asset Category Register', 'Every fixed asset category with depreciation method', 'none', 'assets.view'],
+        'asset_dep_runs' => ['Fixed Assets & Engineering', 'Asset Depreciation Run Register', 'Every depreciation run', 'range', 'assets.view'],
+        'asset_register' => ['Fixed Assets & Engineering', 'Fixed Asset Register', 'Every asset held at a date: category, location, cost, accumulated depreciation and net book value', 'date', 'assets.view'],
+        'asset_schedule' => ['Fixed Assets & Engineering', 'Fixed Asset Schedule (Roll-forward)', 'Per asset for the period: opening cost, additions, disposals, depreciation charge and closing net book value – ties to the balance sheet', 'range', 'assets.view'],
+        'pm_schedules' => ['Fixed Assets & Engineering', 'PM Schedule Register', 'Every preventive maintenance schedule by asset and frequency', 'range', 'assets.view'],
+        'food_waste' => ['Food Safety', 'Food Waste Analysis', 'Food waste by item and reason with quantity and cost; raw & unserved dishes (posted to 5042 Food Waste) and plate waste (analysis only)', 'range', 'foodsafety.view'],
+        'fs_certificates' => ['Food Safety', 'FS Certificate Register', 'Every food safety certificate with expiry and status', 'none', 'foodsafety.view'],
+        'fs_equipment' => ['Food Safety', 'FS Equipment Register', 'Every food safety equipment with calibration dates', 'none', 'foodsafety.view'],
+        'fs_labels' => ['Food Safety', 'FS Label Register', 'Every food safety label with allergen information', 'none', 'foodsafety.view'],
+        'haccp_checklists' => ['Food Safety', 'HACCP Checklist Compliance', 'Checklist periods due in the range: completed on time or missed, failed items and sign-off', 'range', 'foodsafety.view'],
+        'haccp_temperatures' => ['Food Safety', 'HACCP Temperature Log', 'Every temperature reading in the period – equipment checks, receiving, cooking, reheating and cooling – with critical limit, result, corrective action and reviewer', 'range', 'foodsafety.view'], // v5.0
+        'foreign_arrivals' => ['Foreign Guests & Forex', 'Foreign Arrivals by Nationality', 'Per nationality: guests, stays, room nights, average stay, share of foreign arrivals and Form C filed on time', 'range', 'formc.view'],
+        'forex_position' => ['Foreign Guests & Forex', 'Currency Position & Surrenders', 'Per currency: opening balance, bought, surrendered to the bank, closing balance, cost, realised value and exchange gain / loss', 'range', 'forex.view'],
+        'forex_rates' => ['Foreign Guests & Forex', 'Forex Rate Board History', 'Every posted forex rate with buy rate, margin and setter', 'range', 'forex.view'],
+        'forex_register' => ['Foreign Guests & Forex', 'Currency Exchange Register', 'Every foreign currency purchase: guest, passport, currency, amount, rate, cedi value, amount paid, cash or bill credit and voids (RBI money-changing register)', 'range', 'forex.view'],
+        'forex_surrenders' => ['Foreign Guests & Forex', 'Forex Surrender Register', 'Foreign exchange surrendered to the bank with realised gain/loss', 'range', 'forex.view'],
+        'formc_register' => ['Foreign Guests & Forex', 'Form C (FRRO) Register', 'Every foreign national who checked in: nationality, passport, visa, room, deadline, when the Form C was filed, FRRO reference, hours taken and the departure report', 'range', 'formc.view'],
+        'activity_bookings' => ['Front Office', 'Activity Booking Register', 'Every activity booking with guest, date and status', 'range', 'frontoffice.view'],
+        'arrivals' => ['Front Office', 'Arrival List', 'Expected arrivals for the period', 'range'],
+        'cancellations' => ['Front Office', 'Cancellation & No-Show', 'Cancelled and no-show reservations', 'range'],
+        'company' => ['Front Office', 'Company-wise Business', 'Room nights & revenue by company/agent', 'range'],
+        'departures' => ['Front Office', 'Departure List', 'Expected departures for the period', 'range'],
+        'guest_documents' => ['Front Office', 'Guest Document Register', 'ID scans, photos, visas and other guest documents', 'range', 'frontoffice.view'],
+        'guest_requests' => ['Front Office', 'Guest Requests & Response Times', 'Portal / phone requests by type: volumes, response & completion times, SLA breaches, ratings', 'range'],
+        'inhouse' => ['Front Office', 'In-House Guest List', 'All guests currently checked in', 'none'],
+        'loyalty_entries' => ['Front Office', 'Loyalty Entry Register', 'Every loyalty point earning and redemption', 'range', 'frontoffice.view'],
+        'nationality' => ['Front Office', 'Nationality Report', 'Guest arrivals by nationality', 'range'],
+        'occupancy' => ['Front Office', 'Occupancy Statistics', 'Day-wise occupancy, ADR and RevPAR', 'range'],
+        'police' => ['Front Office', 'Police / Form-C Report', 'Foreign national check-ins', 'range'],
+        'reservation_amendments' => ['Front Office', 'Reservation Amendment Log', 'Every amendment to a reservation', 'range', 'frontoffice.view'],
+        'reservation_desk_views' => ['Front Office', 'Reservation Desk View Register', 'Every saved reservation desk view', 'range', 'frontoffice.view'],
+        'reservation_waitlist' => ['Front Office', 'Reservation Waitlist Register', 'Every waitlist entry with dates, party and status', 'range', 'frontoffice.view'],
+        'reservations' => ['Front Office', 'Reservation Register', 'Reservations created in the period', 'range'],
+        'room_amenities' => ['Front Office', 'Room Amenity Register', 'Every room amenity with name, type and active', 'none', 'frontoffice.view'],
+        'room_amenity_links' => ['Front Office', 'Room Amenity Link Register', 'Every room-to-amenity mapping', 'none', 'frontoffice.view'],
+        'room_block_lines' => ['Front Office', 'Room Block Line Register', 'Every room block allocation by room type', 'none', 'frontoffice.view'],
+        'room_blocks' => ['Front Office', 'Room Block Register', 'Every room block allocation: group, room type, dates, rooms and status', 'range', 'frontoffice.view'],
+        'room_counts' => ['Front Office', 'Room Count Register', 'Daily room count by type and status — available, occupied, out of order, blocked', 'range', 'frontoffice.view'],
+        'room_images' => ['Front Office', 'Room Image Register', 'Every room photo uploaded to the system', 'none', 'frontoffice.view'],
+        'room_moves' => ['Front Office', 'Room Move Register', 'Every guest room move with from, to and reason', 'range', 'frontoffice.view'],
+        'room_outages' => ['Front Office', 'Room Outage Register', 'Every room outage with reason, dates and status', 'range', 'frontoffice.view'],
+        'source' => ['Front Office', 'Business Source Analysis', 'Room nights & revenue by source', 'range'],
+        'stay_fixed_charges' => ['Front Office', 'Stay Fixed Charge Register', 'Every stay fixed charge applied to a reservation', 'range', 'frontoffice.view'],
+        'upsell_offers' => ['Front Office', 'Upsell Offer Register', 'Every upsell offer with type, value and active', 'range', 'frontoffice.view'],
+        'wakeup_attempts' => ['Front Office', 'Wakeup Attempt Register', 'Every wakeup call attempt with status', 'range', 'frontoffice.view'],
+        'accrual_register' => ['General Ledger', 'Accruals & Prepayments Register', 'Accrued expenses, prepaid expenses and deferred income: amount, posted, balance remaining and next month to post', 'date', 'close.view'],
+        'balance_sheet' => ['General Ledger', 'Balance Sheet', 'Assets, liabilities and equity as at a date', 'date', 'gl.view'],
+        'close_status' => ['General Ledger', 'Period Close Status', 'Month-end close by period: checklist cleared, waivers, preparer and approver, days taken to close', 'range', 'close.view'], // v5.6
+        'fiscal_year_closes' => ['General Ledger', 'Fiscal Year Close Register', 'Every fiscal year close with closing journal and performer', 'range', 'accounts.view'],
+        'gl_journals' => ['General Ledger', 'General Ledger Journals', 'Every GL journal with entry, period and status', 'range', 'accounts.view'],
+        'gl_pnl' => ['General Ledger', 'Profit & Loss (GL)', 'Income statement from the double-entry ledger, by account group', 'range', 'gl.view'],
+        'ia_authorisations' => ['General Ledger', 'Comps, Discounts & Rate Authorisations', 'Complimentary and house-use rooms, below-expected rates and folio discounts requested in the period, the revenue given away, who asked and who approved', 'range', 'income_audit.view'],
+        'ia_findings' => ['General Ledger', 'Audit Exceptions Register', 'Every income-audit exception raised for business dates in the period: check, severity, room / document, value and how it was resolved (explained, corrected, escalated, accepted)', 'range', 'income_audit.view'], // v5.3
+        'ia_rate_variance' => ['General Ledger', 'Room Rate Variance', 'Each occupied room night: tariff charged against the expected rate (rate plan, contract, group block or rack less booking discount), variance and the authorisation covering it (max 31 days)', 'range', 'income_audit.view'],
+        'ia_reconciliation' => ['General Ledger', 'Daily Revenue Reconciliation', 'Per business date: night-audit report vs the baseline at close vs now for room / other revenue, tax and collections, discounts, GL income, open exceptions and sign-off', 'range', 'income_audit.view'],
+        'journal_register' => ['General Ledger', 'Journal Register (Day Book)', 'Every journal line posted in the period', 'range', 'gl.view'],
+        'period_end_postings' => ['General Ledger', 'Period-end Postings', 'Journals made from schedules and recurring templates in the period, with auto-reversals', 'range', 'close.view'],
+        'recurring_journals' => ['General Ledger', 'Recurring Journal Register', 'Every recurring journal template', 'none', 'accounts.view'],
+        'trial_balance' => ['General Ledger', 'Trial Balance', 'Opening, period movement and closing balance of every account', 'range', 'gl.view'],
+        'guest_messages' => ['Guest Messaging', 'Guest Messages & Parcels', 'Messages and parcels taken for guests: from, channel, how and when the guest was told, delivery time and outcome', 'range', 'desk.messages'],
+        'inbox_agents' => ['Guest Messaging', 'Messaging Team Performance', 'Per staff member: conversations, replies, internal notes, average first response, share within target, conversations closed and average guest rating', 'range', 'inbox.view'],
+        'inbox_broadcasts' => ['Guest Messaging', 'Inbox Broadcasts Register', 'Detailed register of Inbox Broadcasts records', 'range', 'inbox.view'],
+        'inbox_conversations' => ['Guest Messaging', 'Guest Conversations', 'Every guest conversation started in the period: channel (portal chat, WhatsApp, SMS, e-mail), guest, room, team, assigned staff, messages each way, first response time, guest rating and status', 'range', 'inbox.view'], // v7.3
+        'inbox_quick_replies' => ['Guest Messaging', 'Inbox Quick Replies Register', 'Detailed register of Inbox Quick Replies records', 'range', 'inbox.view'],
+        'inbox_response' => ['Guest Messaging', 'Messaging Response Times by Day', 'Per day: conversations, guest messages, staff, automatic and broadcast replies, average and slowest response and the share answered within the response-time target', 'range', 'inbox.view'],
+        'inbox_topics' => ['Guest Messaging', 'Messaging Topics & Automatic Answers', 'What guests write about: conversations per team with channel mix and rating, and how often each keyword rule answered automatically', 'range', 'inbox.view'],
+        'hr_announcements' => ['HR & People', 'HR Announcement Register', 'Every internal HR announcement', 'none', 'hr.view'],
+        'hr_documents' => ['HR & People', 'HR Document Register', 'Every employee document with verification status', 'none', 'hr.view'],
+        'hr_profile_updates' => ['HR & People', 'HR Profile Update Register', 'Every employee profile change request with approval status', 'none', 'hr.view'],
+        'club_attendance' => ['Health Club & Spa', 'Club Attendance & Utilisation', 'Visits by day and facility (members, hotel guests, day passes, members\' guests), refusals, overrides and class attendance', 'range', 'club.view'],
+        'club_classes' => ['Health Club & Spa', 'Club Class Schedule', 'Every club class with instructor, capacity and bookings', 'none', 'club.view'],
+        'club_members' => ['Health Club & Spa', 'Membership Register', 'Memberships current in the period by plan, with term, card holders, balance and visits; joins, renewals and leavers', 'range', 'club.view'], // v5.1
+        'club_revenue' => ['Health Club & Spa', 'Club Revenue & Deferred Fees', 'Membership fees earned day by day, joining fees, guest & day passes, credit notes, receipts and the fees still held in advance', 'range', 'club.view'],
+        'club_ticket_payments' => ['Health Club & Spa', 'Club Ticket Payment Register', 'Every payment on a club ticket sale', 'none', 'club.view'],
+        'club_ticket_sale_items' => ['Health Club & Spa', 'Club Ticket Sale Item Register', 'Every line on a club ticket sale', 'none', 'club.view'],
+        'club_ticket_sales' => ['Health Club & Spa', 'Club Ticket Sale Register', 'Every club ticket sale with type, price and guest', 'none', 'club.view'],
+        'club_ticket_types' => ['Health Club & Spa', 'Club Ticket Type Register', 'Every club ticket type with category, price and active', 'none', 'club.view'],
+        'spa_revenue' => ['Health Club & Spa', 'Spa & Activity Revenue', 'Appointments and revenue by service and therapist', 'range'],
+        'ffe_reserve' => ['Hotel Group & Owner Reporting', 'FF&E Reserve Ledger & Capex', 'Reserve opening balance, contributions, interest, capex drawdowns and adjustments with a running balance, and each capital project\'s budget and spend', 'range', 'owner.view'],
+        'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'Every management group with affiliated hotel count', 'none', 'hotels.view'],
+        'hotel_kpis' => ['Hotel Group & Owner Reporting', 'Hotel KPIs by Month', 'Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied room, GOP and EBITDA margins, labour cost % and F&B cost %', 'range', 'owner.view'],
+        'management_agreements' => ['Hotel Group & Owner Reporting', 'Management Agreement Register', 'Every hotel management agreement with fee structure', 'none', 'hotels.view'],
+        'management_fees' => ['Hotel Group & Owner Reporting', 'Management Fee Calculation', 'Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the owner\'s priority, incentive fee, status and payment', 'range', 'owner.view'],
+        'owner_queries' => ['Hotel Group & Owner Reporting', 'Owner Query Register', 'Every query raised by an owner on a statement, with replies', 'none', 'hotels.view'],
+        'owner_statements' => ['Hotel Group & Owner Reporting', 'Owner Statement Register', 'Every issued owner statement with status and acknowledgement', 'none', 'hotels.view'],
+        'usali_departments' => ['Hotel Group & Owner Reporting', 'USALI Departmental Schedules', 'Every ledger account under its USALI department and category (revenue, cost of sales, labour, other) with departmental profit and % of the department\'s revenue', 'range', 'owner.view'],
+        'usali_summary' => ['Hotel Group & Owner Reporting', 'USALI Summary Operating Statement', 'USALI 11th edition statement for any period: revenue by department, departmental and undistributed expenses, GOP, management fees, non-operating items, EBITDA, replacement reserve and net income with % of revenue', 'range', 'owner.view'], // v5.8
+        'admin_call_usage' => ['Hotel Interfaces', 'Administrative Call Usage', 'Calls from administrative and public extensions by department and extension: calls, minutes and carrier cost', 'range', 'calls.view'],
+        'api_usage' => ['Hotel Interfaces', 'API Usage by Client', 'Per API client and call: requests, successes, client (4xx) and server (5xx) errors, error rate, average response time and the last call – plus calls refused for want of a valid key', 'range', 'api.view'],
+        'call_log' => ['Hotel Interfaces', 'Call Accounting Log', 'Every call from the PABX in the period: time, extension, room / guest, number (masked), class, duration, carrier cost, guest charge and status', 'range', 'calls.view'],
+        'call_revenue' => ['Hotel Interfaces', 'Telephone Revenue & Margin', 'Guest calls by class: calls, minutes, carrier cost, amount charged and margin – plus unbilled (pending / waived) calls', 'range', 'calls.view'],
+        'interface_commands' => ['Hotel Interfaces', 'Interface Command Register', 'Every interface command sent to a hotel system', 'range', 'interfaces.view'],
+        'key_card_audit' => ['Hotel Interfaces', 'Key Card Audit', 'Guest key cards encoded in the period: room, holder, type, valid until, status, who issued and lost-card fees', 'range', 'keys.view'],
+        'master_key_register' => ['Hotel Interfaces', 'Master Key Register', 'Master-key sign-outs in the period: key, holder, purpose, out, due, returned, late / lost', 'range', 'keys.view'],
+        'webhook_deliveries' => ['Hotel Interfaces', 'Webhook Delivery Performance', 'Per endpoint and event: events queued, delivered, still retrying and given up, first-attempt success, average attempts and response time', 'range', 'api.view'],
+        'hk_productivity' => ['Housekeeping', 'Attendant Productivity', 'Rooms, credits, minutes per room, DND and re-cleans per attendant', 'range'],
+        'maintenance' => ['Housekeeping', 'Maintenance Report', 'Tickets raised in the period', 'range'],
+        'minibar' => ['Housekeeping', 'Minibar Sales', 'Minibar consumption posted to guest folios', 'range'],
+        'minibar_items' => ['Housekeeping', 'Minibar Item Register', 'Every minibar item with price, stock and active', 'range', 'housekeeping.view'],
+        'room_status' => ['Housekeeping', 'Room Status Report', 'Current occupancy and housekeeping status', 'none'],
+        'iptv_channels' => ['IPTV & Guest Technology', 'Channel Line-up & Viewing', 'Every channel: number, category, language, stream, guide id, programmes still ahead in the guide and views in the last 30 days', 'none', 'iptv.view'],
+        'iptv_devices' => ['IPTV & Guest Technology', 'TV & Screen Register', 'Every in-room TV and lobby screen: room / location, platform, model, MAC, serial, status, last heartbeat, online now, paired date and the guest in the room', 'none', 'iptv.view'], // v7.1
+        'iptv_engagement' => ['IPTV & Guest Technology', 'TV Engagement by Day', 'Per day: TVs used, screen actions, welcome screens seen, channel views, movie rentals, dining orders and service requests from the TV, with the share of stays using the TV portal', 'range', 'iptv.view'],
+        'iptv_messages' => ['IPTV & Guest Technology', 'TV Message & Emergency Log', 'Room messages, broadcasts and emergency alerts sent to TVs in the period: audience, timing, sender, reads, withdrawal / all-clear note', 'range', 'iptv.view'],
+        'iptv_orders' => ['IPTV & Guest Technology', 'Orders & Requests from the TV', 'In-room dining orders, service requests, express check-outs and wake-up calls guests placed on the room TV, with status and value', 'range', 'iptv.view'],
+        'iptv_vod' => ['IPTV & Guest Technology', 'Movie Rentals (Pay TV)', 'Movie rentals in the period: room, guest, title, amount before tax, VAT & levies, total charged to the folio, refunds with reason and approver', 'range', 'iptv.view'],
+        'tv_commands' => ['IPTV & Guest Technology', 'TV Command Register', 'Every IPTV command sent to a device', 'none', 'iptv.view'],
+        'tv_message_reads' => ['IPTV & Guest Technology', 'TV Message Read Register', 'Every IPTV message read on a device', 'none', 'iptv.view'],
+        'tv_movies' => ['IPTV & Guest Technology', 'TV Movie Register', 'Every movie available on the IPTV system', 'none', 'iptv.view'],
+        'tv_pages' => ['IPTV & Guest Technology', 'TV Page Register', 'Every IPTV page: name, type, content and active', 'none', 'iptv.view'],
+        'tv_programmes' => ['IPTV & Guest Technology', 'TV Programme Register', 'Every TV programme with channel, time and duration', 'none', 'iptv.view'],
+        'tv_sessions' => ['IPTV & Guest Technology', 'TV Session Register', 'Every IPTV viewing session with guest and device', 'none', 'iptv.view'],
+        'tv_welcome_templates' => ['IPTV & Guest Technology', 'TV Welcome Template Register', 'Every guest welcome template on the TV system', 'none', 'iptv.view'],
+        'consumption' => ['Inventory & Purchasing', 'Consumption / Issue Report', 'Issues and wastage by item', 'range'],
+        'dept_consumption' => ['Inventory & Purchasing', 'Department Consumption vs Budget', 'Stock issued to each department in the period (expensed, transferred to its store, ad-hoc) against its pro-rated budget, with cost per occupied room', 'range', 'requisitions.view'],
+        'goods_received' => ['Inventory & Purchasing', 'Goods Received Register', 'Every delivery in the period by GRN and item: delivered, rejected (with reason) and accepted quantities, PO rate and accepted value – single-step receipts included', 'range'], // v4.8
+        'grn_lines' => ['Inventory & Purchasing', 'Goods Receipt Line Register', 'Every goods receipt line with quantity and cost', 'range', 'inventory.view'],
+        'historical_stock_movement_archives' => ['Inventory & Purchasing', 'Historical Stock Movement Archive', 'Archived stock movements', 'range', 'inventory.view'],
+        'inventory_items' => ['Inventory & Purchasing', 'Inventory Item Register', 'Every inventory item: name, category, unit, par, stock, value and status', 'none', 'inventory.view'],
+        'item_categories' => ['Inventory & Purchasing', 'Item Category Register', 'Every inventory item category', 'none', 'inventory.view'],
+        'open_purchase_orders' => ['Inventory & Purchasing', 'Open Purchase Orders & Overdue Deliveries', 'Approved and part-received PO lines still to be delivered on the date: ordered, received, outstanding quantity and value, expected date and days overdue', 'date'],
+        'po_items' => ['Inventory & Purchasing', 'Purchase Order Item Register', 'Every item line on a purchase order', 'range', 'inventory.view'],
+        'purchases' => ['Inventory & Purchasing', 'Purchase Register', 'Purchase orders in the period', 'range'],
+        'req_pending' => ['Inventory & Purchasing', 'Outstanding Requisition Lines', 'Approved quantities not yet issued: balance, stock in the issuing store and age – the store\'s to-do list', 'none', 'requisitions.view'],
+        'req_register' => ['Inventory & Purchasing', 'Requisition Register', 'Store requisitions raised in the period: department, status, requested / approved / issued value, fill rate and turnaround', 'range', 'requisitions.view'],
+        'requisition_lines' => ['Inventory & Purchasing', 'Requisition Line Register', 'Every line on a purchase requisition', 'range', 'inventory.view'],
+        'rfq_lines' => ['Inventory & Purchasing', 'RFQ Line Register', 'Every item line on a request for quotation', 'range', 'inventory.view'],
+        'rfq_quote_lines' => ['Inventory & Purchasing', 'RFQ Quote Line Register', 'Every line on an RFQ quote', 'range', 'inventory.view'],
+        'rfq_quotes' => ['Inventory & Purchasing', 'RFQ Quote Register', 'Every quote received on an RFQ', 'range', 'inventory.view'],
+        'rfq_register' => ['Inventory & Purchasing', 'RFQ Register', 'Every request for quotation with status and totals', 'range', 'inventory.view'],
+        'rfq_suppliers' => ['Inventory & Purchasing', 'RFQ Supplier Register', 'Every supplier invited to an RFQ', 'range', 'inventory.view'],
+        'stock_take_lines' => ['Inventory & Purchasing', 'Stock Take Line Register', 'Every line on a stock take', 'range', 'inventory.view'],
+        'stock_takes' => ['Inventory & Purchasing', 'Stock Take Register', 'Every stock take with period, status and variances', 'range', 'inventory.view'],
+        'store_issue_lines' => ['Inventory & Purchasing', 'Store Issue Line Register', 'Every line on a store issue slip', 'range', 'inventory.view'],
+        'store_pars' => ['Inventory & Purchasing', 'Store Par Register', 'Every store par level by item and store', 'range', 'inventory.view'],
+        'supplier_invoice_lines' => ['Inventory & Purchasing', 'Supplier Invoice Line Register', 'Every line on a supplier invoice', 'range', 'inventory.view'],
+        'supplier_prices' => ['Inventory & Purchasing', 'Supplier Price Register', 'Every supplier price by item and currency', 'range', 'inventory.view'],
+        'supplier_scorecard' => ['Inventory & Purchasing', 'Supplier Scorecard', 'Supplier performance in the period: on-time delivery, fill rate, quality (rejections), price compliance against the agreed price list, RFQ response rate, lead time and overall grade', 'range'],
+        'laundry_items' => ['Laundry & Linen', 'Laundry Items Register', 'Detailed register of Laundry Items records', 'none', 'inventory.view'],
+        'laundry_order_lines' => ['Laundry & Linen', 'Laundry Order Lines Register', 'Detailed register of Laundry Order Lines records', 'none', 'inventory.view'],
+        'laundry_register' => ['Laundry & Linen', 'Laundry Register', 'Guest & walk-in laundry orders collected in the period: pieces, express surcharge, amount, status and where it was charged', 'range', 'laundry.view'],
+        'linen_batch_lines' => ['Laundry & Linen', 'Linen Batch Lines Register', 'Detailed register of Linen Batch Lines records', 'none', 'inventory.view'],
+        'linen_batches' => ['Laundry & Linen', 'Linen Batch Register', 'Every linen batch: type, quantity, status, laundry cycle and outstanding', 'none', 'inventory.view'],
+        'linen_losses' => ['Laundry & Linen', 'Linen Losses & Write-offs', 'Linen discarded as damaged or lost (on the floors or by the laundry) in the period, at cost', 'range', 'laundry.view'],
+        'linen_par' => ['Laundry & Linen', 'Linen Stock & Par', 'Every linen type by location (clean, floors, soiled, at laundry) against par, with shortfall and stock value', 'none', 'laundry.view'],
+        'sop_acknowledgement' => ['Learning & Development', 'SOP Sign-off Status', 'Every published SOP that staff must sign: version, effective date, review due, staff in scope, signed, outstanding and who has not signed', 'none', 'learning.view'],
+        'sop_acknowledgements' => ['Learning & Development', 'SOP Acknowledgement Register', 'Every employee acknowledgement of a SOP', 'none', 'training.view'],
+        'sop_documents' => ['Learning & Development', 'SOP Document Register', 'Every SOP document', 'none', 'training.view'],
+        'sop_versions' => ['Learning & Development', 'SOP Version Register', 'Every version of a SOP', 'none', 'training.view'],
+        'training_compliance' => ['Learning & Development', 'Training Matrix Compliance', 'Every employee against the training their department / job title requires: current, expiring, expired, overdue, new-starter due and compliance %', 'none', 'learning.view'],
+        'training_courses' => ['Learning & Development', 'Training Course Register', 'Every training course with hours and active', 'none', 'training.view'],
+        'training_expiry' => ['Learning & Development', 'Certificates Expiring', 'Staff certificates (fire, first aid, food hygiene…) expiring in the date range – whether a renewal session is booked – so refreshers can be planned', 'range', 'learning.view'],
+        'training_hours' => ['Learning & Development', 'Training Hours & Spend by Department', 'Training hours delivered, staff trained, hours per head, cost and cost per head by department, with the courses taken', 'range', 'learning.view'],
+        'training_records' => ['Learning & Development', 'Training Records Register', 'Every training outcome in the period: employee, course, in-house session or external, result, score, hours, cost and certificate number', 'range', 'learning.view'],
+        'training_requirements' => ['Learning & Development', 'Training Requirement Register', 'Every training requirement by course and department', 'none', 'training.view'],
+        'training_sessions' => ['Learning & Development', 'Training Session Register', 'Every training session scheduled and attended', 'none', 'training.view'],
+        'email_logs' => ['Management & MIS', 'Email Log Register', 'Every email sent from the system', 'range'],
+        'flash' => ['Management & MIS', 'Flash Report (Day / MTD / YTD)', "Manager's daily flash: occupancy, ADR, RevPAR, revenue, collections", 'date'],
+        'guest_history' => ['Management & MIS', 'Top Guests', 'Repeat guests by stays and revenue', 'range'],
+        'kpi_alert_log' => ['Management & MIS', 'KPI Alert Log', 'KPI threshold breaches by business date, actual vs threshold, acknowledgement', 'range', 'reports.alerts'], // v5.4
+        'kpi_alerts' => ['Management & MIS', 'KPI Alert Register', 'Every KPI threshold breach alert', 'none'],
+        'message_logs' => ['Management & MIS', 'Message Log Register', 'Every user activity message log', 'range'],
+        'mis' => ['Management & MIS', 'Night Audit MIS', 'Night audit statistics', 'range'],
+        'report_schedules' => ['Management & MIS', 'Report Schedule Register', 'Every scheduled report with frequency and recipients', 'none'],
+        'report_views' => ['Management & MIS', 'Report View Register', 'Every saved report view', 'none'],
+        'rpt_deliveries' => ['Management & MIS', 'Scheduled Report Deliveries', 'Every scheduled / sent-now report e-mail: period, recipients, rows, failures', 'range', 'reports.schedule'], // v5.4
+        'user_activity' => ['Management & MIS', 'User Activity Summary', 'Actions per user and module', 'range'],
+        'concierge_places' => ['Marketing & CRM', 'Concierge Place Register', 'Every concierge recommendation with category and rating', 'none', 'marketing.view'],
+        'crm_campaigns' => ['Marketing & CRM', 'Campaign & Automation Performance', 'Per campaign / automation: recipients, delivered, skipped, clicks, CTR, unsubscribes, attributed bookings, room nights and revenue', 'range', 'crm.view'],
+        'crm_guest_value' => ['Marketing & CRM', 'Guest Value (RFM)', 'Every guest with a stay: recency, frequency and monetary scores, value segment, consent and last stay – who to win back, who to reward', 'none', 'crm.view'],
+        'crm_promos' => ['Marketing & CRM', 'Promo Code Redemptions', 'Bookings made with each promo code in the period: room nights, revenue after discount, discount given and cancellations', 'range', 'crm.view'],
+        'cro_contacts' => ['Marketing & CRM', 'CRO Contact Register', 'Every CRO contact with company, role and status', 'none', 'marketing.view'],
+        'digital_content' => ['Marketing & CRM', 'Content Calendar & Approvals', 'Posts scheduled in the period with channels, status, approver, approval turnaround, reach and engagement; missed slots highlighted', 'range', 'digital.view'],
+        'digital_influencers' => ['Marketing & CRM', 'Influencer Collaborations', 'Creator collaborations: fee, complimentary value, reach, engagements, cost per engagement, bookings via link and rating', 'range', 'digital.view'],
+        'digital_links' => ['Marketing & CRM', 'Tracked Link Attribution', 'Clicks, unique visitors, device mix and credited direct bookings, nights and revenue per tracked link and UTM source / medium', 'range', 'digital.view'],
+        'digital_paid' => ['Marketing & CRM', 'Paid Media Performance', 'Paid campaigns: spend vs budget, impressions, clicks, CTR, CPC, platform conversions & ROAS, and bookings / revenue attributed in the PMS', 'range', 'digital.view'],
+        'digital_social' => ['Marketing & CRM', 'Social Media Performance', 'Followers at start / end, growth, reach, impressions, engagements, engagement rate and posts per social channel', 'range', 'digital.view'], // v6.2
+        'dm_ad_stats' => ['Marketing & CRM', 'Digital Marketing Ad Stats', 'Daily ad performance by channel: impressions, clicks, cost and conversions', 'range', 'marketing.view'],
+        'dm_link_clicks' => ['Marketing & CRM', 'Digital Marketing Link Clicks', 'Every tracked link click with source and device', 'range', 'marketing.view'],
+        'marketing_budget' => ['Marketing & CRM', 'Marketing Budget vs Actual', 'Marketing budget by line for the months in the period against actual spend and committed (planned) events', 'range', 'sales.view'],
+        'marketing_collateral' => ['Marketing & CRM', 'Marketing Collateral Register', 'Every brochure, video, photo and other marketing asset', 'none', 'marketing.view'],
+        'marketing_consent_logs' => ['Marketing & CRM', 'Marketing Consent Log Register', 'Every marketing consent change recorded', 'none', 'marketing.view'],
+        'marketing_messages' => ['Marketing & CRM', 'Marketing Message Register', 'Every marketing message with delivery and engagement status', 'none', 'marketing.view'],
+        'marketing_roi' => ['Marketing & CRM', 'Marketing Event ROI', 'Marketing events starting in the period: budget, actual cost, leads, cost per lead, opportunities and revenue won, ROI', 'range', 'sales.view'],
+        'marketing_segments' => ['Marketing & CRM', 'Marketing Segment Register', 'Every guest segment with campaign and journey counts', 'none', 'marketing.view'],
+        'bank_matches' => ['Treasury & Payments', 'Bank Reconciliation Match Register', 'Every bank transaction matched to a payment', 'range'],
+        'business_sources' => ['Sales & Business Development', 'Business Source Register', 'Every business source: name, type, commission and active', 'none'],
+        'organiser_access' => ['Partner & Organiser Portals', 'Organiser Portal Access Audit', 'Security trail of organiser logins: sign-ins, failed passwords, lock-outs, sign-outs, password changes / resets and user administration, with IP address; failures and lock-outs highlighted', 'range', 'organiser.view'],
+        'organiser_events' => ['Partner & Organiser Portals', 'Organiser Portal Events', 'Every event the hotel shares online right now: organiser, functions, status, active portal logins, BEO state (draft / published / signed), deposits paid, portal online payments and the balance still owed', 'none', 'organiser.view'], // v7.5
+        'organiser_payments' => ['Partner & Organiser Portals', 'Organiser Portal Online Payments', 'Every online deposit and balance payment event organisers made in the portal during the period: event, payer, channel, amount, gateway reference and status', 'range', 'organiser.view'],
+        'organiser_requests' => ['Partner & Organiser Portals', 'Organiser Requests & Response Times', 'Change requests, cancellations and quote requests received in the period with who answered, the answer and the hours the organiser waited; open requests past 24 hours highlighted', 'range', 'organiser.view'],
+        'partner_access' => ['Partner & Organiser Portals', 'Partner Portal Access Audit', 'Security trail of partner logins: sign-ins, failed passwords, lock-outs, sign-outs, password changes / resets and user administration, with IP address; failures and lock-outs highlighted', 'range', 'partner.view'],
+        'partner_bookings' => ['Partner & Organiser Portals', 'Partner Portal Bookings', 'Every booking corporate clients and travel agents made in the partner portal during the period: partner, booker, traveller, dates, rooms, room nights, stay value, bill-to, reference and status (held for approval / confirmed / cancelled)', 'range', 'partner.view'], // v7.4
+        'partner_production' => ['Partner & Organiser Portals', 'Partner Portal Production by Partner', 'Per corporate client / travel agent: active logins, sign-ins, portal bookings, room nights, stay value, cancellations and cancellation rate, held for approval and share of the partner\'s bookings made online', 'range', 'partner.view'],
+        'partner_requests' => ['Partner & Organiser Portals', 'Partner Requests & Response Times', 'Booking approvals, change requests and group quotes received in the period with who answered, the answer and the hours the partner waited; open requests past 24 hours highlighted', 'range', 'partner.view'],
+        'attendance' => ['Payroll', 'Attendance Register', 'Daily attendance summary by employee', 'range', 'payroll.view'],
+        'employee_pay_components' => ['Payroll', 'Employee Pay Component Register', 'Every pay component for each employee', 'range', 'payroll.view'],
+        'leave_register' => ['Payroll', 'Leave Register', 'Leave requests overlapping the period: employee, type, dates, days, status and approver', 'range', 'hr.leave'],
+        'leave_types' => ['Payroll', 'Leave Type Register', 'Every leave type: name, days, accrual rate and active', 'none', 'payroll.view'],
+        'pay_components' => ['Payroll', 'Pay Components Register', 'Detailed register of Pay Components records', 'range', 'payroll.view'],
+        'paye_schedule' => ['Payroll', 'PAYE Monthly Schedule (GRA)', 'Per approved payroll month and employee: TIN / Ghana Card, basic, allowances, gross, SSNIT relief, chargeable income and PAYE withheld', 'range', 'payroll.view'],
+        'payroll_register' => ['Payroll', 'Payroll Register', 'Per employee and month: paid days, LOP, overtime, earnings, each statutory deduction, net pay and employer cost', 'range', 'payroll.view'],
+        'payroll_statutory' => ['Payroll', 'Statutory Dues Summary', 'Per month and liability: employee deductions + employer contributions owed (SSNIT Tier 1, Tier 2 pension, PAYE)', 'range', 'payroll.view'],
+        'roster_vs_actual' => ['Payroll', 'Roster vs Actual', 'Per employee: rostered shifts and planned hours against time-clock hours worked, late arrivals, early departures, no-shows, unrostered work and manager corrections', 'range', 'roster.view'], // v4.9
+        'roster_weeks' => ['Payroll', 'Roster Week Register', 'Every roster week with shift assignments and coverage', 'none', 'payroll.view'],
+        'sc_distribution_lines' => ['Payroll', 'Payroll Distribution Line Register', 'Every payslip line distributed to an employee', 'range', 'payroll.view'],
+        'service_charge_distribution' => ['Payroll', 'Service Charge Distribution', 'Service charge & tips shared with staff for distributions in the period: points, days worked, amount, status and the payroll run that paid it', 'range', 'servicecharge.manage'],
+        'shift_swaps' => ['Payroll', 'Shift Swap Register', 'Every approved or requested shift swap between employees', 'none', 'payroll.view'],
+        'shift_templates' => ['Payroll', 'Shift Templates Register', 'Detailed register of Shift Templates records', 'none', 'payroll.view'],
+        'ssnit_schedule' => ['Payroll', 'SSNIT Contribution Schedule', 'Per approved payroll month and employee: SSNIT number, Ghana Card, basic salary, insurable earnings, Tier 1 (employee 5.5% + employer 8%) and Tier 2 (5%)', 'range', 'payroll.view'],
+        'staff_advances' => ['Payroll', 'Staff Advance Register', 'Every staff advance with amount, repayment and balance', 'range', 'payroll.view'],
+        'statutory_remittances' => ['Payroll', 'Statutory Remittance Register', 'SSNIT, Tier 2 and PAYE payments made in the period: month, payee, amount, due date, days late, reference and payment mode', 'range', 'payroll.view'],
+        'time_punches_detail' => ['Payroll', 'Time Punch Detail', 'Every time punch: employee, in/out, hours and exceptions', 'range', 'payroll.view'],
+        'timesheet' => ['Payroll', 'Timesheet (Time Clock)', 'Every time punch in the period: rostered shift, clock-in / out, source (self-service, kiosk, manager), hours worked, late / early minutes, corrections and approval', 'range', 'roster.view'],
+        'tip_collections' => ['Payroll', 'Tip Collection Register', 'Every tip collection by employee and shift', 'range', 'payroll.view'],
+        'energy_kpis' => ['Property & Utilities', 'Energy & Water KPIs', 'Per day: occupied rooms, guests, kWh, kWh per occupied room, water per guest night, utility cost per room and as % of revenue, CO₂ per room', 'range', 'utilities.view'],
+        'lease_arrears' => ['Property & Utilities', 'Tenant Arrears Ageing', 'Overdue tenant invoices after the grace period by age (0–30, 31–60, 61–90, 90+ days) with the deposit held against each', 'range', 'leases.view'],
+        'lease_expiry' => ['Property & Utilities', 'Lease Expiry & Renewals', 'Leases ending, on notice or due for a rent review in the period (from the start date to the end date), with the action needed', 'range', 'leases.view'],
+        'lease_inspections' => ['Property & Utilities', 'Lease Inspection Register', 'Every property inspection with condition and damage costs', 'none', 'property.view'],
+        'lease_meter_readings' => ['Property & Utilities', 'Lease Meter Reading Register', 'Every lease utility meter reading with consumption and charge', 'none', 'property.view'],
+        'lease_rent_roll' => ['Property & Utilities', 'Rent Roll', 'Every unit with its tenant, term, cycle, monthly rent & service charge, deposit held, balance and rent invoiced / collected in the period', 'range', 'leases.view'], // v5.2
+        'meter_readings' => ['Property & Utilities', 'Meter Reading Register', 'Every utility meter reading with consumption, cost and anomaly flags', 'none', 'property.view'],
+        'utility_bill_reconciliation' => ['Property & Utilities', 'Utility Bill Reconciliation', 'Bills dated in the period: units billed vs metered, variance, charges, effective rate vs tariff and the AP document', 'range', 'utilities.view'],
+        'utility_bills' => ['Property & Utilities', 'Utility Bill Register', 'Every utility bill with meter, period and amount', 'range', 'property.view'],
+        'utility_consumption' => ['Property & Utilities', 'Utility Consumption by Meter', 'Per meter: readings, days covered, consumption, daily average, cost, estimated readings and anomalies – with sub-meter coverage of each main meter', 'range', 'utilities.view'],
+        'qa_actions' => ['Quality Assurance', 'Corrective Action Log', 'Corrective actions raised in the period with owner, priority, due date, status, days to close and whether they closed on time or were reopened', 'range', 'qa.view'],
+        'qa_audit_items' => ['Quality Assurance', 'QA Audit Item Register', 'Every audit finding with result, criticality and corrective action', 'none', 'qa.view'],
         'qa_audits' => ['Quality Assurance', 'QA Audit Register', 'Every audit completed in the period with checklist, department, auditor, score against the pass mark, findings (critical / repeat) and whether the department acknowledged it', 'range', 'qa.view'],
         'qa_department_scores' => ['Quality Assurance', 'QA Scores by Department', 'Average audit score per department and checklist type against the pass mark and target, pass rate, findings and open / overdue corrective actions', 'range', 'qa.view'],
         'qa_standard_failures' => ['Quality Assurance', 'Standards Failure Analysis', 'Every standard failed in the period: times checked, times failed, fail rate, repeat findings and critical flag – where to focus training', 'range', 'qa.view'],
-        'qa_actions' => ['Quality Assurance', 'Corrective Action Log', 'Corrective actions raised in the period with owner, priority, due date, status, days to close and whether they closed on time or were reopened', 'range', 'qa.view'],
+        'qa_standards' => ['Quality Assurance', 'QA Standard Register', 'Every quality audit standard with department and criticality', 'none', 'qa.view'],
         'qa_template_compliance' => ['Quality Assurance', 'Audit Schedule Compliance', 'Each recurring checklist: audits required by its frequency in the period, audits done, compliance %, average score, last audit and next due date', 'range', 'qa.view'],
-        'fbc_recipe_costs' => ['F&B Cost Control', 'Recipe Costing Register', 'Every menu item with price, plate cost at the current costing basis and trim yields, gross profit, cost % against its target, suggested price and recipe-card status', 'none', 'fbc.view'], // v6.8
-        'fbc_menu_engineering' => ['F&B Cost Control', 'Menu Engineering Analysis', 'Kasavana & Smith worksheet for the period: items sold, menu mix %, average price, plate cost, contribution margin and class (Star / Plowhorse / Puzzle / Dog) with the action', 'range', 'fbc.view'],
-        'fbc_food_cost' => ['F&B Cost Control', 'Daily Food & Beverage Cost Flash', 'Per day: food and beverage revenue, theoretical cost, cost consumed, employee meals and officers\' checks credited, cost of sales and cost % against target', 'range', 'fbc.view'],
-        'fbc_variance' => ['F&B Cost Control', 'Ideal vs Actual Usage Variance', 'Per ingredient: ideal usage from portions sold × recipe (grossed up for yield) against consumption, issues, waste and count adjustments from the kitchen, bar and outlet stores, with the value', 'range', 'fbc.view'],
-        'fbc_price_changes' => ['F&B Cost Control', 'Menu Price Change Log', 'Menu price changes in the period with old and new price, plate cost at the time, cost % before and after, reason and user', 'range', 'fbc.view'],
-        'talent_vacancies' => ['Talent Management', 'Vacancy Register & Time to Fill', 'Vacancies raised in the period: department, posts, salary range, reason, requester and approver, applicants, hires and days from approval to filled', 'range', 'talent.view'], // v6.9
-        'talent_pipeline' => ['Talent Management', 'Recruitment Funnel & Sources', 'Applicants received in the period by vacancy: screened, interviewed, offered, hired and rejected, conversion, average interview score, and applications / hires by source', 'range', 'talent.recruit'],
+        'review_templates' => ['Quality Assurance', 'Review Template Register', 'Every guest review survey template', 'none', 'qa.view'],
+        'rate_contract_blackouts' => ['Revenue Management', 'Rate Contract Blackout Register', 'Every blackout date on a rate contract', 'none', 'revenue.view'],
+        'rate_contract_rates' => ['Revenue Management', 'Rate Contract Rate Register', 'Every contracted rate from OTA and channel manager', 'none', 'revenue.view'],
+        'rate_overrides' => ['Revenue Management', 'Rate Override Register', 'Every rate override applied to a plan, date range or room type', 'none', 'revenue.view'],
+        'rate_plans' => ['Revenue Management', 'Rate Plan Register', 'Every rate plan: name, room type, base rate, channels and active', 'none', 'revenue.view'],
+        'rm_forecast' => ['Revenue Management', 'Forecast & On the Books', 'Per night: rooms booked & held, ADR, revenue, 7-day pickup and forecast occupancy / revenue', 'range', 'revenue.view'],
+        'rm_pickup' => ['Revenue Management', 'Booking Pace (Pickup)', 'Per booking date: new bookings, room nights, revenue, average lead time & rate, cancellations', 'range', 'revenue.view'],
+        'rm_snapshots' => ['Revenue Management', 'RM Snapshot Register', 'Every revenue management snapshot with revenue', 'range', 'revenue.view'],
+        'yield_rules' => ['Revenue Management', 'Yield Rule Register', 'Every yield management rule with conditions, days and priority', 'none', 'revenue.view'],
+        'account_production' => ['Sales & Business Development', 'Account Production', 'Room nights, stays and room revenue per corporate / agency account for the period vs the same period last year, with on-the-books business and account manager', 'range', 'sales.view'],
+        'agent_commissions' => ['Sales & Business Development', 'Agent Commission Register', 'Every agent commission earned and paid', 'none', 'sales.view'],
+        'bd_benchmark' => ['Sales & Business Development', 'Comp-Set Benchmark (MPI / ARI / RGI)', 'Monthly occupancy, ADR and RevPAR against the competitive set with the penetration, rate and revenue generation indices', 'range', 'bd.view'],
+        'bd_competitors' => ['Sales & Business Development', 'BD Competitor Register', 'Every tracked competitor hotel', 'none', 'sales.view'],
+        'bd_initiatives' => ['Sales & Business Development', 'Initiative Portfolio', 'Business development initiatives by stage: investment, annual revenue & net, payback, NPV, actual results vs plan and milestones', 'none', 'bd.view'],
+        'bd_market_mix' => ['Sales & Business Development', 'Market Mix', 'Room nights and revenue by source market (guest nationality) and segment with share and growth vs the same period last year', 'range', 'bd.view'],
+        'bd_milestones' => ['Sales & Business Development', 'BD Milestone Register', 'Every milestone with initiative, owner and overdue status', 'none', 'sales.view'],
+        'bd_partners' => ['Sales & Business Development', 'Partnership Production', 'Bookings, room nights, revenue and commission credited to each strategic partnership, with renewal and review flags', 'range', 'bd.view'],
+        'bd_rate_shop' => ['Sales & Business Development', 'Rate Shop', 'Our public rate vs the competitive set by stay date and channel: comp average, gap, price rank, lowest / highest competitor and sold-outs', 'range', 'bd.view'],
+        'bd_rate_shop_lines' => ['Sales & Business Development', 'BD Rate Shop Line Register', 'Every competitor rate captured during a shop', 'none', 'sales.view'],
+        'bd_results' => ['Sales & Business Development', 'BD Result Register', 'Monthly revenue and cost by initiative', 'none', 'sales.view'],
+        'sales_activity' => ['Sales & Business Development', 'Sales Activity Report', 'Completed sales calls, visits, site inspections, meetings and entertainment in the period by salesperson, with spend', 'range', 'sales.view'],
+        'sales_contacts' => ['Sales & Business Development', 'Sales Contact Register', 'Every sales contact with company, role and status', 'range', 'sales.view'],
+        'sales_opportunities' => ['Sales & Business Development', 'Sales Opportunity Register', 'Every sales opportunity with value, stage and close date', 'range', 'sales.view'],
+        'sales_pipeline' => ['Sales & Business Development', 'Sales Pipeline', 'Every open opportunity: account, owner, stage, expected close, room nights, value, probability and weighted value – with stage totals', 'none', 'sales.view'], // v6.1
+        'sales_targets' => ['Sales & Business Development', 'Sales Targets vs Actual', 'Each salesperson per month in the period: room-night, revenue and activity targets against production of their accounts', 'range', 'sales.view'],
+        'sales_win_loss' => ['Sales & Business Development', 'Win / Loss Analysis', 'Opportunities won and lost in the period by type, source and salesperson; win rate, value won and the reasons business was lost', 'range', 'sales.view'],
+        'gate_pass_items' => ['Security', 'Gate Pass Item Register', 'Every item issued on a gate pass with outstanding value', 'range', 'security.view'],
+        'gate_pass_returns' => ['Security', 'Gate Pass Return Register', 'Every returned gate pass with receiver and line count', 'range', 'security.view'],
+        'security_gatepasses' => ['Security', 'Gate Pass Register', 'Gate passes raised in the period with party, purpose, items, value, approval, gate-out time and return status', 'range', 'security.view'],
+        'security_incident_updates' => ['Security', 'Security Incident Update Register', 'Every update on a security incident', 'range', 'security.view'],
+        'security_incidents' => ['Security', 'Security Incident Register', 'Incidents in the period by type and severity with location, guest, injuries, loss, police reference, status and resolution', 'range', 'security.view'],
+        'security_outstanding' => ['Security', 'Goods Outside the Property', 'Returnable gate-pass items still out at a date: party, quantity outstanding, estimated value, due date and days overdue', 'date', 'security.view'],
+        'security_visitors' => ['Security', 'Visitor Register', 'Every visitor in the period: pass, name, masked ID, whom they visited, purpose, time in / out, who let them in, overrides and watch-list matches', 'range', 'security.view'],
+        'security_watch' => ['Security', 'Security Watch Register', 'Every security watch assignment', 'range', 'security.view'],
+        'kiosk_adoption' => ['Self-Service Kiosk', 'Kiosk Adoption by Day', 'Per day: check-ins, how many were done at the kiosk and the share, check-outs at the kiosk, walk-in bookings, visits handed to the desk and average check-in time', 'range', 'kiosk.view'],
+        'kiosk_assist' => ['Self-Service Kiosk', 'Kiosk Assistance Requests', 'Visits the kiosk handed to the front desk: reason, note, when, how long until someone dealt with it and who – with a summary by reason', 'range', 'kiosk.view'],
+        'kiosk_payments' => ['Self-Service Kiosk', 'Kiosk Payments', 'Deposits, walk-in stays and bill balances guests paid by QR at the kiosk: payment link, booking, guest, purpose, amount and gateway status', 'range', 'kiosk.view'],
+        'kiosk_sessions' => ['Self-Service Kiosk', 'Kiosk Guest Visits', 'Every kiosk visit in the period: kiosk, service (check-in / check-out / walk-in), guest, booking, room, how far it got, time taken, amount paid and outcome', 'range', 'kiosk.view'], // v7.2
+        'kiosks' => ['Self-Service Kiosk', 'Kiosk Register', 'Every self-service kiosk with location and active status', 'none', 'kiosk.view'],
+        'carbon_footprint' => ['Sustainability & ESG', 'Carbon Footprint (Scope 1 & 2)', 'Consumption × emission factor per energy source: t CO₂e, share, per occupied room and emissions avoided by solar', 'range', 'utilities.view'],
+        'esg_carbon' => ['Sustainability & ESG', 'Carbon Inventory by Scope (GHG Protocol / HCMI)', 'Scope 1 fuels and refrigerant leaks, Scope 2 grid electricity, Scope 3 water, waste by route and outsourced laundry: activity, factor and kg CO₂e, with the HCMI footprint per occupied room and per m² of meeting space per hour', 'range', 'esg.view'], // v7.0
+        'esg_checklist_items' => ['Sustainability & ESG', 'ESG Checklist Item Register', 'Every ESG checklist item', 'none', 'esg.view'],
+        'esg_communities' => ['Sustainability & ESG', 'ESG Community Register', 'Every community engagement', 'none', 'esg.view'],
+        'esg_green' => ['Sustainability & ESG', 'Green-Stay Nights', 'Nights on which a green-stay room was not serviced: room, guest, loyalty points and the estimated energy, water and carbon saved, with uptake against occupied room-nights', 'range', 'esg.view'],
+        'esg_green_stays' => ['Sustainability & ESG', 'ESG Green Stay Register', 'Every green stay initiative', 'none', 'esg.view'],
+        'esg_initiatives' => ['Sustainability & ESG', 'Green Initiative Register', 'Every initiative: category, owner, status, capital cost, annual saving, simple payback, energy / water / waste / carbon savings, approver and completion', 'none', 'esg.view'],
+        'esg_laundry_months' => ['Sustainability & ESG', 'ESG Laundry Month Register', 'Monthly laundry consumption', 'none', 'esg.view'],
+        'esg_local_spend' => ['Sustainability & ESG', 'Local Sourcing Spend', 'Supplier bills in the period by supplier (net of debit notes, before tax) with the local flag and the share of spend with local suppliers', 'range', 'esg.view'],
+        'esg_policies' => ['Sustainability & ESG', 'ESG Policy Register', 'Every ESG policy', 'none', 'esg.view'],
+        'esg_refrigerants' => ['Sustainability & ESG', 'F-gas (Refrigerant) Log', 'Refrigerant added and recovered in the period by system: gas, GWP, work done, technician and certificate, kg CO₂e, with the annual leak rate per system', 'range', 'esg.view'],
+        'esg_targets' => ['Sustainability & ESG', 'ESG Target Register', 'Every ESG target', 'none', 'esg.view'],
+        'esg_waste' => ['Sustainability & ESG', 'Waste Register & Diversion', 'Waste consignments in the period: stream, disposal route, weight, department, contractor, waste transfer note, cost and income, kg CO₂e, with the diversion rate and kg per occupied room', 'range', 'esg.view'],
+        'api_idempotency_keys' => ['System & Administration', 'API Idempotency Key Register', 'Every API idempotency key recorded', 'none', 'system.view'],
+        'data_migration_batches' => ['System & Administration', 'Data Migration Batch Register', 'Every data migration batch with row counts', 'none', 'system.view'],
+        'data_migration_rows' => ['System & Administration', 'Data Migration Row Register', 'Every migrated row', 'none', 'system.view'],
+        'log_entry_comments' => ['System & Administration', 'Log Entry Comment Register', 'Every comment added to an activity log entry', 'none', 'system.view'],
+        'log_entry_reads' => ['System & Administration', 'Log Entry Read Register', 'Every time a user read an activity log entry', 'none', 'system.view'],
+        'offline_sync_operations' => ['System & Administration', 'Offline Sync Operation Register', 'Every offline sync operation with payload and result', 'none', 'system.view'],
+        'permissions' => ['System & Administration', 'Permission Register', 'Every system permission and its assigned roles', 'none', 'system.view'],
+        'settings' => ['System & Administration', 'System Setting Register', 'Every system configuration setting', 'none', 'system.view'],
         'talent_appraisals' => ['Talent Management', 'Appraisal Results', 'Appraisals in cycles ending in the period: reviewer, goals and competency scores, overall rating and band, performance improvement plans, sign-off and acknowledgement', 'range', 'talent.appraise'],
+        'talent_cycles' => ['Talent Management', 'Talent Cycle Register', 'Every recruitment cycle: position, department, status and pipeline', 'none', 'hr.view'],
         'talent_discipline' => ['Talent Management', 'Discipline & Grievance Register', 'Disciplinary cases and grievances in the period: category, severity, query and hearing dates, finding, sanction and warning expiry (confidential grievances masked unless you may see them)', 'range', 'talent.discipline'],
         'talent_exits' => ['Talent Management', 'Leavers & Turnover', 'Leavers with a last day in the period: type, length of service, statutory notice, pay in lieu, final-pay date, exit-interview reason, regretted and re-hire flags, with turnover rates', 'range', 'talent.discipline'],
         'talent_headcount' => ['Talent Management', 'Headcount vs Establishment', 'Per department on a date: approved establishment, staff in post, gap, open posts, starters and leavers in the last 12 months, turnover and staff on probation', 'date', 'talent.view'],
-        'hse_equipment' => ['Health & Safety', 'Fire Equipment Register', 'Every fire and life-safety item with GNFS tag, location, last and next visual check, contractor service due, expiry and state (in order / due / overdue / defective / expired)', 'none', 'hse.view'],
-        'hse_checks' => ['Health & Safety', 'Fire Equipment Inspection Log', 'Visual checks and contractor services in the period: item, result, faults found, certificate, engineering ticket and who checked', 'range', 'hse.view'],
-        'hse_accidents' => ['Health & Safety', 'Accident & Near-Miss Register', 'Accidents, injuries, near misses and dangerous occurrences with the person, injury, days lost, Act 328 notice and investigation status; LTIFR for the period', 'range', 'hse.view'],
-        'esg_carbon' => ['Sustainability & ESG', 'Carbon Inventory by Scope (GHG Protocol / HCMI)', 'Scope 1 fuels and refrigerant leaks, Scope 2 grid electricity, Scope 3 water, waste by route and outsourced laundry: activity, factor and kg CO₂e, with the HCMI footprint per occupied room and per m² of meeting space per hour', 'range', 'esg.view'], // v7.0
-        'esg_waste' => ['Sustainability & ESG', 'Waste Register & Diversion', 'Waste consignments in the period: stream, disposal route, weight, department, contractor, waste transfer note, cost and income, kg CO₂e, with the diversion rate and kg per occupied room', 'range', 'esg.view'],
-        'esg_refrigerants' => ['Sustainability & ESG', 'F-gas (Refrigerant) Log', 'Refrigerant added and recovered in the period by system: gas, GWP, work done, technician and certificate, kg CO₂e, with the annual leak rate per system', 'range', 'esg.view'],
-        'esg_green' => ['Sustainability & ESG', 'Green-Stay Nights', 'Nights on which a green-stay room was not serviced: room, guest, loyalty points and the estimated energy, water and carbon saved, with uptake against occupied room-nights', 'range', 'esg.view'],
-        'esg_initiatives' => ['Sustainability & ESG', 'Green Initiative Register', 'Every initiative: category, owner, status, capital cost, annual saving, simple payback, energy / water / waste / carbon savings, approver and completion', 'none', 'esg.view'],
-        'esg_local_spend' => ['Sustainability & ESG', 'Local Sourcing Spend', 'Supplier bills in the period by supplier (net of debit notes, before tax) with the local flag and the share of spend with local suppliers', 'range', 'esg.view'],
-        'iptv_devices' => ['IPTV & Guest Welcome', 'TV & Screen Register', 'Every in-room TV and lobby screen: room / location, platform, model, MAC, serial, status, last heartbeat, online now, paired date and the guest in the room', 'none', 'iptv.view'], // v7.1
-        'iptv_vod' => ['IPTV & Guest Welcome', 'Movie Rentals (Pay TV)', 'Movie rentals in the period: room, guest, title, amount before tax, VAT & levies, total charged to the folio, refunds with reason and approver', 'range', 'iptv.view'],
-        'iptv_messages' => ['IPTV & Guest Welcome', 'TV Message & Emergency Log', 'Room messages, broadcasts and emergency alerts sent to TVs in the period: audience, timing, sender, reads, withdrawal / all-clear note', 'range', 'iptv.view'],
-        'iptv_engagement' => ['IPTV & Guest Welcome', 'TV Engagement by Day', 'Per day: TVs used, screen actions, welcome screens seen, channel views, movie rentals, dining orders and service requests from the TV, with the share of stays using the TV portal', 'range', 'iptv.view'],
-        'iptv_orders' => ['IPTV & Guest Welcome', 'Orders & Requests from the TV', 'In-room dining orders, service requests, express check-outs and wake-up calls guests placed on the room TV, with status and value', 'range', 'iptv.view'],
-        'iptv_channels' => ['IPTV & Guest Welcome', 'Channel Line-up & Viewing', 'Every channel: number, category, language, stream, guide id, programmes still ahead in the guide and views in the last 30 days', 'none', 'iptv.view'],
-        'kiosk_sessions' => ['Self-Service Kiosk', 'Kiosk Guest Visits', 'Every kiosk visit in the period: kiosk, service (check-in / check-out / walk-in), guest, booking, room, how far it got, time taken, amount paid and outcome', 'range', 'kiosk.view'], // v7.2
-        'kiosk_adoption' => ['Self-Service Kiosk', 'Kiosk Adoption by Day', 'Per day: check-ins, how many were done at the kiosk and the share, check-outs at the kiosk, walk-in bookings, visits handed to the desk and average check-in time', 'range', 'kiosk.view'],
-        'kiosk_payments' => ['Self-Service Kiosk', 'Kiosk Payments', 'Deposits, walk-in stays and bill balances guests paid by QR at the kiosk: payment link, booking, guest, purpose, amount and gateway status', 'range', 'kiosk.view'],
-        'kiosk_assist' => ['Self-Service Kiosk', 'Kiosk Assistance Requests', 'Visits the kiosk handed to the front desk: reason, note, when, how long until someone dealt with it and who – with a summary by reason', 'range', 'kiosk.view'],
-        'inbox_conversations' => ['Guest Messaging', 'Guest Conversations', 'Every guest conversation started in the period: channel (portal chat, WhatsApp, SMS, e-mail), guest, room, team, assigned staff, messages each way, first response time, guest rating and status', 'range', 'inbox.view'], // v7.3
-        'inbox_response' => ['Guest Messaging', 'Messaging Response Times by Day', 'Per day: conversations, guest messages, staff, automatic and broadcast replies, average and slowest response and the share answered within the response-time target', 'range', 'inbox.view'],
-        'inbox_agents' => ['Guest Messaging', 'Messaging Team Performance', 'Per staff member: conversations, replies, internal notes, average first response, share within target, conversations closed and average guest rating', 'range', 'inbox.view'],
-        'inbox_topics' => ['Guest Messaging', 'Messaging Topics & Automatic Answers', 'What guests write about: conversations per team with channel mix and rating, and how often each keyword rule answered automatically', 'range', 'inbox.view'],
-        'partner_bookings' => ['Partner Portal', 'Partner Portal Bookings', 'Every booking corporate clients and travel agents made in the partner portal during the period: partner, booker, traveller, dates, rooms, room nights, stay value, bill-to, reference and status (held for approval / confirmed / cancelled)', 'range', 'partner.view'], // v7.4
-        'partner_production' => ['Partner Portal', 'Partner Portal Production by Partner', 'Per corporate client / travel agent: active logins, sign-ins, portal bookings, room nights, stay value, cancellations and cancellation rate, held for approval and share of the partner\'s bookings made online', 'range', 'partner.view'],
-        'partner_requests' => ['Partner Portal', 'Partner Requests & Response Times', 'Booking approvals, change requests and group quotes received in the period with who answered, the answer and the hours the partner waited; open requests past 24 hours highlighted', 'range', 'partner.view'],
-        'partner_access' => ['Partner Portal', 'Partner Portal Access Audit', 'Security trail of partner logins: sign-ins, failed passwords, lock-outs, sign-outs, password changes / resets and user administration, with IP address; failures and lock-outs highlighted', 'range', 'partner.view'],
-        'organiser_events' => ['Organiser Portal', 'Organiser Portal Events', 'Every event the hotel shares online right now: organiser, functions, status, active portal logins, BEO state (draft / published / signed), deposits paid, portal online payments and the balance still owed', 'none', 'organiser.view'], // v7.5
-        'organiser_payments' => ['Organiser Portal', 'Organiser Portal Online Payments', 'Every online deposit and balance payment event organisers made in the portal during the period: event, payer, channel, amount, gateway reference and status', 'range', 'organiser.view'],
-        'organiser_requests' => ['Organiser Portal', 'Organiser Requests & Response Times', 'Change requests, cancellations and quote requests received in the period with who answered, the answer and the hours the organiser waited; open requests past 24 hours highlighted', 'range', 'organiser.view'],
-        'organiser_access' => ['Organiser Portal', 'Organiser Portal Access Audit', 'Security trail of organiser logins: sign-ins, failed passwords, lock-outs, sign-outs, password changes / resets and user administration, with IP address; failures and lock-outs highlighted', 'range', 'organiser.view'],
-        'hse_permits' => ['Health & Safety', 'Permit-to-Work Register', 'Permits requested in the period by type: location, contractor, period, requester and issuer, fire watch / gas test / isolation, close-out time and late close-outs', 'range', 'hse.view'],
-        'hse_drills' => ['Health & Safety', 'Fire Drill Log', 'Drills in the period by shift: evacuation time against the target, roll call, guests evacuated, result and improvements', 'range', 'hse.view'],
-        'hse_risks' => ['Health & Safety', 'Risk Register', 'Live risk assessments: hazard, who is at risk, initial and residual rating on the 5 × 5 matrix, owner, acceptance and review date', 'none', 'hse.view'],
-        'parking_sessions' => ['Parking & Valet', 'Parking Ticket Register', 'Every parking ticket issued in the period: plate, guest / visitor / permit, valet, zone, time in and out, duration, validation, lost tickets and what was charged or waived at the exit', 'range', 'parking.view'],
-        'parking_revenue' => ['Parking & Valet', 'Parking Revenue by Day', 'Parking revenue per business date: guest nights posted to room folios, visitor exit fees and valet, lost-ticket fees and amounts waived', 'range', 'parking.view'],
-        'parking_occupancy' => ['Parking & Valet', 'Car Park Occupancy by Zone', 'Each zone: bays, tickets by guest / visitor / permit, average stay, peak vehicles parked at once, bay utilisation and vehicles parked now', 'range', 'parking.view'],
-        'parking_valet' => ['Parking & Valet', 'Valet Retrieval Performance', 'Valet cars brought round per runner: average and longest minutes from request to the door, share within the target and how guests asked (QR, phone, desk)', 'range', 'parking.view'],
-        'parking_permits' => ['Parking & Valet', 'Parking Permit Register', 'Staff, tenant and contractor permits with vehicle, zone, validity, days left, fee, state and how often each was used', 'none', 'parking.view'],
-        'bd_benchmark' => ['Business Development', 'Comp-Set Benchmark (MPI / ARI / RGI)', 'Monthly occupancy, ADR and RevPAR against the competitive set with the penetration, rate and revenue generation indices', 'range', 'bd.view'],
-        'bd_rate_shop' => ['Business Development', 'Rate Shop', 'Our public rate vs the competitive set by stay date and channel: comp average, gap, price rank, lowest / highest competitor and sold-outs', 'range', 'bd.view'],
-        'bd_initiatives' => ['Business Development', 'Initiative Portfolio', 'Business development initiatives by stage: investment, annual revenue & net, payback, NPV, actual results vs plan and milestones', 'none', 'bd.view'],
-        'bd_partners' => ['Business Development', 'Partnership Production', 'Bookings, room nights, revenue and commission credited to each strategic partnership, with renewal and review flags', 'range', 'bd.view'],
-        'bd_market_mix' => ['Business Development', 'Market Mix', 'Room nights and revenue by source market (guest nationality) and segment with share and growth vs the same period last year', 'range', 'bd.view'],
-        'credit_exposure' => ['Contracts & Credit', 'Credit Exposure', 'Every direct-billing account: limit, city ledger, overdue, in-house balances, total exposure, available credit and hold status', 'none', 'credit.view'],
-        'channel_production' => ['Channel Manager', 'Channel Production', 'Per OTA connection: bookings received in the period, room nights, gross revenue, commission, net revenue, ADR, lead time, length of stay, cancellations and prepaid share', 'range', 'channels.view'],
-        'channel_sync_log' => ['Channel Manager', 'Channel Sync Log', 'ARI pushes per channel and day: deltas and full refreshes, room-nights sent, failures, average duration and the last error', 'range', 'channels.view'],
-        'channel_parity' => ['Channel Manager', 'Rate Parity Exceptions', 'Every room-night where what a channel last acknowledged (availability, restrictions, prices) differs from what the PMS publishes now', 'range', 'channels.view'],
-        'pos_evat_register' => ['GRA VAT & E-VAT', 'Restaurant Bills E-VAT Register', 'Bills settled at the outlets in the period: customer TIN, taxable value, VAT and levies, E-VAT receipt number and status', 'range', 'gst.view'],
-        'einvoice_register' => ['GRA VAT & E-VAT', 'E-VAT Register', 'Invoices and credit notes dated in the period: buyer TIN, value, E-VAT SDC ID, receipt number and status – stamped, failed or not stamped', 'range', 'gst.view'],
-        'credit_notes' => ['GRA VAT & E-VAT', 'Credit Note Register', 'Credit notes issued in the period against earlier invoices: reason, taxable value, VAT / NHIL / GETFund / Tourism Levy, settlement (refund or company account) and E-VAT stamp', 'range', 'gst.view'],
-        'hsn_summary' => ['GRA VAT & E-VAT', 'VAT & Levies by Category', 'Outward supplies by charge category and rate for the period: taxable value, VAT, NHIL, GETFund, Tourism Levy, B2B and B2C', 'range', 'gst.view'],
-        'privacy_requests' => ['Privacy & Compliance', 'Privacy Request Register', 'Data-subject requests received in the period: type, channel, identity check, deadline, days taken, on time / late / open and the outcome', 'range', 'privacy.view'],
-        'pii_access' => ['Privacy & Compliance', 'PII Access Log', 'Every reveal of masked identifiers, ID-document and e-signature view and personal-data export in the period, by user', 'range', 'privacy.view'],
-        'privacy_retention' => ['Privacy & Compliance', 'Retention & Erasure Log', 'Per day: ID scans and signatures deleted, message contents purged, profiles anonymised or restricted (on request / by policy), legal holds completed', 'range', 'privacy.view'],
-        'nps_trend' => ['Feedback & Reputation', 'NPS & Satisfaction Trend', 'Month by month: surveys sent, response rate, promoters / passives / detractors, NPS, average overall rating, negative comments, online rating and review response rate', 'range', 'feedback.view'],
-        'feedback_register' => ['Feedback & Reputation', 'Guest Feedback Register', 'Every survey, portal and web feedback response in the period with recommend score, overall rating, sentiment, complaint areas, comments and the recovery case', 'range', 'feedback.view'],
-        'feedback_cases' => ['Feedback & Reputation', 'Service Recovery Cases', 'Cases opened in the period: department, severity, owner, hours to first contact and to resolve, SLA, recovery action, goodwill points and outcome', 'range', 'feedback.view'],
-        'online_reviews' => ['Feedback & Reputation', 'Online Review Register', 'Reviews from TripAdvisor, Google, Booking.com and others by review date: rating, sentiment, matched guest, response status, who posted it and hours to respond', 'range', 'feedback.view'],
-        'dept_scores' => ['Feedback & Reputation', 'Department Scorecard', 'Per department: average survey rating, positive and negative mentions in comments and reviews, net sentiment, cases, high-severity and past-SLA cases', 'range', 'feedback.view'],
-        'purchases' => ['Inventory', 'Purchase Register', 'Purchase orders in the period', 'range'],
-        'goods_received' => ['Inventory', 'Goods Received Register', 'Every delivery in the period by GRN and item: delivered, rejected (with reason) and accepted quantities, PO rate and accepted value – single-step receipts included', 'range'], // v4.8
-        'open_purchase_orders' => ['Inventory', 'Open Purchase Orders & Overdue Deliveries', 'Approved and part-received PO lines still to be delivered on the date: ordered, received, outstanding quantity and value, expected date and days overdue', 'date'],
-        'supplier_scorecard' => ['Inventory', 'Supplier Scorecard', 'Supplier performance in the period: on-time delivery, fill rate, quality (rejections), price compliance against the agreed price list, RFQ response rate, lead time and overall grade', 'range'],
-        'consumption' => ['Inventory', 'Consumption / Issue Report', 'Issues and wastage by item', 'range'],
-        'expenses' => ['Accounts', 'Expense Report', 'Payment vouchers by head', 'range'],
-        'flash' => ['Management', 'Flash Report (Day / MTD / YTD)', "Manager's daily flash: occupancy, ADR, RevPAR, revenue, collections", 'date'],
-        'ar_aging' => ['Accounts', 'AR Ageing (City Ledger)', 'Company outstanding by age bucket, FIFO against receipts', 'date'],
-        'ap_ageing' => ['Accounts', 'AP Ageing (Suppliers)', 'Supplier balances by days past due, with unbilled goods receipts and unapplied credits', 'date', 'ap.view'],
-        'ap_register' => ['Accounts', 'Supplier Bill Register', 'Bills & debit notes in the period: match variance, paid and outstanding', 'range', 'ap.view'],
-        'wht_register' => ['Accounts', 'Withholding Tax Register (GRA)', 'Supplier payments in the period with the tax withheld: supplier TIN, nature of payment, taxable amount, rate, WHT, withholding VAT, net paid and certificate', 'range', 'ap.view'],
-        'trial_balance' => ['General Ledger', 'Trial Balance', 'Opening, period movement and closing balance of every account', 'range', 'gl.view'],
-        'gl_pnl' => ['General Ledger', 'Profit & Loss (GL)', 'Income statement from the double-entry ledger, by account group', 'range', 'gl.view'],
-        'balance_sheet' => ['General Ledger', 'Balance Sheet', 'Assets, liabilities and equity as at a date', 'date', 'gl.view'],
-        'journal_register' => ['General Ledger', 'Journal Register (Day Book)', 'Every journal line posted in the period', 'range', 'gl.view'],
-        'close_status' => ['General Ledger', 'Period Close Status', 'Month-end close by period: checklist cleared, waivers, preparer and approver, days taken to close', 'range', 'close.view'], // v5.6
-        'accrual_register' => ['General Ledger', 'Accruals & Prepayments Register', 'Accrued expenses, prepaid expenses and deferred income: amount, posted, balance remaining and next month to post', 'date', 'close.view'],
-        'period_end_postings' => ['General Ledger', 'Period-end Postings', 'Journals made from schedules and recurring templates in the period, with auto-reversals', 'range', 'close.view'],
-        'cash_flow' => ['Treasury', 'Cash-flow Statement (IAS 7)', 'Indirect method: profit, non-cash add-backs and working capital, investing and financing flows; opening + net = closing cash', 'range', 'treasury.view'], // v5.7
-        'cash_position' => ['Treasury', 'Cash Position', 'Book balance per bank, MoMo, cash box, float and clearing account as at a date, with minimums, unpresented cheques and last reconciliation', 'date', 'treasury.view'],
-        'cheque_register' => ['Treasury', 'Cheque Register', 'Cheques received (post-dated, in hand, banked, cleared, bounced) and cheques written in the period', 'range', 'treasury.view'],
-        'transfer_register' => ['Treasury', 'Banking & Transfer Register', 'Cash / cheque bankings, settlement sweeps and bank transfers: requested, approved, sent, credited, fees and short / over banking', 'range', 'treasury.view'],
-        'usali_summary' => ['Owner Reporting', 'USALI Summary Operating Statement', 'USALI 11th edition statement for any period: revenue by department, departmental and undistributed expenses, GOP, management fees, non-operating items, EBITDA, replacement reserve and net income with % of revenue', 'range', 'owner.view'], // v5.8
-        'usali_departments' => ['Owner Reporting', 'USALI Departmental Schedules', 'Every ledger account under its USALI department and category (revenue, cost of sales, labour, other) with departmental profit and % of the department\'s revenue', 'range', 'owner.view'],
-        'hotel_kpis' => ['Owner Reporting', 'Hotel KPIs by Month', 'Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied room, GOP and EBITDA margins, labour cost % and F&B cost %', 'range', 'owner.view'],
-        'management_fees' => ['Owner Reporting', 'Management Fee Calculation', 'Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the owner\'s priority, incentive fee, status and payment', 'range', 'owner.view'],
-        'ffe_reserve' => ['Owner Reporting', 'FF&E Reserve Ledger & Capex', 'Reserve opening balance, contributions, interest, capex drawdowns and adjustments with a running balance, and each capital project\'s budget and spend', 'range', 'owner.view'],
-        'concierge_bookings' => ['Concierge', 'Activity Bookings Register', 'Every activity / excursion booking in the period: operator, guest, party, source, paid to hotel or operator, sold value, commission, status and settlement', 'range', 'concierge.view'], // v5.9
-        'concierge_sales' => ['Concierge', 'Activity Sales & Commission', 'Per activity: bookings, guests, sold value, average booking, commission earned, cancellations, no-shows, portal share and take-up', 'range', 'concierge.view'],
-        'concierge_vendors' => ['Concierge', 'Operator Statement & Balances', 'Per tour operator: finished bookings, commission, settlements paid / received and unsettled balances owed each way, with licence expiry', 'range', 'concierge.view'],
-        'concierge_staff' => ['Concierge', 'Concierge Sales by Staff', 'Bookings, guests, sold value and commission by the staff member (or guest portal) that made them – the base for concierge incentives', 'range', 'concierge.view'],
-        'training_compliance' => ['Learning & Development', 'Training Matrix Compliance', 'Every employee against the training their department / job title requires: current, expiring, expired, overdue, new-starter due and compliance %', 'none', 'learning.view'],
-        'training_expiry' => ['Learning & Development', 'Certificates Expiring', 'Staff certificates (fire, first aid, food hygiene…) expiring in the date range – whether a renewal session is booked – so refreshers can be planned', 'range', 'learning.view'],
-        'training_records' => ['Learning & Development', 'Training Records Register', 'Every training outcome in the period: employee, course, in-house session or external, result, score, hours, cost and certificate number', 'range', 'learning.view'],
-        'training_hours' => ['Learning & Development', 'Training Hours & Spend by Department', 'Training hours delivered, staff trained, hours per head, cost and cost per head by department, with the courses taken', 'range', 'learning.view'],
-        'sop_acknowledgement' => ['Learning & Development', 'SOP Sign-off Status', 'Every published SOP that staff must sign: version, effective date, review due, staff in scope, signed, outstanding and who has not signed', 'none', 'learning.view'],
-        'budget_vs_actual' => ['Budget & Planning', 'Budget vs Actual (P&L)', 'Month and year-to-date actuals from the general ledger against the active budget (current month pro-rated), variances, % and full-year budget / forecast', 'date', 'budget.view'],
-        'budget_annual' => ['Budget & Planning', 'Annual Budget – Monthly Phasing', 'The active budget for the fiscal year: every income and expense account by month with section totals, GOP and net profit', 'date', 'budget.view'],
-        'forecast_vs_budget' => ['Budget & Planning', 'Forecast vs Budget', 'Full-year active re-forecast against the approved budget per account, with actuals to date and the remaining forecast', 'date', 'budget.view'],
-        'budget_kpis' => ['Budget & Planning', 'Rooms KPIs vs Budget', 'Per fiscal month: occupancy, ADR, RevPAR, room-nights and room revenue – budget against actual', 'date', 'budget.view'],
-        'variance_commentary' => ['Budget & Planning', 'Variance Commentary Log', 'Explanations recorded for budget variances in the period: month, account, actual, budget, variance, comment and author', 'range', 'budget.view'],
-        'call_log' => ['Hotel Interfaces', 'Call Accounting Log', 'Every call from the PABX in the period: time, extension, room / guest, number (masked), class, duration, carrier cost, guest charge and status', 'range', 'calls.view'],
-        'call_revenue' => ['Hotel Interfaces', 'Telephone Revenue & Margin', 'Guest calls by class: calls, minutes, carrier cost, amount charged and margin – plus unbilled (pending / waived) calls', 'range', 'calls.view'],
-        'admin_call_usage' => ['Hotel Interfaces', 'Administrative Call Usage', 'Calls from administrative and public extensions by department and extension: calls, minutes and carrier cost', 'range', 'calls.view'],
-        'key_card_audit' => ['Hotel Interfaces', 'Key Card Audit', 'Guest key cards encoded in the period: room, holder, type, valid until, status, who issued and lost-card fees', 'range', 'keys.view'],
-        'master_key_register' => ['Hotel Interfaces', 'Master Key Register', 'Master-key sign-outs in the period: key, holder, purpose, out, due, returned, late / lost', 'range', 'keys.view'],
-        'gift_voucher_register' => ['Gift Vouchers', 'Gift Voucher Register', 'Every voucher issued in the period: type, sold / promotional, purchaser & recipient, value, redeemed, balance and status', 'range', 'vouchers.view'],
-        'voucher_liability' => ['Gift Vouchers', 'Voucher Liability (Outstanding)', 'Unspent voucher balances as at a date by expiry bucket – reconciled to GL 2120 Gift Vouchers Outstanding', 'date', 'vouchers.view'],
-        'voucher_redemptions' => ['Gift Vouchers', 'Voucher Redemptions', 'Every redemption and reversal: where it was spent (front office folio / outlet bill), amount and cashier', 'range', 'vouchers.view'],
-        'voucher_breakage' => ['Gift Vouchers', 'Voucher Breakage & Cancellations', 'Balances that lapsed at expiry (breakage income / promotional cost released) and cancelled / refunded vouchers', 'range', 'vouchers.view'],
-        'voucher_sales' => ['Gift Vouchers', 'Voucher Sales Summary', 'Per voucher type: vouchers sold and given away, value sold, reloads, redeemed and lapsed – plus sales by payment mode', 'range', 'vouchers.view'],
-        // v3.9 engineering
-        'utility_consumption' => ['Engineering', 'Utility Consumption by Meter', 'Per meter: readings, days covered, consumption, daily average, cost, estimated readings and anomalies – with sub-meter coverage of each main meter', 'range', 'utilities.view'],
-        'energy_kpis' => ['Engineering', 'Energy & Water KPIs', 'Per day: occupied rooms, guests, kWh, kWh per occupied room, water per guest night, utility cost per room and as % of revenue, CO₂ per room', 'range', 'utilities.view'],
-        'utility_bill_reconciliation' => ['Engineering', 'Utility Bill Reconciliation', 'Bills dated in the period: units billed vs metered, variance, charges, effective rate vs tariff and the AP document', 'range', 'utilities.view'],
-        'carbon_footprint' => ['Engineering', 'Carbon Footprint (Scope 1 & 2)', 'Consumption × emission factor per energy source: t CO₂e, share, per occupied room and emissions avoided by solar', 'range', 'utilities.view'],
-        'compliance_register' => ['Engineering', 'Licences & Compliance Register', 'Every licence, permit, certificate, insurance, inspection and AMC with expiry / next due, days left and status as at a date', 'date', 'compliance.view'],
-        // v4.0 API platform
-        'upsell_revenue' => ['Upselling', 'Upsell Revenue by Offer', 'Per offer: confirmed orders and revenue split by channel (pre-arrival, desk, in-house portal), average sale, share of upsell revenue, plus declined and cancelled orders', 'range', 'upsell.view'],
-        'upsell_conversion' => ['Upselling', 'Upsell Conversion by Channel', 'Guests shown offers per channel, how many opened them and how many bought – conversion rate, orders and revenue per guest offered', 'range', 'upsell.view'],
-        'security_visitors' => ['Security', 'Visitor Register', 'Every visitor in the period: pass, name, masked ID, whom they visited, purpose, time in / out, who let them in, overrides and watch-list matches', 'range', 'security.view'],
-        'security_gatepasses' => ['Security', 'Gate Pass Register', 'Gate passes raised in the period with party, purpose, items, value, approval, gate-out time and return status', 'range', 'security.view'],
-        'security_outstanding' => ['Security', 'Goods Outside the Property', 'Returnable gate-pass items still out at a date: party, quantity outstanding, estimated value, due date and days overdue', 'date', 'security.view'],
-        'security_incidents' => ['Security', 'Security Incident Register', 'Incidents in the period by type and severity with location, guest, injuries, loss, police reference, status and resolution', 'range', 'security.view'],
-        'upsell_incentives' => ['Upselling', 'Staff Upsell Incentives', 'Per staff member: desk upsells confirmed, sales value, incentive earned and the offers sold – for the payroll incentive run', 'range', 'upsell.view'],
-        'api_usage' => ['API & Integrations', 'API Usage by Client', 'Per API client and call: requests, successes, client (4xx) and server (5xx) errors, error rate, average response time and the last call – plus calls refused for want of a valid key', 'range', 'api.view'],
-        'webhook_deliveries' => ['API & Integrations', 'Webhook Delivery Performance', 'Per endpoint and event: events queued, delivered, still retrying and given up, first-attempt success, average attempts and response time', 'range', 'api.view'],
-        'rm_forecast' => ['Revenue Management', 'Forecast & On the Books', 'Per night: rooms booked & held, ADR, revenue, 7-day pickup and forecast occupancy / revenue', 'range', 'revenue.view'],
-        'rm_pickup' => ['Revenue Management', 'Booking Pace (Pickup)', 'Per booking date: new bookings, room nights, revenue, average lead time & rate, cancellations', 'range', 'revenue.view'],
-        'payroll_register' => ['HR & Payroll', 'Payroll Register', 'Per employee and month: paid days, LOP, overtime, earnings, each statutory deduction, net pay and employer cost', 'range', 'payroll.view'],
-        'payroll_statutory' => ['HR & Payroll', 'Statutory Dues Summary', 'Per month and liability: employee deductions + employer contributions owed (SSNIT Tier 1, Tier 2 pension, PAYE)', 'range', 'payroll.view'],
-        'ssnit_schedule' => ['HR & Payroll', 'SSNIT Contribution Schedule', 'Per approved payroll month and employee: SSNIT number, Ghana Card, basic salary, insurable earnings, Tier 1 (employee 5.5% + employer 8%) and Tier 2 (5%)', 'range', 'payroll.view'],
-        'paye_schedule' => ['HR & Payroll', 'PAYE Monthly Schedule (GRA)', 'Per approved payroll month and employee: TIN / Ghana Card, basic, allowances, gross, SSNIT relief, chargeable income and PAYE withheld', 'range', 'payroll.view'],
-        'bank_reconciliation' => ['Accounts', 'Bank Reconciliation Summary', 'Per bank / Mobile Money / clearing account at a date: book balance, latest statement balance, deposits in transit, unpresented payments, statement items not in the books and the unexplained difference', 'date', 'bankrec.view'],
-        'uncleared_items' => ['Accounts', 'Uncleared Items', 'Book entries not yet on a bank statement and statement lines not in the books, at a date, with days outstanding', 'date', 'bankrec.view'],
-        'bank_statement_lines' => ['Accounts', 'Bank Statement Lines', 'Imported statement lines in the period: statement, date, details, money in / out, status, how matched and the book entries they cleared', 'range', 'bankrec.view'],
-        'petty_cash_book' => ['Accounts', 'Petty Cash Book', 'Every posted petty cash movement in the period per float: top-ups, vouchers, IOUs and settlements, count differences and claims paid in cash, with opening, running and closing balances', 'range', 'petty.view'], // v4.7
-        'petty_expenses' => ['Accounts', 'Petty Cash Spending by Account', 'Vouchers and settled IOUs in the period by expense account and float, with input VAT, NHIL & GETFund recovered on VAT invoices', 'range', 'petty.view'],
-        'expense_claims' => ['Accounts', 'Staff Expense Claims Register', 'Claims submitted in the period: claimant, department, title, amount, input VAT, status, approver, payment date and method', 'range', 'claims.approve'],
-        'statutory_remittances' => ['HR & Payroll', 'Statutory Remittance Register', 'SSNIT, Tier 2 and PAYE payments made in the period: month, payee, amount, due date, days late, reference and payment mode', 'range', 'payroll.view'],
-        'roster_vs_actual' => ['HR & Payroll', 'Roster vs Actual', 'Per employee: rostered shifts and planned hours against time-clock hours worked, late arrivals, early departures, no-shows, unrostered work and manager corrections', 'range', 'roster.view'], // v4.9
-        'timesheet' => ['HR & Payroll', 'Timesheet (Time Clock)', 'Every time punch in the period: rostered shift, clock-in / out, source (self-service, kiosk, manager), hours worked, late / early minutes, corrections and approval', 'range', 'roster.view'],
-        'service_charge_distribution' => ['HR & Payroll', 'Service Charge Distribution', 'Service charge & tips shared with staff for distributions in the period: points, days worked, amount, status and the payroll run that paid it', 'range', 'servicecharge.manage'],
-        'haccp_temperatures' => ['Food Safety', 'HACCP Temperature Log', 'Every temperature reading in the period – equipment checks, receiving, cooking, reheating and cooling – with critical limit, result, corrective action and reviewer', 'range', 'foodsafety.view'], // v5.0
-        'haccp_checklists' => ['Food Safety', 'HACCP Checklist Compliance', 'Checklist periods due in the range: completed on time or missed, failed items and sign-off', 'range', 'foodsafety.view'],
-        'club_members' => ['Health Club', 'Membership Register', 'Memberships current in the period by plan, with term, card holders, balance and visits; joins, renewals and leavers', 'range', 'club.view'], // v5.1
-        'club_attendance' => ['Health Club', 'Club Attendance & Utilisation', 'Visits by day and facility (members, hotel guests, day passes, members\' guests), refusals, overrides and class attendance', 'range', 'club.view'],
-        'club_revenue' => ['Health Club', 'Club Revenue & Deferred Fees', 'Membership fees earned day by day, joining fees, guest & day passes, credit notes, receipts and the fees still held in advance', 'range', 'club.view'],
-        'lease_rent_roll' => ['Apartments & Leases', 'Rent Roll', 'Every unit with its tenant, term, cycle, monthly rent & service charge, deposit held, balance and rent invoiced / collected in the period', 'range', 'leases.view'], // v5.2
-        'lease_arrears' => ['Apartments & Leases', 'Tenant Arrears Ageing', 'Overdue tenant invoices after the grace period by age (0–30, 31–60, 61–90, 90+ days) with the deposit held against each', 'range', 'leases.view'],
-        'lease_expiry' => ['Apartments & Leases', 'Lease Expiry & Renewals', 'Leases ending, on notice or due for a rent review in the period (from the start date to the end date), with the action needed', 'range', 'leases.view'],
-        'ia_findings' => ['Income Audit', 'Audit Exceptions Register', 'Every income-audit exception raised for business dates in the period: check, severity, room / document, value and how it was resolved (explained, corrected, escalated, accepted)', 'range', 'income_audit.view'], // v5.3
-        'ia_rate_variance' => ['Income Audit', 'Room Rate Variance', 'Each occupied room night: tariff charged against the expected rate (rate plan, contract, group block or rack less booking discount), variance and the authorisation covering it (max 31 days)', 'range', 'income_audit.view'],
-        'ia_reconciliation' => ['Income Audit', 'Daily Revenue Reconciliation', 'Per business date: night-audit report vs the baseline at close vs now for room / other revenue, tax and collections, discounts, GL income, open exceptions and sign-off', 'range', 'income_audit.view'],
-        'ia_authorisations' => ['Income Audit', 'Comps, Discounts & Rate Authorisations', 'Complimentary and house-use rooms, below-expected rates and folio discounts requested in the period, the revenue given away, who asked and who approved', 'range', 'income_audit.view'],
-        'food_waste' => ['Food Safety', 'Food Waste Analysis', 'Food waste by item and reason with quantity and cost; raw & unserved dishes (posted to 5042 Food Waste) and plate waste (analysis only)', 'range', 'foodsafety.view'],
-        'leave_register' => ['HR & Payroll', 'Leave Register', 'Leave requests overlapping the period: employee, type, dates, days, status and approver', 'range', 'hr.leave'],
-        'mis' => ['Management', 'Night Audit MIS', 'Night audit statistics', 'range'],
-        'guest_history' => ['Management', 'Top Guests', 'Repeat guests by stays and revenue', 'range'],
-        'user_activity' => ['Management', 'User Activity Summary', 'Actions per user and module', 'range'],
-        'rpt_deliveries' => ['Management', 'Scheduled Report Deliveries', 'Every scheduled / sent-now report e-mail: period, recipients, rows, failures', 'range', 'reports.schedule'], // v5.4
-        'kpi_alert_log' => ['Management', 'KPI Alert Log', 'KPI threshold breaches by business date, actual vs threshold, acknowledgement', 'range', 'reports.alerts'], // v5.4
-        'package_forecast' => ['Packages & Meal Plans', 'Meal Cover Forecast', 'Breakfast / lunch / dinner covers per service date: actual entitlements for past days, on-the-books forecast from today (in-house + confirmed reservations)', 'range', 'packages.view'], // v5.5
-        'package_allocation' => ['Packages & Meal Plans', 'Package Allocation & Breakage', 'Per package: value allocated out of room revenue and add-ons, used at the outlets, expired as breakage, still open, extras charged; take-up rate', 'range', 'packages.view'],
-        'package_consumption' => ['Packages & Meal Plans', 'Package Consumption Register', 'Every cover / allowance recorded at the Meal Desk: room, guest, package, covers, value, extras and how they were settled, voids', 'range', 'packages.view'],
+        'talent_interviews' => ['Talent Management', 'Talent Interview Register', 'Every interview scheduled with candidate, panel and outcome', 'none', 'hr.view'],
+        'talent_offers' => ['Talent Management', 'Talent Offer Register', 'Every offer letter issued with position, salary and status', 'none', 'hr.view'],
+        'talent_pipeline' => ['Talent Management', 'Recruitment Funnel & Sources', 'Applicants received in the period by vacancy: screened, interviewed, offered, hired and rejected, conversion, average interview score, and applications / hires by source', 'range', 'talent.recruit'],
+        'talent_probations' => ['Talent Management', 'Talent Probation Register', 'Every probationary employee with completion status', 'none', 'hr.view'],
+        'talent_scorecards' => ['Talent Management', 'Talent Scorecard Register', 'Every performance scorecard with rating and reviewer', 'none', 'hr.view'],
+        'talent_tasks' => ['Talent Management', 'Talent Task Register', 'Every recruitment task with assignee, due date and status', 'none', 'hr.view'],
+        'talent_vacancies' => ['Talent Management', 'Vacancy Register & Time to Fill', 'Vacancies raised in the period: department, posts, salary range, reason, requester and approver, applicants, hires and days from approval to filled', 'range', 'talent.view'], // v6.9
+        'credit_notes' => ['Tax & Statutory', 'Credit Note Register', 'Credit notes issued in the period against earlier invoices: reason, taxable value, VAT / NHIL / GETFund / Tourism Levy, settlement (refund or company account) and E-VAT stamp', 'range', 'gst.view'],
+        'einvoice_logs' => ['Tax & Statutory', 'Einvoice Logs Register', 'Detailed register of Einvoice Logs records', 'none', 'tax.view'],
+        'einvoice_register' => ['Tax & Statutory', 'E-VAT Register', 'Invoices and credit notes dated in the period: buyer TIN, value, E-VAT SDC ID, receipt number and status – stamped, failed or not stamped', 'range', 'gst.view'],
+        'gst_cancelled_docs' => ['Tax & Statutory', 'Gst Cancelled Docs Register', 'Detailed register of Gst Cancelled Docs records', 'none', 'tax.view'],
+        'gst_periods' => ['Tax & Statutory', 'Gst Periods Register', 'Detailed register of Gst Periods records', 'none', 'tax.view'],
+        'hsn_summary' => ['Tax & Statutory', 'VAT & Levies by Category', 'Outward supplies by charge category and rate for the period: taxable value, VAT, NHIL, GETFund, Tourism Levy, B2B and B2C', 'range', 'gst.view'],
+        'wht_periods' => ['Tax & Statutory', 'Wht Periods Register', 'Detailed register of Wht Periods records', 'none', 'tax.view'],
+        'wht_register' => ['Tax & Statutory', 'Withholding Tax Register (GRA)', 'Supplier payments in the period with the tax withheld: supplier TIN, nature of payment, taxable amount, rate, WHT, withholding VAT, net paid and certificate', 'range', 'ap.view'],
+        'car_rentals' => ['Transport & Parking', 'Car Rental Register', 'Every car rental with guest, vehicle and dates', 'range', 'transport.view'],
+        'parking_occupancy' => ['Transport & Parking', 'Car Park Occupancy by Zone', 'Each zone: bays, tickets by guest / visitor / permit, average stay, peak vehicles parked at once, bay utilisation and vehicles parked now', 'range', 'parking.view'],
+        'parking_permits' => ['Transport & Parking', 'Parking Permit Register', 'Staff, tenant and contractor permits with vehicle, zone, validity, days left, fee, state and how often each was used', 'none', 'parking.view'],
+        'parking_revenue' => ['Transport & Parking', 'Parking Revenue by Day', 'Parking revenue per business date: guest nights posted to room folios, visitor exit fees and valet, lost-ticket fees and amounts waived', 'range', 'parking.view'],
+        'parking_sessions' => ['Transport & Parking', 'Parking Ticket Register', 'Every parking ticket issued in the period: plate, guest / visitor / permit, valet, zone, time in and out, duration, validation, lost tickets and what was charged or waived at the exit', 'range', 'parking.view'],
+        'parking_valet' => ['Transport & Parking', 'Valet Retrieval Performance', 'Valet cars brought round per runner: average and longest minutes from request to the door, share within the target and how guests asked (QR, phone, desk)', 'range', 'parking.view'],
+        'parking_vehicles' => ['Transport & Parking', 'Parking Vehicle Register', 'Every parking vehicle entry', 'range', 'transport.view'],
+        'rental_vehicles' => ['Transport & Parking', 'Rental Vehicle Register', 'Every rental vehicle with type, capacity and active', 'range', 'transport.view'],
+        'transport_drivers' => ['Transport & Parking', 'Driver Performance', 'Per driver: trips, km, hours on duty, on-time departures, no-shows, revenue and last trip', 'range', 'transport.view'],
+        'transport_revenue' => ['Transport & Parking', 'Transport Revenue by Day', 'Day by day: pick-ups, drops and transfers, fares to the room bill, direct and complimentary, extras, no-shows and cancellations', 'range', 'transport.view'],
+        'transport_tariffs' => ['Transport & Parking', 'Transport Tariff Register', 'Every airport, local and tour transport tariff', 'none', 'transport.view'],
+        'transport_trips' => ['Transport & Parking', 'Transfer Register', 'Every pick-up, drop and local transfer in the period: time, guest, route, flight, car, driver, km, minutes late, fare, billing and status', 'range', 'transport.view'],
+        'transport_vehicles' => ['Transport & Parking', 'Vehicle Utilisation & Running Cost', 'Per vehicle: trips, km driven, hours on the road, revenue, fuel & other running costs, cost per km, km per litre and margin', 'range', 'transport.view'],
+        'cash_flow' => ['Treasury & Payments', 'Cash-flow Statement (IAS 7)', 'Indirect method: profit, non-cash add-backs and working capital, investing and financing flows; opening + net = closing cash', 'range', 'treasury.view'], // v5.7
+        'cash_forecast_lines' => ['Treasury & Payments', 'Cash Forecast Line Register', 'Every cash forecast line by date and source', 'range', 'accounts.view'],
+        'cash_position' => ['Treasury & Payments', 'Cash Position', 'Book balance per bank, MoMo, cash box, float and clearing account as at a date, with minimums, unpresented cheques and last reconciliation', 'date', 'treasury.view'],
+        'cheque_register' => ['Treasury & Payments', 'Cheque Register', 'Cheques received (post-dated, in hand, banked, cleared, bounced) and cheques written in the period', 'range', 'treasury.view'],
+        'gateway_payouts' => ['Treasury & Payments', 'Gateway Payout Register', 'Every gateway payout with amount, fees and status', 'range', 'accounts.view'],
+        'gift_voucher_register' => ['Treasury & Payments', 'Gift Voucher Register', 'Every voucher issued in the period: type, sold / promotional, purchaser & recipient, value, redeemed, balance and status', 'range', 'vouchers.view'],
+        'online_payment_events' => ['Treasury & Payments', 'Online Payment Event Register', 'Every online payment webhook event received', 'range', 'accounts.view'],
+        'online_refunds' => ['Treasury & Payments', 'Online Refund Register', 'Every online refund with payment, amount and reason', 'range', 'accounts.view'],
+        'payment_modes' => ['Treasury & Payments', 'Payment Mode Register', 'Every payment mode: name, type, active and config', 'none', 'accounts.view'],
+        'transfer_register' => ['Treasury & Payments', 'Banking & Transfer Register', 'Cash / cheque bankings, settlement sweeps and bank transfers: requested, approved, sent, credited, fees and short / over banking', 'range', 'treasury.view'],
+        'voucher_breakage' => ['Treasury & Payments', 'Voucher Breakage & Cancellations', 'Balances that lapsed at expiry (breakage income / promotional cost released) and cancelled / refunded vouchers', 'range', 'vouchers.view'],
+        'voucher_liability' => ['Treasury & Payments', 'Voucher Liability (Outstanding)', 'Unspent voucher balances as at a date by expiry bucket – reconciled to GL 2120 Gift Vouchers Outstanding', 'date', 'vouchers.view'],
+        'voucher_redemptions' => ['Treasury & Payments', 'Voucher Redemptions', 'Every redemption and reversal: where it was spent (front office folio / outlet bill), amount and cashier', 'range', 'vouchers.view'],
+        'voucher_sales' => ['Treasury & Payments', 'Voucher Sales Summary', 'Per voucher type: vouchers sold and given away, value sold, reloads, redeemed and lapsed – plus sales by payment mode', 'range', 'vouchers.view'],
+        'upsell_conversion' => ['Front Office', 'Upsell Conversion by Channel', 'Guests shown offers per channel, how many opened them and how many bought – conversion rate, orders and revenue per guest offered', 'range', 'upsell.view'],
+        'upsell_incentives' => ['Front Office', 'Staff Upsell Incentives', 'Per staff member: desk upsells confirmed, sales value, incentive earned and the offers sold – for the payroll incentive run', 'range', 'upsell.view'],
+        'upsell_revenue' => ['Front Office', 'Upsell Revenue by Offer', 'Per offer: confirmed orders and revenue split by channel (pre-arrival, desk, in-house portal), average sale, share of upsell revenue, plus declined and cancelled orders', 'range', 'upsell.view'],
     ];
 
     public function index()
@@ -5665,5 +6112,2166 @@ class ReportController extends Controller
             'reason' => 'Reason', 'by' => 'By'], 'rows' => $rows, 'money' => ['old', 'new', 'cost'], 'sum' => [],
             'summary' => ['Changes' => (string) $rows->count(), 'Increases' => (string) $list->filter(fn ($c) => $c->new_price > $c->old_price)->count(),
                 'Decreases' => (string) $list->filter(fn ($c) => $c->new_price < $c->old_price)->count()]];
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // BATCH 1: RESERVATIONS, HOUSEKEEPING, INVENTORY, F&B, BANQUET, ACCOUNTS, TREASURY, PAYROLL, MARKETING, SALES, COMPLIANCE
+    // ════════════════════════════════════════════════════════════════════
+
+    protected function r_cashier_shifts($from, $to): array
+    {
+        $rows = CashierShift::with('cashier')->whereBetween('started_at', [$from, $to])->get()->map(fn ($r) => [
+            'shift' => $r->shift_label, 'cashier' => optional($r->cashier)->name, 'hotel' => $r->hotel_id,
+            'started' => $r->started_at, 'ended' => $r->ended_at, 'period' => $r->period,
+            'opening' => $r->opening_balance, 'cash_in' => $r->cash_in, 'cash_out' => $r->cash_out,
+            'cheque_in' => $r->cheque_in, 'card_in' => $r->card_in, 'total_sales' => $r->total_sales,
+            'total_refunds' => $r->total_refunds, 'expected' => $r->expected_cash,
+            'actual' => $r->actual_cash, 'surplus' => $r->surplus, 'shortage' => $r->shortage,
+            'closed' => $r->closed, 'status' => $r->status,
+        ]);
+        return ['cols' => ['shift' => 'Shift', 'cashier' => 'Cashier', 'started' => 'Started', 'ended' => 'Ended', 'opening' => 'Opening', 'cash_in' => 'Cash In', 'cash_out' => 'Cash Out', 'card_in' => 'Card In', 'total_sales' => 'Total Sales', 'total_refunds' => 'Refunds', 'expected' => 'Expected', 'actual' => 'Actual', 'surplus' => 'Surplus', 'shortage' => 'Shortage', 'status' => 'Status'], 'rows' => $rows, 'money' => ['opening', 'cash_in', 'cash_out', 'cheque_in', 'card_in', 'total_sales', 'total_refunds', 'expected', 'actual', 'surplus', 'shortage'], 'sum' => ['total_sales', 'total_refunds', 'surplus', 'shortage'], 'note' => 'Daily cashier shift register with expected vs actual cash reconciliation.'];
+    }
+
+
+
+
+    protected function r_room_moves($from, $to): array
+    {
+        $rows = RoomMove::with('reservation.guest')->whereBetween('moved_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'from_room' => $r->from_room_id, 'to_room' => $r->to_room_id,
+            'from_type' => $r->from_room_type_id, 'to_type' => $r->to_room_type_id,
+            'reason' => $r->reason, 'moved' => $r->moved_at, 'user' => $r->user_id,
+            'balance_adjust' => $r->balance_adjustment, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'from_room' => 'From Room', 'to_room' => 'To Room', 'reason' => 'Reason', 'moved' => 'Moved At', 'balance_adjust' => 'Balance Adj'], 'rows' => $rows, 'money' => ['balance_adjust'], 'sum' => ['balance_adjust'], 'note' => 'Room moves with reason and balance adjustments.'];
+    }
+
+    protected function r_room_outages($from, $to): array
+    {
+        $rows = RoomOutage::with('room.roomType')->whereBetween('outage_from', [$from, $to])->get()->map(fn ($r) => [
+            'room' => optional($r->room)->room_no, 'type' => optional($r->room->roomType)->name,
+            'from' => $r->outage_from, 'to' => $r->outage_to, 'category' => $r->category,
+            'reason' => $r->reason, 'estimated_cost' => $r->estimated_cost, 'actual_cost' => $r->actual_cost,
+            'revenue_lost' => $r->revenue_lost, 'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'from' => 'From', 'to' => 'To', 'category' => 'Category', 'reason' => 'Reason', 'estimated_cost' => 'Est Cost', 'actual_cost' => 'Act Cost', 'revenue_lost' => 'Rev Lost', 'status' => 'Status'], 'rows' => $rows, 'money' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'sum' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'note' => 'Room out-of-order periods with cost and revenue impact.'];
+    }
+
+
+    protected function r_stock_take_lines($from, $to): array
+    {
+        $rows = StockTakeLine::with('stockTake.store.item.itemCategory')->where('stockTake.taken_at', '>=', $from)->where('stockTake.taken_at', '<=', $to)->get()->map(fn ($r) => [
+            'store' => optional($r->stockTake->store)->name, 'item' => optional($r->stockTake->store->item)->name,
+            'category' => optional(optional($r->stockTake->store->item)->itemCategory)->name,
+            'unit' => $r->unit, 'book_qty' => $r->book_quantity, 'actual_qty' => $r->actual_quantity,
+            'diff_qty' => $r->diff_quantity, 'rate' => $r->unit_rate, 'book_value' => $r->book_value,
+            'actual_value' => $r->actual_value, 'diff_value' => $r->diff_value, 'reason' => $r->reason, 'status' => $r->status,
+        ]);
+        return ['cols' => ['store' => 'Store', 'item' => 'Item', 'category' => 'Category', 'book_qty' => 'Book Qty', 'actual_qty' => 'Actual Qty', 'diff_qty' => 'Diff', 'rate' => 'Rate', 'book_value' => 'Book Value', 'actual_value' => 'Actual Value', 'diff_value' => 'Diff Value', 'reason' => 'Reason'], 'rows' => $rows, 'money' => ['book_value', 'actual_value', 'diff_value'], 'sum' => ['book_value', 'actual_value', 'diff_value'], 'note' => 'Line-level stock take details with variance reasons.'];
+    }
+
+
+
+
+    protected function r_pay_components($from, $to): array
+    {
+        $rows = EmployeePayComponent::with('employee')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'period' => $r->period_start . ' to ' . $r->period_end,
+            'type' => $r->component_type, 'description' => $r->description,
+            'gross' => $r->gross_amount, 'basic' => $r->basic_salary, 'overtime' => $r->overtime_amount,
+            'allowance' => $r->allowance_amount, 'deduction' => $r->deduction_amount,
+            'net' => $r->net_amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'period' => 'Period', 'type' => 'Type', 'gross' => 'Gross', 'basic' => 'Basic', 'overtime' => 'OT', 'allowance' => 'Allowance', 'deduction' => 'Deduction', 'net' => 'Net'], 'rows' => $rows, 'money' => ['gross', 'basic', 'overtime', 'allowance', 'deduction', 'net'], 'sum' => ['gross', 'basic', 'overtime', 'allowance', 'deduction', 'net'], 'note' => 'Pay component breakdown per employee per period.'];
+    }
+
+
+    protected function r_staff_advances($from, $to): array
+    {
+        $rows = StaffAdvance::with('employee')->whereBetween('advanced_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'date' => $r->advanced_at, 'amount' => $r->amount,
+            'purpose' => $r->purpose, 'repaid' => $r->repaid_amount, 'balance' => $r->balance,
+            'interest' => $r->interest_rate, 'due_date' => $r->due_date, 'status' => $r->status, 'user' => $r->user_id,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'date' => 'Date', 'amount' => 'Amount', 'purpose' => 'Purpose', 'repaid' => 'Repaid', 'balance' => 'Balance', 'interest' => 'Interest %', 'due_date' => 'Due', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount', 'repaid', 'balance'], 'sum' => ['amount', 'repaid', 'balance'], 'note' => 'Staff advance ledger with repayment tracking.'];
+    }
+
+    protected function r_bank_matches($from, $to): array
+    {
+        $rows = BankMatch::with('bankTransaction.payment')->whereBetween('matched_at', [$from, $to])->get()->map(fn ($r) => [
+            'bank_txn' => optional($r->bankTransaction)->reference, 'payment' => optional($r->bankTransaction->payment)->reference,
+            'amount' => $r->amount, 'matched' => $r->matched_at, 'type' => $r->match_type,
+            'confidence' => $r->confidence, 'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['bank_txn' => 'Bank Txn', 'payment' => 'Payment', 'amount' => 'Amount', 'matched' => 'Matched', 'type' => 'Type', 'confidence' => 'Confidence', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Bank transaction matches with payment references.'];
+    }
+
+    protected function r_gateway_payouts($from, $to): array
+    {
+        $rows = GatewayPayout::with('gateway')->whereBetween('requested_at', [$from, $to])->get()->map(fn ($r) => [
+            'gateway' => optional($r->gateway)->name, 'requested' => $r->requested_at, 'paid' => $r->paid_at,
+            'amount' => $r->amount, 'fee' => $r->fee_amount, 'net' => $r->net_amount,
+            'currency' => $r->currency, 'status' => $r->status, 'reference' => $r->reference, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['gateway' => 'Gateway', 'requested' => 'Requested', 'paid' => 'Paid', 'amount' => 'Amount', 'fee' => 'Fee', 'net' => 'Net', 'currency' => 'Currency', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount', 'fee', 'net'], 'sum' => ['amount', 'fee', 'net'], 'note' => 'Gateway payout register with fee breakdown.'];
+    }
+
+    protected function r_online_refunds($from, $to): array
+    {
+        $rows = OnlineRefund::with('reservation.guest.gateway.payment')->whereBetween('refunded_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'gateway' => optional($r->gateway)->name, 'payment_ref' => optional($r->payment)->reference,
+            'original' => $r->original_amount, 'refund' => $r->refund_amount, 'fee' => $r->fee_amount,
+            'reason' => $r->reason, 'refunded' => $r->refunded_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'gateway' => 'Gateway', 'original' => 'Original', 'refund' => 'Refund', 'fee' => 'Fee', 'reason' => 'Reason', 'refunded' => 'Refunded', 'status' => 'Status'], 'rows' => $rows, 'money' => ['original', 'refund', 'fee'], 'sum' => ['refund', 'fee'], 'note' => 'Online payment refunds with gateway fee breakdown.'];
+    }
+
+    protected function r_supplier_prices($from, $to): array
+    {
+        $rows = SupplierPrice::with('supplier.item.itemCategory')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'supplier' => optional($r->supplier)->name, 'item' => optional($r->item)->name,
+            'category' => optional(optional($r->item)->itemCategory)->name,
+            'old_price' => $r->old_price, 'new_price' => $r->new_price, 'change' => $r->price_change,
+            'old_tax' => $r->old_tax_rate, 'new_tax' => $r->new_tax_rate,
+            'unit' => $r->unit, 'effective' => $r->effective_from, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['supplier' => 'Supplier', 'item' => 'Item', 'category' => 'Category', 'old_price' => 'Old Price', 'new_price' => 'New Price', 'change' => 'Change', 'unit' => 'Unit', 'effective' => 'Effective'], 'rows' => $rows, 'money' => ['old_price', 'new_price', 'price_change'], 'sum' => ['price_change'], 'note' => 'Supplier price change history with tax rate updates.'];
+    }
+
+    protected function r_grn_lines($from, $to): array
+    {
+        $rows = GoodsReceiptLine::with('goodsReceipt.supplier.item')->where('goodsReceipt.received_at', '>=', $from)->where('goodsReceipt.received_at', '<=', $to)->get()->map(fn ($r) => [
+            'grn_no' => optional($r->goodsReceipt)->grn_no, 'supplier' => optional($r->goodsReceipt->supplier)->name,
+            'item' => optional($r->item)->name, 'qty' => $r->quantity, 'unit' => $r->unit,
+            'rate' => $r->unit_rate, 'amount' => $r->amount, 'tax' => $r->tax_rate,
+            'tax_amount' => $r->tax_amount, 'batch' => $r->batch_no, 'expiry' => $r->expiry_date,
+            'store' => optional($r->goodsReceipt)->store_id, 'status' => $r->status,
+        ]);
+        return ['cols' => ['grn_no' => 'GRN No', 'supplier' => 'Supplier', 'item' => 'Item', 'qty' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'tax' => 'Tax %', 'batch' => 'Batch', 'expiry' => 'Expiry'], 'rows' => $rows, 'money' => ['rate', 'amount', 'tax_amount'], 'sum' => ['amount', 'tax_amount'], 'note' => 'Goods receipt note lines with batch/expiry tracking.'];
+    }
+
+    protected function r_sales_contacts($from, $to): array
+    {
+        $rows = SalesContact::with('salesRep')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'company' => $r->company, 'email' => $r->email, 'phone' => $r->phone,
+            'address' => $r->address, 'city' => $r->city, 'country' => $r->country,
+            'type' => $r->contact_type, 'rep' => optional($r->salesRep)->name,
+            'source' => $r->source, 'created' => $r->created_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'company' => 'Company', 'email' => 'Email', 'phone' => 'Phone', 'city' => 'City', 'type' => 'Type', 'rep' => 'Rep', 'source' => 'Source', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Sales contact register with assignment and source tracking.'];
+    }
+
+    protected function r_sales_opportunities($from, $to): array
+    {
+        $rows = SalesOpportunity::with('contact.salesRep')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'contact' => optional($r->contact)->name, 'company' => optional($r->contact)->company,
+            'rep' => optional(optional($r->contact)->salesRep)->name,
+            'title' => $r->title, 'opportunity_type' => $r->opportunity_type, 'source' => $r->source,
+            'expected_value' => $r->expected_value, 'expected_close' => $r->expected_close_date,
+            'stage' => $r->stage, 'probability' => $r->probability, 'created' => $r->created_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['contact' => 'Contact', 'company' => 'Company', 'rep' => 'Rep', 'title' => 'Title', 'type' => 'Type', 'expected_value' => 'Expected Value', 'expected_close' => 'Expected Close', 'stage' => 'Stage', 'probability' => 'Probability'], 'rows' => $rows, 'money' => ['expected_value'], 'sum' => ['expected_value'], 'note' => 'Sales opportunity pipeline with stage and expected value.'];
+    }
+
+    protected function r_channel_rate_maps($from, $to): array
+    {
+        $rows = ChannelRateMap::with('channel.roomType.ratePlan')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->channel)->name, 'room_type' => optional($r->roomType)->name,
+            'plan' => optional($r->ratePlan)->name, 'rate' => $r->rate, 'currency' => $r->currency,
+            'meal' => $r->meal_plan, 'rooms_left' => $r->rooms_left, 'min_stay' => $r->min_stay,
+            'max_stay' => $r->max_stay, 'effective' => $r->effective_from, 'status' => $r->status,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'room_type' => 'Room Type', 'plan' => 'Rate Plan', 'rate' => 'Rate', 'currency' => 'Currency', 'meal' => 'Meal Plan', 'rooms_left' => 'Rooms Left', 'min_stay' => 'Min Stay', 'effective' => 'Effective'], 'rows' => $rows, 'money' => ['rate'], 'sum' => ['rate'], 'note' => 'Channel rate mappings with availability and stay restrictions.'];
+    }
+
+    protected function r_channel_room_maps($from, $to): array
+    {
+        $rows = ChannelRoomMap::with('channel.roomType')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->channel)->name, 'room_type' => optional($r->roomType)->name,
+            'sellable' => $r->sellable, 'capacity' => $r->capacity, 'rate' => $r->rate,
+            'currency' => $r->currency, 'inventory_type' => $r->inventory_type,
+            'effective' => $r->effective_from, 'status' => $r->status,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'room_type' => 'Room Type', 'sellable' => 'Sellable', 'capacity' => 'Capacity', 'rate' => 'Rate', 'currency' => 'Currency', 'effective' => 'Effective'], 'rows' => $rows, 'money' => ['rate'], 'sum' => ['rate'], 'note' => 'Channel room type mappings with sellable flags.'];
+    }
+
+
+
+    protected function r_menu_items($from, $to): array
+    {
+        $rows = MenuItem::with('menuCategory.outlet')->get()->map(fn ($r) => [
+            'name' => $r->name, 'category' => optional($r->menuCategory)->name,
+            'outlet' => optional($r->outlet)->name, 'sku' => $r->sku, 'price' => $r->price,
+            'cost' => $r->cost, 'margin' => $r->margin_pct, 'status' => $r->status,
+            'description' => $r->description, 'unit' => $r->unit, 'prep_time' => $r->prep_time,
+        ]);
+        return ['cols' => ['name' => 'Name', 'category' => 'Category', 'outlet' => 'Outlet', 'sku' => 'SKU', 'price' => 'Price', 'cost' => 'Cost', 'margin' => 'Margin %', 'status' => 'Status', 'unit' => 'Unit', 'prep_time' => 'Prep Time'], 'rows' => $rows, 'money' => ['price', 'cost'], 'note' => 'Full menu item register with cost and margin.'];
+    }
+
+    protected function r_shift_templates($from, $to): array
+    {
+        $rows = ShiftTemplate::with('department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'dept' => optional($r->department)->name, 'start' => $r->start_time,
+            'end' => $r->end_time, 'break' => $r->break_minutes, 'hours' => $r->hours,
+            'overtime_from' => $r->overtime_from, 'color' => $r->color, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'dept' => 'Department', 'start' => 'Start', 'end' => 'End', 'break' => 'Break (min)', 'hours' => 'Hours', 'overtime_from' => 'OT From'], 'rows' => $rows, 'note' => 'Shift template definitions with break and overtime rules.'];
+    }
+
+    protected function r_utility_bills($from, $to): array
+    {
+        $rows = UtilityBill::with('utilityType')->whereBetween('bill_date', [$from, $to])->get()->map(fn ($r) => [
+            'type' => optional($r->utilityType)->name, 'bill_no' => $r->bill_no, 'date' => $r->bill_date,
+            'previous' => $r->previous_reading, 'current' => $r->current_reading, 'consumption' => $r->consumption,
+            'unit' => $r->unit, 'rate' => $r->rate, 'amount' => $r->amount, 'supplier' => $r->supplier_name,
+            'status' => $r->status, 'paid' => $r->paid_at, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['type' => 'Utility', 'bill_no' => 'Bill No', 'date' => 'Date', 'previous' => 'Previous', 'current' => 'Current', 'consumption' => 'Consumption', 'rate' => 'Rate', 'amount' => 'Amount', 'supplier' => 'Supplier', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate', 'amount'], 'sum' => ['amount'], 'note' => 'Utility bill register with meter readings and consumption.'];
+    }
+
+
+    protected function r_upsell_offers($from, $to): array
+    {
+        $rows = UpsellOffer::with('roomType.guestType')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'title' => $r->title, 'room_type' => optional($r->roomType)->name,
+            'guest_type' => optional($r->guestType)->name, 'description' => $r->description,
+            'price' => $r->price, 'cost' => $r->cost, 'margin' => $r->margin_pct,
+            'valid_from' => $r->valid_from, 'valid_to' => $r->valid_to, 'status' => $r->status,
+        ]);
+        return ['cols' => ['title' => 'Title', 'room_type' => 'Room Type', 'guest_type' => 'Guest Type', 'price' => 'Price', 'cost' => 'Cost', 'margin' => 'Margin %', 'valid_from' => 'Valid From', 'valid_to' => 'Valid To', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price', 'cost'], 'note' => 'Upsell offer catalog with pricing and validity.'];
+    }
+
+    protected function r_rfq_register($from, $to): array
+    {
+        $rows = Rfq::with('requester.supplier')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'rfq_no' => $r->rfq_no, 'title' => $r->title, 'requester' => optional($r->requester)->name,
+            'category' => $r->category, 'description' => $r->description, 'budget' => $r->budget,
+            'currency' => $r->currency, 'issued' => $r->created_at, 'due' => $r->due_date,
+            'quotes_received' => $r->quotes_received, 'status' => $r->status,
+        ]);
+        return ['cols' => ['rfq_no' => 'RFQ No', 'title' => 'Title', 'requester' => 'Requester', 'category' => 'Category', 'budget' => 'Budget', 'issued' => 'Issued', 'due' => 'Due', 'quotes' => 'Quotes', 'status' => 'Status'], 'rows' => $rows, 'money' => ['budget'], 'sum' => ['budget'], 'note' => 'Request for quotation register with budget and status.'];
+    }
+
+    protected function r_rental_vehicles($from, $to): array
+    {
+        $rows = RentalVehicle::with('vehicleType')->get()->map(fn ($r) => [
+            'plate' => $r->plate_number, 'make' => $r->make, 'model' => $r->model,
+            'year' => $r->year, 'type' => optional($r->vehicleType)->name, 'capacity' => $r->capacity,
+            'seats' => $r->seats, 'transmission' => $r->transmission, 'ac' => $r->has_ac,
+            'rate' => $r->daily_rate, 'currency' => $r->currency, 'status' => $r->status,
+        ]);
+        return ['cols' => ['plate' => 'Plate', 'make' => 'Make', 'model' => 'Model', 'year' => 'Year', 'type' => 'Type', 'capacity' => 'Capacity', 'seats' => 'Seats', 'rate' => 'Daily Rate', 'status' => 'Status'], 'rows' => $rows, 'money' => ['daily_rate'], 'note' => 'Rental vehicle fleet register.'];
+    }
+
+
+
+    protected function r_training_sessions($from, $to): array
+    {
+        $rows = TrainingSession::with('course.instructor')->whereBetween('session_date', [$from, $to])->get()->map(fn ($r) => [
+            'course' => optional($r->course)->name, 'instructor' => optional($r->instructor)->name,
+            'date' => $r->session_date, 'start' => $r->start_time, 'end' => $r->end_time,
+            'location' => $r->location, 'capacity' => $r->capacity, 'enrolled' => $r->enrolled,
+            'type' => $r->session_type, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['course' => 'Course', 'instructor' => 'Instructor', 'date' => 'Date', 'start' => 'Start', 'end' => 'End', 'location' => 'Location', 'capacity' => 'Capacity', 'enrolled' => 'Enrolled', 'status' => 'Status'], 'rows' => $rows, 'sum' => ['capacity', 'enrolled'], 'note' => 'Training session schedule with enrollment.'];
+    }
+
+
+    protected function r_activity_bookings($from, $to): array
+    {
+        $rows = ActivityBooking::with('activity.guest.bookedBy')->whereBetween('booked_at', [$from, $to])->get()->map(fn ($r) => [
+            'activity' => optional($r->activity)->name, 'guest' => optional($r->guest)->name,
+            'date' => $r->activity_date, 'quantity' => $r->quantity, 'price' => $r->unit_price,
+            'amount' => $r->total_amount, 'status' => $r->status, 'booked' => $r->booked_at,
+            'booked_by' => optional($r->bookedBy)->name, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['activity' => 'Activity', 'guest' => 'Guest', 'date' => 'Date', 'quantity' => 'Qty', 'price' => 'Unit Price', 'amount' => 'Total', 'status' => 'Status', 'booked' => 'Booked'], 'rows' => $rows, 'money' => ['unit_price', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Guest activity bookings with pricing.'];
+    }
+
+    protected function r_reservation_waitlist($from, $to): array
+    {
+        $rows = ReservationWaitlist::with('guest.requestedBy')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'date' => $r->date_needed,
+            'room_type' => $r->room_type_id, 'nights' => $r->nights, 'rate' => $r->rate_offered,
+            'priority' => $r->priority, 'reason' => $r->reason, 'created' => $r->created_at,
+            'converted' => $r->converted_to_reservation, 'status' => $r->status,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'date' => 'Date Needed', 'room_type' => 'Room Type', 'nights' => 'Nights', 'rate' => 'Rate', 'priority' => 'Priority', 'converted' => 'Converted', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate_offered'], 'note' => 'Reservation waitlist with conversion tracking.'];
+    }
+
+    protected function r_minibar_items($from, $to): array
+    {
+        $rows = MinibarItem::with('roomType.minibarCategory')->get()->map(fn ($r) => [
+            'name' => $r->name, 'category' => optional($r->minibarCategory)->name,
+            'room_type' => optional($r->roomType)->name, 'price' => $r->price,
+            'cost' => $r->cost, 'margin' => $r->margin_pct, 'stock_min' => $r->stock_minimum,
+            'stock_current' => $r->stock_current, 'restock_trigger' => $r->restock_trigger,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'category' => 'Category', 'room_type' => 'Room Type', 'price' => 'Price', 'cost' => 'Cost', 'margin' => 'Margin %', 'stock_min' => 'Min Stock', 'stock_current' => 'Current Stock', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price', 'cost'], 'note' => 'Minibar item catalog with stock levels and pricing.'];
+    }
+    // ════════════════════════════════════════════════════════════════════
+    // BATCH 2: INVENTORY, PURCHASING, F&B, BANQUET, HR, BUDGET, CRM
+    // ════════════════════════════════════════════════════════════════════
+
+    protected function r_ap_allocations($from, $to): array
+    {
+        $rows = \App\Models\ApAllocation::with('payment.supplier')->whereBetween('allocated_at', [$from, $to])->get()->map(fn ($r) => [
+            'payment' => optional($r->payment)->reference, 'supplier' => optional($r->payment->supplier)->name,
+            'invoice' => $r->invoice_no, 'amount' => $r->allocated_amount, 'date' => $r->allocated_at,
+            'type' => $r->allocation_type, 'status' => $r->status, 'user' => $r->user_id,
+        ]);
+        return ['cols' => ['payment' => 'Payment', 'supplier' => 'Supplier', 'invoice' => 'Invoice', 'amount' => 'Amount', 'date' => 'Date', 'type' => 'Type', 'status' => 'Status'], 'rows' => $rows, 'money' => ['allocated_amount'], 'sum' => ['allocated_amount'], 'note' => 'AP payment allocations to invoices.'];
+    }
+
+    protected function r_billing_reconciliation_items($from, $to): array
+    {
+        $rows = BillingReconciliationItem::with('reconciliation.folio')->where('reconciliation.reconciled_at', '>=', $from)->where('reconciliation.reconciled_at', '<=', $to)->get()->map(fn ($r) => [
+            'recon' => optional($r->reconciliation)->name, 'folio' => optional($r->reconciliation->folio)->folio_no,
+            'description' => $r->description, 'billing_amount' => $r->billing_amount,
+            'folio_amount' => $r->folio_amount, 'variance' => $r->variance, 'reason' => $r->reason,
+            'resolved' => $r->resolved, 'status' => $r->status,
+        ]);
+        return ['cols' => ['recon' => 'Reconciliation', 'folio' => 'Folio', 'description' => 'Description', 'billing' => 'Billing', 'folio' => 'Folio Amt', 'variance' => 'Variance', 'reason' => 'Reason', 'resolved' => 'Resolved'], 'rows' => $rows, 'money' => ['billing_amount', 'folio_amount', 'variance'], 'sum' => ['billing_amount', 'folio_amount', 'variance'], 'note' => 'Billing vs folio reconciliation line items.'];
+    }
+
+    protected function r_billing_reconciliations($from, $to): array
+    {
+        $rows = BillingReconciliation::with('user')->whereBetween('reconciled_at', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'period' => $r->period_start . ' to ' . $r->period_end,
+            'billing_total' => $r->billing_total, 'folio_total' => $r->folio_total, 'variance' => $r->variance,
+            'items' => $r->item_count, 'status' => $r->status, 'reconciled' => $r->reconciled_at, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['name' => 'Name', 'period' => 'Period', 'billing' => 'Billing Total', 'folio' => 'Folio Total', 'variance' => 'Variance', 'items' => 'Items', 'status' => 'Status', 'reconciled' => 'Reconciled'], 'rows' => $rows, 'money' => ['billing_total', 'folio_total', 'variance'], 'sum' => ['billing_total', 'folio_total', 'variance'], 'note' => 'Billing reconciliation summaries with variance totals.'];
+    }
+
+    protected function r_close_events($from, $to): array
+    {
+        $rows = CloseEvent::with('period.closeType')->whereBetween('closed_at', [$from, $to])->get()->map(fn ($r) => [
+            'period' => optional($r->period)->name, 'type' => optional($r->closeType)->name,
+            'closed' => $r->closed_at, 'user' => optional($r->user)->name,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['period' => 'Period', 'type' => 'Type', 'closed' => 'Closed At', 'user' => 'User', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Period close events with audit trail.'];
+    }
+
+    protected function r_expense_claim_lines($from, $to): array
+    {
+        $rows = ExpenseClaimLine::with('claim.employee.expenseType')->where('claim.claim_date', '>=', $from)->where('claim.claim_date', '<=', $to)->get()->map(fn ($r) => [
+            'employee' => optional($r->claim->employee)->name, 'type' => optional($r->expenseType)->name,
+            'description' => $r->description, 'amount' => $r->amount, 'date' => $r->claim->claim_date,
+            'status' => $r->status, 'claim' => optional($r->claim)->reference,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'type' => 'Type', 'description' => 'Description', 'amount' => 'Amount', 'date' => 'Date', 'claim' => 'Claim Ref', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Expense claim line items with type and amount.'];
+    }
+
+    protected function r_petty_counts($from, $to): array
+    {
+        $rows = PettyCount::with('float.keeper')->whereBetween('counted_at', [$from, $to])->get()->map(fn ($r) => [
+            'float' => optional($r->float)->name, 'keeper' => optional($r->keeper)->name,
+            'counted' => $r->counted_at, 'expected' => $r->expected_amount, 'actual' => $r->actual_amount,
+            'variance' => $r->variance, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['float' => 'Float', 'keeper' => 'Keeper', 'counted' => 'Counted At', 'expected' => 'Expected', 'actual' => 'Actual', 'variance' => 'Variance', 'status' => 'Status'], 'rows' => $rows, 'money' => ['expected_amount', 'actual_amount', 'variance'], 'sum' => ['expected_amount', 'actual_amount', 'variance'], 'note' => 'Petty cash count verifications.'];
+    }
+
+    protected function r_petty_replenishments($from, $to): array
+    {
+        $rows = PettyReplenishment::with('float.keeper')->whereBetween('replenished_at', [$from, $to])->get()->map(fn ($r) => [
+            'float' => optional($r->float)->name, 'keeper' => optional($r->keeper)->name,
+            'replenished' => $r->replenished_at, 'spent' => $r->amount_spent, 'replenished_amount' => $r->replenishment_amount,
+            'vouchers' => $r->voucher_count, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['float' => 'Float', 'keeper' => 'Keeper', 'replenished' => 'Replenished', 'spent' => 'Spent', 'replenished_amt' => 'Replenished', 'vouchers' => 'Vouchers', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount_spent', 'replenishment_amount'], 'sum' => ['amount_spent', 'replenishment_amount'], 'note' => 'Petty cash replenishment register.'];
+    }
+
+    protected function r_supplier_paid_history_archives($from, $to): array
+    {
+        $rows = SupplierPaidHistoryArchive::with('supplier')->whereBetween('archived_at', [$from, $to])->get()->map(fn ($r) => [
+            'supplier' => optional($r->supplier)->name, 'archived' => $r->archived_at,
+            'invoice' => $r->invoice_no, 'amount' => $r->amount, 'payment_ref' => $r->payment_reference,
+            'paid_at' => $r->paid_at, 'method' => $r->payment_method, 'status' => $r->status,
+        ]);
+        return ['cols' => ['supplier' => 'Supplier', 'archived' => 'Archived', 'invoice' => 'Invoice', 'amount' => 'Amount', 'payment_ref' => 'Payment Ref', 'paid_at' => 'Paid At', 'method' => 'Method', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Archived supplier payment history for audit.'];
+    }
+
+    protected function r_organiser_attendees($from, $to): array
+    {
+        $rows = OrganiserAttendee::with('event.organiser')->whereBetween('registered_at', [$from, $to])->get()->map(fn ($r) => [
+            'event' => optional($r->event)->name, 'organiser' => optional($r->event->organiser)->name,
+            'name' => $r->name, 'email' => $r->email, 'phone' => $r->phone,
+            'company' => $r->company, 'country' => $r->country, 'role' => $r->role,
+            'registered' => $r->registered_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['event' => 'Event', 'organiser' => 'Organiser', 'name' => 'Name', 'email' => 'Email', 'phone' => 'Phone', 'company' => 'Company', 'role' => 'Role', 'registered' => 'Registered', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Event attendee registrations by organiser.'];
+    }
+
+    protected function r_cashier_movements($from, $to): array
+    {
+        $rows = CashierMovement::with('cashier.shift')->whereBetween('moved_at', [$from, $to])->get()->map(fn ($r) => [
+            'cashier' => optional($r->cashier)->name, 'shift' => optional($r->shift)->shift_label,
+            'moved' => $r->moved_at, 'type' => $r->movement_type, 'amount' => $r->amount,
+            'from_drawer' => $r->from_drawer_id, 'to_drawer' => $r->to_drawer_id,
+            'reason' => $r->reason, 'status' => $r->status, 'user' => $r->user_id,
+        ]);
+        return ['cols' => ['cashier' => 'Cashier', 'shift' => 'Shift', 'moved' => 'Moved At', 'type' => 'Type', 'amount' => 'Amount', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Cash drawer movement register.'];
+    }
+
+    protected function r_credit_logs($from, $to): array
+    {
+        $rows = CreditLog::with('folio.guest')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'folio' => optional($r->folio)->folio_no, 'guest' => optional($r->folio->guest)->name,
+            'amount' => $r->amount, 'reason' => $r->reason, 'reference' => $r->reference,
+            'created' => $r->created_at, 'status' => $r->status, 'notes' => $r->description,
+        ]);
+        return ['cols' => ['folio' => 'Folio', 'guest' => 'Guest', 'amount' => 'Amount', 'reason' => 'Reason', 'reference' => 'Reference', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Credit note entries with folio reference.'];
+    }
+
+    protected function r_budget_events($from, $to): array
+    {
+        $rows = BudgetEvent::with('budget.eventType')->whereBetween('event_date', [$from, $to])->get()->map(fn ($r) => [
+            'budget' => optional($r->budget)->name, 'type' => optional($r->eventType)->name,
+            'date' => $r->event_date, 'description' => $r->description, 'budgeted' => $r->budgeted_amount,
+            'actual' => $r->actual_amount, 'variance' => $r->variance, 'status' => $r->status,
+        ]);
+        return ['cols' => ['budget' => 'Budget', 'type' => 'Type', 'date' => 'Date', 'description' => 'Description', 'budgeted' => 'Budgeted', 'actual' => 'Actual', 'variance' => 'Variance', 'status' => 'Status'], 'rows' => $rows, 'money' => ['budgeted_amount', 'actual_amount', 'variance'], 'sum' => ['budgeted_amount', 'actual_amount', 'variance'], 'note' => 'Budget event tracking with budgeted vs actual.'];
+    }
+
+    protected function r_budget_lines($from, $to): array
+    {
+        $rows = BudgetLine::with('budget.account.department')->where('budget.fiscal_year', '>=', substr($from, 0, 4))->where('budget.fiscal_year', '<=', substr($to, 0, 4))->get()->map(fn ($r) => [
+            'budget' => optional($r->budget)->name, 'account' => optional($r->account)->name,
+            'dept' => optional($r->department)->name, 'description' => $r->description,
+            'budgeted' => $r->budgeted_amount, 'actual' => $r->actual_amount, 'variance' => $r->variance,
+            'variance_pct' => $r->variance_pct, 'period' => $r->period, 'status' => $r->status,
+        ]);
+        return ['cols' => ['budget' => 'Budget', 'account' => 'Account', 'dept' => 'Dept', 'description' => 'Description', 'budgeted' => 'Budgeted', 'actual' => 'Actual', 'variance' => 'Variance', 'variance_pct' => 'Var %', 'period' => 'Period', 'status' => 'Status'], 'rows' => $rows, 'money' => ['budgeted_amount', 'actual_amount', 'variance'], 'sum' => ['budgeted_amount', 'actual_amount', 'variance'], 'note' => 'Budget lines with budgeted vs actual and variance %.'];
+    }
+
+    protected function r_budget_stats($from, $to): array
+    {
+        $rows = BudgetStat::with('budget.department')->get()->map(fn ($r) => [
+            'budget' => optional($r->budget)->name, 'dept' => optional($r->department)->name,
+            'period' => $r->period, 'budgeted' => $r->budgeted_total, 'actual' => $r->actual_total,
+            'variance' => $r->variance_total, 'variance_pct' => $r->variance_pct,
+        ]);
+        return ['cols' => ['budget' => 'Budget', 'dept' => 'Department', 'period' => 'Period', 'budgeted' => 'Budgeted', 'actual' => 'Actual', 'variance' => 'Variance', 'variance_pct' => 'Var %'], 'rows' => $rows, 'money' => ['budgeted_total', 'actual_total', 'variance_total'], 'sum' => ['budgeted_total', 'actual_total', 'variance_total'], 'note' => 'Budget statistics summary by department and period.'];
+    }
+
+    protected function r_channel_ari_states($from, $to): array
+    {
+        $rows = ChannelAriState::with('channel')->whereBetween('state_date', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->channel)->name, 'date' => $r->state_date,
+            'rooms_sold' => $r->rooms_sold, 'rooms_available' => $r->rooms_available,
+            'occupancy' => $r->occupancy_pct, 'rate_par' => $r->rate_par, 'rate_achieved' => $r->rate_achieved,
+            'revpar' => $r->revpar, 'state' => $r->ari_state,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'date' => 'Date', 'rooms_sold' => 'Rooms Sold', 'rooms_avail' => 'Available', 'occupancy' => 'Occ %', 'rate_par' => 'PAR', 'rate_ach' => 'Achieved', 'revpar' => 'RevPAR', 'state' => 'ARI State'], 'rows' => $rows, 'money' => ['rate_par', 'rate_achieved', 'revpar'], 'note' => 'Channel ARI (available rate index) state snapshots.'];
+    }
+
+    protected function r_channel_messages($from, $to): array
+    {
+        $rows = ChannelMessage::with('channel')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->channel)->name, 'sent' => $r->sent_at,
+            'direction' => $r->direction, 'content' => $r->content, 'guest' => $r->guest_id,
+            'status' => $r->status, 'direction' => $r->direction,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'sent' => 'Sent At', 'direction' => 'Direction', 'content' => 'Content', 'guest' => 'Guest', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Channel messaging log.'];
+    }
+
+    protected function r_channel_restrictions($from, $to): array
+    {
+        $rows = ChannelRestriction::with('channel.roomType')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->channel)->name, 'room_type' => optional($r->roomType)->name,
+            'type' => $r->restriction_type, 'value' => $r->restriction_value,
+            'from' => $r->effective_from, 'to' => $r->effective_to, 'status' => $r->status,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'room_type' => 'Room Type', 'type' => 'Type', 'value' => 'Value', 'from' => 'From', 'to' => 'To', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Channel inventory restrictions and closures.'];
+    }
+
+    protected function r_ota_channels($from, $to): array
+    {
+        $rows = OtaChannel::with('channelType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->channelType)->name, 'code' => $r->code,
+            'api_key' => $r->api_key_masked, 'active' => $r->is_active, 'last_sync' => $r->last_sync_at,
+            'status' => $r->status, 'sync_interval' => $r->sync_interval_minutes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'code' => 'Code', 'active' => 'Active', 'last_sync' => 'Last Sync', 'status' => 'Status', 'interval' => 'Sync Interval'], 'rows' => $rows, 'note' => 'OTA channel configuration register.'];
+    }
+
+    protected function r_compliance_events($from, $to): array
+    {
+        $rows = ComplianceEvent::with('item.department')->whereBetween('event_date', [$from, $to])->get()->map(fn ($r) => [
+            'item' => optional($r->item)->description, 'dept' => optional($r->department)->name,
+            'date' => $r->event_date, 'type' => $r->event_type, 'description' => $r->description,
+            'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['item' => 'Item', 'dept' => 'Department', 'date' => 'Date', 'type' => 'Type', 'description' => 'Description', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Compliance event register with status tracking.'];
+    }
+
+    protected function r_data_breaches($from, $to): array
+    {
+        $rows = \App\Models\DataBreach::with('department')->whereBetween('reported_at', [$from, $to])->get()->map(fn ($r) => [
+            'dept' => optional($r->department)->name, 'reported' => $r->reported_at,
+            'type' => $r->breach_type, 'description' => $r->description, 'data_affected' => $r->data_affected,
+            'status' => $r->status, 'reported_to' => $r->reported_to, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['dept' => 'Department', 'reported' => 'Reported', 'type' => 'Type', 'description' => 'Description', 'data_affected' => 'Data Affected', 'status' => 'Status', 'reported_to' => 'Reported To'], 'rows' => $rows, 'note' => 'Data breach register with reporting details.'];
+    }
+
+    protected function r_hse_wardens($from, $to): array
+    {
+        $rows = HseWarden::with('department.employee')->get()->map(fn ($r) => [
+            'warden' => optional($r->employee)->name, 'dept' => optional($r->department)->name,
+            'level' => $r->warden_level, 'cert_expiry' => $r->certificate_expiry,
+            'trained' => $r->trained_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['warden' => 'Warden', 'dept' => 'Department', 'level' => 'Level', 'cert_expiry' => 'Cert Expiry', 'trained' => 'Trained', 'status' => 'Status'], 'rows' => $rows, 'note' => 'HSE warden register with certification status.'];
+    }
+
+    protected function r_privacy_request_events($from, $to): array
+    {
+        $rows = \App\Models\PrivacyRequestEvent::with('request')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'request' => optional($r->request)->reference, 'type' => $r->event_type,
+            'description' => $r->description, 'created' => $r->created_at, 'user' => $r->user_id, 'status' => $r->status,
+        ]);
+        return ['cols' => ['request' => 'Request', 'type' => 'Type', 'description' => 'Description', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Privacy request event audit trail.'];
+    }
+
+    protected function r_activity_departures($from, $to): array
+    {
+        $rows = ActivityDeparture::with('activity.guest.activityBooking')->whereBetween('departure_date', [$from, $to])->get()->map(fn ($r) => [
+            'activity' => optional($r->activity)->name, 'guest' => optional($r->guest)->name,
+            'booking' => optional($r->activityBooking)->reference, 'departure' => $r->departure_date,
+            'location' => $r->location, 'transport' => $r->transport_type, 'status' => $r->status,
+        ]);
+        return ['cols' => ['activity' => 'Activity', 'guest' => 'Guest', 'booking' => 'Booking', 'departure' => 'Departure', 'location' => 'Location', 'transport' => 'Transport', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Activity departure tracking.'];
+    }
+
+    protected function r_banquet_event_items($from, $to): array
+    {
+        $rows = BanquetEventItem::with('event.banquetItem')->where('event.event_date', '>=', $from)->where('event.event_date', '<=', $to)->get()->map(fn ($r) => [
+            'event' => optional($r->event)->name, 'item' => optional($r->banquetItem)->name,
+            'quantity' => $r->quantity, 'unit_price' => $r->unit_price, 'amount' => $r->total_amount,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['event' => 'Event', 'item' => 'Item', 'quantity' => 'Qty', 'unit_price' => 'Unit Price', 'amount' => 'Total', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_price', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Banquet event line items with pricing.'];
+    }
+
+    protected function r_banquet_packages($from, $to): array
+    {
+        $rows = BanquetPackage::with('banquetHall.banquetCategory')->get()->map(fn ($r) => [
+            'name' => $r->name, 'hall' => optional($r->banquetHall)->name,
+            'category' => optional($r->banquetCategory)->name, 'price_pp' => $r->price_per_person,
+            'min_pp' => $r->minimum_pax, 'max_pp' => $r->maximum_pax, 'includes' => $r->includes,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'hall' => 'Hall', 'category' => 'Category', 'price_pp' => 'Price/PP', 'min_pp' => 'Min PP', 'max_pp' => 'Max PP', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price_per_person'], 'note' => 'Banquet package catalog with pricing and capacity.'];
+    }
+
+    protected function r_banquet_services($from, $to): array
+    {
+        $rows = BanquetService::with('serviceType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->serviceType)->name,
+            'unit_price' => $r->unit_price, 'unit' => $r->unit, 'status' => $r->status,
+            'description' => $r->description, 'min_charge' => $r->minimum_charge,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'unit_price' => 'Unit Price', 'unit' => 'Unit', 'min_charge' => 'Min Charge', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_price', 'minimum_charge'], 'note' => 'Banquet service price list.'];
+    }
+
+    protected function r_fb_cost_snapshots($from, $to): array
+    {
+        $rows = FbCostSnapshot::with('outlet.period')->whereBetween('snapshot_date', [$from, $to])->get()->map(fn ($r) => [
+            'outlet' => optional($r->outlet)->name, 'date' => $r->snapshot_date, 'period' => optional($r->period)->name,
+            'revenue' => $r->revenue, 'food_cost' => $r->food_cost, 'beverage_cost' => $r->beverage_cost,
+            'labor_cost' => $r->labor_cost, 'total_cost' => $r->total_cost, 'cost_pct' => $r->cost_percentage,
+            'guest_count' => $r->guest_count, 'avg_check' => $r->average_check,
+        ]);
+        return ['cols' => ['outlet' => 'Outlet', 'date' => 'Date', 'revenue' => 'Revenue', 'food_cost' => 'Food Cost', 'bev_cost' => 'Beverage Cost', 'labor' => 'Labor', 'total_cost' => 'Total Cost', 'cost_pct' => 'Cost %', 'guests' => 'Guests', 'avg_check' => 'Avg Check'], 'rows' => $rows, 'money' => ['revenue', 'food_cost', 'beverage_cost', 'labor_cost', 'total_cost', 'average_check'], 'sum' => ['revenue', 'food_cost', 'beverage_cost', 'labor_cost', 'total_cost'], 'note' => 'Daily F&B cost snapshots with cost percentage.'];
+    }
+
+    protected function r_fb_recipe_cards($from, $to): array
+    {
+        $rows = FbRecipeCard::with('menuItem.outlet')->get()->map(fn ($r) => [
+            'item' => optional($r->menuItem)->name, 'outlet' => optional($r->outlet)->name,
+            'yield' => $r->yield_pct, 'prep_time' => $r->prep_time_minutes, 'cost' => $r->cost_per_unit,
+            'status' => $r->status, 'version' => $r->version, 'last_updated' => $r->updated_at,
+            'notes' => $r->notes,
+        ]);
+        return ['cols' => ['item' => 'Item', 'outlet' => 'Outlet', 'yield' => 'Yield %', 'prep_time' => 'Prep Time', 'cost' => 'Cost/Unit', 'version' => 'Version', 'last_updated' => 'Updated', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost_per_unit'], 'note' => 'Recipe card register with costing details.'];
+    }
+
+    protected function r_fb_staff_meals($from, $to): array
+    {
+        $rows = FbStaffMeal::with('employee.outlet')->whereBetween('meal_date', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'outlet' => optional($r->outlet)->name,
+            'date' => $r->meal_date, 'meal_type' => $r->meal_type, 'cost' => $r->cost,
+            'status' => $r->status, 'shift' => $r->shift_label,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'outlet' => 'Outlet', 'date' => 'Date', 'meal_type' => 'Meal Type', 'cost' => 'Cost', 'shift' => 'Shift', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost'], 'sum' => ['cost'], 'note' => 'Staff meal consumption register.'];
+    }
+
+    protected function r_fb_yield_tests($from, $to): array
+    {
+        $rows = FbYieldTest::with('menuItem.outlet')->whereBetween('test_date', [$from, $to])->get()->map(fn ($r) => [
+            'item' => optional($r->menuItem)->name, 'outlet' => optional($r->outlet)->name,
+            'date' => $r->test_date, 'raw_weight' => $r->raw_weight, 'cooked_weight' => $r->cooked_weight,
+            'yield_pct' => $r->yield_pct, 'cost_raw' => $r->cost_raw, 'cost_cooked' => $r->cost_cooked,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['item' => 'Item', 'outlet' => 'Outlet', 'date' => 'Date', 'raw_weight' => 'Raw Weight', 'cooked_weight' => 'Cooked Weight', 'yield_pct' => 'Yield %', 'cost_raw' => 'Cost Raw', 'cost_cooked' => 'Cost Cooked', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost_raw', 'cost_cooked'], 'note' => 'Recipe yield test results.'];
+    }
+
+    protected function r_kot_print_jobs($from, $to): array
+    {
+        $rows = KotPrintJob::with('kotPrinter.outlet')->whereBetween('printed_at', [$from, $to])->get()->map(fn ($r) => [
+            'printer' => optional($r->kotPrinter)->name, 'outlet' => optional($r->outlet)->name,
+            'printed' => $r->printed_at, 'order_ref' => $r->order_reference, 'items' => $r->item_count,
+            'status' => $r->status, 'copies' => $r->copies, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['printer' => 'Printer', 'outlet' => 'Outlet', 'printed' => 'Printed', 'order_ref' => 'Order Ref', 'items' => 'Items', 'copies' => 'Copies', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Kitchen order ticket print job log.'];
+    }
+
+    protected function r_kot_printers($from, $to): array
+    {
+        $rows = KotPrinter::with('outlet.kitchen')->get()->map(fn ($r) => [
+            'name' => $r->name, 'outlet' => optional($r->outlet)->name, 'kitchen' => optional($r->kitchen)->name,
+            'ip_address' => $r->ip_address, 'port' => $r->port, 'active' => $r->is_active,
+            'last_print' => $r->last_print_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'outlet' => 'Outlet', 'kitchen' => 'Kitchen', 'ip_address' => 'IP Address', 'port' => 'Port', 'active' => 'Active', 'last_print' => 'Last Print', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Kitchen order ticket printer configuration.'];
+    }
+
+    protected function r_menu_categories($from, $to): array
+    {
+        $rows = MenuCategory::with('outlet.parent')->get()->map(fn ($r) => [
+            'name' => $r->name, 'outlet' => optional($r->outlet)->name,
+            'parent' => optional($r->parent)->name, 'sort' => $r->sort_order,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'outlet' => 'Outlet', 'parent' => 'Parent', 'sort' => 'Sort', 'status' => 'Status', 'description' => 'Description'], 'rows' => $rows, 'note' => 'Menu category hierarchy.'];
+    }
+
+    protected function r_menu_item_recipes($from, $to): array
+    {
+        $rows = MenuItemRecipe::with('menuItem.outlet')->get()->map(fn ($r) => [
+            'item' => optional($r->menuItem)->name, 'outlet' => optional($r->outlet)->name,
+            'ingredient' => $r->ingredient_name, 'quantity' => $r->quantity, 'unit' => $r->unit,
+            'cost' => $r->cost, 'percentage' => $r->percentage_of_cost, 'sort' => $r->sort_order,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['item' => 'Item', 'outlet' => 'Outlet', 'ingredient' => 'Ingredient', 'quantity' => 'Qty', 'unit' => 'Unit', 'cost' => 'Cost', 'pct' => 'Pct of Cost', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost'], 'sum' => ['cost'], 'note' => 'Menu item recipe ingredients with cost breakdown.'];
+    }
+
+    protected function r_menu_modifier_groups($from, $to): array
+    {
+        $rows = MenuModifierGroup::with('outlet')->get()->map(fn ($r) => [
+            'name' => $r->name, 'outlet' => optional($r->outlet)->name,
+            'required' => $r->is_required, 'min_select' => $r->minimum_select, 'max_select' => $r->maximum_select,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'outlet' => 'Outlet', 'required' => 'Required', 'min_select' => 'Min Select', 'max_select' => 'Max Select', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Menu modifier group definitions.'];
+    }
+
+    protected function r_menu_modifiers($from, $to): array
+    {
+        $rows = MenuModifier::with('modifierGroup.outlet')->get()->map(fn ($r) => [
+            'name' => $r->name, 'group' => optional($r->modifierGroup)->name,
+            'outlet' => optional($r->outlet)->name, 'price' => $r->price, 'status' => $r->status,
+            'sort' => $r->sort_order, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'group' => 'Group', 'outlet' => 'Outlet', 'price' => 'Price', 'sort' => 'Sort', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price'], 'note' => 'Menu modifier price list.'];
+    }
+
+    protected function r_outlet_service_periods($from, $to): array
+    {
+        $rows = \App\Models\OutletServicePeriod::with('outlet.serviceType')->whereBetween('service_date', [$from, $to])->get()->map(fn ($r) => [
+            'outlet' => optional($r->outlet)->name, 'type' => optional($r->serviceType)->name,
+            'date' => $r->service_date, 'start' => $r->start_time, 'end' => $r->end_time,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['outlet' => 'Outlet', 'type' => 'Type', 'date' => 'Date', 'start' => 'Start', 'end' => 'End', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Outlet service period schedule.'];
+    }
+
+    protected function r_pos_tables($from, $to): array
+    {
+        $rows = \App\Models\PosTable::with('outlet.floor')->get()->map(fn ($r) => [
+            'name' => $r->name, 'outlet' => optional($r->outlet)->name, 'floor' => optional($r->floor)->name,
+            'capacity' => $r->capacity, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'outlet' => 'Outlet', 'floor' => 'Floor', 'capacity' => 'Capacity', 'status' => 'Status'], 'rows' => $rows, 'note' => 'POS table/seat configuration.'];
+    }
+
+    protected function r_spa_rooms($from, $to): array
+    {
+        $rows = SpaRoom::with('spaServiceType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->spaServiceType)->name,
+            'capacity' => $r->capacity, 'hourly_rate' => $r->hourly_rate, 'status' => $r->status,
+            'description' => $r->description, 'equipment' => $r->equipment_list,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'capacity' => 'Capacity', 'hourly_rate' => 'Hourly Rate', 'status' => 'Status', 'equipment' => 'Equipment'], 'rows' => $rows, 'money' => ['hourly_rate'], 'note' => 'Spa treatment room configuration.'];
+    }
+
+    protected function r_feedback_answers($from, $to): array
+    {
+        $rows = FeedbackAnswer::with('feedbackCase.question')->whereBetween('answered_at', [$from, $to])->get()->map(fn ($r) => [
+            'case' => optional($r->feedbackCase)->reference, 'question' => optional($r->question)->text,
+            'answer' => $r->answer, 'score' => $r->score, 'comment' => $r->comment,
+            'answered' => $r->answered_at, 'guest' => optional($r->feedbackCase)->guest_id,
+        ]);
+        return ['cols' => ['case' => 'Case', 'question' => 'Question', 'answer' => 'Answer', 'score' => 'Score', 'comment' => 'Comment', 'answered' => 'Answered'], 'rows' => $rows, 'note' => 'Survey feedback answers with scores.'];
+    }
+
+    protected function r_feedback_case_events($from, $to): array
+    {
+        $rows = FeedbackCaseEvent::with('feedbackCase')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'case' => optional($r->feedbackCase)->reference, 'type' => $r->event_type,
+            'description' => $r->description, 'created' => $r->created_at, 'user' => $r->user_id, 'status' => $r->status,
+        ]);
+        return ['cols' => ['case' => 'Case', 'type' => 'Type', 'description' => 'Description', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Feedback case event audit trail.'];
+    }
+
+    protected function r_survey_invitations($from, $to): array
+    {
+        $rows = SurveyInvitation::with('survey.guest')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'survey' => optional($r->survey)->name, 'guest' => optional($r->guest)->name,
+            'sent' => $r->sent_at, 'responded' => $r->responded_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['survey' => 'Survey', 'guest' => 'Guest', 'sent' => 'Sent', 'responded' => 'Responded', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Survey invitation tracking.'];
+    }
+
+    protected function r_survey_questions($from, $to): array
+    {
+        $rows = SurveyQuestion::with('survey.questionType')->get()->map(fn ($r) => [
+            'survey' => optional($r->survey)->name, 'question' => $r->question_text,
+            'type' => optional($r->questionType)->name, 'required' => $r->is_required,
+            'sort' => $r->sort_order, 'options' => $r->options_json, 'status' => $r->status,
+        ]);
+        return ['cols' => ['survey' => 'Survey', 'question' => 'Question', 'type' => 'Type', 'required' => 'Required', 'sort' => 'Sort', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Survey question definitions.'];
+    }
+
+    protected function r_surveys($from, $to): array
+    {
+        $rows = Survey::with('surveyType.department')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->surveyType)->name,
+            'dept' => optional($r->department)->name, 'status' => $r->status,
+            'created' => $r->created_at, 'opens' => $r->open_date, 'closes' => $r->close_date,
+            'responses' => $r->response_count, 'notes' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'status' => 'Status', 'created' => 'Created', 'opens' => 'Opens', 'closes' => 'Closes', 'responses' => 'Responses'], 'rows' => $rows, 'note' => 'Survey catalog with response counts.'];
+    }
+
+    protected function r_asset_categories($from, $to): array
+    {
+        $rows = AssetCategory::with('parent.assetType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'parent' => optional($r->parent)->name,
+            'type' => optional($r->assetType)->name, 'code' => $r->category_code,
+            'depreciation_method' => $r->depreciation_method, 'useful_life' => $r->useful_life_years,
+            'salvage_value' => $r->salvage_value, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'parent' => 'Parent', 'type' => 'Type', 'code' => 'Code', 'dep_method' => 'Dep Method', 'useful_life' => 'Useful Life', 'salvage' => 'Salvage', 'status' => 'Status'], 'rows' => $rows, 'money' => ['salvage_value'], 'note' => 'Asset category hierarchy with depreciation settings.'];
+    }
+
+    protected function r_asset_dep_runs($from, $to): array
+    {
+        $rows = AssetDepRun::with('fiscalYear')->whereBetween('run_date', [$from, $to])->get()->map(fn ($r) => [
+            'fiscal_year' => optional($r->fiscalYear)->name, 'run_date' => $r->run_date,
+            'assets_processed' => $r->assets_processed, 'total_dep' => $r->total_depreciation,
+            'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['fiscal_year' => 'Fiscal Year', 'run_date' => 'Run Date', 'assets' => 'Assets Processed', 'total_dep' => 'Total Depreciation', 'status' => 'Status'], 'rows' => $rows, 'money' => ['total_depreciation'], 'sum' => ['total_depreciation'], 'note' => 'Fixed asset depreciation run summaries.'];
+    }
+
+    protected function r_pm_schedules($from, $to): array
+    {
+        $rows = PmSchedule::with('asset.assetCategory')->whereBetween('scheduled_date', [$from, $to])->get()->map(fn ($r) => [
+            'asset' => optional($r->asset)->name, 'category' => optional(optional($r->asset)->assetCategory)->name,
+            'scheduled' => $r->scheduled_date, 'completed' => $r->completed_date,
+            'type' => $r->pm_type, 'description' => $r->description, 'cost' => $r->estimated_cost,
+            'status' => $r->status, 'technician' => $r->technician_name, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['asset' => 'Asset', 'category' => 'Category', 'scheduled' => 'Scheduled', 'completed' => 'Completed', 'type' => 'PM Type', 'cost' => 'Est Cost', 'status' => 'Status', 'technician' => 'Technician'], 'rows' => $rows, 'money' => ['estimated_cost'], 'sum' => ['estimated_cost'], 'note' => 'Preventive maintenance schedule with completion tracking.'];
+    }
+
+    protected function r_fs_certificates($from, $to): array
+    {
+        $rows = \App\Models\FsCertificate::with('equipment.department')->whereBetween('expiry_date', [$from, $to])->get()->map(fn ($r) => [
+            'equipment' => optional($r->equipment)->name, 'dept' => optional($r->department)->name,
+            'cert_no' => $r->certificate_no, 'issued' => $r->issued_date, 'expiry' => $r->expiry_date,
+            'issuer' => $r->issuing_body, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['equipment' => 'Equipment', 'dept' => 'Dept', 'cert_no' => 'Cert No', 'issued' => 'Issued', 'expiry' => 'Expiry', 'issuer' => 'Issuer', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Food safety certificate register with expiry tracking.'];
+    }
+
+    protected function r_fs_equipment($from, $to): array
+    {
+        $rows = \App\Models\FsEquipment::with('department.equipmentType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'dept' => optional($r->department)->name,
+            'type' => optional($r->equipmentType)->name, 'serial' => $r->serial_number,
+            'location' => $r->location, 'calibration_due' => $r->calibration_due_date,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'dept' => 'Dept', 'type' => 'Type', 'serial' => 'Serial', 'location' => 'Location', 'calib_due' => 'Calib Due', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Food safety equipment register with calibration tracking.'];
+    }
+
+    protected function r_fs_labels($from, $to): array
+    {
+        $rows = \App\Models\FsLabel::with('department.labelType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'dept' => optional($r->department)->name,
+            'type' => optional($r->labelType)->name, 'color' => $r->color_code,
+            'description' => $r->description, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'dept' => 'Dept', 'type' => 'Type', 'color' => 'Color', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Food safety label definitions.'];
+    }
+
+    protected function r_forex_rates($from, $to): array
+    {
+        $rows = ForexRate::with('currency.board')->whereBetween('rate_date', [$from, $to])->get()->map(fn ($r) => [
+            'currency' => optional($r->currency)->name, 'board' => optional($r->board)->name,
+            'rate_date' => $r->rate_date, 'buy' => $r->buy_rate, 'sell' => $r->sell_rate,
+            'mid' => $r->mid_rate, 'source' => $r->source, 'status' => $r->status,
+        ]);
+        return ['cols' => ['currency' => 'Currency', 'board' => 'Board', 'date' => 'Date', 'buy' => 'Buy Rate', 'sell' => 'Sell Rate', 'mid' => 'Mid Rate', 'source' => 'Source', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Daily forex rate board with buy/sell/mid rates.'];
+    }
+
+    protected function r_forex_surrenders($from, $to): array
+    {
+        $rows = ForexSurrender::with('guest.currency.user')->whereBetween('surrendered_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'currency' => optional($r->currency)->name,
+            'surrendered' => $r->surrendered_at, 'amount' => $r->amount, 'rate' => $r->rate,
+            'ghs_amount' => $r->ghs_amount, 'fee' => $r->fee, 'status' => $r->status, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'currency' => 'Currency', 'surrendered' => 'Surrendered', 'amount' => 'Amount', 'rate' => 'Rate', 'ghs_amount' => 'GHS Amount', 'fee' => 'Fee', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount', 'ghs_amount', 'fee'], 'sum' => ['amount', 'ghs_amount', 'fee'], 'note' => 'Foreign currency surrender register.'];
+    }
+
+    protected function r_guest_documents($from, $to): array
+    {
+        $rows = \App\Models\GuestDocument::with('guest.documentType')->whereBetween('uploaded_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'type' => optional($r->documentType)->name,
+            'filename' => $r->filename, 'uploaded' => $r->uploaded_at,
+            'expiry' => $r->expiry_date, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'type' => 'Type', 'filename' => 'Filename', 'uploaded' => 'Uploaded', 'expiry' => 'Expiry', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Guest document register with expiry tracking.'];
+    }
+
+    protected function r_loyalty_entries($from, $to): array
+    {
+        $rows = LoyaltyEntry::with('guest.loyaltyTier.reward')->whereBetween('earned_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'tier' => optional($r->loyaltyTier)->name,
+            'type' => $r->entry_type, 'points' => $r->points, 'reward' => optional($r->reward)->name,
+            'reward_value' => $r->reward_value, 'earned' => $r->earned_at, 'expires' => $r->expires_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'tier' => 'Tier', 'type' => 'Type', 'points' => 'Points', 'reward' => 'Reward', 'reward_value' => 'Reward Value', 'earned' => 'Earned', 'expires' => 'Expires', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Loyalty point transactions with earn/redeem/expiry.'];
+    }
+
+    protected function r_reservation_amendments($from, $to): array
+    {
+        $rows = ReservationAmendment::with('reservation.guest')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'type' => $r->change_type, 'field' => $r->field_name, 'old_val' => $r->old_value, 'new_val' => $r->new_value,
+            'reason' => $r->reason, 'charge' => $r->charge_amount, 'user' => $r->user_id, 'created' => $r->created_at,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'type' => 'Type', 'field' => 'Field', 'old_val' => 'Old', 'new_val' => 'New', 'reason' => 'Reason', 'charge' => 'Charge', 'created' => 'Created'], 'rows' => $rows, 'money' => ['charge_amount'], 'sum' => ['charge_amount'], 'note' => 'Reservation amendment history.'];
+    }
+
+    protected function r_reservation_desk_views($from, $to): array
+    {
+        $rows = ReservationDeskView::with('reservation.guest')->whereBetween('viewed_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'viewed' => $r->viewed_at, 'duration' => $r->view_duration_seconds,
+            'user' => $r->user_id, 'ip' => $r->ip_address, 'action' => $r->action_taken,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'viewed' => 'Viewed', 'duration' => 'Duration (s)', 'user' => 'User', 'ip' => 'IP', 'action' => 'Action'], 'rows' => $rows, 'note' => 'Reservation desk view audit log.'];
+    }
+
+    protected function r_room_amenities($from, $to): array
+    {
+        $rows = RoomAmenity::with('roomType.amenityType')->get()->map(fn ($r) => [
+            'room_type' => optional($r->roomType)->name, 'amenity' => $r->amenity_name,
+            'amenity_type' => optional($r->amenityType)->name, 'quantity' => $r->quantity,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['room_type' => 'Room Type', 'amenity' => 'Amenity', 'type' => 'Type', 'quantity' => 'Qty', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Room amenity configuration by room type.'];
+    }
+
+    protected function r_room_amenity_links($from, $to): array
+    {
+        $rows = RoomAmenityLink::with('room.roomType.amenityType')->get()->map(fn ($r) => [
+            'room' => optional($r->room)->room_no, 'type' => optional($r->roomType)->name,
+            'amenity' => $r->amenity_name, 'amenity_type' => optional($r->amenityType)->name,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'amenity' => 'Amenity', 'amenity_type' => 'Type', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Individual room amenity assignments.'];
+    }
+
+    protected function r_room_block_lines($from, $to): array
+    {
+        $rows = RoomBlockLine::with('roomBlock.roomType')->where('roomBlock.blocked_from', '>=', $from)->where('roomBlock.blocked_from', '<=', $to)->get()->map(fn ($r) => [
+            'block' => optional($r->roomBlock)->block_code, 'room_type' => optional($r->roomType)->name,
+            'date' => $r->blocked_date, 'reason' => $r->reason, 'status' => $r->status,
+        ]);
+        return ['cols' => ['block' => 'Block', 'room_type' => 'Room Type', 'date' => 'Date', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Room block line items by date.'];
+    }
+
+    protected function r_room_blocks($from, $to): array
+    {
+        $rows = RoomBlock::with('blockType.roomType')->whereBetween('blocked_from', [$from, $to])->get()->map(fn ($r) => [
+            'room_type' => optional($r->roomType)->name, 'type' => optional($r->blockType)->name,
+            'from' => $r->blocked_from, 'to' => $r->blocked_to, 'reason' => $r->reason,
+            'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['room_type' => 'Room Type', 'type' => 'Block Type', 'from' => 'From', 'to' => 'To', 'reason' => 'Reason', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Room block summary by room type.'];
+    }
+
+    protected function r_room_counts($from, $to): array
+    {
+        $rows = RoomCount::whereBetween('count_date', [$from, $to])->get()->map(fn ($r) => [
+            'date' => $r->count_date, 'room_type' => $r->room_type_id, 'total' => $r->total_rooms,
+            'clean' => $r->clean, 'dirty' => $r->dirty, 'out_of_order' => $r->out_of_order,
+            'available' => $r->available, 'occupied' => $r->occupied, 'arrivals' => $r->arrivals, 'departures' => $r->departures,
+        ]);
+        return ['cols' => ['date' => 'Date', 'room_type' => 'Room Type', 'total' => 'Total', 'clean' => 'Clean', 'dirty' => 'Dirty', 'ooo' => 'OOO', 'available' => 'Available', 'occupied' => 'Occupied', 'arrivals' => 'Arrivals', 'departures' => 'Departures'], 'rows' => $rows, 'sum' => ['total_rooms', 'clean', 'dirty', 'out_of_order', 'available', 'occupied', 'arrivals', 'departures'], 'note' => 'Daily room count sheet.'];
+    }
+
+    protected function r_room_images($from, $to): array
+    {
+        $rows = RoomImage::with('room.roomType')->whereBetween('uploaded_at', [$from, $to])->get()->map(fn ($r) => [
+            'room' => optional($r->room)->room_no, 'type' => optional($r->roomType)->name,
+            'filename' => $r->filename, 'uploaded' => $r->uploaded_at,
+            'caption' => $r->caption, 'status' => $r->status, 'user' => $r->user_id,
+        ]);
+        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'filename' => 'Filename', 'uploaded' => 'Uploaded', 'caption' => 'Caption', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Room image register.'];
+    }
+
+    protected function r_stay_fixed_charges($from, $to): array
+    {
+        $rows = \App\Models\StayFixedCharge::with('reservation.guest.chargeType')->whereBetween('charged_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'type' => optional($r->chargeType)->name, 'description' => $r->description,
+            'amount' => $r->amount, 'charged' => $r->charged_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'type' => 'Type', 'description' => 'Description', 'amount' => 'Amount', 'charged' => 'Charged', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Stay fixed charge register (parking, safe, etc.).'];
+    }
+
+    protected function r_wakeup_attempts($from, $to): array
+    {
+        $rows = WakeupAttempt::with('wakeupCall.guest')->whereBetween('attempted_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->wakeupCall->guest)->name, 'room' => optional($r->wakeupCall->reservation->room)->room_no,
+            'attempted' => $r->attempted_at, 'result' => $r->result, 'notes' => $r->notes, 'status' => $r->status,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'room' => 'Room', 'attempted' => 'Attempted', 'result' => 'Result', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Wakeup call attempt log.'];
+    }
+
+    protected function r_fiscal_year_closes($from, $to): array
+    {
+        $rows = FiscalYearClose::with('fiscalYear')->whereBetween('closed_at', [$from, $to])->get()->map(fn ($r) => [
+            'fiscal_year' => optional($r->fiscalYear)->name, 'closed' => $r->closed_at,
+            'user' => optional($r->user)->name, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['fiscal_year' => 'Fiscal Year', 'closed' => 'Closed', 'user' => 'User', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Fiscal year close events.'];
+    }
+
+    protected function r_gl_journals($from, $to): array
+    {
+        $rows = GlJournal::with('journalType.account.department')->whereBetween('posted_at', [$from, $to])->get()->map(fn ($r) => [
+            'ref' => $r->journal_no, 'type' => optional($r->journalType)->name,
+            'account' => optional($r->account)->name, 'dept' => optional($r->department)->name,
+            'debit' => $r->debit_amount, 'credit' => $r->credit_amount, 'posted' => $r->posted_at,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['ref' => 'Reference', 'type' => 'Type', 'account' => 'Account', 'dept' => 'Dept', 'debit' => 'Debit', 'credit' => 'Credit', 'posted' => 'Posted', 'status' => 'Status'], 'rows' => $rows, 'money' => ['debit_amount', 'credit_amount'], 'sum' => ['debit_amount', 'credit_amount'], 'note' => 'General ledger journal line register.'];
+    }
+
+    protected function r_recurring_journals($from, $to): array
+    {
+        $rows = RecurringJournal::with('journalType.account')->whereBetween('last_posted_at', [$from, $to])->get()->map(fn ($r) => [
+            'ref' => $r->template_no, 'type' => optional($r->journalType)->name,
+            'account' => optional($r->account)->name, 'debit' => $r->debit_amount, 'credit' => $r->credit_amount,
+            'frequency' => $r->frequency, 'last_posted' => $r->last_posted_at, 'next_posting' => $r->next_posting_date,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['ref' => 'Template No', 'type' => 'Type', 'account' => 'Account', 'debit' => 'Debit', 'credit' => 'Credit', 'frequency' => 'Frequency', 'last_posted' => 'Last Posted', 'next_posting' => 'Next Posting', 'status' => 'Status'], 'rows' => $rows, 'money' => ['debit_amount', 'credit_amount'], 'note' => 'Recurring journal templates with posting schedule.'];
+    }
+
+    protected function r_inbox_broadcasts($from, $to): array
+    {
+        $rows = InboxBroadcast::with('user.channelType')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'title' => $r->title, 'sent' => $r->sent_at, 'channel' => optional($r->channelType)->name,
+            'target' => $r->target_audience, 'recipients' => $r->recipient_count,
+            'status' => $r->status, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['title' => 'Title', 'sent' => 'Sent', 'channel' => 'Channel', 'target' => 'Target', 'recipients' => 'Recipients', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Inbox broadcast message log.'];
+    }
+
+    protected function r_inbox_quick_replies($from, $to): array
+    {
+        $rows = InboxQuickReply::with('user.topic')->get()->map(fn ($r) => [
+            'title' => $r->title, 'topic' => optional($r->topic)->name,
+            'content' => $r->content, 'usage_count' => $r->usage_count,
+            'created' => $r->created_at, 'status' => $r->status, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['title' => 'Title', 'topic' => 'Topic', 'content' => 'Content', 'usage' => 'Usage Count', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Inbox quick reply templates.'];
+    }
+
+    protected function r_hr_announcements($from, $to): array
+    {
+        $rows = \App\Models\HrAnnouncement::with('department.user')->whereBetween('published_at', [$from, $to])->get()->map(fn ($r) => [
+            'title' => $r->title, 'dept' => optional($r->department)->name,
+            'published' => $r->published_at, 'content' => substr($r->content, 0, 100),
+            'author' => optional($r->user)->name, 'status' => $r->status,
+        ]);
+        return ['cols' => ['title' => 'Title', 'dept' => 'Dept', 'published' => 'Published', 'content' => 'Content', 'author' => 'Author', 'status' => 'Status'], 'rows' => $rows, 'note' => 'HR announcements register.'];
+    }
+
+    protected function r_hr_documents($from, $to): array
+    {
+        $rows = \App\Models\HrDocument::with('documentType.employee')->whereBetween('uploaded_at', [$from, $to])->get()->map(fn ($r) => [
+            'title' => $r->title, 'type' => optional($r->documentType)->name,
+            'employee' => optional($r->employee)->name, 'filename' => $r->filename,
+            'uploaded' => $r->uploaded_at, 'expiry' => $r->expiry_date, 'status' => $r->status,
+        ]);
+        return ['cols' => ['title' => 'Title', 'type' => 'Type', 'employee' => 'Employee', 'filename' => 'Filename', 'uploaded' => 'Uploaded', 'expiry' => 'Expiry', 'status' => 'Status'], 'rows' => $rows, 'note' => 'HR document register with expiry tracking.'];
+    }
+
+    protected function r_hr_profile_updates($from, $to): array
+    {
+        $rows = \App\Models\HrProfileUpdate::with('employee.user')->whereBetween('updated_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'field' => $r->field_name,
+            'old_value' => $r->old_value, 'new_value' => $r->new_value,
+            'updated' => $r->updated_at, 'user' => optional($r->user)->name, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'field' => 'Field', 'old_value' => 'Old', 'new_value' => 'New', 'updated' => 'Updated', 'user' => 'User', 'status' => 'Status'], 'rows' => $rows, 'note' => 'HR profile update audit trail.'];
+    }
+
+    protected function r_club_classes($from, $to): array
+    {
+        $rows = \App\Models\ClubClass::with('clubPlan.clubRoom')->get()->map(fn ($r) => [
+            'name' => $r->name, 'plan' => optional($r->clubPlan)->name,
+            'room' => optional($r->clubRoom)->name, 'capacity' => $r->capacity,
+            'duration' => $r->duration_minutes, 'instructor' => $r->instructor_name,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'plan' => 'Plan', 'room' => 'Room', 'capacity' => 'Capacity', 'duration' => 'Duration', 'instructor' => 'Instructor', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Club class schedule.'];
+    }
+
+    protected function r_club_ticket_payments($from, $to): array
+    {
+        $rows = ClubTicketPayment::with('ticketSale.paymentMode')->whereBetween('paid_at', [$from, $to])->get()->map(fn ($r) => [
+            'sale' => optional($r->ticketSale)->reference, 'mode' => optional($r->paymentMode)->name,
+            'amount' => $r->amount, 'paid' => $r->paid_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['sale' => 'Sale Ref', 'mode' => 'Payment Mode', 'amount' => 'Amount', 'paid' => 'Paid', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Club ticket payment register.'];
+    }
+
+    protected function r_club_ticket_sale_items($from, $to): array
+    {
+        $rows = ClubTicketSaleItem::with('ticketSale.ticketType')->where('ticketSale.sold_at', '>=', $from)->where('ticketSale.sold_at', '<=', $to)->get()->map(fn ($r) => [
+            'sale' => optional($r->ticketSale)->reference, 'type' => optional($r->ticketType)->name,
+            'quantity' => $r->quantity, 'unit_price' => $r->unit_price, 'amount' => $r->total_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['sale' => 'Sale Ref', 'type' => 'Type', 'quantity' => 'Qty', 'unit_price' => 'Unit Price', 'amount' => 'Total', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_price', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Club ticket sale line items.'];
+    }
+
+    protected function r_club_ticket_sales($from, $to): array
+    {
+        $rows = ClubTicketSale::with('guest.ticketType.paymentMode')->whereBetween('sold_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'type' => optional($r->ticketType)->name,
+            'mode' => optional($r->paymentMode)->name, 'quantity' => $r->quantity,
+            'amount' => $r->total_amount, 'sold' => $r->sold_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'type' => 'Type', 'mode' => 'Payment Mode', 'quantity' => 'Qty', 'amount' => 'Amount', 'sold' => 'Sold', 'status' => 'Status'], 'rows' => $rows, 'money' => ['total_amount'], 'sum' => ['total_amount'], 'note' => 'Club ticket sales register.'];
+    }
+
+    protected function r_club_ticket_types($from, $to): array
+    {
+        $rows = ClubTicketType::with('clubPlan')->get()->map(fn ($r) => [
+            'name' => $r->name, 'plan' => optional($r->clubPlan)->name,
+            'price' => $r->price, 'valid_days' => $r->valid_days, 'description' => $r->description, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'plan' => 'Plan', 'price' => 'Price', 'valid_days' => 'Valid Days', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price'], 'note' => 'Club ticket type catalog.'];
+    }
+
+    protected function r_hotel_groups($from, $to): array
+    {
+        $rows = HotelGroup::with('managementCompany')->get()->map(fn ($r) => [
+            'name' => $r->name, 'code' => $r->code, 'mc' => optional($r->managementCompany)->name,
+            'hotels' => $r->hotel_count, 'rooms' => $r->total_rooms, 'contact' => $r->contact_email,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Hotels', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register.'];
+    }
+
+    protected function r_management_agreements($from, $to): array
+    {
+        $rows = ManagementAgreement::with('hotel.hotelGroup.managementCompany')->get()->map(fn ($r) => [
+            'hotel' => optional($r->hotel)->name, 'group' => optional($r->hotelGroup)->name,
+            'mc' => optional($r->managementCompany)->name, 'start' => $r->agreement_start,
+            'end' => $r->agreement_end, 'fee_pct' => $r->management_fee_pct,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['hotel' => 'Hotel', 'group' => 'Group', 'mc' => 'Management Co', 'start' => 'Start', 'end' => 'End', 'fee_pct' => 'Fee %', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Management agreement register.'];
+    }
+
+    protected function r_owner_queries($from, $to): array
+    {
+        $rows = OwnerQuery::with('owner.hotel')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'owner' => optional($r->owner)->name, 'hotel' => optional($r->hotel)->name,
+            'subject' => $r->subject, 'query' => $r->query_text, 'created' => $r->created_at,
+            'status' => $r->status, 'response' => $r->response_text,
+        ]);
+        return ['cols' => ['owner' => 'Owner', 'hotel' => 'Hotel', 'subject' => 'Subject', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Owner query register.'];
+    }
+
+    protected function r_owner_statements($from, $to): array
+    {
+        $rows = OwnerStatement::with('owner.hotel')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'owner' => optional($r->owner)->name, 'hotel' => optional($r->hotel)->name,
+            'period' => $r->period_start . ' to ' . $r->period_end, 'revenue' => $r->revenue_total,
+            'expenses' => $r->expense_total, 'net' => $r->net_total, 'fees' => $r->management_fees,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['owner' => 'Owner', 'hotel' => 'Hotel', 'period' => 'Period', 'revenue' => 'Revenue', 'expenses' => 'Expenses', 'net' => 'Net', 'fees' => 'Mgmt Fees', 'status' => 'Status'], 'rows' => $rows, 'money' => ['revenue_total', 'expense_total', 'net_total', 'management_fees'], 'sum' => ['revenue_total', 'expense_total', 'net_total', 'management_fees'], 'note' => 'Owner statement summaries.'];
+    }
+
+    protected function r_interface_commands($from, $to): array
+    {
+        $rows = InterfaceCommand::with('interface.commandType')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'interface' => optional($r->interface)->name, 'type' => optional($r->commandType)->name,
+            'sent' => $r->sent_at, 'command' => $r->command_payload, 'status' => $r->status,
+            'response' => $r->response_payload, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['interface' => 'Interface', 'type' => 'Type', 'sent' => 'Sent', 'command' => 'Command', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Hotel interface command log.'];
+    }
+
+    protected function r_tv_commands($from, $to): array
+    {
+        $rows = TvCommand::with('device.tvCommandType')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'device' => optional($r->device)->device_name, 'type' => optional($r->tvCommandType)->name,
+            'sent' => $r->sent_at, 'command' => $r->command_payload, 'status' => $r->status,
+            'response' => $r->response_payload, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['device' => 'Device', 'type' => 'Type', 'sent' => 'Sent', 'command' => 'Command', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'IPTV command send log.'];
+    }
+
+    protected function r_tv_message_reads($from, $to): array
+    {
+        $rows = TvMessageRead::with('message.device.guest')->whereBetween('read_at', [$from, $to])->get()->map(fn ($r) => [
+            'message' => optional($r->message)->subject, 'device' => optional($r->device)->device_name,
+            'guest' => optional($r->guest)->name, 'read' => $r->read_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['message' => 'Message', 'device' => 'Device', 'guest' => 'Guest', 'read' => 'Read At', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV message read receipts.'];
+    }
+
+    protected function r_tv_movies($from, $to): array
+    {
+        $rows = TvMovie::with('movieType.language')->get()->map(fn ($r) => [
+            'title' => $r->title, 'type' => optional($r->movieType)->name,
+            'language' => optional($r->language)->name, 'duration' => $r->duration_minutes,
+            'rating' => $r->rating, 'year' => $r->release_year, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['title' => 'Title', 'type' => 'Type', 'language' => 'Language', 'duration' => 'Duration', 'rating' => 'Rating', 'year' => 'Year', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV movie catalog.'];
+    }
+
+    protected function r_tv_pages($from, $to): array
+    {
+        $rows = TvPage::with('pageType.language')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->pageType)->name,
+            'language' => optional($r->language)->name, 'version' => $r->version,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'language' => 'Language', 'version' => 'Version', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV page configuration.'];
+    }
+
+    protected function r_tv_programmes($from, $to): array
+    {
+        $rows = TvProgramme::with('channel.programmeType')->whereBetween('air_date', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'channel' => optional($r->channel)->name,
+            'type' => optional($r->programmeType)->name, 'air_date' => $r->air_date,
+            'start' => $r->start_time, 'end' => $r->end_time, 'duration' => $r->duration_minutes,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'channel' => 'Channel', 'type' => 'Type', 'air_date' => 'Air Date', 'start' => 'Start', 'end' => 'End', 'duration' => 'Duration', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV programme schedule.'];
+    }
+
+    protected function r_tv_sessions($from, $to): array
+    {
+        $rows = TvSession::with('device.guest.tvMessage')->whereBetween('started_at', [$from, $to])->get()->map(fn ($r) => [
+            'device' => optional($r->device)->device_name, 'guest' => optional($r->guest)->name,
+            'message' => optional($r->tvMessage)->subject, 'started' => $r->started_at,
+            'ended' => $r->ended_at, 'duration' => $r->duration_seconds, 'status' => $r->status,
+        ]);
+        return ['cols' => ['device' => 'Device', 'guest' => 'Guest', 'message' => 'Message', 'started' => 'Started', 'ended' => 'Ended', 'duration' => 'Duration (s)', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV guest session log.'];
+    }
+
+    protected function r_tv_welcome_templates($from, $to): array
+    {
+        $rows = TvWelcomeTemplate::with('templateType.language')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->templateType)->name,
+            'language' => optional($r->language)->name, 'subject' => $r->subject,
+            'body' => $r->body_text, 'version' => $r->version, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'language' => 'Language', 'subject' => 'Subject', 'version' => 'Version', 'status' => 'Status'], 'rows' => $rows, 'note' => 'IPTV welcome message templates.'];
+    }
+
+    protected function r_historical_stock_movement_archives($from, $to): array
+    {
+        $rows = HistoricalStockMovementArchive::with('store.item.itemCategory')->whereBetween('archived_at', [$from, $to])->get()->map(fn ($r) => [
+            'store' => optional($r->store)->name, 'item' => optional($r->item)->name,
+            'category' => optional(optional($r->item)->itemCategory)->name,
+            'movement_type' => $r->movement_type, 'quantity' => $r->quantity, 'rate' => $r->unit_rate,
+            'amount' => $r->total_amount, 'archived' => $r->archived_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['store' => 'Store', 'item' => 'Item', 'category' => 'Category', 'type' => 'Type', 'quantity' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'archived' => 'Archived', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Archived historical stock movements.'];
+    }
+
+    protected function r_inventory_items($from, $to): array
+    {
+        $rows = InventoryItem::with('itemCategory.store.itemType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'sku' => $r->sku, 'category' => optional($r->itemCategory)->name,
+            'type' => optional($r->itemType)->name, 'unit' => $r->unit, 'cost_price' => $r->cost_price,
+            'sell_price' => $r->sell_price, 'margin' => $r->margin_pct, 'reorder_level' => $r->reorder_level,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'sku' => 'SKU', 'category' => 'Category', 'type' => 'Type', 'unit' => 'Unit', 'cost' => 'Cost', 'sell' => 'Sell', 'margin' => 'Margin %', 'reorder' => 'Reorder Level', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost_price', 'sell_price'], 'note' => 'Inventory item master register.'];
+    }
+
+    protected function r_item_categories($from, $to): array
+    {
+        $rows = ItemCategory::with('parent.itemType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'parent' => optional($r->parent)->name,
+            'type' => optional($r->itemType)->name, 'code' => $r->category_code,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'parent' => 'Parent', 'type' => 'Type', 'code' => 'Code', 'status' => 'Status', 'description' => 'Description'], 'rows' => $rows, 'note' => 'Inventory item category hierarchy.'];
+    }
+
+    protected function r_po_items($from, $to): array
+    {
+        $rows = PurchaseOrderItem::with('purchaseOrder.item.store')->where('purchaseOrder.order_date', '>=', $from)->where('purchaseOrder.order_date', '<=', $to)->get()->map(fn ($r) => [
+            'po_no' => optional($r->purchaseOrder)->po_no, 'item' => optional($r->item)->name,
+            'store' => optional($r->store)->name, 'quantity' => $r->quantity, 'unit' => $r->unit,
+            'rate' => $r->unit_rate, 'amount' => $r->total_amount, 'received' => $r->quantity_received,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['po_no' => 'PO No', 'item' => 'Item', 'store' => 'Store', 'quantity' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'received' => 'Received', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Purchase order line items.'];
+    }
+
+    protected function r_requisition_lines($from, $to): array
+    {
+        $rows = RequisitionLine::with('requisition.item.store.requestedBy')->where('requisition.requested_at', '>=', $from)->where('requisition.requested_at', '<=', $to)->get()->map(fn ($r) => [
+            'req_no' => optional($r->requisition)->req_no, 'item' => optional($r->item)->name,
+            'store' => optional($r->store)->name, 'requested_by' => optional($r->requestedBy)->name,
+            'quantity' => $r->quantity, 'unit' => $r->unit, 'rate' => $r->unit_rate, 'amount' => $r->total_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['req_no' => 'Req No', 'item' => 'Item', 'store' => 'Store', 'requested_by' => 'Requested By', 'quantity' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Requisition line items.'];
+    }
+
+    protected function r_rfq_lines($from, $to): array
+    {
+        $rows = RfqLine::with('rfq.item.store')->get()->map(fn ($r) => [
+            'rfq_no' => optional($r->rfq)->rfq_no, 'item' => optional($r->item)->name,
+            'store' => optional($r->store)->name, 'quantity' => $r->quantity, 'unit' => $r->unit,
+            'description' => $r->description, 'status' => $r->status,
+        ]);
+        return ['cols' => ['rfq_no' => 'RFQ No', 'item' => 'Item', 'store' => 'Store', 'quantity' => 'Qty', 'unit' => 'Unit', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'note' => 'RFQ line items.'];
+    }
+
+    protected function r_rfq_quote_lines($from, $to): array
+    {
+        $rows = RfqQuoteLine::with('rfqQuote.rfq.item')->where('rfqQuote.quoted_at', '>=', $from)->where('rfqQuote.quoted_at', '<=', $to)->get()->map(fn ($r) => [
+            'rfq_no' => optional(optional($r->rfqQuote)->rfq)->rfq_no, 'item' => optional($r->item)->name,
+            'quantity' => $r->quantity, 'unit' => $r->unit, 'rate' => $r->unit_rate, 'amount' => $r->total_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['rfq_no' => 'RFQ No', 'item' => 'Item', 'quantity' => 'Qty', 'unit' => 'Unit', 'rate' => 'Rate', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'RFQ quote line items.'];
+    }
+
+    protected function r_rfq_quotes($from, $to): array
+    {
+        $rows = RfqQuote::with('rfq.supplier')->whereBetween('quoted_at', [$from, $to])->get()->map(fn ($r) => [
+            'rfq_no' => optional($r->rfq)->rfq_no, 'supplier' => optional($r->supplier)->name,
+            'quoted' => $r->quoted_at, 'total_amount' => $r->total_amount,
+            'valid_days' => $r->valid_days, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['rfq_no' => 'RFQ No', 'supplier' => 'Supplier', 'quoted' => 'Quoted', 'total' => 'Total', 'valid_days' => 'Valid Days', 'status' => 'Status'], 'rows' => $rows, 'money' => ['total_amount'], 'sum' => ['total_amount'], 'note' => 'RFQ quote summaries.'];
+    }
+
+    protected function r_rfq_suppliers($from, $to): array
+    {
+        $rows = RfqSupplier::with('rfq.supplier')->where('rfq.created_at', '>=', $from)->where('rfq.created_at', '<=', $to)->get()->map(fn ($r) => [
+            'rfq_no' => optional($r->rfq)->rfq_no, 'supplier' => optional($r->supplier)->name,
+            'contact' => $r->contact_name, 'phone' => $r->contact_phone, 'email' => $r->contact_email,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['rfq_no' => 'RFQ No', 'supplier' => 'Supplier', 'contact' => 'Contact', 'phone' => 'Phone', 'email' => 'Email', 'status' => 'Status'], 'rows' => $rows, 'note' => 'RFQ supplier selections.'];
+    }
+
+    protected function r_stock_takes($from, $to): array
+    {
+        $rows = StockTake::with('store.storeType')->whereBetween('taken_at', [$from, $to])->get()->map(fn ($r) => [
+            'store' => optional($r->store)->name, 'taken' => $r->taken_at, 'user' => $r->user_id,
+            'items' => $r->item_count, 'book_qty' => $r->book_quantity, 'actual_qty' => $r->actual_quantity,
+            'value_book' => $r->value_book, 'value_actual' => $r->value_actual, 'diff_value' => $r->diff_value,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['store' => 'Store', 'taken' => 'Taken', 'items' => 'Items', 'book_qty' => 'Book Qty', 'actual_qty' => 'Actual Qty', 'diff_qty' => 'Diff Qty', 'value_book' => 'Book Value', 'value_actual' => 'Actual Value', 'diff_value' => 'Diff Value', 'status' => 'Status'], 'rows' => $rows, 'money' => ['value_book', 'value_actual', 'diff_value'], 'sum' => ['value_book', 'value_actual', 'diff_value'], 'note' => 'Stock take summaries with variance.'];
+    }
+
+    protected function r_store_issue_lines($from, $to): array
+    {
+        $rows = StoreIssueLine::with('storeIssue.store.item.issuedTo')->where('storeIssue.issued_at', '>=', $from)->where('storeIssue.issued_at', '<=', $to)->get()->map(fn ($r) => [
+            'issue_no' => optional($r->storeIssue)->issue_no, 'store' => optional($r->store)->name,
+            'item' => optional($r->item)->name, 'issued_to' => optional($r->issuedTo)->name,
+            'quantity' => $r->quantity, 'unit' => $r->unit, 'rate' => $r->unit_rate, 'amount' => $r->total_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['issue_no' => 'Issue No', 'store' => 'Store', 'item' => 'Item', 'issued_to' => 'Issued To', 'quantity' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Store issue line items.'];
+    }
+
+    protected function r_store_pars($from, $to): array
+    {
+        $rows = StorePar::with('store.parType')->whereBetween('filled_at', [$from, $to])->get()->map(fn ($r) => [
+            'store' => optional($r->store)->name, 'date' => $r->filled_at, 'user' => $r->user_id,
+            'par_value' => $r->par_value, 'actual_value' => $r->actual_value, 'variance' => $r->variance,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['store' => 'Store', 'date' => 'Date', 'par_value' => 'Par Value', 'actual_value' => 'Actual Value', 'variance' => 'Variance', 'status' => 'Status'], 'rows' => $rows, 'money' => ['par_value', 'actual_value', 'variance'], 'sum' => ['variance'], 'note' => 'Daily store par fills with variance.'];
+    }
+
+    protected function r_supplier_invoice_lines($from, $to): array
+    {
+        $rows = SupplierInvoiceLine::with('supplierInvoice.supplier.item')->where('supplierInvoice.invoice_date', '>=', $from)->where('supplierInvoice.invoice_date', '<=', $to)->get()->map(fn ($r) => [
+            'invoice_no' => optional($r->supplierInvoice)->invoice_no, 'supplier' => optional($r->supplierInvoice->supplier)->name,
+            'item' => optional($r->item)->name, 'quantity' => $r->quantity, 'unit' => $r->unit,
+            'rate' => $r->unit_rate, 'amount' => $r->total_amount, 'tax' => $r->tax_rate, 'tax_amount' => $r->tax_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['invoice_no' => 'Invoice No', 'supplier' => 'Supplier', 'item' => 'Item', 'quantity' => 'Qty', 'rate' => 'Rate', 'amount' => 'Amount', 'tax' => 'Tax %', 'tax_amount' => 'Tax Amt', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_rate', 'total_amount', 'tax_amount'], 'sum' => ['total_amount', 'tax_amount'], 'note' => 'Supplier invoice line items.'];
+    }
+
+    protected function r_laundry_items($from, $to): array
+    {
+        $rows = LaundryItem::with('laundryType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->laundryType)->name, 'unit' => $r->unit,
+            'wash_type' => $r->wash_type, 'price' => $r->price, 'cost' => $r->cost, 'margin' => $r->margin_pct,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'unit' => 'Unit', 'wash_type' => 'Wash Type', 'price' => 'Price', 'cost' => 'Cost', 'margin' => 'Margin %', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price', 'cost'], 'note' => 'Laundry item price list.'];
+    }
+
+    protected function r_laundry_order_lines($from, $to): array
+    {
+        $rows = LaundryOrderLine::with('laundryOrder.laundryItem.guest')->where('laundryOrder.collected_at', '>=', $from)->where('laundryOrder.collected_at', '<=', $to)->get()->map(fn ($r) => [
+            'order_no' => optional($r->laundryOrder)->order_no, 'item' => optional($r->laundryItem)->name,
+            'guest' => optional($r->guest)->name, 'quantity' => $r->quantity, 'unit_price' => $r->unit_price,
+            'amount' => $r->total_amount, 'wash_type' => $r->wash_type, 'status' => $r->status,
+        ]);
+        return ['cols' => ['order_no' => 'Order No', 'item' => 'Item', 'guest' => 'Guest', 'quantity' => 'Qty', 'unit_price' => 'Unit Price', 'amount' => 'Amount', 'wash_type' => 'Wash Type', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_price', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Laundry order line items.'];
+    }
+
+    protected function r_linen_batch_lines($from, $to): array
+    {
+        $rows = LinenBatchLine::with('linenBatch.linenType.roomType')->where('linenBatch.washed_at', '>=', $from)->where('linenBatch.washed_at', '<=', $to)->get()->map(fn ($r) => [
+            'batch_no' => optional($r->linenBatch)->batch_no, 'type' => optional($r->linenType)->name,
+            'room_type' => optional($r->roomType)->name, 'quantity' => $r->quantity, 'wash_type' => $r->wash_type,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['batch_no' => 'Batch No', 'type' => 'Linen Type', 'room_type' => 'Room Type', 'quantity' => 'Qty', 'wash_type' => 'Wash Type', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Linen batch line items.'];
+    }
+
+    protected function r_linen_batches($from, $to): array
+    {
+        $rows = LinenBatch::with('store.linenType')->whereBetween('washed_at', [$from, $to])->get()->map(fn ($r) => [
+            'batch_no' => $r->batch_no, 'store' => optional($r->store)->name,
+            'type' => optional($r->linenType)->name, 'washed' => $r->washed_at,
+            'total_qty' => $r->total_quantity, 'damaged' => $r->damaged_count, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['batch_no' => 'Batch No', 'store' => 'Store', 'type' => 'Type', 'washed' => 'Washed', 'total_qty' => 'Total Qty', 'damaged' => 'Damaged', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Linen batch wash summaries.'];
+    }
+
+    protected function r_sop_acknowledgements($from, $to): array
+    {
+        $rows = SopAcknowledgement::with('sopVersion.employee.department')->whereBetween('acknowledged_at', [$from, $to])->get()->map(fn ($r) => [
+            'sop' => optional($r->sopVersion->sopDocument)->title, 'employee' => optional($r->employee)->name,
+            'dept' => optional($r->department)->name, 'acknowledged' => $r->acknowledged_at,
+            'acknowledged_by' => optional($r->employee)->name, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['sop' => 'SOP', 'employee' => 'Employee', 'dept' => 'Dept', 'acknowledged' => 'Acknowledged', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'SOP acknowledgement register.'];
+    }
+
+    protected function r_sop_documents($from, $to): array
+    {
+        $rows = \App\Models\SopDocument::with('department.sopType.createdBy')->get()->map(fn ($r) => [
+            'title' => $r->title, 'dept' => optional($r->department)->name, 'type' => optional($r->sopType)->name,
+            'version' => $r->current_version, 'created' => $r->created_at, 'author' => optional($r->createdBy)->name,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['title' => 'Title', 'dept' => 'Dept', 'type' => 'Type', 'version' => 'Version', 'created' => 'Created', 'author' => 'Author', 'status' => 'Status'], 'rows' => $rows, 'note' => 'SOP document register.'];
+    }
+
+    protected function r_sop_versions($from, $to): array
+    {
+        $rows = \App\Models\SopVersion::with('sopDocument.department')->get()->map(fn ($r) => [
+            'sop' => optional($r->sopDocument)->title, 'dept' => optional($r->sopDocument->department)->name,
+            'version' => $r->version, 'published' => $r->published_at, 'author' => $r->published_by,
+            'status' => $r->status, 'notes' => $r->change_summary,
+        ]);
+        return ['cols' => ['sop' => 'SOP', 'dept' => 'Dept', 'version' => 'Version', 'published' => 'Published', 'status' => 'Status'], 'rows' => $rows, 'note' => 'SOP version history.'];
+    }
+
+    protected function r_training_courses($from, $to): array
+    {
+        $rows = TrainingCourse::with('trainingType.department.instructor')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->trainingType)->name,
+            'dept' => optional($r->department)->name, 'instructor' => optional($r->instructor)->name,
+            'duration' => $r->duration_hours, 'cost' => $r->cost_per_seat, 'capacity' => $r->capacity,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'instructor' => 'Instructor', 'duration' => 'Duration (hrs)', 'cost' => 'Cost/Seat', 'capacity' => 'Capacity', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost_per_seat'], 'note' => 'Training course catalog.'];
+    }
+
+    protected function r_training_requirements($from, $to): array
+    {
+        $rows = TrainingRequirement::with('department.trainingType.employeeRole')->get()->map(fn ($r) => [
+            'dept' => optional($r->department)->name, 'type' => optional($r->trainingType)->name,
+            'role' => optional($r->employeeRole)->name, 'course' => $r->course_name,
+            'frequency' => $r->frequency, 'due_after_days' => $r->due_after_days, 'status' => $r->status,
+        ]);
+        return ['cols' => ['dept' => 'Dept', 'type' => 'Type', 'role' => 'Role', 'course' => 'Course', 'frequency' => 'Frequency', 'due_after' => 'Due After (days)', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Training requirement matrix.'];
+    }
+
+    protected function r_email_logs($from, $to): array
+    {
+        $rows = EmailLog::with('emailTemplate.user.guest')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'template' => optional($r->emailTemplate)->name, 'subject' => $r->subject,
+            'guest' => optional($r->guest)->name, 'sent' => $r->sent_at, 'status' => $r->status,
+            'error' => $r->error_message, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['template' => 'Template', 'subject' => 'Subject', 'guest' => 'Guest', 'sent' => 'Sent', 'status' => 'Status', 'error' => 'Error'], 'rows' => $rows, 'note' => 'Email send log.'];
+    }
+
+    protected function r_kpi_alerts($from, $to): array
+    {
+        $rows = KpiAlert::with('kpi.department')->whereBetween('triggered_at', [$from, $to])->get()->map(fn ($r) => [
+            'kpi' => optional($r->kpi)->name, 'dept' => optional($r->department)->name,
+            'triggered' => $r->triggered_at, 'value' => $r->kpi_value, 'threshold' => $r->threshold_value,
+            'direction' => $r->alert_direction, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['kpi' => 'KPI', 'dept' => 'Dept', 'triggered' => 'Triggered', 'value' => 'Value', 'threshold' => 'Threshold', 'direction' => 'Direction', 'status' => 'Status'], 'rows' => $rows, 'note' => 'KPI alert trigger log.'];
+    }
+
+    protected function r_message_logs($from, $to): array
+    {
+        $rows = MessageLog::with('messageType.guest.user')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'type' => optional($r->messageType)->name, 'guest' => optional($r->guest)->name,
+            'sent' => $r->sent_at, 'channel' => $r->channel, 'content' => $r->content,
+            'status' => $r->status, 'user' => optional($r->user)->name,
+        ]);
+        return ['cols' => ['type' => 'Type', 'guest' => 'Guest', 'sent' => 'Sent', 'channel' => 'Channel', 'content' => 'Content', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Guest message send log.'];
+    }
+
+    protected function r_report_schedules($from, $to): array
+    {
+        $rows = ReportSchedule::with('report.reportType.user')->get()->map(fn ($r) => [
+            'report' => optional($r->report)->name, 'type' => optional($r->reportType)->name,
+            'frequency' => $r->frequency, 'next_run' => $r->next_run_date, 'last_run' => $r->last_run_at,
+            'format' => $r->output_format, 'recipients' => $r->recipient_emails, 'status' => $r->status,
+        ]);
+        return ['cols' => ['report' => 'Report', 'type' => 'Type', 'frequency' => 'Frequency', 'next_run' => 'Next Run', 'last_run' => 'Last Run', 'format' => 'Format', 'recipients' => 'Recipients', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Report schedule definitions.'];
+    }
+
+    protected function r_report_views($from, $to): array
+    {
+        $rows = ReportView::with('report.user')->whereBetween('viewed_at', [$from, $to])->get()->map(fn ($r) => [
+            'report' => optional($r->report)->name, 'viewed' => $r->viewed_at,
+            'duration' => $r->view_duration_seconds, 'user' => optional($r->user)->name,
+            'ip' => $r->ip_address, 'filters' => $r->filter_json,
+        ]);
+        return ['cols' => ['report' => 'Report', 'viewed' => 'Viewed', 'duration' => 'Duration (s)', 'user' => 'User', 'ip' => 'IP'], 'rows' => $rows, 'note' => 'Report view audit log.'];
+    }
+
+    protected function r_concierge_places($from, $to): array
+    {
+        $rows = ConciergePlace::with('placeType.area')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->placeType)->name, 'area' => optional($r->area)->name,
+            'address' => $r->address, 'phone' => $r->phone, 'distance_km' => $r->distance_km,
+            'rating' => $r->rating, 'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'area' => 'Area', 'address' => 'Address', 'phone' => 'Phone', 'distance' => 'Distance (km)', 'rating' => 'Rating', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Concierge place/vendor directory.'];
+    }
+
+    protected function r_cro_contacts($from, $to): array
+    {
+        $rows = CroContact::with('salesRep.city.country')->get()->map(fn ($r) => [
+            'name' => $r->name, 'company' => $r->company, 'email' => $r->email, 'phone' => $r->phone,
+            'city' => optional($r->city)->name, 'country' => optional($r->country)->name,
+            'type' => $r->contact_type, 'rep' => optional($r->salesRep)->name, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'company' => 'Company', 'email' => 'Email', 'phone' => 'Phone', 'city' => 'City', 'country' => 'Country', 'type' => 'Type', 'rep' => 'Rep', 'status' => 'Status'], 'rows' => $rows, 'note' => 'CRO contact register.'];
+    }
+
+    protected function r_dm_ad_stats($from, $to): array
+    {
+        $rows = DmAdStat::with('dmChannel.adCampaign')->whereBetween('stat_date', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->dmChannel)->name, 'campaign' => optional($r->adCampaign)->name,
+            'date' => $r->stat_date, 'impressions' => $r->impressions, 'clicks' => $r->clicks,
+            'ctr' => $r->ctr_pct, 'cost' => $r->cost, 'status' => $r->status,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'campaign' => 'Campaign', 'date' => 'Date', 'impressions' => 'Impressions', 'clicks' => 'Clicks', 'ctr' => 'CTR %', 'cost' => 'Cost', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cost'], 'sum' => ['cost'], 'note' => 'Digital marketing ad statistics.'];
+    }
+
+    protected function r_dm_link_clicks($from, $to): array
+    {
+        $rows = DmLinkClick::with('dmChannel.linkType')->whereBetween('clicked_at', [$from, $to])->get()->map(fn ($r) => [
+            'channel' => optional($r->dmChannel)->name, 'type' => optional($r->linkType)->name,
+            'clicked' => $r->clicked_at, 'url' => $r->url, 'ip' => $r->ip_address, 'user_agent' => $r->user_agent,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['channel' => 'Channel', 'type' => 'Type', 'clicked' => 'Clicked', 'url' => 'URL', 'ip' => 'IP', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Digital marketing link click tracking.'];
+    }
+
+    protected function r_marketing_collateral($from, $to): array
+    {
+        $rows = MarketingCollateral::with('collateralType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->collateralType)->name,
+            'dept' => optional($r->department)->name, 'filename' => $r->filename,
+            'version' => $r->version, 'created' => $r->created_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'filename' => 'Filename', 'version' => 'Version', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Marketing collateral register.'];
+    }
+
+    protected function r_marketing_consent_logs($from, $to): array
+    {
+        $rows = MarketingConsentLog::with('guest.consentType')->whereBetween('logged_at', [$from, $to])->get()->map(fn ($r) => [
+            'guest' => optional($r->guest)->name, 'type' => optional($r->consentType)->name,
+            'logged' => $r->logged_at, 'consented' => $r->consented, 'source' => $r->source,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['guest' => 'Guest', 'type' => 'Type', 'logged' => 'Logged', 'consented' => 'Consented', 'source' => 'Source', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Marketing consent audit log.'];
+    }
+
+    protected function r_marketing_messages($from, $to): array
+    {
+        $rows = MarketingMessage::with('campaign.messageType.channelType')->whereBetween('sent_at', [$from, $to])->get()->map(fn ($r) => [
+            'campaign' => optional($r->campaign)->name, 'type' => optional($r->messageType)->name,
+            'channel' => optional($r->channelType)->name, 'subject' => $r->subject,
+            'sent' => $r->sent_at, 'recipients' => $r->recipient_count, 'status' => $r->status,
+        ]);
+        return ['cols' => ['campaign' => 'Campaign', 'type' => 'Type', 'channel' => 'Channel', 'subject' => 'Subject', 'sent' => 'Sent', 'recipients' => 'Recipients', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Marketing message send log.'];
+    }
+
+    protected function r_marketing_segments($from, $to): array
+    {
+        $rows = MarketingSegment::with('segmentType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->segmentType)->name, 'dept' => optional($r->department)->name,
+            'criteria' => $r->criteria_json, 'member_count' => $r->member_count, 'created' => $r->created_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'members' => 'Members', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Marketing segment definitions.'];
+    }
+
+    protected function r_business_sources($from, $to): array
+    {
+        $rows = BusinessSource::with('sourceType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->sourceType)->name, 'dept' => optional($r->department)->name,
+            'description' => $r->description, 'priority' => $r->priority, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'description' => 'Description', 'priority' => 'Priority', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Business source register.'];
+    }
+
+    protected function r_attendance($from, $to): array
+    {
+        $rows = Attendance::with('employee.department')->whereBetween('attendance_date', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'dept' => optional(optional($r->employee)->department)->name,
+            'date' => $r->attendance_date, 'hours_sched' => $r->hours_scheduled, 'hours_worked' => $r->hours_worked,
+            'overtime' => $r->overtime_hours, 'late' => $r->late_minutes, 'absent' => $r->absent, 'leave' => $r->leave_hours, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'dept' => 'Dept', 'date' => 'Date', 'hours_sched' => 'Sched Hrs', 'hours_worked' => 'Worked Hrs', 'overtime' => 'OT Hrs', 'late' => 'Late (min)', 'absent' => 'Absent', 'leave' => 'Leave Hrs', 'status' => 'Status'], 'rows' => $rows, 'sum' => ['hours_scheduled', 'hours_worked', 'overtime_hours', 'late_minutes', 'leave_hours'], 'note' => 'Daily attendance summary.'];
+    }
+
+    protected function r_employee_pay_components($from, $to): array
+    {
+        $rows = EmployeePayComponent::with('employee')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'period' => $r->period_start . ' to ' . $r->period_end,
+            'type' => $r->component_type, 'gross' => $r->gross_amount, 'basic' => $r->basic_salary,
+            'overtime' => $r->overtime_amount, 'allowance' => $r->allowance_amount, 'deduction' => $r->deduction_amount, 'net' => $r->net_amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'period' => 'Period', 'type' => 'Type', 'gross' => 'Gross', 'basic' => 'Basic', 'overtime' => 'OT', 'allowance' => 'Allowance', 'deduction' => 'Deduction', 'net' => 'Net'], 'rows' => $rows, 'money' => ['gross_amount', 'basic_salary', 'overtime_amount', 'allowance_amount', 'deduction_amount', 'net_amount'], 'sum' => ['gross_amount', 'basic_salary', 'overtime_amount', 'allowance_amount', 'deduction_amount', 'net_amount'], 'note' => 'Employee pay component breakdown.'];
+    }
+
+    protected function r_leave_types($from, $to): array
+    {
+        $rows = LeaveType::with('department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'dept' => optional($r->department)->name,
+            'max_days' => $r->max_days_per_year, 'carry_forward' => $r->carry_forward_days,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'dept' => 'Dept', 'max_days' => 'Max Days', 'carry_forward' => 'Carry Forward', 'status' => 'Status', 'description' => 'Description'], 'rows' => $rows, 'note' => 'Leave type definitions.'];
+    }
+
+    protected function r_roster_weeks($from, $to): array
+    {
+        $rows = RosterWeek::with('department.rosterType')->whereBetween('week_start', [$from, $to])->get()->map(fn ($r) => [
+            'week_start' => $r->week_start, 'week_end' => $r->week_end, 'dept' => optional($r->department)->name,
+            'type' => optional($r->rosterType)->name, 'shifts_count' => $r->total_shifts, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['week_start' => 'Week Start', 'week_end' => 'Week End', 'dept' => 'Dept', 'type' => 'Type', 'shifts' => 'Shifts', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Roster week summaries.'];
+    }
+
+    protected function r_sc_distribution_lines($from, $to): array
+    {
+        $rows = ScDistributionLine::with('distribution.department.account')->whereBetween('distributed_at', [$from, $to])->get()->map(fn ($r) => [
+            'distribution' => optional($r->distribution)->name, 'dept' => optional($r->department)->name,
+            'account' => optional($r->account)->name, 'amount' => $r->amount,
+            'period' => $r->period, 'status' => $r->status,
+        ]);
+        return ['cols' => ['distribution' => 'Distribution', 'dept' => 'Dept', 'account' => 'Account', 'amount' => 'Amount', 'period' => 'Period', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Service charge distribution line items.'];
+    }
+
+    protected function r_shift_swaps($from, $to): array
+    {
+        $rows = ShiftSwap::with('shift1.employee1.shift2.employee2')->whereBetween('requested_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee1' => optional($r->employee1)->name, 'shift1' => optional($r->shift1)->name,
+            'employee2' => optional($r->employee2)->name, 'shift2' => optional($r->shift2)->name,
+            'requested' => $r->requested_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['employee1' => 'Employee 1', 'shift1' => 'Shift 1', 'employee2' => 'Employee 2', 'shift2' => 'Shift 2', 'requested' => 'Requested', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Shift swap request register.'];
+    }
+
+    protected function r_time_punches_detail($from, $to): array
+    {
+        $rows = TimePunch::with('employee')->whereBetween('punched_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'punch_in' => $r->punched_in, 'punch_out' => $r->punched_out,
+            'hours' => $r->hours_worked, 'type' => $r->punch_type, 'location' => $r->location, 'device' => $r->device_id, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'punch_in' => 'Punch In', 'punch_out' => 'Punch Out', 'hours' => 'Hours', 'type' => 'Type', 'location' => 'Location', 'device' => 'Device', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Detailed time punch register.'];
+    }
+
+    protected function r_tip_collections($from, $to): array
+    {
+        $rows = TipCollection::with('employee')->whereBetween('collected_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'date' => $r->collected_at, 'shift' => $r->shift_label,
+            'cash' => $r->cash_amount, 'card' => $r->card_amount, 'total' => $r->total_amount, 'distributed' => $r->distributed_amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'date' => 'Date', 'shift' => 'Shift', 'cash' => 'Cash', 'card' => 'Card', 'total' => 'Total', 'distributed' => 'Distributed', 'status' => 'Status'], 'rows' => $rows, 'money' => ['cash_amount', 'card_amount', 'total_amount', 'distributed_amount'], 'sum' => ['cash_amount', 'card_amount', 'total_amount', 'distributed_amount'], 'note' => 'Tip collection register.'];
+    }
+
+    protected function r_lease_inspections($from, $to): array
+    {
+        $rows = LeaseInspection::with('lease.leaseUnit.inspectedBy')->whereBetween('inspected_at', [$from, $to])->get()->map(fn ($r) => [
+            'lease' => optional($r->lease)->name, 'unit' => optional($r->leaseUnit)->name,
+            'inspected' => $r->inspected_at, 'result' => $r->result, 'findings' => $r->findings,
+            'status' => $r->status, 'inspected_by' => optional($r->inspectedBy)->name,
+        ]);
+        return ['cols' => ['lease' => 'Lease', 'unit' => 'Unit', 'inspected' => 'Inspected', 'result' => 'Result', 'findings' => 'Findings', 'status' => 'Status', 'inspected_by' => 'Inspected By'], 'rows' => $rows, 'note' => 'Lease inspection register.'];
+    }
+
+    protected function r_lease_meter_readings($from, $to): array
+    {
+        $rows = LeaseMeterReading::with('lease.meterType')->whereBetween('read_date', [$from, $to])->get()->map(fn ($r) => [
+            'lease' => optional($r->lease)->name, 'meter_type' => optional($r->meterType)->name,
+            'read_date' => $r->read_date, 'previous' => $r->previous_reading, 'current' => $r->current_reading,
+            'consumption' => $r->consumption, 'unit' => $r->unit, 'rate' => $r->rate, 'amount' => $r->amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['lease' => 'Lease', 'meter' => 'Meter Type', 'read_date' => 'Read Date', 'previous' => 'Previous', 'current' => 'Current', 'consumption' => 'Consumption', 'rate' => 'Rate', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate', 'amount'], 'sum' => ['amount'], 'note' => 'Lease meter readings with consumption.'];
+    }
+
+    protected function r_meter_readings($from, $to): array
+    {
+        $rows = MeterReading::with('meter.meterType.location')->whereBetween('read_date', [$from, $to])->get()->map(fn ($r) => [
+            'meter' => optional($r->meter)->name, 'type' => optional($r->meterType)->name,
+            'location' => optional($r->location)->name, 'read_date' => $r->read_date,
+            'previous' => $r->previous_reading, 'current' => $r->current_reading, 'consumption' => $r->consumption,
+            'unit' => $r->unit, 'rate' => $r->rate, 'amount' => $r->amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['meter' => 'Meter', 'type' => 'Type', 'location' => 'Location', 'read_date' => 'Read Date', 'previous' => 'Previous', 'current' => 'Current', 'consumption' => 'Consumption', 'rate' => 'Rate', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate', 'amount'], 'sum' => ['amount'], 'note' => 'Utility meter readings with consumption.'];
+    }
+
+    protected function r_qa_audit_items($from, $to): array
+    {
+        $rows = QaAuditItem::with('audit.qaStandard.department')->where('audit.audit_date', '>=', $from)->where('audit.audit_date', '<=', $to)->get()->map(fn ($r) => [
+            'audit' => optional($r->audit)->audit_no, 'standard' => optional($r->qaStandard)->name,
+            'dept' => optional($r->department)->name, 'question' => $r->question, 'result' => $r->result,
+            'score' => $r->score, 'notes' => $r->notes, 'status' => $r->status,
+        ]);
+        return ['cols' => ['audit' => 'Audit No', 'standard' => 'Standard', 'dept' => 'Dept', 'question' => 'Question', 'result' => 'Result', 'score' => 'Score', 'status' => 'Status'], 'rows' => $rows, 'note' => 'QA audit line items.'];
+    }
+
+    protected function r_qa_standards($from, $to): array
+    {
+        $rows = QaStandard::with('qaCategory.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'category' => optional($r->qaCategory)->name, 'dept' => optional($r->department)->name,
+            'pass_mark' => $r->pass_mark, 'frequency' => $r->frequency, 'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'category' => 'Category', 'dept' => 'Dept', 'pass_mark' => 'Pass Mark', 'frequency' => 'Frequency', 'status' => 'Status'], 'rows' => $rows, 'note' => 'QA audit standard definitions.'];
+    }
+
+    protected function r_review_templates($from, $to): array
+    {
+        $rows = ReviewTemplate::with('reviewType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->reviewType)->name, 'dept' => optional($r->department)->name,
+            'questions' => $r->question_count, 'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'questions' => 'Questions', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Review template definitions.'];
+    }
+
+    protected function r_rate_contract_blackouts($from, $to): array
+    {
+        $rows = RateContractBlackout::with('rateContract.blackoutType')->whereBetween('from_date', [$from, $to])->get()->map(fn ($r) => [
+            'contract' => optional($r->rateContract)->name, 'type' => optional($r->blackoutType)->name,
+            'from' => $r->from_date, 'to' => $r->to_date, 'reason' => $r->reason, 'status' => $r->status,
+        ]);
+        return ['cols' => ['contract' => 'Contract', 'type' => 'Type', 'from' => 'From', 'to' => 'To', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Rate contract blackout dates.'];
+    }
+
+    protected function r_rate_contract_rates($from, $to): array
+    {
+        $rows = RateContractRate::with('rateContract.roomType.ratePlan')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'contract' => optional($r->rateContract)->name, 'room_type' => optional($r->roomType)->name,
+            'plan' => optional($r->ratePlan)->name, 'rate' => $r->rate, 'currency' => $r->currency,
+            'meal' => $r->meal_plan, 'effective' => $r->effective_from, 'status' => $r->status,
+        ]);
+        return ['cols' => ['contract' => 'Contract', 'room_type' => 'Room Type', 'plan' => 'Plan', 'rate' => 'Rate', 'currency' => 'Currency', 'meal' => 'Meal', 'effective' => 'Effective', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate'], 'note' => 'Rate contract rate mappings.'];
+    }
+
+    protected function r_rate_overrides($from, $to): array
+    {
+        $rows = RateOverride::with('roomType.ratePlan.overrideType')->whereBetween('effective_from', [$from, $to])->get()->map(fn ($r) => [
+            'room_type' => optional($r->roomType)->name, 'plan' => optional($r->ratePlan)->name,
+            'type' => optional($r->overrideType)->name, 'override' => $r->override_value,
+            'effective' => $r->effective_from, 'reason' => $r->reason, 'status' => $r->status,
+        ]);
+        return ['cols' => ['room_type' => 'Room Type', 'plan' => 'Rate Plan', 'type' => 'Type', 'override' => 'Override', 'effective' => 'Effective', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Rate override register.'];
+    }
+
+    protected function r_rate_plans($from, $to): array
+    {
+        $rows = RatePlan::with('roomType.mealPlan.ratePlanType')->get()->map(fn ($r) => [
+            'name' => $r->name, 'room_type' => optional($r->roomType)->name, 'meal' => optional($r->mealPlan)->name,
+            'type' => optional($r->ratePlanType)->name, 'adult_rate' => $r->adult_rate, 'child_rate' => $r->child_rate,
+            'currency' => $r->currency, 'cancel_policy' => $r->cancellation_policy, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'room_type' => 'Room Type', 'meal' => 'Meal', 'type' => 'Type', 'adult_rate' => 'Adult Rate', 'child_rate' => 'Child Rate', 'currency' => 'Currency', 'cancel' => 'Cancel Policy', 'status' => 'Status'], 'rows' => $rows, 'money' => ['adult_rate', 'child_rate'], 'note' => 'Rate plan catalog.'];
+    }
+
+    protected function r_rm_snapshots($from, $to): array
+    {
+        $rows = \App\Models\RmSnapshot::with('roomType.ratePlan')->whereBetween('snapshot_date', [$from, $to])->get()->map(fn ($r) => [
+            'room_type' => optional($r->roomType)->name, 'plan' => optional($r->ratePlan)->name,
+            'date' => $r->snapshot_date, 'rate' => $r->rate, 'inventory' => $r->inventory_available,
+            'min_stay' => $r->min_stay, 'max_stay' => $r->max_stay, 'closed' => $r->is_closed, 'status' => $r->status,
+        ]);
+        return ['cols' => ['room_type' => 'Room Type', 'plan' => 'Plan', 'date' => 'Date', 'rate' => 'Rate', 'inventory' => 'Inventory', 'min_stay' => 'Min Stay', 'max_stay' => 'Max Stay', 'closed' => 'Closed', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate'], 'note' => 'Revenue management daily rate/inventory snapshots.'];
+    }
+
+    protected function r_yield_rules($from, $to): array
+    {
+        $rows = YieldRule::with('roomType.ratePlan.yieldRuleType')->get()->map(fn ($r) => [
+            'room_type' => optional($r->roomType)->name, 'plan' => optional($r->ratePlan)->name,
+            'type' => optional($r->yieldRuleType)->name, 'threshold_pct' => $r->threshold_pct,
+            'adjustment' => $r->adjustment_pct, 'min_stay' => $r->min_stay, 'status' => $r->status,
+        ]);
+        return ['cols' => ['room_type' => 'Room Type', 'plan' => 'Plan', 'type' => 'Type', 'threshold' => 'Threshold %', 'adjustment' => 'Adjustment %', 'min_stay' => 'Min Stay', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Revenue management yield rules.'];
+    }
+
+    protected function r_agent_commissions($from, $to): array
+    {
+        $rows = AgentCommission::with('agent.commissionType.reservation.guest')->whereBetween('earned_at', [$from, $to])->get()->map(fn ($r) => [
+            'agent' => optional($r->agent)->name, 'type' => optional($r->commissionType)->name,
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'amount' => $r->commission_amount, 'rate' => $r->commission_rate, 'earned' => $r->earned_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['agent' => 'Agent', 'type' => 'Type', 'res' => 'Reservation', 'guest' => 'Guest', 'amount' => 'Amount', 'rate' => 'Rate', 'earned' => 'Earned', 'status' => 'Status'], 'rows' => $rows, 'money' => ['commission_amount'], 'sum' => ['commission_amount'], 'note' => 'Agent commission register.'];
+    }
+
+    protected function r_bd_competitors($from, $to): array
+    {
+        $rows = BdCompetitor::with('competitorType.area')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->competitorType)->name, 'area' => optional($r->area)->name,
+            'star_rating' => $r->star_rating, 'rooms' => $r->room_count, 'avc' => $r->average_rate,
+            'address' => $r->address, 'phone' => $r->phone, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'area' => 'Area', 'stars' => 'Stars', 'rooms' => 'Rooms', 'avc' => 'AVC', 'address' => 'Address', 'status' => 'Status'], 'rows' => $rows, 'money' => ['average_rate'], 'note' => 'Business development competitor register.'];
+    }
+
+    protected function r_bd_milestones($from, $to): array
+    {
+        $rows = BdMilestone::with('businessPlan.milestoneType')->whereBetween('target_date', [$from, $to])->get()->map(fn ($r) => [
+            'plan' => optional($r->businessPlan)->name, 'type' => optional($r->milestoneType)->name,
+            'milestone' => $r->milestone_name, 'target' => $r->target_date, 'achieved' => $r->achieved_date,
+            'owner' => $r->owner_name, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['plan' => 'Plan', 'type' => 'Type', 'milestone' => 'Milestone', 'target' => 'Target', 'achieved' => 'Achieved', 'owner' => 'Owner', 'status' => 'Status'], 'rows' => $rows, 'note' => 'BD milestone tracking.'];
+    }
+
+    protected function r_bd_rate_shop_lines($from, $to): array
+    {
+        $rows = BdRateShopLine::with('rateShop.competitor.roomType')->where('rateShop.shop_date', '>=', $from)->where('rateShop.shop_date', '<=', $to)->get()->map(fn ($r) => [
+            'shop' => optional($r->rateShop)->shop_ref, 'competitor' => optional($r->competitor)->name,
+            'room_type' => optional($r->roomType)->name, 'rate' => $r->rate, 'currency' => $r->currency,
+            'meal' => $r->meal_plan, 'status' => $r->status,
+        ]);
+        return ['cols' => ['shop' => 'Shop Ref', 'competitor' => 'Competitor', 'room_type' => 'Room Type', 'rate' => 'Rate', 'currency' => 'Currency', 'meal' => 'Meal', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate'], 'note' => 'BD rate shop line items.'];
+    }
+
+    protected function r_bd_results($from, $to): array
+    {
+        $rows = BdResult::with('businessPlan.resultType.department')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'plan' => optional($r->businessPlan)->name, 'type' => optional($r->resultType)->name,
+            'dept' => optional($r->department)->name, 'metric' => $r->metric_name, 'target' => $r->target_value,
+            'actual' => $r->actual_value, 'variance' => $r->variance, 'period' => $r->period_start . ' to ' . $r->period_end, 'status' => $r->status,
+        ]);
+        return ['cols' => ['plan' => 'Plan', 'type' => 'Type', 'dept' => 'Dept', 'metric' => 'Metric', 'target' => 'Target', 'actual' => 'Actual', 'variance' => 'Variance', 'status' => 'Status'], 'rows' => $rows, 'note' => 'BD result tracking with target vs actual.'];
+    }
+
+    protected function r_gate_pass_items($from, $to): array
+    {
+        $rows = GatePassItem::with('gatePass.guest.gatePassItemType')->where('gatePass.issued_at', '>=', $from)->where('gatePass.issued_at', '<=', $to)->get()->map(fn ($r) => [
+            'pass_no' => optional($r->gatePass)->pass_no, 'guest' => optional($r->guest)->name,
+            'type' => optional($r->gatePassItemType)->name, 'quantity' => $r->quantity, 'unit_price' => $r->unit_price,
+            'amount' => $r->total_amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['pass_no' => 'Pass No', 'guest' => 'Guest', 'type' => 'Type', 'quantity' => 'Qty', 'unit_price' => 'Unit Price', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['unit_price', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Gate pass line items.'];
+    }
+
+    protected function r_gate_pass_returns($from, $to): array
+    {
+        $rows = GatePassReturn::with('gatePass.guest')->whereBetween('returned_at', [$from, $to])->get()->map(fn ($r) => [
+            'pass_no' => optional($r->gatePass)->pass_no, 'guest' => optional($r->guest)->name,
+            'returned' => $r->returned_at, 'deposit' => $r->deposit_amount, 'refund' => $r->refund_amount,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['pass_no' => 'Pass No', 'guest' => 'Guest', 'returned' => 'Returned', 'deposit' => 'Deposit', 'refund' => 'Refund', 'status' => 'Status'], 'rows' => $rows, 'money' => ['deposit_amount', 'refund_amount'], 'sum' => ['refund_amount'], 'note' => 'Gate pass return register with deposit refunds.'];
+    }
+
+    protected function r_security_incident_updates($from, $to): array
+    {
+        $rows = SecurityIncidentUpdate::with('incident.user')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'incident' => optional($r->incident)->incident_no, 'type' => $r->update_type,
+            'description' => $r->description, 'created' => $r->created_at, 'user' => optional($r->user)->name, 'status' => $r->status,
+        ]);
+        return ['cols' => ['incident' => 'Incident', 'type' => 'Type', 'description' => 'Description', 'created' => 'Created', 'user' => 'User', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Security incident update audit trail.'];
+    }
+
+    protected function r_security_watch($from, $to): array
+    {
+        $rows = SecurityWatch::with('employee.department')->whereBetween('watch_date', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'dept' => optional(optional($r->employee)->department)->name,
+            'date' => $r->watch_date, 'shift' => $r->shift, 'location' => $r->location,
+            'duty' => $r->duty, 'start' => $r->start_time, 'end' => $r->end_time, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'dept' => 'Dept', 'date' => 'Date', 'shift' => 'Shift', 'location' => 'Location', 'duty' => 'Duty', 'start' => 'Start', 'end' => 'End', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Security watch/duty roster.'];
+    }
+
+    protected function r_kiosks($from, $to): array
+    {
+        $rows = Kiosk::with('kioskType.floor')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->kioskType)->name, 'floor' => optional($r->floor)->name,
+            'location' => $r->location, 'serial' => $r->serial_number, 'last_heartbeat' => $r->last_heartbeat_at,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'floor' => 'Floor', 'location' => 'Location', 'serial' => 'Serial', 'last_heartbeat' => 'Last Heartbeat', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Self-service kiosk register.'];
+    }
+
+    protected function r_esg_checklist_items($from, $to): array
+    {
+        $rows = EsgChecklistItem::with('esgInitiative.department.esgChecklistType')->get()->map(fn ($r) => [
+            'initiative' => optional($r->esgInitiative)->name, 'dept' => optional($r->department)->name,
+            'type' => optional($r->esgChecklistType)->name, 'question' => $r->checklist_question,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['initiative' => 'Initiative', 'dept' => 'Dept', 'type' => 'Type', 'question' => 'Question', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'ESG checklist items.'];
+    }
+
+    protected function r_esg_communities($from, $to): array
+    {
+        $rows = EsgCommunity::with('communityType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->communityType)->name, 'dept' => optional($r->department)->name,
+            'location' => $r->location, 'investment' => $r->investment_amount, 'beneficiaries' => $r->beneficiary_count,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'location' => 'Location', 'investment' => 'Investment', 'beneficiaries' => 'Beneficiaries', 'status' => 'Status'], 'rows' => $rows, 'money' => ['investment_amount'], 'note' => 'ESG community engagement register.'];
+    }
+
+    protected function r_esg_green_stays($from, $to): array
+    {
+        $rows = EsgGreenStay::with('reservation.guest.roomType')->whereBetween('booked_at', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'room_type' => optional($r->roomType)->name, 'booked' => $r->booked_at,
+            'nights' => $r->nights, 'carbon_saved' => $r->carbon_saved_kg, 'cost_saved' => $r->cost_saved,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'room_type' => 'Room Type', 'booked' => 'Booked', 'nights' => 'Nights', 'carbon_saved' => 'Carbon Saved (kg)', 'cost_saved' => 'Cost Saved', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Green stay program tracking.'];
+    }
+
+    protected function r_esg_laundry_months($from, $to): array
+    {
+        $rows = EsgLaundryMonth::with('department')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'dept' => optional($r->department)->name, 'period' => $r->period_start . ' to ' . $r->period_end,
+            'linens_washed' => $r->linens_washed, 'water_saved_litres' => $r->water_saved_litres,
+            'energy_saved_kwh' => $r->energy_saved_kwh, 'status' => $r->status,
+        ]);
+        return ['cols' => ['dept' => 'Dept', 'period' => 'Period', 'linens' => 'Linens Washed', 'water_saved' => 'Water Saved (L)', 'energy_saved' => 'Energy Saved (kWh)', 'status' => 'Status'], 'rows' => $rows, 'note' => 'ESG laundry monthly conservation metrics.'];
+    }
+
+    protected function r_esg_policies($from, $to): array
+    {
+        $rows = EsgPolicy::with('policyType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->policyType)->name, 'dept' => optional($r->department)->name,
+            'version' => $r->version, 'effective' => $r->effective_date, 'review_due' => $r->review_due_date,
+            'status' => $r->status, 'description' => $r->description,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'version' => 'Version', 'effective' => 'Effective', 'review_due' => 'Review Due', 'status' => 'Status'], 'rows' => $rows, 'note' => 'ESG policy register.'];
+    }
+
+    protected function r_esg_targets($from, $to): array
+    {
+        $rows = EsgTarget::with('targetType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->targetType)->name, 'dept' => optional($r->department)->name,
+            'baseline' => $r->baseline_value, 'target' => $r->target_value, 'unit' => $r->unit,
+            'current' => $r->current_value, 'deadline' => $r->deadline, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'baseline' => 'Baseline', 'target' => 'Target', 'unit' => 'Unit', 'current' => 'Current', 'deadline' => 'Deadline', 'status' => 'Status'], 'rows' => $rows, 'note' => 'ESG sustainability targets with progress.'];
+    }
+
+    protected function r_api_idempotency_keys($from, $to): array
+    {
+        $rows = ApiIdempotencyKey::with('apiClient.endpoint')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'client' => optional($r->apiClient)->name, 'endpoint' => $r->endpoint,
+            'key' => $r->idempotency_key, 'created' => $r->created_at, 'used' => $r->used_at,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['client' => 'Client', 'endpoint' => 'Endpoint', 'key' => 'Key', 'created' => 'Created', 'used' => 'Used', 'status' => 'Status'], 'rows' => $rows, 'note' => 'API idempotency key register.'];
+    }
+
+    protected function r_data_migration_batches($from, $to): array
+    {
+        $rows = DataMigrationBatch::with('migrationType')->whereBetween('started_at', [$from, $to])->get()->map(fn ($r) => [
+            'batch_no' => $r->batch_no, 'type' => optional($r->migrationType)->name,
+            'started' => $r->started_at, 'completed' => $r->completed_at,
+            'records_processed' => $r->records_processed, 'records_failed' => $r->records_failed,
+            'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['batch_no' => 'Batch No', 'type' => 'Type', 'started' => 'Started', 'completed' => 'Completed', 'processed' => 'Processed', 'failed' => 'Failed', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Data migration batch summaries.'];
+    }
+
+    protected function r_data_migration_rows($from, $to): array
+    {
+        $rows = DataMigrationRow::with('migrationBatch.tableName')->where('migrationBatch.started_at', '>=', $from)->where('migrationBatch.started_at', '<=', $to)->get()->map(fn ($r) => [
+            'batch' => optional($r->migrationBatch)->batch_no, 'table' => optional($r->tableName)->name,
+            'source_id' => $r->source_id, 'target_id' => $r->target_id, 'status' => $r->status, 'error' => $r->error_message,
+        ]);
+        return ['cols' => ['batch' => 'Batch', 'table' => 'Table', 'source_id' => 'Source ID', 'target_id' => 'Target ID', 'status' => 'Status', 'error' => 'Error'], 'rows' => $rows, 'note' => 'Data migration row-level results.'];
+    }
+
+    protected function r_log_entry_comments($from, $to): array
+    {
+        $rows = LogEntryComment::with('logEntry.user')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'log' => optional($r->logEntry)->action, 'comment' => $r->comment, 'created' => $r->created_at,
+            'user' => optional($r->user)->name, 'status' => $r->status,
+        ]);
+        return ['cols' => ['log' => 'Log Entry', 'comment' => 'Comment', 'created' => 'Created', 'user' => 'User', 'status' => 'Status'], 'rows' => $rows, 'note' => 'System log entry comments.'];
+    }
+
+    protected function r_log_entry_reads($from, $to): array
+    {
+        $rows = LogEntryRead::with('logEntry.user')->whereBetween('read_at', [$from, $to])->get()->map(fn ($r) => [
+            'log' => optional($r->logEntry)->action, 'read' => $r->read_at,
+            'user' => optional($r->user)->name, 'ip' => $r->ip_address,
+        ]);
+        return ['cols' => ['log' => 'Log Entry', 'read' => 'Read At', 'user' => 'User', 'ip' => 'IP'], 'rows' => $rows, 'note' => 'System log entry read receipts.'];
+    }
+
+    protected function r_offline_sync_operations($from, $to): array
+    {
+        $rows = OfflineSyncOperation::with('syncType.device.syncStatus')->whereBetween('synced_at', [$from, $to])->get()->map(fn ($r) => [
+            'type' => optional($r->syncType)->name, 'device' => optional($r->device)->device_name,
+            'synced' => $r->synced_at, 'records' => $r->records_synced, 'duration_ms' => $r->duration_ms,
+            'status' => optional($r->syncStatus)->name, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['type' => 'Type', 'device' => 'Device', 'synced' => 'Synced', 'records' => 'Records', 'duration_ms' => 'Duration (ms)', 'status' => 'Status', 'notes' => 'Notes'], 'rows' => $rows, 'note' => 'Offline sync operation log.'];
+    }
+
+    protected function r_permissions($from, $to): array
+    {
+        $rows = Permission::with('permissionGroup.guard')->get()->map(fn ($r) => [
+            'name' => $r->name, 'group' => optional($r->permissionGroup)->name, 'guard' => optional($r->guard)->name,
+            'description' => $r->description, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'group' => 'Group', 'guard' => 'Guard', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'note' => 'System permission definitions.'];
+    }
+
+    protected function r_settings($from, $to): array
+    {
+        $rows = Setting::with('settingGroup')->get()->map(fn ($r) => [
+            'key' => $r->key, 'group' => optional($r->settingGroup)->name, 'value' => $r->value,
+            'description' => $r->description, 'updated' => $r->updated_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['key' => 'Key', 'group' => 'Group', 'value' => 'Value', 'description' => 'Description', 'updated' => 'Updated', 'status' => 'Status'], 'rows' => $rows, 'note' => 'System settings register.'];
+    }
+
+    protected function r_talent_cycles($from, $to): array
+    {
+        $rows = TalentCycle::with('cycleType.department')->whereBetween('cycle_start', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->cycleType)->name, 'dept' => optional($r->department)->name,
+            'start' => $r->cycle_start, 'end' => $r->cycle_end, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'start' => 'Start', 'end' => 'End', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Talent review cycle register.'];
+    }
+
+    protected function r_talent_interviews($from, $to): array
+    {
+        $rows = TalentInterview::with('vacancy.interviewer.applicant')->whereBetween('interview_date', [$from, $to])->get()->map(fn ($r) => [
+            'vacancy' => optional($r->vacancy)->title, 'applicant' => optional($r->applicant)->name,
+            'interviewer' => optional($r->interviewer)->name, 'date' => $r->interview_date,
+            'time' => $r->interview_time, 'location' => $r->location, 'format' => $r->interview_format,
+            'result' => $r->result, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['vacancy' => 'Vacancy', 'applicant' => 'Applicant', 'interviewer' => 'Interviewer', 'date' => 'Date', 'time' => 'Time', 'location' => 'Location', 'format' => 'Format', 'result' => 'Result', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Talent interview schedule.'];
+    }
+
+    protected function r_talent_offers($from, $to): array
+    {
+        $rows = TalentOffer::with('vacancy.applicant.offeredBy')->whereBetween('offered_at', [$from, $to])->get()->map(fn ($r) => [
+            'vacancy' => optional($r->vacancy)->title, 'applicant' => optional($r->applicant)->name,
+            'salary' => $r->salary_offered, 'start_date' => $r->start_date, 'offered' => $r->offered_at,
+            'accepted' => $r->accepted_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['vacancy' => 'Vacancy', 'applicant' => 'Applicant', 'salary' => 'Salary', 'start_date' => 'Start Date', 'offered' => 'Offered', 'accepted' => 'Accepted', 'status' => 'Status'], 'rows' => $rows, 'money' => ['salary_offered'], 'note' => 'Talent offer register.'];
+    }
+
+    protected function r_talent_probations($from, $to): array
+    {
+        $rows = TalentProbation::with('employee.department.probationer')->whereBetween('probation_start', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'dept' => optional($r->department)->name,
+            'start' => $r->probation_start, 'end' => $r->probation_end, 'review_date' => $r->review_date,
+            'status' => $r->status, 'result' => $r->result, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'dept' => 'Dept', 'start' => 'Start', 'end' => 'End', 'review_date' => 'Review Date', 'result' => 'Result', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Talent probation tracking.'];
+    }
+
+    protected function r_talent_scorecards($from, $to): array
+    {
+        $rows = TalentScorecard::with('employee.cycle.scorer')->whereBetween('scored_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'cycle' => optional($r->cycle)->name,
+            'scorer' => optional($r->scorer)->name, 'scored' => $r->scored_at,
+            'overall_score' => $r->overall_score, 'rating' => $r->rating, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'cycle' => 'Cycle', 'scorer' => 'Scorer', 'scored' => 'Scored', 'overall' => 'Overall Score', 'rating' => 'Rating', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Talent scorecard register.'];
+    }
+
+    protected function r_talent_tasks($from, $to): array
+    {
+        $rows = TalentTask::with('employee.taskType.assignedBy')->whereBetween('assigned_at', [$from, $to])->get()->map(fn ($r) => [
+            'employee' => optional($r->employee)->name, 'type' => optional($r->taskType)->name,
+            'assigned_by' => optional($r->assignedBy)->name, 'description' => $r->description,
+            'due_date' => $r->due_date, 'completed' => $r->completed_at, 'status' => $r->status,
+        ]);
+        return ['cols' => ['employee' => 'Employee', 'type' => 'Type', 'assigned_by' => 'Assigned By', 'description' => 'Description', 'due' => 'Due Date', 'completed' => 'Completed', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Talent development task register.'];
+    }
+
+    protected function r_einvoice_logs($from, $to): array
+    {
+        $rows = EinvoiceLog::with('folio.guest.einvoiceProvider')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'folio' => optional($r->folio)->folio_no, 'guest' => optional($r->folio->guest)->name,
+            'provider' => optional($r->einvoiceProvider)->name, 'created' => $r->created_at,
+            'amount' => $r->amount, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['folio' => 'Folio', 'guest' => 'Guest', 'provider' => 'Provider', 'created' => 'Created', 'amount' => 'Amount', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'E-invoice creation log.'];
+    }
+
+    protected function r_gst_cancelled_docs($from, $to): array
+    {
+        $rows = GstCancelledDoc::with('gstPeriod.documentType')->whereBetween('cancelled_at', [$from, $to])->get()->map(fn ($r) => [
+            'period' => optional($r->gstPeriod)->name, 'type' => optional($r->documentType)->name,
+            'cancelled' => $r->cancelled_at, 'document' => $r->document_no, 'amount' => $r->amount,
+            'reason' => $r->cancellation_reason, 'status' => $r->status,
+        ]);
+        return ['cols' => ['period' => 'Period', 'type' => 'Type', 'cancelled' => 'Cancelled', 'document' => 'Document', 'amount' => 'Amount', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'GST cancelled document register.'];
+    }
+
+    protected function r_gst_periods($from, $to): array
+    {
+        $rows = GstPeriod::with('gstRegistration')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'registration' => optional($r->gstRegistration)->name,
+            'period_start' => $r->period_start, 'period_end' => $r->period_end,
+            'output_tax' => $r->output_tax, 'input_tax' => $r->input_tax, 'net_tax' => $r->net_tax,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'registration' => 'Registration', 'period_start' => 'Start', 'period_end' => 'End', 'output_tax' => 'Output Tax', 'input_tax' => 'Input Tax', 'net_tax' => 'Net Tax', 'status' => 'Status'], 'rows' => $rows, 'money' => ['output_tax', 'input_tax', 'net_tax'], 'sum' => ['output_tax', 'input_tax', 'net_tax'], 'note' => 'GST period summaries.'];
+    }
+
+    protected function r_wht_periods($from, $to): array
+    {
+        $rows = WhtPeriod::with('whtRegistration')->whereBetween('period_start', [$from, $to])->get()->map(fn ($r) => [
+            'name' => $r->name, 'registration' => optional($r->whtRegistration)->name,
+            'period_start' => $r->period_start, 'period_end' => $r->period_end,
+            'tax_deducted' => $r->tax_deducted, 'tax_paid' => $r->tax_paid, 'net_due' => $r->net_tax_due,
+            'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['name' => 'Name', 'registration' => 'Registration', 'period_start' => 'Start', 'period_end' => 'End', 'tax_deducted' => 'Tax Deducted', 'tax_paid' => 'Tax Paid', 'net_due' => 'Net Due', 'status' => 'Status'], 'rows' => $rows, 'money' => ['tax_deducted', 'tax_paid', 'net_tax_due'], 'sum' => ['tax_deducted', 'tax_paid', 'net_tax_due'], 'note' => 'WHT period summaries.'];
+    }
+
+    protected function r_car_rentals($from, $to): array
+    {
+        $rows = CarRental::with('reservation.guest.vehicle')->whereBetween('pickup_date', [$from, $to])->get()->map(fn ($r) => [
+            'res' => optional($r->reservation)->reservation_no, 'guest' => optional($r->reservation->guest)->name,
+            'vehicle' => optional($r->vehicle)->plate_number, 'pickup' => $r->pickup_date, 'dropoff' => $r->dropoff_date,
+            'days' => $r->days, 'rate' => $r->daily_rate, 'amount' => $r->total_amount, 'status' => $r->status,
+        ]);
+        return ['cols' => ['res' => 'Reservation', 'guest' => 'Guest', 'vehicle' => 'Vehicle', 'pickup' => 'Pickup', 'dropoff' => 'Dropoff', 'days' => 'Days', 'rate' => 'Daily Rate', 'amount' => 'Total', 'status' => 'Status'], 'rows' => $rows, 'money' => ['daily_rate', 'total_amount'], 'sum' => ['total_amount'], 'note' => 'Car rental reservations.'];
+    }
+
+    protected function r_parking_vehicles($from, $to): array
+    {
+        $rows = ParkingVehicle::with('zone.guest')->whereBetween('entered_at', [$from, $to])->get()->map(fn ($r) => [
+            'plate' => $r->plate_number, 'zone' => optional($r->zone)->name, 'guest' => optional($r->guest)->name,
+            'entered' => $r->entered_at, 'exited' => $r->exited_at, 'duration' => $r->duration_minutes,
+            'rate' => $r->rate, 'amount' => $r->amount, 'payment' => $r->payment_method, 'status' => $r->status,
+        ]);
+        return ['cols' => ['plate' => 'Plate', 'zone' => 'Zone', 'guest' => 'Guest', 'entered' => 'Entered', 'exited' => 'Exited', 'duration' => 'Duration (min)', 'rate' => 'Rate', 'amount' => 'Amount', 'payment' => 'Payment', 'status' => 'Status'], 'rows' => $rows, 'money' => ['rate', 'amount'], 'sum' => ['amount'], 'note' => 'Parking vehicle register.'];
+    }
+
+    protected function r_transport_tariffs($from, $to): array
+    {
+        $rows = TransportTariff::with('transportType.area')->get()->map(fn ($r) => [
+            'type' => optional($r->transportType)->name, 'area' => optional($r->area)->name,
+            'base_rate' => $r->base_rate, 'per_km' => $r->per_km_rate, 'per_hour' => $r->per_hour_rate,
+            'currency' => $r->currency, 'min_charge' => $r->minimum_charge, 'status' => $r->status,
+        ]);
+        return ['cols' => ['type' => 'Type', 'area' => 'Area', 'base_rate' => 'Base Rate', 'per_km' => 'Per KM', 'per_hour' => 'Per Hour', 'currency' => 'Currency', 'min_charge' => 'Min Charge', 'status' => 'Status'], 'rows' => $rows, 'money' => ['base_rate', 'per_km_rate', 'per_hour_rate', 'minimum_charge'], 'note' => 'Transport tariff rate card.'];
+    }
+
+    protected function r_cash_forecast_lines($from, $to): array
+    {
+        $rows = \App\Models\CashForecastLine::with('forecast.cashForecastType.department')->whereBetween('forecast.forecast_date', '>=', $from)->where('forecast.forecast_date', '<=', $to)->get()->map(fn ($r) => [
+            'forecast' => optional($r->forecast)->name, 'type' => optional($r->cashForecastType)->name,
+            'dept' => optional($r->department)->name, 'date' => optional($r->forecast)->forecast_date,
+            'inflow' => $r->inflow_amount, 'outflow' => $r->outflow_amount, 'net' => $r->net_amount,
+            'status' => $r->status,
+        ]);
+        return ['cols' => ['forecast' => 'Forecast', 'type' => 'Type', 'dept' => 'Dept', 'date' => 'Date', 'inflow' => 'Inflow', 'outflow' => 'Outflow', 'net' => 'Net', 'status' => 'Status'], 'rows' => $rows, 'money' => ['inflow_amount', 'outflow_amount', 'net_amount'], 'sum' => ['inflow_amount', 'outflow_amount', 'net_amount'], 'note' => 'Cash forecast line items.'];
+    }
+
+    protected function r_online_payment_events($from, $to): array
+    {
+        $rows = OnlinePaymentEvent::with('onlinePayment.gateway.reservation')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'payment' => optional($r->onlinePayment)->reference, 'gateway' => optional($r->gateway)->name,
+            'res' => optional($r->reservation)->reservation_no, 'event_type' => $r->event_type,
+            'amount' => $r->amount, 'created' => $r->created_at, 'status' => $r->status, 'notes' => $r->notes,
+        ]);
+        return ['cols' => ['payment' => 'Payment', 'gateway' => 'Gateway', 'res' => 'Reservation', 'event_type' => 'Event Type', 'amount' => 'Amount', 'created' => 'Created', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Online payment event log.'];
+    }
+
+    protected function r_payment_modes($from, $to): array
+    {
+        $rows = PaymentMode::with('paymentModeType.department')->get()->map(fn ($r) => [
+            'name' => $r->name, 'type' => optional($r->paymentModeType)->name, 'dept' => optional($r->department)->name,
+            'code' => $r->code, 'description' => $r->description, 'fee_pct' => $r->fee_percentage, 'status' => $r->status,
+        ]);
+        return ['cols' => ['name' => 'Name', 'type' => 'Type', 'dept' => 'Dept', 'code' => 'Code', 'description' => 'Description', 'fee_pct' => 'Fee %', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Payment mode register.'];
     }
 }

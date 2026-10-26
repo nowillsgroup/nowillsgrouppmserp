@@ -11,6 +11,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('cashier_shifts')) {
+            return;
+        }
+
         Schema::create('cashier_shifts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -33,6 +37,10 @@ return new class extends Migration
             $t->foreignId('settled_by')->nullable()->after('settled_at')->constrained('users')->nullOnDelete();
         });
 
+                if (Schema::hasTable('menu_item_recipes')) {
+            return;
+        }
+
         Schema::create('menu_item_recipes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -49,6 +57,10 @@ return new class extends Migration
             $t->decimal('qty', 12, 3)->change();
         });
 
+                if (Schema::hasTable('email_logs')) {
+            return;
+        }
+
         Schema::create('email_logs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -63,6 +75,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'created_at']);
         });
+
+                if (Schema::hasTable('ota_channels')) {
+            return;
+        }
 
         Schema::create('ota_channels', function (Blueprint $t) {
             $t->id();

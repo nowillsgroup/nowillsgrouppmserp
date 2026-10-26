@@ -61,6 +61,11 @@ Route::post('/api/pbx/{token}', [Controllers\InterfaceController::class, 'push']
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('pbx.api.push');
+// v7.55 Robita smart door lock event webhook – stateless, per-hotel 40-character token (Robita Locks > Settings)
+Route::post('/api/robita/{token}', [Controllers\RobitaController::class, 'webhook'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:120,1')
+    ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('robita.api.webhook');
 // v7.40 review-platform webhook – platforms push review rows; stateless, per-hotel 40-character token (Reputation > Reviews)
 Route::post('/api/reviews/{token}', [Controllers\ReviewController::class, 'webhook'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:120,1')
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
@@ -1089,6 +1094,25 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/interfaces/commands/{icmd}/retry', 'retry')->whereNumber('icmd')->name('retry');
         Route::post('/interfaces/commands/retry-all', 'retryAll')->name('retry_all');
     });
+    // ---- v7.55 Robita smart door lock module
+    Route::controller(Controllers\RobitaController::class)->name('robita.')->middleware('perm:robita.manage')->group(function () {
+        Route::get('/robita', 'index')->name('index');
+        Route::get('/robita/devices', 'devices')->name('devices');
+        Route::post('/robita/devices', 'register')->name('devices.store');
+        Route::post('/robita/devices/{device}', 'update')->whereNumber('device')->name('devices.update');
+        Route::post('/robita/devices/{device}/lock', 'toggleLock')->whereNumber('device')->name('devices.lock');
+        Route::post('/robita/devices/{device}/force-lock', 'forceLock')->whereNumber('device')->name('devices.force_lock');
+        Route::post('/robita/devices/{device}/force-unlock', 'forceUnlock')->whereNumber('device')->name('devices.force_unlock');
+        Route::post('/robita/devices/{device}/status', 'toggleStatus')->whereNumber('device')->name('devices.status');
+        Route::get('/robita/events', 'events')->name('events');
+        Route::post('/robita/devices/{device}/credential', 'issueCredential')->whereNumber('device')->name('devices.credential');
+        Route::post('/robita/credentials/{credential}/cancel', 'cancelCredential')->whereNumber('credential')->name('credentials.cancel');
+        Route::get('/robita/settings', 'settings')->name('settings');
+        Route::post('/robita/settings', 'settings')->name('settings.store');
+        Route::post('/robita/tokens', 'regenerateTokens')->name('tokens');
+        Route::post('/robita/poll', 'poll')->name('poll');
+    });
+    // webhook push endpoint – token in URL, no CSRF
 
     // ---- v3.8 gift vouchers & stored-value cards
     Route::controller(Controllers\GiftVoucherController::class)->name('vouchers.')->group(function () {
@@ -1263,10 +1287,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/sync', 'sync')->middleware('perm:housekeeping.manage,housekeeping.attendant,requests.manage')->name('sync');
         // v7.39 desktop offline mode — multi-day cache-and-sync
         Route::prefix('desktop')->name('desktop.')->controller(Controllers\DesktopSyncController::class)->group(function () {
-            Route::get('/', 'workspace')->middleware('perm:frontoffice.view,frontoffice.manage')->name('workspace');
-            Route::get('/pack', 'pack')->middleware('perm:frontoffice.view,frontoffice.manage')->name('pack');
-            Route::get('/delta', 'delta')->middleware('perm:frontoffice.view,frontoffice.manage')->name('delta');
-            Route::post('/sync', 'sync')->middleware('perm:frontoffice.manage')->name('sync');
+            Route::get('/', 'workspace')->middleware('perm:offline.desktop.view')->name('workspace');
+            Route::get('/pack', 'pack')->middleware('perm:offline.desktop.view')->name('pack');
+            Route::get('/delta', 'delta')->middleware('perm:offline.desktop.view')->name('delta');
+            Route::post('/sync', 'sync')->middleware('perm:offline.desktop.sync')->name('sync');
         });
     });
 
@@ -1478,6 +1502,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         });
         Route::get('/purchases', [Controllers\PurchaseController::class, 'index'])->middleware('perm:inventory.view')->name('purchases.index');
         Route::get('/purchases/create', [Controllers\PurchaseController::class, 'create'])->middleware('perm:inventory.manage')->name('purchases.create');
+        Route::get('/purchases/fx-rate', [Controllers\PurchaseController::class, 'fxRate'])->middleware('perm:inventory.manage')->name('purchases.fx-rate');
         Route::post('/purchases', [Controllers\PurchaseController::class, 'store'])->middleware('perm:inventory.manage')->name('purchases.store');
         Route::get('/purchases/{po}', [Controllers\PurchaseController::class, 'show'])->middleware('perm:inventory.view')->name('purchases.show');
         Route::post('/purchases/{po}/status', [Controllers\PurchaseController::class, 'status'])->middleware('perm:inventory.manage,purchasing.approve,purchasing.approve_high')->name('purchases.status');
@@ -1659,6 +1684,20 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
 
     // ---- Reports
     // v1.8 accounts payable
+    // v7.55 billing-vs-collection folio workpaper (non-posting)
+    Route::prefix('accounts/billing-reconciliation')->name('billingrec.')->controller(Controllers\BillingReconciliationController::class)->middleware('perm:billingrec.view')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->middleware('perm:billingrec.manage')->name('store');
+        Route::get('/{billingReconciliation}', 'show')->whereNumber('billingReconciliation')->name('show');
+        Route::get('/{billingReconciliation}/print', 'print')->whereNumber('billingReconciliation')->name('print');
+        Route::post('/{billingReconciliation}/refresh', 'refresh')->whereNumber('billingReconciliation')->middleware('perm:billingrec.manage')->name('refresh');
+        Route::put('/{billingReconciliation}/items/{billingReconciliationItem}', 'updateItem')->whereNumber('billingReconciliation')->whereNumber('billingReconciliationItem')
+            ->middleware('perm:billingrec.manage')->name('items.update');
+        Route::get('/{billingReconciliation}/items/{billingReconciliationItem}/evidence', 'evidence')->whereNumber('billingReconciliation')->whereNumber('billingReconciliationItem')->name('items.evidence');
+        Route::post('/{billingReconciliation}/finalise', 'finalise')->whereNumber('billingReconciliation')->middleware('perm:billingrec.approve')->name('finalise');
+        Route::post('/{billingReconciliation}/reopen', 'reopen')->whereNumber('billingReconciliation')->middleware('perm:billingrec.approve')->name('reopen');
+    });
+
     // v4.6 bank & Mobile Money reconciliation
     Route::prefix('accounts/bank-reconciliation')->name('bankrec.')->controller(Controllers\BankRecController::class)->middleware('perm:bankrec.view')->group(function () {
         Route::get('/', 'index')->name('index');
@@ -1743,6 +1782,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('ap')->name('ap.')->controller(Controllers\ApController::class)->middleware('perm:ap.view')->group(function () {
         Route::get('/bills', 'bills')->name('bills');
         Route::get('/bills/create', 'create')->middleware('perm:ap.manage')->name('bills.create');
+        Route::get('/bills/fx-rate', 'fxRate')->middleware('perm:ap.manage')->name('bills.fx-rate');
         Route::post('/bills', 'store')->middleware(['perm:ap.manage', 'throttle:60,1'])->name('bills.store');
         Route::get('/bills/{bill}', 'show')->whereNumber('bill')->name('bills.show');
         Route::post('/bills/{bill}/approve', 'approve')->whereNumber('bill')->middleware('perm:ap.approve')->name('bills.approve');

@@ -3,7 +3,7 @@
 //
 // Static files under public/ are served straight from disk; everything else
 // is dispatched to public/index.php like the production .htaccess does.
-import { createPhp, makeMutex, REPO_ROOT, APP_MOUNT } from './lib.mjs';
+import { createPhp, makeMutex, runCli, REPO_ROOT, APP_MOUNT } from './lib.mjs';
 import { existsSync, statSync } from 'node:fs';
 import { join, normalize, extname } from 'node:path';
 
@@ -25,14 +25,14 @@ const run = makeMutex();
 // ── dev preview auto-login ────────────────────────────────────────────────
 // The live preview should land inside the app, not on the marketing login
 // page. Requests without a session cookie are signed in behind the scenes as
-// the demo admin; `/` then redirects to the preview home (reservation desk).
-// Disable with PMS_DEV_AUTOLOGIN=0; tune with PMS_DEV_USER / PMS_DEV_PASS /
-// PMS_DEV_HOTEL / PMS_DEV_HOME.
+// the demo admin; `/` opens the configured preview home (the dashboard by
+// default). Disable with PMS_DEV_AUTOLOGIN=0; tune with PMS_DEV_USER /
+// PMS_DEV_PASS / PMS_DEV_HOTEL / PMS_DEV_HOME.
 const DEV_LOGIN = (process.env.PMS_DEV_AUTOLOGIN ?? '1') !== '0';
 const DEV_USER = process.env.PMS_DEV_USER ?? 'admin';
 const DEV_PASS = process.env.PMS_DEV_PASS ?? 'Admin@123';
 const DEV_HOTEL = process.env.PMS_DEV_HOTEL ?? 'NOWILLS';
-const DEV_HOME = process.env.PMS_DEV_HOME ?? '/reservations';
+const DEV_HOME = process.env.PMS_DEV_HOME ?? '/Dashboard';
 let devCookies = null;
 
 // ── /__dev — development changes index ────────────────────────────────────
@@ -50,6 +50,21 @@ const DEV_CHANGES = [
     title: 'The header bar offered a shortcut to housekeeping tasks and called it work for everybody — it is now Notifications: everything waiting on you, on every page, counted',
     detail: 'The top bar carried a pill labelled Tasks that led to the housekeeping task list. For a housekeeper that was the right button; for a receptionist, a cashier or the accountant it was somebody else queue, and nobody had one place to answer the question the morning actually starts with: what is waiting on me right now. The pill is now Notifications, a bell with a count badge and a dropdown, sitting beside Messages, Inbox and Calendar, and it is backed by a new notification centre (App\Services\NotificationCenter) rather than by a second place to keep state. Six queues are derived from data the modules already hold: arrivals that were expected today or earlier and are still not checked in (red as soon as one is past its arrival date); departures still in house on or after their departure date, where a past date is an overstay; housekeeping tasks not started or in progress for today, including anything carried over from an earlier day; guest requests still open, aged past two hours they turn amber because the guest is waiting; engineering tickets open, red while any is high or urgent; and GRA E-VAT submissions the SDC refused in the last seven days. Each group carries its own count, a one-line reason and up to four example rows that link straight at the record, and the page at /notifications lays them out in full with the remainder counted rather than hidden. Two decisions matter more than the feature. First, there is nothing to mark read: the list is a query, so it cannot drift from the screen it points at, and closing the request or checking the guest in is what removes the row, not a dismissal button. Second, a group only exists for a login that holds the permission to act on it, so a housekeeper signed in to the demo sees housekeeping, guest requests and engineering and never the arrivals board, the departures board or the VAT failures — verified by signing in as the demo housekeeper, whose badge read 29 across three groups while the administrator badge read 38 across six. Tenant scoping is whatever the models already do, so a group admin switched into a resort sees that resort. Every group is built inside its own try/catch and each link is resolved through Route::has, because this markup sits in the layout: one unmigrated table or one renamed route must degrade to a hidden group, never to a 500 on every page in the product. The asset version moves to 7.55.0 so the new stylesheet reaches browsers that already cached 7.54.0. The full GET sweep still reports 453 clean pages and the same eleven deliberate 401/403/404s as before the change.',
     screens: [['Notifications — every queue waiting on this administrator, grouped by the screen that clears it', '/notifications'], ['The dashboard — the bell with its count, and the dropdown previewing the five most urgent rows', '/Dashboard'], ['Housekeeping tasks — still one click away, now reached from the notification group that counts them', '/housekeeping/tasks'], ['Guest requests — the queue behind the amber "waiting over 2 hours" note', '/requests']],
+  },
+  {
+    title: 'Hotel dashboard — a clear, professional property operations overview',
+    detail: 'The main dashboard has been rebuilt into a proper page layout with a focused welcome and business-date header, grouped room and guest-flow metrics, a separate revenue summary, aligned trend and arrival/departure panels, a full-width action centre, and a responsive grid of department snapshots. The previous page placed its dashboard content in the page-head actions area, which made the screen feel scattered; content now flows in the correct page section and adapts cleanly to smaller screens.',
+    screens: [['Hotel dashboard', '/Dashboard']],
+  },
+  {
+    title: 'Luxury IPTV guest welcome — Groove Esipong Beach Hotel photo and polished full-screen TV design',
+    detail: 'In-room TVs now greet checked-in guests with a cinematic hotel-photo backdrop, an elegant gold-accented personal welcome, room and departure details, Wi-Fi credentials, and language controls. Continue opens a full-screen preview of the exact TV home screen, including the guest details, top bar, enabled service tiles, and messages, before the guest enters it. IPTV Settings lets staff replace or restore the image; Welcome Screens includes a photo-backed staff preview even when no guests are checked in.',
+    screens: [['Actual guest-facing TV welcome', '/tv/vYifvlQdwEOU49o5MZRrFf9vwOpEmvaa757k6UYj'], ['Welcome Screens staff preview', '/iptv/welcome'], ['Hotel welcome-photo settings', '/iptv/settings']],
+  },
+  {
+    title: 'Desktop Sync, Car Rental and HR self-service are now discoverable in the sidebar',
+    detail: 'The existing Desktop Sync workspace is now linked under Front Office with explicit offline.desktop.view and offline.desktop.sync permissions instead of undefined frontoffice keys. Car Rental appears under Facilities & Security with view/manage grants for the built-in front-office roles. HR & Payroll now links the HR Self-Service Desk for hr.manage and My Profile, My Documents and My Announcements for hr.self; employee links appear only when the login is linked to an active employee. The dev admin is not linked, so its ESS pages show the explanatory unlinked state rather than a 404. Existing custom role grants are preserved by php artisan pms:upgrade.',
+    screens: [['Desktop Sync', '/offline/desktop'], ['Rental Desk', '/rentals'], ['Rental Fleet', '/rentals/fleet'], ['HR Self-Service Desk', '/hr/ess'], ['My Profile', '/me/profile'], ['My Documents', '/me/documents'], ['My Announcements', '/me/announcements']],
   },
   {
     title: 'A foreign supplier bill could be booked in dollars but not paid in dollars — the exchange movement is now calculated, posted and explained',
@@ -83,8 +98,8 @@ const DEV_CHANGES = [
   },
   {
     title: 'The module inventory every new starter reads had gone stale: it named four things the sidebar does not menu, and there was no way to notice',
-    detail: 'docs/MODULES.md is the document that says what the product is — five sections, twelve groups, fifty-three modules, three hundred and sixty-one pages — and it is what a new developer, an implementer or a sales conversation starts from. Its own header admitted the problem: the per-module lists were the historical v7.36 to v7.38 inventory and still named pages that are routed but no longer menued, and only the HR and Workforce part had been reconciled, in v7.43, when that audit left the rest as its one open follow-up. It is now reconciled page for page against the live registry, and the interesting part is that the drift was not random: every one of the four wrong entries was the same mistake, a thing that exists in the routes being written down as a thing that exists in the menu. Front Office claimed nine pages and named Desktop Sync, which is a real working page at /offline/desktop that the sidebar does not list, so the document also had to explain away its own arithmetic with a sentence about sixty-three menu pages against sixty-four documented. Recreation Outlet claimed four and named Sale Receipt, which is /recreation/sales/{sale}/receipt, a document printed per sale rather than a page anybody navigates to. Car Rental was listed as a module of the Revenue and Financial Management group with two pages, when in fact the whole module is absent from the sidebar: /rentals and /rentals/fleet both render and both are permissioned, and neither is menued, so it is now prose under the group saying exactly that. And the header claimed Version 7.36.0 while config(pms.version) has said 7.38.0 for some time. Each of the four is still in the document, because the information is useful — a page that works but cannot be reached from the sidebar is worth knowing about — but it is now a prose note under the module it belongs to and it is not counted, so the counts mean one thing: what the sidebar shows. Every group heading also carries its own menu page count now, from 4 for Dashboard and Operations to 63 for Front Office and Guest Services, which is where a reader looks first when a number seems wrong. The reason this will not silently rot again is the harness: menu_inventory.php dumps the live registry, as a tree for reading or as JSON, and modules_doc_check.py parses every claim the document makes — the header table, the version, each group heading, its section key, its module count, each module, whether it is a direct link or a page list, how many pages it claims, which ones it names and in what order, plus every URI the prose puts in backticks, checked against the route list — and diffs them. It reports 210 checks and 0 discrepancies, and exits non-zero on any drift, so a menu change that is not reflected in the document fails a command rather than waiting to be discovered by somebody reading it. It found its own two bugs on the way, which is the usual sign a checker is actually reading rather than agreeing: it inverted the header table into a dictionary keyed by the number instead of the label, so all four header claims reported a missing value, and it stripped parentheticals with a non-greedy match that stopped at the first closing bracket, which broke on the note v7.48 added to Bank Reconciliation because that note contains a markdown link inside brackets. Deliberate differences stay visible: the harness prints the prose notes it found, including the four self-service HR pages that are routed but not menued, so a reader can see what was excluded and why rather than trusting a clean result. No application code changed, and the full GET sweep is unchanged at 462 pages with 451 clean and the same eleven by-design 401, 403 and 404 responses and no 500s.',
-    screens: [['The sidebar this document inventories — 12 groups, 53 modules, 361 pages', '/front-desk/rooms'], ['Desktop Sync — routed, working, not menued: prose now, not a counted page', '/offline/desktop'], ['Car Rental — a whole module absent from the sidebar', '/rentals'], ['Its second page, Rental Fleet', '/rentals/fleet'], ['Recreation Outlet — three menu pages, not four', '/recreation/outlet'], ['The v7.43 page whose addition started the reconciliation', '/hr/holidays']],
+    detail: 'docs/MODULES.md is the document that says what the product is — five sections, twelve groups, fifty-three modules, three hundred and sixty-one pages — and it is what a new developer, an implementer or a sales conversation starts from. Its own header admitted the problem: the per-module lists were the historical v7.36 to v7.38 inventory and still named pages that are routed but no longer menued, and only the HR and Workforce part had been reconciled, in v7.43, when that audit left the rest as its one open follow-up. It is now reconciled page for page against the live registry, and the interesting part is that the drift was not random: every one of the four wrong entries was the same mistake, a thing that exists in the routes being written down as a thing that exists in the menu. Front Office claimed nine pages and named Desktop Sync, which is a real working page at /offline/desktop that the sidebar does not list, so the document also had to explain away its own arithmetic with a sentence about sixty-three menu pages against sixty-four documented. Recreation Outlet claimed four and named Sale Receipt, which is /recreation/sales/{sale}/receipt, a document printed per sale rather than a page anybody navigates to. Car Rental was listed as a module of the Revenue and Financial Management group with two pages, when in fact the whole module is absent from the sidebar: /rentals and /rentals/fleet both render and both are permissioned, and neither is menued, so it is now prose under the group saying exactly that. And the header claimed Version 7.36.0 while config(pms.version) has said 7.38.0 for some time. Each of the four is still in the document, because the information is useful — a page that works but cannot be reached from the sidebar is worth knowing about — but it is now a prose note under the module it belongs to and it is not counted, so the counts mean one thing: what the sidebar shows. Every group heading also carries its own menu page count now, from 4 for Dashboard and Operations to 63 for Front Office and Guest Services, which is where a reader looks first when a number seems wrong. The reason this will not silently rot again is the harness: menu_inventory.php dumps the live registry, as a tree for reading or as JSON, and modules_doc_check.py parses every claim the document makes — the header table, the version, each group heading, its section key, its module count, each module, whether it is a direct link or a page list, how many pages it claims, which ones it names and in what order, plus every URI the prose puts in backticks, checked against the route list — and diffs them. It reports 210 checks and 0 discrepancies, and exits non-zero on any drift, so a menu change that is not reflected in the document fails a command rather than waiting to be discovered by somebody reading it. It found its own two bugs on the way, which is the usual sign a checker is actually reading rather than agreeing: it inverted the header table into a dictionary keyed by the number instead of the label, so all four header claims reported a missing value, and it stripped parentheticals with a non-greedy match that stopped at the first closing bracket, which broke on the note v7.48 added to Bank Reconciliation because that note contains a markdown link inside brackets. Deliberate differences stay visible: the harness prints the prose notes it found, including the four self-service HR pages that were routed but not yet menued at that v7.49 snapshot, so a reader could see what was excluded and why rather than trusting a clean result. No application code changed, and the full GET sweep is unchanged at 462 pages with 451 clean and the same eleven by-design 401, 403 and 404 responses and no 500s. On 20 Oct 2026 a follow-on navigation pass added Desktop Sync, Car Rental, and the HR self-service routes to the live menu; current totals are 54 modules and 368 pages.',
+    screens: [['The current sidebar — 12 groups, 54 modules, 368 pages', '/front-desk/rooms'], ['Desktop Sync — now linked from Front Office', '/offline/desktop'], ['Car Rental — now linked from Facilities & Security', '/rentals'], ['Its second page, Rental Fleet', '/rentals/fleet'], ['Recreation Outlet — three menu pages, not four', '/recreation/outlet'], ['The v7.43 page whose addition started the reconciliation', '/hr/holidays']],
   },
   {
     title: 'Bank reconciliation could read one file format, and the banks here send four: an Excel workbook, a SWIFT MT940 or a camt.053 had to be retyped by hand before it could be reconciled',
@@ -198,7 +213,7 @@ const DEV_CHANGES = [
   },
   {
     title: 'Employee self-service: My Profile, My Documents, Announcements + HR review desk',
-    detail: 'Staff can now request changes to their own contact, bank and tax details (old vs new kept per field — the employee record updates only after HR approves), upload ID/certificate/contract documents (PDF/JPEG/PNG up to 10 MB) for HR verification, and read pinned staff/department announcements. The HR Self-Service Desk reviews the queue: approve/reject profile requests and documents with notes, publish announcements to staff, a department, or everyone. Every action also notifies by SMS/WhatsApp through the message gateway (profile request and document uploads reach the manager and the HR managers; approvals, rejections and verification results reach the employee) - best-effort, logged when no gateway is configured. Demo link: the preview admin login is linked to employee #2 so the pages open.',
+    detail: 'Staff can now request changes to their own contact, bank and tax details (old vs new kept per field — the employee record updates only after HR approves), upload ID/certificate/contract documents (PDF/JPEG/PNG up to 10 MB) for HR verification, and read pinned staff/department announcements. The HR Self-Service Desk reviews the queue: approve/reject profile requests and documents with notes, publish announcements to staff, a department, or everyone. Every action also notifies by SMS/WhatsApp through the message gateway (profile request and document uploads reach the manager and the HR managers; approvals, rejections and verification results reach the employee) - best-effort, logged when no gateway is configured. The default preview admin is not linked to an employee, so HR hides employee-only links for that login and these routes show the explanatory unlinked state; use a linked employee login such as the seeded FOM/HR account to see the self-service links.',
     screens: [['My Profile', '/me/profile'], ['My Documents', '/me/documents'], ['Announcements', '/me/announcements'], ['HR Self-Service Desk', '/hr/ess']],
   },
   {
@@ -282,7 +297,7 @@ const DEV_CHANGES = [
   },
   {
     title: 'v7.35 — Data migration & cutover toolkit',
-    detail: 'Upload → validate → apply legacy data (companies, guests, employees, rooms, reservations) with dry-run, per-row errors, and CSV templates.',
+    detail: 'Upload → validate → apply legacy master/reservation data (companies, guests, employees, rooms, suppliers, inventory items, reservations) with dry-run, per-row errors, idempotent mapping, and CSV templates.',
     screens: [['Settings › Data migration', '/settings/migration']],
   },
 ];
@@ -291,7 +306,24 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function devChangesPage() {
+async function currentTvPreviewPath() {
+  try {
+    await phpReady;
+    const result = await run(() => runCli(php, `${APP_MOUNT}/deploy/dev/tinker.php`, [], {
+      cwd: APP_MOUNT,
+      env: {
+        TINKER: String.raw`$device = \App\Models\TvDevice::query()->where('status', 'active')->where('kind', 'room')->orderBy('id')->first(); if (! $device) { $device = \App\Models\TvDevice::query()->where('status', 'active')->orderBy('id')->first(); } echo $device?->token ?? '';`,
+      },
+    }));
+    const token = result.stdout.trim();
+    return result.exitCode === 0 && /^[A-Za-z0-9]{40}$/.test(token) ? `/tv/${token}` : null;
+  } catch (err) {
+    process.stderr.write(`[pms-serve] current TV preview lookup failed: ${String(err?.message ?? err)}\n`);
+    return null;
+  }
+}
+
+async function devChangesPage() {
   let commits = '';
   try {
     const g = Bun.spawnSync(['git', '-C', REPO_ROOT, 'log', '--oneline', '-25'], { stdout: 'pipe' });
@@ -304,10 +336,14 @@ function devChangesPage() {
   } catch {
     commits = '<li>git log unavailable</li>';
   }
-  const cards = DEV_CHANGES.map(
-    (c) => `<article class="card"><h2>${esc(c.title)}</h2><p>${esc(c.detail)}</p>
-      <p class="links">${c.screens.map(([label, path]) => `<a class="btn" href="${esc(path)}">${esc(label)}</a>`).join('')}</p></article>`
-  ).join('\n');
+  const tvPreviewPath = await currentTvPreviewPath();
+  const cards = DEV_CHANGES.map((c) => {
+    const screens = c.screens.map(([label, path]) =>
+      label === 'Actual guest-facing TV welcome' && tvPreviewPath ? [label, tvPreviewPath] : [label, path]
+    );
+    return `<article class="card"><h2>${esc(c.title)}</h2><p>${esc(c.detail)}</p>
+      <p class="links">${screens.map(([label, path]) => `<a class="btn" href="${esc(path)}">${esc(label)}</a>`).join('')}</p></article>`;
+  }).join('\n');
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -488,9 +524,9 @@ function flattenHeaders(hdrs) {
   return out;
 }
 
-// The Arena live preview embeds this server in a cross-site iframe on an
-// https://{port}-{sandbox}.e2b.app origin. Loosen exactly what blocks that:
-// CSP frame-ancestors, X-Frame-Options, and SameSite on session cookies.
+// The Arena live preview embeds this server in a cross-site iframe. Loosen
+// frame-ancestors for HTTPS preview hosts in this dev-only proxy, plus
+// X-Frame-Options and SameSite on session cookies.
 let cssCache = null;
 async function inlineStylesheets(html) {
   if (!cssCache) {
@@ -506,7 +542,7 @@ function previewFriendly(h) {
   const csp = h.get('content-security-policy');
   if (csp) {
     h.set('content-security-policy', csp
-      .replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https://*.e2b.app")
+      .replace(/frame-ancestors [^;]*/i, "frame-ancestors 'self' https:")
       // Sandboxed preview iframes get an opaque origin, where 'self' matches
       // nothing — allow the preview host explicitly so styles/images/scripts load.
       .replace(/default-src 'self'/i, "default-src 'self' https://*.e2b.app data: blob:")
@@ -604,7 +640,7 @@ const server = Bun.serve({
       // fetches are blocked (sandboxed iframes / strict CSP on the preview side).
       if (body && (head.get('content-type') ?? '').toLowerCase().includes('text/html')) {
         let html = await inlineStylesheets(new TextDecoder().decode(resp.bytes));
-        if (DEV_LOGIN && !html.includes('/__dev')) {
+        if (DEV_LOGIN && !url.pathname.startsWith('/tv/') && !html.includes('/__dev')) {
           html = html.replace(/<\/body>/i, `${DEV_CHIP}</body>`);
         }
         head.delete('content-length');

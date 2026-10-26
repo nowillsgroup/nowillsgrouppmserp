@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('esg_waste_logs')) {
+            return;
+        }
+
         Schema::create('esg_waste_logs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -37,6 +41,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('esg_refrigerant_logs')) {
+            return;
+        }
+
         Schema::create('esg_refrigerant_logs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -59,6 +67,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('esg_laundry_months')) {
+            return;
+        }
+
         Schema::create('esg_laundry_months', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -71,6 +83,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'month']);
         });
+
+                if (Schema::hasTable('esg_targets')) {
+            return;
+        }
 
         Schema::create('esg_targets', function (Blueprint $t) {
             $t->id();
@@ -85,6 +101,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('esg_initiatives')) {
+            return;
+        }
 
         Schema::create('esg_initiatives', function (Blueprint $t) {
             $t->id();
@@ -113,6 +133,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
         });
 
+                if (Schema::hasTable('esg_community')) {
+            return;
+        }
+
         Schema::create('esg_community', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -133,6 +157,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('esg_checklist_items')) {
+            return;
+        }
+
         Schema::create('esg_checklist_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -150,6 +178,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('esg_policies')) {
+            return;
+        }
 
         Schema::create('esg_policies', function (Blueprint $t) {
             $t->id();
@@ -171,6 +203,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('esg_green_stays')) {
+            return;
+        }
+
         Schema::create('esg_green_stays', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -184,6 +220,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('esg_green_nights')) {
+            return;
+        }
 
         Schema::create('esg_green_nights', function (Blueprint $t) {
             $t->id();

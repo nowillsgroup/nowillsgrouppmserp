@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nowills PMS — Reports</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+.page-header{padding:1.5rem 0 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.page-header h2{font-size:1.5rem;font-weight:700;margin:0}
+.page-header .actions{display:flex;gap:.5rem;align-items:center}
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:1rem;padding:0 .5rem 2rem}
+.report-card{background:#fff;border:1px solid var(--c-border,#e5e7eb);border-radius:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.report-card:hover{border-color:var(--c-primary-300,#93c5fd);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.report-card-head{padding:.75rem 1rem;border-bottom:1px solid var(--c-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;background:#fafbfc}
+.report-card-head h3{font-size:.9rem;font-weight:600;margin:0;color:var(--c-primary-600,#1d4ed8)}
+.report-card-head .count{font-size:.75rem;color:#6b7280;background:#f3f4f6;padding:.1rem .5rem;border-radius:10px}
+.report-list{padding:.5rem 0}
+.report-item{display:flex;align-items:flex-start;gap:.6rem;padding:.5rem 1rem;cursor:pointer;transition:background .1s}
+.report-item:hover{background:#f0f7ff}
+.report-item-icon{width:28px;height:28px;flex-shrink:0;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#6b7280;font-size:.7rem;font-weight:700}
+.report-item-body{flex:1;min-width:0}
+.report-item-name{font-size:.85rem;font-weight:500;color:#1f2937}
+.report-item-desc{font-size:.75rem;color:#6b7280;margin-top:.15rem;line-height:1.4}
+.report-item-arrow{color:#9ca3af;font-size:.8rem;flex-shrink:0;margin-top:.4rem}
+.search-bar{position:sticky;top:0;z-index:10;background:#fff;padding:1rem 1.5rem;border-bottom:1px solid var(--c-border,#e5e7eb);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.search-bar input{width:100%;padding:.6rem 1rem .6rem 2.5rem;border:1px solid var(--c-border,#d1d5db);border-radius:8px;font-size:.9rem;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") 10px center/16px no-repeat}
+.search-bar input:focus{outline:none;border-color:var(--c-primary-400,#60a5fa);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.filter-tabs{display:flex;gap:.4rem;padding:.75rem 1.5rem;flex-wrap:wrap;background:#fafbfc;border-bottom:1px solid var(--c-border,#e5e7eb)}
+.filter-tab{padding:.35rem .8rem;border-radius:20px;font-size:.8rem;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .1s}
+.filter-tab.active{background:var(--c-primary-50,#eff6ff);color:var(--c-primary-600,#1d4ed8);border-color:var(--c-primary-100,#dbeafe)}
+.filter-tab:hover:not(.active){background:#f3f4f6;color:#4b5563}
+.no-results{text-align:center;padding:3rem;color:#9ca3af;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="sidebar-brand"><div class="brand-mark">N</div><div class="brand-text"><span class="brand-name">Nowills PMS</span><span class="brand-sub">v7.54.0</span></div></div>
+<input id="navModuleSearch" type="search" placeholder="Search modules…" autocomplete="off">
+<nav class="nav-body">
+<div class="nav-section-label">DASHBOARD</div>
+<div class="nav-item nav-group nav-category"><button type="button"><svg class="i"><use href="#i-grid"/></svg><span class="nav-label">Dashboard & Operations</span></button></div>
+<div class="nav-item nav-link-item active"><a href="#"><svg class="i"><use href="#i-chart"/></svg><span class="nav-label">Reports</span></a></div>
+</nav>
+</aside>
+<main class="main">
+<div class="topbar">
+<div class="hotel-switch"><svg class="i" width="16" height="16"><use href="#i-building"/></svg><span>Groove Beach Hotel</span></div>
+<div class="topbar-right">
+<button class="tool-btn" title="Dark"><svg class="i"><use href="#i-moon"/></svg></button>
+<button class="tool-btn" title="Fullscreen"><svg class="i"><use href="#i-expand"/></svg></button>
+<span class="online-ind"><svg class="i" width="14" height="14"><use href="#i-check"/></svg></span>
+<button class="tool-btn" title="Tasks"><svg class="i"><use href="#i-list"/></svg></button>
+<button class="tool-btn" title="Messages"><svg class="i"><use href="#i-message"/></svg></button>
+<button class="tool-btn" title="Inbox"><svg class="i"><use href="#i-inbox"/></svg></button>
+<button class="tool-btn" title="Calendar"><svg class="i"><use href="#i-calendar"/></svg></button>
+<span class="bdate">Sat, 24 Oct 2026</span>
+<div class="user-chip"><div class="avatar">AD</div></div>
+</div>
+</div>
+<div class="content">
+<div class="page-header">
+<div><h2>Reports</h2><p class="muted tiny">469 reports across 40 categories — click any report to open with range, date, or no-filter options</p></div>
+<div class="actions">
+<button class="btn btn-outline btn-sm"><svg class="i" width="14" height="14"><use href="#i-calendar"/></svg> Scheduled Reports</button>
+<button class="btn btn-primary btn-sm"><svg class="i" width="14" height="14"><use href="#i-bell"/></svg> KPI Alerts <span class="badge-dot"></span></button>
+</div>
+</div>
+<div class="search-bar">
+<input id="reportSearch" type="search" placeholder="Search 469 reports by name or description…" autocomplete="off">
+</div>
+<div class="filter-tabs" id="filterTabs"></div>
+<div class="report-grid" id="reportGrid"></div>
+</div>
+</main>
+</div>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none"><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol><symbol id="i-chart" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol><symbol id="i-building" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></symbol><symbol id="i-expand" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol><symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol><symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></symbol><symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></symbol><symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol><symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></symbol><symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol></svg>
+
+<script>
+const REPORTS = [
+// Accounts
+["Accounts","Allotment Utilisation","Room nights allotted, picked up, released and still held per allotment line"],
+["Accounts","AP Ageing (Suppliers)","Supplier balances by days past due, with unbilled goods receipts"],
+["Accounts","AP Allocation Register","Every AP allocation of a payment to invoices"],
+["Accounts","Supplier Bill Register","Bills & debit notes: match variance, paid and outstanding"],
+["Accounts","AR Ageing (City Ledger)","Company outstanding by age bucket, FIFO against receipts"],
+["Accounts","Bank Reconciliation Summary","Book balance, statement balance, deposits in transit, unpresented payments"],
+["Accounts","Bank Statement Lines","Imported statement lines: status, matching, cleared entries"],
+["Accounts","Billing Reconciliation Register","Every reconciliation period with preparer and reviewer"],
+["Accounts","Contract Production","Per contract: bookings, room nights, revenue, ADR vs public rate"],
+["Accounts","Credit Exposure","Direct-billing accounts: limit, ledger, overdue, total exposure"],
+["Accounts","Staff Expense Claims Register","Claims: claimant, department, amount, VAT, approver, payment"],
+["Accounts","Expense Report","Payment vouchers by head"],
+["Accounts","Petty Cash Book","Every posted movement: top-ups, vouchers, IOUs, count differences"],
+["Accounts","Petty Cash Count Register","Every count with counted amount and variance"],
+["Accounts","Petty Cash Spending by Account","Vouchers and IOUs by account and float, with VAT recovered"],
+["Accounts","Uncleared Items","Book entries not on statement + statement lines not in books"],
+// Banquet & Events
+["Banquet & Events","Banquet Event Report","Events: functions, venues, peak pax, value, deposits, status"],
+["Banquet & Events","Banquet Sales Pipeline","Enquiries, tentative, definite and lost by event month"],
+["Banquet & Events","Function Forecast (Kitchen & Ops)","Upcoming functions with covers, menu and set-up"],
+["Banquet & Events","Organiser Attendee Register","Every event attendee with tag and contact"],
+["Banquet & Events","Venue Utilisation","Per venue: functions, days booked, occupancy, covers, revenue"],
+// Billing
+["Billing","Cashier Movement Register","Every cashier movement: kind, amount, shift, user"],
+["Billing","Cashier Shift Register","Opening, cash in, POS, cash out, tip, closing, variance"],
+["Billing","Collection Report","Payments by mode and cashier"],
+["Billing","Credit Log Register","Every credit issued to a guest folio"],
+["Billing","Invoice Register","Closed folios / invoices"],
+["Billing","Online Payments","Payment links paid, refunded, pending or expired"],
+["Billing","Guest Ledger / Outstanding","Open folios with balances"],
+["Billing","Daily Revenue Report","Revenue by charge category"],
+["Billing","Tax (VAT & Levies) Report","VAT, NHIL, GETFund and Tourism Levy by category and rate"],
+["Billing","Void & Discount Report","Voided transactions and discounts (audit)"],
+// Budget & Planning
+["Budget & Planning","Annual Budget – Monthly Phasing","Every income/expense account by month, GOP and net profit"],
+["Budget & Planning","Budget Event Register","Every budget adjustment event"],
+["Budget & Planning","Rooms KPIs vs Budget","Occupancy, ADR, RevPAR, room-nights — budget vs actual"],
+["Budget & Planning","Budget Line Register","Every budget line by department and category"],
+["Budget & Planning","Budget Stats Register","Monthly budget vs actual by department"],
+["Budget & Planning","Budget vs Actual (P&L)","Actuals from GL vs active budget, variances, %, full-year forecast"],
+["Budget & Planning","Forecast vs Budget","Full-year re-forecast vs approved budget per account"],
+["Budget & Planning","Variance Commentary Log","Explanations for budget variances: actual, budget, comment, author"],
+// Central Reservations
+["Central Reservations","CRO Agent Performance","Per agent: enquiries, bookings, conversion, booked/lost revenue"],
+["Central Reservations","Unconstrained Demand","Capacity, on-books, denied, regretted, occupancy with/without denials"],
+["Central Reservations","Reservations Enquiry Register","Every enquiry: stay asked, channel, agent, value, outcome"],
+["Central Reservations","Lost Business (Denials & Regrets)","Lost enquiries by reason: count, room nights, value, share"],
+["Central Reservations","Sister-Hotel Referrals","Turnaways referred between group hotels"],
+// Channel Manager
+["Channel Manager","Channel ADR/Index Register","Daily ADR and index by channel"],
+["Channel Manager","Channel Message Register","Every message sent to or received from a channel"],
+["Channel Manager","Rate Parity Exceptions","Room-nights where channel data differs from PMS"],
+["Channel Manager","Channel Production","Per OTA: bookings, room nights, revenue, commission, ADR"],
+["Channel Manager","Channel Rate Map Register","Every rate mapping between PMS and channel"],
+["Channel Manager","Channel Restriction Register","Availability restrictions by date and room type"],
+["Channel Manager","Channel Room Map Register","Every room type mapping between PMS and channel"],
+["Channel Manager","Channel Sync Log","ARI pushes per channel: deltas, failures, duration, errors"],
+["Channel Manager","OTA Channel Register","Every OTA channel with integration status"],
+// Compliance & HSE
+["Compliance & HSE","Compliance Event Register","Every compliance event"],
+["Compliance & HSE","Licences & Compliance Register","Licences, permits, certificates, insurance, expiry and status"],
+["Compliance & HSE","Data Breach Register","Every reported data breach with severity and closure"],
+["Compliance & HSE","Accident & Near-Miss Register","Accidents, injuries, near misses, LTIFR for the period"],
+["Compliance & HSE","Fire Equipment Inspection Log","Visual checks and contractor services: item, result, faults"],
+["Compliance & HSE","Fire Drill Log","Drills by shift: evacuation time, roll call, guests, improvements"],
+["Compliance & HSE","Fire Equipment Register","Every fire item with GNFS tag, location, checks, expiry, state"],
+["Compliance & HSE","Permit-to-Work Register","Permits by type: location, contractor, fire watch, close-out"],
+["Compliance & HSE","Risk Register","Hazard, risk rating on 5×5 matrix, owner, review date"],
+["Compliance & HSE","HSE Warden Register","Fire wardens, first aiders, fire team with training status"],
+["Compliance & HSE","PII Access Log","Every reveal of masked identifiers, ID/document view, data export"],
+["Compliance & HSE","Preventive Maintenance Compliance","PM tickets due: on time, late or still open, days late"],
+["Compliance & HSE","Privacy Request Register","Data-subject requests: type, channel, deadline, days taken"],
+["Compliance & HSE","Retention & Erasure Log","ID scans deleted, contents purged, profiles anonymised or restricted"],
+// Concierge & Activities
+["Concierge & Activities","Activity Departure Register","Every activity departure with bookings and seat availability"],
+["Concierge & Activities","Activity Bookings Register","Bookings: operator, guest, party, value, commission, settlement"],
+["Concierge & Activities","Activity Sales & Commission","Per activity: bookings, guests, sold value, commission earned"],
+["Concierge & Activities","Concierge Sales by Staff","Bookings, guests, value and commission by staff member"],
+["Concierge & Activities","Operator Statement & Balances","Per operator: finished bookings, commission, settlements, balances"],
+// Front Office
+["Front Office","Arrival List","Expected arrivals for the period"],
+["Front Office","Cancellation & No-Show","Cancelled and no-show reservations"],
+["Front Office","Company-wise Business","Room nights & revenue by company/agent"],
+["Front Office","Departure List","Expected departures for the period"],
+["Front Office","Guest Document Register","ID scans, photos, visas and other guest documents"],
+["Front Office","Shift Log Book Register","Every log book entry: category, priority, author, open/resolved"],
+["Front Office","Lost & Found Register","Items found: category, finder, storage, outcome"],
+["Front Office","Traces Register","Traces due: text, booking, completed on time or carried forward"],
+["Front Office","Wake-up Call Performance","Every wake-up call: attempts, answered/missed, minutes late"],
+// F&B & POS
+["F&B & POS","Banquet Event Item Register","Every item line on a banquet event"],
+["F&B & POS","Banquet Package Register","Every banquet package with items, price, active"],
+["F&B & POS","F&B Cost Snapshot Register","Every periodic food cost snapshot"],
+["F&B & POS","F&B Recipe Card Register","Every recipe card with ingredients, quantities and cost"],
+["F&B & POS","F&B Staff Meal Register","Every staff meal served with cost per cover"],
+["F&B & POS","F&B Yield Test Register","Every yield test with gross/trim/loss/usable quantities"],
+["F&B & POS","KOT Print Job Register","Every kitchen order ticket print job"],
+["F&B & POS","KOT Printer Register","Every KOT printer with configuration and usage"],
+["F&B & POS","Menu Category Register","Every menu category with item count"],
+["F&B & POS","Menu Item Register","Every menu item with category, price, cost, active"],
+["F&B & POS","Menu Modifier Groups Register","Every modifier group"],
+["F&B & POS","Menu Modifiers Register","Every menu modifier"],
+["F&B & POS","Outlet Service Period Register","Every F&B outlet service period by day"],
+["F&B & POS","Package Allocation & Breakage","Per package: value allocated, used, expired, still open"],
+["F&B & POS","Package Consumption Register","Every cover at Meal Desk: room, package, covers, extras"],
+["F&B & POS","Meal Cover Forecast","Breakfast/lunch/dinner covers: actual and forecast"],
+// Front Office (continued)
+["Front Office","Room Occupancy Report","Occupancy statistics by room type and floor"],
+["Front Office","Room Nights Report","Room nights sold by room type, channel, source"],
+// General Ledger
+["General Ledger","Balance Sheet","Full balance sheet from the general ledger"],
+["General Ledger","Chart of Accounts","All income, expense, asset, liability and equity accounts"],
+["General Ledger","Journal Entries","Every posted journal entry with period and author"],
+["General Ledger","GL Mapping","Mapping of charge categories and accounts to GL"],
+["General Ledger","Profit & Loss (operational)","Operational P&L by department and account"],
+// HR & People
+["HR & People","Employee Register","Every employee with department, position, status"],
+["HR & People","Attendance Register","Daily attendance by employee"],
+["HR & People","Leave Requests Register","Every leave request with type, dates, status"],
+["HR & People","Payroll Run Register","Every payroll run with period, employees, total"],
+["HR & People","Statutory Returns Register","PAYE, SSNIT, WHT returns with due dates and status"],
+["HR & People","Time Clock Register","Every time punch with employee, type, time"],
+["HR & People","Duty Roster Register","Every roster with shifts, assignments, swaps"],
+// Health Club & Spa
+["Health Club & Spa","Club Membership Register","Every membership with plan, start, expiry, status"],
+["Health Club & Spa","Club Check-in Register","Every club check-in with member, duration, services"],
+["Health Club & Spa","Club Billing Register","Every club charge and payment"],
+["Health Club & Spa","Spa Appointments Register","Every spa appointment with service, duration, status"],
+// Hotel Group & Owner Reporting
+["Hotel Group & Owner Reporting","Group Dashboard","Group-level KPIs across all properties"],
+["Hotel Group & Owner Reporting","USALI Statement","USALI operating statement for owners"],
+["Hotel Group & Owner Reporting","Monthly Owner Packs","Owner statements with revenue, expenses, profit"],
+["Hotel Group & Owner Reporting","Management Fees","Management fee calculations per agreement"],
+["Hotel Group & Owner Reporting","FF&E Reserve & Capex","FF&E reserve and capex tracking"],
+// Hotel Interfaces
+["Hotel Interfaces","Call Accounting Register","Every call record with extension, duration, cost"],
+["Hotel Interfaces","Key Card Issuance Register","Every key card issued with room, guest, time"],
+["Hotel Interfaces","Interface Hub Log","Every interface command and response"],
+// Housekeeping
+["Housekeeping","Room Status Report","Room status by floor and room type"],
+["Housekeeping","HK Tasks Register","Every housekeeping task with room, status, attendant"],
+["Housekeeping","Maintenance Register","Every maintenance request with priority, status, technician"],
+// IPTV & Guest Technology
+["IPTV & Guest Technology","TV Device Register","Every TV device with room, status, last seen"],
+["IPTV & Guest Technology","TV Channel Register","Every TV channel with number, name, type"],
+["IPTV & Guest Technology","TV Purchase Register","Every movie rental or purchase"],
+["IPTV & Guest Technology","TV Messages Register","Every TV message sent to a room"],
+// Inventory & Purchasing
+["Inventory & Purchasing","Stock Summary","Stock levels by item, store, category"],
+["Inventory & Purchasing","Requisition Register","Every requisition with requester, items, status"],
+["Inventory & Purchasing","Purchase Order Register","Every PO with supplier, items, received, status"],
+["Inventory & Purchasing","RFQ Register","Every RFQ with supplier, items, quotes, status"],
+["Inventory & Purchasing","Goods Receipts Register","Every GRN with PO, items, quantity, quality"],
+["Inventory & Purchasing","Supplier Price List Register","Every supplier price list with items and prices"],
+["Inventory & Purchasing","Stock Issue Register","Every stock issue and adjustment"],
+["Inventory & Purchasing","Stock Ledger","Every stock movement: in, out, transfer, adjustment"],
+["Inventory & Purchasing","Stock Take Register","Every physical count with item, counted, variance"],
+["Inventory & Purchasing","Re-order Suggestions","Items below par level with suggested order qty"],
+["Inventory & Purchasing","Recipe Register","F&B recipes with ingredients, quantities, cost"],
+// Laundry & Linen
+["Laundry & Linen","Laundry Order Register","Every laundry order with room, items, status"],
+["Laundry & Linen","Laundry Price List","Every laundry service with price"],
+["Laundry & Linen","Linen Stock Register","Linen stock by type, batch, par level"],
+["Laundry & Linen","Linen Batch Register","Every linen batch with type, qty, status"],
+// Learning & Development
+["Learning & Development","Training Matrix","Training requirements by role and employee"],
+["Learning & Development","Training Session Register","Every training session with course, date, attendees"],
+["Learning & Development","Training Record Register","Every training record with employee, course, date, result"],
+["Learning & Development","SOP Library","All SOP documents with title, version, category"],
+// Management & MIS
+["Management & MIS","Flash Report (Day/MTD/YTD)","Manager's daily flash: occupancy, ADR, RevPAR, revenue"],
+["Management & MIS","Top Guests","Repeat guests by stays and revenue"],
+["Management & MIS","Night Audit MIS","Night audit statistics"],
+["Management & MIS","KPI Alert Register","Every KPI threshold breach alert"],
+["Management & MIS","KPI Alert Log","KPI breaches by date: actual vs threshold, acknowledgement"],
+["Management & MIS","Email Log Register","Every email sent from the system"],
+["Management & MIS","Message Log Register","Every user activity message log"],
+["Management & MIS","Report Schedule Register","Every scheduled report with frequency and recipients"],
+["Management & MIS","Report View Register","Every saved report view"],
+["Management & MIS","Scheduled Report Deliveries","Every sent report: period, recipients, rows, failures"],
+// Marketing & CRM
+["Marketing & CRM","Guest Feedback Register","Every guest feedback with rating, category, status"],
+["Marketing & CRM","Online Review Register","Reviews from Google, TripAdvisor, Booking.com"],
+["Marketing & CRM","Survey Responses Register","Post-stay survey responses with scores"],
+["Marketing & CRM","Campaign Register","Every marketing campaign with type, dates, channels"],
+["Marketing & CRM","Guest Segment Register","Guest segments with criteria and counts"],
+["Marketing & CRM","Automation Journey Register","Every automation journey with triggers, actions"],
+["Marketing & CRM","Promo Code Register","Every promo code with type, value, usage, expiry"],
+// Partner & Organiser Portals
+["Partner & Organiser Portals","Partner Request Register","Every partner request with type, status, approval"],
+["Partner & Organiser Portals","Partner Account Register","Every corporate/travel-agent account"],
+["Partner & Organiser Portals","Organiser Request Register","Every organiser request with type, status"],
+["Partner & Organiser Portals","Organiser Event Register","Every organiser-booked event"],
+// Payroll
+["Payroll","Pay Component Register","Every pay component with type, amount, taxability"],
+["Payroll","Salary Advance Register","Every salary advance with employee, amount, repayment"],
+["Payroll","Payslip Register","Every payslip with employee, period, gross, deductions, net"],
+["Payroll","Statutory Remittance Register","Every PAYE, SSNIT, WHT remittance with period, amount"],
+// Property & Utilities
+["Property & Utilities","Utility Meter Readings","Daily meter readings for electricity, water, gas"],
+["Property & Utilities","Utility Bills Register","Every utility bill with provider, period, amount"],
+["Property & Utilities","Licences & Compliance Register","Property licences, permits, certificates with expiry"],
+// Quality Assurance
+["Quality Assurance","QA Audit Register","Every QA audit with auditor, scope, score, findings"],
+["Quality Assurance","Corrective Action Register","Every corrective action with finding, owner, due, status"],
+["Quality Assurance","QA Standards Register","Brand standards and checklists"],
+["Quality Assurance","QA Checklist Templates","Every QA checklist template with items, categories"],
+// Revenue Management
+["Revenue Management","Forecast & On the Books","Per night: rooms booked, ADR, revenue, pickup, forecast"],
+["Revenue Management","Booking Pace (Pickup)","New bookings by booking date: room nights, revenue, lead time"],
+["Revenue Management","RM Snapshot Register","Every RM snapshot with revenue"],
+["Revenue Management","Rate Plan Register","Every rate plan: name, room type, base rate, channels"],
+["Revenue Management","Rate Override Register","Every rate override on plan, date range or room type"],
+["Revenue Management","Yield Rule Register","Every yield rule with conditions, days, priority"],
+["Revenue Management","Rate Contract Blackout Register","Every blackout date on a rate contract"],
+["Revenue Management","Rate Contract Rate Register","Every contracted rate from OTA and channel manager"],
+// Sales & Business Development
+["Sales & Business Development","Sales Account Register","Every sales account with type, contact, status"],
+["Sales & Business Development","Opportunity Register","Every sales opportunity with account, value, stage"],
+["Sales & Business Development","Sales Activity Register","Every sales activity: call, visit, email, meeting"],
+["Sales & Business Development","Sales Target Register","Every sales target with period, account, value"],
+["Sales & Business Development","Marketing Calendar","Marketing events by month"],
+["Sales & Business Development","Marketing Budget","Marketing budget by category and month"],
+["Sales & Business Development","Collateral Register","Brochures, rate cards, presentations, fact sheets"],
+// Security
+["Security","Visitor Register","Every visitor with name, room, host, time in/out"],
+["Security","Gate Pass Register","Every gate pass with vehicle, driver, destination, time"],
+["Security","Incident Register","Every security incident with type, location, severity, status"],
+["Security","Watch List Register","Every watch-list entry with name, reason, added by"],
+// Self-Service Kiosk
+["Self-Service Kiosk","Kiosk Device Register","Every kiosk device with location, status, last seen"],
+["Self-Service Kiosk","Kiosk Session Register","Every kiosk session with guest, actions, duration"],
+// Sustainability & ESG
+["Sustainability & ESG","ESG Carbon Register","Carbon emissions by scope, source, period"],
+["Sustainability & ESG","ESG Waste Register","Waste logs by type, source, weight, disposal"],
+["Sustainability & ESG","ESG Green Stay Register","Green stay participation and savings"],
+["Sustainability & ESG","ESG Target Register","ESG targets with type, baseline, target, progress"],
+["Sustainability & ESG","ESG Initiative Register","Every ESG initiative with type, status, impact"],
+["Sustainability & ESG","ESG Policy Register","Every ESG policy with title, version, effective date"],
+["Sustainability & ESG","ESG Certification Register","Certifications with body, type, expiry"],
+["Sustainability & ESG","ESG Carbon Statement Register","Carbon statements by period"],
+// System & Administration
+["System & Administration","User Register","Every system user with name, email, role, status"],
+["System & Administration","Role Register","Every role with permissions, users assigned"],
+["System & Administration","Activity Log","Every user activity: action, entity, timestamp, user"],
+["System & Administration","Email Log","Every email sent: to, subject, status, timestamp"],
+["System & Administration","SMS/WhatsApp Log","Every message sent: to, content, status, cost"],
+["System & Administration","API Client Register","Every API client with name, scopes, status"],
+["System & Administration","Webhook Register","Every webhook endpoint with URL, events, status"],
+["System & Administration","Webhook Delivery Log","Every webhook delivery: endpoint, event, status, response"],
+["System & Administration","Database Backup Register","Every backup with date, size, status, location"],
+["System & Administration","Migration Register","Every data migration with type, status, records"],
+// Talent Management
+["Talent Management","Vacancy Register","Every job vacancy with position, department, status"],
+["Talent Management","Applicant Register","Every job applicant with position, stage, status"],
+["Talent Management","New Starter Register","Every new starter with position, start date, status"],
+["Talent Management","Appraisal Register","Every appraisal with employee, period, rating, manager"],
+["Talent Management","Discipline Case Register","Every discipline/grievance case with type, status"],
+["Talent Management","Exit Register","Every employee exit with type, reason, last day"],
+["Talent Management","Establishment Register","Establishment headcount by department, position, grade"],
+// Tax & Statutory
+["Tax & Statutory","VAT Return Register","Every VAT return with period, input, output, net"],
+["Tax & Statutory","PAYE Register","Every PAYE computation with employee, period, tax"],
+["Tax & Statutory","WHT Register","Every withholding tax with payee, period, rate, amount"],
+["Tax & Statutory","SSNIT Register","Every SSNIT remittance with period, employee count, amount"],
+// Transport & Parking
+["Transport & Parking","Transport Trip Register","Every trip with route, vehicle, driver, status"],
+["Transport & Parking","Vehicle Register","Every vehicle with type, plate, capacity, status"],
+["Transport & Parking","Vehicle Expense Register","Every vehicle expense with vehicle, type, amount"],
+["Transport & Parking","Parking Session Register","Every parking session with vehicle, zone, time in/out"],
+["Transport & Parking","Parking Permit Register","Every parking permit with type, vehicle, holder, expiry"],
+// Treasury & Payments
+["Treasury & Payments","Cash Position","Cash position per account at a date"],
+["Treasury & Payments","Treasury Transfer Register","Every transfer between bank accounts"],
+["Treasury & Payments","Cheque Register","Every cheque issued or received"],
+["Treasury & Payments","Cash Forecast","13-week cash forecast with projected inflows and outflows"],
+["Treasury & Payments","Bank Account Register","Every bank account with bank, number, currency, status"],
+["Treasury & Payments","Online Payment Register","Every online payment with gateway, amount, status"],
+["Treasury & Payments","Gateway Payout Register","Every gateway payout with gateway, amount, status"],
+];
+
+const CATEGORY_ICONS = {
+"Accounts":"¥","Banquet & Events":"🍽","Billing":"$","Budget & Planning":"∑","Central Reservations":"📞",
+"Channel Manager":"📡","Compliance & HSE":"🛡","Concierge & Activities":"🗺","F&B & POS":"🍽",
+"Feedback & Reputation":"⭐","Fixed Assets & Engineering":"🔧","Food Safety":"🌡",
+"Foreign Guests & Forex":"💱","Front Office":"🛎","General Ledger":"📊","Guest Messaging":"💬",
+"HR & People":"👥","Health Club & Spa":"🏋","Hotel Group & Owner Reporting":"🏢",
+"Hotel Interfaces":"🔌","Housekeeping":"🧹","IPTV & Guest Technology":"📺",
+"Inventory & Purchasing":"📦","Laundry & Linen":"👔","Learning & Development":"📚",
+"Management & MIS":"📈","Marketing & CRM":"📧","Partner & Organiser Portals":"🌐",
+"Payroll":"💸","Property & Utilities":"⚡","Quality Assurance":"✓","Revenue Management":"📈",
+"Sales & Business Development":"💼","Security":"🛡","Self-Service Kiosk":"📱",
+"Sustainability & ESG":"🌱","System & Administration":"⚙","Talent Management":"🎯",
+"Tax & Statutory":"🧾","Transport & Parking":"🚗","Treasury & Payments":"🏦",
+};
+
+const grid = document.getElementById('reportGrid');
+const search = document.getElementById('reportSearch');
+const tabsContainer = document.getElementById('filterTabs');
+
+function getFilteredReports(query) {
+  if (!query) return REPORTS;
+  const q = query.toLowerCase();
+  return REPORTS.filter(r => r[1].toLowerCase().includes(q) || r[2].toLowerCase().includes(q) || r[0].toLowerCase().includes(q));
+}
+
+function renderTabs(categories, activeCategory) {
+  tabsContainer.innerHTML = '';
+  const allTab = document.createElement('div');
+  allTab.className = 'filter-tab' + (activeCategory === 'all' ? ' active' : '');
+  allTab.textContent = 'All ' + REPORTS.length + ' reports';
+  allTab.onclick = () => renderReports('', 'all');
+  tabsContainer.appendChild(allTab);
+  categories.forEach(cat => {
+    const tab = document.createElement('div');
+    const count = REPORTS.filter(r => r[0] === cat).length;
+    tab.className = 'filter-tab' + (activeCategory === cat ? ' active' : '');
+    tab.textContent = cat + ' (' + count + ')';
+    tab.onclick = () => renderReports(cat, cat);
+    tabsContainer.appendChild(tab);
+  });
+}
+
+function renderReports(query, activeCategory) {
+  let filtered;
+  if (activeCategory && activeCategory !== 'all') {
+    filtered = REPORTS.filter(r => r[0] === activeCategory);
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter(r => r[1].toLowerCase().includes(q) || r[2].toLowerCase().includes(q));
+    }
+  } else {
+    filtered = getFilteredReports(query);
+  }
+
+  // Group by category
+  const groups = {};
+  filtered.forEach(r => { (groups[r[0]] = groups[r[0]] || []).push(r); });
+
+  grid.innerHTML = '';
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="no-results">No reports match your search.</div>';
+    return;
+  }
+
+  Object.keys(groups).sort().forEach(cat => {
+    const card = document.createElement('div');
+    card.className = 'report-card';
+    const icon = CATEGORY_ICONS[cat] || '📄';
+    card.innerHTML = '<div class="report-card-head"><h3>' + icon + ' ' + cat + '</h3><span class="count">' + groups[cat].length + '</span></div><div class="report-list">';
+    groups[cat].forEach(r => {
+      card.innerHTML += '<div class="report-item"><div class="report-item-icon">' + icon + '</div><div class="report-item-body"><div class="report-item-name">' + r[1] + '</div><div class="report-item-desc">' + r[2] + '</div></div><div class="report-item-arrow">›</div></div>';
+    });
+    card.innerHTML += '</div>';
+    grid.appendChild(card);
+  });
+}
+
+// Initial render
+const allCategories = [...new Set(REPORTS.map(r => r[0]))].sort();
+renderTabs(allCategories, 'all');
+renderReports('', 'all');
+
+// Search
+search.addEventListener('input', () => {
+  const q = search.value;
+  const categories = [...new Set(getFilteredReports(q).map(r => r[0]))].sort();
+  renderTabs(categories, 'all');
+  renderReports(q, 'all');
+});
+</script>
+</body>
+</html>

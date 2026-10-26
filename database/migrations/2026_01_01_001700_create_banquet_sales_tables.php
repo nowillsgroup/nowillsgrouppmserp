@@ -25,6 +25,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort')->default(0);
         });
 
+                if (Schema::hasTable('banquet_packages')) {
+            return;
+        }
+
         Schema::create('banquet_packages', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort')->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('banquet_services')) {
+            return;
+        }
 
         Schema::create('banquet_services', function (Blueprint $t) {
             $t->id();
@@ -74,6 +82,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'event_date']);
         });
 
+                if (Schema::hasTable('banquet_functions')) {
+            return;
+        }
+
         Schema::create('banquet_functions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -97,6 +109,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'banquet_hall_id', 'date']);
         });
+
+                if (Schema::hasTable('banquet_event_items')) {
+            return;
+        }
 
         Schema::create('banquet_event_items', function (Blueprint $t) {
             $t->id();

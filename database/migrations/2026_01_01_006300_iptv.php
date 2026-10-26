@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('tv_devices')) {
+            return;
+        }
+
         Schema::create('tv_devices', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -40,6 +44,10 @@ return new class extends Migration
             $t->index(['pairing_code', 'status']);
         });
 
+                if (Schema::hasTable('tv_channels')) {
+            return;
+        }
+
         Schema::create('tv_channels', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -55,6 +63,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
         });
 
+                if (Schema::hasTable('tv_programmes')) {
+            return;
+        }
+
         Schema::create('tv_programmes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -67,6 +79,10 @@ return new class extends Migration
             $t->index(['tv_channel_id', 'starts_at']);
             $t->index(['hotel_id', 'ends_at']);
         });
+
+                if (Schema::hasTable('tv_welcome_templates')) {
+            return;
+        }
 
         Schema::create('tv_welcome_templates', function (Blueprint $t) {
             $t->id();
@@ -85,6 +101,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'language', 'is_active']);
         });
 
+                if (Schema::hasTable('tv_pages')) {
+            return;
+        }
+
         Schema::create('tv_pages', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -97,6 +117,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('tv_messages')) {
+            return;
+        }
 
         Schema::create('tv_messages', function (Blueprint $t) {
             $t->id();
@@ -122,6 +146,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'starts_at']);
         });
 
+                if (Schema::hasTable('tv_message_reads')) {
+            return;
+        }
+
         Schema::create('tv_message_reads', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -131,6 +159,10 @@ return new class extends Migration
             $t->dateTime('read_at');
             $t->unique(['tv_message_id', 'tv_device_id']);
         });
+
+                if (Schema::hasTable('tv_movies')) {
+            return;
+        }
 
         Schema::create('tv_movies', function (Blueprint $t) {
             $t->id();
@@ -150,6 +182,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort')->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('tv_purchases')) {
+            return;
+        }
 
         Schema::create('tv_purchases', function (Blueprint $t) {
             $t->id();
@@ -175,6 +211,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'starts_at']);
         });
 
+                if (Schema::hasTable('tv_sessions')) {
+            return;
+        }
+
         Schema::create('tv_sessions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -193,6 +233,10 @@ return new class extends Migration
             $t->index(['reservation_room_id']);
         });
 
+                if (Schema::hasTable('tv_commands')) {
+            return;
+        }
+
         Schema::create('tv_commands', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -207,6 +251,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['tv_device_id', 'status']);
         });
+
+                if (Schema::hasTable('tv_events')) {
+            return;
+        }
 
         Schema::create('tv_events', function (Blueprint $t) {
             $t->id();

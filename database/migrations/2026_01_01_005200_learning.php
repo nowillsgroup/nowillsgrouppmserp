@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('sop_documents')) {
+            return;
+        }
+
         Schema::create('sop_documents', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -38,6 +42,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('sop_versions')) {
+            return;
+        }
+
         Schema::create('sop_versions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -54,6 +62,10 @@ return new class extends Migration
             $t->unique(['sop_document_id', 'version']);
         });
 
+                if (Schema::hasTable('sop_acknowledgements')) {
+            return;
+        }
+
         Schema::create('sop_acknowledgements', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -66,6 +78,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['sop_document_id', 'version', 'employee_id'], 'sop_ack_unique');
         });
+
+                if (Schema::hasTable('training_courses')) {
+            return;
+        }
 
         Schema::create('training_courses', function (Blueprint $t) {
             $t->id();
@@ -87,6 +103,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('training_requirements')) {
+            return;
+        }
+
         Schema::create('training_requirements', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -96,6 +116,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('due_days')->default(30);                 // new starters: due this many days after joining
             $t->timestamps();
         });
+
+                if (Schema::hasTable('training_sessions')) {
+            return;
+        }
 
         Schema::create('training_sessions', function (Blueprint $t) {
             $t->id();
@@ -119,6 +143,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'date']);
         });
+
+                if (Schema::hasTable('training_records')) {
+            return;
+        }
 
         Schema::create('training_records', function (Blueprint $t) {
             $t->id();

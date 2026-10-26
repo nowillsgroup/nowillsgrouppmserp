@@ -12,6 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         // Seasonal / date-range rate overrides with weekend pricing, minimum stay and stop-sell
+                if (Schema::hasTable('rate_overrides')) {
+            return;
+        }
+
         Schema::create('rate_overrides', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -40,6 +44,10 @@ return new class extends Migration
         });
 
         // Loyalty points ledger (earn on check-out, redeem against folio)
+                if (Schema::hasTable('loyalty_ledger')) {
+            return;
+        }
+
         Schema::create('loyalty_ledger', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

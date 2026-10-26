@@ -31,6 +31,10 @@ return new class extends Migration
             $t->string('allergy_flag', 160)->nullable();                  // conflicting allergens, acknowledged by the server
         });
 
+                if (Schema::hasTable('fs_equipment')) {
+            return;
+        }
+
         Schema::create('fs_equipment', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -44,6 +48,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('fs_temp_logs')) {
+            return;
+        }
 
         Schema::create('fs_temp_logs', function (Blueprint $t) {
             $t->id();
@@ -69,6 +77,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'recorded_at']);
         });
 
+                if (Schema::hasTable('fs_checklists')) {
+            return;
+        }
+
         Schema::create('fs_checklists', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -80,6 +92,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('fs_checklist_runs')) {
+            return;
+        }
 
         Schema::create('fs_checklist_runs', function (Blueprint $t) {
             $t->id();
@@ -97,6 +113,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'fs_checklist_id', 'period']);
         });
+
+                if (Schema::hasTable('fs_waste')) {
+            return;
+        }
 
         Schema::create('fs_waste', function (Blueprint $t) {
             $t->id();
@@ -122,6 +142,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('fs_certificates')) {
+            return;
+        }
+
         Schema::create('fs_certificates', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -136,6 +160,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'employee_id', 'type']);
         });
+
+                if (Schema::hasTable('fs_labels')) {
+            return;
+        }
 
         Schema::create('fs_labels', function (Blueprint $t) {
             $t->id();

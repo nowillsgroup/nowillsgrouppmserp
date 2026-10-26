@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('lease_units')) {
+            return;
+        }
+
         Schema::create('lease_units', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -38,6 +42,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('leases')) {
+            return;
+        }
 
         Schema::create('leases', function (Blueprint $t) {
             $t->id();
@@ -88,6 +96,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('lease_charges')) {
+            return;
+        }
+
         Schema::create('lease_charges', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -115,6 +127,10 @@ return new class extends Migration
             $t->index(['lease_id', 'type']);
         });
 
+                if (Schema::hasTable('lease_payments')) {
+            return;
+        }
+
         Schema::create('lease_payments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -137,6 +153,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'receipt_no']);
         });
 
+                if (Schema::hasTable('lease_meter_readings')) {
+            return;
+        }
+
         Schema::create('lease_meter_readings', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -154,6 +174,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['lease_unit_id', 'meter', 'date']);
         });
+
+                if (Schema::hasTable('lease_inspections')) {
+            return;
+        }
 
         Schema::create('lease_inspections', function (Blueprint $t) {
             $t->id();

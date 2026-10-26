@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('security_watchlist')) {
+            return;
+        }
+
         Schema::create('security_watchlist', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -33,6 +37,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'phone_key']);
             $t->index(['hotel_id', 'id_hash']);
         });
+
+                if (Schema::hasTable('visitors')) {
+            return;
+        }
 
         Schema::create('visitors', function (Blueprint $t) {
             $t->id();
@@ -79,6 +87,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'checked_in_at']);
         });
 
+                if (Schema::hasTable('gate_passes')) {
+            return;
+        }
+
         Schema::create('gate_passes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -108,6 +120,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('gate_pass_items')) {
+            return;
+        }
+
         Schema::create('gate_pass_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('gate_pass_id')->constrained()->cascadeOnDelete();
@@ -120,6 +136,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('gate_pass_returns')) {
+            return;
+        }
+
         Schema::create('gate_pass_returns', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -131,6 +151,10 @@ return new class extends Migration
             $t->json('lines');                                      // [{item_id, qty}]
             $t->timestamps();
         });
+
+                if (Schema::hasTable('security_incidents')) {
+            return;
+        }
 
         Schema::create('security_incidents', function (Blueprint $t) {
             $t->id();
@@ -164,6 +188,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
             $t->index(['hotel_id', 'occurred_at']);
         });
+
+                if (Schema::hasTable('security_incident_updates')) {
+            return;
+        }
 
         Schema::create('security_incident_updates', function (Blueprint $t) {
             $t->id();

@@ -15,6 +15,7 @@ use App\Models\Supplier;
 use App\Models\SupplierPrice;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\ForexService;
 use App\Support\Numbering;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -40,6 +41,30 @@ class ProcurementService
     public static function minQuotes(): int
     {
         return max(1, (int) setting('rfq_min_quotes', '3'));
+    }
+
+    /** Quote a purchase conversion at the exact document date, using the existing AP Forex Desk basis/window. */
+    public static function poRate(string $currency, string $date): array
+    {
+        $code = strtoupper(trim($currency));
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        if ($code === $home) {
+            return ['code' => $home, 'rate' => 1.0, 'basis' => 'home', 'date' => $date, 'stale' => false, 'carried' => false];
+        }
+        if (! ForexService::apConvert()) {
+            throw new RuntimeException("Foreign-currency purchasing is switched off with supplier-bill conversion. Turn it on under Foreign Guests › Settings › Forex desk.");
+        }
+        if (! \App\Models\Currency::where('code', $code)->where('is_active', true)->exists()) {
+            throw new RuntimeException("{$code} is not an active currency on the Forex Desk.");
+        }
+        $policy = ForexService::apPolicy($date);
+        $board = ForexService::boardRate($code, $date, ['basis' => $policy['basis'], 'stale_days' => $policy['stale_days']]);
+        if (! $board) {
+            throw new RuntimeException("There is no {$code} rate on the forex board for ".Carbon::parse($date)->format('d M Y')
+                .', and none in the '.$policy['stale_days'].' days before it. Set the rate under Foreign Guests › Exchange Rates.');
+        }
+
+        return $board;
     }
 
     public static function overReceiptPct(): float
@@ -106,6 +131,76 @@ class ProcurementService
             $price = self::listPrice($po->supplier_id, $l->inventory_item_id, $date, (float) $l->qty);
             $l->forceFill(['list_rate' => $price?->rate])->saveQuietly();
         }
+    }
+
+    /** Create a manual PO; local-currency fields remain the approval/stock values, with supplier currency retained beside them. */
+    public static function createPurchaseOrder(array $d): PurchaseOrder
+    {
+        $date = Carbon::parse($d['po_date'] ?? bdate()->toDateString())->toDateString();
+        if ($date > bdate()->toDateString()) {
+            throw new RuntimeException('The purchase-order date cannot be after the business date.');
+        }
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        $selected = strtoupper(trim((string) ($d['currency'] ?? $home))) ?: $home;
+        $foreign = $selected !== $home;
+        $board = $foreign ? self::poRate($selected, $date) : null;
+        $homeRate = $foreign ? (float) $board['rate'] : 1.0;
+        $input = collect($d['lines'] ?? [])->filter(fn ($line) => ! empty($line['item_id']))->values();
+        if ($input->isEmpty()) {
+            throw new RuntimeException('Add at least one item to the purchase order.');
+        }
+
+        $po = DB::transaction(function () use ($d, $date, $home, $selected, $foreign, $board, $homeRate, $input) {
+            $po = PurchaseOrder::create(collect($d)->except(['lines', 'currency'])->all() + [
+                'po_no' => Numbering::next('po'), 'currency' => $foreign ? $selected : null,
+                'status' => 'draft', 'created_by' => auth()->id(),
+                'fx_subtotal' => $foreign ? 0 : null, 'fx_tax' => $foreign ? 0 : null, 'fx_total' => $foreign ? 0 : null,
+                'fx_rate' => $foreign ? $homeRate : null, 'fx_date' => $foreign ? $board['date'] : null,
+                'fx_basis' => $foreign ? $board['basis'] : null,
+            ]);
+            $sub = 0.0;
+            $tax = 0.0;
+            $fxSub = 0.0;
+            $fxTax = 0.0;
+            foreach ($input as $line) {
+                $qty = round((float) ($line['qty'] ?? 0), 2);
+                $taxRate = max(0, min(50, (float) ($line['tax_rate'] ?? 0)));
+                $unit = round((float) ($line['rate'] ?? 0), $foreign ? 4 : 2);
+                if ($qty <= 0 || $unit <= 0) {
+                    throw new RuntimeException('Every purchase-order line needs a positive quantity and unit rate.');
+                }
+                $homeUnit = $foreign ? round($unit * $homeRate, 2) : $unit;
+                $amount = round($qty * $homeUnit, 2);
+                $taxAmount = round($amount * $taxRate / 100, 2);
+                $foreignAmount = $foreign ? round($qty * $unit, 2) : null;
+                $foreignTax = $foreign ? round($foreignAmount * $taxRate / 100, 2) : null;
+                $po->items()->create([
+                    'inventory_item_id' => (int) $line['item_id'], 'qty' => $qty, 'rate' => $homeUnit,
+                    'fx_unit_rate' => $foreign ? $unit : null, 'tax_rate' => $taxRate,
+                    'amount' => $amount, 'fx_amount' => $foreignAmount, 'fx_tax_amount' => $foreignTax,
+                ]);
+                $sub += $amount;
+                $tax += $taxAmount;
+                if ($foreign) {
+                    $fxSub += $foreignAmount;
+                    $fxTax += $foreignTax;
+                }
+            }
+            $po->forceFill([
+                'subtotal' => round($sub, 2), 'tax' => round($tax, 2), 'total' => round($sub + $tax, 2),
+                'fx_subtotal' => $foreign ? round($fxSub, 2) : null,
+                'fx_tax' => $foreign ? round($fxTax, 2) : null,
+                'fx_total' => $foreign ? round($fxSub + $fxTax, 2) : null,
+            ])->save();
+            self::stampListRates($po);
+            ActivityLogger::log('inventory', 'po_create', "Created {$po->po_no}".($foreign
+                ? " in {$selected} ".number_format((float) $po->fx_total, 2).' at '.number_format($homeRate, 4)." {$board['basis']} (board of {$board['date']}) = ".money($po->total)
+                : ' in '.money($po->total)), $po);
+
+            return $po;
+        });
+
+        return $po->fresh(['supplier', 'items']);
     }
 
     // ─────────────────────────── PO approval matrix ───────────────────────────
@@ -505,6 +600,9 @@ class ProcurementService
             if ($date < $po->po_date->toDateString()) {
                 throw new RuntimeException('The receipt date cannot be before the PO date.');
             }
+            $foreign = $po->isForeign();
+            $board = $foreign ? self::poRate((string) $po->currency, $date) : null;
+            $homeRate = $foreign ? (float) $board['rate'] : 1.0;
             $over = self::overReceiptPct();
             $rows = [];
             foreach ($po->items as $l) {
@@ -531,34 +629,64 @@ class ProcurementService
                 throw new RuntimeException('Enter the quantity delivered for at least one item.');
             }
 
-            $grn = GoodsReceipt::create(['grn_no' => Numbering::next('grn'), 'purchase_order_id' => $po->id, 'supplier_id' => $po->supplier_id, 'store_id' => $po->store_id,
+            $grn = GoodsReceipt::create([
+                'grn_no' => Numbering::next('grn'), 'purchase_order_id' => $po->id, 'supplier_id' => $po->supplier_id, 'store_id' => $po->store_id,
+                'currency' => $foreign ? $po->currency : null, 'fx_rate' => $foreign ? $homeRate : null,
+                'fx_date' => $foreign ? $board['date'] : null, 'fx_basis' => $foreign ? $board['basis'] : null,
                 'date' => $date, 'delivery_note' => $d['delivery_note'] ?? null, 'invoice_no' => $d['invoice_no'] ?? null, 'vehicle_no' => $d['vehicle_no'] ?? null,
-                'notes' => $d['notes'] ?? null, 'received_by' => auth()->id()]);
+                'notes' => $d['notes'] ?? null, 'received_by' => auth()->id(),
+            ]);
             $sub = 0.0;
             $tax = 0.0;
             $rejVal = 0.0;
+            $fxSub = 0.0;
+            $fxTax = 0.0;
+            $fxRejVal = 0.0;
             foreach ($rows as [$l, $del, $acc, $rej, $reason]) {
-                $amt = round($acc * (float) $l->rate, 2);
-                $grn->lines()->create(['purchase_order_item_id' => $l->id, 'inventory_item_id' => $l->inventory_item_id, 'qty_delivered' => $del, 'qty_accepted' => $acc,
-                    'qty_rejected' => $rej, 'reject_reason' => $reason, 'rate' => $l->rate, 'tax_rate' => $l->tax_rate, 'amount' => $amt]);
+                $fxUnitRate = $foreign ? (float) $l->fx_unit_rate : 0.0;
+                if ($foreign && $fxUnitRate <= 0) {
+                    throw new RuntimeException('A foreign-currency PO line is missing its supplier-currency unit rate; no GRN was posted.');
+                }
+                $unitRate = $foreign ? round($fxUnitRate * $homeRate, 2) : (float) $l->rate;
+                $amt = round($acc * $unitRate, 2);
+                $fxAmt = $foreign ? round($acc * $fxUnitRate, 2) : null;
+                $fxTaxAmt = $foreign ? round((float) $fxAmt * (float) $l->tax_rate / 100, 2) : null;
+                $grn->lines()->create([
+                    'purchase_order_item_id' => $l->id, 'inventory_item_id' => $l->inventory_item_id,
+                    'qty_delivered' => $del, 'qty_accepted' => $acc, 'qty_rejected' => $rej, 'reject_reason' => $reason,
+                    'rate' => $unitRate, 'fx_unit_rate' => $foreign ? $fxUnitRate : null, 'tax_rate' => $l->tax_rate,
+                    'amount' => $amt, 'fx_amount' => $fxAmt, 'fx_tax_amount' => $fxTaxAmt,
+                ]);
                 if ($acc > 0) {
                     StockMovement::create(['inventory_item_id' => $l->inventory_item_id, 'store_id' => $po->store_id, 'date' => $date, 'type' => 'purchase',
-                        'qty' => $acc, 'rate' => $l->rate, 'reference' => $grn->grn_no, 'remarks' => 'Received against '.$po->po_no, 'user_id' => auth()->id()]);
-                    $l->item->update(['last_cost' => $l->rate]);
+                        'qty' => $acc, 'rate' => $unitRate, 'reference' => $grn->grn_no,
+                        'remarks' => 'Received against '.$po->po_no.($foreign ? " ({$po->currency} at {$board['rate']})" : ''), 'user_id' => auth()->id()]);
+                    $l->item->update(['last_cost' => $unitRate]);
                 }
                 $l->forceFill(['received_qty' => round((float) $l->received_qty + $acc, 2), 'rejected_qty' => round((float) $l->rejected_qty + $rej, 2)])->save();
                 $sub += $amt;
                 $tax += round($amt * (float) $l->tax_rate / 100, 2);
-                $rejVal += round($rej * (float) $l->rate, 2);
+                $rejVal += round($rej * $unitRate, 2);
+                if ($foreign) {
+                    $fxSub += (float) $fxAmt;
+                    $fxTax += (float) $fxTaxAmt;
+                    $fxRejVal += round($rej * $fxUnitRate, 2);
+                }
             }
-            $grn->forceFill(['subtotal' => round($sub, 2), 'tax' => round($tax, 2), 'total' => round($sub + $tax, 2), 'rejected_value' => round($rejVal, 2)])->save();
+            $grn->forceFill([
+                'subtotal' => round($sub, 2), 'tax' => round($tax, 2), 'total' => round($sub + $tax, 2), 'rejected_value' => round($rejVal, 2),
+                'fx_subtotal' => $foreign ? round($fxSub, 2) : null, 'fx_tax' => $foreign ? round($fxTax, 2) : null,
+                'fx_total' => $foreign ? round($fxSub + $fxTax, 2) : null, 'fx_rejected_value' => $foreign ? round($fxRejVal, 2) : null,
+            ])->save();
 
             $complete = $po->items->every(fn ($l) => $l->outstanding() <= 0);
             $po->forceFill(['status' => $complete ? 'received' : 'partial', 'received_at' => $complete ? now() : $po->received_at,
                 'invoice_no' => ($d['invoice_no'] ?? null) ?: $po->invoice_no])->save();
             $po->forgetGrnCache();
             $rejN = collect($rows)->where(3, '>', 0)->count();
-            ActivityLogger::log('inventory', 'grn', "{$grn->grn_no} against {$po->po_no}: ".money($grn->total).' accepted'.($rejN ? ", {$rejN} line(s) with rejections (".money($rejVal).')' : '').($complete ? ' – PO fully received' : ' – part delivery'), $grn);
+            ActivityLogger::log('inventory', 'grn', "{$grn->grn_no} against {$po->po_no}: ".money($grn->total).' accepted'.($foreign
+                ? ' ('.$grn->fxLabel().' at '.number_format($homeRate, 4)." {$board['basis']}, board of {$board['date']})" : '')
+                .($rejN ? ", {$rejN} line(s) with rejections (".money($rejVal).')' : '').($complete ? ' – PO fully received' : ' – part delivery'), $grn);
 
             return $grn;
         });
@@ -576,8 +704,10 @@ class ProcurementService
             throw new RuntimeException('Give the reason for closing the balance.');
         }
         $po->forceFill(['status' => 'closed', 'close_reason' => mb_substr(trim($reason), 0, 255), 'closed_at' => now(), 'closed_by' => auth()->id()])->save();
-        $open = $po->items()->get()->sum(fn ($l) => $l->outstanding() * (float) $l->rate);
-        ActivityLogger::log('inventory', 'po_closed', "{$po->po_no} short-closed (".money($open)." not delivered): {$reason}", $po);
+        $items = $po->items()->get();
+        $open = $items->sum(fn ($l) => $l->outstanding() * (float) $l->rate);
+        $foreignOpen = $po->isForeign() ? $items->sum(fn ($l) => $l->outstanding() * (float) $l->fx_unit_rate) : null;
+        ActivityLogger::log('inventory', 'po_closed', "{$po->po_no} short-closed (".money($open)." not delivered".($po->isForeign() ? "; {$po->currency} ".number_format((float) $foreignOpen, 2) : '')."): {$reason}", $po);
 
         return $po;
     }

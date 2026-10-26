@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('report_views')) {
+            return;
+        }
+
         Schema::create('report_views', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -27,6 +31,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'user_id']);
         });
+
+                if (Schema::hasTable('report_schedules')) {
+            return;
+        }
 
         Schema::create('report_schedules', function (Blueprint $t) {
             $t->id();
@@ -57,6 +65,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'is_active', 'next_run_at']);
         });
 
+                if (Schema::hasTable('report_deliveries')) {
+            return;
+        }
+
         Schema::create('report_deliveries', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -77,6 +89,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'created_at']);
         });
+
+                if (Schema::hasTable('kpi_alerts')) {
+            return;
+        }
 
         Schema::create('kpi_alerts', function (Blueprint $t) {
             $t->id();
@@ -100,6 +116,10 @@ return new class extends Migration
             $t->unsignedInteger('triggers')->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('kpi_alert_events')) {
+            return;
+        }
 
         Schema::create('kpi_alert_events', function (Blueprint $t) {
             $t->id();

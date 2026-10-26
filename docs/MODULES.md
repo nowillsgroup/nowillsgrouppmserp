@@ -6,24 +6,22 @@ Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
 the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_check.py` fails if the two disagree.
 
 > Every entry carries a `perm` key checked by `RequirePermission` middleware, so what a
-> given user sees depends on their role. Some entries also carry a `badge` for live counts.
+> given user sees depends on their role. Employee self-service links additionally require an
+> active employee record. Some entries also carry a `badge` for live counts.
 
 | | |
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **53** | modules |
-| **361** | pages |
+| **54** | modules |
+| **370** | pages |
 
 Counted from the live `config('pms.menu')` registry and reconciled against it page for page on
-14 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
-link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. Until this pass the
-per-module lists were the historical v7.36–v7.38 inventory and named four things the sidebar does not
-menu; **every count, name and order below is now the live menu**, and each group heading carries its
-own page count. A page that is routed but not menued (Desktop Sync), a document that is routed per
-record rather than menued (a ticket sale receipt), and a module that is routed but absent from the
-sidebar altogether (Car Rental) are named in prose under the group or module they belong to and are
-*not* counted, because the sidebar is what this document inventories.
+20 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
+link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. **Every count, name
+and order below is the live menu**, and each group heading carries its own page count. A document
+routed per record rather than as a menu page (a ticket sale receipt) is named in prose under its
+module but is *not* counted, because this document inventories sidebar pages.
 
 `deploy/dev/audit/modules_doc_check.py` diffs this file against the live registry and the route list —
 counts, names, order, section keys, permission keys and every URI the prose names — and reports
@@ -44,11 +42,10 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## Front Office & Guest Services
 
-`OPERATIONS` section · **10 modules** · 63 menu pages
+`OPERATIONS` section · **10 modules** · 64 menu pages
 
-- **Front Office** — 8 pages
-  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture
-  - Routed but not menued: Desktop Sync, `/offline/desktop` (workspace, delta, pack, sync) — a real, working page, reachable by URL and from Offline Request Capture, that the sidebar does not list. Verified end to end in `docs/FRONT-OFFICE-AUDIT.md` (370 named routes, 228 of them writes).
+- **Front Office** — 9 pages
+  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync
 - **Desk Operations** — 7 pages
   - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
 - **Reservations** — 8 pages
@@ -65,8 +62,8 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - TV Dashboard · TVs & Screens · Channels & Guide · Movies & Rentals · Welcome Screens · Information Pages · TV Messages · Usage Analytics · IPTV Settings
 - **Foreign Guests** — 6 pages
   - Form C (FRRO) · Currency Exchange · Exchange Rates · Currency Position · Currencies · Foreign Guest Settings
-- **Interfaces** — 3 pages
-  - Call Accounting · Key Cards · Interface Hub
+- **Interfaces** — 4 pages
+  - Call Accounting · Key Cards · Interface Hub · Robita Locks
 
 ## Guest Relations & Commercial
 
@@ -89,12 +86,12 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## Revenue & Financial Management
 
-`FINANCE` section · **7 modules** · 52 menu pages
+`FINANCE` section · **7 modules** · 53 menu pages
 
 - **Revenue** — 4 pages
   - Revenue Dashboard · Pricing Grid · Pricing Rules · Upselling
-- **Billing** — 6 pages
-  - Folios · Non-Resident Bill · Invoices · GRA VAT & E-VAT · Online Payments · Gateway Payouts
+- **Billing** — 7 pages
+  - Folios · Non-Resident Bill · Invoices · Billing Reconciliation (folio docs; non-posting) · GRA VAT & E-VAT · Online Payments · Gateway Payouts
 - **Cashiering** — 2 pages
   - Cashier Dashboard · Shift Register
 - **Income Audit** — 4 pages
@@ -106,7 +103,6 @@ counts, names, order, section keys, permission keys and every URI the prose name
 - **Owner Reporting** — 6 pages
   - Owner Dashboard · USALI Statement · Monthly Owner Packs · Management Fees · FF&E Reserve & Capex · Agreement & Mapping
 
-- Routed but not menued: **Car Rental** (`OPERATIONS`) — `/rentals` (Rental Desk) and `/rentals/fleet` (Rental Fleet), with writes for a vehicle, pickup, return, billing and cancellation. Both pages render and both are permissioned; neither is in the sidebar, so neither is counted in the 7 modules or the 52 pages above.
 
 ## Housekeeping & Laundry
 
@@ -147,7 +143,7 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## Facilities & Security
 
-`OPERATIONS` section · **3 modules** · 16 menu pages
+`OPERATIONS` section · **4 modules** · 18 menu pages
 
 - **Engineering** — 3 pages
   - Utilities & Energy · Daily Meter Readings · Licences & Compliance
@@ -155,6 +151,8 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - Visitors · Gate Passes · Incident Register · Watch List
 - **Transport** — 9 pages
   - Dispatch Board · Trips · My Trips (driver) · Fleet & Papers · Vehicle Expenses · Vehicles · Drivers · Tariff Card · Transport Settings
+- **Car Rental** — 2 pages
+  - Rental Desk · Rental Fleet
 
 ## Wellness & Recreation
 
@@ -170,13 +168,13 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## HR & Workforce
 
-`PEOPLE` section · **3 modules** · 36 menu pages
+`PEOPLE` section · **3 modules** · 40 menu pages
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
-- **HR & Payroll** — 20 pages · v7.43 reconciled (was listed as 23)
-  - Employees · Attendance · Monthly Register · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
-  - Routed but not in the sidebar: My Profile (`/me/profile`), My Documents (`/me/documents`), My Announcements (`/me/announcements`) and the HR Self-Service Desk (`/hr/ess`) — all four render; v7.43 stopped the first three from returning a bare 404 for a login that is not linked to an employee record.
+- **HR & Payroll** — 24 pages
+  - Employees · Attendance · Monthly Register · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · HR Self-Service Desk · My Profile · My Documents · My Announcements · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+  - Employee self-service links require an active linked employee record; the HR Self-Service Desk requires `hr.manage`.
 - **Learning & SOPs** — 7 pages
   - L&D Dashboard · Training Matrix · Training Sessions · Training Records · Courses & Requirements · SOP Library · L&D Settings
 

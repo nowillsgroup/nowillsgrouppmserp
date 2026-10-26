@@ -26,6 +26,10 @@ return new class extends Migration
             $t->string('fb_class', 10)->nullable()->after('name');                 // food | beverage | null = not F&B cost
         });
 
+                if (Schema::hasTable('fb_recipe_cards')) {
+            return;
+        }
+
         Schema::create('fb_recipe_cards', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -45,6 +49,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'menu_item_id']);
         });
 
+                if (Schema::hasTable('fb_cost_snapshots')) {
+            return;
+        }
+
         Schema::create('fb_cost_snapshots', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -56,6 +64,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'menu_item_id', 'business_date']);
             $t->index(['hotel_id', 'business_date']);
         });
+
+                if (Schema::hasTable('fb_price_changes')) {
+            return;
+        }
 
         Schema::create('fb_price_changes', function (Blueprint $t) {
             $t->id();
@@ -70,6 +82,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'effective_on']);
         });
+
+                if (Schema::hasTable('fb_yield_tests')) {
+            return;
+        }
 
         Schema::create('fb_yield_tests', function (Blueprint $t) {
             $t->id();
@@ -90,6 +106,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'number']);
         });
+
+                if (Schema::hasTable('fb_staff_meals')) {
+            return;
+        }
 
         Schema::create('fb_staff_meals', function (Blueprint $t) {
             $t->id();

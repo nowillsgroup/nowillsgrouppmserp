@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('supplier_prices')) {
+            return;
+        }
+
         Schema::create('supplier_prices', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -30,6 +34,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'inventory_item_id', 'supplier_id']);
         });
+
+                if (Schema::hasTable('rfqs')) {
+            return;
+        }
 
         Schema::create('rfqs', function (Blueprint $t) {
             $t->id();
@@ -55,6 +63,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('rfq_lines')) {
+            return;
+        }
+
         Schema::create('rfq_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -66,6 +78,10 @@ return new class extends Migration
             $t->string('award_reason', 255)->nullable();        // required when not awarded to the lowest price
             $t->timestamps();
         });
+
+                if (Schema::hasTable('rfq_suppliers')) {
+            return;
+        }
 
         Schema::create('rfq_suppliers', function (Blueprint $t) {
             $t->id();
@@ -82,6 +98,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['rfq_id', 'supplier_id']);
         });
+
+                if (Schema::hasTable('rfq_quotes')) {
+            return;
+        }
 
         Schema::create('rfq_quotes', function (Blueprint $t) {
             $t->id();
@@ -103,6 +123,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['rfq_id', 'supplier_id']);
         });
+
+                if (Schema::hasTable('rfq_quote_lines')) {
+            return;
+        }
 
         Schema::create('rfq_quote_lines', function (Blueprint $t) {
             $t->id();
@@ -143,6 +167,10 @@ return new class extends Migration
             ->update(['received_qty' => \Illuminate\Support\Facades\DB::raw('qty')]);
         \Illuminate\Support\Facades\DB::statement('UPDATE purchase_orders SET approved_at = updated_at WHERE status IN (\'approved\', \'received\') AND approved_at IS NULL');
 
+                if (Schema::hasTable('goods_receipts')) {
+            return;
+        }
+
         Schema::create('goods_receipts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -164,6 +192,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'grn_no']);
             $t->index(['hotel_id', 'date']);
         });
+
+                if (Schema::hasTable('goods_receipt_lines')) {
+            return;
+        }
 
         Schema::create('goods_receipt_lines', function (Blueprint $t) {
             $t->id();

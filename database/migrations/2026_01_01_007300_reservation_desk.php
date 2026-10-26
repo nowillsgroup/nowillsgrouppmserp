@@ -12,6 +12,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('room_amenities')) {
+            return;
+        }
+
         Schema::create('room_amenities', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -26,6 +30,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'name']);
         });
 
+                if (Schema::hasTable('room_amenity_links')) {
+            return;
+        }
+
         Schema::create('room_amenity_links', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -36,6 +44,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'room_id']);
             $t->index(['hotel_id', 'room_type_id']);
         });
+
+                if (Schema::hasTable('room_images')) {
+            return;
+        }
 
         Schema::create('room_images', function (Blueprint $t) {
             $t->id();
@@ -49,6 +61,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('room_outages')) {
+            return;
+        }
 
         Schema::create('room_outages', function (Blueprint $t) {
             $t->id();
@@ -64,6 +80,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status', 'starts_on']);
         });
+
+                if (Schema::hasTable('reservation_waitlists')) {
+            return;
+        }
 
         Schema::create('reservation_waitlists', function (Blueprint $t) {
             $t->id();
@@ -85,6 +105,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status', 'arrival_date']);
         });
+
+                if (Schema::hasTable('reservation_desk_views')) {
+            return;
+        }
 
         Schema::create('reservation_desk_views', function (Blueprint $t) {
             $t->id();

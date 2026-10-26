@@ -28,6 +28,10 @@ return [
             'frontdesk.view' => 'View room view & tape chart', 'frontdesk.checkin' => 'Check-in / Walk-in',
             'frontdesk.checkout' => 'Check-out', 'frontdesk.roommove' => 'Room move / amend stay',
         ],
+        'Offline Desktop' => [
+            'offline.desktop.view' => 'Download desk packs, refresh deltas and review desktop sync activity',
+            'offline.desktop.sync' => 'Sync offline check-ins, check-outs, charges, payments and room nights',
+        ],
         'Guest Requests' => ['requests.view' => 'View the guest request queue', 'requests.manage' => 'Handle guest requests & manage portal links'],
         'Billing & Folio' => [
             'folio.view' => 'View folios', 'folio.post' => 'Post charges', 'folio.payment' => 'Receive payments / refunds',
@@ -112,6 +116,9 @@ return [
         'Accounts' => ['accounts.view' => 'View accounts', 'accounts.manage' => 'Manage vouchers & city ledger'],
         'Bank Reconciliation' => ['bankrec.view' => 'View bank / Mobile Money statements, matches and reconciliation statements', 'bankrec.manage' => 'Import statements, match, unmatch, ignore lines, book charges / interest from a statement',
             'bankrec.approve' => 'Finalise and reopen reconciliations; reconciliation settings'], // v4.6
+        'Billing Reconciliation' => ['billingrec.view' => 'View document-level folio billing, collection and settlement workpapers',
+            'billingrec.manage' => 'Create / refresh workpapers, record settlement evidence and review document rows',
+            'billingrec.approve' => 'Finalise and reopen billing reconciliation workpapers (four-eyes control)'], // v7.55, non-posting
         'Petty Cash' => ['petty.view' => 'View petty cash floats, cash books, vouchers, IOUs and counts', 'petty.manage' => 'Operate a float as its custodian: vouchers, IOUs & settlements, cash counts, top-up requests',
             'petty.approve' => 'Approve over-limit vouchers, top-ups and count differences; pay top-ups; open / change floats; operate any float'], // v4.7
         'Expense Claims' => ['claims.submit' => 'Claim back my own out-of-pocket expenses', 'claims.approve' => 'Approve / send back staff expense claims; raise claims for staff',
@@ -122,7 +129,7 @@ return [
             'vouchers.redeem' => 'Look up a voucher by code and redeem it against a bill', 'vouchers.manage' => 'Voucher types, promotional campaigns, suspend / cancel / refund & voucher settings'],
         'Hotel Interfaces' => ['calls.view' => 'View call accounting: call log, review queue, tariffs & extensions', 'calls.manage' => 'Import / post / waive calls; tariffs, extensions & phone class of service',
             'keys.view' => 'View key cards & the master-key register', 'keys.issue' => 'Encode guest key cards (new key, duplicate, lost, return, read)', 'keys.master' => 'Sign master keys out / in & manage master keys',
-            'interfaces.manage' => 'Interface hub: PABX / lock settings, PBX push token, command log & retry'],
+            'interfaces.manage' => 'Interface hub: PABX / lock settings, PBX push token, command log & retry', 'robita.manage' => 'Robita smart door lock module: manage devices, doors, credentials & events'],
         'General Ledger' => ['gl.view' => 'View general ledger, trial balance & financial statements', 'gl.journal' => 'Post & reverse manual journal entries', 'gl.manage' => 'Chart of accounts, GL mapping, sync & period lock'],
         'Sales & Accounts' => ['sales.view' => 'View sales accounts, contacts, the opportunity pipeline, the sales diary, targets and account production', // v6.1
             'sales.edit' => 'Add prospects, contacts, opportunities and sales activities; work my own accounts and deals',
@@ -244,6 +251,7 @@ return [
                 ['label' => 'Departures', 'route' => 'frontdesk.departures', 'perm' => 'frontdesk.view'],
                 ['label' => 'Guest Requests', 'route' => 'requests.index', 'perm' => 'requests.view', 'badge' => 'guest_requests'],
                 ['label' => 'Offline Request Capture', 'route' => 'offline.guest_requests', 'perm' => 'requests.view'],
+                ['label' => 'Desktop Sync', 'route' => 'offline.desktop.workspace', 'perm' => 'offline.desktop.view'], // v7.39
             ]],
             ['label' => 'Desk Operations', 'icon' => 'book', 'children' => [
                 ['label' => 'Shift Log Book', 'route' => 'desk.logbook', 'perm' => 'logbook.view', 'badge' => 'desk_log'],
@@ -317,6 +325,7 @@ return [
                 ['label' => 'Call Accounting', 'route' => 'calls.index', 'perm' => 'calls.view', 'badge' => 'calls_pending'],
                 ['label' => 'Key Cards', 'route' => 'keys.index', 'perm' => 'keys.view', 'badge' => 'keys_overdue'],
                 ['label' => 'Interface Hub', 'route' => 'interfaces.index', 'perm' => 'interfaces.manage'],
+                ['label' => 'Robita Locks', 'route' => 'robita.index', 'perm' => 'robita.manage', 'badge' => 'robita_low_battery'],
             ]],
         ]],
         // OPERATIONS: Guest Relations & Commercial
@@ -397,6 +406,7 @@ return [
                 ['label' => 'Folios', 'route' => 'folios.index', 'perm' => 'folio.view'],
                 ['label' => 'Non-Resident Bill', 'route' => 'folios.walkin', 'perm' => 'folio.post'],
                 ['label' => 'Invoices', 'route' => 'folios.invoices', 'perm' => 'folio.view'],
+                ['label' => 'Billing Reconciliation', 'route' => 'billingrec.index', 'perm' => 'billingrec.view'], // v7.55, folio document workpaper
                 ['label' => 'GRA VAT & E-VAT', 'route' => 'gst.index', 'perm' => 'gst.view', 'badge' => 'gst_attention'],
                 ['label' => 'Online Payments', 'route' => 'payments.index', 'perm' => 'payments.view', 'badge' => 'payments_review'],
                 ['label' => 'Gateway Payouts', 'route' => 'payments.payouts', 'perm' => 'payments.settle'],
@@ -591,6 +601,10 @@ return [
                 ['label' => 'Tariff Card', 'route' => 'masters.index', 'params' => ['transport-tariffs'], 'perm' => 'transport.manage'],
                 ['label' => 'Transport Settings', 'route' => 'tr.settings', 'perm' => 'transport.manage'],
             ]],
+            ['label' => 'Car Rental', 'icon' => 'car', 'children' => [ // v7.40 self-drive fleet and rental desk
+                ['label' => 'Rental Desk', 'route' => 'rentals.index', 'perm' => 'rentals.view'],
+                ['label' => 'Rental Fleet', 'route' => 'rentals.fleet', 'perm' => 'rentals.view'],
+            ]],
         ]],
         // OPERATIONS: Wellness & Recreation
         ['label' => 'Wellness & Recreation', 'icon' => 'spa', 'section' => 'OPERATIONS', 'children' => [
@@ -643,6 +657,10 @@ return [
                 ['label' => 'Pay Components', 'route' => 'payroll.components', 'perm' => 'payroll.manage'],
                 ['label' => 'Leave Types', 'route' => 'masters.index', 'params' => ['leave-types'], 'perm' => 'hr.manage'],
                 ['label' => 'Departments', 'route' => 'masters.index', 'params' => ['departments'], 'perm' => 'hr.manage'],
+                ['label' => 'HR Self-Service Desk', 'route' => 'hr.ess', 'perm' => 'hr.manage'], // v7.40
+                ['label' => 'My Profile', 'route' => 'me.profile', 'perm' => 'hr.self', 'employee' => true], // v7.40
+                ['label' => 'My Documents', 'route' => 'me.documents', 'perm' => 'hr.self', 'employee' => true], // v7.40
+                ['label' => 'My Announcements', 'route' => 'me.announcements', 'perm' => 'hr.self', 'employee' => true], // v7.40
                 ['label' => 'My Payslips & Leave', 'route' => 'me.hr', 'perm' => 'hr.self', 'employee' => true],
                 ['label' => 'My Roster & Time Clock', 'route' => 'me.roster', 'perm' => 'hr.self', 'employee' => true], // v4.9
                 ['label' => 'My Training & SOPs', 'route' => 'me.learning', 'perm' => 'hr.self', 'employee' => true], // v6.0

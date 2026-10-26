@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('marketing_events')) {
+            return;
+        }
+
         Schema::create('marketing_events', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -33,6 +37,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'start_date']);
         });
+                if (Schema::hasTable('marketing_budgets')) {
+            return;
+        }
+
         Schema::create('marketing_budgets', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -43,6 +51,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'year', 'month', 'line']);
         });
+                if (Schema::hasTable('marketing_collateral')) {
+            return;
+        }
+
         Schema::create('marketing_collateral', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

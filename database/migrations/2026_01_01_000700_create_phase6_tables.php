@@ -29,6 +29,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'task_date', 'employee_id']);
         });
 
+                if (Schema::hasTable('minibar_items')) {
+            return;
+        }
+
         Schema::create('minibar_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('spa_services')) {
+            return;
+        }
 
         Schema::create('spa_services', function (Blueprint $t) {
             $t->id();
@@ -52,6 +60,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('spa_rooms')) {
+            return;
+        }
+
         Schema::create('spa_rooms', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -59,6 +71,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('spa_appointments')) {
+            return;
+        }
 
         Schema::create('spa_appointments', function (Blueprint $t) {
             $t->id();
@@ -89,6 +105,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'appt_no']);
             $t->index(['hotel_id', 'date', 'status']);
         });
+
+                if (Schema::hasTable('message_logs')) {
+            return;
+        }
 
         Schema::create('message_logs', function (Blueprint $t) {
             $t->id();

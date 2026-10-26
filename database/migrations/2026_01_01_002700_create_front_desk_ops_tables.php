@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('log_entries')) {
+            return;
+        }
+
         Schema::create('log_entries', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -41,6 +45,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('log_entry_reads')) {
+            return;
+        }
+
         Schema::create('log_entry_reads', function (Blueprint $t) {
             $t->id();
             $t->foreignId('log_entry_id')->constrained()->cascadeOnDelete();
@@ -48,6 +56,10 @@ return new class extends Migration
             $t->dateTime('read_at');
             $t->unique(['log_entry_id', 'user_id']);
         });
+
+                if (Schema::hasTable('log_entry_comments')) {
+            return;
+        }
 
         Schema::create('log_entry_comments', function (Blueprint $t) {
             $t->id();
@@ -57,6 +69,10 @@ return new class extends Migration
             $t->text('body');
             $t->timestamps();
         });
+
+                if (Schema::hasTable('guest_messages')) {
+            return;
+        }
 
         Schema::create('guest_messages', function (Blueprint $t) {
             $t->id();
@@ -90,6 +106,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('wakeup_calls')) {
+            return;
+        }
+
         Schema::create('wakeup_calls', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -113,6 +133,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'call_at']);
         });
 
+                if (Schema::hasTable('wakeup_attempts')) {
+            return;
+        }
+
         Schema::create('wakeup_attempts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('wakeup_call_id')->constrained()->cascadeOnDelete();
@@ -121,6 +145,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->dateTime('attempted_at');
         });
+
+                if (Schema::hasTable('traces')) {
+            return;
+        }
 
         Schema::create('traces', function (Blueprint $t) {
             $t->id();
@@ -170,6 +198,10 @@ return new class extends Migration
             $t->foreignId('lost_report_id')->nullable();
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('lost_reports')) {
+            return;
+        }
 
         Schema::create('lost_reports', function (Blueprint $t) {
             $t->id();

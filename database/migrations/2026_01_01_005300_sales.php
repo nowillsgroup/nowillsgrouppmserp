@@ -24,6 +24,10 @@ return new class extends Migration
             $t->text('sales_notes')->nullable()->after('potential_nights');
         });
 
+                if (Schema::hasTable('sales_contacts')) {
+            return;
+        }
+
         Schema::create('sales_contacts', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -40,6 +44,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'company_id']);
         });
+
+                if (Schema::hasTable('sales_opportunities')) {
+            return;
+        }
 
         Schema::create('sales_opportunities', function (Blueprint $t) {
             $t->id();
@@ -75,6 +83,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'stage']);
         });
 
+                if (Schema::hasTable('sales_activities')) {
+            return;
+        }
+
         Schema::create('sales_activities', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -95,6 +107,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'due_at']);
             $t->index(['hotel_id', 'company_id']);
         });
+
+                if (Schema::hasTable('sales_targets')) {
+            return;
+        }
 
         Schema::create('sales_targets', function (Blueprint $t) {
             $t->id();
