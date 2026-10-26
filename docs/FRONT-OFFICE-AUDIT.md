@@ -1,12 +1,14 @@
 # Front Office & Guest Services — completeness audit
 
-**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.75.0
+**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.76.0
 
-**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed Front Office gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+
+An adjacent guest-voucher liability helper also had a latent DATE-boundary defect: a timestamp-shaped same-day value was excluded by its date-only cutoff in SQLite. It now uses `whereDate`. The helper has no current application call site, so this is a corrected latent calculation bug—not a reported live-screen incident.
 
 A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). The broad route sweep itself uncovered no additional runtime defect. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
 
-**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
+**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; gift-voucher date boundary 1/1; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
 
 ## Current revalidation (26 Oct 2026)
 
@@ -16,7 +18,8 @@ A separate sweep requested **471 unique, parameter-free GET paths** from the ful
 | Menu permissions / badge keys | **0 / 0 missing** |
 | Front Office Manager / Receptionist page permissions | **33/33 / 22/33**; the Receptionist omissions are management/security gates |
 | Full parameter-free GET sweep | **460 clean 200 / 471**; all 11 non-200 outcomes explained below |
-| Confirmed RBAC / UX defects | Front Office Manager lacked `robita.manage`; IPTV invalid-status errors blamed pairing. Both fixed and covered by regression checks |
+| Confirmed Front Office RBAC / UX defects | Front Office Manager lacked `robita.manage`; IPTV invalid-status errors blamed pairing. Both fixed and covered by regression checks |
+| Adjacent latent defect | Gift-voucher as-of helper omitted timestamp-shaped same-day DATE rows in SQLite; fixed with `whereDate` and a rollback-safe regression check. No current application call site |
 | Other confirmed Front Office defects | **0 additional defects found in this pass** |
 
 **False positives / expected outcomes (not product defects):** `/api/v1` and its eight tested resources return 401 without an API bearer token; `/group-dashboard` returns 403 to the dev identity because it lacks the separate group-dashboard grant; `/reservations/api/rates` returns 404 when the required `room_type_id` is omitted from the synthetic request. The parameter-free sweep is a broad smoke test, not an authenticated API contract test.
@@ -167,7 +170,7 @@ Not gaps in the product — gaps in a headless sandbox:
 ## 7. Recommended follow-ups
 
 1. **Documentation — closed (26 Oct 2026, v7.74.0):** `docs/MODULES.md` now records the 65-page Front Office & Guest Services menu and retains the separate `/reservations/amenities` route note.
-2. **Defensive sweep:** the `forex_rates` bug is one instance of a known date-storage class. Any remaining `where('…date', $x)` / `updateOrCreate(['…date' => $x])` on a DATE column should be converted to `whereDate()` + lookup-then-update (the earlier sweep found 419 comparable sites; the forex cluster is now clean).
+2. **Defensive DATE-query sweep — partial:** `ForexService` and the guest-voucher `liabilityAt()` helper now use date-safe comparisons. The latter was reproduced with a synthetic same-day timestamp-shaped value and fixed; that helper has no current caller. The broader repository-wide sweep of comparable date predicates remains open—mixed SQLite storage shape alone is not a defect, and the historical 419-site grep count is only a candidate set.
 3. **Message clarity — closed (26 Oct 2026, v7.75.0):** `IptvService::setStatus()` now validates the allowed status values separately from the pending-pairing guard, so invalid input no longer produces the unrelated pairing message. `deploy/dev/audit/iptv_status_validation_check.php` covers both cases.
 4. **Keep the harness:** `deploy/dev/audit/` (`pmshttp.py`, `flows_lib.py`, `form_dump.py`, `flows_a…e.py`) is now a repeatable regression rig for this section — re-run it after any Reservations/Folio change.
 

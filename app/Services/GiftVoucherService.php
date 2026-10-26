@@ -643,7 +643,7 @@ class GiftVoucherService
     /** outstanding balance (liability) as at the end of a date, rebuilt from the transactions */
     public static function liabilityAt(string $date): float
     {
-        $rows = GiftVoucherTransaction::where('business_date', '<=', $date)->selectRaw('type, SUM(amount) a')->groupBy('type')->pluck('a', 'type');
+        $rows = GiftVoucherTransaction::whereDate('business_date', '<=', $date)->selectRaw('type, SUM(amount) a')->groupBy('type')->pluck('a', 'type');
         $s = 0.0;
         foreach ($rows as $type => $a) {
             $s += (GiftVoucherTransaction::SIGN[$type] ?? 0) * (float) $a;

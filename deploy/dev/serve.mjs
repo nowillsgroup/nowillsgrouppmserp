@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Gift voucher as-of liability includes the end date consistently',
+    detail: 'The liabilityAt helper compared a DATE column with a date-only string. SQLite data containing a timestamp-shaped value for the same day was excluded from the “as at” amount. The query now uses whereDate; a rollback-safe regression check reproduces the timestamp-shaped row and verifies the full movement is included. The helper currently has no application call site, so this is a latent correctness fix rather than a reported live-screen incident. Asset version moves to 7.76.0.',
+    screens: [['Gift vouchers — issue, balance and movement history', '/vouchers']],
+  },
+  {
     title: 'IPTV device status errors now identify the real validation problem',
     detail: 'The TV status guard combined two different failures, so an unsupported status such as “maintenance” incorrectly told staff that the TV had not been paired. Status values are now validated separately from the pending-pairing rule, with a specific actionable message for each. A rollback-safe regression check covers both outcomes. Asset version moves to 7.75.0.',
     screens: [['IPTV devices — status and pairing validation', '/iptv/devices']],
