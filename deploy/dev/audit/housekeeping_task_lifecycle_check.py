@@ -21,6 +21,18 @@ class HousekeepingTaskLifecycleTest(unittest.TestCase):
         self.assertLess(hotel_lock, existing_check)
         self.assertLess(existing_check, create_task)
 
+    def test_minibar_revalidates_occupancy_in_checkout_lock_order(self):
+        body = method("postMinibar", "reportIssue")
+        reservation_lock = body.index("Reservation::whereKey($candidate->reservation_id)->lockForUpdate()")
+        stay_lock = body.index("ReservationRoom::whereKey($candidate->id)->lockForUpdate()")
+        room_lock = body.index("Room::whereKey($room->id)->lockForUpdate()")
+        occupancy_check = body.index("if ($stay->status !== 'checked_in'")
+        charge = body.index("FolioService::charge(")
+        self.assertLess(reservation_lock, stay_lock)
+        self.assertLess(stay_lock, room_lock)
+        self.assertLess(room_lock, occupancy_check)
+        self.assertLess(occupancy_check, charge)
+
     def test_start_and_dnd_lock_and_recheck_the_current_task(self):
         for name, next_name in (("start", "dnd"), ("dnd", "complete")):
             with self.subTest(action=name):

@@ -9,6 +9,8 @@ use App\Models\Hotel;
 use App\Models\LostFoundItem;
 use App\Models\MaintenanceRequest;
 use App\Models\MinibarItem;
+use App\Models\Reservation;
+use App\Models\ReservationRoom;
 use App\Models\Room;
 use App\Models\StockMovement;
 use App\Support\Numbering;
@@ -209,12 +211,21 @@ class HousekeepingService
         if (! $lines) {
             throw new RuntimeException('Enter the quantity consumed for at least one item.');
         }
-        $stay = $room->currentStay()->first();
-        if (! $stay) {
+        $candidate = $room->currentStay()->first();
+        if (! $candidate) {
             throw new RuntimeException("Room {$room->room_no} is not occupied. Post late minibar charges from the guest's folio.");
         }
 
-        return DB::transaction(function () use ($room, $lines, $task, $stay) {
+        return DB::transaction(function () use ($room, $lines, $task, $candidate) {
+            // Match checkout's reservation → stay → room order and revalidate
+            // occupancy while locked, so a stale minibar screen cannot charge
+            // a guest after the room has been checked out or reassigned.
+            Reservation::whereKey($candidate->reservation_id)->lockForUpdate()->firstOrFail();
+            $stay = ReservationRoom::whereKey($candidate->id)->lockForUpdate()->firstOrFail();
+            $lockedRoom = Room::whereKey($room->id)->lockForUpdate()->firstOrFail();
+            if ($stay->status !== 'checked_in' || (int) $stay->room_id !== (int) $lockedRoom->id) {
+                throw new RuntimeException("Room {$lockedRoom->room_no} is no longer occupied by this stay. Post late minibar charges from the guest's folio.");
+            }
             $folio = FolioService::openForStay($stay);
             $items = MinibarItem::whereIn('id', array_keys($lines))->where('is_active', true)->get()->keyBy('id');
             if ($items->count() !== count($lines)) {
@@ -226,13 +237,13 @@ class HousekeepingService
                 $it = $items[$id];
                 $qty = min(99, round($qty));
                 $txs->push(FolioService::charge($folio, 'minibar', "Minibar – {$it->name} × {$qty}", round($it->price * $qty, 2), true,
-                    ['source_type' => 'minibar', 'source_id' => $task?->id, 'reference' => 'Room '.$room->room_no]));
+                    ['source_type' => 'minibar', 'source_id' => $task?->id, 'reference' => 'Room '.$lockedRoom->room_no]));
                 if ($it->inventory_item_id && $store) {
                     StockMovement::create(['inventory_item_id' => $it->inventory_item_id, 'store_id' => $store, 'date' => bdate(), 'type' => 'issue', 'qty' => -$qty,
-                        'rate' => (float) $it->inventoryItem?->last_cost, 'department' => 'Minibar', 'reference' => 'Room '.$room->room_no, 'user_id' => auth()->id()]);
+                        'rate' => (float) $it->inventoryItem?->last_cost, 'department' => 'Minibar', 'reference' => 'Room '.$lockedRoom->room_no, 'user_id' => auth()->id()]);
                 }
             }
-            ActivityLogger::log('housekeeping', 'minibar', "Minibar posted for room {$room->room_no}: ".money($txs->sum('amount')), $stay);
+            ActivityLogger::log('housekeeping', 'minibar', "Minibar posted for room {$lockedRoom->room_no}: ".money($txs->sum('amount')), $stay);
 
             return $txs;
         });
