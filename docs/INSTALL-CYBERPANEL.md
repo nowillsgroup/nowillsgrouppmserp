@@ -353,8 +353,8 @@ Prove it works instead of hoping:
 
 ```bash
 cd /home/pms.nowills.com/public_html
-/usr/local/lsws/lsphp83/bin/php artisan schedule:list | head
-tail -n 20 storage/logs/laravel.log
+sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php artisan schedule:list | head
+tail -n 20 storage/logs/laravel.log      # the first cron run writes here within a minute
 ```
 
 ---
