@@ -12,6 +12,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('reservation_amendments')) {
+            return;
+        }
+
         Schema::create('reservation_amendments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

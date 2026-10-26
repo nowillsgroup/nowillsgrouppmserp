@@ -17,6 +17,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('gift_voucher_types')) {
+            return;
+        }
+
         Schema::create('gift_voucher_types', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -32,6 +36,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('gift_vouchers')) {
+            return;
+        }
 
         Schema::create('gift_vouchers', function (Blueprint $t) {
             $t->id();
@@ -61,6 +69,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status', 'expires_on']);
         });
+
+                if (Schema::hasTable('gift_voucher_transactions')) {
+            return;
+        }
 
         Schema::create('gift_voucher_transactions', function (Blueprint $t) {
             $t->id();

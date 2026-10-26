@@ -16,6 +16,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('api_clients')) {
+            return;
+        }
+
         Schema::create('api_clients', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -38,6 +42,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('api_request_logs')) {
+            return;
+        }
+
         Schema::create('api_request_logs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->nullable()->constrained()->cascadeOnDelete();   // null = the token could not be resolved
@@ -56,6 +64,10 @@ return new class extends Migration
             $t->index(['api_client_id', 'created_at']);
         });
 
+                if (Schema::hasTable('api_idempotency_keys')) {
+            return;
+        }
+
         Schema::create('api_idempotency_keys', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -67,6 +79,10 @@ return new class extends Migration
             $t->timestamp('created_at')->nullable();
             $t->unique(['api_client_id', 'idem_key']);
         });
+
+                if (Schema::hasTable('webhook_endpoints')) {
+            return;
+        }
 
         Schema::create('webhook_endpoints', function (Blueprint $t) {
             $t->id();
@@ -87,6 +103,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('webhook_deliveries')) {
+            return;
+        }
 
         Schema::create('webhook_deliveries', function (Blueprint $t) {
             $t->id();

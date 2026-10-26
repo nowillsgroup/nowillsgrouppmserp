@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('organiser_users')) {
+            return;
+        }
+
         Schema::create('organiser_users', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -41,6 +45,10 @@ return new class extends Migration
             $t->index(['company_id', 'is_active']);
         });
 
+                if (Schema::hasTable('organiser_requests')) {
+            return;
+        }
+
         Schema::create('organiser_requests', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -59,6 +67,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'type']);
         });
 
+                if (Schema::hasTable('organiser_audit')) {
+            return;
+        }
+
         Schema::create('organiser_audit', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -73,6 +85,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'created_at']);
             $t->index(['organiser_user_id', 'action']);
         });
+
+                if (Schema::hasTable('organiser_attendees')) {
+            return;
+        }
 
         Schema::create('organiser_attendees', function (Blueprint $t) {
             $t->id();

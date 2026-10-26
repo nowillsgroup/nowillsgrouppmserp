@@ -103,6 +103,9 @@ class KeyCardService
                 ]);
                 $cmd->update(['key_card_id' => $card->id]);
 
+                // v7.55 – push the credential to the room's Robita lock device if one is mapped
+                self::pushToRobita($stay, $room, $card, $areas);
+
                 return $card;
             });
             $cards->push($card);
@@ -134,6 +137,7 @@ class KeyCardService
             $card->update(['status' => 'lost', 'status_note' => 'Reported lost'.($tx ? ' – fee '.money($fee) : ''), 'fee_transaction_id' => $tx?->id, 'closed_at' => now()]);
         });
         InterfaceService::send('lock', 'cancel', ['room' => $card->room?->room_no, 'serial' => $card->serial, 'reason' => 'lost'], $card->room_id, $card->reservation_room_id, $card->id);
+        self::cancelOnRobita($card);
         ActivityLogger::log('keys', 'lost', "Key card {$card->card_no} (room {$card->room?->room_no}) reported lost".($chargeFee && $fee > 0 ? ' – fee '.money($fee) : ''), $card);
         // a lost card is only locked out once a NEW key is used on the door → re-encode the guest's remaining cards too
         if ($reissue && $stay && $stay->status === 'checked_in') {
@@ -311,5 +315,53 @@ class KeyCardService
         InterfaceService::send('lock', 'cancel', ['master_key' => $loan->key->key_no, 'reason' => 'lost']);
 
         return $loan->fresh();
+    }
+
+    // ───────────────────────── v7.55 Robita lock integration ─────────────────────────
+
+    /**
+     * Push a newly-issued card credential to the room's Robita door-lock device.
+     * Silent no-op if no device is mapped to the room or Robita is disabled.
+     */
+    private static function pushToRobita(ReservationRoom $stay, \App\Models\Room $room, KeyCard $card, array $areas): void
+    {
+        try {
+            if (! class_exists(\App\Services\RobitaService::class)) {
+                return;
+            }
+            \App\Services\RobitaService::ensureDefaults();
+            if (\App\Services\RobitaService::cfg()['robita_cloud_url'] === '' && \App\Services\RobitaService::cfg()['robita_default_model'] === '') {
+                return;
+            }
+            $device = \App\Models\RobitaDevice::where('hotel_id', $stay->hotel_id ?? \App\Support\Tenant::id())
+                ->where('room_id', $room->id)
+                ->where('status', '!=', 'decommissioned')
+                ->first();
+            if (! $device) {
+                return;
+            }
+            \App\Services\RobitaService::issueCredential($device, $stay, $card, $areas);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** Cancel the Robita credential for a lost card (called from markLost). */
+    public static function cancelOnRobita(KeyCard $card): void
+    {
+        try {
+            if (! class_exists(\App\Services\RobitaService::class)) {
+                return;
+            }
+            $credential = \App\Models\RobitaCredential::where('hotel_id', $card->hotel_id ?? \App\Support\Tenant::id())
+                ->where('key_card_id', $card->id)
+                ->where('status', 'active')
+                ->first();
+            if ($credential) {
+                \App\Services\RobitaService::cancelCredential($credential);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

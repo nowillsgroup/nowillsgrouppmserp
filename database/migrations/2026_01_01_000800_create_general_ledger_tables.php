@@ -25,6 +25,10 @@ return new class extends Migration
             $t->foreignId('account_head_id')->nullable()->after('type')->constrained('account_heads')->nullOnDelete();
         });
 
+                if (Schema::hasTable('gl_journals')) {
+            return;
+        }
+
         Schema::create('gl_journals', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -45,6 +49,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'source_type', 'source_key']);
             $t->index(['hotel_id', 'date']);
         });
+
+                if (Schema::hasTable('gl_lines')) {
+            return;
+        }
 
         Schema::create('gl_lines', function (Blueprint $t) {
             $t->id();

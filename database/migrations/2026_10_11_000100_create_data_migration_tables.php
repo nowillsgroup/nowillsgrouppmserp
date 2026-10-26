@@ -16,6 +16,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('data_migration_batches')) {
+            return;
+        }
+
         Schema::create('data_migration_batches', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -38,6 +42,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'dataset']);
         });
 
+                if (Schema::hasTable('data_migration_rows')) {
+            return;
+        }
+
         Schema::create('data_migration_rows', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -53,6 +61,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['batch_id', 'status']);
         });
+
+                if (Schema::hasTable('data_migration_id_map')) {
+            return;
+        }
 
         Schema::create('data_migration_id_map', function (Blueprint $t) {
             $t->id();

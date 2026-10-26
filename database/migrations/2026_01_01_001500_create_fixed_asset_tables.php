@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('asset_categories')) {
+            return;
+        }
+
         Schema::create('asset_categories', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -26,6 +30,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('assets')) {
+            return;
+        }
 
         Schema::create('assets', function (Blueprint $t) {
             $t->id();
@@ -73,6 +81,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('asset_dep_runs')) {
+            return;
+        }
+
         Schema::create('asset_dep_runs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -89,6 +101,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'period_end']);
         });
 
+                if (Schema::hasTable('asset_dep_lines')) {
+            return;
+        }
+
         Schema::create('asset_dep_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('asset_dep_run_id')->constrained()->cascadeOnDelete();
@@ -98,6 +114,10 @@ return new class extends Migration
             $t->unsignedTinyInteger('days')->default(0); // days depreciated in the month (pro-rata first month)
             $t->unique(['asset_dep_run_id', 'asset_id']);
         });
+
+                if (Schema::hasTable('pm_schedules')) {
+            return;
+        }
 
         Schema::create('pm_schedules', function (Blueprint $t) {
             $t->id();

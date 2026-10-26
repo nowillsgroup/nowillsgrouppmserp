@@ -28,6 +28,10 @@ return new class extends Migration
             $t->json('tb_settings')->nullable()->after('tb_online');
         });
 
+                if (Schema::hasTable('outlet_service_periods')) {
+            return;
+        }
+
         Schema::create('outlet_service_periods', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('table_reservations')) {
+            return;
+        }
 
         Schema::create('table_reservations', function (Blueprint $t) {
             $t->id();
@@ -79,6 +87,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'phone']);
             $t->unique(['hotel_id', 'booking_no']);
         });
+
+                if (Schema::hasTable('table_reservation_tables')) {
+            return;
+        }
 
         Schema::create('table_reservation_tables', function (Blueprint $t) {
             $t->foreignId('table_reservation_id')->constrained()->cascadeOnDelete();

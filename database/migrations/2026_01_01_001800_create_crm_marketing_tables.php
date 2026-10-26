@@ -29,6 +29,10 @@ return new class extends Migration
             $t->timestamp('stats_at')->nullable();
         });
 
+                if (Schema::hasTable('marketing_consent_logs')) {
+            return;
+        }
+
         Schema::create('marketing_consent_logs', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -42,6 +46,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'guest_id']);
         });
 
+                if (Schema::hasTable('marketing_segments')) {
+            return;
+        }
+
         Schema::create('marketing_segments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -53,6 +61,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('promo_codes')) {
+            return;
+        }
 
         Schema::create('promo_codes', function (Blueprint $t) {
             $t->id();
@@ -74,6 +86,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('marketing_campaigns')) {
+            return;
+        }
 
         Schema::create('marketing_campaigns', function (Blueprint $t) {
             $t->id();
@@ -99,6 +115,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'scheduled_at']);
         });
 
+                if (Schema::hasTable('marketing_journeys')) {
+            return;
+        }
+
         Schema::create('marketing_journeys', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -116,6 +136,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('marketing_messages')) {
+            return;
+        }
 
         Schema::create('marketing_messages', function (Blueprint $t) {
             $t->id();

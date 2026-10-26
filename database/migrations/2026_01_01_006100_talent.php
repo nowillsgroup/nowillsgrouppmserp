@@ -32,6 +32,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('establishment')->nullable();                // approved headcount
         });
 
+                if (Schema::hasTable('talent_vacancies')) {
+            return;
+        }
+
         Schema::create('talent_vacancies', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -63,6 +67,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('talent_applicants')) {
+            return;
+        }
+
         Schema::create('talent_applicants', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -93,6 +101,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'vacancy_id', 'stage']);
         });
 
+                if (Schema::hasTable('talent_interviews')) {
+            return;
+        }
+
         Schema::create('talent_interviews', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -107,6 +119,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('talent_scorecards')) {
+            return;
+        }
+
         Schema::create('talent_scorecards', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -119,6 +135,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['interview_id', 'user_id']);
         });
+
+                if (Schema::hasTable('talent_offers')) {
+            return;
+        }
 
         Schema::create('talent_offers', function (Blueprint $t) {
             $t->id();
@@ -144,6 +164,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
         });
 
+                if (Schema::hasTable('talent_tasks')) {
+            return;
+        }
+
         Schema::create('talent_tasks', function (Blueprint $t) {                // onboarding checklist per new starter
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -156,6 +180,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['employee_id', 'item']);
         });
+
+                if (Schema::hasTable('talent_probations')) {
+            return;
+        }
 
         Schema::create('talent_probations', function (Blueprint $t) {         // probation review history
             $t->id();
@@ -171,6 +199,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('talent_cycles')) {
+            return;
+        }
+
         Schema::create('talent_cycles', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -184,6 +216,10 @@ return new class extends Migration
             $t->timestamp('closed_at')->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('talent_appraisals')) {
+            return;
+        }
 
         Schema::create('talent_appraisals', function (Blueprint $t) {
             $t->id();
@@ -211,6 +247,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['cycle_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('talent_cases')) {
+            return;
+        }
 
         Schema::create('talent_cases', function (Blueprint $t) {
             $t->id();
@@ -247,6 +287,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('talent_exits')) {
+            return;
+        }
 
         Schema::create('talent_exits', function (Blueprint $t) {
             $t->id();

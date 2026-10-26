@@ -23,6 +23,10 @@ return new class extends Migration
             $t->date('leaving_date')->nullable()->after('joining_date');
         });
 
+                if (Schema::hasTable('leave_types')) {
+            return;
+        }
+
         Schema::create('leave_types', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -35,6 +39,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('leave_requests')) {
+            return;
+        }
 
         Schema::create('leave_requests', function (Blueprint $t) {
             $t->id();
@@ -60,6 +68,10 @@ return new class extends Migration
             $t->foreignId('leave_request_id')->nullable()->after('status')->constrained()->nullOnDelete();
         });
 
+                if (Schema::hasTable('pay_components')) {
+            return;
+        }
+
         Schema::create('pay_components', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -82,6 +94,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('employee_pay_components')) {
+            return;
+        }
+
         Schema::create('employee_pay_components', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -92,6 +108,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['employee_id', 'pay_component_id']);
         });
+
+                if (Schema::hasTable('staff_advances')) {
+            return;
+        }
 
         Schema::create('staff_advances', function (Blueprint $t) {
             $t->id();
@@ -108,6 +128,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('payroll_runs')) {
+            return;
+        }
 
         Schema::create('payroll_runs', function (Blueprint $t) {
             $t->id();
@@ -132,6 +156,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'period_start']);
         });
 
+                if (Schema::hasTable('payslips')) {
+            return;
+        }
+
         Schema::create('payslips', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -154,6 +182,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['payroll_run_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('payslip_lines')) {
+            return;
+        }
 
         Schema::create('payslip_lines', function (Blueprint $t) {
             $t->id();

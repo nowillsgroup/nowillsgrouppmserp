@@ -12,6 +12,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('kot_printers')) {
+            return;
+        }
+
         Schema::create('kot_printers', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -34,6 +38,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('kot_print_jobs')) {
+            return;
+        }
 
         Schema::create('kot_print_jobs', function (Blueprint $t) {
             $t->id();

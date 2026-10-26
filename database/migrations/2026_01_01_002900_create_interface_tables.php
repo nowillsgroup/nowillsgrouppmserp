@@ -16,6 +16,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('phone_extensions')) {
+            return;
+        }
+
         Schema::create('phone_extensions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -28,6 +32,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'extension']);
         });
+
+                if (Schema::hasTable('call_tariffs')) {
+            return;
+        }
 
         Schema::create('call_tariffs', function (Blueprint $t) {
             $t->id();
@@ -44,6 +52,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'prefix']);
         });
+
+                if (Schema::hasTable('call_records')) {
+            return;
+        }
 
         Schema::create('call_records', function (Blueprint $t) {
             $t->id();
@@ -75,6 +87,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('key_cards')) {
+            return;
+        }
+
         Schema::create('key_cards', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -98,6 +114,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'serial']);
         });
 
+                if (Schema::hasTable('master_keys')) {
+            return;
+        }
+
         Schema::create('master_keys', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -110,6 +130,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'key_no']);
         });
+
+                if (Schema::hasTable('key_loans')) {
+            return;
+        }
 
         Schema::create('key_loans', function (Blueprint $t) {
             $t->id();
@@ -128,6 +152,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'status']);
         });
+
+                if (Schema::hasTable('interface_commands')) {
+            return;
+        }
 
         Schema::create('interface_commands', function (Blueprint $t) {
             $t->id();

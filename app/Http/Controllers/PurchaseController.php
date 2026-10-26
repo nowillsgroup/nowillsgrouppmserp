@@ -7,8 +7,8 @@ use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\Store;
 use App\Models\Supplier;
+use App\Models\Currency;
 use App\Services\ActivityLogger;
-use App\Support\Numbering;
 use Illuminate\Http\Request;
 use App\Services\ProcurementService;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +22,27 @@ class PurchaseController extends Controller
 
     public function create()
     {
-        return view('inventory.po-form', ['suppliers' => Supplier::where('is_active', true)->pluck('name', 'id'), 'stores' => Store::pluck('name', 'id'), 'items' => InventoryItem::where('is_active', true)->orderBy('name')->get(),
-            'prices' => ProcurementService::priceMap(), 'limits' => ProcurementService::limits()]);
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+
+        return view('inventory.po-form', [
+            'suppliers' => Supplier::where('is_active', true)->pluck('name', 'id'),
+            'stores' => Store::pluck('name', 'id'),
+            'items' => InventoryItem::where('is_active', true)->orderBy('name')->get(),
+            'prices' => ProcurementService::priceMap(), 'limits' => ProcurementService::limits(),
+            'currencies' => Currency::where('is_active', true)->orderBy('sort_order')->orderBy('code')->get(),
+            'home' => $home, 'fxEnabled' => \App\Services\ForexService::apConvert(),
+            'fxRateUrl' => route('purchases.fx-rate'),
+        ]);
+    }
+
+    public function fxRate(Request $request)
+    {
+        $data = $request->validate(['currency' => 'required|string|size:3', 'date' => 'required|date']);
+        try {
+            return response()->json(ProcurementService::poRate($data['currency'], $data['date']));
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     public function store(Request $request)
@@ -31,25 +50,22 @@ class PurchaseController extends Controller
         $data = $request->validate([
             'supplier_id' => 'required|integer|owned:suppliers', 'store_id' => 'required|integer|owned:stores', 'po_date' => 'required|date',
             'expected_date' => 'nullable|date|after_or_equal:po_date', 'notes' => 'nullable|string|max:1000',
+            'currency' => 'nullable|string|size:3',
             'lines' => 'required|array|min:1', 'lines.*.item_id' => 'required|integer|owned:inventory_items',
-            'lines.*.qty' => 'required|numeric|min:0.01', 'lines.*.rate' => 'required|numeric|min:0', 'lines.*.tax_rate' => 'nullable|numeric|min:0|max:50',
+            'lines.*.qty' => 'required|numeric|min:0.01', 'lines.*.rate' => 'required|numeric|min:0|max:999999999', 'lines.*.tax_rate' => 'nullable|numeric|min:0|max:50',
         ]);
-        $po = DB::transaction(function () use ($data) {
-            $po = PurchaseOrder::create(collect($data)->except('lines')->all() + ['po_no' => Numbering::next('po'), 'status' => 'draft', 'created_by' => auth()->id()]);
-            $sub = 0; $tax = 0;
-            foreach ($data['lines'] as $l) {
-                $amt = round($l['qty'] * $l['rate'], 2);
-                $po->items()->create(['inventory_item_id' => $l['item_id'], 'qty' => $l['qty'], 'rate' => $l['rate'], 'tax_rate' => $l['tax_rate'] ?? 0, 'amount' => $amt]);
-                $sub += $amt; $tax += $amt * ($l['tax_rate'] ?? 0) / 100;
-            }
-            $po->update(['subtotal' => $sub, 'tax' => round($tax, 2), 'total' => round($sub + $tax, 2)]);
-            ProcurementService::stampListRates($po); // v4.8: flag lines priced above the agreed rate
+        try {
+            $po = ProcurementService::createPurchaseOrder($data);
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
-            return $po;
-        });
-        ActivityLogger::log('inventory', 'po_create', "Created {$po->po_no}", $po);
+        $message = "Purchase order {$po->po_no} created.";
+        if ($po->isForeign()) {
+            $message .= " {$po->fxLabel()} at ".number_format((float) $po->fx_rate, 4)." {$po->fx_basis}, board of {$po->fx_date->format('d M Y')} = ".money($po->total).'.';
+        }
 
-        return redirect()->route('purchases.show', $po)->with('success', "Purchase order {$po->po_no} created.");
+        return redirect()->route('purchases.show', $po)->with('success', $message);
     }
 
     public function show(PurchaseOrder $po)
@@ -63,6 +79,9 @@ class PurchaseController extends Controller
     public function status(Request $request, PurchaseOrder $po)
     {
         $data = $request->validate(['status' => 'required|in:approved,received,cancelled', 'invoice_no' => 'nullable|string|max:60']);
+        if ($data['status'] === 'received' && $po->isForeign()) {
+            return back()->with('error', 'Foreign-currency purchase orders must be received through a GRN so the receipt-date rate and local stock value are recorded.');
+        }
         $allowed = ['draft' => ['approved', 'cancelled'], 'approved' => ['received', 'cancelled']];
         abort_unless(in_array($data['status'], $allowed[$po->status] ?? []), 422, 'Invalid status transition.');
         abort_if($data['status'] !== 'approved' && ! can_do('inventory.manage'), 403); // approvers without store rights can only approve
@@ -118,7 +137,9 @@ class PurchaseController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
         $po->refresh()->forgetGrnCache();
-        $msg = "{$grn->grn_no} recorded – ".money($grn->total).' taken into stock'.($po->status === 'partial' ? '; the balance is still on order.' : '; PO fully received.');
+        $msg = "{$grn->grn_no} recorded – ".money($grn->total).' taken into stock'.($grn->isForeign()
+            ? " (".$grn->fxLabel().' at '.number_format((float) $grn->fx_rate, 4)." {$grn->fx_basis}, board of {$grn->fx_date->format('d M Y')})" : '')
+            .($po->status === 'partial' ? '; the balance is still on order.' : '; PO fully received.');
         if ($po->status === 'received' && $request->boolean('create_bill') && ! empty($data['invoice_no']) && can_do('ap.manage')) {
             try {
                 $bill = \App\Services\ApService::billFromReceipt($po, ['supplier_ref' => $data['invoice_no'], 'doc_date' => bdate()->toDateString()]);

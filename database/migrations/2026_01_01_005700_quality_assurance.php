@@ -14,6 +14,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('qa_standards')) {
+            return;
+        }
+
         Schema::create('qa_standards', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -31,6 +35,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('qa_templates')) {
+            return;
+        }
+
         Schema::create('qa_templates', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -44,6 +52,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('qa_template_items')) {
+            return;
+        }
+
         Schema::create('qa_template_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('qa_template_id')->constrained()->cascadeOnDelete();
@@ -51,6 +63,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort')->default(0);
             $t->unique(['qa_template_id', 'qa_standard_id']);
         });
+
+                if (Schema::hasTable('qa_audits')) {
+            return;
+        }
 
         Schema::create('qa_audits', function (Blueprint $t) {
             $t->id();
@@ -85,6 +101,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'completed_at']);
         });
 
+                if (Schema::hasTable('qa_audit_items')) {
+            return;
+        }
+
         Schema::create('qa_audit_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -101,6 +121,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort')->default(0);
             $t->index(['hotel_id', 'qa_standard_id', 'result']);
         });
+
+                if (Schema::hasTable('qa_actions')) {
+            return;
+        }
 
         Schema::create('qa_actions', function (Blueprint $t) {
             $t->id();

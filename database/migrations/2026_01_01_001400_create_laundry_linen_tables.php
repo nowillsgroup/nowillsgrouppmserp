@@ -13,6 +13,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('laundry_items')) {
+            return;
+        }
+
         Schema::create('laundry_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -26,6 +30,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'name']);
         });
+
+                if (Schema::hasTable('laundry_orders')) {
+            return;
+        }
 
         Schema::create('laundry_orders', function (Blueprint $t) {
             $t->id();
@@ -61,6 +69,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('laundry_order_lines')) {
+            return;
+        }
+
         Schema::create('laundry_order_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('laundry_order_id')->constrained()->cascadeOnDelete();
@@ -72,6 +84,10 @@ return new class extends Migration
             $t->decimal('amount', 12, 2);
             $t->string('remark', 150)->nullable(); // stain, missing button, damage noted at pick-up
         });
+
+                if (Schema::hasTable('linen_types')) {
+            return;
+        }
 
         Schema::create('linen_types', function (Blueprint $t) {
             $t->id();
@@ -91,6 +107,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('linen_batches')) {
+            return;
+        }
+
         Schema::create('linen_batches', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -107,6 +127,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'batch_no']);
         });
 
+                if (Schema::hasTable('linen_batch_lines')) {
+            return;
+        }
+
         Schema::create('linen_batch_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('linen_batch_id')->constrained()->cascadeOnDelete();
@@ -118,6 +142,10 @@ return new class extends Migration
             $t->decimal('rate', 10, 2)->default(0);
             $t->unique(['linen_batch_id', 'linen_type_id']);
         });
+
+                if (Schema::hasTable('linen_movements')) {
+            return;
+        }
 
         Schema::create('linen_movements', function (Blueprint $t) {
             $t->id();

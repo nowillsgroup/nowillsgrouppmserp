@@ -16,6 +16,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('utility_meters')) {
+            return;
+        }
+
         Schema::create('utility_meters', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -36,6 +40,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('meter_readings')) {
+            return;
+        }
 
         Schema::create('meter_readings', function (Blueprint $t) {
             $t->id();
@@ -59,6 +67,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'reading_date']);
         });
 
+                if (Schema::hasTable('utility_bills')) {
+            return;
+        }
+
         Schema::create('utility_bills', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -81,6 +93,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['utility_meter_id', 'bill_no']);
         });
+
+                if (Schema::hasTable('compliance_items')) {
+            return;
+        }
 
         Schema::create('compliance_items', function (Blueprint $t) {
             $t->id();
@@ -108,6 +124,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'expires_on']);
         });
+
+                if (Schema::hasTable('compliance_events')) {
+            return;
+        }
 
         Schema::create('compliance_events', function (Blueprint $t) {
             $t->id();
