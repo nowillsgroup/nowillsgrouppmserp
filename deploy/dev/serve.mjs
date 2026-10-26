@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline charges, payments and night postings commit atomically with their sync receipt',
+    detail: 'DesktopSyncService previously committed a folio charge/payment or night posting before writing the operation receipt. If receipt storage then failed, a retry could repeat a money or room-night operation without an idempotency record. These financial/night operations now wrap the PMS write and receipt in one database transaction and repeat the idempotency check under the transaction lock. A SQLite trigger audit simulates failure of the applied receipt after a charge and confirms the charge rolls back while the failed operation remains safely retryable. Asset version moves to 7.72.0.',
+    screens: [['Offline desktop sync — folio and night operations are idempotent with their receipt', '/offline/desktop']],
+  },
+  {
     title: 'Offline changes are only reported saved after IndexedDB commits the transaction',
     detail: 'Both browser outboxes resolved their local-storage promise on the individual IndexedDB request success event, before the containing transaction committed. The transaction could still abort (for example, on quota or storage failure) after the UI had announced the change was saved. The helpers now wait for transaction completion before resolving and reject on abort, so failed writes remain visible as unsaved instead of disappearing from the queue. A Node audit simulates request success followed by transaction completion and by transaction abort for both outboxes. Asset version moves to 7.71.0.',
     screens: [['Offline housekeeping and guest requests — local changes are confirmed only after durable storage commits', '/offline/housekeeping'], ['Offline guest requests — local changes are confirmed only after durable storage commits', '/offline/guest-requests']],

@@ -169,7 +169,7 @@ class DesktopSyncService
         // a previously rejected one may be retried (the reject record is replaced)
         $prior = OfflineSyncOperation::where('hotel_id', $user->hotel_id)->where('operation_id', $operationId)->first();
         if ($prior && $prior->status !== 'rejected') {
-            return ['operation_id' => $operationId, 'status' => 'duplicate', 'error' => null];
+            return self::duplicate($operationId);
         }
         $prior?->delete();
 
@@ -245,12 +245,18 @@ class DesktopSyncService
         if ($amount <= 0) {
             throw ValidationException::withMessages(['amount' => ['amount must be greater than zero.']]);
         }
-        $folio = FolioService::openForStay($stay->fresh());
-        $tx = FolioService::charge($folio, (string) ($payload['category'] ?? 'extras'), (string) ($payload['description'] ?? 'Offline charge'), $amount,
-            array_key_exists('tax', $payload) ? (bool) $payload['tax'] : true,
-            ['source_type' => 'offline', 'source_id' => $operationId]);
 
-        return self::applied($operationId, 'desk.charge', $payload, $deviceId, $user, $stay->id, ['transaction_id' => $tx->id, 'amount' => $amount, 'occurred_at' => $at?->toIso8601String()]);
+        return DB::transaction(function () use ($operationId, $payload, $at, $deviceId, $user, $stay, $amount) {
+            if ($duplicate = self::priorApplied($operationId, $user)) {
+                return $duplicate;
+            }
+            $folio = FolioService::openForStay($stay->fresh());
+            $tx = FolioService::charge($folio, (string) ($payload['category'] ?? 'extras'), (string) ($payload['description'] ?? 'Offline charge'), $amount,
+                array_key_exists('tax', $payload) ? (bool) $payload['tax'] : true,
+                ['source_type' => 'offline', 'source_id' => $operationId]);
+
+            return self::applied($operationId, 'desk.charge', $payload, $deviceId, $user, $stay->id, ['transaction_id' => $tx->id, 'amount' => $amount, 'occurred_at' => $at?->toIso8601String()]);
+        });
     }
 
     protected static function opPayment(string $operationId, array $payload, $at, ?string $deviceId, User $user): array
@@ -264,10 +270,16 @@ class DesktopSyncService
         if (! $modeId) {
             throw ValidationException::withMessages(['payment_mode_id' => ['payment_mode_id is required.']]);
         }
-        $folio = FolioService::openForStay($stay->fresh());
-        $tx = FolioService::payment($folio, $amount, $modeId, $payload['reference'] ?? 'OFFLINE '.$operationId);
 
-        return self::applied($operationId, 'desk.payment', $payload, $deviceId, $user, $stay->id, ['transaction_id' => $tx->id, 'amount' => $amount, 'occurred_at' => $at?->toIso8601String()]);
+        return DB::transaction(function () use ($operationId, $payload, $at, $deviceId, $user, $stay, $amount, $modeId) {
+            if ($duplicate = self::priorApplied($operationId, $user)) {
+                return $duplicate;
+            }
+            $folio = FolioService::openForStay($stay->fresh());
+            $tx = FolioService::payment($folio, $amount, $modeId, $payload['reference'] ?? 'OFFLINE '.$operationId);
+
+            return self::applied($operationId, 'desk.payment', $payload, $deviceId, $user, $stay->id, ['transaction_id' => $tx->id, 'amount' => $amount, 'occurred_at' => $at?->toIso8601String()]);
+        });
     }
 
     protected static function opNights(string $operationId, array $payload, $at, ?string $deviceId, User $user): array
@@ -280,12 +292,34 @@ class DesktopSyncService
         } catch (\Throwable) {
             throw ValidationException::withMessages(['until' => ['until must be a date-time.']]);
         }
-        StayService::postPendingNights($stay->fresh(), $until);
+        return DB::transaction(function () use ($operationId, $payload, $at, $deviceId, $user, $stay, $until) {
+            if ($duplicate = self::priorApplied($operationId, $user)) {
+                return $duplicate;
+            }
+            StayService::postPendingNights($stay->fresh(), $until);
 
-        return self::applied($operationId, 'desk.nights', $payload, $deviceId, $user, $stay->id, ['posted_until' => $until->toDateString(), 'occurred_at' => $at?->toIso8601String()]);
+            return self::applied($operationId, 'desk.nights', $payload, $deviceId, $user, $stay->id, ['posted_until' => $until->toDateString(), 'occurred_at' => $at?->toIso8601String()]);
+        });
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /** Repeat the idempotency check under the financial write transaction. */
+    protected static function priorApplied(string $operationId, User $user): ?array
+    {
+        $prior = OfflineSyncOperation::where('hotel_id', $user->hotel_id)->where('operation_id', $operationId)->lockForUpdate()->first();
+        if ($prior && $prior->status !== 'rejected') {
+            return self::duplicate($operationId);
+        }
+        $prior?->delete();
+
+        return null;
+    }
+
+    protected static function duplicate(string $operationId): array
+    {
+        return ['operation_id' => $operationId, 'status' => 'duplicate', 'error' => null];
+    }
 
     protected static function stay(array $payload): ReservationRoom
     {
