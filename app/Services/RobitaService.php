@@ -290,8 +290,9 @@ class RobitaService
     // but nothing ever took it away again: a check-out expired the card record
     // while the door kept accepting the credential until its validity ran out,
     // and an extension never reached the lock at all. These hooks close that
-    // loop, and they run even when no card is involved (PIN / mobile credentials
-    // created elsewhere) because they work off the stay, not the card.
+    // loop. They read the stay rather than the card, so revocation and extension
+    // still work when the key-card interface is switched off; issuing needs an
+    // active card because that is the only credential type the module has.
 
     /** The Robita device mapped to the stay's room, if the room has a lock. */
     public static function deviceForStay(ReservationRoom $stay): ?RobitaDevice
