@@ -19,7 +19,8 @@ class SupplierInvoice extends Model
     protected function casts(): array
     {
         return ['doc_date' => 'date', 'due_date' => 'date', 'subtotal' => 'decimal:2', 'tax' => 'decimal:2', 'total' => 'decimal:2',
-            'grn_total' => 'decimal:2', 'allocated' => 'decimal:2', 'approved_at' => 'datetime', 'cancelled_at' => 'datetime',
+            'grn_total' => 'decimal:2', 'grn_fx_subtotal' => 'decimal:2', 'grn_fx_tax' => 'decimal:2', 'grn_fx_total' => 'decimal:2', 'opening_date' => 'date',
+            'allocated' => 'decimal:2', 'approved_at' => 'datetime', 'cancelled_at' => 'datetime',
             // v7.53 the supplier's own document, when it was not billed in the property's currency
             'fx_date' => 'date', 'fx_subtotal' => 'decimal:2', 'fx_tax' => 'decimal:2', 'fx_total' => 'decimal:2', 'fx_rate' => 'decimal:4'];
     }
@@ -71,6 +72,12 @@ class SupplierInvoice extends Model
         return $this->type === 'debit_note';
     }
 
+    /** True for an unpaid balance or supplier credit carried in from the cutover snapshot. */
+    public function isOpening(): bool
+    {
+        return $this->opening_date !== null;
+    }
+
     public function outstanding(): float
     {
         return $this->status === 'cancelled' ? 0.0 : round((float) $this->total - (float) $this->allocated, 2);
@@ -115,13 +122,46 @@ class SupplierInvoice extends Model
     /** v7.53 True when the board this bill was booked at was not the board for the date asked for. */
     public function fxStale(): bool
     {
-        return $this->isForeign() && $this->fx_date
-            && $this->fx_date->toDateString() !== \App\Services\ForexService::apPolicy($this->doc_date?->toDateString())['date'];
+        if (! $this->isForeign() || ! $this->fx_date || $this->fx_basis === 'legacy') {
+            return false;
+        }
+        $expected = $this->kind === 'goods' && $this->purchase_order_id
+            ? $this->doc_date?->toDateString()
+            : \App\Services\ForexService::apPolicy($this->doc_date?->toDateString())['date'];
+
+        return $expected !== null && $this->fx_date->toDateString() !== $expected;
     }
 
+    /** The bill-date home-currency value of the received foreign obligation. */
+    public function grnAtInvoiceRate(): float
+    {
+        if (! $this->isForeign() || $this->grn_fx_subtotal === null || $this->grn_fx_tax === null || ! (float) $this->fx_rate) {
+            return (float) ($this->grn_total ?? 0);
+        }
+
+        return round(round((float) $this->grn_fx_subtotal * (float) $this->fx_rate, 2)
+            + round((float) $this->grn_fx_tax * (float) $this->fx_rate, 2), 2);
+    }
+
+    /** FX movement between receipt-date stock/AP accrual and invoice-date payable. Positive means a loss. */
+    public function fxDifference(): float
+    {
+        if ($this->kind !== 'goods' || $this->grn_total === null || ! $this->isForeign()
+            || $this->grn_fx_subtotal === null || $this->grn_fx_tax === null) {
+            return 0.0;
+        }
+
+        return round($this->grnAtInvoiceRate() - (float) $this->grn_total, 2);
+    }
+
+    /** Supplier price/tax variance, excluding the separately recognised receipt-to-invoice FX movement. */
     public function variance(): float
     {
-        return $this->kind === 'goods' && $this->grn_total !== null ? round((float) $this->total - (float) $this->grn_total, 2) : 0.0;
+        if ($this->kind !== 'goods' || $this->grn_total === null) {
+            return 0.0;
+        }
+
+        return round((float) $this->total - $this->grnAtInvoiceRate(), 2);
     }
 
     public function daysOverdue(?string $asOf = null): int

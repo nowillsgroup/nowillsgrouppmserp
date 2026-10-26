@@ -22,6 +22,10 @@ return new class extends Migration
             $t->string('usali_dept', 12)->nullable()->after('name');       // where this department's payroll is reported
         });
 
+                if (Schema::hasTable('management_agreements')) {
+            return;
+        }
+
         Schema::create('management_agreements', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -42,6 +46,10 @@ return new class extends Migration
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('owner_fees')) {
+            return;
+        }
 
         Schema::create('owner_fees', function (Blueprint $t) {
             $t->id();
@@ -74,6 +82,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'period']);
         });
 
+                if (Schema::hasTable('capex_projects')) {
+            return;
+        }
+
         Schema::create('capex_projects', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -100,6 +112,10 @@ return new class extends Migration
             $t->foreignId('capex_project_id')->nullable()->after('supplier_invoice_id')->constrained('capex_projects')->nullOnDelete();
         });
 
+                if (Schema::hasTable('ffe_entries')) {
+            return;
+        }
+
         Schema::create('ffe_entries', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -114,6 +130,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'date']);
         });
+
+                if (Schema::hasTable('owner_statements')) {
+            return;
+        }
 
         Schema::create('owner_statements', function (Blueprint $t) {
             $t->id();
@@ -130,6 +150,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'period']);
         });
+
+                if (Schema::hasTable('owner_queries')) {
+            return;
+        }
 
         Schema::create('owner_queries', function (Blueprint $t) {
             $t->id();

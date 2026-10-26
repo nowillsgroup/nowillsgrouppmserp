@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('form_c_records')) {
+            return;
+        }
+
         Schema::create('form_c_records', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -71,6 +75,10 @@ return new class extends Migration
             $t->json('formc_prefill')->nullable(); // Form C details the guest gave during online check-in
         });
 
+                if (Schema::hasTable('currencies')) {
+            return;
+        }
+
         Schema::create('currencies', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -84,6 +92,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('forex_rates')) {
+            return;
+        }
+
         Schema::create('forex_rates', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -96,6 +108,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'currency_id', 'date']);
         });
+
+                if (Schema::hasTable('forex_exchanges')) {
+            return;
+        }
 
         Schema::create('forex_exchanges', function (Blueprint $t) {
             $t->id();
@@ -134,6 +150,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'passport_no']);
         });
 
+                if (Schema::hasTable('forex_surrenders')) {
+            return;
+        }
+
         Schema::create('forex_surrenders', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -150,6 +170,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'surrender_no']);
         });
+
+                if (Schema::hasTable('forex_surrender_lines')) {
+            return;
+        }
 
         Schema::create('forex_surrender_lines', function (Blueprint $t) {
             $t->id();

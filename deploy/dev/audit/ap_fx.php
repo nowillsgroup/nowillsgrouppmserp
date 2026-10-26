@@ -15,8 +15,8 @@
  *   3. a bill in the property's own currency → byte for byte the behaviour it always had
  *   4. a real foreign bill through expenseBill(): the header keeps currency / fx_subtotal / fx_tax / fx_total /
  *      fx_rate / fx_date / fx_basis, the lines and the journal are in cedis, and the note says what rate was used
- *   5. refusals — conversion switched off, no rate on the board inside the window, a goods-receipt bill (which is
- *      valued at the receipt, in cedis), and a debit note in a third currency
+ *   5. refusals — conversion switched off, no rate on the board inside the window, a matched goods bill in a
+ *      currency different from its PO, and a debit note in a third currency
  *   6. a debit note against a foreign bill inherits that bill's currency
  *   7. ApService::fxExposure() — what the open foreign bills are worth at the board as it stands, per currency
  *   8. the screens: the entry form quotes every board currency, the ageing page carries the exposure, the forex
@@ -155,6 +155,10 @@ try {
     $has('which side of the board, and which day', $note, 'reference, board of 11 Oct 2026');
     $has('a stale board is called carried forward', ApService::fxNote(['currency' => 'USD', 'fx_subtotal' => 10, 'fx_tax' => 0, 'fx_total' => 10,
         'fx_rate' => 11.6, 'fx_date' => '2026-10-10', 'fx_basis' => 'reference'], ['stale' => true]), 'carried forward');
+    $has('the audit note reports per-line rounding against the posted cedi total', ApService::fxNote([
+        'currency' => 'USD', 'fx_subtotal' => 0.03, 'fx_tax' => 0, 'fx_total' => 0.03,
+        'fx_rate' => 11.6359, 'fx_date' => '2026-10-11', 'fx_basis' => 'reference',
+    ], null, 0.36), '0.01 rounding');
     $ok('a cedi bill produces no note at all', ApService::fxNote(null), '');
 
     $ghs = ApService::expenseBill($ota, ['supplier_ref' => 'FXH-GHS-1', 'doc_date' => '2026-10-11',
@@ -170,12 +174,13 @@ try {
 
     // ── 4. refusals ──
     printf("%s — what is refused, and why%s", 'The refusals', PHP_EOL);
-    $po = \App\Models\PurchaseOrder::whereNotNull('received_at')->whereNull('invoice_no')->orderByDesc('id')->first();
+    $po = \App\Models\PurchaseOrder::whereNotNull('received_at')->whereNull('invoice_no')->whereNull('currency')->orderByDesc('id')->first();
     if ($po) {
-        $throws('a goods-receipt bill stays in cedis (it is valued at the receipt)',
-            fn () => ApService::billFromReceipt($po, ['currency' => 'USD']), 'valued at the receipt');
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        $throws('a matched goods bill must use the purchase order currency',
+            fn () => ApService::billFromReceipt($po, ['currency' => 'USD']), 'must be in '.$home);
     } else {
-        printf("  skip  %-62s no received purchase order in the demo%s", 'goods-receipt refusal', PHP_EOL);
+        printf("  skip  %-62s no unbilled home-currency PO in the demo%s", 'PO currency-match refusal', PHP_EOL);
     }
     ForexService::saveSettings(['ap_convert' => '0']);
     $throws('with conversion off, no foreign bill is accepted',
@@ -222,7 +227,8 @@ try {
     $ok('and it is applied to the foreign bill', round((float) $bill->fresh()->allocated, 2), round((float) $dn->total + 1000, 2));
     $after = collect(ApService::fxExposure()['rows'])->firstWhere('currency', 'EUR');
     $ok('paying part of it reduces the exposure', $after['booked'], round($row['booked'] - 1000, 2));
-    $ok('and the euro obligation with it', $after['foreign'], round(($row['booked'] - 1000) / (float) $bill->fx_rate, 2));
+    // The row may include other EUR bills booked at different rates; never divide aggregate GHS exposure by this bill's rate.
+    $ok('and the euro obligation with it', $after['foreign'], round($row['foreign'] - 1000 / (float) $bill->fx_rate, 2));
     printf("%s", PHP_EOL);
     $reset = $bill->id;
 } catch (Throwable $e) {

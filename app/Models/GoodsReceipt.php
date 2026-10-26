@@ -14,7 +14,25 @@ class GoodsReceipt extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date'];
+        return [
+            'date' => 'date', 'fx_date' => 'date',
+            'fx_rate' => 'decimal:4', 'fx_subtotal' => 'decimal:2', 'fx_tax' => 'decimal:2',
+            'fx_total' => 'decimal:2', 'fx_rejected_value' => 'decimal:2',
+        ];
+    }
+
+    public function isForeign(): bool
+    {
+        return filled($this->currency)
+            && strtoupper(trim((string) $this->currency)) !== strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+    }
+
+    public function fxLabel(?float $amount = null): string
+    {
+        $code = strtoupper(trim((string) ($this->currency ?: hotel()?->currency ?: 'GHS')));
+        $value = $amount ?? ($this->isForeign() ? (float) $this->fx_total : (float) $this->total);
+
+        return $code.' '.number_format($value, 2);
     }
 
     public function order()

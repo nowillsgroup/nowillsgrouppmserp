@@ -23,9 +23,9 @@
 @endif
 <div class="card"><div class="card-head"><h3><x-icon name="receipt"/> {{ $company->name }} – city-ledger statement</h3><span class="tiny muted">as at {{ bdate()->format('d M Y') }} · billed {{ money($billed) }} · paid {{ money($paid) }}</span></div><div class="card-body table-wrap">
   @if($rows->isEmpty())<x-empty text="No invoices or payments yet." icon="receipt"/>@else
-  <table class="table" id="ptnLedger"><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="right">Invoiced</th><th class="right">Paid</th><th class="right">Balance</th></tr></thead><tbody>
+  <table class="table" id="ptnLedger"><thead><tr><th>Date</th><th>Due</th><th>Reference</th><th>Description</th><th class="right">Invoiced</th><th class="right">Paid</th><th class="right">Balance</th></tr></thead><tbody>
   @foreach($rows as $x)
-    <tr><td class="nowrap">{{ $x['date']->format('d M Y') }}</td><td>@if($x['folio_id'])<a href="{{ route('partner.invoice', $x['folio_id']) }}">{{ $x['ref'] }}</a>@else{{ $x['ref'] }}@endif</td><td>{{ $x['desc'] }}</td>
+    <tr><td class="nowrap">{{ $x['date']->format('d M Y') }}</td><td class="nowrap">{{ $x['due']?->format('d M Y') }}</td><td>@if($x['folio_id'])<a href="{{ route('partner.invoice', $x['folio_id']) }}">{{ $x['ref'] }}</a>@else{{ $x['ref'] }}@endif</td><td>{{ $x['desc'] }}</td>
       <td class="right">{{ $x['debit'] ? money($x['debit']) : '' }}</td><td class="right">{{ $x['credit'] ? money($x['credit']) : '' }}</td><td class="right"><b>{{ money($x['balance']) }}</b></td></tr>
   @endforeach
   </tbody></table>@endif

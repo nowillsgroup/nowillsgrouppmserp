@@ -621,9 +621,10 @@ class PartnerService
     public static function statement(Company $c): array
     {
         $debits = FolioTransaction::with('folio.guest')->where('category', 'city_ledger')->where('company_id', $c->id)->where('is_void', false)->get()
-            ->map(fn ($t) => ['date' => $t->business_date, 'ref' => $t->folio->invoice_no ?? $t->folio->folio_no, 'desc' => 'Invoice – '.($t->folio->guest?->full_name ?? 'guest'), 'debit' => (float) $t->amount, 'credit' => 0.0, 'folio_id' => $t->folio_id]);
+            ->map(fn ($t) => ['date' => $t->business_date, 'due' => $t->due_date, 'ref' => $t->reference ?: ($t->folio->invoice_no ?? $t->folio->folio_no),
+                'desc' => $t->isOpening() ? $t->description : 'Invoice – '.($t->folio->guest?->full_name ?? 'guest'), 'debit' => (float) $t->amount, 'credit' => 0.0, 'folio_id' => $t->folio_id]);
         $credits = Voucher::where('type', 'receipt')->where('company_id', $c->id)->get()
-            ->map(fn ($v) => ['date' => $v->date, 'ref' => $v->voucher_no, 'desc' => 'Payment received'.($v->reference ? ' – '.$v->reference : ''), 'debit' => 0.0, 'credit' => (float) $v->amount, 'folio_id' => null]);
+            ->map(fn ($v) => ['date' => $v->date, 'due' => null, 'ref' => $v->voucher_no, 'desc' => 'Payment received'.($v->reference ? ' – '.$v->reference : ''), 'debit' => 0.0, 'credit' => (float) $v->amount, 'folio_id' => null]);
         $bal = 0.0;
         $rows = $debits->concat($credits)->sortBy(fn ($r) => $r['date']->format('Y-m-d').($r['debit'] > 0 ? '0' : '1'))->values()
             ->map(function ($r) use (&$bal) {

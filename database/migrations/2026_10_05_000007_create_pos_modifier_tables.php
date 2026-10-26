@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('menu_modifier_groups')) {
+            return;
+        }
+
         Schema::create('menu_modifier_groups', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -21,6 +25,10 @@ return new class extends Migration
             $t->timestamps();
             $t->index(['hotel_id', 'outlet_id', 'is_active']);
         });
+
+                if (Schema::hasTable('menu_modifiers')) {
+            return;
+        }
 
         Schema::create('menu_modifiers', function (Blueprint $t) {
             $t->id();
@@ -37,6 +45,10 @@ return new class extends Migration
             // accepts it, so this only breaks on MySQL.
             $t->index(['hotel_id', 'menu_modifier_group_id', 'is_available'], 'menu_modifiers_avail_idx');
         });
+
+                if (Schema::hasTable('menu_item_modifier_groups')) {
+            return;
+        }
 
         Schema::create('menu_item_modifier_groups', function (Blueprint $t) {
             $t->id();

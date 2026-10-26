@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('club_plans')) {
+            return;
+        }
+
         Schema::create('club_plans', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -37,6 +41,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'code']);
         });
+
+                if (Schema::hasTable('club_memberships')) {
+            return;
+        }
 
         Schema::create('club_memberships', function (Blueprint $t) {
             $t->id();
@@ -67,6 +75,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'end_date']);
         });
 
+                if (Schema::hasTable('club_members')) {
+            return;
+        }
+
         Schema::create('club_members', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -84,6 +96,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'card_no']);
         });
+
+                if (Schema::hasTable('club_charges')) {
+            return;
+        }
 
         Schema::create('club_charges', function (Blueprint $t) {
             $t->id();
@@ -111,6 +127,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('club_payments')) {
+            return;
+        }
+
         Schema::create('club_payments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -129,6 +149,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'receipt_no']);
         });
+
+                if (Schema::hasTable('club_day_passes')) {
+            return;
+        }
 
         Schema::create('club_day_passes', function (Blueprint $t) {
             $t->id();
@@ -158,6 +182,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'date']);
         });
 
+                if (Schema::hasTable('club_visits')) {
+            return;
+        }
+
         Schema::create('club_visits', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -181,6 +209,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'checked_in_at']);
         });
 
+                if (Schema::hasTable('club_classes')) {
+            return;
+        }
+
         Schema::create('club_classes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -196,6 +228,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('club_bookings')) {
+            return;
+        }
 
         Schema::create('club_bookings', function (Blueprint $t) {
             $t->id();

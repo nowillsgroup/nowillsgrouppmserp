@@ -37,6 +37,10 @@ return new class extends Migration
 
         // ---- Travel-agent commissions
         Schema::table('companies', fn (Blueprint $t) => $t->decimal('commission_pct', 5, 2)->default(0)->after('discount_pct'));
+                if (Schema::hasTable('agent_commissions')) {
+            return;
+        }
+
         Schema::create('agent_commissions', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -57,6 +61,10 @@ return new class extends Migration
         });
 
         // ---- Stock take
+                if (Schema::hasTable('stock_takes')) {
+            return;
+        }
+
         Schema::create('stock_takes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -72,6 +80,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'take_no']);
         });
+                if (Schema::hasTable('stock_take_lines')) {
+            return;
+        }
+
         Schema::create('stock_take_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('stock_take_id')->constrained()->cascadeOnDelete();

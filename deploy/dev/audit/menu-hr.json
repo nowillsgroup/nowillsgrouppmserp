@@ -106,6 +106,14 @@
                 "employee": false
             },
             {
+                "label": "Public Holidays",
+                "route": "hr.holidays",
+                "params": null,
+                "perm": "hr.manage,roster.view,payroll.view",
+                "badge": null,
+                "employee": false
+            },
+            {
                 "label": "Leave Requests",
                 "route": "leave.index",
                 "params": null,
@@ -196,6 +204,38 @@
                 "perm": "hr.manage",
                 "badge": null,
                 "employee": false
+            },
+            {
+                "label": "HR Self-Service Desk",
+                "route": "hr.ess",
+                "params": null,
+                "perm": "hr.manage",
+                "badge": null,
+                "employee": false
+            },
+            {
+                "label": "My Profile",
+                "route": "me.profile",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Documents",
+                "route": "me.documents",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
+            },
+            {
+                "label": "My Announcements",
+                "route": "me.announcements",
+                "params": null,
+                "perm": "hr.self",
+                "badge": null,
+                "employee": true
             },
             {
                 "label": "My Payslips & Leave",

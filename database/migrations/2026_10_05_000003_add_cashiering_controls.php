@@ -17,6 +17,10 @@ return new class extends Migration
             $table->foreignId('closed_by')->nullable()->after('counted_denominations')->constrained('users')->nullOnDelete();
         });
 
+                if (Schema::hasTable('cashier_movements')) {
+            return;
+        }
+
         Schema::create('cashier_movements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('hotel_id')->constrained()->cascadeOnDelete();

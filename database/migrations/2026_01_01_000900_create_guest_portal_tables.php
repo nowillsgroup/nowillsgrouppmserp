@@ -16,6 +16,10 @@ return new class extends Migration
             $t->timestamp('portal_seen_at')->nullable()->after('portal_token');
         });
 
+                if (Schema::hasTable('guest_requests')) {
+            return;
+        }
+
         Schema::create('guest_requests', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

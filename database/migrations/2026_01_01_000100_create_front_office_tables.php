@@ -11,6 +11,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('floors')) {
+            return;
+        }
+
         Schema::create('floors', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -18,6 +22,10 @@ return new class extends Migration
             $t->unsignedSmallInteger('sort_order')->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('room_types')) {
+            return;
+        }
 
         Schema::create('room_types', function (Blueprint $t) {
             $t->id();
@@ -38,6 +46,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'code']);
         });
 
+                if (Schema::hasTable('rooms')) {
+            return;
+        }
+
         Schema::create('rooms', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -54,6 +66,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'room_no']);
         });
 
+                if (Schema::hasTable('rate_plans')) {
+            return;
+        }
+
         Schema::create('rate_plans', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -69,6 +85,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('taxes')) {
+            return;
+        }
+
         Schema::create('taxes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -81,6 +101,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('business_sources')) {
+            return;
+        }
+
         Schema::create('business_sources', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -91,6 +115,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('payment_modes')) {
+            return;
+        }
+
         Schema::create('payment_modes', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -99,6 +127,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('companies')) {
+            return;
+        }
 
         Schema::create('companies', function (Blueprint $t) {
             $t->id();
@@ -115,6 +147,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('guests')) {
+            return;
+        }
 
         Schema::create('guests', function (Blueprint $t) {
             $t->id();
@@ -147,6 +183,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('reservations')) {
+            return;
+        }
+
         Schema::create('reservations', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -176,6 +216,10 @@ return new class extends Migration
         });
 
         // Each reserved room / stay line. Becomes a "stay" once checked-in.
+                if (Schema::hasTable('reservation_rooms')) {
+            return;
+        }
+
         Schema::create('reservation_rooms', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -199,6 +243,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status']);
         });
 
+                if (Schema::hasTable('room_moves')) {
+            return;
+        }
+
         Schema::create('room_moves', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -211,6 +259,10 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('folios')) {
+            return;
+        }
 
         Schema::create('folios', function (Blueprint $t) {
             $t->id();
@@ -228,6 +280,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'folio_no']);
         });
+
+                if (Schema::hasTable('folio_transactions')) {
+            return;
+        }
 
         Schema::create('folio_transactions', function (Blueprint $t) {
             $t->id();
@@ -252,6 +308,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'business_date']);
         });
 
+                if (Schema::hasTable('housekeeping_tasks')) {
+            return;
+        }
+
         Schema::create('housekeeping_tasks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -267,6 +327,10 @@ return new class extends Migration
             $t->timestamp('completed_at')->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('maintenance_requests')) {
+            return;
+        }
 
         Schema::create('maintenance_requests', function (Blueprint $t) {
             $t->id();
@@ -290,6 +354,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('lost_found_items')) {
+            return;
+        }
+
         Schema::create('lost_found_items', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -305,6 +373,10 @@ return new class extends Migration
             $t->timestamps();
         });
 
+                if (Schema::hasTable('guest_feedback')) {
+            return;
+        }
+
         Schema::create('guest_feedback', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -319,6 +391,10 @@ return new class extends Migration
             $t->text('comments')->nullable();
             $t->timestamps();
         });
+
+                if (Schema::hasTable('night_audits')) {
+            return;
+        }
 
         Schema::create('night_audits', function (Blueprint $t) {
             $t->id();

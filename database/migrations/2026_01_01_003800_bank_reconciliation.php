@@ -17,6 +17,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('bank_statements')) {
+            return;
+        }
+
         Schema::create('bank_statements', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -39,6 +43,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'statement_no']);
             $t->index(['account_head_id', 'period_to']);
         });
+
+                if (Schema::hasTable('bank_statement_lines')) {
+            return;
+        }
 
         Schema::create('bank_statement_lines', function (Blueprint $t) {
             $t->id();
@@ -64,6 +72,10 @@ return new class extends Migration
             $t->index(['bank_statement_id', 'status']);
             $t->index(['hotel_id', 'hash']);
         });
+
+                if (Schema::hasTable('bank_matches')) {
+            return;
+        }
 
         Schema::create('bank_matches', function (Blueprint $t) {
             $t->id();

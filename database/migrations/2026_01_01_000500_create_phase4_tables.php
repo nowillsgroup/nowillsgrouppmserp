@@ -12,6 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         // Recurring / one-off charges attached to a stay, posted by the night audit
+                if (Schema::hasTable('stay_fixed_charges')) {
+            return;
+        }
+
         Schema::create('stay_fixed_charges', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -32,6 +36,10 @@ return new class extends Migration
         });
 
         // Group allotments: rooms held per type for a date range until a cut-off date
+                if (Schema::hasTable('room_blocks')) {
+            return;
+        }
+
         Schema::create('room_blocks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -55,6 +63,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'block_no']);
             $t->index(['hotel_id', 'status', 'arrival_date']);
         });
+                if (Schema::hasTable('room_block_lines')) {
+            return;
+        }
+
         Schema::create('room_block_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -72,6 +84,10 @@ return new class extends Migration
             $t->string('grc_signature_path')->nullable();
             $t->timestamp('grc_signed_at')->nullable();
         });
+                if (Schema::hasTable('guest_documents')) {
+            return;
+        }
+
         Schema::create('guest_documents', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();

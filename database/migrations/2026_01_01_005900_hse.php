@@ -19,6 +19,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (Schema::hasTable('hse_equipment')) {
+            return;
+        }
+
         Schema::create('hse_equipment', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -46,6 +50,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'status', 'next_check_on']);
         });
 
+                if (Schema::hasTable('hse_checks')) {
+            return;
+        }
+
         Schema::create('hse_checks', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -63,6 +71,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'checked_on']);
         });
 
+                if (Schema::hasTable('hse_wardens')) {
+            return;
+        }
+
         Schema::create('hse_wardens', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -75,6 +87,10 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('hse_drills')) {
+            return;
+        }
 
         Schema::create('hse_drills', function (Blueprint $t) {
             $t->id();
@@ -105,12 +121,20 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
         });
 
+                if (Schema::hasTable('hse_drill_staff')) {
+            return;
+        }
+
         Schema::create('hse_drill_staff', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hse_drill_id')->constrained('hse_drills')->cascadeOnDelete();
             $t->foreignId('employee_id')->constrained()->cascadeOnDelete();
             $t->unique(['hse_drill_id', 'employee_id']);
         });
+
+                if (Schema::hasTable('hse_risks')) {
+            return;
+        }
 
         Schema::create('hse_risks', function (Blueprint $t) {
             $t->id();
@@ -138,6 +162,10 @@ return new class extends Migration
             $t->timestamps();
             $t->unique(['hotel_id', 'number']);
         });
+
+                if (Schema::hasTable('hse_permits')) {
+            return;
+        }
 
         Schema::create('hse_permits', function (Blueprint $t) {
             $t->id();
@@ -168,6 +196,10 @@ return new class extends Migration
             $t->unique(['hotel_id', 'number']);
             $t->index(['hotel_id', 'status', 'ends_at']);
         });
+
+                if (Schema::hasTable('hse_accidents')) {
+            return;
+        }
 
         Schema::create('hse_accidents', function (Blueprint $t) {
             $t->id();

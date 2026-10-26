@@ -1,0 +1,2 @@
+external_id,name,contact_person,phone,email,address,tax_number,payment_terms_days,wht_category,wht_exempt_ref,wht_exempt_until,is_local,is_active
+SUP-1001,Accra Food Traders Ltd,Ama Mensah,+233 30 123 4567,accounts@example.com,"12 Ridge Road, Accra",C0001234567,30,goods,,,1,1

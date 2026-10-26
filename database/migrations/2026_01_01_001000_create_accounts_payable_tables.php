@@ -18,6 +18,10 @@ return new class extends Migration
             $t->string('bank_details', 255)->nullable()->after('expense_head_id');
         });
 
+                if (Schema::hasTable('supplier_invoices')) {
+            return;
+        }
+
         Schema::create('supplier_invoices', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
@@ -48,6 +52,10 @@ return new class extends Migration
             $t->index(['hotel_id', 'doc_date']);
         });
 
+                if (Schema::hasTable('supplier_invoice_lines')) {
+            return;
+        }
+
         Schema::create('supplier_invoice_lines', function (Blueprint $t) {
             $t->id();
             $t->foreignId('supplier_invoice_id')->constrained()->cascadeOnDelete();
@@ -58,6 +66,10 @@ return new class extends Migration
             $t->decimal('tax_amount', 12, 2)->default(0);
             $t->timestamps();
         });
+
+                if (Schema::hasTable('supplier_payments')) {
+            return;
+        }
 
         Schema::create('supplier_payments', function (Blueprint $t) {
             $t->id();
@@ -79,6 +91,10 @@ return new class extends Migration
         });
 
         // Payment (or debit note) applied to a bill
+                if (Schema::hasTable('ap_allocations')) {
+            return;
+        }
+
         Schema::create('ap_allocations', function (Blueprint $t) {
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
