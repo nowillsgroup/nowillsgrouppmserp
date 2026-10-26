@@ -1,12 +1,12 @@
 # Front Office & Guest Services — completeness audit
 
-**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.74.0
+**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.75.0
 
-**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. The prior audit had not granted `robita.manage` to the built-in Front Office Manager role, leaving the Robita menu page inaccessible to that role; the role grant is now fixed and the upgrade path applied locally. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
 
-A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). No new Front Office runtime defect was confirmed. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
+A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). The broad route sweep itself uncovered no additional runtime defect. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
 
-**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
+**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
 
 ## Current revalidation (26 Oct 2026)
 
@@ -16,8 +16,8 @@ A separate sweep requested **471 unique, parameter-free GET paths** from the ful
 | Menu permissions / badge keys | **0 / 0 missing** |
 | Front Office Manager / Receptionist page permissions | **33/33 / 22/33**; the Receptionist omissions are management/security gates |
 | Full parameter-free GET sweep | **460 clean 200 / 471**; all 11 non-200 outcomes explained below |
-| Confirmed code/RBAC gap | Front Office Manager lacked `robita.manage`; fixed in `HotelProvisioner::ROLES` and covered by regression checks |
-| Other confirmed Front Office defects | **0 found in this pass** |
+| Confirmed RBAC / UX defects | Front Office Manager lacked `robita.manage`; IPTV invalid-status errors blamed pairing. Both fixed and covered by regression checks |
+| Other confirmed Front Office defects | **0 additional defects found in this pass** |
 
 **False positives / expected outcomes (not product defects):** `/api/v1` and its eight tested resources return 401 without an API bearer token; `/group-dashboard` returns 403 to the dev identity because it lacks the separate group-dashboard grant; `/reservations/api/rates` returns 404 when the required `room_type_id` is omitted from the synthetic request. The parameter-free sweep is a broad smoke test, not an authenticated API contract test.
 
@@ -166,9 +166,9 @@ Not gaps in the product — gaps in a headless sandbox:
 
 ## 7. Recommended follow-ups
 
-1. **Documentation:** correct `docs/MODULES.md`, which still lists FO&GS as 64 pages, and record the extra non-menu page `/reservations/amenities`.
+1. **Documentation — closed (26 Oct 2026, v7.74.0):** `docs/MODULES.md` now records the 65-page Front Office & Guest Services menu and retains the separate `/reservations/amenities` route note.
 2. **Defensive sweep:** the `forex_rates` bug is one instance of a known date-storage class. Any remaining `where('…date', $x)` / `updateOrCreate(['…date' => $x])` on a DATE column should be converted to `whereDate()` + lookup-then-update (the earlier sweep found 419 comparable sites; the forex cluster is now clean).
-3. **Message clarity:** `IptvService::setStatus()` reports *A TV awaiting pairing must be paired first* for any invalid status value; splitting the two conditions would make the guard self-explanatory.
+3. **Message clarity — closed (26 Oct 2026, v7.75.0):** `IptvService::setStatus()` now validates the allowed status values separately from the pending-pairing guard, so invalid input no longer produces the unrelated pairing message. `deploy/dev/audit/iptv_status_validation_check.php` covers both cases.
 4. **Keep the harness:** `deploy/dev/audit/` (`pmshttp.py`, `flows_lib.py`, `form_dump.py`, `flows_a…e.py`) is now a repeatable regression rig for this section — re-run it after any Reservations/Folio change.
 
 ---

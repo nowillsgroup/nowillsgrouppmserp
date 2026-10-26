@@ -333,7 +333,8 @@ class IptvService
     public static function setStatus(TvDevice $dev, string $status, User $by): void
     {
         self::need(self::canManage($by));
-        self::need(in_array($status, ['active', 'disabled'], true) && $dev->status !== 'pending', 'A TV awaiting pairing must be paired first.');
+        self::need(in_array($status, ['active', 'disabled'], true), 'TV status must be active or disabled.');
+        self::need($dev->status !== 'pending', 'A TV awaiting pairing must be paired first.');
         $dev->update(['status' => $status]);
         if ($status === 'disabled') {
             self::endSessions($dev, 'reset');

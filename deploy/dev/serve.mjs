@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'IPTV device status errors now identify the real validation problem',
+    detail: 'The TV status guard combined two different failures, so an unsupported status such as “maintenance” incorrectly told staff that the TV had not been paired. Status values are now validated separately from the pending-pairing rule, with a specific actionable message for each. A rollback-safe regression check covers both outcomes. Asset version moves to 7.75.0.',
+    screens: [['IPTV devices — status and pairing validation', '/iptv/devices']],
+  },
+  {
     title: 'Front Office Managers can access Robita smart-lock operations',
     detail: 'The Robita Locks menu page was protected by robita.manage, but the built-in Front Office Manager role did not receive that permission, leaving the intended operational owner unable to access the module. The role template now grants it and pms:upgrade adds it without removing customized grants. Receptionists remain excluded because the permission includes direct door, credential, and device operations. Navigation/RBAC regression checks cover the route, role template, and upgraded role. Asset version moves to 7.74.0.',
     screens: [['Robita smart locks — device, credential and event management', '/robita']],
