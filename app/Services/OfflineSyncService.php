@@ -153,6 +153,9 @@ class OfflineSyncService
             if ($existing) {
                 return self::stored($existing);
             }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
+            }
             $room = Room::whereKey($roomId)->where('is_active', true)->lockForUpdate()->first();
             if (! $room) {
                 return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'The room no longer exists or is not active.');
@@ -194,6 +197,9 @@ class OfflineSyncService
             $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
             if ($existing) {
                 return self::stored($existing);
+            }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
             }
             $task = HousekeepingTask::with('room')->whereKey($taskId)->lockForUpdate()->first();
             if (! $task) {
@@ -253,6 +259,9 @@ class OfflineSyncService
             $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
             if ($existing) {
                 return self::stored($existing);
+            }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
             }
             $task = HousekeepingTask::with('room')->whereKey($taskId)->lockForUpdate()->first();
             if (! $task || ! $task->room) {

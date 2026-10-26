@@ -12,7 +12,7 @@ use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
 
 Tenant::set(Hotel::find(1));
-$user = User::where('hotel_id', 1)->firstOrFail();
+$user = User::where('hotel_id', 1)->where('id', 1)->firstOrFail();
 $room = Room::where('hotel_id', 1)->where('is_active', true)->first();
 if (! $room) {
     throw new RuntimeException('No active demo room is available for the offline note conflict check.');

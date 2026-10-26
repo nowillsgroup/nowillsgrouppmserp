@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Guest-request sync permission can no longer authorize housekeeping writes',
+    detail: 'The shared /offline/sync route admits housekeeping attendants, housekeeping managers and requests managers because it handles both housekeeping actions and guest-request creation. The guest-request operation checked its own permission, but housekeeping room-status, task and maintenance operations did not. A requests-only login could therefore bypass the screen controls and write a room status through the shared endpoint. All three housekeeping operations now independently require housekeeping.attendant or housekeeping.manage; guest-request creation retains its requests.manage check. A rollback-safe audit using a requests-only user confirms the write is rejected and the room is unchanged. Asset version moves to 7.66.0.',
+    screens: [['Offline housekeeping — write operations enforce housekeeping permissions server-side', '/offline/housekeeping']],
+  },
+  {
     title: 'Housekeeping offline sync now protects newer room notes as well as status',
     detail: 'The offline room-status conflict check detected a newer server update only when the housekeeping status differed from the requested one. If a supervisor had added a new room note while an attendant was offline, a stale sync with the same status could overwrite that note without warning. Sync now treats a newer differing note as a conflict too, returns the current room state, and preserves the server note. The offline guide documents the rule; a rollback-safe audit reproduces the same-status/new-note case and confirms it is not overwritten. Asset version moves to 7.65.0.',
     screens: [['Housekeeping offline workspace — conflict-safe room status and notes', '/offline/housekeeping']],
