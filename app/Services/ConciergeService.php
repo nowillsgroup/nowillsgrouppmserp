@@ -196,6 +196,17 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($a, $d, $by, $source, $adults, $children, $time, $start, $stay, $collection, $guest, $name) {
+            // Lock the activity before the stay/departure so simultaneous first
+            // bookings cannot race to create the same dated departure row.
+            $a = Activity::with('vendor')->whereKey($a->id)->lockForUpdate()->firstOrFail();
+            if (! $a->is_active || ! $a->vendor?->is_active) {
+                throw new RuntimeException($a->name.' is no longer on sale.');
+            }
+            if ($a->vendor->licenceExpired()) {
+                throw new RuntimeException($a->vendor->name.'\'s tourism licence has expired – it can no longer be sold.');
+            }
+            self::checkTiming($a, $start, $source, $by, ! empty($d['override_cutoff']));
+            self::checkParty($a, $adults, $children);
             if ($stay) {
                 $stay = ReservationRoom::with('guest', 'room', 'reservation.guest')->lockForUpdate()->findOrFail($stay->id);
                 if (! in_array($stay->status, ['reserved', 'checked_in'], true)) {
@@ -305,11 +316,47 @@ class ConciergeService
             throw new RuntimeException('The new date is outside the stay – it can\'t go on the room bill.');
         }
 
-        return DB::transaction(function () use ($b, $a, $d, $adults, $children, $time, $start, $moved, $by) {
-            $oldDep = $b->departure;
-            $dep = self::departure($a, $start->toDateString(), $time);
+        return DB::transaction(function () use ($b, $a, $d, $by) {
+            // Match booking creation's activity → departure ordering. Lock both
+            // old and new departures in id order before the booking row.
+            $a = Activity::with('vendor')->whereKey($a->id)->lockForUpdate()->firstOrFail();
+            $current = ActivityBooking::whereKey($b->id)->firstOrFail();
+            if (! $current->isOpen()) {
+                throw new RuntimeException("{$current->number} is {$current->statusLabel()} and can't be changed.");
+            }
+            $oldDepartureId = $current->activity_departure_id;
+            $adults = max(0, (int) ($d['adults'] ?? $current->adults));
+            $children = max(0, (int) ($d['children'] ?? $current->children));
+            if ($adults < 1) {
+                throw new RuntimeException('At least one adult has to go.');
+            }
+            $time = (string) ($d['time'] ?? $current->time);
+            $start = Carbon::parse(($d['date'] ?? $current->date->toDateString()).' '.$time);
+            $moved = $start->ne($current->startsAt());
+            if ($moved || $adults + $children > $current->pax()) {
+                self::checkTiming($a, $start, 'desk', $by, ! empty($d['override_cutoff']));
+            }
+            self::checkParty($a, $adults, $children);
+            if ($current->collection === 'folio' && ($stay = $current->stay) && ($start->toDateString() < $stay->arrival_date->toDateString() || $start->toDateString() > $stay->departure_date->toDateString())) {
+                throw new RuntimeException('The new date is outside the stay – it can\'t go on the room bill.');
+            }
+
+            $createdOrFound = self::departure($a, $start->toDateString(), $time);
+            $newDepartureId = $createdOrFound?->id;
+            $departureIds = collect([$oldDepartureId, $newDepartureId])->filter()->unique()->sort()->values();
+            $lockedDepartures = $departureIds->isEmpty() ? collect() : ActivityDeparture::whereIn('id', $departureIds)
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $oldDep = $oldDepartureId ? $lockedDepartures->get($oldDepartureId) : null;
+            $dep = $newDepartureId ? $lockedDepartures->get($newDepartureId) : null;
+
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! $b->isOpen()) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} and can't be changed.");
+            }
+            if ((int) $b->activity_departure_id !== (int) $oldDepartureId) {
+                throw new RuntimeException('The departure changed while this booking was being edited. Refresh and try again.');
+            }
             if ($dep && $b->status !== 'waitlisted') {
-                $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
                 if ($dep->status !== 'open') {
                     throw new RuntimeException('That departure is '.strtolower(ActivityDeparture::STATUSES[$dep->status]).'.');
                 }
@@ -332,7 +379,7 @@ class ConciergeService
                 self::postCharge($b->fresh());
             }
             ActivityLogger::log('concierge', 'changed', "Activity {$b->number} changed: ".$start->format('d M H:i')." · {$b->paxLabel()} · ".money($b->gross), $b);
-            if ($oldDep && $oldDep->id !== $dep?->id) {
+            if ($oldDep && (int) $oldDep->id !== (int) $dep?->id) {
                 self::promoteWaitlist($oldDep);
             }
             if ($moved && $b->status === 'confirmed') {

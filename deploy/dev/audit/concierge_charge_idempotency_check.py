@@ -11,6 +11,30 @@ def method(name, next_name):
 
 
 class ConciergeChargeIdempotencyTest(unittest.TestCase):
+    def test_scheduled_booking_serializes_activity_before_stay_and_departure(self):
+        start = SERVICE.index("public static function book(")
+        end = SERVICE.index("protected static function checkTiming(", start)
+        body = SERVICE[start:end]
+        activity_lock = body.index("Activity::with('vendor')->whereKey($a->id)->lockForUpdate()")
+        active_check = body.index("if (! $a->is_active || ! $a->vendor?->is_active)", activity_lock)
+        stay_lock = body.index("ReservationRoom::with('guest', 'room', 'reservation.guest')->lockForUpdate()")
+        departure = body.index("self::departure($a, $start->toDateString(), $time)")
+        self.assertLess(activity_lock, active_check)
+        self.assertLess(active_check, stay_lock)
+        self.assertLess(stay_lock, departure)
+
+    def test_booking_edits_lock_activity_departures_then_recheck_booking(self):
+        body = method("update", "confirm")
+        activity_lock = body.index("Activity::with('vendor')->whereKey($a->id)->lockForUpdate()")
+        departures = body.index("ActivityDeparture::whereIn('id', $departureIds)")
+        booking_lock = body.index("ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail()")
+        state_check = body.index("if (! $b->isOpen())", booking_lock)
+        save = body.index("])->save();", state_check)
+        self.assertLess(activity_lock, departures)
+        self.assertLess(departures, booking_lock)
+        self.assertLess(booking_lock, state_check)
+        self.assertLess(state_check, save)
+
     def test_confirmation_locks_and_rechecks_booking_before_charging(self):
         body = method("confirm", "postCharge")
         departure_lock = body.index("ActivityDeparture::whereKey($waitlistDepartureId)->lockForUpdate()")
