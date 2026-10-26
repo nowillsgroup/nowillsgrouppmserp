@@ -530,6 +530,13 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($b) {
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->status !== 'confirmed') {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} – only confirmed bookings can be completed.");
+            }
+            if ($b->date->toDateString() > bdate()->toDateString()) {
+                throw new RuntimeException("{$b->number} is on ".$b->date->format('d M Y').' – it can\'t be completed before it happens.');
+            }
             $b->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
             self::recognise($b);
             ActivityLogger::log('concierge', 'completed', "Activity {$b->number} completed – commission ".money($b->commission), $b);
@@ -548,6 +555,13 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($b, $reason) {
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->status !== 'confirmed') {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()}.");
+            }
+            if ($b->startsAt()->gt(now()->addMinutes(30)) && $b->date->toDateString() >= bdate()->toDateString()) {
+                throw new RuntimeException('The activity hasn\'t started yet – cancel it instead.');
+            }
             $upd = ['status' => 'no_show', 'completed_at' => now(), 'cancel_reason' => mb_substr($reason ?: 'Guest did not show', 0, 190)];
             if ($b->collection === 'vendor') {
                 $upd += ['commission' => 0, 'vendor_net' => 0];   // the vendor collects nothing, so owes no commission
@@ -563,15 +577,19 @@ class ConciergeService
     /** commission earned: folio → Dr 2170 / Cr 4089; vendor-collected → Dr 1140 / Cr 4089 (once) */
     public static function recognise(ActivityBooking $b, ?string $date = null): void
     {
-        if ($b->gl_journal_id || $b->recognised_on || (float) $b->commission <= 0) {
-            return;
-        }
-        $date = LedgerService::openDate($date ?? min($b->date->toDateString(), bdate()->toDateString()));
-        $b->loadMissing('activity', 'vendor');
-        $dr = $b->collection === 'folio' ? AccountHead::sys('concierge_payable') : AccountHead::sys('concierge_receivable');
-        $j = LedgerService::post(['date' => $date, 'reference' => $b->number, 'narration' => 'Concierge commission – '.$b->activity->name.' – '.$b->vendor->name,
-            'lines' => [[$dr, (float) $b->commission, $b->vendor->name], [AccountHead::sys('rev_concierge'), -(float) $b->commission, $b->number]]], 'concierge', (string) $b->id);
-        $b->forceFill(['recognised_on' => $date, 'gl_journal_id' => $j->id])->save();
+        DB::transaction(function () use ($b, $date) {
+            // The booking is the once-only guard for commission recognition.
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->gl_journal_id || $b->recognised_on || (float) $b->commission <= 0) {
+                return;
+            }
+            $postingDate = LedgerService::openDate($date ?? min($b->date->toDateString(), bdate()->toDateString()));
+            $b->loadMissing('activity', 'vendor');
+            $dr = $b->collection === 'folio' ? AccountHead::sys('concierge_payable') : AccountHead::sys('concierge_receivable');
+            $j = LedgerService::post(['date' => $postingDate, 'reference' => $b->number, 'narration' => 'Concierge commission – '.$b->activity->name.' – '.$b->vendor->name,
+                'lines' => [[$dr, (float) $b->commission, $b->vendor->name], [AccountHead::sys('rev_concierge'), -(float) $b->commission, $b->number]]], 'concierge', (string) $b->id);
+            $b->forceFill(['recognised_on' => $postingDate, 'gl_journal_id' => $j->id])->save();
+        });
     }
 
     /** vendor cancelled a departure (weather, too few guests): every booking on it is cancelled free of charge */
@@ -667,13 +685,16 @@ class ConciergeService
     // ───────────────────────── settlements ─────────────────────────
 
     /** bookings that are due for settlement with a vendor */
-    public static function unsettled(?int $vendorId = null, ?string $upTo = null): Collection
+    public static function unsettled(?int $vendorId = null, ?string $upTo = null, bool $forUpdate = false): Collection
     {
-        return ActivityBooking::with('activity', 'vendor')->whereNull('activity_settlement_id')->whereIn('status', ['completed', 'no_show', 'cancelled'])
-            ->where(fn ($q) => $q->where('vendor_net', '!=', 0)->orWhere('commission', '!=', 0))->when($vendorId, fn ($q) => $q->where('activity_vendor_id', $vendorId))->orderBy('date')->orderBy('id')->get()->filter(fn ($b) => ($b->status === 'completed' || $b->status === 'no_show' || ($b->status === 'cancelled' && (float) $b->cancel_fee > 0))
-                && (! $vendorId || $b->activity_vendor_id === $vendorId) && (! $upTo || $b->date->toDateString() <= $upTo)
-                && ((float) $b->vendor_net != 0 || (float) $b->commission != 0))
-            ->values();
+        $query = ActivityBooking::with('activity', 'vendor')->whereNull('activity_settlement_id')->whereIn('status', ['completed', 'no_show', 'cancelled'])
+            ->where(fn ($q) => $q->where('vendor_net', '!=', 0)->orWhere('commission', '!=', 0))
+            ->when($vendorId, fn ($q) => $q->where('activity_vendor_id', $vendorId))->orderBy('date')->orderBy('id');
+        $rows = $forUpdate ? $query->lockForUpdate()->get() : $query->get();
+
+        return $rows->filter(fn ($b) => ($b->status === 'completed' || $b->status === 'no_show' || ($b->status === 'cancelled' && (float) $b->cancel_fee > 0))
+            && (! $vendorId || $b->activity_vendor_id === $vendorId) && (! $upTo || $b->date->toDateString() <= $upTo)
+            && ((float) $b->vendor_net != 0 || (float) $b->commission != 0))->values();
     }
 
     /** per vendor: [vendor, bookings, payable (hotel owes), receivable (vendor owes), net] */
@@ -706,36 +727,40 @@ class ConciergeService
         if ($upTo > $date) {
             throw new RuntimeException('Settle bookings up to the settlement date at the latest.');
         }
-        $rows = self::unsettled($v->id, $upTo);
-        if ($rows->isEmpty()) {
-            throw new RuntimeException('Nothing to settle with '.$v->name.' up to '.dmy($upTo).'.');
-        }
-        $acc = self::payAccounts()->firstWhere('id', $treasuryId);
-        $payable = round($rows->where('collection', 'folio')->sum(fn ($b) => (float) $b->vendor_net), 2);
-        $receivable = round($rows->where('collection', 'vendor')->sum(fn ($b) => (float) $b->commission), 2);
-        $net = round($payable - $receivable, 2);
-        if (abs($net) > 0.004 && ! $acc) {
-            throw new RuntimeException('Choose the bank, Mobile Money or cash account the money '.($net > 0 ? 'is paid from' : 'is received into').'.');
-        }
 
-        return DB::transaction(function () use ($v, $upTo, $acc, $date, $ref, $by, $rows, $payable, $receivable, $net) {
-            $s = ActivitySettlement::create(['number' => Numbering::next('activity_settlement'), 'activity_vendor_id' => $v->id, 'date' => $date, 'up_to' => $upTo, 'bookings' => $rows->count(),
+        return DB::transaction(function () use ($v, $upTo, $treasuryId, $date, $ref, $by) {
+            // Serialize settlements by vendor, then lock and recompute eligible
+            // bookings so concurrent runs cannot pay the same rows twice.
+            $vendor = ActivityVendor::whereKey($v->id)->lockForUpdate()->firstOrFail();
+            $rows = self::unsettled($vendor->id, $upTo, true);
+            if ($rows->isEmpty()) {
+                throw new RuntimeException('Nothing to settle with '.$vendor->name.' up to '.dmy($upTo).'.');
+            }
+            $acc = self::payAccounts()->firstWhere('id', $treasuryId);
+            $payable = round($rows->where('collection', 'folio')->sum(fn ($b) => (float) $b->vendor_net), 2);
+            $receivable = round($rows->where('collection', 'vendor')->sum(fn ($b) => (float) $b->commission), 2);
+            $net = round($payable - $receivable, 2);
+            if (abs($net) > 0.004 && ! $acc) {
+                throw new RuntimeException('Choose the bank, Mobile Money or cash account the money '.($net > 0 ? 'is paid from' : 'is received into').'.');
+            }
+
+            $s = ActivitySettlement::create(['number' => Numbering::next('activity_settlement'), 'activity_vendor_id' => $vendor->id, 'date' => $date, 'up_to' => $upTo, 'bookings' => $rows->count(),
                 'payable' => $payable, 'receivable' => $receivable, 'net' => $net, 'account_head_id' => abs($net) > 0.004 ? $acc->account_head_id : null,
                 'reference' => $ref ? mb_substr($ref, 0, 80) : null, 'status' => 'posted', 'created_by' => $by->id]);
             $lines = [];
             if ($payable) {
-                $lines[] = [AccountHead::sys('concierge_payable'), $payable, $v->name];
+                $lines[] = [AccountHead::sys('concierge_payable'), $payable, $vendor->name];
             }
             if ($receivable) {
-                $lines[] = [AccountHead::sys('concierge_receivable'), -$receivable, $v->name];
+                $lines[] = [AccountHead::sys('concierge_receivable'), -$receivable, $vendor->name];
             }
             if (abs($net) > 0.004) {
                 $lines[] = [$acc->account_head_id, -$net, $s->number];
             }
-            $j = LedgerService::post(['date' => $date, 'reference' => $ref ?: $s->number, 'narration' => 'Activity vendor settlement '.$s->number.' – '.$v->name, 'lines' => $lines], 'concierge_settle', (string) $s->id);
+            $j = LedgerService::post(['date' => $date, 'reference' => $ref ?: $s->number, 'narration' => 'Activity vendor settlement '.$s->number.' – '.$vendor->name, 'lines' => $lines], 'concierge_settle', (string) $s->id);
             $s->forceFill(['gl_journal_id' => $j->id])->save();
             ActivityBooking::whereIn('id', $rows->pluck('id'))->update(['activity_settlement_id' => $s->id]);
-            ActivityLogger::log('concierge', 'settled', "Settlement {$s->number} with {$v->name}: payable ".money($payable).', commission due '.money($receivable).' – '.$s->direction().' '.money(abs($net)), $s);
+            ActivityLogger::log('concierge', 'settled', "Settlement {$s->number} with {$vendor->name}: payable ".money($payable).', commission due '.money($receivable).' – '.$s->direction().' '.money(abs($net)), $s);
 
             return $s;
         });
@@ -743,17 +768,22 @@ class ConciergeService
 
     public static function voidSettlement(ActivitySettlement $s, string $reason, User $by): ActivitySettlement
     {
-        if ($s->status !== 'posted') {
-            throw new RuntimeException("{$s->number} is already void.");
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason for voiding the settlement.');
         }
-        if (ActivitySettlement::where('activity_vendor_id', $s->activity_vendor_id)->where('status', 'posted')->where('id', '>', $s->id)->exists()) {
-            throw new RuntimeException('Void the later settlements with this vendor first.');
-        }
 
         return DB::transaction(function () use ($s, $reason) {
+            // Share the vendor mutex with settlement creation and recheck the
+            // status/order while the rows are serialized.
+            ActivityVendor::whereKey($s->activity_vendor_id)->lockForUpdate()->firstOrFail();
+            $s = ActivitySettlement::whereKey($s->id)->lockForUpdate()->firstOrFail();
+            if ($s->status !== 'posted') {
+                throw new RuntimeException("{$s->number} is already void.");
+            }
+            if (ActivitySettlement::where('activity_vendor_id', $s->activity_vendor_id)->where('status', 'posted')->where('id', '>', $s->id)->exists()) {
+                throw new RuntimeException('Void the later settlements with this vendor first.');
+            }
+            $s->loadMissing('journal');
             if ($s->journal && ! $s->journal->reversed_by_id) {
                 LedgerService::reverse($s->journal, bdate()->toDateString(), 'Settlement voided: '.$reason);
             }
