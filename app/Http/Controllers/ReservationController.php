@@ -161,10 +161,7 @@ class ReservationController extends Controller
             if (! $quote['min_stay_ok']) {
                 throw ValidationException::withMessages(['rooms' => "A minimum stay of {$quote['min_stay']} night(s) applies to {$type->name}."]);
             }
-            $avail = AvailabilityService::typeAvailable((int) $typeId, $from, $to, null, $contractId); // v2.7: own allotment is sellable
-            if ($ignoreReservation) {
-                $avail += ReservationRoom::where('reservation_id', $ignoreReservation)->where('room_type_id', $typeId)->where('status', 'reserved')->count();
-            }
+            $avail = AvailabilityService::typeAvailable((int) $typeId, $from, $to, null, $contractId, $ignoreReservation); // v2.7: own allotment is sellable
             if ($count > $avail) {
                 $name = RoomType::find($typeId)?->name ?? 'room type';
                 throw ValidationException::withMessages(['rooms' => "Only {$avail} {$name} room(s) available for the selected dates (requested {$count}). Overbooking is not allowed."]);
@@ -335,6 +332,9 @@ class ReservationController extends Controller
                 || $submittedStayIds->diff($existingStays->keys())->isNotEmpty()) {
                 throw ValidationException::withMessages(['rooms' => 'One or more room lines are stale or do not belong to this reservation. Reload the reservation and try again.']);
             }
+            if ($existingStays->keys()->diff($submittedStayIds)->isNotEmpty()) {
+                throw ValidationException::withMessages(['rooms' => 'Use the Cancel room action on the reservation page to remove a booked room; this applies the cancellation policy and channel update safely.']);
+            }
 
             // Keep each reservation_room identity stable: add-ons, charges, guest
             // requests and other front-desk records are linked to this row by FK.
@@ -362,15 +362,6 @@ class ReservationController extends Controller
             $reservation->update([
                 'adults' => collect($data['rooms'])->sum('adults'), 'children' => collect($data['rooms'])->sum('children'), 'rate_contract_id' => $contract?->id,
             ] + collect($data)->only(['company_id', 'business_source_id', 'booking_type', 'group_name', 'arrival_date', 'departure_date', 'eta', 'status', 'ota_reference', 'purpose', 'billing_instruction', 'discount_pct', 'special_request'])->all());
-
-            $removedStayIds = $existingStays->keys()->diff($submittedStayIds)->values();
-            if ($removedStayIds->isNotEmpty()) {
-                // Retain cancelled rows as the durable parent for their audit and
-                // guest-service history. Never cascade-delete a room's children.
-                ReservationRoom::whereIn('id', $removedStayIds)->update(['status' => 'cancelled']);
-                \App\Models\StayFixedCharge::whereIn('reservation_room_id', $removedStayIds)->where('is_active', true)->update(['is_active' => false]);
-                \App\Services\UpsellService::closeForStays($removedStayIds, 'Room removed from reservation during amendment');
-            }
 
             foreach ($data['rooms'] as $line) {
                 $attributes = [

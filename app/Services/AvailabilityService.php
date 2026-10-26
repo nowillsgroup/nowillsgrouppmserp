@@ -154,10 +154,30 @@ class AvailabilityService
             ->each(fn ($s) => $s->block_id = $resToBlock[$s->reservation_id]);
     }
 
-    public static function typeAvailable(int $roomTypeId, $from, $to, ?int $exceptBlockId = null, ?int $exceptContractId = null): int
+    public static function typeAvailable(int $roomTypeId, $from, $to, ?int $exceptBlockId = null, ?int $exceptContractId = null, ?int $exceptReservationId = null): int
     {
-        $m = self::matrix($from, max(1, Carbon::parse($from)->diffInDays(Carbon::parse($to))), $exceptBlockId, $exceptContractId);
+        $from = Carbon::parse($from)->startOfDay();
+        $to = Carbon::parse($to)->startOfDay();
+        $m = self::matrix($from, max(1, $from->diffInDays($to)), $exceptBlockId, $exceptContractId);
+        $daily = $m['matrix'][$roomTypeId] ?? [];
 
-        return empty($m['matrix'][$roomTypeId]) ? 0 : min($m['matrix'][$roomTypeId]);
+        if ($exceptReservationId && $daily) {
+            // Restore only this reservation's actual occupied nights. Adding the
+            // reservation's total room count to every date can overbook when an
+            // edit moves the stay onto different dates.
+            $ownStays = ReservationRoom::where('reservation_id', $exceptReservationId)
+                ->where('room_type_id', $roomTypeId)
+                ->whereIn('status', ['reserved', 'checked_in'])
+                ->whereDate('arrival_date', '<', $to->toDateString())
+                ->whereDate('departure_date', '>', $from->toDateString())
+                ->get(['arrival_date', 'departure_date']);
+
+            foreach ($daily as $date => $count) {
+                $night = Carbon::parse($date);
+                $daily[$date] = $count + $ownStays->filter(fn ($stay) => $stay->arrival_date->lte($night) && $stay->departure_date->gt($night))->count();
+            }
+        }
+
+        return $daily ? min($daily) : 0;
     }
 }

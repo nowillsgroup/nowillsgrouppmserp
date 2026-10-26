@@ -29,6 +29,7 @@
         @php $rc = $editing ? $reservation->rateContract : null; @endphp
         <div id="contractInfo" class="alert alert-info {{ $rc ? '' : 'hidden' }}" style="margin:0;border-radius:0">@if($rc)<b>Contract {{ $rc->code }}</b> – {{ $rc->name }} · {{ $rc->basisLabel() }} · {{ $rc->meal_plan }}. Rates saved on this booking are kept; change the room type or dates to re-price.@endif</div>
         <div class="card-head"><h3>Rooms</h3><button type="button" class="btn btn-sm btn-soft" onclick="addLine()"><x-icon name="plus" size="sm"/> Add room</button></div>
+        @if($editing)<div class="alert alert-info" style="margin:0;border-radius:0">To remove a booked room, <a href="{{ route('reservations.show', $reservation) }}">open the reservation</a> and use <b>Cancel room</b>. This applies the cancellation policy and updates the booking channel.</div>@endif
         <div class="card-body table-wrap" style="padding:0">
           <table class="table" id="linesTable">
             <thead><tr><th style="min-width:170px">Room type</th><th style="min-width:170px">Rate plan</th><th style="min-width:120px">Room no.</th><th>Adults</th><th>Child</th><th style="min-width:110px">Rate / night</th><th class="num">Total</th><th></th></tr></thead>
@@ -82,7 +83,7 @@
     <td><input class="input input-sm" type="number" min="0" max="10" data-k="children" value="0" style="width:64px"></td>
     <td><input class="input input-sm" type="number" step="0.01" min="0" data-k="rate" required></td>
     <td class="num" data-total>0.00</td>
-    <td><button type="button" class="btn btn-sm btn-ghost" onclick="this.closest('tr').remove();reindex();total()" title="Remove"><x-icon name="trash" size="sm"/></button></td>
+    <td><button type="button" class="btn btn-sm btn-ghost" data-remove-line onclick="this.closest('tr').remove();reindex();total()" title="Remove"><x-icon name="trash" size="sm"/></button></td>
   </tr>
 </template>
 @endsection
@@ -122,6 +123,8 @@ function seasonRate(tr){ const type = tr.querySelector('[data-k=room_type_id]').
     total(); }); }
 function addLine(d = {}){ const tr = document.getElementById('lineTpl').content.firstElementChild.cloneNode(true); tbody.appendChild(tr);
   tr.querySelector('[data-k=stay_id]').value = d.stay_id ?? '';
+  const remove = tr.querySelector('[data-remove-line]');
+  if (d.stay_id) { remove.disabled = true; remove.title = 'Use Cancel room on the reservation page to apply the cancellation policy'; remove.setAttribute('aria-label', remove.title); }
   const t = tr.querySelector('[data-k=room_type_id]'), p = tr.querySelector('[data-k=rate_plan_id]'), r = tr.querySelector('[data-k=rate]');
   if (d.room_type_id) { t.value = d.room_type_id; fillPlans(tr, d.rate_plan_id); loadRooms(tr, d.room_id); }
   if (d.adults) tr.querySelector('[data-k=adults]').value = d.adults; if (d.children) tr.querySelector('[data-k=children]').value = d.children;

@@ -13,6 +13,7 @@ CONTROLLER = (ROOT / "app/Http/Controllers/ReservationController.php").read_text
 FORM = (ROOT / "resources/views/reservations/form.blade.php").read_text()
 UPSELL_MIGRATION = (ROOT / "database/migrations/2026_01_01_003300_create_upsell_tables.php").read_text()
 CHARGE_MIGRATION = (ROOT / "database/migrations/2026_01_01_000500_create_phase4_tables.php").read_text()
+AVAILABILITY = (ROOT / "app/Services/AvailabilityService.php").read_text()
 
 
 def update_method() -> str:
@@ -32,17 +33,26 @@ class ReservationEditSafetyTest(unittest.TestCase):
         self.assertIn("d.stay_id ?? ''", FORM)
         self.assertIn("data-k=\"stay_id\"", FORM)
 
-    def test_removed_room_is_retained_as_cancelled_and_guest_services_are_closed(self):
+    def test_edit_rejects_room_removal_so_cancellation_policy_cannot_be_bypassed(self):
         method = update_method()
-        self.assertIn("ReservationRoom::whereIn('id', $removedStayIds)->update(['status' => 'cancelled'])", method)
-        self.assertIn("StayFixedCharge::whereIn('reservation_room_id', $removedStayIds)", method)
-        self.assertIn("UpsellService::closeForStays($removedStayIds", method)
+        self.assertIn("$existingStays->keys()->diff($submittedStayIds)->isNotEmpty()", method)
+        self.assertIn("Use the Cancel room action on the reservation page", method)
+        self.assertNotIn("ReservationRoom::whereIn('id', $removedStayIds)->update", method)
+        self.assertIn("if (d.stay_id) { remove.disabled = true;", FORM)
 
     def test_linked_active_charges_and_orders_block_ambiguous_date_or_type_edits(self):
         method = update_method()
         self.assertIn("$datesChanged || $typeChanged", method)
         self.assertIn("$stay->fixedCharges()->where('is_active', true)->exists()", method)
         self.assertIn("whereIn('status', ['requested', 'confirmed'])->exists()", method)
+
+    def test_availability_excludes_only_this_reservations_actual_occupied_nights(self):
+        method = CONTROLLER[CONTROLLER.index("protected function checkInventory"):CONTROLLER.index("protected function lineExtra")]
+        self.assertIn("$contractId, $ignoreReservation", method)
+        self.assertNotIn("$avail += ReservationRoom::where('reservation_id'", method)
+        self.assertIn("$exceptReservationId", AVAILABILITY)
+        self.assertIn("$ownStays->filter(fn ($stay) => $stay->arrival_date->lte($night)", AVAILABILITY)
+        self.assertIn("->whereDate('arrival_date', '<', $to->toDateString())", AVAILABILITY)
 
     def test_migrations_confirm_the_original_cascade_risk(self):
         self.assertIn("Schema::create('upsell_orders'", UPSELL_MIGRATION)
