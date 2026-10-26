@@ -114,7 +114,7 @@ class DesktopSyncService
             'rooms' => \App\Models\Room::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('number')->get(),
             'stays' => ReservationRoom::whereHas('room', fn ($q) => $q->where('hotel_id', $hotelId))
                 ->where('updated_at', '>', $since)->orderBy('arrival_date')->get(),
-            'reservations' => \App\Models\Reservation::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('arrival')->get(),
+            'reservations' => \App\Models\Reservation::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('arrival_date')->get(),
             'folio_transactions' => \App\Models\FolioTransaction::whereHas('folio', fn ($q) => $q->where('hotel_id', $hotelId))
                 ->where('updated_at', '>', $since)->orderBy('id')->get(),
         ];
@@ -252,7 +252,13 @@ class DesktopSyncService
     protected static function opNights(string $operationId, array $payload, $at, ?string $deviceId, User $user): array
     {
         $stay = self::stay($payload);
-        $until = $at ?? now();
+        try {
+            $until = filled($payload['until'] ?? null)
+                ? \Illuminate\Support\Carbon::parse($payload['until'])
+                : ($at ?? now());
+        } catch (\Throwable) {
+            throw ValidationException::withMessages(['until' => ['until must be a date-time.']]);
+        }
         StayService::postPendingNights($stay->fresh(), $until);
 
         return self::applied($operationId, 'desk.nights', $payload, $deviceId, $user, $stay->id, ['posted_until' => $until->toDateString(), 'occurred_at' => $at?->toIso8601String()]);

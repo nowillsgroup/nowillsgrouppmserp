@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Desktop offline sync now honors the requested room-night cutoff',
+    detail: 'The multi-day desktop sync contract documents desk.nights with an until date, but its apply path ignored that payload field and used occurred_at (or the current time) instead. A workstation replaying a multi-day queue could therefore post fewer or more room nights than the operation explicitly requested. The handler now parses and uses payload.until, falls back to occurred_at and then now only when until is absent, and returns the actual cutoff in its receipt. Invalid until values are rejected. The reservation delta query also ordered by a nonexistent arrival column even though the schema calls it arrival_date; it now uses the real column. The audit replays a night operation with deliberately different until and occurred_at values inside a transaction and confirms the recorded cutoff matches until. Asset version moves to 7.60.0.',
+    screens: [['Offline desktop workspace — download pack, refresh delta and sync operation queue', '/offline/desktop']],
+  },
+  {
     title: 'IPTV now enforces the configured TV volume ceiling on the server',
     detail: 'The IPTV settings let an operator cap the maximum volume sent to a room TV, and every state response already told the remote that cap. The server-side command path, however, accepted any level up to 100 regardless of the configured ceiling. That made the limit advisory: a direct or stale client could queue volume 100 even when the hotel had selected 60. IptvService::command now reads the same normalized setting that the TV state uses and refuses commands above it, while preserving the existing lower bound. The transactional check accepts the configured maximum and rejects the next value above it; the change does not touch guest billing or device pairing. The asset version moves to 7.59.0.',
     screens: [['IPTV settings — configured volume maximum', '/iptv/settings'], ['IPTV devices — remote commands honor the ceiling', '/iptv/devices']],
