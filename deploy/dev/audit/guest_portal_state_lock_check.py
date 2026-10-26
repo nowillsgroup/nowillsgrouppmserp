@@ -10,6 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 SERVICE = (ROOT / "app/Services/GuestPortalService.php").read_text()
+CONCIERGE = (ROOT / "app/Services/ConciergeService.php").read_text()
 
 
 class GuestPortalStateLockTest(unittest.TestCase):
@@ -24,6 +25,13 @@ class GuestPortalStateLockTest(unittest.TestCase):
         self.assertIn("$stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail()", method)
         self.assertIn("$stay->portalState() !== 'inhouse'", method)
         self.assertLess(method.index("$stay->portalState() !== 'inhouse'", method.index("DB::transaction")), method.index("PosOrder::where"))
+
+    def test_concierge_booking_revalidates_portal_stay_and_limit_under_lock(self):
+        method = CONCIERGE[CONCIERGE.index("public static function book("):CONCIERGE.index("protected static function checkTiming(")]
+        self.assertIn("ReservationRoom::with('guest', 'room', 'reservation.guest')->lockForUpdate()", method)
+        self.assertIn("$stay->portalState()", method)
+        self.assertIn("ActivityBooking::where('reservation_room_id', $stay->id)->whereIn('status', ActivityBooking::OPEN)->count() >= 6", method)
+        self.assertLess(method.index("$stay->portalState()"), method.index("ActivityBooking::create("))
 
     def test_spa_revalidates_locked_stay_state_and_dates_before_booking(self):
         method = SERVICE[SERVICE.index("public static function bookSpa("):SERVICE.index("public const WELCOME_TEMPLATE")]

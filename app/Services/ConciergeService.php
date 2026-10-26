@@ -196,6 +196,27 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($a, $d, $by, $source, $adults, $children, $time, $start, $stay, $collection, $guest, $name) {
+            if ($stay) {
+                $stay = ReservationRoom::with('guest', 'room', 'reservation.guest')->lockForUpdate()->findOrFail($stay->id);
+                if (! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                    throw new RuntimeException('That stay is '.str_replace('_', ' ', $stay->status).' – it can no longer accept activity bookings.');
+                }
+                if ($source === 'portal' && ! in_array($stay->portalState(), ['inhouse', 'upcoming'], true)) {
+                    throw new RuntimeException('This stay is no longer accepting activity bookings. Please refresh the guest portal.');
+                }
+                if ($collection === 'folio' && ($start->toDateString() < $stay->arrival_date->toDateString() || $start->toDateString() > $stay->departure_date->toDateString())) {
+                    throw new RuntimeException('The activity date is no longer within the stay. Please refresh and choose another date.');
+                }
+                self::checkTiming($a, $start, $source, $by, ! empty($d['override_cutoff']));
+                if ($source === 'portal' && ActivityBooking::where('reservation_room_id', $stay->id)->whereIn('status', ActivityBooking::OPEN)->count() >= 6) {
+                    throw new RuntimeException('You already have several activities booked – please see the concierge for more.');
+                }
+                $guest = $stay->guest ?? $stay->reservation?->guest;
+                $name = trim((string) ($d['guest_name'] ?? '')) ?: ($guest?->full_name ?? '');
+                if ($name === '') {
+                    throw new RuntimeException('Enter the guest\'s name.');
+                }
+            }
             $dep = self::departure($a, $start->toDateString(), $time);
             if ($dep) {
                 $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
