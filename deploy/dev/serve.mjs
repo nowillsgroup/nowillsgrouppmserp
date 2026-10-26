@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Front Office Managers can access Robita smart-lock operations',
+    detail: 'The Robita Locks menu page was protected by robita.manage, but the built-in Front Office Manager role did not receive that permission, leaving the intended operational owner unable to access the module. The role template now grants it and pms:upgrade adds it without removing customized grants. Receptionists remain excluded because the permission includes direct door, credential, and device operations. Navigation/RBAC regression checks cover the route, role template, and upgraded role. Asset version moves to 7.74.0.',
+    screens: [['Robita smart locks — device, credential and event management', '/robita']],
+  },
+  {
     title: 'Offline checkout can no longer force past outstanding folio and service holds',
     detail: 'The desktop check-out payload accepted a client-controlled force flag and passed it directly to StayService::checkOut. That flag skips unresolved POS orders, transport/activity charges and some compliance holds. The regular desk checkout always passes false, and offline sync is not an appropriate path to bypass those controls. Desktop check-out now rejects force requests and always calls the service with force disabled; the operation contract and offline guide no longer advertise force. A rollback-safe audit confirms the stay remains checked in when force is submitted. Asset version moves to 7.73.0.',
     screens: [['Offline desktop sync — checkout honors pending folio and service holds', '/offline/desktop']],

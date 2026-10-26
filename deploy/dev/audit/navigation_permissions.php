@@ -13,6 +13,7 @@
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Services\HotelProvisioner;
 use Illuminate\Support\Facades\Route;
 
 $checks = 0;
@@ -42,6 +43,7 @@ $expected = [
     'me.documents' => ['hr.self', true],
     'me.announcements' => ['hr.self', true],
     'billingrec.index' => ['billingrec.view', false],
+    'robita.index' => ['robita.manage', false],
 ];
 
 $menuRoutes = [];
@@ -106,6 +108,14 @@ foreach (['Administrator', 'Front Office Manager', 'Receptionist'] as $roleName)
         $check($roleName.' receives '.$permission.' after pms:upgrade', in_array($permission, $have, true));
     }
 }
+$fom = Role::query()->with('permissions')->where('name', 'Front Office Manager')->first();
+$fomHave = $fom?->permissions->pluck('key')->all() ?? [];
+$receptionist = Role::query()->with('permissions')->where('name', 'Receptionist')->first();
+$receptionistHave = $receptionist?->permissions->pluck('key')->all() ?? [];
+$check('Front Office Manager role template includes robita.manage', in_array('robita.manage', HotelProvisioner::ROLES['Front Office Manager'] ?? [], true));
+$check('Receptionist role template withholds robita.manage', ! in_array('robita.manage', HotelProvisioner::ROLES['Receptionist'] ?? [], true));
+$check('Front Office Manager receives robita.manage after pms:upgrade', in_array('robita.manage', $fomHave, true));
+$check('Receptionist does not receive Robita lock-management access', ! in_array('robita.manage', $receptionistHave, true));
 $accountant = Role::query()->with('permissions')->where('name', 'Accountant')->first();
 $accountantHave = $accountant?->permissions->pluck('key')->all() ?? [];
 foreach (['billingrec.view', 'billingrec.manage', 'billingrec.approve'] as $permission) {

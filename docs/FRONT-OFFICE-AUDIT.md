@@ -1,12 +1,35 @@
 # Front Office & Guest Services — completeness audit
 
-**Date:** 13 Oct 2026 · **Branch:** `arena/49a44449-nowillsgrouppmserp` · **Base:** `a5bc803`
-**Question asked:** *is every function, feature and module of Front Office & Guest Services fully developed?*
-**Answer:** **Yes — with one exception, which was found, fixed and re-verified in this audit.** The section is not a set of mock-ups. All 63 menu pages render, all 370 routes resolve to real controller actions and views, all 31 permissions exist in both config and the database, and 126 scripted write flows plus 14 targeted device probes were driven through the running application and produced real rows, real folio movements and real documents. The single genuine defect was the **Foreign Guests exchange-rate desk**, which was completely unusable (HTTP 500 on save/copy, rates invisible, every exchange refused). It is fixed in this branch.
+**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.74.0
 
-**Navigation follow-up (20 Oct 2026):** The 63-page counts below are the 13 Oct audit snapshot. Desktop Sync is now listed under Front Office, bringing the live Front Office & Guest Services menu to **64 pages**. Its previous `frontoffice.view`/`frontoffice.manage` middleware keys were not registered; the routes now use `offline.desktop.view` and `offline.desktop.sync`, with the new permission definitions and built-in role grants covered by `navigation_permissions.php`. The front-office menu probe now resolves 64 pages with **0 undeclared permissions** and **0 missing badge keys**; Front Office Manager has **32/32** page permissions and Receptionist **22/32**. The live dev preview returned HTTP 200 for Desktop Sync, and the full menu documentation check is clean.
+**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. The prior audit had not granted `robita.manage` to the built-in Front Office Manager role, leaving the Robita menu page inaccessible to that role; the role grant is now fixed and the upgrade path applied locally. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+
+A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). No new Front Office runtime defect was confirmed. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
+
+**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
+
+## Current revalidation (26 Oct 2026)
+
+| Check | Result |
+|---|---|
+| Front Office & Guest Services menu pages | **65/65 HTTP 200**, no structural defects, no empty-content pages flagged |
+| Menu permissions / badge keys | **0 / 0 missing** |
+| Front Office Manager / Receptionist page permissions | **33/33 / 22/33**; the Receptionist omissions are management/security gates |
+| Full parameter-free GET sweep | **460 clean 200 / 471**; all 11 non-200 outcomes explained below |
+| Confirmed code/RBAC gap | Front Office Manager lacked `robita.manage`; fixed in `HotelProvisioner::ROLES` and covered by regression checks |
+| Other confirmed Front Office defects | **0 found in this pass** |
+
+**False positives / expected outcomes (not product defects):** `/api/v1` and its eight tested resources return 401 without an API bearer token; `/group-dashboard` returns 403 to the dev identity because it lacks the separate group-dashboard grant; `/reservations/api/rates` returns 404 when the required `room_type_id` is omitted from the synthetic request. The parameter-free sweep is a broad smoke test, not an authenticated API contract test.
+
+**Empty data is not a missing feature:** the latest disposable database has no saved reservation desk views, waitlist rows, room images, or room-outage records. These are per-user settings, transient guest demand, or property-specific operating data and are created through existing workflows. The optional amenity catalog had rows after the local upgrade, confirming the previous zero counts were dataset-specific.
+
+**Scope limits:** real lock encoders, PABX, IPTV devices, payment credentials, and vendor channel-manager acceptance remain deployment/vendor validation items. Robita guest journeys are automated locally; the generic TCP lock adapter remains template-based until a hardware vendor protocol and device are available. This audit does not certify five-star service outcomes or hardware compatibility.
 
 ---
+
+## Historical deep-dive (13 Oct 2026 baseline)
+
+The following scorecard, route/flow counts and workflow records describe the earlier 13 Oct snapshot (with a 20 Oct navigation follow-up), not the current inventory above.
 
 ## 1. Scorecard
 
