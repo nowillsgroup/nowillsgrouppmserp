@@ -44,6 +44,24 @@ log "── Nowills PMS deploy hook: $APP_ROOT ──"
 [ -f "$APP_ROOT/build/vendor/autoload.php" ] || fail \
     "build/vendor/autoload.php is missing — the clone is incomplete (this project keeps its Composer packages in build/vendor)"
 
+# ── 0b. Catch the two states that make every page 500 ──────────────────────
+# A .env copied from .env.example (APP_DEBUG=true, APP_KEY empty) looks fine in a
+# file manager but the site dies with MissingAppKeyException on every request.
+if [ -f "$APP_ROOT/.env" ]; then
+    ENV_KEY="$(sed -n 's/^[[:space:]]*APP_KEY[[:space:]]*=[[:space:]]*//p' "$APP_ROOT/.env" | tail -n 1 | tr -d '"'"'"'[:space:]')"
+    if [ -z "$ENV_KEY" ]; then
+        log "WARNING: APP_KEY in .env is EMPTY — every page will fail with MissingAppKeyException."
+        log "         Fix: open https://<your-domain>/install.php, or run: php artisan key:generate --force"
+    fi
+    if grep -q '^APP_DEBUG=true' "$APP_ROOT/.env"; then
+        log "WARNING: APP_DEBUG=true — stack traces and .env values are visible to visitors. Set APP_DEBUG=false."
+    fi
+    if [ ! -f "$APP_ROOT/storage/framework/installed.lock" ]; then
+        log "WARNING: not installed yet (no storage/framework/installed.lock) — the wizard at /install.php still has to run."
+    fi
+fi
+log "for a full health report run: bash $APP_ROOT/deploy/cyberpanel/doctor.sh"
+
 # ── 1. Find a PHP 8.3+ CLI ───────────────────────────────────────────────────
 find_php() {
     if [ -n "${PHP_BIN:-}" ]; then

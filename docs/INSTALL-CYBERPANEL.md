@@ -74,8 +74,9 @@ sudo -u "$SITE_USER" git clone https://github.com/nowillsgroup/nowillsgrouppmser
 
 # 6. <-- now do the vHost Conf edit: docRoot must end in /public, then restart LiteSpeed
 
-# 7. runtime folders + permissions
+# 7. runtime folders + permissions, then a health report
 sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
+bash "$SITE/deploy/cyberpanel/doctor.sh"
 
 # 4. create the database in the panel, then open
 #    https://pms.nowills.com/install.php   (NOWILLS · GHS · Africa/Accra · NO demo data)
@@ -83,8 +84,13 @@ sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
 rm -f "$SITE/public/install.php"
 
 # 8. cron: Manage -> Cron Jobs -> once per minute
-#    /usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
+#    /usr/local/lsws/lsphp84/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
 ```
+
+The installer, not a hand-written `.env`, is what makes the site load: it is the step that writes
+`APP_ENV=production`, generates `APP_KEY` and creates the property + administrator. A `.env` copied
+from `.env.example` instead (`APP_ENV=local`, `APP_DEBUG=true`, no key) gives a 500 with a full stack
+trace on the front page — see [Triage](#triage-the-site-answers-but-with-a-500).
 
 Then check the table in step 10 and the go-live list below it.
 
@@ -137,16 +143,21 @@ The site's PHP and the *cron* PHP are separate settings — check both.
 
 ```bash
 ls /usr/local/lsws/ | grep lsphp          # which versions are installed
-/usr/local/lsws/lsphp83/bin/php -v        # should print 8.3.x or newer
+/usr/local/lsws/lsphp84/bin/php -v        # this VPS serves PHP 8.4.25 → use lsphp84 everywhere
 ```
 
+> **Use one version for the site and for cron.** This deployment runs **PHP 8.4** (`lsphp84`), so the
+> CLI path in every command below is `/usr/local/lsws/lsphp84/bin/php`. If you switch the site to 8.3
+> later, change that path in the cron entry too — a mismatch shows up as "works when a browser asks,
+> fails from cron". Confirm which binary the *web* side uses in **Manage → Change PHP**.
+
 * **Per-site PHP:** *Manage → Configurations → Change PHP* → **PHP 8.3** (or 8.4) → *Change PHP*.
-* **Not installed?** Only `lsphp81`/`lsphp82` present? Install 8.3 over SSH:
+* **Not installed?** Only `lsphp82` only? Install 8.4 over SSH:
 
   ```bash
   apt-get update
-  apt-get install -y lsphp83 lsphp83-common lsphp83-mysql lsphp83-mbstring \
-      lsphp83-xml lsphp83-gd lsphp83-curl lsphp83-zip lsphp83-intl lsphp83-opcache
+  apt-get install -y lsphp84 lsphp84-common lsphp84-mysql lsphp84-mbstring \
+      lsphp84-xml lsphp84-gd lsphp84-curl lsphp84-zip lsphp84-intl lsphp84-opcache
   systemctl restart lsws
   ```
 
@@ -155,14 +166,14 @@ ls /usr/local/lsws/ | grep lsphp          # which versions are installed
   `gd`, `curl`, `zip` are strongly recommended (logos/menu photos, OTA sync, exports):
 
   ```bash
-  /usr/local/lsws/lsphp83/bin/php -m | tr '\n' ' '
+  /usr/local/lsws/lsphp84/bin/php -m | tr '\n' ' '
   ```
 
-  Anything missing: `apt-get install -y lsphp83-<name>` (package suffix: `mysql`, `mbstring`,
+  Anything missing: `apt-get install -y lsphp84-<name>` (package suffix: `mysql`, `mbstring`,
   `xml`, `gd`, `curl`, `zip`, `intl`), then restart `lsws`.
 
 > `session`: CyberPanel's lsphp builds ship the session extension; if it is missing, PHP cannot
-> keep a login. Install `lsphp83-common` first — it usually brings it in.
+> keep a login. Install `lsphp84-common` first — it usually brings it in.
 
 ---
 
@@ -280,6 +291,16 @@ sudo -u pms.nowills.com bash /home/pms.nowills.com/public_html/deploy/cyberpanel
 (As root also works — the script re-chowns what it touches to the site user — but running it as the
 site user keeps every file's owner correct from the start.)
 
+Next, get a one-screen health report before you open the site. It never changes anything and never
+prints your password or key:
+
+```bash
+bash /home/pms.nowills.com/public_html/deploy/cyberpanel/doctor.sh
+```
+
+Everything under "Where we are", "PHP", "Writable" and "Compiled caches" should be ✔ before you
+continue; the ✔ for `.env` and "Installed?" only appear **after** the installer has run below.
+
 That script (safe to run any number of times, before or after the install) creates the gitignored
 runtime folders (`public/uploads{,/logos,/menu,/room-images}`, `storage/app/backups`, the framework
 caches), sets **755 folders / 644 files** — never 777 — and, when run as root, hands them back to
@@ -337,23 +358,23 @@ crontab, which is what you want):
 |---|---|
 | Minute | `*` |
 | Hour / Day / Month / Weekday | leave empty (CyberPanel treats empty as every) |
-| Command | `/usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1` |
+| Command | `/usr/local/lsws/lsphp84/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1` |
 
 Use the **absolute lsphp path** — cron has no `PATH`, and the global `php` may be a different
-version. Confirm the version first with `/usr/local/lsws/lsphp83/bin/php -v`.
+version. Confirm the version first with `/usr/local/lsws/lsphp84/bin/php -v`.
 
 If you instead add it to CyberPanel's **root** cron (Dashboard → *Cron Jobs*), run it as the site
 user so the log files it writes stay writable by PHP:
 
 ```cron
-* * * * * sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
+* * * * * sudo -u pms.nowills.com /usr/local/lsws/lsphp84/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
 ```
 
 Prove it works instead of hoping:
 
 ```bash
 cd /home/pms.nowills.com/public_html
-sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php artisan schedule:list | head
+sudo -u pms.nowills.com /usr/local/lsws/lsphp84/bin/php artisan schedule:list | head
 tail -n 20 storage/logs/laravel.log      # the first cron run writes here within a minute
 ```
 
@@ -453,6 +474,7 @@ Caveats worth knowing:
 | `https://pms.nowills.com/install.php` | 404 (deleted) — that is correct |
 | `https://pms.nowills.com/up` | A small JSON health response from Laravel |
 | Login, then **Settings → upload a logo** | Saves, and the image renders (proves `public/uploads` is writable) |
+| `bash deploy/cyberpanel/doctor.sh` | every ✔ except the two documented warnings |
 | `git -C <site> status` | clean |
 
 Log in with **Hotel ID + username + password** from the installer. Then work through
@@ -492,15 +514,38 @@ all of it applies here.
 
 ---
 
+## Triage: the site answers, but with a 500
+
+Run the doctor first — it names the cause in one screen:
+
+```bash
+bash /home/pms.nowills.com/public_html/deploy/cyberpanel/doctor.sh
+```
+
+The three states that produce the *same* "500 on the front page" and how to tell them apart:
+
+| Doctor says | Meaning | Fix |
+|---|---|---|
+| `APP_KEY is EMPTY` + `installed.lock is missing` + `APP_ENV=local APP_DEBUG=true` | `.env` is a copy of `.env.example`; the installer never ran. Debug is on, so you get a full stack trace instead of a friendly page. | Run `https://pms.nowills.com/install.php` to the end (it rewrites `.env`, generates the key, migrates, creates the property and admin), then delete `public/install.php`. |
+| `APP_KEY set` but `config.php … EMPTY key` | A compiled config cache built before the key existed; the app reads the cache, not `.env`. | `rm bootstrap/cache/config.php` (or run the post-deploy hook) and reload. |
+| `installed.lock` present, key fine, but `storage` reported `NOT writable` / root-owned files | The site user cannot write sessions or logs (usually a root clone or a root `artisan` run). | `chown -R pms.nowills.com:pms.nowills.com <site>/storage <site>/bootstrap/cache <site>/public/uploads`, then reload. |
+
+Note that the doctor's `.env` section prints *whether* a password and key exist, never their value —
+paste its output here if you want a second pair of eyes on it.
+
+---
+
 ## Troubleshooting (CyberPanel / OpenLiteSpeed)
 
 | Symptom | Cause and fix |
 |---|---|
+| **`MissingAppKeyException` — "No application encryption key has been specified"** | `.env` has no `APP_KEY`. Almost always it is an untouched copy of `.env.example` (`APP_ENV=local`, `APP_DEBUG=true`, `DB_PASSWORD=change_me`) rather than an install. Open `https://pms.nowills.com/install.php` and finish the wizard — it writes `APP_ENV=production`, generates the key, migrates and creates your property + admin. CLI alternative if the database is already migrated: `sudo -u pms.nowills.com /usr/local/lsws/lsphp84/bin/php /home/pms.nowills.com/public_html/artisan key:generate --force`, then delete `bootstrap/cache/config.php`. Verify with `deploy/cyberpanel/doctor.sh`. |
 | **500 on every page** | Permissions or a stale cache. `sudo -u pms.nowills.com bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh`; then read `/usr/local/lsws/logs/stderr.log`, the site's `logs/<domain>.error_log`, and `storage/logs/laravel.log`. Temporarily set `APP_DEBUG=true` to see the real message — set it back. |
 | **404 on everything except `/`** | Document root still `public_html`, or `autoLoadHtaccess 1` missing from the `rewrite` block. Fix step 6 and restart `lsws`. |
 | **Directory listing instead of the app** | Document root still points at the site folder. Point it at `public/`. |
+| **`APP_DEBUG=true` shown on a live site** | You are running a copied `.env.example`. Install (or set `APP_ENV=production`, `APP_DEBUG=false`) and delete `bootstrap/cache/config.php` afterwards. |
 | **Blank white page** | `APP_DEBUG=false` is hiding a fatal error — check `storage/logs/laravel.log`, or `build/vendor` is missing (re-clone). |
-| **`could not find driver`** | `lsphp83-mysql` not installed: `apt-get install -y lsphp83-mysql && systemctl restart lsws`. |
+| **`could not find driver`** | `lsphp84-mysql` not installed: `apt-get install -y lsphp84-mysql && systemctl restart lsws`. |
 | **`open_basedir restriction in effect`** | **Manage → open_basedir**: allow the project root (the folder above `public/`), not just `public/`. |
 | **403 on `/`** | The document root path is wrong (typo, or trailing `/public/public`), or the folder is not readable by the site user. `ls -ld <site>/public`. |
 | **Login bounces back to the login page** | `APP_URL` does not match the browser address, or `storage/framework/sessions` is not writable by the site user. Fix `APP_URL`, delete `bootstrap/cache/config.php`, fix ownership. |
@@ -518,7 +563,7 @@ all of it applies here.
 ## Release checklist (pin this next to the deploy commands)
 
 1. Pull request reviewed and **merged into `main`** on GitHub.
-2. **Backup first** for release with migrations: `sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php
+2. **Backup first** for release with migrations: `sudo -u pms.nowills.com /usr/local/lsws/lsphp84/bin/php
    /home/pms.nowills.com/public_html/artisan pms:backup` (or take a CyberPanel snapshot).
 3. **Pull + hook** — the two commands in [step 9](#step-9--updating-the-live-site-manual-pull).
 4. **Verify**: site loads, log in, open one module; read `storage/logs/deploy.log` and
