@@ -8,19 +8,29 @@ Version 7.54.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
 
 > This is the CyberPanel counterpart of [INSTALL-CPANEL.md](INSTALL-CPANEL.md). The CMS-style
 > "Git deploy" in Hostinger's hPanel does not apply to a VPS with CyberPanel — code lives on the
-> VPS filesystem and is pulled by CyberPanel's own Git Manager (or by hand over SSH).
+> VPS filesystem and is pulled over SSH (or by CyberPanel's Git Manager).
+
+**This deployment** (these values are used by every command below — check them against *List Websites* first):
+
+| | Value |
+|---|---|
+| Domain | `pms.nowills.com` — created in CyberPanel as its **own website** |
+| Site path | `/home/pms.nowills.com/public_html` |
+| Site user | `pms.nowills.com` |
+| Repository | `https://github.com/nowillsgroup/nowillsgrouppmserp.git` (public, branch `main`) |
+| Updates | **manual pull over SSH** after each merge to `main` (step 9) — no webhook, nothing exposed |
 
 ---
 
 ## What the finished layout looks like
 
 ```
-/home/nowills.com/pms.nowills.com/          ← the git checkout (repo root)
+/home/pms.nowills.com/public_html/          ← the git checkout (repo root)
 ├── app/ bootstrap/ build/ config/ database/ resources/ routes/ storage/
 ├── public/                                 ← the ONLY web-reachable folder
 │   ├── index.php  .htaccess  install.php  css/ js/ uploads/
 ├── .env                                    ← written by the installer, never in git
-└── deploy/cyberpanel/post-deploy.sh        ← the hook you will install in step 9
+└── deploy/cyberpanel/post-deploy.sh        ← post-deploy hook (steps 7 and 9)
 ```
 
 The virtual host's **Document Root must point at `public/`**. Everything that is secret or
@@ -36,12 +46,51 @@ Two values you will need throughout; note them down:
 
 | | Example | Where to find it |
 |---|---|---|
-| **Site path** | `/home/nowills.com/pms.nowills.com` | *Websites → List Websites* — the path shown for the domain |
-| **Site user** | `nowills.com` | `stat -c '%U' <site path>` over SSH, or the owner shown in File Manager |
+| **Site path** | `/home/pms.nowills.com/public_html` | *Websites → List Websites* — the path shown for the domain |
+| **Site user** | `pms.nowills.com` | `stat -c '%U' <site path>` over SSH, or the owner shown in File Manager |
 
-CyberPanel creates a child domain at `/home/<master-domain>/<subdomain>`, owned by the master
-domain's user. If you created `pms.nowills.com` as a *separate website* instead, the path is
-`/home/pms.nowills.com/public_html` and the user is `pms.nowills.com` — adjust the commands.
+CyberPanel gives every **main website** a system user named after the domain (`pms.nowills.com`)
+and a `/home/<domain>/public_html` folder — that is the layout this guide assumes. If you later add
+a property as a *child domain* of another site, the path becomes `/home/<master>/<child>` and the
+owner is the master's user; everything else in the guide is identical, just with those two values
+swapped.
+
+---
+
+## The whole deployment on one screen
+
+Three clicks in CyberPanel (steps 2–4), one vHost edit (step 6), then this block over SSH as root.
+Every line is explained in the step it comes from — read those before running this.
+
+```bash
+SITE=/home/pms.nowills.com/public_html
+SITE_USER=$(stat -c '%U' "$SITE")
+echo "$SITE owner=$SITE_USER"                    # expect /home/pms.nowills.com/public_html owner=pms.nowills.com
+ls -A "$SITE"                                    # back up anything you want to keep first
+
+# 5. code onto the server, owned by the site user
+find "$SITE" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+sudo -u "$SITE_USER" git clone https://github.com/nowillsgroup/nowillsgrouppmserp.git "$SITE"
+
+# 6. <-- now do the vHost Conf edit: docRoot must end in /public, then restart LiteSpeed
+
+# 7. runtime folders + permissions
+sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
+
+# 4. create the database in the panel, then open
+#    https://pms.nowills.com/install.php   (NOWILLS · GHS · Africa/Accra · NO demo data)
+#    and when it finishes, remove the installer:
+rm -f "$SITE/public/install.php"
+
+# 8. cron: Manage -> Cron Jobs -> once per minute
+#    /usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
+```
+
+Then check the table in step 10 and the go-live list below it.
+
+> **Already had something in `public_html`?** The `find … rm` clears the folder. Download it first
+> (File Manager → compress), or clone into a fresh folder name and point the docroot at *that*
+> `public/`, e.g. `/home/pms.nowills.com/app/public`.
 
 ---
 
@@ -62,17 +111,23 @@ dig +short pms.nowills.com
 
 ---
 
-## Step 2 — Create the site and issue SSL
+## Step 2 — Confirm the site and its certificate
 
-1. CyberPanel (`https://<VPS-IP>:8090`) → **Websites → Create Website**
-   * Package: *Default* · Owner: the `nowills.com` user (or `admin`) · Domain: `pms.nowills.com`
-   * PHP: **8.3** or newer · SSL: off for now · DKIM/Open_basedir: defaults are fine.
-   * If your build only offers subdomains as *child domains*: **Sub-Domain** → Domain `nowills.com`,
-     Sub Domain `pms`.
-2. Once DNS answers, open **Websites → List Websites → (pms.nowills.com) Manage → SSL → Issue SSL**.
-   Choose Let's Encrypt. When it finishes, `https://pms.nowills.com` answers (a 404 or the
-   CyberPanel placeholder is fine at this point).
-3. Optional but recommended: in **Manage → SSL**, enable **Force HTTPS**.
+The website already exists, so this is a check, not a build. In
+**Websites → List Websites**, confirm for `pms.nowills.com`:
+
+1. The **path** is `/home/pms.nowills.com/public_html` (that is what the commands below use).
+2. The **PHP** column shows 8.3 or 8.4 — if not, fix it in step 3.
+3. **Manage → SSL** shows an issued certificate. If not, and DNS already answers,
+   **Manage → SSL → Issue SSL** → Let's Encrypt.
+4. Optional but recommended: **Manage → SSL** → enable **Force HTTPS**.
+
+`https://pms.nowills.com` should answer now — a 404, a CyberPanel placeholder or a directory
+listing is fine; it becomes the PMS in step 7.
+
+> Changing the document root in step 6 does **not** break certificates: CyberPanel answers the
+> Let's Encrypt challenge from `/usr/local/lsws/…/.well-known/acme-challenge` through its own
+> `context` block, not from the site's document root. Renewals keep working.
 
 ---
 
@@ -118,12 +173,14 @@ what the installer needs):
 
 | Field | Example |
 |---|---|
-| Database name | `pms` → full name `nowills.com_pms` |
-| User | `pmsuser` → full name `nowills.com_pmsuser` |
+| Database name | `pms` |
+| User | `pmsuser` |
 | Password | generate a strong one, **no line breaks** |
 
-Use the **full** names — CyberPanel prefixes them — and grant **ALL PRIVILEGES** (the Create
-Database screen does this for you). Note the host: on the same VPS it is `localhost`.
+CyberPanel may prefix the finished names with the site — copy **exactly** what the panel shows
+after you save (the Database list is the truth; `nowills_pms` and `nowills_pmsuser` in this example).
+Grant **ALL PRIVILEGES** (the Create Database screen does this for you). DB host on the same VPS:
+`localhost`.
 
 phpMyAdmin is available from the **Databases** page if you want to look inside.
 
@@ -135,36 +192,41 @@ The repository is **public**, so a plain HTTPS clone needs no keys.
 
 ```bash
 # as root
-SITE=/home/nowills.com/pms.nowills.com
+SITE=/home/pms.nowills.com/public_html
 SITE_USER=$(stat -c '%U' "$SITE")
 
 # print both and eyeball them before the next command — it deletes what it names
 echo "$SITE  owner=$SITE_USER"
 
-# 1. a brand-new site folder only holds CyberPanel's placeholder — clear it
-ls -A "$SITE"                    # look first: a fresh site has index.html + error pages
+# 1. clear the folder — on a fresh site it only holds CyberPanel's index.html + error pages
+ls -A "$SITE"                    # look first; if there is anything real, download it before deleting
 find "$SITE" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
 # 2. clone AS THE SITE USER so PHP can write .env, storage/ and uploads/
-su - "$SITE_USER" -c "git clone https://github.com/nowillsgroup/nowillsgrouppmserp.git '$SITE'"
+sudo -u "$SITE_USER" bash -c "git clone https://github.com/nowillsgroup/nowillsgrouppmserp.git '$SITE'"
 
 # 3. the repo's default branch is main — confirm you are on it
-su - "$SITE_USER" -c "git -C '$SITE' checkout main && git -C '$SITE' log -1 --oneline"
+sudo -u "$SITE_USER" bash -c "git -C '$SITE' checkout main && git -C '$SITE' log -1 --oneline"
 
 # 4. sanity: the Composer tree must be there
 ls -l "$SITE/build/vendor/autoload.php"
 ```
 
-If you would rather let CyberPanel clone for you, do it in **Manage → Manage Git → Attach Now**
-(see [step 9](#step-9--deploy-on-every-push-optional-but-worth-it)) — the folder must be empty,
-which is why the `rm` above is there.
+If you would rather let CyberPanel clone the repository for you, use **Manage → Manage Git → Attach
+Now** (see the appendix at the end of this guide) — it needs an empty folder, which is why the `find
+… -delete` above is there. Cloning by hand as shown above keeps you independent of that feature, and
+manual pulls are all this deployment needs.
+
+If `sudo -u` reports an unknown user, read the real owner first — `stat -c '%U' "$SITE"` — and use
+that name. (CyberPanel creates these users without a login shell, which is why `sudo -u` is used
+instead of `su -`.)
 
 **Do not clone as root.** Files owned by root break `storage/`, `bootstrap/cache/`, `public/uploads/`
 and the installer's `.env` write. If it already happened:
 
 ```bash
-stat -c '%U:%G' /home/nowills.com/pms.nowills.com      # should be the site user
-chown -R nowills.com:nowills.com /home/nowills.com/pms.nowills.com
+stat -c '%U:%G' /home/pms.nowills.com/public_html      # should be the site user
+chown -R pms.nowills.com:pms.nowills.com /home/pms.nowills.com/public_html
 ```
 
 ---
@@ -176,15 +238,15 @@ chown -R nowills.com:nowills.com /home/nowills.com/pms.nowills.com
 The first line is the document root. Append `/public` to it:
 
 ```apacheconf
-docRoot                   /home/nowills.com/pms.nowills.com/public
+docRoot                   /home/pms.nowills.com/public_html/public
 ```
 
 Notes:
 
-* A **child domain** already shows an absolute path there (`docRoot /home/nowills.com/pms.nowills.com`);
-  a main website shows `docRoot $VH_ROOT/public_html`. Either way, the value must end in `/public`.
-  If you use `$VH_ROOT`, remember that for a child domain `$VH_ROOT` is `/home/nowills.com`, **not**
-  the site folder — an absolute path is always safer here.
+* A main website normally shows `docRoot $VH_ROOT/public_html` there. Either edit it in place —
+  `docRoot $VH_ROOT/public_html/public` — or replace the whole line with the absolute path above;
+  both work, the absolute path is just harder to get wrong. (For a *child domain* on this panel,
+  `$VH_ROOT` is the master's home, not the site folder — use the absolute path there.)
 * Leave everything else alone. In particular the `rewrite { … }` block must keep
   `enable 1` and `autoLoadHtaccess 1` — that is what makes `public/.htaccess` (Laravel's front
   controller) work on OpenLiteSpeed:
@@ -212,14 +274,16 @@ systemctl restart lsws
 ## Step 7 — Permissions, then run the installer
 
 ```bash
-cd /home/nowills.com/pms.nowills.com
-bash deploy/cyberpanel/post-deploy.sh
+sudo -u pms.nowills.com bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh
 ```
+
+(As root also works — the script re-chowns what it touches to the site user — but running it as the
+site user keeps every file's owner correct from the start.)
 
 That script (safe to run any number of times, before or after the install) creates the gitignored
 runtime folders (`public/uploads{,/logos,/menu,/room-images}`, `storage/app/backups`, the framework
-caches), sets **755 folders / 644 files** — never 777 — and points them at the site user.
-It logs to `storage/logs/deploy.log`.
+caches), sets **755 folders / 644 files** — never 777 — and, when run as root, hands them back to
+the site user. It logs every step to `storage/logs/deploy.log`.
 
 Now open:
 
@@ -246,7 +310,7 @@ Then **remove the installer** — it reports your PHP configuration and folder p
 who loads it:
 
 ```bash
-rm -f /home/nowills.com/pms.nowills.com/public/install.php
+rm -f /home/pms.nowills.com/public_html/public/install.php
 ```
 
 It refuses to install twice (it drops `storage/framework/installed.lock`), but delete it anyway.
@@ -273,7 +337,7 @@ crontab, which is what you want):
 |---|---|
 | Minute | `*` |
 | Hour / Day / Month / Weekday | leave empty (CyberPanel treats empty as every) |
-| Command | `/usr/local/lsws/lsphp83/bin/php /home/nowills.com/pms.nowills.com/artisan schedule:run >> /dev/null 2>&1` |
+| Command | `/usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1` |
 
 Use the **absolute lsphp path** — cron has no `PATH`, and the global `php` may be a different
 version. Confirm the version first with `/usr/local/lsws/lsphp83/bin/php -v`.
@@ -282,42 +346,60 @@ If you instead add it to CyberPanel's **root** cron (Dashboard → *Cron Jobs*),
 user so the log files it writes stay writable by PHP:
 
 ```cron
-* * * * * sudo -u nowills.com /usr/local/lsws/lsphp83/bin/php /home/nowills.com/pms.nowills.com/artisan schedule:run >> /dev/null 2>&1
+* * * * * sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php /home/pms.nowills.com/public_html/artisan schedule:run >> /dev/null 2>&1
 ```
 
 Prove it works instead of hoping:
 
 ```bash
-cd /home/nowills.com/pms.nowills.com
+cd /home/pms.nowills.com/public_html
 /usr/local/lsws/lsphp83/bin/php artisan schedule:list | head
 tail -n 20 storage/logs/laravel.log
 ```
 
 ---
 
-## Step 9 — Deploy on every push (optional, but worth it)
+## Step 9 — Updating the live site (manual pull)
 
-Two ways to update the live site. Pick one; both end with the same post-deploy hook, which clears
-the compiled config/routes/views (a `git pull` alone leaves stale caches and new code will not run),
-runs migrations and fixes permissions.
-
-### Option A — pull by hand (simplest, always works)
+This is how a release reaches production: merge the pull request into `main` on GitHub, then run two
+commands on the VPS. No keys to manage, no webhook, no port exposed.
 
 ```bash
-SITE=/home/nowills.com/pms.nowills.com
+SITE=/home/pms.nowills.com/public_html
 SITE_USER=$(stat -c '%U' "$SITE")
-su - "$SITE_USER" -c "git -C '$SITE' pull --ff-only" \
-  && sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
+
+# 1. get the new code (fast-forward only: it fails loudly instead of inventing a merge)
+sudo -u "$SITE_USER" bash -c "git -C '$SITE' pull --ff-only"
+
+# 2. make it live — this is the part people forget
+sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
 ```
 
-Rollback: `su - "$SITE_USER" -c "git -C '$SITE' reset --hard <commit>"` then run the hook again.
+Why step 2 is not optional: `git pull` alone leaves the compiled config, routes and Blade views
+from the previous release in `bootstrap/cache/` and `storage/framework/views/`. The new classes are
+on disk, but the running app keeps executing the old ones — so migrations don't apply and fixes
+appear not to work. The hook clears them, recreates the gitignored runtime folders, sets 755/644,
+runs `artisan migrate --force`, re-caches config/routes/views, and writes a line to
+`storage/logs/deploy.log` for each step. It is safe to run twice.
 
-### Option B — CyberPanel Git Manager + GitHub webhook (push → live)
+Rollback:
+
+```bash
+sudo -u "$SITE_USER" bash -c "git -C '$SITE' reset --hard <previous-commit>"
+bash "$SITE/deploy/cyberpanel/post-deploy.sh"
+```
+
+If the bad release added migrations, also restore the pre-deploy database backup from
+`storage/app/backups/` (or the CyberPanel snapshot) — code rollback does not undo a schema change.
+
+### Optional later — push-to-deploy with CyberPanel Git Manager
+
+Only if you get tired of the two commands (and are willing to expose port 8090 to GitHub).
+It does exactly the same pull, plus the same hook as the post-pull command.
 
 1. **Manage → Manage Git** (top right of the website panel).
-2. *Select Folder to Track*: the site folder. If the repo is not there yet, CyberPanel offers to
-   clone it — that needs an **empty** folder (step 5). If you already cloned in step 5, the folder
-   is already a git repository and CyberPanel will pick it up.
+2. *Select Folder to Track*: the site folder. It already contains a git repository from step 5, so
+   CyberPanel adopts it. (If you skipped step 5 and let CyberPanel clone, the folder must be empty.)
 3. **View/Setup Remote** → *Deployment Key*: copy the key →
    GitHub → repo → **Settings → Deploy keys → Add deploy key** → paste → *Allow write access* **off**
    (read is enough). Back in CyberPanel: host `github.com`, username `nowillsgroup`,
@@ -328,7 +410,7 @@ Rollback: `su - "$SITE_USER" -c "git -C '$SITE' reset --hard <commit>"` then run
    (CyberPanel's input filter rejects `;`, `&&`, `|`, `$`):
 
    ```
-   bash /home/nowills.com/pms.nowills.com/deploy/cyberpanel/post-deploy.sh
+   bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh
    ```
 
 5. Copy the **Webhook URL** CyberPanel shows (it already carries the site's secret).
@@ -346,12 +428,13 @@ Rollback: `su - "$SITE_USER" -c "git -C '$SITE' reset --hard <commit>"` then run
 Caveats worth knowing:
 
 * The webhook has to reach port **8090** from the internet. If your firewall restricts 8090 to your
-  own IP, the webhook will time out — use Option A, or GitHub Actions over SSH.
+  own IP, the webhook will time out — keep using the manual pull (step 9).
 * The pull target for the webhook is the **site folder** for a main website and the child domain's
   path for a subdomain — i.e. always the folder you pointed the document root into. Nothing to
   configure.
 * CyberPanel 2.4.2 had a bug where a security filter rejected webhook JSON containing `{}` and the
-  pull never ran. If deliveries show a 403/500 in GitHub, update CyberPanel, or fall back to Option A.
+  pull never ran. If deliveries show a 403/500 in GitHub, update CyberPanel, or go back to the
+  manual pull (step 9).
 * Git Manager pulls `git pull` (no `--ff-only`) as the site user. If you ever committed directly on
   the server via File Manager, reconcile first (`git status`, `git stash`, `git checkout -- <file>`).
 * Nothing in a pull touches `.env`, `public/uploads/` or `storage/` — they are gitignored, so logos,
@@ -413,7 +496,7 @@ all of it applies here.
 
 | Symptom | Cause and fix |
 |---|---|
-| **500 on every page** | Permissions or a stale cache. `bash deploy/cyberpanel/post-deploy.sh`; then read `/usr/local/lsws/logs/stderr.log`, the site's `logs/<domain>.error_log`, and `storage/logs/laravel.log`. Temporarily set `APP_DEBUG=true` to see the real message — set it back. |
+| **500 on every page** | Permissions or a stale cache. `sudo -u pms.nowills.com bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh`; then read `/usr/local/lsws/logs/stderr.log`, the site's `logs/<domain>.error_log`, and `storage/logs/laravel.log`. Temporarily set `APP_DEBUG=true` to see the real message — set it back. |
 | **404 on everything except `/`** | Document root still `public_html`, or `autoLoadHtaccess 1` missing from the `rewrite` block. Fix step 6 and restart `lsws`. |
 | **Directory listing instead of the app** | Document root still points at the site folder. Point it at `public/`. |
 | **Blank white page** | `APP_DEBUG=false` is hiding a fatal error — check `storage/logs/laravel.log`, or `build/vendor` is missing (re-clone). |
@@ -422,23 +505,26 @@ all of it applies here.
 | **403 on `/`** | The document root path is wrong (typo, or trailing `/public/public`), or the folder is not readable by the site user. `ls -ld <site>/public`. |
 | **Login bounces back to the login page** | `APP_URL` does not match the browser address, or `storage/framework/sessions` is not writable by the site user. Fix `APP_URL`, delete `bootstrap/cache/config.php`, fix ownership. |
 | **Uploads 404 / logo missing** | `public/uploads` missing or unwritable — the hook creates it; check the owner is the site user. |
-| **Installer says `.env` is not writable** | The checkout is owned by root (you cloned as root). `chown -R nowills.com:nowills.com <site>`. |
+| **Installer says `.env` is not writable** | The checkout is owned by root (you cloned as root). `chown -R pms.nowills.com:pms.nowills.com <site>`. |
 | **Installer refuses to run / says locked** | It already installed. To start over (empty database), delete `storage/framework/installed.lock` and re-upload `public/install.php`. |
 | **503 Maintenance** | `rm storage/framework/maintenance.php` (or `artisan up`). |
-| **Scheduled work never happens** | Cron command must use the absolute `lsphp` path and the absolute `artisan` path. Check the cron log / that the job landed in the right user's crontab (`crontab -u nowills.com -l`). |
-| **New release deploys but the UI is unchanged** | Compiled config/routes/views were not cleared. Run `deploy/cyberpanel/post-deploy.sh` — that is exactly what it does. |
+| **Scheduled work never happens** | Cron command must use the absolute `lsphp` path and the absolute `artisan` path. Check the cron log / that the job landed in the right user's crontab (`crontab -u pms.nowills.com -l`). |
+| **New release deploys but the UI is unchanged** | Compiled config/routes/views were not cleared. Run the post-deploy hook (step 9) — that is exactly what it does. |
 | **Webhook says 403 / nothing pulls** | Use the exact URL (with secret) from the panel; disable SSL verification for a self-signed panel cert; make sure 8090 is reachable from GitHub; on CyberPanel 2.4.2 upgrade the panel. |
 | **CSS/JS 404 after a pull** | `public/.htaccess` was overwritten or the pull left the working tree dirty — `git -C <site> status`, then `git checkout -- public/.htaccess`. |
 
 ---
 
-## Updating the live site (checklist)
+## Release checklist (pin this next to the deploy commands)
 
-1. Merge into `main` in GitHub (the pull request flow).
-2. Server: `su - <site-user> -c "git -C <site> pull --ff-only"` — or let the webhook do it.
-3. Run `bash <site>/deploy/cyberpanel/post-deploy.sh` (the webhook runs it for you).
-4. Load the site, log in, and check `storage/logs/laravel.log` + `storage/logs/deploy.log`.
-5. If a release breaks: `git -C <site> reset --hard <previous-commit>`, run the hook, and if the
-   release added migrations, restore the pre-deploy database backup.
+1. Pull request reviewed and **merged into `main`** on GitHub.
+2. **Backup first** for release with migrations: `sudo -u pms.nowills.com /usr/local/lsws/lsphp83/bin/php
+   /home/pms.nowills.com/public_html/artisan pms:backup` (or take a CyberPanel snapshot).
+3. **Pull + hook** — the two commands in [step 9](#step-9--updating-the-live-site-manual-pull).
+4. **Verify**: site loads, log in, open one module; read `storage/logs/deploy.log` and
+   `storage/logs/laravel.log`.
+5. **If it breaks**: reset to the previous commit, run the hook, restore the database if the release
+   had migrations.
 
-Cron, SSL, `.env`, uploads and the database are untouched by every one of those steps.
+Cron, SSL, `.env`, uploads and the database are untouched by every one of those steps — a pull never
+overwrites them (all gitignored).
