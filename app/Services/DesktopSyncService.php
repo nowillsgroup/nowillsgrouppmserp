@@ -55,18 +55,23 @@ class DesktopSyncService
     public static function pack(User $user, int $days = self::WINDOW_DAYS, ?string $deviceId = null): array
     {
         $days = max(1, min(31, $days));
-        $from = now()->subDay()->startOfDay();
-        $until = now()->addDays($days)->endOfDay();
+        $snapshot = now();
+        // Leave a one-second overlap before collecting rows: DB timestamp
+        // precision can be whole seconds, so updates concurrent with pack()
+        // must still appear in the next delta even if they share its second.
+        $cursor = $snapshot->copy()->subSecond();
+        $from = $snapshot->copy()->subDay()->startOfDay();
+        $until = $snapshot->copy()->addDays($days)->endOfDay();
         $hotelId = $user->hotel_id;
 
         $stays = ReservationRoom::with(['reservation:id,guest_id,reference,status,arrival_date,departure_date', 'room:id,number,room_type_id'])
             ->whereHas('reservation', fn ($q) => $q->where('hotel_id', $hotelId))
             ->whereHas('room', fn ($q) => $q->where('hotel_id', $hotelId))
-            ->where(function ($q) use ($from, $until) {
+            ->where(function ($q) use ($from, $until, $snapshot) {
                 // anything touching the window: in house now, arriving or departing inside it
                 $q->whereDate('arrival_date', '>=', $from->copy()->subDays(3))->whereDate('arrival_date', '<=', $until)
                     ->orWhere(fn ($b) => $b->whereDate('departure_date', '>=', $from)->whereDate('departure_date', '<=', $until->copy()->addDays(3)))
-                    ->orWhere(fn ($w) => $w->whereDate('arrival_date', '<=', now())->whereDate('departure_date', '>=', now()));
+                    ->orWhere(fn ($w) => $w->whereDate('arrival_date', '<=', $snapshot)->whereDate('departure_date', '>=', $snapshot));
             })
             ->orderBy('arrival_date')->get();
 
@@ -76,13 +81,13 @@ class DesktopSyncService
         return [
             'meta' => [
                 'version' => self::VERSION,
-                'generated_at' => now()->toIso8601String(),
+                'generated_at' => $snapshot->toIso8601String(),
                 'hotel_id' => $hotelId,
                 'hotel' => (string) setting('hotel_name', 'Hotel'),
                 'device_id' => $deviceId ? mb_substr($deviceId, 0, 80) : null,
                 'user' => ['id' => $user->id, 'name' => $user->name],
                 'covers' => ['from' => $from->toIso8601String(), 'until' => $until->toIso8601String(), 'days' => $days],
-                'cursor' => now()->toIso8601String(),
+                'cursor' => $cursor->toIso8601String(),
                 'counts' => [],
             ],
             'dataset' => [
@@ -107,10 +112,12 @@ class DesktopSyncService
         } catch (\Throwable) {
             throw ValidationException::withMessages(['since' => ['The since cursor must be a date-time.']]);
         }
+        $snapshot = now();
+        $cursor = $snapshot->copy()->subSecond();
         $hotelId = $user->hotel_id;
 
         return [
-            'meta' => ['version' => self::VERSION, 'generated_at' => now()->toIso8601String(), 'since' => $since->toIso8601String(), 'cursor' => now()->toIso8601String()],
+            'meta' => ['version' => self::VERSION, 'generated_at' => $snapshot->toIso8601String(), 'since' => $since->toIso8601String(), 'cursor' => $cursor->toIso8601String()],
             'rooms' => \App\Models\Room::where('hotel_id', $hotelId)->where('updated_at', '>', $since)->orderBy('number')->get(),
             'stays' => ReservationRoom::whereHas('room', fn ($q) => $q->where('hotel_id', $hotelId))
                 ->where('updated_at', '>', $since)->orderBy('arrival_date')->get(),

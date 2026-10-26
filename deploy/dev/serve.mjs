@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Desktop cache cursors now protect updates made during a pack or delta read',
+    detail: 'Pack and delta responses used a cursor captured at the end of the read. A record changed while its table was being exported could be absent from the returned dataset yet still have an updated_at earlier than that late cursor, so the next delta would never send it. The cursor is now anchored just before the read begins, with a one-second overlap to account for database timestamp precision. This may repeat a small number of rows in the next delta, which is safe for an upsert cache, but prevents updates during export from being skipped. An audit checks both pack and delta watermarks against their snapshot times. Asset version moves to 7.63.0.',
+    screens: [['Offline desktop workspace — pack and delta cursors for cache refresh', '/offline/desktop']],
+  },
+  {
     title: 'Offline desk operations now post to their real business date',
     detail: 'DesktopSyncService accepted occurred_at but used it only in the receipt; charges and other operations were still posted under the date of the later sync, defeating back-dated offline work. The sync now scopes a business-date context to each operation, so the existing PMS services apply the event date without changing the property’s configured business date. The context is restored even if an operation fails. To keep a stale or manipulated client from moving ledger entries arbitrarily, occurred_at is limited to the last 31 days and at most five minutes in the future, matching the maximum desktop pack window with small clock skew. A rollback-safe audit confirms an offline charge gets yesterday’s business_date, the normal hotel date is restored, and an event 32 days old is rejected. Asset version moves to 7.62.0.',
     screens: [['Offline desktop sync — backdated operations reconcile to their recorded business date', '/offline/desktop']],
