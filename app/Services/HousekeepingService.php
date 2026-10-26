@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\FolioTransaction;
 use App\Models\HousekeepingTask;
+use App\Models\Hotel;
 use App\Models\LostFoundItem;
 use App\Models\MaintenanceRequest;
 use App\Models\MinibarItem;
 use App\Models\Room;
 use App\Models\StockMovement;
 use App\Support\Numbering;
+use App\Support\Tenant;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -53,6 +55,11 @@ class HousekeepingService
     public static function generate(string $date): int
     {
         return DB::transaction(function () use ($date) {
+            // Empty task sets cannot be protected by locking their rows. Serialize
+            // generators through the owning hotel row before checking for existing tasks.
+            if (Tenant::check()) {
+                Hotel::whereKey(Tenant::id())->lockForUpdate()->firstOrFail();
+            }
             $staff = self::attendants();
             $load = HousekeepingTask::where('task_date', $date)->whereNotNull('employee_id')->groupBy('employee_id')->selectRaw('employee_id, SUM(credits) c')->pluck('c', 'employee_id')->map(fn ($c) => (int) $c)->all();
             foreach ($staff as $e) {

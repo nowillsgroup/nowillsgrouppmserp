@@ -12,6 +12,15 @@ def method(name, next_name):
 
 
 class HousekeepingTaskLifecycleTest(unittest.TestCase):
+    def test_concurrent_generators_serialize_before_checking_existing_tasks(self):
+        body = SERVICE[SERVICE.index("public static function generate("):SERVICE.index("public static function start(")]
+        hotel_lock = body.index("Hotel::whereKey(Tenant::id())->lockForUpdate()->firstOrFail()")
+        existing_check = body.index("$existing = HousekeepingTask::where('task_date', $date)")
+        create_task = body.index("HousekeepingTask::create(")
+        self.assertIn("DB::transaction(function () use ($date)", body)
+        self.assertLess(hotel_lock, existing_check)
+        self.assertLess(existing_check, create_task)
+
     def test_start_and_dnd_lock_and_recheck_the_current_task(self):
         for name, next_name in (("start", "dnd"), ("dnd", "complete")):
             with self.subTest(action=name):
