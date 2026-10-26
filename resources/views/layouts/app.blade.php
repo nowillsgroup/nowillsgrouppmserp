@@ -99,11 +99,9 @@
         <nav class="top-tools" aria-label="Quick links">
           <button type="button" class="top-tool" id="app-theme" aria-label="Switch to dark mode" title="Switch to dark mode">
             <span class="top-tool-icon top-tool-icon-moon"><x-icon name="moon" size="sm"/></span>
-            <span class="top-tool-label">Dark</span>
           </button>
           <button type="button" class="top-tool" id="nav-fullscreen" aria-label="Toggle fullscreen" title="Toggle fullscreen">
-            <span class="top-tool-icon top-tool-icon-blue" style="font-size:14px;line-height:1">⛶</span>
-            <span class="top-tool-label">Fullscreen</span>
+            <span class="top-tool-icon top-tool-icon-blue"><x-icon name="expand" size="sm"/></span>
           </button>
           <div class="offline-indicator" data-offline-indicator role="status" aria-live="polite" title="Offline sync status">
             <span class="offline-indicator-dot" data-offline-dot></span><span data-offline-label>Online</span><span class="offline-indicator-pending" data-offline-pending></span>
@@ -111,7 +109,7 @@
           <div class="top-notify">
             <button type="button" class="top-tool" data-dropdown="notifyMenu" aria-haspopup="true"
                     aria-label="Notifications{{ $alertTotal ? ' — '.$alertTotal.' waiting' : '' }}" title="Notifications">
-              <span class="top-tool-icon top-tool-icon-blue"><x-icon name="bell" size="sm"/></span><span class="top-tool-label">Notifications</span>
+              <span class="top-tool-icon top-tool-icon-blue"><x-icon name="bell" size="sm"/></span>
             </button>
             @if($alertTotal)<span class="notify-count" aria-hidden="true">{{ $alertTotal > 99 ? '99+' : $alertTotal }}</span>@endif
             <div class="dropdown dropdown-notify" id="notifyMenu" role="menu" aria-label="Notifications">
@@ -131,13 +129,13 @@
             </div>
           </div>
           @if(can_do('desk.messages'))<a class="top-tool" href="{{ route('desk.messages') }}" aria-label="Desk messages" title="Desk messages">
-            <span class="top-tool-icon top-tool-icon-amber"><x-icon name="mail" size="sm"/></span><span class="top-tool-label">Messages</span>
+            <span class="top-tool-icon top-tool-icon-amber"><x-icon name="mail" size="sm"/></span>
           </a>@endif
           @if(can_do('inbox.view') || can_do('inbox.reply'))<a class="top-tool" href="{{ route('inbox.index') }}" aria-label="Guest inbox" title="Guest inbox">
-            <span class="top-tool-icon top-tool-icon-purple"><x-icon name="message" size="sm"/></span><span class="top-tool-label">Inbox</span>
+            <span class="top-tool-icon top-tool-icon-purple"><x-icon name="message" size="sm"/></span>
           </a>@endif
           @if(can_do('banquet.view'))<a class="top-tool" href="{{ route('banquet.calendar') }}" aria-label="Banquet calendar" title="Banquet calendar">
-            <span class="top-tool-icon top-tool-icon-teal"><x-icon name="calendar" size="sm"/></span><span class="top-tool-label">Calendar</span>
+            <span class="top-tool-icon top-tool-icon-teal"><x-icon name="calendar" size="sm"/></span>
           </a>@endif
         </nav>
         <span class="bdate" title="Business (audit) date"><x-icon name="calendar" size="sm"/> {{ bdate()->format('D, d M Y') }}</span>
@@ -217,12 +215,16 @@ if ('serviceWorker' in navigator) {
   const apply = mode => {
     document.body.classList.toggle('dark', mode === 'dark');
     document.getElementById('desk')?.classList.toggle('dark', mode === 'dark');
+    // The bar is icon-only, so the current mode lives in the accessible name
+    // (and the native tooltip) rather than in a visible word.
     const btn = document.getElementById('app-theme');
     if (btn) {
-      const label = btn.querySelector('.top-tool-label');
-      if (label) label.textContent = mode === 'dark' ? 'Light' : 'Dark';
-      btn.setAttribute('aria-label', mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-      btn.title = mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      const name = mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+      btn.setAttribute('aria-label', name);
+      btn.title = name;
+      btn.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
+      // sun while dark (the next click brings light back), moon while light
+      btn.querySelector('use')?.setAttribute('href', mode === 'dark' ? '#i-sun' : '#i-moon');
     }
   };
   apply(dark ? 'dark' : 'light');
