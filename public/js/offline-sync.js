@@ -236,6 +236,7 @@
         if (result.ticket) notify('Maintenance ticket ' + result.ticket.ticket_no + ' synced.', 'info');
         if (result.status === 'conflict') notify('A housekeeping record changed while this device was offline. Review the server status.', 'error');
         if (result.status === 'rejected') notify(result.error || 'An offline change was rejected.', 'error');
+        if (result.status === 'retry') notify(result.error || 'The change was not confirmed and remains queued for retry.', 'error');
       }
       rows = await allOutbox();
       await updatePending();

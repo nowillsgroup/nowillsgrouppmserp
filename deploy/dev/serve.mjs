@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Unexpected offline-sync failures now keep their operation in the retry queue',
+    detail: 'The outbox server returned generic exceptions with status rejected even though its message said the operation remained safe to retry. Both browser clients remove rejected operations from IndexedDB, so a transient server-side failure could delete work without applying it. Validation failures still return rejected; unexpected exceptions now return a distinct retry status, which the clients leave queued and visibly report for the next attempt. Housekeeping and guest-request data stay on-device until the server confirms the operation. Asset version moves to 7.67.0.',
+    screens: [['Offline housekeeping and guest requests — retryable failures remain queued', '/offline/housekeeping'], ['Offline guest requests — retryable failures remain queued', '/offline/guest-requests']],
+  },
+  {
     title: 'Guest-request sync permission can no longer authorize housekeeping writes',
     detail: 'The shared /offline/sync route admits housekeeping attendants, housekeeping managers and requests managers because it handles both housekeeping actions and guest-request creation. The guest-request operation checked its own permission, but housekeeping room-status, task and maintenance operations did not. A requests-only login could therefore bypass the screen controls and write a room status through the shared endpoint. All three housekeeping operations now independently require housekeeping.attendant or housekeeping.manage; guest-request creation retains its requests.manage check. A rollback-safe audit using a requests-only user confirms the write is rejected and the room is unchanged. Asset version moves to 7.66.0.',
     screens: [['Offline housekeeping — write operations enforce housekeeping permissions server-side', '/offline/housekeeping']],

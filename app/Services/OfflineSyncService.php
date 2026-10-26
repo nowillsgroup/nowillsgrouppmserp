@@ -97,10 +97,10 @@ class OfflineSyncService
             try {
                 $results[] = self::apply($raw, $user, $deviceId);
             } catch (ValidationException $e) {
-                $results[] = self::invalid($raw, collect($e->errors())->flatten()->implode(' '));
+                $results[] = self::invalid($raw, collect($e->errors())->flatten()->implode(' '), 'rejected');
             } catch (Throwable $e) {
                 report($e);
-                $results[] = self::invalid($raw, 'The operation could not be applied. It remains safe to retry.');
+                $results[] = self::invalid($raw, 'The operation could not be applied. It remains safe to retry.', 'retry');
             }
         }
 
@@ -368,9 +368,9 @@ class OfflineSyncService
     }
 
     /** @param array<string, mixed> $raw */
-    protected static function invalid(array $raw, string $message): array
+    protected static function invalid(array $raw, string $message, string $status = 'rejected'): array
     {
-        return ['operation_id' => (string) ($raw['operation_id'] ?? ''), 'status' => 'rejected', 'error' => $message];
+        return ['operation_id' => (string) ($raw['operation_id'] ?? ''), 'status' => $status, 'error' => $message];
     }
 
     /** @param array<string, mixed> $payload */

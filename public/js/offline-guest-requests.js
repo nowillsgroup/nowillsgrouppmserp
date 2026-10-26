@@ -269,6 +269,8 @@
         } else if (result.status === 'conflict') {
           if (local) Object.assign(local, { sync_status: 'conflict', error: result.error || 'The request needs review.' });
           notify('The guest request needs review before it can be created.', 'error');
+        } else if (result.status === 'retry') {
+          notify(result.error || 'The request was not confirmed and remains queued for retry.', 'error');
         }
         if (result.operation_id && ['applied', 'rejected', 'conflict'].includes(result.status)) await deleteOutbox(result.operation_id);
       }
