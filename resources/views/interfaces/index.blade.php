@@ -81,7 +81,7 @@
     <h4 style="margin:1rem 0 .4rem">Door locks</h4>
     <div class="form-grid">
       <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="lock_enabled" value="1" @checked($cfg['lock_enabled'] === '1')> Lock interface on</label>
-      <x-field name="lock_driver" label="Driver" type="select" :options="['demo' => 'Demo', 'offline' => 'Offline']" :value="$cfg['lock_driver']" :placeholder="false"/>
+      <x-field name="lock_driver" label="Driver" type="select" :options="['demo' => 'Demo', 'offline' => 'Offline', 'tcp' => 'TCP encoder']" :value="$cfg['lock_driver']" :placeholder="false"/>
       <x-field name="lock_system" label="Lock system" :value="$cfg['lock_system']"/>
       <x-field name="lock_max_cards" label="Max cards per room" type="number" min="1" max="10" :value="$cfg['lock_max_cards']" required/>
       <x-field name="lock_auto_issue" label="Cards encoded at check-in" type="number" min="0" max="4" :value="$cfg['lock_auto_issue']" required hint="0 = the desk encodes"/>
@@ -91,6 +91,15 @@
       <x-field name="lock_master_hours" label="Master key sign-out (h)" type="number" min="1" max="24" :value="$cfg['lock_master_hours']" required/>
       <x-field name="lock_areas" label="Common areas" class="span-2" :value="$cfg['lock_areas']" hint="comma separated"/>
       <div class="field span-2"><label>Granted by default</label><div class="flex" style="gap:.8rem;flex-wrap:wrap">@foreach($cfg['areas'] as $a)<label class="flex small" style="gap:.3rem;align-items:center"><input type="checkbox" name="lock_default_areas[]" value="{{ $a }}" @checked(in_array($a, $cfg['default_areas']))> {{ $a }}</label>@endforeach</div></div>
+      <div class="field span-2"><h4>TCP encoder link</h4><p class="small muted">Vendor protocols differ. Configure the encoder's ASCII command/reply templates here; test with the local simulator before connecting hardware. Leave driver on Demo until certified.</p></div>
+      <x-field name="lock_tcp_host" label="Encoder host" :value="$cfg['lock_tcp_host']"/>
+      <x-field name="lock_tcp_port" label="Encoder port" type="number" min="0" max="65535" :value="$cfg['lock_tcp_port']" hint="0 = not configured"/>
+      <x-field name="lock_tcp_timeout" label="Reply timeout (s)" type="number" min="1" max="60" :value="$cfg['lock_tcp_timeout']"/>
+      <x-field name="lock_tcp_ok" label="Success reply (regex)" :value="$cfg['lock_tcp_ok']" hint="Blank accepts any reply; default matches OK / ACK / SUCCESS"/>
+      <x-field name="lock_reply_serial" label="Card UID (regex)" class="span-2" :value="$cfg['lock_reply_serial']" hint="For issue/duplicate, capture UID in group 1; no UID means the card is not recorded"/>
+      @foreach(['issue' => 'Encode new card', 'duplicate' => 'Duplicate card', 'cancel' => 'Cancel card', 'checkout' => 'Check out room', 'extend' => 'Extend validity', 'read' => 'Read card'] as $key => $label)
+        <x-field name="lock_cmd_{{ $key }}" label="{{ $label }} command" class="span-2" :value="$cfg['lock_cmd_'.$key]" placeholder="Vendor-specific command template" hint="Placeholders: payload keys + {date} {time} {datetime}"/>
+      @endforeach
     </div>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary" id="saveIfSettings">Save settings</button></div>
