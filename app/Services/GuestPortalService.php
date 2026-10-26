@@ -88,8 +88,18 @@ class GuestPortalService
         }
         $qty = max(1, min(10, (int) ($d['quantity'] ?? 1)));
 
-        return DB::transaction(function () use ($stay, $cat, $item, $notes, $when, $qty, $source) {
-            ReservationRoom::whereKey($stay->id)->lockForUpdate()->first(); // serialise per stay
+        return DB::transaction(function () use ($stay, $cat, $item, $notes, $when, $qty, $source, $d) {
+            $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail(); // serialise per stay
+            $state = $stay->portalState();
+            if ($state !== 'inhouse' && ! ($cat === 'front_desk' && $state === 'upcoming')) {
+                throw new RuntimeException('This stay is no longer accepting this request. Please refresh the guest portal.');
+            }
+            if ($cat === 'late_checkout') {
+                $when = Carbon::parse($stay->departure_date->toDateString().' '.($d['time'] ?? '14:00'));
+                if ($when->format('H:i') <= substr((string) hotel()->checkout_time, 0, 5)) {
+                    throw new RuntimeException('Choose a time after the standard check-out time ('.substr((string) hotel()->checkout_time, 0, 5).').');
+                }
+            }
             $open = GuestRequest::where('reservation_room_id', $stay->id)->whereIn('status', GuestRequest::OPEN);
             if (in_array($source, ['portal', 'tv'], true) && (clone $open)->count() >= self::MAX_OPEN_REQUESTS) {
                 throw new RuntimeException('You have several requests in progress. Please wait for them to be completed or call the front desk.');
@@ -216,7 +226,10 @@ class GuestPortalService
         }
 
         return DB::transaction(function () use ($stay, $lines, $outlet, $notes, $source) {
-            ReservationRoom::whereKey($stay->id)->lockForUpdate()->first();
+            $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            if ($stay->portalState() !== 'inhouse') {
+                throw new RuntimeException('In-room dining is no longer available for this stay. Please refresh the guest portal.');
+            }
             $order = PosOrder::where('outlet_id', $outlet->id)->where('reservation_room_id', $stay->id)->where('source', $source)->where('status', 'open')->latest('id')->first();
             if ($order && $order->items()->where('is_pending', true)->where('is_cancelled', false)->count() + count($lines) > self::MAX_PENDING_DINING_LINES) {
                 throw new RuntimeException('Your previous order is still being confirmed. Please wait a moment.');
@@ -290,7 +303,10 @@ class GuestPortalService
         }
 
         return DB::transaction(function () use ($stay, $service, $date, $time, $pax) {
-            ReservationRoom::whereKey($stay->id)->lockForUpdate()->first();
+            $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            if ($stay->portalState() !== 'inhouse' || $date < bdate()->toDateString() || $date > $stay->departure_date->toDateString()) {
+                throw new RuntimeException('Spa booking is no longer available for this stay. Please refresh the guest portal.');
+            }
             \App\Models\Setting::firstOrCreate(['key' => 'spa_booking_lock'], ['value' => '0']);
             \App\Models\Setting::where('key', 'spa_booking_lock')->lockForUpdate()->first(); // serialise slot allocation across guests
             $upcoming = SpaAppointment::where('reservation_room_id', $stay->id)->where('status', 'booked')->where('notes', 'like', 'Booked via guest portal%')->count();
