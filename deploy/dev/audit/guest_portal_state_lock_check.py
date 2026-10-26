@@ -20,6 +20,15 @@ class GuestPortalStateLockTest(unittest.TestCase):
         self.assertIn("$state = $stay->portalState()", method)
         self.assertIn("This stay is no longer accepting this request", method)
 
+    def test_guest_request_transitions_serialize_and_recheck_current_state(self):
+        method = SERVICE[SERVICE.index("public static function transition("):SERVICE.index("public static function syncFromLinked(")]
+        self.assertIn("DB::transaction(function () use ($req, $action, $note)", method)
+        self.assertIn("GuestRequest::whereKey($req->id)->lockForUpdate()->firstOrFail()", method)
+        wake_lock = method.index("WakeupCall::whereKey($snapshot->linked_id)->lockForUpdate()")
+        request_lock = method.index("GuestRequest::whereKey($req->id)->lockForUpdate()")
+        self.assertLess(wake_lock, request_lock)
+        self.assertLess(request_lock, method.index("if (! $to || ! in_array($req->status"))
+
     def test_dining_revalidates_locked_stay_state_before_creating_order(self):
         method = SERVICE[SERVICE.index("public static function orderDining("):SERVICE.index("public static function needsTherapist(")]
         self.assertIn("$stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail()", method)
@@ -32,6 +41,12 @@ class GuestPortalStateLockTest(unittest.TestCase):
         self.assertIn("$stay->portalState()", method)
         self.assertIn("ActivityBooking::where('reservation_room_id', $stay->id)->whereIn('status', ActivityBooking::OPEN)->count() >= 6", method)
         self.assertLess(method.index("$stay->portalState()"), method.index("ActivityBooking::create("))
+
+    def test_checkout_closes_only_still_open_requests_under_row_locks(self):
+        method = SERVICE[SERVICE.index("public static function closeForStay("):SERVICE.index("public static function rate(")]
+        self.assertIn("DB::transaction(function () use ($stay)", method)
+        self.assertIn("whereIn('status', GuestRequest::OPEN)", method)
+        self.assertIn("->orderBy('id')->lockForUpdate()->get()", method)
 
     def test_spa_revalidates_locked_stay_state_and_dates_before_booking(self):
         method = SERVICE[SERVICE.index("public static function bookSpa("):SERVICE.index("public const WELCOME_TEMPLATE")]

@@ -155,30 +155,38 @@ class GuestPortalService
 
     public static function transition(GuestRequest $req, string $action, ?string $note = null): GuestRequest
     {
-        $to = ['acknowledge' => 'acknowledged', 'start' => 'in_progress', 'done' => 'done', 'decline' => 'declined', 'cancel' => 'cancelled'][$action] ?? null;
-        $allowed = [
-            'acknowledged' => ['new'], 'in_progress' => ['new', 'acknowledged'], 'done' => GuestRequest::OPEN,
-            'declined' => GuestRequest::OPEN, 'cancelled' => $req->linked_type === 'WakeupCall' ? ['new', 'acknowledged'] : ['new'], // v3.5: a booked wake-up can still be cancelled
-        ];
-        if (! $to || ! in_array($req->status, $allowed[$to])) {
-            throw new RuntimeException('This request is already '.str_replace('_', ' ', $req->status).'.');
-        }
-        if ($to === 'declined' && ! trim((string) $note)) {
-            throw new RuntimeException('Please give the guest a reason.');
-        }
-        $req->forceFill([
-            'status' => $to, 'staff_note' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 255) : $req->staff_note,
-            'acknowledged_at' => $req->acknowledged_at ?? ($to !== 'cancelled' ? now() : null),
-            'completed_at' => in_array($to, ['done', 'declined', 'cancelled']) ? now() : null,
-            'handled_by' => $action === 'cancel' ? $req->handled_by : (auth()->id() ?? $req->handled_by),
-        ])->save();
-        if ($req->linked_type === 'WakeupCall' && in_array($to, ['declined', 'cancelled'], true)
-            && ($call = \App\Models\WakeupCall::find($req->linked_id)) && $call->isScheduled()) {
-            $call->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'completed_by' => auth()->id(), 'outcome_note' => 'Request '.$to])->save(); // v3.5
-        }
-        ActivityLogger::log('requests', $action, "Guest request {$req->request_no} → ".GuestRequest::STATUSES[$to].($note ? ": {$note}" : ''), $req);
+        return DB::transaction(function () use ($req, $action, $note) {
+            // Wake-up workflows lock the call before its linked guest request.
+            // Keep that order for cancellation/decline to avoid a lock cycle.
+            $snapshot = GuestRequest::whereKey($req->id)->firstOrFail();
+            $wakeCall = $snapshot->linked_type === 'WakeupCall' && in_array($action, ['decline', 'cancel'], true)
+                ? \App\Models\WakeupCall::whereKey($snapshot->linked_id)->lockForUpdate()->first()
+                : null;
+            $req = GuestRequest::whereKey($req->id)->lockForUpdate()->firstOrFail();
+            $to = ['acknowledge' => 'acknowledged', 'start' => 'in_progress', 'done' => 'done', 'decline' => 'declined', 'cancel' => 'cancelled'][$action] ?? null;
+            $allowed = [
+                'acknowledged' => ['new'], 'in_progress' => ['new', 'acknowledged'], 'done' => GuestRequest::OPEN,
+                'declined' => GuestRequest::OPEN, 'cancelled' => $req->linked_type === 'WakeupCall' ? ['new', 'acknowledged'] : ['new'], // v3.5: a booked wake-up can still be cancelled
+            ];
+            if (! $to || ! in_array($req->status, $allowed[$to], true)) {
+                throw new RuntimeException('This request is already '.str_replace('_', ' ', $req->status).'.');
+            }
+            if ($to === 'declined' && ! trim((string) $note)) {
+                throw new RuntimeException('Please give the guest a reason.');
+            }
+            $req->forceFill([
+                'status' => $to, 'staff_note' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 255) : $req->staff_note,
+                'acknowledged_at' => $req->acknowledged_at ?? ($to !== 'cancelled' ? now() : null),
+                'completed_at' => in_array($to, ['done', 'declined', 'cancelled'], true) ? now() : null,
+                'handled_by' => $action === 'cancel' ? $req->handled_by : (auth()->id() ?? $req->handled_by),
+            ])->save();
+            if ($wakeCall && $wakeCall->isScheduled()) {
+                $wakeCall->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'completed_by' => auth()->id(), 'outcome_note' => 'Request '.$to])->save(); // v3.5
+            }
+            ActivityLogger::log('requests', $action, "Guest request {$req->request_no} → ".GuestRequest::STATUSES[$to].($note ? ": {$note}" : ''), $req);
 
-        return $req;
+            return $req;
+        });
     }
 
     /** Linked ticket / task finished → the guest's request is done. */
@@ -192,12 +200,14 @@ class GuestPortalService
     /** On check-out: an express check-out request is fulfilled, everything else still open is closed. */
     public static function closeForStay(ReservationRoom $stay): void
     {
-        GuestRequest::where('reservation_room_id', $stay->id)->whereIn('status', GuestRequest::OPEN)
-            ->where(fn ($q) => $q->whereNull('linked_type')->orWhere('linked_type', '!=', 'TransportTrip')) // v3.3: the trip closes its own request
-            ->get()->each(function ($r) {
-            $done = in_array($r->category, ['checkout', 'late_checkout']);
-            $r->forceFill(['status' => $done ? 'done' : 'cancelled', 'completed_at' => now(), 'acknowledged_at' => $r->acknowledged_at ?? now(),
-                'staff_note' => $r->staff_note ?? ($done ? 'Checked out' : 'Closed at check-out')])->save();
+        DB::transaction(function () use ($stay) {
+            GuestRequest::where('reservation_room_id', $stay->id)->whereIn('status', GuestRequest::OPEN)
+                ->where(fn ($q) => $q->whereNull('linked_type')->orWhere('linked_type', '!=', 'TransportTrip')) // v3.3: the trip closes its own request
+                ->orderBy('id')->lockForUpdate()->get()->each(function ($r) {
+                    $done = in_array($r->category, ['checkout', 'late_checkout']);
+                    $r->forceFill(['status' => $done ? 'done' : 'cancelled', 'completed_at' => now(), 'acknowledged_at' => $r->acknowledged_at ?? now(),
+                        'staff_note' => $r->staff_note ?? ($done ? 'Checked out' : 'Closed at check-out')])->save();
+                });
         });
     }
 
