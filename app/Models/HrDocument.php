@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToHotel;
 use Illuminate\Database\Eloquent\Model;
 
 /** v7.40 A staff-uploaded document (ID, certificate, contract …) awaiting HR verification. */
 class HrDocument extends Model
 {
+    use BelongsToHotel;
+
     protected $guarded = ['id', 'hotel_id'];
 
     protected function casts(): array

@@ -162,7 +162,7 @@ class RobitaService
     }
 
     /** Issue a card credential to a Robita device for a stay. */
-    public static function issueCredential(RobitaDevice $device, ReservationRoom $stay, KeyCard $card = null, array $areas = []): RobitaCredential
+    public static function issueCredential(RobitaDevice $device, ReservationRoom $stay, ?KeyCard $card = null, array $areas = []): RobitaCredential
     {
         $c = self::cfg();
         $card ??= KeyCard::where('reservation_room_id', $stay->id)->where('status', 'active')->latest('id')->first();

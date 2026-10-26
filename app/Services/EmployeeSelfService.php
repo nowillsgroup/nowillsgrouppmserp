@@ -219,7 +219,7 @@ class EmployeeSelfService
 
     protected static function phoneForUser(int $userId): ?string
     {
-        $u = User::find($userId);
+        $u = User::visibleToHotel()->find($userId);
         if (! $u) {
             return null;
         }

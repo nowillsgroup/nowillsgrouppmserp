@@ -33,7 +33,7 @@ class TalentInterview extends Model
 
     public function panelUsers()
     {
-        return User::whereIn('id', $this->panel ?? [])->orderBy('name')->get(['id', 'name']);
+        return User::visibleToHotel()->whereIn('id', $this->panel ?? [])->orderBy('name')->get(['id', 'name']);
     }
 
     public function kindLabel(): string

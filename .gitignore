@@ -30,3 +30,5 @@ Thumbs.db
 
 # Python harness caches (deploy/dev/audit)
 __pycache__/
+# generated route-table snapshot for system_audit.php (regenerate with artisan route:list --json)
+deploy/dev/audit/.routes.json

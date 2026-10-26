@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToHotel;
 use Illuminate\Database\Eloquent\Model;
 
 /** v7.40 An HR announcement seen on the staff self-service feed. */
 class HrAnnouncement extends Model
 {
+    use BelongsToHotel;
+
     protected $guarded = ['id', 'hotel_id'];
 
     protected function casts(): array

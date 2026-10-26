@@ -17,6 +17,27 @@ class User extends Authenticatable
 
     protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
+    /**
+     * Scope: the staff of the current hotel plus the group administrators who
+     * oversee that hotel. Users are not globally scoped (see the class note),
+     * so every staff picker should start from this scope.
+     */
+    public function scopeVisibleToHotel($q, ?int $hotelId = null)
+    {
+        $hotelId ??= \App\Support\Tenant::id();
+        if (! $hotelId) {
+            return $q; // no tenant context (console, queue): leave the query alone
+        }
+        $groupId = hotel()?->hotel_group_id;
+
+        return $q->where(function ($w) use ($hotelId, $groupId) {
+            $w->where('hotel_id', $hotelId);
+            if ($groupId) {
+                $w->orWhere(fn ($g) => $g->where('is_group_admin', true)->where('hotel_group_id', $groupId));
+            }
+        });
+    }
+
     protected ?array $permissionCache = null;
 
     protected function casts(): array

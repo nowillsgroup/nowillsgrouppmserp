@@ -98,7 +98,7 @@ class ReservationWorkspaceService
     }
 
     /** The full board for one date. */
-    public static function snapshot(Carbon $date = null): array
+    public static function snapshot(?Carbon $date = null): array
     {
         $date = ($date ?? now())->startOfDay();
         $today = $date->toDateString();

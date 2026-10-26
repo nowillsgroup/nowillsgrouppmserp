@@ -98,7 +98,7 @@ class InboxController extends Controller
 
     protected function agents()
     {
-        return User::where('is_active', true)->orderBy('name')->get()->filter(fn ($u) => IS::canReply($u))->values();
+        return User::visibleToHotel()->where('is_active', true)->orderBy('name')->get()->filter(fn ($u) => IS::canReply($u))->values();
     }
 
     protected function inhouse()

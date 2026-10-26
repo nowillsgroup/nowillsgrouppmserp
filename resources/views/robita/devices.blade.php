@@ -72,9 +72,6 @@
               @endif
             </form>
             <a class="btn btn-sm" href="{{ route('robita.events', ['device_id' => $device->id]) }}"><x-icon name="clock" size="sm"/> Log</a>
-          @else
-            <span class="muted">—</span>
-          @endif
           </td>
         </tr>
         @if($device->credentials->where('status', 'active')->isNotEmpty())
