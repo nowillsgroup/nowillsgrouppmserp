@@ -283,6 +283,11 @@ class TransportService
 
         return DB::transaction(function () use ($trip, $row, $d, $req) {
             if ($trip) {
+                self::lockDispatchBoard();
+                $trip = TransportTrip::whereKey($trip->id)->lockForUpdate()->firstOrFail();
+                if (! $trip->isPlanned()) {
+                    throw new RuntimeException("{$trip->trip_no} is {$trip->statusLabel()} and can't be changed.");
+                }
                 $moved = ! $trip->scheduled_at->equalTo($row['scheduled_at']) || $trip->pax !== $row['pax'];
                 $trip->fill($row);
                 if ($trip->vehicle_id || $trip->driver_id) {
@@ -358,11 +363,16 @@ class TransportService
 
     public static function confirm(TransportTrip $t, bool $notify = true): TransportTrip
     {
-        if ($t->status !== 'requested') {
-            throw new RuntimeException("{$t->trip_no} is already {$t->statusLabel()}.");
-        }
-        $t->forceFill(['status' => 'confirmed'])->save();
-        ActivityLogger::log('transport', 'confirm', "Trip {$t->trip_no} confirmed", $t);
+        $t = DB::transaction(function () use ($t) {
+            $t = TransportTrip::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if ($t->status !== 'requested') {
+                throw new RuntimeException("{$t->trip_no} is already {$t->statusLabel()}.");
+            }
+            $t->forceFill(['status' => 'confirmed'])->save();
+            ActivityLogger::log('transport', 'confirm', "Trip {$t->trip_no} confirmed", $t);
+
+            return $t;
+        });
         if ($notify) {
             self::message($t, 'confirmed');
         }
@@ -370,30 +380,44 @@ class TransportService
         return $t;
     }
 
+    /** Serialize dispatch assignments and changes to an assigned trip's schedule. */
+    protected static function lockDispatchBoard(): void
+    {
+        Setting::firstOrCreate(['key' => 'transport_dispatch_lock'], ['value' => '0']);
+        Setting::where('key', 'transport_dispatch_lock')->lockForUpdate()->first();
+    }
+
     /** Put a car and driver on a trip. Clashes throw TransportClash unless $force. */
     public static function assign(TransportTrip $t, int $vehicleId, int $driverId, bool $force = false, bool $notify = true): TransportTrip
     {
-        if (! $t->isPlanned()) {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()} – it can't be re-assigned.");
-        }
-        $v = Vehicle::find($vehicleId);
-        $d = Driver::find($driverId);
-        if (! $v || ! $d) {
-            throw new RuntimeException('Choose a vehicle and a driver.');
-        }
-        if ($blk = self::blockers($t, $v, $d)) {
-            throw new RuntimeException(implode(' ', $blk));
-        }
-        $cl = self::clashes($v->id, $d->id, $t->busy_from, $t->busy_to, $t->id);
-        if (($cl['vehicle'] || $cl['driver']) && ! $force) {
-            throw new TransportClash($cl);
-        }
-        $changed = $t->vehicle_id !== $v->id || $t->driver_id !== $d->id;
-        $prevDriver = $t->driver_id && $t->driver_id !== $d->id ? $t->driver : null;
-        $t->forceFill(['vehicle_id' => $v->id, 'driver_id' => $d->id, 'status' => 'assigned', 'assigned_at' => now(),
-            'reminder_sent_at' => $changed ? null : $t->reminder_sent_at])->save();
-        $t->setRelation('vehicle', $v)->setRelation('driver', $d);
-        ActivityLogger::log('transport', 'assign', "Trip {$t->trip_no}: {$v->code} ({$v->reg_no}) with {$d->name}".($cl['vehicle'] || $cl['driver'] ? ' – clash overridden' : ''), $t);
+        [$t, $changed, $prevDriver] = DB::transaction(function () use ($t, $vehicleId, $driverId, $force) {
+            self::lockDispatchBoard();
+            $t = TransportTrip::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! $t->isPlanned()) {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()} – it can't be re-assigned.");
+            }
+            $v = Vehicle::whereKey($vehicleId)->lockForUpdate()->first();
+            $d = Driver::whereKey($driverId)->lockForUpdate()->first();
+            if (! $v || ! $d) {
+                throw new RuntimeException('Choose a vehicle and a driver.');
+            }
+            if ($blk = self::blockers($t, $v, $d)) {
+                throw new RuntimeException(implode(' ', $blk));
+            }
+            $cl = self::clashes($v->id, $d->id, $t->busy_from, $t->busy_to, $t->id);
+            if (($cl['vehicle'] || $cl['driver']) && ! $force) {
+                throw new TransportClash($cl);
+            }
+            $changed = $t->vehicle_id !== $v->id || $t->driver_id !== $d->id;
+            $prevDriver = $t->driver_id && $t->driver_id !== $d->id ? Driver::find($t->driver_id) : null;
+            $t->forceFill(['vehicle_id' => $v->id, 'driver_id' => $d->id, 'status' => 'assigned', 'assigned_at' => now(),
+                'reminder_sent_at' => $changed ? null : $t->reminder_sent_at])->save();
+            $t->setRelation('vehicle', $v)->setRelation('driver', $d);
+            ActivityLogger::log('transport', 'assign', "Trip {$t->trip_no}: {$v->code} ({$v->reg_no}) with {$d->name}".($cl['vehicle'] || $cl['driver'] ? ' – clash overridden' : ''), $t);
+
+            return [$t->fresh(['vehicle', 'driver']), $changed, $prevDriver];
+        });
+
         if ($changed && $notify) {
             $c = self::cfg();
             if ($prevDriver && $t->driver_notified_at) {
@@ -407,19 +431,26 @@ class TransportService
             }
         }
 
-        return $t->fresh(['vehicle', 'driver']);
+        return $t;
     }
 
     public static function unassign(TransportTrip $t): TransportTrip
     {
-        if ($t->status !== 'assigned') {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
+        [$t, $driver] = DB::transaction(function () use ($t) {
+            self::lockDispatchBoard();
+            $t = TransportTrip::with('driver')->whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if ($t->status !== 'assigned') {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
+            }
+            $driver = $t->driver && $t->driver_notified_at ? $t->driver : null;
+            $t->forceFill(['vehicle_id' => null, 'driver_id' => null, 'status' => 'confirmed', 'assigned_at' => null, 'driver_notified_at' => null, 'reminder_sent_at' => null])->save();
+            ActivityLogger::log('transport', 'unassign', "Trip {$t->trip_no} un-assigned", $t);
+
+            return [$t, $driver];
+        });
+        if ($driver) {
+            self::message($t, 'cancelled', 'driver', $driver);
         }
-        if ($t->driver && $t->driver_notified_at) {
-            self::message($t, 'cancelled', 'driver');
-        }
-        $t->forceFill(['vehicle_id' => null, 'driver_id' => null, 'status' => 'confirmed', 'assigned_at' => null, 'driver_notified_at' => null, 'reminder_sent_at' => null])->save();
-        ActivityLogger::log('transport', 'unassign', "Trip {$t->trip_no} un-assigned", $t);
 
         return $t;
     }
@@ -428,27 +459,34 @@ class TransportService
 
     public static function start(TransportTrip $t, ?int $odo = null): TransportTrip
     {
-        if ($t->status !== 'assigned') {
-            throw new RuntimeException($t->vehicle_id ? "{$t->trip_no} is {$t->statusLabel()}." : 'Assign a vehicle and driver first.');
-        }
         if ($odo !== null && $odo < 0) {
             throw new RuntimeException('Enter the odometer reading in km.');
         }
-        $t->forceFill(['status' => 'en_route', 'started_at' => now(), 'odo_start' => $odo ?? $t->vehicle?->odometer])->save();
-        ActivityLogger::log('transport', 'start', "Trip {$t->trip_no} left".($odo !== null ? " – odometer {$odo} km" : ''), $t);
 
-        return $t;
+        return DB::transaction(function () use ($t, $odo) {
+            $t = TransportTrip::with('vehicle')->whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if ($t->status !== 'assigned') {
+                throw new RuntimeException($t->vehicle_id ? "{$t->trip_no} is {$t->statusLabel()}." : 'Assign a vehicle and driver first.');
+            }
+            $t->forceFill(['status' => 'en_route', 'started_at' => now(), 'odo_start' => $odo ?? $t->vehicle?->odometer])->save();
+            ActivityLogger::log('transport', 'start', "Trip {$t->trip_no} left".($odo !== null ? " – odometer {$odo} km" : ''), $t);
+
+            return $t;
+        });
     }
 
     public static function onboard(TransportTrip $t): TransportTrip
     {
-        if ($t->status !== 'en_route') {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
-        }
-        $t->forceFill(['status' => 'onboard', 'onboard_at' => now()])->save();
-        ActivityLogger::log('transport', 'onboard', "Trip {$t->trip_no}: {$t->passenger_name} on board", $t);
+        return DB::transaction(function () use ($t) {
+            $t = TransportTrip::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if ($t->status !== 'en_route') {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
+            }
+            $t->forceFill(['status' => 'onboard', 'onboard_at' => now()])->save();
+            ActivityLogger::log('transport', 'onboard', "Trip {$t->trip_no}: {$t->passenger_name} on board", $t);
 
-        return $t;
+            return $t;
+        });
     }
 
     /**
@@ -544,7 +582,7 @@ class TransportService
             if (! $t->unbilled() && ! ($noShowFee && $t->billing === 'room' && ! $t->folio_transaction_id && (float) $t->total > 0)) {
                 return null;
             }
-            $stay = $t->reservation_room_id ? ReservationRoom::whereKey($t->reservation_room_id)->lockForUpdate()->first() : null;
+            $stay = $t->reservation_room_id ? ReservationRoom::whereKey($t->reservation_room_id)->first() : null;
             if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
                 throw new RuntimeException("The stay for {$t->trip_no} is closed – bill the trip directly instead.");
             }
@@ -582,14 +620,14 @@ class TransportService
 
     public static function noShow(TransportTrip $t, string $reason, bool $charge = false): TransportTrip
     {
-        if (! in_array($t->status, ['confirmed', 'assigned', 'en_route', 'onboard'], true)) {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
-        }
-        if ($t->busy_from->gt(now()->addMinutes(30))) {
-            throw new RuntimeException('The trip hasn\'t started yet – cancel it instead.');
-        }
-
         return DB::transaction(function () use ($t, $reason, $charge) {
+            $t = TransportTrip::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($t->status, ['confirmed', 'assigned', 'en_route', 'onboard'], true)) {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
+            }
+            if ($t->busy_from->gt(now()->addMinutes(30))) {
+                throw new RuntimeException('The trip hasn\'t started yet – cancel it instead.');
+            }
             $t->forceFill(['status' => 'no_show', 'cancel_reason' => mb_substr($reason, 0, 190), 'completed_at' => now()])->save();
             if ($charge && $t->billing === 'room' && ! $t->folio_transaction_id && (float) $t->total > 0) {
                 self::postCharge($t, true);
@@ -607,28 +645,32 @@ class TransportService
 
     public static function cancel(TransportTrip $t, string $reason, bool $notify = true): TransportTrip
     {
-        if (! $t->isPlanned()) {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()} and can't be cancelled.");
-        }
-
-        return DB::transaction(function () use ($t, $reason, $notify) {
+        [$t, $guestNotify, $driver] = DB::transaction(function () use ($t, $reason, $notify) {
+            $t = TransportTrip::with('driver')->whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! $t->isPlanned()) {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()} and can't be cancelled.");
+            }
             if ($t->folio_transaction_id) {
                 self::voidCharge($t, 'Transport cancelled');
             }
+            $guestNotify = $notify && ($t->guest_notified_at || $t->source === 'portal');
+            $driver = $t->driver && $t->driver_notified_at ? $t->driver : null;
             $t->forceFill(['status' => 'cancelled', 'cancelled_at' => now(), 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
             if ($t->guest_request_id && ($req = GuestRequest::find($t->guest_request_id)) && $req->isOpen()) {
                 GuestPortalService::transition($req, 'decline', 'Transfer cancelled: '.$reason);
             }
             ActivityLogger::log('transport', 'cancel', "Trip {$t->trip_no} cancelled: {$reason}", $t);
-            if ($notify && ($t->guest_notified_at || $t->source === 'portal')) {
-                self::message($t, 'cancelled');
-            }
-            if ($t->driver && $t->driver_notified_at) {
-                self::message($t, 'cancelled', 'driver');
-            }
 
-            return $t;
+            return [$t, $guestNotify, $driver];
         });
+        if ($guestNotify) {
+            self::message($t, 'cancelled');
+        }
+        if ($driver) {
+            self::message($t, 'cancelled', 'driver', $driver);
+        }
+
+        return $t;
     }
 
     protected static function voidCharge(TransportTrip $t, string $reason): void
