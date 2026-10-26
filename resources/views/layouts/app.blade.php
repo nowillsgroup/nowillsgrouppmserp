@@ -17,6 +17,11 @@
   $user = auth()->user();
   $menu = config('pms.menu');
   $myEmployee = $user ? \App\Models\Employee::where('user_id', $user->id)->where('is_active', true)->exists() : false;
+  // v7.55 notification centre: derived from live data, permission-scoped, built once
+  // per request (the page body and the bell share the same cached array).
+  $alerts = $user ? \App\Services\NotificationCenter::forUser($user) : [];
+  $alertTotal = \App\Services\NotificationCenter::total($alerts);
+  $alertPreview = \App\Services\NotificationCenter::preview($alerts);
 @endphp
 <div class="app">
   <aside class="sidebar">
@@ -103,9 +108,28 @@
           <div class="offline-indicator" data-offline-indicator role="status" aria-live="polite" title="Offline sync status">
             <span class="offline-indicator-dot" data-offline-dot></span><span data-offline-label>Online</span><span class="offline-indicator-pending" data-offline-pending></span>
           </div>
-          @if(can_do('housekeeping.view'))<a class="top-tool" href="{{ route('housekeeping.tasks') }}" aria-label="Housekeeping tasks" title="Housekeeping tasks">
-            <span class="top-tool-icon top-tool-icon-blue"><x-icon name="broom" size="sm"/></span><span class="top-tool-label">Tasks</span>
-          </a>@endif
+          <div class="top-notify">
+            <button type="button" class="top-tool" data-dropdown="notifyMenu" aria-haspopup="true"
+                    aria-label="Notifications{{ $alertTotal ? ' — '.$alertTotal.' waiting' : '' }}" title="Notifications">
+              <span class="top-tool-icon top-tool-icon-blue"><x-icon name="bell" size="sm"/></span><span class="top-tool-label">Notifications</span>
+            </button>
+            @if($alertTotal)<span class="notify-count" aria-hidden="true">{{ $alertTotal > 99 ? '99+' : $alertTotal }}</span>@endif
+            <div class="dropdown dropdown-notify" id="notifyMenu" role="menu" aria-label="Notifications">
+              <div class="notify-drop-head">
+                <b>Notifications</b>
+                <span class="tiny text-2">{{ $alertTotal ? $alertTotal.' waiting' : 'All clear' }}</span>
+              </div>
+              @forelse($alertPreview as $row)
+                <a class="notify-drop-row" role="menuitem" href="{{ $row['url'] ?? route('notifications.index') }}">
+                  <span class="notify-drop-icon notify-tone-{{ $row['tone'] }}"><x-icon :name="$row['icon']" size="sm"/></span>
+                  <span class="notify-drop-copy"><b>{{ $row['text'] }}</b><span class="tiny text-2">{{ $row['meta'] }}</span></span>
+                </a>
+              @empty
+                <p class="notify-drop-empty small text-2">Nothing needs you right now.</p>
+              @endforelse
+              <a class="notify-drop-all" role="menuitem" href="{{ route('notifications.index') }}">See all notifications →</a>
+            </div>
+          </div>
           @if(can_do('desk.messages'))<a class="top-tool" href="{{ route('desk.messages') }}" aria-label="Desk messages" title="Desk messages">
             <span class="top-tool-icon top-tool-icon-amber"><x-icon name="mail" size="sm"/></span><span class="top-tool-label">Messages</span>
           </a>@endif

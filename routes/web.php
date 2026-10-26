@@ -336,6 +336,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/Dashboard', [Controllers\DashboardController::class, 'index'])->middleware('perm:dashboard.view')->name('dashboard');
     Route::get('/search', [Controllers\DashboardController::class, 'search'])->name('search');
     Route::get('/search/suggest', [Controllers\DashboardController::class, 'suggest'])->name('search.suggest');
+
+    // v7.55 notification centre — the bell in the top bar. Derived from live data,
+    // so there is nothing to mark read: fix the item and it disappears.
+    Route::get('/notifications', [Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/group-dashboard', [Controllers\GroupDashboardController::class, 'index'])->middleware('perm:group.dashboard')->name('group.dashboard');
 
     // ---- Rate management (seasonal pricing, weekend rates, min-stay, stop-sell)

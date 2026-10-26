@@ -1,7 +1,7 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.54.0** — the value of
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.55.0** — the value of
 `config('pms.version')` — the asset cache-buster and the stamp in the sidebar. It moves with
 the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_check.py` fails if the two disagree.
 

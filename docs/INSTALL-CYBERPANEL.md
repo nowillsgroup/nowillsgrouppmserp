@@ -4,7 +4,7 @@ Target in this guide: **https://pms.nowills.com** — the PMS running on a Cyber
 (OpenLiteSpeed) server, deployed straight from the GitHub repository
 `nowillsgroup/nowillsgrouppmserp`, with a post-deploy hook so a `git push` becomes a live update.
 
-Version 7.54.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
+Version 7.55.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
 
 > This is the CyberPanel counterpart of [INSTALL-CPANEL.md](INSTALL-CPANEL.md). The CMS-style
 > "Git deploy" in Hostinger's hPanel does not apply to a VPS with CyberPanel — code lives on the
