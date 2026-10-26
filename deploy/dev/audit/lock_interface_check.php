@@ -43,6 +43,8 @@ $bad = $cfg;
 $bad['lock_cmd_read'] = 'READ {missing}';
 [, $error] = TcpLockDriver::buildLine($bad, $command('read'));
 $check('unknown placeholders are rejected before connecting', str_contains((string) $error, '{missing}'));
+[$line, $error] = TcpLockDriver::buildLine($cfg, $command('issue', ['room' => "101\r\nUNLOCK 102", 'until' => '2026-10-29 12:00', 'areas' => ['Lift']]));
+$check('payload line breaks cannot inject a second encoder command', $line === null && str_contains((string) $error, 'control characters'));
 $check('encoder reply UID is parsed and normalized', TcpLockDriver::parseSerial($cfg, 'OK UID=a1-b2-c3-d4') === 'A1B2C3D4');
 $check('encode reply without UID is not accepted as a recorded card', TcpLockDriver::parseSerial($cfg, 'OK ENCODED') === null);
 [$ok] = TcpLockDriver::acknowledged($cfg, 'OK card written', false);
