@@ -66,7 +66,7 @@ return new class extends Migration
             $t->timestamp('snapshot_at')->nullable();
             $t->timestamps();
             $t->unique(['hotel_id', 'billing_reconciliation_id', 'folio_id'], 'bcr_items_hotel_recon_folio');
-            $t->index(['hotel_id', 'document_date', 'document_type']);
+            $t->index(['hotel_id', 'document_date', 'document_type'], 'bcr_items_hotel_date_type');
             $t->index(['hotel_id', 'review_status']);
         });
     }

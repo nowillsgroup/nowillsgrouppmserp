@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToHotel;
 use Illuminate\Database\Eloquent\Model;
 
 /** v7.40 A rental-fleet vehicle (self-drive car rental). */
 class RentalVehicle extends Model
 {
+    use BelongsToHotel;
+
     protected $guarded = ['id', 'hotel_id'];
 
     public const CLASSES = ['economy' => 'Economy', 'standard' => 'Standard', 'suv' => 'SUV', 'luxury' => 'Luxury', 'van' => 'Van'];
