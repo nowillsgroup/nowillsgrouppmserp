@@ -130,7 +130,7 @@ class OfflineSyncService
             'housekeeping.task' => self::applyTask($operationId, $operation, $raw, $payload, $deviceId, $user),
             'housekeeping.maintenance' => self::applyMaintenance($operationId, $operation, $payload, $deviceId, $user),
             'guest_request.create' => self::applyGuestRequest($operationId, $operation, $payload, $deviceId, $user),
-            default => self::persistRejected($operationId, $operation ?: 'unknown', $payload, $deviceId, $user, 'This offline operation is not supported.'),
+            default => self::rejectUnsupported($operationId, $operation ?: 'unknown', $payload, $deviceId, $user),
         };
     }
 
@@ -333,6 +333,19 @@ class OfflineSyncService
 
             return self::record($operationId, $operation, $payload, $deviceId, $user, 'applied', $request->id,
                 ['request' => self::guestRequest($request->fresh(['room']))]);
+        });
+    }
+
+    /** Persist unsupported operations idempotently too, including a lost-response retry. */
+    protected static function rejectUnsupported(string $operationId, string $operation, array $payload, ?string $deviceId, User $user): array
+    {
+        return DB::transaction(function () use ($operationId, $operation, $payload, $deviceId, $user) {
+            $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
+            if ($existing) {
+                return self::stored($existing);
+            }
+
+            return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'This offline operation is not supported.');
         });
     }
 

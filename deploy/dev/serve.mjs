@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Retries of unsupported offline operations now return the same rejection',
+    detail: 'The first unsupported offline operation correctly stored a rejected receipt, but a retry after a lost response tried to insert that same operation id again. The unique-key exception was then returned as a generic retryable failure, leaving the client to retry forever. Unsupported operations now check the stored receipt under the same transaction/lock pattern as supported operations and replay the original rejection idempotently. A rollback-safe audit submits the same unsupported operation twice and verifies both responses match. Asset version moves to 7.68.0.',
+    screens: [['Offline sync operation log — unsupported operations replay their original rejection', '/offline/housekeeping']],
+  },
+  {
     title: 'Unexpected offline-sync failures now keep their operation in the retry queue',
     detail: 'The outbox server returned generic exceptions with status rejected even though its message said the operation remained safe to retry. Both browser clients remove rejected operations from IndexedDB, so a transient server-side failure could delete work without applying it. Validation failures still return rejected; unexpected exceptions now return a distinct retry status, which the clients leave queued and visibly report for the next attempt. Housekeeping and guest-request data stay on-device until the server confirms the operation. Asset version moves to 7.67.0.',
     screens: [['Offline housekeeping and guest requests — retryable failures remain queued', '/offline/housekeeping'], ['Offline guest requests — retryable failures remain queued', '/offline/guest-requests']],
