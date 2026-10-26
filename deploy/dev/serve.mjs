@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline changes are only reported saved after IndexedDB commits the transaction',
+    detail: 'Both browser outboxes resolved their local-storage promise on the individual IndexedDB request success event, before the containing transaction committed. The transaction could still abort (for example, on quota or storage failure) after the UI had announced the change was saved. The helpers now wait for transaction completion before resolving and reject on abort, so failed writes remain visible as unsaved instead of disappearing from the queue. A Node audit simulates request success followed by transaction completion and by transaction abort for both outboxes. Asset version moves to 7.71.0.',
+    screens: [['Offline housekeeping and guest requests — local changes are confirmed only after durable storage commits', '/offline/housekeeping'], ['Offline guest requests — local changes are confirmed only after durable storage commits', '/offline/guest-requests']],
+  },
+  {
     title: 'Offline housekeeping no longer drops an earlier task action when another action is queued',
     detail: 'The task outbox replaced any pending action for the same task with the latest click. That only works for simple state-setting actions; inspection failure followed by a reclean action, or task completion followed by inspection, requires the first action to reach the server before the next one. Replacing it could make the remaining action invalid against the server state. The workspace now keeps the first unsynced task action and asks staff to sync before recording another action for that task. Optimistic UI state is restored when the second action is blocked. Room-status changes remain safely coalescible. Asset version moves to 7.70.0.',
     screens: [['Offline housekeeping — queued task actions must sync before another action is recorded', '/offline/housekeeping']],

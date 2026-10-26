@@ -48,10 +48,12 @@
     return new Promise((resolve, reject) => {
       const tx = db.transaction(store, mode);
       const request = action(tx.objectStore(store));
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('Offline storage failed.'));
-      tx.oncomplete = () => db.close();
-      tx.onerror = () => reject(tx.error || new Error('Offline storage transaction failed.'));
+      let result;
+      request.onsuccess = () => { result = request.result; };
+      request.onerror = () => { db.close(); reject(request.error || new Error('Offline storage failed.')); };
+      tx.oncomplete = () => { db.close(); resolve(result); };
+      tx.onerror = () => { db.close(); reject(tx.error || new Error('Offline storage transaction failed.')); };
+      tx.onabort = () => { db.close(); reject(tx.error || new Error('Offline storage transaction aborted.')); };
     });
   }
 

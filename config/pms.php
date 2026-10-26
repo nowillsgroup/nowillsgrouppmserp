@@ -7,7 +7,7 @@
 */
 
 return [
-    'version' => '7.70.0',   // asset cache-buster + the sidebar stamp; docs/MODULES.md quotes it and modules_doc_check.py diffs the two
+    'version' => '7.71.0',   // asset cache-buster + the sidebar stamp; docs/MODULES.md quotes it and modules_doc_check.py diffs the two
 
     'banquet_service_categories' => ['av' => 'Audio-visual', 'decor' => 'Décor & flowers', 'entertainment' => 'Entertainment', 'equipment' => 'Equipment & furniture', 'staffing' => 'Staffing', 'other' => 'Other'],
 
