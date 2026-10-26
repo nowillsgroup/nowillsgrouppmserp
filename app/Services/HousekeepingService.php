@@ -100,70 +100,94 @@ class HousekeepingService
 
     public static function start(HousekeepingTask $task): HousekeepingTask
     {
-        self::assertOpen($task);
-        $task->forceFill(['status' => 'in_progress', 'started_at' => $task->started_at ?? now(), 'dnd_at' => null])->save();
+        $updated = DB::transaction(function () use ($task) {
+            $locked = HousekeepingTask::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            self::assertOpen($locked);
+            $locked->forceFill(['status' => 'in_progress', 'started_at' => $locked->started_at ?? now(), 'dnd_at' => null])->save();
 
-        return $task;
+            return $locked->load('room');
+        });
+
+        return $updated;
     }
 
     /** Guest has Do-Not-Disturb on / refused service: task stays pending and is flagged. */
     public static function dnd(HousekeepingTask $task): HousekeepingTask
     {
-        self::assertOpen($task);
-        $task->forceFill(['status' => 'pending', 'dnd_at' => now()])->save();
-        ActivityLogger::log('housekeeping', 'dnd', "Room {$task->room?->room_no}: DND / service refused", $task);
+        $updated = DB::transaction(function () use ($task) {
+            $locked = HousekeepingTask::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            self::assertOpen($locked);
+            $locked->forceFill(['status' => 'pending', 'dnd_at' => now()])->save();
 
-        return $task;
+            return $locked->load('room');
+        });
+        ActivityLogger::log('housekeeping', 'dnd', "Room {$updated->room?->room_no}: DND / service refused", $updated);
+
+        return $updated;
     }
 
     public static function complete(HousekeepingTask $task, array $checked = [], ?string $notes = null): HousekeepingTask
     {
-        self::assertOpen($task);
-        $items = self::checklist();
-        $checked = array_values(array_intersect($items, $checked));
-        if (setting('hk_checklist_required', '1') === '1' && $task->room_id && $task->task_type !== 'public_area' && count($checked) < count($items)) {
-            throw new RuntimeException('Tick every checklist item before completing the room ('.count($checked).'/'.count($items).').');
-        }
-        DB::transaction(function () use ($task, $checked, $notes) {
-            $task->forceFill(['status' => 'completed', 'started_at' => $task->started_at ?? now(), 'completed_at' => now(), 'completed_by' => auth()->id(),
-                'checklist' => $checked, 'dnd_at' => null, 'notes' => $notes ? mb_substr(trim(($task->notes ? $task->notes.' | ' : '').$notes), 0, 255) : $task->notes])->save();
-            if ($task->room) {
-                $status = $task->task_type === 'inspection' ? 'inspected' : (setting('hk_require_inspection', '1') === '1' ? 'clean' : 'inspected');
-                if (in_array($task->task_type, ['cleaning', 'departure', 'deep_clean', 'turndown', 'linen_change', 'inspection'])) {
-                    $task->room->update(['hk_status' => $status]);
-                }
-                if ($status === 'inspected' && $task->task_type !== 'inspection') {
-                    $task->forceFill(['inspection_status' => 'passed', 'inspected_at' => now()])->save();
+        $updated = DB::transaction(function () use ($task, $checked, $notes) {
+            $locked = HousekeepingTask::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            self::assertOpen($locked);
+            $items = self::checklist();
+            $checked = array_values(array_intersect($items, $checked));
+            if (setting('hk_checklist_required', '1') === '1' && $locked->room_id && $locked->task_type !== 'public_area' && count($checked) < count($items)) {
+                throw new RuntimeException('Tick every checklist item before completing the room ('.count($checked).'/'.count($items).').');
+            }
+            $locked->forceFill(['status' => 'completed', 'started_at' => $locked->started_at ?? now(), 'completed_at' => now(), 'completed_by' => auth()->id(),
+                'checklist' => $checked, 'dnd_at' => null, 'notes' => $notes ? mb_substr(trim(($locked->notes ? $locked->notes.' | ' : '').$notes), 0, 255) : $locked->notes])->save();
+            if ($locked->room_id) {
+                // Task then room is the shared lock order for housekeeping writes.
+                $room = Room::whereKey($locked->room_id)->lockForUpdate()->first();
+                if ($room) {
+                    $status = $locked->task_type === 'inspection' ? 'inspected' : (setting('hk_require_inspection', '1') === '1' ? 'clean' : 'inspected');
+                    if (in_array($locked->task_type, ['cleaning', 'departure', 'deep_clean', 'turndown', 'linen_change', 'inspection'], true)) {
+                        $room->update(['hk_status' => $status]);
+                    }
+                    if ($status === 'inspected' && $locked->task_type !== 'inspection') {
+                        $locked->forceFill(['inspection_status' => 'passed', 'inspected_at' => now()])->save();
+                    }
                 }
             }
-        });
-        ActivityLogger::log('housekeeping', 'complete', "Room {$task->room?->room_no} cleaned (".(HousekeepingTask::TYPES[$task->task_type] ?? $task->task_type).')', $task);
 
-        return $task;
+            return $locked->load('room');
+        });
+        ActivityLogger::log('housekeeping', 'complete', "Room {$updated->room?->room_no} cleaned (".(HousekeepingTask::TYPES[$updated->task_type] ?? $updated->task_type).')', $updated);
+
+        return $updated;
     }
 
     public static function inspect(HousekeepingTask $task, bool $pass, ?string $notes = null): HousekeepingTask
     {
-        if (! $task->awaitingInspection()) {
-            throw new RuntimeException('This task is not awaiting inspection.');
-        }
-        if (! $pass && ! trim((string) $notes)) {
-            throw new RuntimeException('Say what needs re-doing when failing an inspection.');
-        }
-        DB::transaction(function () use ($task, $pass, $notes) {
+        $updated = DB::transaction(function () use ($task, $pass, $notes) {
+            $locked = HousekeepingTask::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->awaitingInspection()) {
+                throw new RuntimeException('This task is not awaiting inspection.');
+            }
+            if (! $pass && ! trim((string) $notes)) {
+                throw new RuntimeException('Say what needs re-doing when failing an inspection.');
+            }
+            $room = Room::whereKey($locked->room_id)->lockForUpdate()->first();
+            if (! $room) {
+                throw new RuntimeException('The room for this inspection no longer exists.');
+            }
             if ($pass) {
-                $task->forceFill(['inspection_status' => 'passed', 'inspected_by' => auth()->id(), 'inspected_at' => now(), 'inspection_notes' => $notes])->save();
-                $task->room->update(['hk_status' => 'inspected']);
+                $locked->forceFill(['inspection_status' => 'passed', 'inspected_by' => auth()->id(), 'inspected_at' => now(), 'inspection_notes' => $notes])->save();
+                $room->update(['hk_status' => 'inspected']);
             } else {
                 // re-open the same task for the same attendant
-                $task->forceFill(['status' => 'pending', 'inspection_status' => null, 'inspected_by' => auth()->id(), 'inspected_at' => now(),
-                    'inspection_notes' => mb_substr($notes, 0, 255), 'reclean_count' => $task->reclean_count + 1, 'completed_at' => null, 'priority' => 'high'])->save();
-                $task->room->update(['hk_status' => 'dirty']);
+                $locked->forceFill(['status' => 'pending', 'inspection_status' => null, 'inspected_by' => auth()->id(), 'inspected_at' => now(),
+                    'inspection_notes' => mb_substr($notes, 0, 255), 'reclean_count' => $locked->reclean_count + 1, 'completed_at' => null, 'priority' => 'high'])->save();
+                $room->update(['hk_status' => 'dirty']);
             }
-        });
-        ActivityLogger::log('housekeeping', $pass ? 'inspect_pass' : 'inspect_fail', "Room {$task->room->room_no} inspection ".($pass ? 'passed' : 'failed: '.$notes), $task);
 
-        return $task;
+            return $locked->load('room');
+        });
+        ActivityLogger::log('housekeeping', $pass ? 'inspect_pass' : 'inspect_fail', "Room {$updated->room->room_no} inspection ".($pass ? 'passed' : 'failed: '.$notes), $updated);
+
+        return $updated;
     }
 
     /**
