@@ -94,6 +94,7 @@ return new class extends Migration
 
             $table->index(['hotel_id', 'status']);
             $table->index(['robita_device_id', 'status']);
+
         });
     }
 
