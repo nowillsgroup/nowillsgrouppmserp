@@ -455,8 +455,20 @@ class ConciergeService
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason for the cancellation.');
         }
+        $departureId = $b->activity_departure_id;
 
-        return DB::transaction(function () use ($b, $reason, $by, $waive, $notify) {
+        return DB::transaction(function () use ($b, $reason, $by, $waive, $notify, $departureId) {
+            // The departure is locked first because waitlist confirmation and
+            // whole-departure cancellation use the same departure → booking order.
+            $dep = $departureId ? ActivityDeparture::whereKey($departureId)->lockForUpdate()->first() : null;
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! $b->isOpen()) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} and can't be cancelled.");
+            }
+            if ((int) $b->activity_departure_id !== (int) $departureId) {
+                throw new RuntimeException('The departure changed while this booking was being cancelled. Refresh and try again.');
+            }
+
             $would = self::cancelFee($b);
             $fee = $waive ? 0.0 : $would;
             self::voidCharge($b, 'Activity cancelled');
@@ -469,8 +481,8 @@ class ConciergeService
                 self::recognise($b->fresh(), bdate()->toDateString());
             }
             ActivityLogger::log('concierge', 'cancelled', "Activity {$b->number} cancelled: {$reason}".($fee > 0 ? ' – fee '.money($fee) : ($waive && $would > 0 ? ' – fee of '.money($would).' waived' : '')), $b);
-            if ($b->departure) {
-                self::promoteWaitlist($b->departure);
+            if ($dep) {
+                self::promoteWaitlist($dep);
             }
             if ($notify) {
                 self::notify($b->fresh(), 'cancelled');
