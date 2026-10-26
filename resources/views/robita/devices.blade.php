@@ -81,6 +81,7 @@
                 <div class="small muted" style="display:flex;align-items:center;gap:.5rem">
                   <x-icon name="key" size="sm"/>
                   <span>{{ $cred->credential_name }}</span> · <span class="mono">{{ $cred->card_serial }}</span> · valid until {{ $cred->valid_until?->format('d M H:i') }}
+                  @if($cred->needsSync())<span class="badge badge-amber" title="{{ $cred->last_error }}">not on the lock yet</span>@endif
                   <form method="post" action="{{ route('robita.credentials.cancel', $cred) }}" style="margin-left:auto" data-confirm="Cancel this credential?">@csrf<button class="btn btn-sm"><x-icon name="x" size="sm"/> Cancel</button></form>
                 </div>
               </td>

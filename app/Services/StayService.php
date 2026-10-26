@@ -77,6 +77,11 @@ class StayService
             report($e);
         }
         try {
+            RobitaService::onCheckIn($in);         // v7.57: the room lock is provisioned for the stay
+        } catch (\Throwable $e) {
+            report($e); // never blocks a check-in
+        }
+        try {
             IptvService::onCheckIn($in);           // v7.1: TV PIN issued; the room TV shows the personalised welcome
         } catch (\Throwable $e) {
             report($e);
@@ -403,6 +408,11 @@ class StayService
             report($e);
         }
         try {
+            RobitaService::onCheckOut($out);         // v7.57: the door credential is revoked, not just expiring later
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        try {
             IptvService::onCheckOut($out);           // v7.1: TV session ends, rentals stop, the set is reset for the next guest
         } catch (\Throwable $e) {
             report($e);
@@ -504,6 +514,11 @@ class StayService
         try {
             CallAccountingService::onRoomMove($stay->fresh(), $fromId); // v3.7: PABX moves the guest's name / class of service
             KeyCardService::onRoomMove($stay->fresh(), $fromId);        // v3.7: old cards cancelled, new ones encoded
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        try {
+            RobitaService::onRoomMove($stay->fresh(), $fromId);         // v7.57: the old door forgets the guest
         } catch (\Throwable $e) {
             report($e);
         }
@@ -625,6 +640,11 @@ class StayService
         if ($checkedIn) {
             try {
                 KeyCardService::onExtend($updated);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                RobitaService::onExtend($updated); // v7.57: the lock learns the new departure too
             } catch (\Throwable $e) {
                 report($e);
             }

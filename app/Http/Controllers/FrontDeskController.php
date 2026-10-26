@@ -408,6 +408,7 @@ class FrontDeskController extends Controller
         ActivityLogger::log('frontdesk', 'amend', "Amended stay {$res->reservation_no}: departure {$old} → ".Carbon::parse($data['departure_date'])->format('d M'), $stay);
         try {
             \App\Services\KeyCardService::onExtend($stay->fresh()); // v3.7: key cards re-validated to the new departure
+            \App\Services\RobitaService::onExtend($stay->fresh());  // v7.57: so is the door credential
         } catch (\Throwable $e) {
             report($e);
         }

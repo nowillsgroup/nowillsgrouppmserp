@@ -43,6 +43,12 @@
           <label>Auto-Register Devices</label>
           <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_register" value="1" @checked($cfg['robita_auto_register'] === '1')> Auto-provision devices on first credential</label>
         </div>
+        <div>
+          <label>Guest Journey</label>
+          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_issue" value="1" @checked($cfg['robita_auto_issue'] === '1')> Issue the door credential automatically at check-in</label>
+          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_revoke" value="1" @checked($cfg['robita_auto_revoke'] === '1')> Revoke it at check-out, on a room move and when it expires</label>
+          <span class="hint">Rooms without a mapped device are skipped. Extensions always move the credential to the new departure.</span>
+        </div>
       </div>
     </div>
   </div>
