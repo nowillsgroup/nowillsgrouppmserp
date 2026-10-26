@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Night audit daily-report API finds records by business date',
+    detail: 'The date-specific /api/v1/reports/daily lookup used exact equality on a DATE column. Existing SQLite audit rows stored with a midnight timestamp therefore returned a false 404. It now uses whereDate; a controller-level regression check reproduces the stored-row case and verifies HTTP 200 with the expected report date. Asset version moves to 7.77.0.',
+    screens: [['Night audit daily report — API date lookup', '/night-audit']],
+  },
+  {
     title: 'Gift voucher as-of liability includes the end date consistently',
     detail: 'The liabilityAt helper compared a DATE column with a date-only string. SQLite data containing a timestamp-shaped value for the same day was excluded from the “as at” amount. The query now uses whereDate; a rollback-safe regression check reproduces the timestamp-shaped row and verifies the full movement is included. The helper currently has no application call site, so this is a latent correctness fix rather than a reported live-screen incident. Asset version moves to 7.76.0.',
     screens: [['Gift vouchers — issue, balance and movement history', '/vouchers']],
