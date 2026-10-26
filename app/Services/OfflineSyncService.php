@@ -158,7 +158,8 @@ class OfflineSyncService
                 return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'The room no longer exists or is not active.');
             }
             $serverChanged = $room->updated_at && Carbon::parse($baseUpdatedAt)->lt($room->updated_at);
-            if ($serverChanged && $room->hk_status !== $status) {
+            $notesChanged = $notes !== null && $notes !== $room->notes;
+            if ($serverChanged && ($room->hk_status !== $status || $notesChanged)) {
                 return self::record($operationId, $operation, $payload, $deviceId, $user, 'conflict', $room->id,
                     ['room' => self::room($room->fresh(['roomType', 'floor']))], 'Room status changed while this device was offline.');
             }

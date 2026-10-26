@@ -38,7 +38,9 @@ draft caching.
 
 Business rules are the server's, not the desktop's: an occupied room, a folio
 in balance, an unsupported operation — each is a `rejected` result with the
-real reason, safe to retry after fixing.
+real reason, safe to retry after fixing. For housekeeping offline sync, a stale
+room-status change that would replace a newer status or room note returns a
+`conflict`; the current server record is returned instead of overwritten.
 
 ## Workspace
 

@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Housekeeping offline sync now protects newer room notes as well as status',
+    detail: 'The offline room-status conflict check detected a newer server update only when the housekeeping status differed from the requested one. If a supervisor had added a new room note while an attendant was offline, a stale sync with the same status could overwrite that note without warning. Sync now treats a newer differing note as a conflict too, returns the current room state, and preserves the server note. The offline guide documents the rule; a rollback-safe audit reproduces the same-status/new-note case and confirms it is not overwritten. Asset version moves to 7.65.0.',
+    screens: [['Housekeeping offline workspace — conflict-safe room status and notes', '/offline/housekeeping']],
+  },
+  {
     title: 'Desktop deltas now refresh all sections in the downloaded operating pack',
     detail: 'The full pack included room types, rate plans, payment modes, guests and folios, but the delta endpoint returned only rooms, stays, reservations and folio transactions. A change to a rate or guest contact after a download therefore left the disconnected workstation stale until the next full pack. Delta responses now include all five missing sections, scoped to the active hotel and limited to the same compact fields used in the pack; the offline guide lists the complete delta contract. A rollback-safe audit updates one row in each section and confirms all five appear in the delta. Asset version moves to 7.64.0.',
     screens: [['Offline desktop workspace — refresh cached reference and guest data from delta', '/offline/desktop']],
