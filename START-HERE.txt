@@ -41,3 +41,24 @@ Module list: docs/MODULES.md
 
 You do NOT need Composer — the packages are in build/vendor.
 You do NOT need SSH — the installer does what artisan would.
+
+====================================================================
+CyberPanel / OpenLiteSpeed (Hostinger VPS) — e.g. pms.nowills.com
+====================================================================
+The steps are different enough to have their own guide:
+  docs/INSTALL-CYBERPANEL.md
+
+The short version:
+  1. Create the website in CyberPanel, issue SSL (Let's Encrypt).
+  2. Set the site to PHP 8.3+ (Manage -> Change PHP).
+  3. Create a database under the site user (Databases -> Create Database).
+  4. Clone the repo into the site folder as the SITE USER (not root):
+       su - <site-user> -c "git clone https://github.com/nowillsgroup/nowillsgrouppmserp.git <site-folder>"
+  5. Manage -> vHost Conf: make docRoot end in /public, save, restart LiteSpeed.
+  6. bash <site-folder>/deploy/cyberpanel/post-deploy.sh
+  7. Open https://<domain>/install.php, then delete it.
+  8. Manage -> Cron Jobs, once per minute:
+       /usr/local/lsws/lsphp83/bin/php <site-folder>/artisan schedule:run >> /dev/null 2>&1
+  9. Optional auto-deploy: Manage -> Manage Git + a GitHub webhook, with the
+     post-deploy script as the post-pull command.
+

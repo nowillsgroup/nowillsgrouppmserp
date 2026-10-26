@@ -320,9 +320,13 @@ class RobitaService
         // Log alarms to the shift log book
         if ($event->isAlarm()) {
             try {
+                // Precomputed: `?->` and `??` are not allowed inside a "..." interpolation.
+                $roomNo = $device->room?->room_no ?? '—';
+                $alarm = $event->alarm_type ?? $event->event_type;
+
                 LogBookService::system(
                     "Robita lock alert: {$event->event_type} on {$device->name}",
-                    "Room {$device->room?->room_no ?? '—'} – {$event->alarm_type ?? $event->event_type}. Check the device.",
+                    "Room {$roomNo} – {$alarm}. Check the device.",
                     'security',
                     'urgent',
                     ['department' => 'security'],

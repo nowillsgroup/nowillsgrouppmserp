@@ -1,7 +1,7 @@
 # Nowills PMS — complete module list
 
 Extracted from `config/pms.php` → `menu`, the registry the sidebar renders
-(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.54.0** — the value of
+(`resources/views/partials/sidebar-nav.blade.php`). **Version 7.56.0** — the value of
 `config('pms.version')` — the asset cache-buster and the stamp in the sidebar. It moves with
 the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_check.py` fails if the two disagree.
 
@@ -14,7 +14,7 @@ the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_c
 | **5** | sections |
 | **12** | top-level groups |
 | **54** | modules |
-| **369** | pages |
+| **370** | pages |
 
 Counted from the live `config('pms.menu')` registry and reconciled against it page for page on
 20 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
@@ -62,8 +62,8 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - TV Dashboard · TVs & Screens · Channels & Guide · Movies & Rentals · Welcome Screens · Information Pages · TV Messages · Usage Analytics · IPTV Settings
 - **Foreign Guests** — 6 pages
   - Form C (FRRO) · Currency Exchange · Exchange Rates · Currency Position · Currencies · Foreign Guest Settings
-- **Interfaces** — 3 pages
-  - Call Accounting · Key Cards · Interface Hub
+- **Interfaces** — 4 pages
+  - Call Accounting · Key Cards · Interface Hub · Robita Locks
 
 ## Guest Relations & Commercial
 
