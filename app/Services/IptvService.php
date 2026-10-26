@@ -358,7 +358,8 @@ class IptvService
         $p = [];
         if ($cmd === 'volume') {
             $v = (int) ($payload['level'] ?? 0);
-            self::need($v >= 10 && $v <= 100, 'The volume limit is 10 to 100.');
+            $max = self::cfg()['volume_max'];
+            self::need($v >= 10 && $v <= $max, "The volume limit is 10 to {$max}.");
             $p = ['level' => $v];
         } elseif ($cmd === 'tune') {
             $ch = TvChannel::where('is_active', true)->where('number', (int) ($payload['channel'] ?? 0))->first();
