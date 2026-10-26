@@ -42,6 +42,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'Offline checkout can no longer force past outstanding folio and service holds',
+    detail: 'The desktop check-out payload accepted a client-controlled force flag and passed it directly to StayService::checkOut. That flag skips unresolved POS orders, transport/activity charges and some compliance holds. The regular desk checkout always passes false, and offline sync is not an appropriate path to bypass those controls. Desktop check-out now rejects force requests and always calls the service with force disabled; the operation contract and offline guide no longer advertise force. A rollback-safe audit confirms the stay remains checked in when force is submitted. Asset version moves to 7.73.0.',
+    screens: [['Offline desktop sync — checkout honors pending folio and service holds', '/offline/desktop']],
+  },
+  {
     title: 'Offline charges, payments and night postings commit atomically with their sync receipt',
     detail: 'DesktopSyncService previously committed a folio charge/payment or night posting before writing the operation receipt. If receipt storage then failed, a retry could repeat a money or room-night operation without an idempotency record. These financial/night operations now wrap the PMS write and receipt in one database transaction and repeat the idempotency check under the transaction lock. A SQLite trigger audit simulates failure of the applied receipt after a charge and confirms the charge rolls back while the failed operation remains safely retryable. Asset version moves to 7.72.0.',
     screens: [['Offline desktop sync — folio and night operations are idempotent with their receipt', '/offline/desktop']],

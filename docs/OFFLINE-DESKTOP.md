@@ -31,7 +31,7 @@ draft caching.
 | Kind | Payload | Delegates to |
 |---|---|---|
 | `desk.check_in` | `stay_id, room_id` | `StayService::checkIn` (vacancy enforced) |
-| `desk.check_out` | `stay_id, force?` | `StayService::checkOut` (zero-balance rule) |
+| `desk.check_out` | `stay_id` | `StayService::checkOut` (zero-balance rule; forced checkout is not available offline) |
 | `desk.charge` | `stay_id, category, description, amount, tax?` | `FolioService::charge` |
 | `desk.payment` | `stay_id, amount, payment_mode_id, reference?` | `FolioService::payment` |
 | `desk.nights` | `stay_id, until?` | `StayService::postPendingNights` |

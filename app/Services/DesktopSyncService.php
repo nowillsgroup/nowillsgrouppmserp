@@ -30,7 +30,7 @@ use Illuminate\Validation\ValidationException;
  *
  * Offline operation kinds (payload keys):
  *   desk.check_in   {stay_id, room_id}
- *   desk.check_out  {stay_id, force?}
+ *   desk.check_out  {stay_id}
  *   desk.charge     {stay_id, category, description, amount, tax?}
  *   desk.payment    {stay_id, amount, payment_mode_id, reference?}
  *   desk.nights     {stay_id, until}       post room-nights up to `until`
@@ -233,7 +233,10 @@ class DesktopSyncService
         if ($stay->status !== 'checked_in') {
             throw ValidationException::withMessages(['stay' => ['Only a checked-in stay can be checked out – this one is '.$stay->status.'.']]);
         }
-        StayService::checkOut($stay->fresh(), (bool) ($payload['force'] ?? false));
+        if (! empty($payload['force'])) {
+            throw ValidationException::withMessages(['force' => ['Forced checkout is not available offline. Resolve pending folio and service holds at the desk.']]);
+        }
+        StayService::checkOut($stay->fresh(), false);
 
         return self::applied($operationId, 'desk.check_out', $payload, $deviceId, $user, $stay->id, ['checked_out' => true, 'occurred_at' => $at?->toIso8601String()]);
     }
