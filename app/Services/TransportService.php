@@ -457,46 +457,51 @@ class TransportService
      */
     public static function complete(TransportTrip $t, array $d = []): TransportTrip
     {
-        if (! in_array($t->status, ['assigned', 'en_route', 'onboard'], true)) {
-            throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
-        }
-        $odoEnd = isset($d['odo_end']) && $d['odo_end'] !== '' && $d['odo_end'] !== null ? (int) $d['odo_end'] : null;
-        $odoStart = isset($d['odo_start']) && $d['odo_start'] !== '' && $d['odo_start'] !== null ? (int) $d['odo_start'] : $t->odo_start;
-        if ($odoEnd !== null && $odoStart !== null && $odoEnd < $odoStart) {
-            throw new RuntimeException("The closing odometer ({$odoEnd}) is below the opening reading ({$odoStart}).");
-        }
-        if ($odoEnd !== null && $odoStart !== null && $odoEnd - $odoStart > 2000) {
-            throw new RuntimeException('More than 2,000 km on one trip – please check the odometer readings.');
-        }
-        $extra = max(0, round((float) ($d['extra_amount'] ?? 0), 2));
-        $note = trim((string) ($d['extra_note'] ?? ''));
-        $km = $odoEnd !== null && $odoStart !== null ? $odoEnd - $odoStart : null;
-        $tariff = $t->tariff;
-        if ($km !== null && $tariff && (float) $tariff->per_km > 0 && $km > $tariff->included_km) {
-            $kmExtra = round(($km - $tariff->included_km) * (float) $tariff->per_km, 2);
-            $extra = round($extra + $kmExtra, 2);
-            $note = trim($note.($note ? '; ' : '').($km - $tariff->included_km).' extra km × '.money($tariff->per_km));
-        }
-        $total = round((float) $t->amount + $extra, 2);
-        $pm = ! empty($d['payment_mode_id']) ? (int) $d['payment_mode_id'] : null;
-        if ($t->billing === 'direct' && $total > 0) {
-            if (! $pm || ! PaymentMode::where('is_active', true)->whereKey($pm)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
-                throw new RuntimeException('Choose how the guest paid (cash, card, UPI / mobile money or bank).');
+        return DB::transaction(function () use ($t, $d) {
+            // Completion posts payments/charges, so serialize on the trip before
+            // validating its state or calculating any billable amount.
+            $t = TransportTrip::with('tariff')->whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($t->status, ['assigned', 'en_route', 'onboard'], true)) {
+                throw new RuntimeException("{$t->trip_no} is {$t->statusLabel()}.");
             }
-        }
+            $odoEnd = isset($d['odo_end']) && $d['odo_end'] !== '' && $d['odo_end'] !== null ? (int) $d['odo_end'] : null;
+            $odoStart = isset($d['odo_start']) && $d['odo_start'] !== '' && $d['odo_start'] !== null ? (int) $d['odo_start'] : $t->odo_start;
+            if ($odoEnd !== null && $odoStart !== null && $odoEnd < $odoStart) {
+                throw new RuntimeException("The closing odometer ({$odoEnd}) is below the opening reading ({$odoStart}).");
+            }
+            if ($odoEnd !== null && $odoStart !== null && $odoEnd - $odoStart > 2000) {
+                throw new RuntimeException('More than 2,000 km on one trip – please check the odometer readings.');
+            }
+            $extra = max(0, round((float) ($d['extra_amount'] ?? 0), 2));
+            $note = trim((string) ($d['extra_note'] ?? ''));
+            $km = $odoEnd !== null && $odoStart !== null ? $odoEnd - $odoStart : null;
+            $tariff = $t->tariff;
+            if ($km !== null && $tariff && (float) $tariff->per_km > 0 && $km > $tariff->included_km) {
+                $kmExtra = round(($km - $tariff->included_km) * (float) $tariff->per_km, 2);
+                $extra = round($extra + $kmExtra, 2);
+                $note = trim($note.($note ? '; ' : '').($km - $tariff->included_km).' extra km × '.money($tariff->per_km));
+            }
+            $total = round((float) $t->amount + $extra, 2);
+            $pm = ! empty($d['payment_mode_id']) ? (int) $d['payment_mode_id'] : null;
+            if ($t->billing === 'direct' && $total > 0) {
+                if (! $pm || ! PaymentMode::where('is_active', true)->whereKey($pm)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                    throw new RuntimeException('Choose how the guest paid (cash, card, UPI / mobile money or bank).');
+                }
+            }
 
-        return DB::transaction(function () use ($t, $odoStart, $odoEnd, $extra, $note, $total, $pm, $d) {
-            $t = TransportTrip::lockForUpdate()->findOrFail($t->id);
             $t->forceFill(['status' => 'completed', 'completed_at' => now(), 'started_at' => $t->started_at ?? $t->busy_from->min(now()),
                 'odo_start' => $odoStart, 'odo_end' => $odoEnd, 'extra_amount' => $extra, 'extra_note' => $note !== '' ? mb_substr($note, 0, 150) : null, 'total' => $total])->save();
-            if ($odoEnd !== null && $t->vehicle && $odoEnd > $t->vehicle->odometer) {
-                $t->vehicle->forceFill(['odometer' => $odoEnd])->save();
+            if ($odoEnd !== null && $t->vehicle_id) {
+                $vehicle = Vehicle::whereKey($t->vehicle_id)->lockForUpdate()->first();
+                if ($vehicle && $odoEnd > $vehicle->odometer) {
+                    $vehicle->forceFill(['odometer' => $odoEnd])->save();
+                }
             }
             if ($t->billing === 'room' && $total > 0) {
                 if ($t->folio_transaction_id) {
-                    // fare already on the bill (charged at check-out) – only an extra is left to post
+                    // Fare already on the bill – only any new extras remain to post.
                     if ($extra > 0) {
-                        $folio = $t->folio;
+                        $folio = $t->folio_id ? \App\Models\Folio::whereKey($t->folio_id)->lockForUpdate()->first() : null;
                         if (! $folio || $folio->status !== 'open') {
                             throw new RuntimeException("The guest's bill {$folio?->folio_no} is already settled – collect the extra ".money($extra).' directly (change billing isn\'t possible after check-out) or leave the extra at 0.');
                         }
@@ -534,22 +539,25 @@ class TransportService
     /** Post a room-billed trip's fare to the stay's folio (once). */
     public static function postCharge(TransportTrip $t, bool $noShowFee = false): ?\App\Models\FolioTransaction
     {
-        if (! $t->unbilled() && ! ($noShowFee && $t->billing === 'room' && ! $t->folio_transaction_id && (float) $t->total > 0)) {
-            return null;
-        }
-        $stay = $t->stay;
-        if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
-            throw new RuntimeException("The stay for {$t->trip_no} is closed – bill the trip directly instead.");
-        }
-        $folio = FolioService::openForStay($stay);
-        if ($folio->status !== 'open') {
-            throw new RuntimeException("Folio {$folio->folio_no} is closed.");
-        }
-        $tx = FolioService::charge($folio, 'transport', ($noShowFee ? 'No-show fee – ' : '').self::chargeText($t), (float) $t->total, true, ['source_type' => 'transport', 'source_id' => $t->id, 'reference' => $t->trip_no]);
-        $t->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
-        ActivityLogger::log('transport', 'charge', "Trip {$t->trip_no}: ".money($t->total)." posted to {$folio->folio_no}", $t);
+        return DB::transaction(function () use ($t, $noShowFee) {
+            $t = TransportTrip::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! $t->unbilled() && ! ($noShowFee && $t->billing === 'room' && ! $t->folio_transaction_id && (float) $t->total > 0)) {
+                return null;
+            }
+            $stay = $t->reservation_room_id ? ReservationRoom::whereKey($t->reservation_room_id)->lockForUpdate()->first() : null;
+            if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                throw new RuntimeException("The stay for {$t->trip_no} is closed – bill the trip directly instead.");
+            }
+            $folio = FolioService::openForStay($stay);
+            if ($folio->status !== 'open') {
+                throw new RuntimeException("Folio {$folio->folio_no} is closed.");
+            }
+            $tx = FolioService::charge($folio, 'transport', ($noShowFee ? 'No-show fee – ' : '').self::chargeText($t), (float) $t->total, true, ['source_type' => 'transport', 'source_id' => $t->id, 'reference' => $t->trip_no]);
+            $t->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
+            ActivityLogger::log('transport', 'charge', "Trip {$t->trip_no}: ".money($t->total)." posted to {$folio->folio_no}", $t);
 
-        return $tx;
+            return $tx;
+        });
     }
 
     /** Room-billed trips of a stay that aren't on the bill yet (shown at check-out). */
