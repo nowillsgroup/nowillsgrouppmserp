@@ -353,9 +353,32 @@ class ConciergeService
             throw new RuntimeException("{$b->number} was for ".$b->startsAt()->format('d M H:i').' – it can no longer be confirmed.');
         }
 
-        return DB::transaction(function () use ($b, $vendorRef, $by, $notify) {
-            if ($b->status === 'waitlisted' && ($dep = $b->departure)) {
-                $left = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first()->seatsLeft($b->id);
+        // Waitlisted confirmations take the departure lock before the booking
+        // lock, matching departure cancellation's lock order.
+        $waitlistDepartureId = $b->status === 'waitlisted' ? $b->activity_departure_id : null;
+
+        return DB::transaction(function () use ($b, $vendorRef, $by, $notify, $waitlistDepartureId) {
+            $dep = $waitlistDepartureId
+                ? ActivityDeparture::whereKey($waitlistDepartureId)->lockForUpdate()->firstOrFail()
+                : null;
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($b->status, ['requested', 'waitlisted'], true)) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()}.");
+            }
+            if ($b->startsAt()->lt(now()->subHours(12))) {
+                throw new RuntimeException("{$b->number} was for ".$b->startsAt()->format('d M H:i').' – it can no longer be confirmed.');
+            }
+            if ($b->status === 'waitlisted') {
+                if (! $dep || (int) $b->activity_departure_id !== (int) $waitlistDepartureId) {
+                    throw new RuntimeException('The waitlist entry changed while it was being confirmed. Refresh and try again.');
+                }
+                if ($dep->status === 'cancelled') {
+                    throw new RuntimeException('That departure has been cancelled.');
+                }
+                if ($dep->status !== 'open') {
+                    throw new RuntimeException('That departure is closed for sale.');
+                }
+                $left = $dep->seatsLeft($b->id);
                 if ($left !== null && $left < $b->pax()) {
                     throw new RuntimeException("The departure is still full ({$left} seat(s) left) – the guest stays on the waitlist.");
                 }
@@ -374,24 +397,32 @@ class ConciergeService
     /** put a folio-collected booking on the room bill (once) */
     public static function postCharge(ActivityBooking $b, ?float $amount = null, string $prefix = ''): ?FolioTransaction
     {
-        $amount ??= (float) $b->gross;
-        if ($b->collection !== 'folio' || $amount <= 0 || $b->folio_transaction_id) {
-            return null;
-        }
-        $stay = $b->stay;
-        if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
-            throw new RuntimeException("The stay for {$b->number} is closed – change it to \"Guest pays the vendor\".");
-        }
-        $folio = FolioService::openForStay($stay);
-        if ($folio->status !== 'open') {
-            throw new RuntimeException("Folio {$folio->folio_no} is closed.");
-        }
-        $b->loadMissing('activity');
-        $text = $prefix.$b->activity->name.' – '.$b->date->format('d M').' '.$b->time.' ('.$b->paxLabel().')';
-        $tx = FolioService::charge($folio, 'excursion', mb_substr($text, 0, 190), $amount, false, ['source_type' => 'concierge', 'source_id' => $b->id, 'reference' => $b->number]);
-        $b->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
+        return DB::transaction(function () use ($b, $amount, $prefix) {
+            // Multiple confirmations or fee retries may race. The booking row
+            // is the idempotency mutex for its single room-folio charge.
+            $locked = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($locked->folio_transaction_id) {
+                return $locked->folioTransaction()->first();
+            }
+            $amount ??= (float) $locked->gross;
+            if ($locked->collection !== 'folio' || $amount <= 0) {
+                return null;
+            }
+            $stay = $locked->stay()->with('guest', 'room', 'reservation.guest')->first();
+            if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                throw new RuntimeException("The stay for {$locked->number} is closed – change it to \"Guest pays the vendor\".");
+            }
+            $folio = FolioService::openForStay($stay);
+            if ($folio->status !== 'open') {
+                throw new RuntimeException("Folio {$folio->folio_no} is closed.");
+            }
+            $locked->loadMissing('activity');
+            $text = $prefix.$locked->activity->name.' – '.$locked->date->format('d M').' '.$locked->time.' ('.$locked->paxLabel().')';
+            $tx = FolioService::charge($folio, 'excursion', mb_substr($text, 0, 190), $amount, false, ['source_type' => 'concierge', 'source_id' => $locked->id, 'reference' => $locked->number]);
+            $locked->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
 
-        return $tx;
+            return $tx;
+        });
     }
 
     protected static function voidCharge(ActivityBooking $b, string $reason): void
