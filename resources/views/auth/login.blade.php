@@ -19,6 +19,22 @@
       <p>Bring reservations, front desk, housekeeping, dining, events and finance together in one clear view—built for the way hospitality works.</p>
     </div>
 
+    <div class="auth-module-orbit" role="img" aria-label="Nowills PMS core modules: bookings, front desk, rooms, housekeeping, dining, events, finance, reports and guest management">
+      <div class="auth-orbit-ring" aria-hidden="true"></div>
+      <div class="auth-orbit-spinner" aria-hidden="true">
+        <span class="auth-orbit-node" style="--orbit-index:0"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="calendar"/></span><span class="auth-orbit-label">Bookings</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:1"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="id"/></span><span class="auth-orbit-label">Front desk</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:2"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="bed"/></span><span class="auth-orbit-label">Rooms</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:3"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="broom"/></span><span class="auth-orbit-label">Housekeeping</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:4"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="cup"/></span><span class="auth-orbit-label">Dining</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:5"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="star"/></span><span class="auth-orbit-label">Events</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:6"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="wallet"/></span><span class="auth-orbit-label">Finance</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:7"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="chart"/></span><span class="auth-orbit-label">Reports</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:8"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="users"/></span><span class="auth-orbit-label">Guests</span></span></span>
+      </div>
+      <div class="auth-orbit-center"><img src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt=""><span>NOWILLS PMS</span></div>
+    </div>
+
     <div class="auth-slider" data-auth-slider aria-roledescription="carousel" aria-label="Hospitality spaces">
       <div class="auth-slides">
         <figure class="auth-slide is-active" data-slide="0" aria-hidden="false">

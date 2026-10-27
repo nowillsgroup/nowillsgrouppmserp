@@ -1623,6 +1623,33 @@ body.dark .notify-count { box-shadow: 0 0 0 2px var(--c-side); }
 .auth-login-art::after { right: -12rem; bottom: -15rem; background: rgba(167, 243, 208, .11); }
 .auth-login-art .auth-live { color: #d2e7d9; }
 .auth-login-art .auth-live i { background: #86efac; box-shadow: 0 0 0 .25rem rgba(134, 239, 172, .14); }
+.auth-orbit-symbol-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.auth-login-art .auth-module-orbit { --orbit-size: clamp(230px, 28vw, 350px); --orbit-radius: clamp(78px, 9vw, 118px); position: absolute; z-index: 1; top: 65%; right: clamp(1.2rem, 5vw, 4rem); width: var(--orbit-size); height: var(--orbit-size); transform: translateY(-50%); pointer-events: none; }
+.auth-orbit-ring { position: absolute; inset: 13%; border: 1px solid rgba(225, 255, 235, .34); border-radius: 50%; box-shadow: 0 0 26px rgba(134, 239, 172, .1), inset 0 0 28px rgba(134, 239, 172, .06); }
+.auth-orbit-ring::before, .auth-orbit-ring::after { content: ""; position: absolute; width: 6px; height: 6px; border: 1px solid rgba(223, 255, 233, .8); border-radius: 50%; background: #8be0a5; box-shadow: 0 0 12px rgba(134, 239, 172, .8); }
+.auth-orbit-ring::before { top: 7%; left: 18%; }
+.auth-orbit-ring::after { right: 8%; bottom: 22%; width: 4px; height: 4px; opacity: .7; }
+.auth-orbit-spinner { position: absolute; inset: 0; animation: auth-module-spin 42s linear infinite; }
+.auth-orbit-node { position: absolute; top: calc(50% - 31px); left: calc(50% - 32px); display: block; width: 64px; height: 62px; transform: rotate(var(--orbit-angle)) translateY(calc(0px - var(--orbit-radius))); transform-origin: 50% 50%; }
+.auth-orbit-counter { display: flex; width: 64px; flex-direction: column; align-items: center; gap: 3px; transform: rotate(var(--orbit-counter-angle)); animation: auth-module-counter 42s linear infinite; }
+.auth-orbit-bubble { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(232, 255, 238, .42); border-radius: 50%; background: rgba(15, 54, 33, .82); box-shadow: 0 8px 22px rgba(0, 0, 0, .22), inset 0 0 0 3px rgba(255,255,255,.045); backdrop-filter: blur(8px); transition: background .2s, box-shadow .2s; }
+.auth-orbit-bubble svg.i { width: 19px; height: 19px; color: #d9fbe2; }
+.auth-orbit-label { max-width: 70px; padding: 2px 5px; border: 1px solid rgba(226, 255, 235, .18); border-radius: 999px; background: rgba(8, 31, 19, .78); color: #f0fff3; font-size: .49rem; font-weight: 700; line-height: 1.1; letter-spacing: .015em; text-align: center; white-space: nowrap; text-shadow: 0 1px 5px rgba(0,0,0,.5); backdrop-filter: blur(6px); }
+.auth-orbit-center { position: absolute; z-index: 2; top: 50%; left: 50%; display: flex; width: 96px; height: 96px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; transform: translate(-50%, -50%); border: 1px solid rgba(238, 255, 242, .78); border-radius: 50%; background: radial-gradient(circle at 38% 30%, rgba(40, 122, 70, .96), rgba(10, 47, 27, .96) 72%); box-shadow: 0 0 0 7px rgba(222, 255, 231, .07), 0 12px 36px rgba(0, 0, 0, .34), 0 0 32px rgba(134, 239, 172, .24); }
+.auth-orbit-center img { width: 33px; height: 33px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,.22)); }
+.auth-orbit-center span { color: #f4fff6; font-size: .48rem; font-weight: 800; letter-spacing: .13em; }
+@keyframes auth-module-spin { to { transform: rotate(1turn); } }
+@keyframes auth-module-counter { to { transform: rotate(calc(var(--orbit-counter-angle) - 1turn)); } }
+.auth-orbit-node:nth-child(1) { --orbit-angle: 0deg; --orbit-counter-angle: 0deg; }
+.auth-orbit-node:nth-child(2) { --orbit-angle: 40deg; --orbit-counter-angle: -40deg; }
+.auth-orbit-node:nth-child(3) { --orbit-angle: 80deg; --orbit-counter-angle: -80deg; }
+.auth-orbit-node:nth-child(4) { --orbit-angle: 120deg; --orbit-counter-angle: -120deg; }
+.auth-orbit-node:nth-child(5) { --orbit-angle: 160deg; --orbit-counter-angle: -160deg; }
+.auth-orbit-node:nth-child(6) { --orbit-angle: 200deg; --orbit-counter-angle: -200deg; }
+.auth-orbit-node:nth-child(7) { --orbit-angle: 240deg; --orbit-counter-angle: -240deg; }
+.auth-orbit-node:nth-child(8) { --orbit-angle: 280deg; --orbit-counter-angle: -280deg; }
+.auth-orbit-node:nth-child(9) { --orbit-angle: 320deg; --orbit-counter-angle: -320deg; }
+@media (prefers-reduced-motion: reduce) { .auth-orbit-spinner, .auth-orbit-counter { animation: none !important; } }
 .auth-login-art .auth-slider { position: absolute; inset: 0; z-index: 0; width: auto; height: 100%; min-height: 0; margin: 0; flex: none; }
 .auth-login-art .auth-slides { position: absolute; inset: 0; min-height: 0; height: 100%; overflow: hidden; border: 0; border-radius: 0; background: #163b29; box-shadow: none; }
 .auth-login-art .auth-slide { border-radius: 0; }
@@ -1668,13 +1695,22 @@ body.dark .notify-count { box-shadow: 0 0 0 2px var(--c-side); }
 @media (max-width: 1100px) and (min-width: 861px) { .auth-login { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .auth-login-art { padding-left: 2rem; padding-right: 2rem; } }
 @media (max-width: 860px) {
   .auth-login { grid-template-columns: 1fr; }
-  .auth-login-art { min-height: 250px; padding: 1.1rem 1.2rem .95rem; gap: .9rem; }
-  .auth-login-art .auth-slider-bar { bottom: 1rem; right: 1rem; }
+  .auth-login-art { min-height: 300px; padding: 1.1rem 1.2rem .95rem; gap: .9rem; }
+  .auth-login-art .auth-module-orbit { --orbit-size: clamp(210px, 30vw, 255px); --orbit-radius: clamp(74px, 10vw, 92px); top: 58%; right: clamp(1rem, 5vw, 3rem); }
+  .auth-login-art .auth-slider-bar { bottom: 1rem; right: auto; left: 1rem; }
   .auth-login-form { padding: 1.6rem 1.15rem 2.2rem; }
   .auth-login-card { max-width: 480px; }
 }
 @media (max-width: 600px) {
-  .auth-login-art { min-height: 190px; padding: .85rem 1rem; }
+  .auth-login-art { min-height: 260px; padding: .85rem 1rem; }
+  .auth-login-art .auth-module-orbit { --orbit-size: clamp(162px, 48vw, 200px); --orbit-radius: clamp(58px, 19vw, 74px); top: 59%; right: .5rem; }
+  .auth-orbit-node { top: calc(50% - 28px); left: calc(50% - 28px); width: 56px; height: 58px; }
+  .auth-orbit-counter { width: 56px; gap: 2px; }
+  .auth-orbit-bubble { width: 36px; height: 36px; }
+  .auth-orbit-bubble svg.i { width: 16px; height: 16px; }
+  .auth-orbit-label { max-width: 62px; padding: 2px 4px; font-size: .43rem; }
+  .auth-orbit-center { width: 76px; height: 76px; }
+  .auth-orbit-center img { width: 27px; height: 27px; }
   .auth-login-art .auth-slider { display: block; }
   .auth-login-art .auth-slider-bar { display: none; }
   .auth-login-art .auth-art-head { gap: .5rem; }

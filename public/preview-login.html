@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14532d">
 <title>Sign in · Nowills PMS Preview</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=forest-green">
-<link rel="stylesheet" href="/css/app.css?v=login-fullbleed-1">
+<link rel="stylesheet" href="/css/app.css?v=login-module-orbit-1">
 <style>
 html,body{min-height:100%;margin:0}body{background:#f5f8f6}.auth-login-page{min-height:100vh}.auth-login{min-height:100vh}
 .preview-login-note{margin:1rem 0 0;padding:.7rem .8rem;border:1px solid #bae6c5;border-radius:9px;background:#f0fdf4;color:#166534;font-size:.76rem}
@@ -15,6 +15,17 @@ html,body{min-height:100%;margin:0}body{background:#f5f8f6}.auth-login-page{min-
 </style>
 </head>
 <body class="auth-login-page">
+<svg class="auth-orbit-symbol-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></symbol>
+  <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9"/></symbol>
+  <symbol id="i-broom" viewBox="0 0 24 24"><path d="m13 11 9-9M14.6 12.6c.8.8.9 2.1.2 3L10 22l-8-8 6.4-4.8c.9-.7 2.2-.6 3 .2Z"/><path d="m6.8 10.4 6.8 6.8M5 17l1.4-1.4"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v2M10 2v2M14 2v2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+</svg>
 <div class="auth auth-login">
   <section class="auth-art auth-login-art" aria-label="Nowills hospitality suite">
     <div class="auth-art-head">
@@ -25,6 +36,21 @@ html,body{min-height:100%;margin:0}body{background:#f5f8f6}.auth-login-page{min-
       <p class="auth-eyebrow">One calm view of the whole property</p>
       <h1>Hospitality operations,<br>beautifully connected.</h1>
       <p>Bring reservations, front desk, housekeeping, dining, events and finance together in one clear view—built for the way hospitality works.</p>
+    </div>
+    <div class="auth-module-orbit" role="img" aria-label="Nowills PMS core modules: bookings, front desk, rooms, housekeeping, dining, events, finance, reports and guest management">
+      <div class="auth-orbit-ring" aria-hidden="true"></div>
+      <div class="auth-orbit-spinner" aria-hidden="true">
+        <span class="auth-orbit-node" style="--orbit-index:0"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-calendar"></use></svg></span><span class="auth-orbit-label">Bookings</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:1"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-id"></use></svg></span><span class="auth-orbit-label">Front desk</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:2"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-bed"></use></svg></span><span class="auth-orbit-label">Rooms</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:3"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-broom"></use></svg></span><span class="auth-orbit-label">Housekeeping</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:4"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-cup"></use></svg></span><span class="auth-orbit-label">Dining</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:5"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-star"></use></svg></span><span class="auth-orbit-label">Events</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:6"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-wallet"></use></svg></span><span class="auth-orbit-label">Finance</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:7"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-chart"></use></svg></span><span class="auth-orbit-label">Reports</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:8"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><svg class="i"><use href="#i-users"></use></svg></span><span class="auth-orbit-label">Guests</span></span></span>
+      </div>
+      <div class="auth-orbit-center"><img src="/images/brand/nowills-pms-mark-white.png?v=2" alt=""><span>NOWILLS PMS</span></div>
     </div>
     <div class="auth-slider" data-auth-slider aria-roledescription="carousel" aria-label="Hospitality spaces">
       <div class="auth-slides">
