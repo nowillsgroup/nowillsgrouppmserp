@@ -92,6 +92,9 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
   toggle.addEventListener('click',()=>{const openNow=shell.classList.toggle('nav-open');toggle.setAttribute('aria-expanded',String(openNow));});
   document.getElementById('previewScrim').addEventListener('click',()=>{shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');}});
+  const requestedScreen = new URLSearchParams(window.location.search).get('screen');
+  const initialButton = [...document.querySelectorAll('#previewNav button[data-file]')].find(button => button.dataset.file === requestedScreen);
+  if (initialButton) initialButton.click();
 })();
 </script>
 </body>
