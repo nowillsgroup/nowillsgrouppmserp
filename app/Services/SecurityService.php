@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BanquetEvent;
 use App\Models\GatePass;
+use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\SecurityIncident;
 use App\Models\SecurityWatch;
@@ -138,6 +139,23 @@ class SecurityService
         return can_do('security.manage');
     }
 
+    /** Keep visitor admission in the same reservation → stay → visitor lock order as checkout. */
+    protected static function lockVisitor(Visitor $visitor): array
+    {
+        $snapshot = Visitor::whereKey($visitor->id)->firstOrFail();
+        $stay = null;
+        if ($snapshot->reservation_room_id) {
+            $staySnapshot = ReservationRoom::find($snapshot->reservation_room_id);
+            if ($staySnapshot) {
+                Reservation::whereKey($staySnapshot->reservation_id)->lockForUpdate()->first();
+                $stay = ReservationRoom::whereKey($staySnapshot->id)->lockForUpdate()->first();
+            }
+        }
+        $locked = Visitor::whereKey($visitor->id)->lockForUpdate()->firstOrFail();
+
+        return [$locked, $stay];
+    }
+
     // ───────── visitors ─────────
 
     /**
@@ -171,11 +189,13 @@ class SecurityService
         $status = 'in';
         $via = null;
         $until = $now->copy()->addHours($cfg['pass_hours']);
+        $stayId = null;
         if ($hostType === 'guest') {
             $stay = ReservationRoom::with('guest', 'reservation.guest', 'room')->find($d['reservation_room_id'] ?? 0);
             if (! $stay || $stay->status !== 'checked_in') {
                 throw new RuntimeException('Pick the in-house guest (room) being visited.');
             }
+            $stayId = $stay->id;
             $g = $stay->guest ?? $stay->reservation?->guest;
             $v->fill(['reservation_room_id' => $stay->id, 'room_id' => $stay->room_id, 'guest_id' => $g?->id, 'host_name' => $g?->full_name]);
             if ($stay->visitor_policy === 'none' && $override === '') {
@@ -226,12 +246,49 @@ class SecurityService
         $v->fill(['status' => $status, 'approved_via' => $status === 'in' ? $via : null, 'approved_by' => $status === 'in' && $via ? auth()->id() : null,
             'valid_until' => $until, 'checked_in_at' => $status === 'in' ? $now : null, 'checked_in_by' => $status === 'in' ? auth()->id() : null]);
 
-        return DB::transaction(function () use ($v, $hit, $override) {
+        return DB::transaction(function () use ($v, $override, $stayId, $d, $cfg) {
+            if ($stayId) {
+                $staySnapshot = ReservationRoom::whereKey($stayId)->firstOrFail();
+                Reservation::whereKey($staySnapshot->reservation_id)->lockForUpdate()->firstOrFail();
+                $stay = ReservationRoom::whereKey($staySnapshot->id)->lockForUpdate()->firstOrFail();
+                $stay->load(['guest', 'reservation.guest']);
+                if ($stay->status !== 'checked_in') {
+                    throw new RuntimeException('Pick the in-house guest (room) being visited.');
+                }
+                if ($stay->visitor_policy === 'none' && $override === '') {
+                    throw new RuntimeException('This guest has asked for no visitors. Do not confirm that they are staying here – take a message instead.');
+                }
+                $now = now();
+                $cut = self::cutoff($now);
+                if ($now->gte($cut) && $override === '') {
+                    throw new RuntimeException('Visiting hours for guest rooms end at '.$cfg['visiting_until'].'. Ask the guest to meet their visitor in the lobby, or get a manager override.');
+                }
+                $guest = $stay->guest ?? $stay->reservation?->guest;
+                $until = $now->copy()->addHours($cfg['pass_hours']);
+                if ($now->lt($cut)) {
+                    $until = $until->min($cut);
+                }
+                $v->fill(['reservation_room_id' => $stay->id, 'room_id' => $stay->room_id, 'guest_id' => $guest?->id, 'host_name' => $guest?->full_name,
+                    'status' => 'in', 'approved_via' => null, 'approved_by' => null, 'checked_in_at' => null, 'checked_in_by' => null,
+                    'valid_until' => $until]);
+                $mustCall = $cfg['approval'] === 'always' || $stay->visitor_policy === 'call';
+                if ($mustCall && empty($d['guest_confirmed']) && $override === '') {
+                    $v->fill(['status' => 'awaiting', 'approved_via' => null, 'approved_by' => null, 'checked_in_at' => null, 'checked_in_by' => null]);
+                } else {
+                    $via = $override !== '' ? 'override' : (! empty($d['guest_confirmed']) ? 'phone' : null);
+                    $v->fill(['approved_via' => $via, 'approved_by' => $via ? auth()->id() : null, 'checked_in_at' => $now, 'checked_in_by' => auth()->id()]);
+                }
+            }
+            $currentHit = self::screen($v->name, $v->phone, $d['id_number'] ?? null);
+            if ($currentHit && $currentHit['level'] === 'block' && $override === '') {
+                throw new RuntimeException("Entry refused – {$v->name} matches a barred person on the watch list ({$currentHit['on']}): {$currentHit['entry']->reason}. A security manager can override with a reason.");
+            }
+            $v->watchlist_id = $currentHit['entry']->id ?? null;
             $v->pass_no = Numbering::next('visitor');
             $v->save();
             ActivityLogger::log('security', 'visitor', "Visitor {$v->pass_no} {$v->name} → {$v->hostLabel()} (".$v->statusLabel().')'.($override !== '' ? ' – OVERRIDE: '.$override : ''), $v);
-            if ($hit) {
-                self::watchAlert($v, $hit);
+            if ($currentHit) {
+                self::watchAlert($v, $currentHit);
             }
 
             return $v;
@@ -256,115 +313,149 @@ class SecurityService
     /** The desk reached the guest (or host) and they said yes. */
     public static function approve(Visitor $v, string $via = 'phone'): Visitor
     {
-        if ($v->status !== 'awaiting') {
-            throw new RuntimeException('This visitor is not waiting for approval.');
-        }
-        if ($v->reservation_room_id && $v->stay?->status !== 'checked_in') {
-            throw new RuntimeException('The guest is no longer in-house.');
-        }
-        $now = now();
-        $until = $now->copy()->addHours(self::cfg()['pass_hours']);
-        if ($v->host_type === 'guest' && $now->lt(self::cutoff($now))) {
-            $until = $until->min(self::cutoff($now));
-        }
-        $v->update(['status' => 'in', 'approved_via' => array_key_exists($via, Visitor::APPROVALS) ? $via : 'phone', 'approved_by' => auth()->id(),
-            'checked_in_at' => $now, 'checked_in_by' => auth()->id(), 'valid_until' => $until]);
-        ActivityLogger::log('security', 'visitor', "Visitor {$v->pass_no} approved – guest confirmed", $v);
+        return DB::transaction(function () use ($v, $via) {
+            [$locked, $stay] = self::lockVisitor($v);
+            if ($locked->status !== 'awaiting') {
+                throw new RuntimeException('This visitor is not waiting for approval.');
+            }
+            if ($locked->reservation_room_id && $stay?->status !== 'checked_in') {
+                throw new RuntimeException('The guest is no longer in-house.');
+            }
+            $now = now();
+            $until = $now->copy()->addHours(self::cfg()['pass_hours']);
+            if ($locked->host_type === 'guest') {
+                if ($stay?->visitor_policy === 'none') {
+                    throw new RuntimeException('This guest has asked for no visitors. Do not confirm that they are staying here – take a message instead.');
+                }
+                $cutoff = self::cutoff($now);
+                if ($now->gte($cutoff)) {
+                    throw new RuntimeException('Visiting hours for guest rooms have ended. Ask the visitor to meet the guest in the lobby.');
+                }
+                $until = $until->min($cutoff);
+            }
+            $locked->forceFill(['status' => 'in', 'approved_via' => array_key_exists($via, Visitor::APPROVALS) ? $via : 'phone', 'approved_by' => auth()->id(),
+                'checked_in_at' => $now, 'checked_in_by' => auth()->id(), 'valid_until' => $until])->save();
+            ActivityLogger::log('security', 'visitor', "Visitor {$locked->pass_no} approved – guest confirmed", $locked);
 
-        return $v;
+            return $locked;
+        });
     }
 
     public static function deny(Visitor $v, string $reason): Visitor
     {
-        if (! in_array($v->status, ['awaiting', 'expected'], true)) {
-            throw new RuntimeException('Only visitors waiting at the desk can be turned away.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Say why the visitor was turned away.');
         }
-        $v->update(['status' => 'denied', 'deny_reason' => mb_substr(trim($reason), 0, 255), 'approved_by' => auth()->id()]);
-        ActivityLogger::log('security', 'visitor', "Visitor {$v->pass_no} turned away: {$reason}", $v);
 
-        return $v;
+        return DB::transaction(function () use ($v, $reason) {
+            [$locked] = self::lockVisitor($v);
+            if (! in_array($locked->status, ['awaiting', 'expected'], true)) {
+                throw new RuntimeException('Only visitors waiting at the desk can be turned away.');
+            }
+            $locked->forceFill(['status' => 'denied', 'deny_reason' => mb_substr(trim($reason), 0, 255), 'approved_by' => auth()->id()])->save();
+            ActivityLogger::log('security', 'visitor', "Visitor {$locked->pass_no} turned away: {$reason}", $locked);
+
+            return $locked;
+        });
     }
 
     /** A pre-registered visitor turns up: record their ID, screen, admit. */
     public static function arrive(Visitor $v, array $d): Visitor
     {
-        if ($v->status !== 'expected') {
-            throw new RuntimeException('This visitor is not expected.');
-        }
         $cfg = self::cfg();
         if ($cfg['require_id'] && (empty($d['id_type']) || trim((string) ($d['id_number'] ?? '')) === '')) {
             throw new RuntimeException('Record the ID the visitor showed (type and number).');
-        }
-        if ($v->reservation_room_id && $v->stay?->status !== 'checked_in') {
-            throw new RuntimeException('The guest who invited this visitor is no longer in-house.');
         }
         $override = trim((string) ($d['override_reason'] ?? ''));
         if ($override !== '' && ! self::mayOverride()) {
             throw new RuntimeException('Only a security manager can override – ask the duty manager.');
         }
-        $now = now();
-        if ($v->host_type === 'guest' && $now->gte(self::cutoff($now)) && $override === '') {
-            throw new RuntimeException('Visiting hours for guest rooms end at '.$cfg['visiting_until'].'. Ask the guest to come down to the lobby, or get a manager override.');
-        }
-        if (! empty($d['phone'])) {
-            $v->phone = trim($d['phone']);
-        }
-        self::setIdentity($v, $d['id_type'] ?? null, $d['id_number'] ?? null);
-        $hit = self::screen($v->name, $v->phone, $d['id_number'] ?? null);
-        if ($hit && $hit['level'] === 'block' && $override === '') {
-            throw new RuntimeException("Entry refused – {$v->name} matches a barred person on the watch list ({$hit['on']}): {$hit['entry']->reason}. A security manager can override with a reason.");
-        }
-        $until = $now->copy()->addHours($cfg['pass_hours']);
-        if ($v->host_type === 'guest' && $now->lt(self::cutoff($now))) {
-            $until = $until->min(self::cutoff($now));
-        }
-        $v->fill(['status' => 'in', 'checked_in_at' => $now, 'checked_in_by' => auth()->id(), 'valid_until' => $until, 'watchlist_id' => $hit['entry']->id ?? null,
-            'vehicle_no' => strtoupper(trim((string) ($d['vehicle_no'] ?? ''))) ?: $v->vehicle_no,
-            'override_reason' => $override !== '' ? mb_substr($override, 0, 255) : null, 'approved_via' => $override !== '' ? 'override' : 'pre_registered'])->save();
-        ActivityLogger::log('security', 'visitor', "Pre-registered visitor {$v->pass_no} {$v->name} arrived", $v);
-        if ($hit) {
-            self::watchAlert($v, $hit);
-        }
 
-        return $v;
+        return DB::transaction(function () use ($v, $d, $cfg, $override) {
+            [$locked, $stay] = self::lockVisitor($v);
+            if ($locked->status !== 'expected') {
+                throw new RuntimeException('This visitor is not expected.');
+            }
+            if ($locked->reservation_room_id && $stay?->status !== 'checked_in') {
+                throw new RuntimeException('The guest who invited this visitor is no longer in-house.');
+            }
+            if ($locked->host_type === 'guest' && $stay?->visitor_policy === 'none' && $override === '') {
+                throw new RuntimeException('This guest has asked for no visitors. Ask the duty manager before admitting anyone.');
+            }
+            $now = now();
+            if ($locked->host_type === 'guest' && $now->gte(self::cutoff($now)) && $override === '') {
+                throw new RuntimeException('Visiting hours for guest rooms end at '.$cfg['visiting_until'].'. Ask the guest to come down to the lobby, or get a manager override.');
+            }
+            if (! empty($d['phone'])) {
+                $locked->phone = trim($d['phone']);
+            }
+            self::setIdentity($locked, $d['id_type'] ?? null, $d['id_number'] ?? null);
+            $hit = self::screen($locked->name, $locked->phone, $d['id_number'] ?? null);
+            if ($hit && $hit['level'] === 'block' && $override === '') {
+                throw new RuntimeException("Entry refused – {$locked->name} matches a barred person on the watch list ({$hit['on']}): {$hit['entry']->reason}. A security manager can override with a reason.");
+            }
+            $until = $now->copy()->addHours($cfg['pass_hours']);
+            if ($locked->host_type === 'guest' && $now->lt(self::cutoff($now))) {
+                $until = $until->min(self::cutoff($now));
+            }
+            $locked->fill(['status' => 'in', 'checked_in_at' => $now, 'checked_in_by' => auth()->id(), 'valid_until' => $until, 'watchlist_id' => $hit['entry']->id ?? null,
+                'vehicle_no' => strtoupper(trim((string) ($d['vehicle_no'] ?? ''))) ?: $locked->vehicle_no,
+                'override_reason' => $override !== '' ? mb_substr($override, 0, 255) : null, 'approved_via' => $override !== '' ? 'override' : 'pre_registered'])->save();
+            ActivityLogger::log('security', 'visitor', "Pre-registered visitor {$locked->pass_no} {$locked->name} arrived", $locked);
+            if ($hit) {
+                self::watchAlert($locked, $hit);
+            }
+
+            return $locked;
+        });
     }
 
     public static function checkOut(Visitor $v): Visitor
     {
-        if ($v->status !== 'in') {
-            throw new RuntimeException('This visitor is not on site.');
-        }
-        $v->update(['status' => 'out', 'checked_out_at' => now(), 'checked_out_by' => auth()->id()]);
-        ActivityLogger::log('security', 'visitor', "Visitor {$v->pass_no} {$v->name} left".($v->valid_until && $v->valid_until->lt(now()) ? ' (overstayed)' : ''), $v);
+        return DB::transaction(function () use ($v) {
+            [$locked] = self::lockVisitor($v);
+            if ($locked->status !== 'in') {
+                throw new RuntimeException('This visitor is not on site.');
+            }
+            $now = now();
+            $overstayed = $locked->valid_until && $locked->valid_until->lt($now);
+            $locked->forceFill(['status' => 'out', 'checked_out_at' => $now, 'checked_out_by' => auth()->id()])->save();
+            ActivityLogger::log('security', 'visitor', "Visitor {$locked->pass_no} {$locked->name} left".($overstayed ? ' (overstayed)' : ''), $locked);
 
-        return $v;
+            return $locked;
+        });
     }
 
     public static function cancel(Visitor $v, string $reason = 'Cancelled'): Visitor
     {
-        if ($v->status !== 'expected') {
-            throw new RuntimeException('Only expected visitors can be cancelled.');
-        }
-        $v->update(['status' => 'cancelled', 'deny_reason' => mb_substr($reason, 0, 255), 'pre_token' => null]);
-        ActivityLogger::log('security', 'visitor', "Expected visitor {$v->pass_no} cancelled: {$reason}", $v);
+        return DB::transaction(function () use ($v, $reason) {
+            [$locked] = self::lockVisitor($v);
+            if ($locked->status !== 'expected') {
+                throw new RuntimeException('Only expected visitors can be cancelled.');
+            }
+            $locked->forceFill(['status' => 'cancelled', 'deny_reason' => mb_substr($reason, 0, 255), 'pre_token' => null])->save();
+            ActivityLogger::log('security', 'visitor', "Expected visitor {$locked->pass_no} cancelled: {$reason}", $locked);
 
-        return $v;
+            return $locked;
+        });
     }
 
     public static function extend(Visitor $v, int $hours): Visitor
     {
-        if ($v->status !== 'in') {
-            throw new RuntimeException('This visitor is not on site.');
-        }
         $hours = max(1, min(12, $hours));
-        $base = $v->valid_until && $v->valid_until->gt(now()) ? $v->valid_until : now();
-        $v->update(['valid_until' => $base->copy()->addHours($hours), 'overstay_alerted_at' => null]);
-        ActivityLogger::log('security', 'visitor', "Visitor pass {$v->pass_no} extended by {$hours} h", $v);
 
-        return $v;
+        return DB::transaction(function () use ($v, $hours) {
+            [$locked] = self::lockVisitor($v);
+            if ($locked->status !== 'in') {
+                throw new RuntimeException('This visitor is not on site.');
+            }
+            $now = now();
+            $base = $locked->valid_until && $locked->valid_until->gt($now) ? $locked->valid_until : $now;
+            $locked->forceFill(['valid_until' => $base->copy()->addHours($hours), 'overstay_alerted_at' => null])->save();
+            ActivityLogger::log('security', 'visitor', "Visitor pass {$locked->pass_no} extended by {$hours} h", $locked);
+
+            return $locked;
+        });
     }
 
     public static function setPolicy(ReservationRoom $stay, string $policy, string $by = 'desk'): ReservationRoom
@@ -372,39 +463,64 @@ class SecurityService
         if (! array_key_exists($policy, self::POLICIES)) {
             throw new RuntimeException('Unknown visitor preference.');
         }
-        $stay->forceFill(['visitor_policy' => $policy])->save();
-        ActivityLogger::log('security', 'policy', 'Visitor preference for room '.($stay->room?->room_no ?? '#'.$stay->id).': '.self::POLICIES[$policy]." (set by {$by})", $stay);
 
-        return $stay;
+        return DB::transaction(function () use ($stay, $policy, $by) {
+            $snapshot = ReservationRoom::whereKey($stay->id)->firstOrFail();
+            Reservation::whereKey($snapshot->reservation_id)->lockForUpdate()->firstOrFail();
+            $locked = ReservationRoom::whereKey($snapshot->id)->lockForUpdate()->firstOrFail();
+            $locked->loadMissing(['reservation', 'room']);
+            if (! in_array($locked->portalState(), ['inhouse', 'upcoming'], true)) {
+                throw new RuntimeException('Visitor preferences can only be changed for a current or upcoming stay.');
+            }
+            $locked->forceFill(['visitor_policy' => $policy])->save();
+            if ($policy === 'none') {
+                Visitor::where('reservation_room_id', $locked->id)->whereIn('status', ['expected', 'awaiting'])
+                    ->orderBy('id')->lockForUpdate()->get()->each(function (Visitor $visitor) {
+                        $visitor->forceFill(['status' => 'cancelled', 'deny_reason' => 'Guest requested no visitors', 'pre_token' => null])->save();
+                        ActivityLogger::log('security', 'visitor', "Visitor {$visitor->pass_no} cancelled: guest requested no visitors", $visitor);
+                    });
+            }
+            ActivityLogger::log('security', 'policy', 'Visitor preference for room '.($locked->room?->room_no ?? '#'.$locked->id).': '.self::POLICIES[$policy]." (set by {$by})", $locked);
+
+            return $locked;
+        });
     }
 
     /** Guest pre-registers a visitor from the portal – gives them a pass link to share. */
     public static function preRegister(ReservationRoom $stay, array $d): Visitor
     {
-        if (! in_array($stay->portalState(), ['inhouse', 'upcoming'], true)) {
-            throw new RuntimeException('Visitors can only be registered for a current or upcoming stay.');
-        }
         $name = trim((string) ($d['name'] ?? ''));
         if ($name === '') {
             throw new RuntimeException("Enter your visitor's name.");
         }
         $at = Carbon::parse(($d['date'] ?? '').' '.($d['time'] ?? ''), config('app.timezone'));
-        $from = max(now()->toDateString(), $stay->arrival_date->toDateString());
-        if ($at->toDateString() < $from || $at->toDateString() > $stay->departure_date->toDateString() || $at->lt(now()->subMinutes(10))) {
-            throw new RuntimeException('Choose a time during your stay (from now until your departure day).');
-        }
-        if ($at->gte(self::cutoff($at))) {
-            throw new RuntimeException('Visiting hours end at '.self::cfg()['visiting_until'].' – please choose an earlier time, or meet your visitor in the lobby.');
-        }
-        if (Visitor::where('reservation_room_id', $stay->id)->where('status', 'expected')->count() >= 10) {
-            throw new RuntimeException('You already have 10 visitors registered – please call the front desk.');
-        }
-        $g = $stay->guest ?? $stay->reservation?->guest;
-        $until = $at->copy()->addHours(self::cfg()['pass_hours'])->min(self::cutoff($at));
 
-        return DB::transaction(function () use ($stay, $d, $name, $at, $g, $until) {
+        return DB::transaction(function () use ($stay, $d, $name, $at) {
+            $staySnapshot = ReservationRoom::whereKey($stay->id)->firstOrFail();
+            Reservation::whereKey($staySnapshot->reservation_id)->lockForUpdate()->firstOrFail();
+            $lockedStay = ReservationRoom::whereKey($staySnapshot->id)->lockForUpdate()->firstOrFail();
+            $lockedStay->load(['guest', 'reservation.guest']);
+            if (! in_array($lockedStay->portalState(), ['inhouse', 'upcoming'], true)) {
+                throw new RuntimeException('Visitors can only be registered for a current or upcoming stay.');
+            }
+            if ($lockedStay->visitor_policy === 'none') {
+                throw new RuntimeException('You asked the hotel not to accept visitors for this stay.');
+            }
+            $now = now();
+            $from = max($now->toDateString(), $lockedStay->arrival_date->toDateString());
+            if ($at->toDateString() < $from || $at->toDateString() > $lockedStay->departure_date->toDateString() || $at->lt($now->copy()->subMinutes(10))) {
+                throw new RuntimeException('Choose a time during your stay (from now until your departure day).');
+            }
+            if ($at->gte(self::cutoff($at))) {
+                throw new RuntimeException('Visiting hours end at '.self::cfg()['visiting_until'].' – please choose an earlier time, or meet your visitor in the lobby.');
+            }
+            if (Visitor::where('reservation_room_id', $lockedStay->id)->where('status', 'expected')->count() >= 10) {
+                throw new RuntimeException('You already have 10 visitors registered – please call the front desk.');
+            }
+            $g = $lockedStay->guest ?? $lockedStay->reservation?->guest;
+            $until = $at->copy()->addHours(self::cfg()['pass_hours'])->min(self::cutoff($at));
             $v = Visitor::create(['pass_no' => Numbering::next('visitor'), 'name' => mb_substr($name, 0, 120), 'phone' => trim((string) ($d['phone'] ?? '')) ?: null,
-                'purpose' => 'guest_visit', 'host_type' => 'guest', 'reservation_room_id' => $stay->id, 'room_id' => $stay->room_id, 'guest_id' => $g?->id, 'host_name' => $g?->full_name,
+                'purpose' => 'guest_visit', 'host_type' => 'guest', 'reservation_room_id' => $lockedStay->id, 'room_id' => $lockedStay->room_id, 'guest_id' => $g?->id, 'host_name' => $g?->full_name,
                 'persons' => max(1, min(10, (int) ($d['persons'] ?? 1))), 'notes' => trim((string) ($d['notes'] ?? '')) ?: null, 'status' => 'expected', 'source' => 'portal',
                 'approved_via' => 'pre_registered', 'expected_at' => $at, 'valid_until' => $until, 'pre_token' => Str::random(40)]);
             ActivityLogger::log('security', 'visitor', "Guest pre-registered visitor {$v->pass_no} {$v->name} for ".$at->format('d M H:i'), $v);
