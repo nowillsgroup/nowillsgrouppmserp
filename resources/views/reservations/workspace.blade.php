@@ -54,7 +54,7 @@
       @else<span class="badge badge-green" style="margin-left:6px">Business date</span>@endif
     </div>
     @if ($isHistory)<div class="muted small ws-history-note">Past stays are inferred from current records; room and housekeeping states are current, not historical snapshots.</div>
-    @elseif ($isFuture)<div class="muted small ws-history-note">Forward bookings are shown with current room and housekeeping states; availability may change before arrival.</div>@endif
+    @elseif ($isFuture)<div class="muted small ws-history-note">Forward reservations and dated blocks apply to this night; housekeeping is current and availability may change.</div>@endif
   </div>
   <div class="flex gap">
     <span class="badge badge-slate" id="wsClock" title="Data generated when this page was rendered">Board snapshot · {{ now()->format('H:i:s') }}</span>
@@ -121,7 +121,7 @@
 <div class="ws-filters">
   <span class="muted small">FILTERS</span>
   <select id="fStatus" class="ws-select"><option value="">Room Status: All</option>
-    @foreach (['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'maintenance' => 'Maintenance', 'house_use' => 'House Use'] as $k => $l)
+    @foreach (['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'leased' => 'Leased', 'maintenance' => 'Maintenance', 'house_use' => 'House Use'] as $k => $l)
     <option value="{{ $k }}" @selected(($filters['status'] ?? '') === $k)>Room Status: {{ $l }}</option>@endforeach
   </select>
   <select id="fType" class="ws-select"><option value="">Room Type: All</option>
@@ -154,7 +154,7 @@
             </div>
           </div>
           <div class="text-right">
-            <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'maintenance' => 'amber', 'house_use' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
+            <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
             @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
           </div>
         </div>
@@ -208,8 +208,8 @@
 
         <div class="ws-actions">
           @if ($stay && $stay->status === 'reserved')
-            @if ($isToday && $room->status === 'vacant' && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-primary" style="background:#16a34a" href="{{ route('frontdesk.checkin', $stay) }}"><x-icon name="login"/> Check-In</a>
-            @elseif ($isToday && $room->status !== 'vacant')<span class="muted small">Resolve room status before check-in.</span>@endif
+            @if ($isToday && $c['status'] === 'reserved' && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-primary" style="background:#16a34a" href="{{ route('frontdesk.checkin', $stay) }}"><x-icon name="login"/> Check-In</a>
+            @elseif ($isToday && $c['status'] !== 'reserved' && can_do('frontdesk.checkin'))<span class="muted small">Resolve room status before check-in.</span>@endif
             @if (can_do('reservations.view'))<a class="btn btn-sm" href="{{ route('reservations.show', $stay->reservation_id) }}">Reservation details</a>@endif
           @elseif ($stay && $stay->status === 'checked_in')
             @if ($isToday && can_do('frontdesk.checkout'))<a class="btn btn-sm" style="background:#ea580c;color:#fff" href="{{ route('frontdesk.checkout', $stay) }}"><x-icon name="logout"/> Check-Out</a>@endif
@@ -223,7 +223,7 @@
               </form>
             @endif
           @endif
-          @if (! $isHistory && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty')
+          @if (! $isHistory && in_array($c['status'], ['available', 'reserved'], true) && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty')
             <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action">
               @csrf
               <input type="hidden" name="rooms[]" value="{{ $room->id }}">
@@ -289,7 +289,7 @@
       @forelse ($arrivals as $s)
       @php
         $canAssign = can_do('reservations.edit') && ! $s->room_id && $s->status === 'reserved' && $date->gte($businessDate);
-        $canCheckIn = $isToday && $s->status === 'reserved' && $s->room?->status === 'vacant' && can_do('frontdesk.checkin');
+        $canCheckIn = $isToday && $s->status === 'reserved' && $s->room?->status === 'vacant' && ! isset($inventoryBlocks[$s->room_id]) && can_do('frontdesk.checkin');
         $freeRooms = $canAssign ? ($assignableByStay[$s->id] ?? collect()) : collect();
         $freeSameType = $freeRooms->where('room_type_id', $s->room_type_id);
         $freeOther = $freeRooms->where('room_type_id', '!=', $s->room_type_id);
@@ -381,7 +381,7 @@
   $room = $c['room']; $stay = $c['stay'];
   $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
   $roomActions = [];
-  if ($isToday && $stay && $stay->status === 'reserved' && $stay->room_id && $room->status === 'vacant' && can_do('frontdesk.checkin')) $roomActions[] = ['Check-In', 'login', route('frontdesk.checkin', $stay)];
+  if ($isToday && $stay && $stay->status === 'reserved' && $stay->room_id && $c['status'] === 'reserved' && can_do('frontdesk.checkin')) $roomActions[] = ['Check-In', 'login', route('frontdesk.checkin', $stay)];
   if ($isToday && $stay && $stay->status === 'checked_in' && can_do('frontdesk.roommove')) $roomActions[] = ['Move Room', 'swap', route('frontdesk.move', $stay)];
   if ($stay && can_do('reservations.view')) $roomActions[] = ['Reservation Details', 'calendar', route('reservations.show', $stay->reservation_id)];
   if ($stay && can_do('reservations.edit')) $roomActions[] = ['Edit Reservation', 'edit', route('reservations.edit', $stay->reservation_id)];
@@ -409,7 +409,7 @@
       <span class="ws-room-no huge">{{ $room->room_no }}</span>
       <div><div id="roomModalTitle{{ $room->id }}" class="bold">{{ $room->roomType?->name ?? 'Room details' }} · {{ $room->roomType?->code ?? '' }}</div>
         <div class="small" style="opacity:.85">{{ $room->floor?->name ? 'Floor '.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->name : '' }}</div></div>
-      <div class="text-right"><span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'maintenance' => 'amber', 'house_use' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
+      <div class="text-right"><span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
         <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵{{ number_format($c['rate']) }} <small>/ night</small></div></div>
     </div>
   </div>

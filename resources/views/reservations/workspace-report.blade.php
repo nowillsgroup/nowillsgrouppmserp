@@ -141,7 +141,7 @@
   </tbody>
 </table>
 
-<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if ($isHistory) Historical occupancy is inferred from current stay records. @elseif ($isFuture) Forward figures reflect reservations currently on the books. @else Figures reflect the current PMS business date. @endif Room and housekeeping states shown are current, not date-versioned.</p>
+<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if ($isHistory) Historical occupancy is inferred from current stay records; physical room and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect reservations and dated blocks currently recorded; physical room and housekeeping flags are current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
 @endsection
 
 @push('head')

@@ -6,6 +6,7 @@ use App\Models\ReservationRoom;
 use App\Models\ReservationWaitlist;
 use App\Models\Room;
 use App\Models\RoomAmenity;
+use App\Models\RoomOutage;
 use Illuminate\Support\Carbon;
 
 /**
@@ -17,7 +18,7 @@ use Illuminate\Support\Carbon;
 class ReservationWorkspaceService
 {
     /** KPI values for one date, interpreted against the hotel's business date. */
-    protected static function dayStats(Carbon $date, $rooms, Carbon $businessDate, ?int $hotelId = null): array
+    protected static function dayStats(Carbon $date, $rooms, Carbon $businessDate, array $blockedStatusByRoom, ?int $hotelId = null): array
     {
         $d = $date->toDateString();
         $past = $date->lt($businessDate);
@@ -30,8 +31,7 @@ class ReservationWorkspaceService
             ->whereDate('departure_date', '>', $d);
         $covering = ($hotelId ? $coveringQuery->where('hotel_id', $hotelId) : $coveringQuery->whereIn('room_id', $ids))->get();
         $byRoom = $covering->groupBy('room_id');
-        $blockedIds = $rooms->whereIn('status', ['out_of_order', 'out_of_service', 'maintenance', 'house_use'])->pluck('id')->all();
-        $blockedSet = array_fill_keys($blockedIds, true);
+        $blockedSet = array_fill_keys(array_keys($blockedStatusByRoom), true);
         $occupiedIds = [];
         $reservedIds = [];
 
@@ -50,7 +50,7 @@ class ReservationWorkspaceService
 
         $occupied = count($occupiedIds);
         $reserved = count($reservedIds);
-        $blocked = count($blockedIds);
+        $blocked = count($blockedStatusByRoom);
         $total = $rooms->count();
         $guestStays = $covering->filter(function ($stay) use ($past, $future) {
             if ($past) {
@@ -91,6 +91,55 @@ class ReservationWorkspaceService
             'vips' => (int) $guestStays->filter(fn ($stay) => $stay->guest?->is_vip ?? $stay->reservation?->guest?->is_vip ?? false)
                 ->unique(fn ($stay) => $stay->guest_id ?? $stay->reservation?->guest_id ?? 'stay-'.$stay->id)->count(),
         ];
+    }
+
+    /** Current room flags plus date-bounded outage and lease restrictions for a short date range. */
+    protected static function roomBlockStatusesForDates(array $dates, $rooms): array
+    {
+        if ($dates === []) {
+            return [];
+        }
+
+        $roomIds = $rooms->pluck('id');
+        $base = [];
+        foreach ($rooms as $room) {
+            if (in_array($room->status, ['out_of_order', 'out_of_service', 'maintenance', 'house_use'], true)) {
+                $base[$room->id] = $room->status;
+            }
+        }
+        $maps = [];
+        foreach ($dates as $date) {
+            $maps[$date->toDateString()] = $base;
+        }
+
+        $from = $dates[0]->toDateString();
+        $to = end($dates)->copy()->addDay()->toDateString();
+        $outages = RoomOutage::covering($from, $to)->whereIn('room_id', $roomIds)->get(['room_id', 'reason', 'starts_on', 'ends_on']);
+        foreach ($outages as $outage) {
+            $status = match ($outage->reason) {
+                'maintenance', 'renovation' => 'maintenance',
+                'vip', 'management', 'house', 'owner' => 'house_use',
+                default => 'out_of_order',
+            };
+            foreach ($dates as $date) {
+                $key = $date->toDateString();
+                if ($outage->starts_on->toDateString() <= $key && $outage->ends_on->toDateString() > $key) {
+                    $maps[$key][$outage->room_id] ??= $status;
+                }
+            }
+        }
+
+        $leases = LeaseService::roomBlocks($from, $to);
+        foreach ($leases as $lease) {
+            foreach ($dates as $date) {
+                $key = $date->toDateString();
+                if ($lease['from'] <= $key && $lease['to'] > $key && $roomIds->contains($lease['room_id'])) {
+                    $maps[$key][$lease['room_id']] ??= 'leased';
+                }
+            }
+        }
+
+        return $maps;
     }
 
     /** amenity name (lowercased substring) => icon sprite name */
@@ -149,6 +198,12 @@ class ReservationWorkspaceService
         $rooms = Room::with(['roomType', 'floor'])
             ->where('hotel_id', $hotelId)->where('is_active', true)
             ->orderBy('room_no')->get();
+        $trendDates = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $trendDates[] = $date->copy()->subDays($i);
+        }
+        $roomBlockMaps = self::roomBlockStatusesForDates($trendDates, $rooms);
+        $blockedStatusByRoom = $roomBlockMaps[$selectedDay] ?? [];
 
         $activeRoomIds = $rooms->pluck('id');
         $typeAmenities = [];
@@ -175,8 +230,8 @@ class ReservationWorkspaceService
             $stay = ($stays->get($room->id) ?? collect())->first();
 
             $status = 'available';
-            if (in_array($room->status, ['out_of_order', 'out_of_service', 'maintenance', 'house_use'], true)) {
-                $status = $room->status; // blocked inventory takes precedence over any stale assignment
+            if (isset($blockedStatusByRoom[$room->id])) {
+                $status = $blockedStatusByRoom[$room->id]; // dated outages and leases also remove future inventory from sale
             } elseif ($stay && in_array($stay->status, $isHistory ? ['checked_in', 'checked_out'] : ['checked_in'], true)) {
                 $status = 'occupied';
             } elseif ($room->status === 'occupied') {
@@ -332,8 +387,14 @@ class ReservationWorkspaceService
         }
 
         $history = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $history[] = self::dayStats($date->copy()->subDays($i), $rooms, $businessDate, $hotelId);
+        foreach ($trendDates as $trendDate) {
+            $history[] = self::dayStats(
+                $trendDate,
+                $rooms,
+                $businessDate,
+                $roomBlockMaps[$trendDate->toDateString()] ?? [],
+                $hotelId
+            );
         }
         $selectedStats = $history[count($history) - 1];
         $keys = array_keys($selectedStats);
@@ -346,14 +407,16 @@ class ReservationWorkspaceService
             $deltas[$k] = $prev <= 0 ? null : round(100 * ($current - $prev) / $prev, 1);
         }
 
+        $blockedCounts = array_count_values(array_values($blockedStatusByRoom));
         $statusSummary = [
             'Available' => [$selectedStats['available'], '#10b981'],
             'Occupied' => [$selectedStats['occupied'], '#3b82f6'],
             'Reserved' => [$selectedStats['reserved'], '#f59e0b'],
-            'House Use' => [$rooms->where('status', 'house_use')->count(), '#a855f7'],
-            'Out of Order' => [$rooms->where('status', 'out_of_order')->count(), '#ef4444'],
-            'Out of Service' => [$rooms->where('status', 'out_of_service')->count(), '#b91c1c'],
-            'Maintenance' => [$rooms->where('status', 'maintenance')->count(), '#f97316'],
+            'House Use' => [$blockedCounts['house_use'] ?? 0, '#a855f7'],
+            'Out of Order' => [$blockedCounts['out_of_order'] ?? 0, '#ef4444'],
+            'Out of Service' => [$blockedCounts['out_of_service'] ?? 0, '#b91c1c'],
+            'Leased' => [$blockedCounts['leased'] ?? 0, '#64748b'],
+            'Maintenance' => [$blockedCounts['maintenance'] ?? 0, '#f97316'],
         ];
 
         return [
@@ -363,6 +426,7 @@ class ReservationWorkspaceService
             'dateMax' => $businessDate->copy()->addDays(62),
             'isHistory' => $isHistory,
             'isFuture' => $isFuture,
+            'inventoryBlocks' => $blockedStatusByRoom,
             'trend' => $trend,
             'deltas' => $deltas,
             'kpis' => $selectedStats,
