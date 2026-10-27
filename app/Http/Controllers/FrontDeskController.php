@@ -88,31 +88,17 @@ class FrontDeskController extends Controller
         if ($stay->room_id === $room->id) {
             return $fail('The stay is already in room '.$room->room_no.'.');
         }
-        if (! $room->is_active || in_array($room->status, ['out_of_order', 'out_of_service'], true)) {
-            return $fail("Room {$room->room_no} is out of order.");
-        }
-        $from = $stay->status === 'checked_in' ? bdate()->copy() : $stay->arrival_date;
-        if (AvailabilityService::blockingStays($from, $stay->departure_date)->where('room_id', $room->id)->where('id', '!=', $stay->id)->exists()) {
-            return $fail("Room {$room->room_no} is booked by another guest between {$from->format('d M')} and {$stay->departure_date->format('d M')}.");
-        }
-        if ($blocked = StayService::outageMessage($room->id, $from, $stay->departure_date)) {
-            return $fail($blocked);
-        }
-        $to = $stay->departure_date->gt($from) ? $stay->departure_date : $from->copy()->addDay();
-        if (! AvailabilityService::roomAvailableForReservation($room->id, $from, $to, $stay->id)) {
-            return $fail("Room {$room->room_no} is not available for this stay (it may be occupied or leased).");
-        }
 
-        $typeNote = $stay->room_type_id !== $room->room_type_id ? " (room type changed to {$room->roomType->name} – rate kept at ".money($stay->rate).')' : '';
         try {
             if ($stay->status === 'checked_in') {
+                $oldRoom = $stay->room?->room_no ?? 'unassigned';
+                $typeNote = $stay->room_type_id !== $room->room_type_id ? " (room type changed to {$room->roomType->name} – rate kept at ".money($stay->rate).')' : '';
                 StayService::moveRoom($stay, $room->id, null, 'Tape chart drag & drop');
-                $msg = "Guest moved from room {$stay->room?->room_no} to {$room->room_no}{$typeNote}.";
+                $msg = "Guest moved from room {$oldRoom} to {$room->room_no}{$typeNote}.";
             } else {
-                $old = $stay->room?->room_no;
-                $stay->update(['room_id' => $room->id, 'room_type_id' => $room->room_type_id]);
-                ActivityLogger::log('frontdesk', 'assign', "Tape chart: {$stay->reservation->reservation_no} ".($old ? "{$old} → " : 'assigned to ').$room->room_no, $stay);
-                $msg = "{$stay->reservation->reservation_no} ".($old ? 'moved to' : 'assigned to')." room {$room->room_no}{$typeNote}.";
+                // The service serializes the reservation, stay and destination
+                // room, then rechecks clashes/outages before assigning.
+                $msg = StayService::placeStay($stay, $room->id, null, 'Tape chart drag & drop');
             }
         } catch (\RuntimeException $e) {
             return $fail($e->getMessage());

@@ -47,6 +47,30 @@ class FrontDeskCheckInLockTest(unittest.TestCase):
         self.assertLess(state_check, night_posting)
         self.assertLess(night_posting, settlement)
 
+    def test_tape_chart_assignments_use_serialized_stay_services(self):
+        start = CONTROLLER.index("public function tapeDrop(")
+        end = CONTROLLER.index("protected function stayList(", start)
+        body = CONTROLLER[start:end]
+        self.assertIn("StayService::moveRoom($stay", body)
+        self.assertIn("StayService::placeStay($stay", body)
+        self.assertNotIn("$stay->update(['room_id'", body)
+
+    def test_reserved_room_assignment_revalidates_under_shared_locks(self):
+        start = SERVICE.index("public static function placeStay(")
+        end = SERVICE.rfind("\n}")
+        body = SERVICE[start:end]
+        reservation_lock = body.index("Reservation::whereKey($stay->reservation_id)->lockForUpdate()")
+        stay_lock = body.index("ReservationRoom::whereKey($stay->id)->lockForUpdate()", reservation_lock)
+        room_lock = body.index("Room::with('roomType')->whereKey($roomId)->lockForUpdate()", stay_lock)
+        status_check = body.index("if (! in_array($stay->status", stay_lock)
+        clash = body.index("AvailabilityService::blockingStays(", room_lock)
+        save = body.index("$stay->update(['room_id'", clash)
+        self.assertLess(reservation_lock, stay_lock)
+        self.assertLess(stay_lock, status_check)
+        self.assertLess(status_check, room_lock)
+        self.assertLess(room_lock, clash)
+        self.assertLess(clash, save)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
