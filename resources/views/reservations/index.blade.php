@@ -74,7 +74,7 @@
         ['Posted all', money($kpis['posted']), ['view' => 'inhouse'], 'All folio charges posted on this business date'],
         ['Occupancy', $kpis['occupancy'] === null ? '—' : $kpis['occupancy'].'%', ['view' => 'board'], $kpis['sold'].' sold / '.$kpis['sellable'].' sellable'],
         ['ADR', $kpis['adr'] === null ? '—' : money($kpis['adr']), ['view' => 'timeline'], 'Average rate of stays covering this date'],
-        ['RevPAR', $kpis['revpar'] === null ? '—' : money($kpis['revpar']), ['view' => 'board'], 'Posted room revenue divided by active rooms'],
+        ['RevPAR', $kpis['revpar'] === null ? '—' : money($kpis['revpar']), ['view' => 'board'], 'Posted room revenue divided by sellable rooms'],
         ['Deposits', money($kpis['deposits']), ['view' => 'timeline', 'focus' => 'deposit'], 'Advance payments posted today. Click shows stays with a payment on file'],
         ['Outstanding', $credit, ['view' => 'inhouse', 'focus' => 'balance'], 'Open folio balance. Credit means payments already exceed charges'],
       ],

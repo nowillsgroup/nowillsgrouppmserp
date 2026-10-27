@@ -410,7 +410,6 @@ class ReservationDeskService
         $d = $date->toDateString();
         $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $sold = (clone $covering)->count();
-        $assigned = (clone $covering)->whereNotNull('room_id')->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
         $sellable = AvailabilityService::sellableRoomCounts($date, 1, $roomRows)[$d] ?? 0;
@@ -430,7 +429,7 @@ class ReservationDeskService
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
             'due_out' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
             'available' => AvailabilityService::reservationRooms($d, $date->copy()->addDay()->toDateString())->count(),
-            'occupancy' => $sellable ? round($assigned / $sellable * 100, 1) : null,
+            'occupancy' => $sellable ? round($sold / $sellable * 100, 1) : null,
             'adr' => $sold ? round($onBooks / $sold, 2) : null,
             'on_books' => round($onBooks, 2),
             'posted' => round($posted, 2),
@@ -459,7 +458,7 @@ class ReservationDeskService
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
             'room_posted' => round($roomPosted, 2),
             'deposits' => round($deposits, 2),
-            'revpar' => $roomRows->count() ? round($roomPosted / $roomRows->count(), 2) : null,
+            'revpar' => $sellable ? round($roomPosted / $sellable, 2) : null,
         ];
     }
 
