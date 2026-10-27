@@ -27,7 +27,7 @@
       <span class="dash-section-note">Live property snapshot</span>
     </div>
 <div class="stats dash-stats dash-stats-rooms">
-  <x-stat label="Occupancy ({{ $occupied }}/{{ $total }} rooms)" :value="$occPct.'%'" icon="bed" tone="blue" :href="can_do('frontdesk.view') ? route('frontdesk.rooms') : null"/>
+  <x-stat label="Occupancy ({{ $occupied }}/{{ $sellable }} sellable rooms)" :value="$occPct.'%'" icon="bed" tone="blue" :href="can_do('frontdesk.view') ? route('frontdesk.rooms') : null"/>
   <x-stat label="Arrivals Today" :value="$arrivals->count().' / '.($arrivals->count() + $checkedInToday)" icon="login" tone="green" :href="can_do('frontdesk.view') ? route('frontdesk.arrivals') : null"/>
   <x-stat label="Departures Pending" :value="$departures->count()" icon="logout" tone="amber" :href="can_do('frontdesk.view') ? route('frontdesk.departures') : null"/>
   <x-stat label="In-House Guests" :value="$inHouseGuests" icon="users" tone="purple" :href="can_do('frontdesk.view') ? route('frontdesk.inhouse') : null"/>
@@ -126,11 +126,11 @@
       <div class="card-head"><h3>Room Status</h3>@if(can_do('frontdesk.view'))<a class="small" href="{{ route('frontdesk.rooms') }}">View rooms</a>@endif</div>
       <div class="card-body flex gap-2 items-center">
         @php $pO = $total ? $occupied/$total*100 : 0; $pV = $total ? $vacant/$total*100 : 0; @endphp
-        <div class="donut" role="img" aria-label="{{ $occPct }}% occupied: {{ $occupied }} occupied, {{ $vacant }} vacant, {{ $ooo }} out of order, {{ $dirty }} dirty" style="background: conic-gradient(#dc2626 0 {{ $pO }}%, #16a34a {{ $pO }}% {{ $pO+$pV }}%, #94a3b8 {{ $pO+$pV }}% 100%)"><div><div><b style="font-size:1.4rem">{{ $occPct }}%</b><div class="tiny muted">occupied</div></div></div></div>
+        <div class="donut" role="img" aria-label="{{ $occPct }}% occupancy of sellable rooms: {{ $occupied }} occupied, {{ $vacant }} vacant, {{ $unavailable }} unavailable (outages or leases), {{ $dirty }} dirty" style="background: conic-gradient(#dc2626 0 {{ $pO }}%, #16a34a {{ $pO }}% {{ $pO+$pV }}%, #94a3b8 {{ $pO+$pV }}% 100%)"><div><div><b style="font-size:1.4rem">{{ $occPct }}%</b><div class="tiny muted">occupied</div></div></div></div>
         <ul class="list" style="flex:1">
           <li><span><span class="badge badge-red">Occupied</span></span><b>{{ $occupied }}</b></li>
           <li><span><span class="badge badge-green">Vacant</span></span><b>{{ $vacant }}</b></li>
-          <li><span><span class="badge badge-slate">Out of order</span></span><b>{{ $ooo }}</b></li>
+          <li><span><span class="badge badge-slate">Unavailable</span></span><b>{{ $unavailable }}</b></li>
           <li><span><span class="badge badge-amber">Dirty</span></span><b>{{ $dirty }}</b></li>
         </ul>
       </div>

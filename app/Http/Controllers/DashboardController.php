@@ -15,6 +15,8 @@ use App\Models\PosOrder;
 use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\Room;
+use App\Models\RoomOutage;
+use App\Services\LeaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,8 +27,16 @@ class DashboardController extends Controller
         $d = bdate()->toDateString();
         $rooms = Room::where('is_active', true)->get();
         $total = $rooms->count();
-        $occupied = $rooms->where('status', 'occupied')->count();
-        $ooo = $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->count();
+        $to = bdate()->copy()->addDay()->toDateString();
+        $activeRoomIds = $rooms->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $unavailableIds = $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->pluck('id')
+            ->merge(array_intersect(LeaseService::blockedRoomIds($d, $to), $activeRoomIds))
+            ->merge(RoomOutage::covering($d, $to)->whereIn('room_id', $rooms->pluck('id'))->pluck('room_id'))
+            ->map(fn ($id) => (int) $id)->unique()->values();
+        $sellableRooms = $rooms->reject(fn ($room) => $unavailableIds->contains((int) $room->id));
+        $sellable = $sellableRooms->count();
+        $occupied = $sellableRooms->where('status', 'occupied')->count();
+        $unavailable = $unavailableIds->count();
         $arrivals = ReservationRoom::with('reservation.guest', 'roomType', 'room')->where('status', 'reserved')->whereDate('arrival_date', $d)->get();
         $departures = ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->get();
         // Keep dashboard movement counts on the same hotel business date as its room board.
@@ -46,10 +56,10 @@ class DashboardController extends Controller
         $inHouseGuests = ReservationRoom::where('status', 'checked_in')->sum(DB::raw('adults + children'));
 
         return view('dashboard', [
-            'total' => $total, 'occupied' => $occupied, 'vacant' => $rooms->where('status', 'vacant')->count(), 'ooo' => $ooo,
+            'total' => $total, 'sellable' => $sellable, 'occupied' => $occupied, 'vacant' => $sellableRooms->where('status', 'vacant')->count(), 'unavailable' => $unavailable,
             'dirty' => $rooms->where('hk_status', 'dirty')->count(), 'arrivals' => $arrivals, 'departures' => $departures,
             'checkedInToday' => $checkedInToday, 'inHouseGuests' => $inHouseGuests,
-            'occPct' => $total ? round($occupied * 100 / $total, 1) : 0,
+            'occPct' => $sellable ? round($occupied * 100 / $sellable, 1) : 0,
             'roomRevenue' => $roomRevenue, 'otherRevenue' => $otherRevenue, 'collections' => $collections,
             'adr' => $occupied ? $roomRevenue / max(1, $occupied) : 0,
             'audits' => $audits, 'sourceMix' => $sourceMix,
