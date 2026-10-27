@@ -551,7 +551,7 @@
 .ws-date-jump-label{font-size:11px;color:#64748b;margin-left:4px}
 .ws-date-jump{width:132px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#334155;font-size:12px}
 .ws-history-note{margin-top:5px;max-width:720px}
-.ws-photo-link:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+.ws-photo-link:focus-visible{outline:3px solid var(--c-primary);outline-offset:2px}
 .ws-extend-form .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .ws-kpis{display:grid;grid-template-columns:repeat(9,1fr);gap:8px;margin-bottom:6px}
 .ws-revenue-note{margin:0 0 12px 2px}
@@ -586,7 +586,7 @@
 .ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
 .ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
 .ws-guest.vacant{text-align:center;border-top-style:dashed}
-.ws-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:#4f46e5;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.ws-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
 .ws-stay{display:flex;justify-content:space-between;align-items:center;padding:8px 0 2px;text-align:center}
@@ -617,7 +617,7 @@
 .ws-cal-d{text-align:center;font-size:9px}
 .ws-cal-day{text-align:center;padding:3px 0;border-radius:6px;position:relative;color:inherit;text-decoration:none;display:block}
 .ws-cal-day.selected{outline:2px solid #64748b;outline-offset:-2px}
-.ws-cal-day.today{background:#0f172a;color:#fff}
+.ws-cal-day.today{background:var(--c-primary-600);color:#fff}
 .ws-cal-day.disabled{color:#cbd5e1;cursor:not-allowed}
 .ws-cal-dots{display:block;height:5px;line-height:5px}
 .dot-a,.dot-d{display:inline-block;width:4px;height:4px;border-radius:50%;margin:0 1px}

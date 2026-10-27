@@ -21,7 +21,7 @@
     @foreach($list as $s)
       <a class="gp-card flex justify-between items-center" style="text-decoration:none;color:inherit;display:flex" href="{{ route('portal.spa', [$token, 'service' => $s->id]) }}">
         <div><b>{{ $s->name }}</b><div class="tiny muted">{{ $s->duration_min }} min{{ $s->description ? ' · '.\Illuminate\Support\Str::limit($s->description, 70) : '' }}</div></div>
-        <div class="right"><b>{{ money($s->price) }}</b><div class="tiny" style="color:#1d4ed8">Book ›</div></div></a>
+        <div class="right"><b>{{ money($s->price) }}</b><div class="tiny" style="color:#166534">Book ›</div></div></a>
     @endforeach
   @endforeach
 @else

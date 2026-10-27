@@ -2,11 +2,11 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title>@yield('title') · Organiser Portal</title>
-<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
+<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 </head><body>
 @include('partials.icons')
 <div class="auth">
-  <div class="auth-art" style="background:linear-gradient(140deg,#3b0764,#7c3aed)">
+  <div class="auth-art" style="background:linear-gradient(140deg,#10271c,#166534)">
     <div class="brand" style="padding:0;border:0;height:auto"><div class="brand-mark">N</div><div>Organiser Portal<small>MEETINGS · EVENTS · WEDDINGS</small></div></div>
     <div>
       <h1>Your events, BEOs, guest lists and payments – in one place.</h1>

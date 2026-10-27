@@ -7,8 +7,8 @@
 <style>
 .st.requested{background:#fef3c7;color:#92400e}.st.waitlisted{background:#ede9fe;color:#5b21b6}.st.confirmed{background:#e0e7ff;color:#3730a3}.st.completed{background:#dcfce7;color:#166534}.st.cancelled,.st.no_show{background:#f1f5f9;color:#475569}
 .gp-act{border:1px solid #e2e8f0;border-radius:14px;padding:.75rem .85rem;margin-bottom:.6rem;background:#fff}
-.gp-act h4{margin:0 0 .15rem;font-size:1rem}.gp-act .meta{font-size:.78rem;color:#64748b}.gp-act .price{font-weight:700;color:#1d4ed8;font-size:.9rem;margin-top:.25rem}
-.gp-act summary{cursor:pointer;color:#1d4ed8;font-weight:600;font-size:.88rem;margin-top:.45rem;list-style:none}.gp-act summary::-webkit-details-marker{display:none}
+.gp-act h4{margin:0 0 .15rem;font-size:1rem}.gp-act .meta{font-size:.78rem;color:#64748b}.gp-act .price{font-weight:700;color:#166534;font-size:.9rem;margin-top:.25rem}
+.gp-act summary{cursor:pointer;color:#166534;font-weight:600;font-size:.88rem;margin-top:.45rem;list-style:none}.gp-act summary::-webkit-details-marker{display:none}
 .gp-place{padding:.5rem 0;border-bottom:1px dashed #e2e8f0}.gp-place:last-child{border:0}.gp-place b{font-size:.92rem}
 .gp-cat{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin:.8rem 0 .2rem;font-weight:700}
 </style>
@@ -82,7 +82,7 @@
   <div class="gp-place" data-place="{{ $pl->id }}"><b>{{ $pl->name }}</b>@if($pl->price_level) <span class="tiny muted">{{ str_repeat('₵', $pl->price_level) }}</span>@endif
     <div class="tiny muted">{{ collect([$pl->area, $pl->distance_km !== null ? rtrim(rtrim(number_format((float) $pl->distance_km, 1), '0'), '.').' km' : null, $pl->hours])->filter()->implode(' · ') }}</div>
     @if($pl->description)<div class="small">{{ $pl->description }}</div>@endif
-    @if($pl->tip)<div class="tiny" style="color:#1d4ed8">Concierge tip: {{ $pl->tip }}</div>@endif
+    @if($pl->tip)<div class="tiny" style="color:#166534">Concierge tip: {{ $pl->tip }}</div>@endif
     @if($pl->phone)<div class="tiny"><a href="tel:{{ preg_replace('/[^0-9+]/', '', $pl->phone) }}">{{ $pl->phone }}</a></div>@endif
   </div>
   @endforeach

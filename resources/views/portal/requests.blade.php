@@ -7,7 +7,7 @@
 .gp-cat{background:#fff;border:1px solid var(--c-border);border-radius:14px;margin-bottom:.55rem;overflow:hidden}
 .gp-cat summary{list-style:none;display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;cursor:pointer;font-weight:600}
 .gp-cat summary::-webkit-details-marker{display:none}
-.gp-cat summary .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#eef2ff;color:#1d4ed8}
+.gp-cat summary .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#f0fdf4;color:#166534}
 .gp-cat summary .chev{margin-left:auto;transition:transform .2s;color:#94a3b8}.gp-cat[open] summary .chev{transform:rotate(90deg)}
 .gp-cat .body{padding:0 1rem 1rem}
 </style>
@@ -24,7 +24,7 @@
     @endif
     @if($key === 'laundry' && isset($laundry))
       <p class="small muted m-0 mb-1">Back in {{ $laundry['hours']['normal'] }} h, or {{ $laundry['hours']['express'] }} h with express (+{{ rtrim(rtrim(number_format($laundry['express'], 2), '0'), '.') }} %). Charged to your room on delivery, plus tax.</p>
-      <details class="mb-1" id="laundryPrices"><summary class="small" style="cursor:pointer;color:#1d4ed8">See the laundry price list</summary>
+      <details class="mb-1" id="laundryPrices"><summary class="small" style="cursor:pointer;color:#166534">See the laundry price list</summary>
         <table class="gp-table small mt-1"><thead><tr><th style="text-align:left">Item</th><th>Wash</th><th>Dry clean</th><th>Press</th></tr></thead><tbody>
         @foreach($laundry['prices'] as $rows)@foreach($rows as $it)<tr><td>{{ $it->name }}</td>@foreach(['wash', 'dryclean', 'press'] as $sk)<td style="text-align:right">{{ $it->rate($sk) === null ? '–' : money($it->rate($sk), false) }}</td>@endforeach</tr>@endforeach @endforeach
         </tbody></table></details>

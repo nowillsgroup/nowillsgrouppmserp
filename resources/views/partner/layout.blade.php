@@ -6,7 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="robots" content="noindex, nofollow">
   <title>@yield('title', 'Partner Portal') · {{ $hotel->name }}</title>
-  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
+  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 </head>
 <body class="ptn-body">
 @include('partials.icons')

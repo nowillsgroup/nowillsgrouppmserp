@@ -7,12 +7,12 @@
 .sv-nps{display:grid;grid-template-columns:repeat(11,1fr);gap:.3rem}.sv-nps input,.sv-pills input,.sv-stars input{position:absolute;opacity:0;pointer-events:none}
 .sv-nps label{display:block;text-align:center;padding:.55rem 0;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-weight:600;background:#fff;user-select:none}
 .sv-nps input:checked+label{color:#fff;border-color:transparent}.sv-nps .d input:checked+label{background:#dc2626}.sv-nps .p input:checked+label{background:#d97706}.sv-nps .h input:checked+label{background:#16a34a}
-.sv-nps input:focus-visible+label,.sv-pills input:focus-visible+label{outline:2px solid #1d4ed8;outline-offset:2px}
+.sv-nps input:focus-visible+label,.sv-pills input:focus-visible+label{outline:2px solid #166534;outline-offset:2px}
 .sv-scale{display:flex;justify-content:space-between;font-size:.78rem;color:#64748b;margin-top:.3rem}
 .sv-stars{display:inline-flex;flex-direction:row-reverse;gap:.15rem}.sv-stars label{font-size:2rem;line-height:1;color:#cbd5e1;cursor:pointer;padding:0 .1rem}
-.sv-stars label:hover,.sv-stars label:hover~label,.sv-stars input:checked~label{color:#f59e0b}.sv-stars input:focus-visible+label{outline:2px solid #1d4ed8}
+.sv-stars label:hover,.sv-stars label:hover~label,.sv-stars input:checked~label{color:#f59e0b}.sv-stars input:focus-visible+label{outline:2px solid #166534}
 .sv-pills{display:flex;flex-wrap:wrap;gap:.4rem}.sv-pills label{padding:.45rem 1rem;border:1px solid #cbd5e1;border-radius:999px;cursor:pointer;background:#fff}
-.sv-pills input:checked+label{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.sv-pills input:checked+label{background:#166534;color:#fff;border-color:#166534}
 @media(max-width:560px){.sv-nps{grid-template-columns:repeat(6,1fr)}}
 </style>
 @if($preview)<div class="alert alert-warn"><x-icon name="eye"/><div>Preview – this is what guests see. Answers can't be submitted from here.</div></div>@endif

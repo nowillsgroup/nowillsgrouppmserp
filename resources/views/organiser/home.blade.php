@@ -1,7 +1,7 @@
 @extends('organiser.layout')
 @section('title', 'Welcome, '.\Illuminate\Support\Str::before($organiser->name, ' '))
 @section('content')
-<div class="ptn-hero" id="orgHero" style="background:linear-gradient(120deg,#3b0764,#7c3aed)">
+<div class="ptn-hero" id="orgHero" style="background:linear-gradient(120deg,#10271c,#166534)">
   <div><h2>{{ $company?->name ?? 'Your events' }}</h2><p>{{ $welcome }}</p>
     @if($coordinator)<p class="small mt-1" id="orgCoordinator"><x-icon name="user" size="sm"/> Your event coordinator: <b>{{ $coordinator->name }}</b>{{ $coordinator->phone ? ' · '.$coordinator->phone : '' }}{{ $coordinator->email ? ' · '.$coordinator->email : '' }}</p>@endif
   </div>

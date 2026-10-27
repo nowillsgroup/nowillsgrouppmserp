@@ -23,7 +23,7 @@
 </table>
 @if($r->status === 'cancelled' && $r->cancellation_fee > 0)<p>A cancellation charge of <b>{{ $sym }}{{ number_format($r->cancellation_fee, 2) }}</b> applies as per our policy.</p>@endif
 @if($r->onlineCheckinOpen())
-<table cellpadding="0" cellspacing="0" style="margin:18px 0"><tr><td style="background:#1d4ed8;border-radius:8px"><a href="{{ $r->checkinUrl() }}" style="display:inline-block;padding:11px 22px;color:#fff;text-decoration:none;font-weight:bold">Check in online now</a></td></tr></table>
+<table cellpadding="0" cellspacing="0" style="margin:18px 0"><tr><td style="background:#166534;border-radius:8px"><a href="{{ $r->checkinUrl() }}" style="display:inline-block;padding:11px 22px;color:#fff;text-decoration:none;font-weight:bold">Check in online now</a></td></tr></table>
 <p style="font-size:12px;color:#64748b;margin-top:-8px">Save time at the front desk: confirm your details, upload your ID and sign your registration card before you arrive.</p>
 @endif
 @if(setting('booking_policy'))<p style="font-size:12px;color:#64748b;margin-top:18px"><b>Cancellation policy:</b> {!! nl2br(e(setting('booking_policy'))) !!}</p>@endif
