@@ -269,14 +269,17 @@ class ReservationDeskService
         $activeIds = array_fill_keys($roomIds, true);
         $baseUnavailable = array_fill_keys($roomRows->whereIn('status', ['out_of_order', 'out_of_service'])
             ->pluck('id')->map(fn ($id) => (int) $id)->all(), true);
+        $businessDate = bdate()->copy()->startOfDay();
         $leases = LeaseService::roomBlocks($from, $to);
         $outages = RoomOutage::covering($from, $to)->whereIn('room_id', $roomIds)
             ->get(['room_id', 'starts_on', 'ends_on']);
         $counts = [];
 
         for ($i = 0; $i < $days; $i++) {
-            $day = $from->copy()->addDays($i)->toDateString();
-            $blocked = $baseUnavailable;
+            $dayDate = $from->copy()->addDays($i);
+            $day = $dayDate->toDateString();
+            // Current physical room flags cannot be projected onto historical nights.
+            $blocked = $dayDate->lt($businessDate) ? [] : $baseUnavailable;
             foreach ($leases as $lease) {
                 if ($lease['from'] <= $day && $lease['to'] > $day && isset($activeIds[(int) $lease['room_id']])) {
                     $blocked[(int) $lease['room_id']] = true;
