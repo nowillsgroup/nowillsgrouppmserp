@@ -57,6 +57,29 @@ class ConciergeChargeIdempotencyTest(unittest.TestCase):
         self.assertLess(booking_lock, stale_status_check)
         self.assertLess(cancel_write, promote)
 
+    def test_departure_cancellation_locks_and_rechecks_departure_and_bookings(self):
+        body = method("cancelDeparture", "setDepartureStatus")
+        departure_lock = body.index("ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail()")
+        state = body.index("if ($dep->status === 'cancelled')", departure_lock)
+        cancel = body.index("$dep->forceFill(['status' => 'cancelled', 'cancel_reason'", state)
+        booking_lock = body.index("ActivityBooking::whereKey($id)->lockForUpdate()->first()", cancel)
+        booking_check = body.index("if (! $b || ! $b->isOpen()", booking_lock)
+        self.assertLess(departure_lock, state)
+        self.assertLess(state, cancel)
+        self.assertLess(cancel, booking_lock)
+        self.assertLess(booking_lock, booking_check)
+
+    def test_departure_capacity_is_rechecked_under_departure_lock(self):
+        body = method("setDepartureStatus", "onReservationClosed")
+        departure_lock = body.index("ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail()")
+        booked = body.index("$booked = $dep->booked()", departure_lock)
+        capacity_check = body.index("if ($capacity !== null && $capacity < $booked)", booked)
+        save = body.index("$dep->forceFill(['status' => $status", capacity_check)
+        self.assertIn("DB::transaction(function ()", body)
+        self.assertLess(departure_lock, booked)
+        self.assertLess(booked, capacity_check)
+        self.assertLess(capacity_check, save)
+
     def test_waitlist_promotion_locks_departure_and_rechecks_each_entry(self):
         body = method("promoteWaitlist", "complete")
         departure_lock = body.index("ActivityDeparture::whereKey($dep->id)->lockForUpdate()")

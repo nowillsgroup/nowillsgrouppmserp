@@ -659,17 +659,23 @@ class ConciergeService
     /** vendor cancelled a departure (weather, too few guests): every booking on it is cancelled free of charge */
     public static function cancelDeparture(ActivityDeparture $dep, string $reason, ?User $by): int
     {
-        if ($dep->status === 'cancelled') {
-            throw new RuntimeException('That departure is already cancelled.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason – the guests will be told.');
         }
 
         return DB::transaction(function () use ($dep, $reason, $by) {
-            $n = 0;
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail();
+            if ($dep->status === 'cancelled') {
+                throw new RuntimeException('That departure is already cancelled.');
+            }
             $dep->forceFill(['status' => 'cancelled', 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
-            foreach (ActivityBooking::where('activity_departure_id', $dep->id)->whereIn('status', ActivityBooking::OPEN)->get() as $b) {
+            $n = 0;
+            $ids = ActivityBooking::where('activity_departure_id', $dep->id)->whereIn('status', ActivityBooking::OPEN)->orderBy('id')->pluck('id');
+            foreach ($ids as $id) {
+                $b = ActivityBooking::whereKey($id)->lockForUpdate()->first();
+                if (! $b || ! $b->isOpen() || (int) $b->activity_departure_id !== (int) $dep->id) {
+                    continue;
+                }
                 self::cancel($b, 'Departure cancelled: '.$reason, $by, true);
                 $n++;
             }
@@ -681,21 +687,28 @@ class ConciergeService
 
     public static function setDepartureStatus(ActivityDeparture $dep, string $status, ?int $capacity = null, ?string $guide = null): ActivityDeparture
     {
-        if ($dep->status === 'cancelled') {
-            throw new RuntimeException('That departure is cancelled.');
-        }
         if (! in_array($status, ['open', 'closed'], true)) {
             throw new RuntimeException('Unknown status.');
         }
-        if ($capacity !== null && $capacity < $dep->booked()) {
-            throw new RuntimeException('There are already '.$dep->booked().' guests booked – capacity can\'t go below that.');
-        }
-        $dep->forceFill(['status' => $status, 'capacity' => $capacity, 'guide' => $guide ? mb_substr($guide, 0, 100) : null])->save();
+
+        $updated = DB::transaction(function () use ($dep, $status, $capacity, $guide) {
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail();
+            if ($dep->status === 'cancelled') {
+                throw new RuntimeException('That departure is cancelled.');
+            }
+            $booked = $dep->booked();
+            if ($capacity !== null && $capacity < $booked) {
+                throw new RuntimeException('There are already '.$booked.' guests booked – capacity can\'t go below that.');
+            }
+            $dep->forceFill(['status' => $status, 'capacity' => $capacity, 'guide' => $guide ? mb_substr($guide, 0, 100) : null])->save();
+
+            return $dep;
+        });
         if ($status === 'open') {
-            self::promoteWaitlist($dep);
+            self::promoteWaitlist($updated);
         }
 
-        return $dep;
+        return $updated->fresh();
     }
 
     /** reservation cancelled / no-show: its open bookings go too (no fee) */
