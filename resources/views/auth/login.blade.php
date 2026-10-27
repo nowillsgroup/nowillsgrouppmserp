@@ -9,7 +9,7 @@
 <div class="auth">
   <section class="auth-art" aria-label="Nowills hospitality suite">
     <div class="auth-art-head">
-      <div class="brand" style="padding:0;border:0;height:auto"><div class="brand-mark">N</div><div>Nowills PMS<small>CLOUD HOSPITALITY SUITE</small></div></div>
+      <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}" alt="Nowills PMS — Cloud Hospitality Suite"></div>
       <span class="auth-live"><i></i> Built for hospitality</span>
     </div>
 

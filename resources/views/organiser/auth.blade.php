@@ -8,7 +8,7 @@
 @include('partials.icons')
 <div class="auth">
   <div class="auth-art" style="background:linear-gradient(140deg,#10271c,#166534)">
-    <div class="brand" style="padding:0;border:0;height:auto"><div class="brand-mark">N</div><div>Organiser Portal<small>MEETINGS · EVENTS · WEDDINGS</small></div></div>
+    <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth-mark" src="{{ asset('images/brand/nowills-pms-mark-white.png') }}" alt=""><div>Organiser Portal<small>MEETINGS · EVENTS · WEDDINGS</small></div></div>
     <div>
       <h1>Your events, BEOs, guest lists and payments – in one place.</h1>
       <p>Follow every function, sign the banquet event order online, set guest-number guarantees, keep the guest list, request changes and pay deposits – any time.</p>

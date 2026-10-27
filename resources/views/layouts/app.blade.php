@@ -27,8 +27,8 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">N</div>
-      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+      <img class="brand-logo-full" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}" alt="Nowills PMS — Cloud Hospitality Suite">
+      <img class="brand-logo-mark" src="{{ asset('images/brand/nowills-pms-mark-white.png') }}" alt="Nowills PMS">
       <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
     </div>
     <label class="nav-search" for="navModuleSearch">
