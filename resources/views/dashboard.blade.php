@@ -248,7 +248,7 @@
           @if(can_do('logbook.view') && ($dk['log_unread'] || $dk['log_urgent']))<li id="dashLogbook"><span class="{{ $dk['log_urgent'] ? 'text-red' : '' }}"><x-icon name="book" size="sm"/> Log book: unread by you / urgent open</span><a href="{{ route('desk.handover') }}"><b>{{ $dk['log_unread'] }} / {{ $dk['log_urgent'] }}</b></a></li>@endif
           @if(can_do('lostfound.manage') && ($dk['lf_due'] || $dk['lf_reports']))<li id="dashLostFound"><span><x-icon name="box" size="sm"/> Lost &amp; found: loss reports open / items past retention</span><a href="{{ route('lostfound.index', ['tab' => $dk['lf_reports'] ? 'reports' : 'due']) }}"><b>{{ $dk['lf_reports'] }} / {{ $dk['lf_due'] }}</b></a></li>@endif
         @endif
-        @foreach($lowStock as $i)<li><span class="text-red"><x-icon name="alert" size="sm"/> Low stock: {{ $i->name }}</span><b>{{ rtrim(rtrim(number_format($i->stock(), 2), '0'), '.') }} {{ $i->unit }}</b></li>@endforeach
+        @foreach($lowStock as $i)<li><span class="text-red"><x-icon name="alert" size="sm"/> Low stock: {{ $i->name }}</span><b>{{ rtrim(rtrim(number_format((float) ($i->stock_qty ?? 0), 2), '0'), '.') }} {{ $i->unit }}</b></li>@endforeach
       </ul></div>
   </div>
 </section>
