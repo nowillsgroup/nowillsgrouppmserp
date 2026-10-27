@@ -10,7 +10,7 @@
   <tr style="border-bottom:1px solid #e2e8f0"><td>{{ $loop->iteration }}</td><td>{{ $l->item->name }}</td><td align="right">{{ (float) $l->qty }} {{ $l->item->unit }}</td><td>{{ $l->specification }}</td></tr>
   @endforeach
 </table>
-<p style="text-align:center;margin:22px 0"><a href="{{ $link }}" style="background:#0f766e;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:700">Submit your quotation</a></p>
+<p style="text-align:center;margin:22px 0"><a href="{{ $link }}" style="background:#166534;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:700">Submit your quotation</a></p>
 @if($rfq->terms)<p style="font-size:12px;color:#475569;white-space:pre-line"><b>Terms:</b> {{ $rfq->terms }}</p>@endif
 <p style="font-size:12px;color:#64748b">This link is private to your company. Prices in Ghana cedis (GH₵); state VAT / NHIL / GETFund separately as the tax %.</p>
 @endsection

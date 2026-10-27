@@ -51,7 +51,7 @@ class GiftVoucherService
         self::modeId();
         if (GiftVoucherType::count() === 0) {
             GiftVoucherType::create(['name' => 'Gift Card', 'kind' => 'value', 'face_value' => null, 'min_value' => 1000, 'max_value' => 50000, 'validity_months' => 12,
-                'usable_on' => ['folio', 'pos'], 'color' => '#0f766e', 'terms' => 'Spend in parts on rooms, dining and bar until the balance is used up.']);
+                'usable_on' => ['folio', 'pos'], 'color' => '#166534', 'terms' => 'Spend in parts on rooms, dining and bar until the balance is used up.']);
             GiftVoucherType::create(['name' => 'Dinner for Two', 'kind' => 'single', 'face_value' => 3500, 'min_value' => 0, 'max_value' => 0, 'validity_months' => 6,
                 'usable_on' => ['pos'], 'color' => '#b45309', 'terms' => 'A three-course dinner for two at the restaurant, beverages extra. One visit; any unused value lapses.']);
             GiftVoucherType::create(['name' => 'Stay Voucher – One Night', 'kind' => 'value', 'face_value' => 7500, 'min_value' => 0, 'max_value' => 0, 'validity_months' => 12,
