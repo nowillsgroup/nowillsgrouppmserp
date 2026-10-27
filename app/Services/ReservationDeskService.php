@@ -621,11 +621,13 @@ class ReservationDeskService
             // Serialise blocks with reservation placement and other desk users.
             Room::whereKey($roomId)->lockForUpdate()->firstOrFail();
             [$room, $starts, $ends] = self::blockWindow($roomId, $from, $to);
+            $setsOutOfOrder = $starts->lte(bdate()) && $ends->gt(bdate()) && $room->status === 'vacant';
             $outage = RoomOutage::create([
                 'room_id' => $room->id, 'starts_on' => $starts->toDateString(), 'ends_on' => $ends->toDateString(),
                 'reason' => $reason, 'notes' => $notes, 'status' => 'active', 'created_by' => auth()->id(),
+                'room_status_changed_by_block' => $setsOutOfOrder,
             ]);
-            if ($starts->lte(bdate()) && $ends->gt(bdate()) && $room->status === 'vacant') {
+            if ($setsOutOfOrder) {
                 $room->update(['status' => 'out_of_order', 'notes' => trim(($notes ?: 'Blocked from the reservation desk').' · until '.$ends->format('d M'))]);
             }
             ActivityLogger::log('reservations', 'block', "Blocked room {$room->room_no} {$starts->format('d M')}–{$ends->format('d M')} ({$reason})", $room);
@@ -668,7 +670,7 @@ class ReservationDeskService
             $locked->update(['status' => 'released', 'released_at' => now()]);
             $still = $room && RoomOutage::covering(bdate(), bdate()->copy()->addDay(), $room->id)->where('id', '!=', $locked->id)->exists();
             $ticket = $room && MaintenanceRequest::where('room_id', $room->id)->where('block_room', true)->whereIn('status', ['open', 'in_progress'])->exists();
-            if ($room && $room->status === 'out_of_order' && ! $still && ! $ticket && $room->status !== 'occupied') {
+            if ($room && $locked->room_status_changed_by_block && $room->status === 'out_of_order' && ! $still && ! $ticket) {
                 $room->update(['status' => 'vacant']);
             }
             ActivityLogger::log('reservations', 'unblock', 'Released block on room '.($room->room_no ?? $locked->room_id), $room ?? $locked);
