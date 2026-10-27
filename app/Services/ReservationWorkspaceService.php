@@ -41,7 +41,7 @@ class ReservationWorkspaceService
             }
             $stays = $byRoom->get($room->id, collect());
             $occupiedStay = $stays->first(fn ($stay) => in_array($stay->status, $past ? ['checked_in', 'checked_out'] : ['checked_in'], true));
-            if ($occupiedStay || $room->status === 'occupied') {
+            if ($occupiedStay || (! $past && $room->status === 'occupied')) {
                 $occupiedIds[] = $room->id;
             } elseif ($stays->contains(fn ($stay) => $stay->status === 'reserved')) {
                 $reservedIds[] = $room->id;
@@ -107,9 +107,12 @@ class ReservationWorkspaceService
                 $base[$room->id] = $room->status;
             }
         }
+        $businessDate = bdate()->copy()->startOfDay();
         $maps = [];
         foreach ($dates as $date) {
-            $maps[$date->toDateString()] = $base;
+            // Room.status is only the current snapshot; do not project it backward
+            // onto historical dates. Dated outages and leases below remain accurate.
+            $maps[$date->toDateString()] = $date->lt($businessDate) ? [] : $base;
         }
 
         $from = $dates[0]->toDateString();
@@ -236,8 +239,9 @@ class ReservationWorkspaceService
                 $status = $blockedStatusByRoom[$room->id]; // dated outages and leases also remove future inventory from sale
             } elseif ($stay && in_array($stay->status, $isHistory ? ['checked_in', 'checked_out'] : ['checked_in'], true)) {
                 $status = 'occupied';
-            } elseif ($room->status === 'occupied') {
+            } elseif (! $isHistory && $room->status === 'occupied') {
                 // Keep a physically occupied room out of sale even if its stay record is missing.
+                // The current room flag cannot describe a historical room-board date.
                 $status = 'occupied';
             } elseif ($stay && $stay->status === 'reserved') {
                 $status = 'reserved';
