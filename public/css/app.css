@@ -1721,3 +1721,4 @@ body.dark .notify-count { box-shadow: 0 0 0 2px var(--c-side); }
   .auth-login-card { padding: 1.35rem 1.15rem; border-radius: 15px; box-shadow: 0 12px 35px rgba(15, 55, 31, .08); }
   .auth-login-options { gap: .45rem; }
 }
+@media (max-width: 1100px) { .auth-orbit-label { display: none; } }
