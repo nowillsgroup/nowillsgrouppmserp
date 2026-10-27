@@ -25,10 +25,11 @@
   $isToday = $date->toDateString() === $businessDate->toDateString();
   $isHistory = $date->lt($businessDate);
   $isFuture = $date->gt($businessDate);
-  $filters = request()->only(['status', 'type', 'floor', 'source']);
+  $filters = request()->only(['status', 'type', 'floor', 'source', 'q']);
   $selectedType = is_string($filters['type'] ?? null) ? $filters['type'] : '';
   $selectedFloor = is_string($filters['floor'] ?? null) ? $filters['floor'] : '';
   $selectedSource = is_string($filters['source'] ?? null) ? $filters['source'] : '';
+  $searchQuery = is_string($filters['q'] ?? null) ? trim($filters['q']) : '';
   $sourceOptions = $cards->pluck('stay.reservation.businessSource.name')->filter()->unique()->sort()->values();
 @endphp
 <div class="ws-head">
@@ -125,6 +126,7 @@
 {{-- ── Filters ── --}}
 <div class="ws-filters">
   <span class="muted small">FILTERS</span>
+  <input id="fSearch" class="input ws-select ws-search" type="search" value="{{ $searchQuery }}" placeholder="Guest, room or reservation" autocomplete="off" aria-label="Find a room, guest or reservation">
   <select id="fStatus" class="ws-select"><option value="">Room Status: All</option>
     @foreach (['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'leased' => 'Leased', 'maintenance' => 'Maintenance', 'house_use' => 'House Use', 'group_hold' => 'Group Hold', 'other_block' => 'Other Block'] as $k => $l)
     <option value="{{ $k }}" @selected(($filters['status'] ?? '') === $k)>Room Status: {{ $l }}</option>@endforeach
@@ -148,8 +150,16 @@
   {{-- ── Room board ── --}}
   <div class="ws-grid" id="wsGrid">
     @forelse ($cards as $c)
-      @php $room = $c['room']; $stay = $c['stay']; $src = $stay?->reservation?->businessSource?->name ?? ''; @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $src }}">
+      @php
+        $room = $c['room']; $stay = $c['stay']; $src = $stay?->reservation?->businessSource?->name ?? '';
+        $searchText = implode(' ', array_map('strval', array_filter([
+          $room->room_no, $room->roomType?->name, $stay?->reservation?->reservation_no,
+          $stay?->reservation?->group_name, $stay?->reservation?->ota_reference, $src,
+          $stay?->guest?->first_name, $stay?->guest?->last_name,
+          $stay?->reservation?->guest?->first_name, $stay?->reservation?->guest?->last_name,
+        ], fn ($value) => is_scalar($value) && trim((string) $value) !== '')));
+      @endphp
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $src }}" data-search="{{ $searchText }}">
         <div class="ws-card-head">
           <div class="flex gap">
             <span class="ws-room-no">{{ $room->room_no }}</span>
@@ -244,7 +254,7 @@
     @empty
       <div class="card ws-empty"><div class="card-body"><b>No active rooms</b><div class="muted small">There are no active rooms to show for this property.</div></div></div>
     @endforelse
-    <div class="card ws-empty" id="wsNoResults" hidden><div class="card-body"><b>No rooms match these filters</b><div class="muted small">Clear one or more filters to see the full room board.</div></div></div>
+    <div class="card ws-empty" id="wsNoResults" role="status" hidden><div class="card-body"><b>No rooms match these filters</b><div class="muted small">Clear the search or filters to see the full room board.</div></div></div>
   </div>
 
   {{-- ── Right rail ── --}}
@@ -464,24 +474,28 @@
   const type = document.getElementById('fType');
   const floor = document.getElementById('fFloor');
   const source = document.getElementById('fSource');
+  const search = document.getElementById('fSearch');
   const filters = [status, type, floor, source].filter(Boolean);
 
   function applyWsFilters() {
     const values = [status?.value || '', type?.value || '', floor?.value || '', source?.value || ''];
+    const queryText = search?.value.trim().toLocaleLowerCase() || '';
     const cards = [...document.querySelectorAll('#wsGrid .ws-card')];
     let visible = 0;
     cards.forEach(card => {
-      const show = (!values[0] || card.dataset.status === values[0])
+      const matchesFilters = (!values[0] || card.dataset.status === values[0])
         && (!values[1] || card.dataset.type === values[1])
         && (!values[2] || card.dataset.floor === values[2])
         && (!values[3] || card.dataset.source === values[3]);
-      card.hidden = !show;
-      if (show) visible++;
+      const matchesSearch = !queryText || (card.dataset.search || card.textContent).toLocaleLowerCase().includes(queryText);
+      card.hidden = !(matchesFilters && matchesSearch);
+      if (!card.hidden) visible++;
     });
     const noResults = document.getElementById('wsNoResults');
     if (noResults) noResults.hidden = cards.length === 0 || visible > 0;
     const params = new URLSearchParams(window.location.search);
     ['status', 'type', 'floor', 'source'].forEach((key, i) => values[i] ? params.set(key, values[i]) : params.delete(key));
+    if (queryText) params.set('q', search.value.trim()); else params.delete('q');
     const query = params.toString();
     history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
     document.querySelectorAll('a[data-ws-nav]').forEach(link => {
@@ -496,8 +510,10 @@
   }
 
   filters.forEach(select => select.addEventListener('change', applyWsFilters));
+  search?.addEventListener('input', applyWsFilters);
   document.getElementById('clearWsFilters')?.addEventListener('click', () => {
     filters.forEach(select => { select.value = ''; });
+    if (search) search.value = '';
     applyWsFilters();
   });
   document.getElementById('refreshWsBoard')?.addEventListener('click', () => window.location.reload());
@@ -569,6 +585,8 @@
 .ws-kpi-label{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#64748b}
 .ws-filters{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
 .ws-select{max-width:220px}
+.ws-search{width:230px;max-width:min(100%,260px)}
+.ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
 .ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px}
 .ws-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
@@ -646,6 +664,6 @@
 .ws-quick-tile{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;padding:12px 6px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#1e293b;text-decoration:none;font-size:11px}
 .ws-quick-tile:hover{background:#f8fafc}
 @media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}.ws-body{grid-template-columns:1fr}}
-@media (max-width:680px){.ws-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-modal-grid{grid-template-columns:1fr}.ws-modal-hero-row{align-items:flex-start;flex-wrap:wrap}.ws-extend-form{width:100%}.ws-extend-form input{flex:1;max-width:none}}
+@media (max-width:680px){.ws-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ws-search{width:100%;max-width:none}.ws-modal-grid{grid-template-columns:1fr}.ws-modal-hero-row{align-items:flex-start;flex-wrap:wrap}.ws-extend-form{width:100%}.ws-extend-form input{flex:1;max-width:none}}
 </style>
 @endpush
