@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Trace;
 use App\Models\WakeupCall;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * v3.5 – front desk operations: settings, shifts and the "what needs attention" counters shared by the dashboard,
@@ -65,14 +66,16 @@ class FrontDeskOpsService
 
     public static function saveSettings(array $d): void
     {
-        foreach (self::DEFAULTS as $k => $v) {
-            $short = substr($k, 5);
-            if (array_key_exists($short, $d)) {
-                Setting::updateOrCreate(['key' => $k], ['value' => is_bool($d[$short]) ? ($d[$short] ? '1' : '0') : trim((string) $d[$short])]);
+        DB::transaction(function () use ($d) {
+            foreach (self::DEFAULTS as $k => $v) {
+                $short = substr($k, 5);
+                if (array_key_exists($short, $d)) {
+                    Setting::updateOrCreate(['key' => $k], ['value' => is_bool($d[$short]) ? ($d[$short] ? '1' : '0') : trim((string) $d[$short])]);
+                }
             }
-        }
+            ActivityLogger::log('frontdesk', 'settings', 'Front desk operations settings updated');
+        });
         Setting::$version++;
-        ActivityLogger::log('frontdesk', 'settings', 'Front desk operations settings updated');
     }
 
     // ───────────────────────── shifts ─────────────────────────
