@@ -24,9 +24,9 @@ class KpiService
 {
     /** key => [label, format (pct|money|int), source (flash|now), help] */
     public const METRICS = [
-        'occ' => ['Occupancy %', 'pct', 'flash', 'Room nights sold ÷ rooms available'],
+        'occ' => ['Occupancy %', 'pct', 'flash', 'Room nights sold ÷ sellable room-nights'],
         'adr' => ['ADR', 'money', 'flash', 'Room revenue ÷ room nights sold'],
-        'revpar' => ['RevPAR', 'money', 'flash', 'Room revenue ÷ rooms available'],
+        'revpar' => ['RevPAR', 'money', 'flash', 'Room revenue ÷ sellable room-nights'],
         'room' => ['Room revenue', 'money', 'flash', 'Room charges posted'],
         'fnb' => ['F&B revenue', 'money', 'flash', 'Restaurant / bar sales incl. room-charged'],
         'net' => ['Net revenue', 'money', 'flash', 'Room + F&B + other − discounts'],
@@ -34,8 +34,8 @@ class KpiService
         'disc' => ['Discounts & allowances', 'money', 'flash', 'Discounts and allowances posted'],
         'noshow' => ['No-shows', 'int', 'flash', 'Reservations marked no-show'],
         'cancel' => ['Cancellations', 'int', 'flash', 'Reservations cancelled'],
-        'otb_tomorrow' => ['On-the-books occupancy tomorrow', 'pct', 'now', 'Rooms booked for the next night ÷ rooms'],
-        'otb_next7' => ['On-the-books occupancy, next 7 nights', 'pct', 'now', 'Average of the next 7 nights'],
+        'otb_tomorrow' => ['On-the-books occupancy tomorrow', 'pct', 'now', 'Rooms booked for the next night ÷ sellable rooms'],
+        'otb_next7' => ['On-the-books occupancy, next 7 nights', 'pct', 'now', 'Booked room-nights ÷ sellable room-nights over the next 7 nights'],
         'ooo_rooms' => ['Out-of-order rooms', 'int', 'now', 'Rooms currently out of order'],
         'inhouse_balance' => ['In-house guest balances', 'money', 'now', 'Unsettled balance on open folios of in-house guests'],
         'ar_over_60' => ['City ledger over 60 days', 'money', 'now', 'Company bills unpaid for more than 60 days'],
@@ -94,8 +94,9 @@ class KpiService
     /** Average occupancy on the books over $nights nights starting $from. */
     private static function otb(Carbon $from, int $nights): float
     {
-        $rooms = Room::where('is_active', true)->count();
-        if (! $rooms) {
+        $capacityByDay = AvailabilityService::sellableRoomCounts($from, $nights);
+        $capacity = array_sum($capacityByDay);
+        if (! $capacity) {
             return 0;
         }
         $to = $from->copy()->addDays($nights);
@@ -106,7 +107,7 @@ class KpiService
             $sold += $stays->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d))->count();
         }
 
-        return $sold * 100 / ($rooms * $nights);
+        return $sold * 100 / $capacity;
     }
 
     public static function breached(KpiAlert $a, float $value): bool
