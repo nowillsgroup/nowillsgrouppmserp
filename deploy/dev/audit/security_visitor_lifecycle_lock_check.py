@@ -15,6 +15,50 @@ def method(name):
 
 
 class SecurityVisitorLifecycleLockTest(unittest.TestCase):
+    def test_watchlist_mutex_uses_tenant_hotel_row(self):
+        body = method("lockWatchlist")
+        self.assertIn("Hotel::whereKey(Tenant::id())->lockForUpdate()->firstOrFail()", body)
+
+    def test_walkin_screen_is_serialized_with_watchlist_edits_before_creation(self):
+        body = method("register")
+        watch_lock = body.index("self::lockWatchlist();")
+        screen = body.index("$currentHit = self::screen(", watch_lock)
+        block = body.index("if ($currentHit && $currentHit['level'] === 'block'", screen)
+        save = body.index("$v->save();", block)
+        self.assertLess(watch_lock, screen)
+        self.assertLess(screen, block)
+        self.assertLess(block, save)
+
+    def test_preregistered_arrival_screens_under_shared_watchlist_mutex(self):
+        body = method("arrive")
+        watch_lock = body.index("self::lockWatchlist();")
+        screen = body.index("$hit = self::screen(", watch_lock)
+        block = body.index("if ($hit && $hit['level'] === 'block'", screen)
+        admit = body.index("$locked->fill(['status' => 'in'", block)
+        self.assertLess(watch_lock, screen)
+        self.assertLess(screen, block)
+        self.assertLess(block, admit)
+
+    def test_watchlist_edits_share_admission_mutex_and_lock_existing_entry(self):
+        body = method("saveWatch")
+        transaction = body.index("return DB::transaction(")
+        lock = body.index("self::lockWatchlist();", transaction)
+        row = body.index("SecurityWatch::whereKey($w->id)->lockForUpdate()->firstOrFail()", lock)
+        save = body.index("$locked->save();", row)
+        self.assertLess(transaction, lock)
+        self.assertLess(lock, row)
+        self.assertLess(row, save)
+
+    def test_overstay_alert_is_emitted_once_under_visitor_mutex(self):
+        body = method("run")
+        lock = body.index("Visitor::whereKey($id)->lockForUpdate()")
+        state = body.index("if (! $v || $v->status !== 'in'", lock)
+        alert = body.index("LogBookService::system(\"Visitor overstay", state)
+        mark = body.index("$v->forceFill(['overstay_alerted_at' => $now])", alert)
+        self.assertLess(lock, state)
+        self.assertLess(state, alert)
+        self.assertLess(alert, mark)
+
     def test_visitor_mutex_locks_reservation_then_stay_then_visitor(self):
         body = method("lockVisitor")
         reservation = body.index("Reservation::whereKey($staySnapshot->reservation_id)->lockForUpdate()")

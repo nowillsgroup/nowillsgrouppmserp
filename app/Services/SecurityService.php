@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BanquetEvent;
 use App\Models\GatePass;
+use App\Models\Hotel;
 use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\SecurityIncident;
@@ -139,6 +140,14 @@ class SecurityService
         return can_do('security.manage');
     }
 
+    /** Serialize watch-list edits with the final watch-list screen before admission. */
+    protected static function lockWatchlist(): void
+    {
+        if (Tenant::check()) {
+            Hotel::whereKey(Tenant::id())->lockForUpdate()->firstOrFail();
+        }
+    }
+
     /** Keep visitor admission in the same reservation → stay → visitor lock order as checkout. */
     protected static function lockVisitor(Visitor $visitor): array
     {
@@ -230,13 +239,6 @@ class SecurityService
             $via = 'host';
         }
 
-        $hit = self::screen($v->name, $v->phone, $d['id_number'] ?? null);
-        if ($hit && $hit['level'] === 'block' && $override === '') {
-            throw new RuntimeException("Entry refused – {$v->name} matches a barred person on the watch list ({$hit['on']}): {$hit['entry']->reason}. A security manager can override with a reason.");
-        }
-        if ($hit) {
-            $v->watchlist_id = $hit['entry']->id;
-        }
         if ($override !== '') {
             $v->override_reason = mb_substr($override, 0, 255);
             if ($status === 'in') {
@@ -279,6 +281,7 @@ class SecurityService
                     $v->fill(['approved_via' => $via, 'approved_by' => $via ? auth()->id() : null, 'checked_in_at' => $now, 'checked_in_by' => auth()->id()]);
                 }
             }
+            self::lockWatchlist();
             $currentHit = self::screen($v->name, $v->phone, $d['id_number'] ?? null);
             if ($currentHit && $currentHit['level'] === 'block' && $override === '') {
                 throw new RuntimeException("Entry refused – {$v->name} matches a barred person on the watch list ({$currentHit['on']}): {$currentHit['entry']->reason}. A security manager can override with a reason.");
@@ -390,6 +393,7 @@ class SecurityService
                 $locked->phone = trim($d['phone']);
             }
             self::setIdentity($locked, $d['id_type'] ?? null, $d['id_number'] ?? null);
+            self::lockWatchlist();
             $hit = self::screen($locked->name, $locked->phone, $d['id_number'] ?? null);
             if ($hit && $hit['level'] === 'block' && $override === '') {
                 throw new RuntimeException("Entry refused – {$locked->name} matches a barred person on the watch list ({$hit['on']}): {$hit['entry']->reason}. A security manager can override with a reason.");
@@ -550,18 +554,28 @@ class SecurityService
         if ($name === '' || trim((string) ($d['reason'] ?? '')) === '') {
             throw new RuntimeException('Name and reason are required.');
         }
-        $w ??= new SecurityWatch(['created_by' => auth()->id()]);
-        $w->fill(['name' => mb_substr($name, 0, 120), 'phone' => trim((string) ($d['phone'] ?? '')) ?: null, 'phone_key' => self::phoneKey($d['phone'] ?? null),
+        $isNew = ! $w || ! $w->exists;
+        $attributes = ['name' => mb_substr($name, 0, 120), 'phone' => trim((string) ($d['phone'] ?? '')) ?: null, 'phone_key' => self::phoneKey($d['phone'] ?? null),
             'level' => ($d['level'] ?? 'block') === 'alert' ? 'alert' : 'block', 'reason' => mb_substr(trim($d['reason']), 0, 255),
-            'valid_until' => $d['valid_until'] ?? null, 'is_active' => array_key_exists('is_active', $d) ? (bool) $d['is_active'] : true]);
-        if (trim((string) ($d['id_number'] ?? '')) !== '') {
-            $w->fill(['id_type' => $d['id_type'] ?? null, 'id_last4' => self::idLast4($d['id_number']), 'id_hash' => self::idHash($d['id_number'])]);
+            'valid_until' => $d['valid_until'] ?? null, 'is_active' => array_key_exists('is_active', $d) ? (bool) $d['is_active'] : true];
+        $hasIdentity = trim((string) ($d['id_number'] ?? '')) !== '';
+        $identity = [];
+        if ($hasIdentity) {
+            $identity = ['id_type' => $d['id_type'] ?? null, 'id_last4' => self::idLast4($d['id_number']), 'id_hash' => self::idHash($d['id_number'])];
         }
-        $new = ! $w->exists;
-        $w->save();
-        ActivityLogger::log('security', 'watchlist', ($new ? 'Added to' : 'Updated on').' the watch list: '.$w->name.' ('.$w->level.')', $w);
 
-        return $w;
+        return DB::transaction(function () use ($w, $isNew, $attributes, $hasIdentity, $identity) {
+            self::lockWatchlist();
+            $locked = $isNew ? new SecurityWatch(['created_by' => auth()->id()]) : SecurityWatch::whereKey($w->id)->lockForUpdate()->firstOrFail();
+            $locked->fill($attributes);
+            if ($hasIdentity) {
+                $locked->fill($identity);
+            }
+            $locked->save();
+            ActivityLogger::log('security', 'watchlist', ($isNew ? 'Added to' : 'Updated on').' the watch list: '.$locked->name.' ('.$locked->level.')', $locked);
+
+            return $locked;
+        });
     }
 
     // ───────── scheduled run ─────────
@@ -571,12 +585,22 @@ class SecurityService
     {
         $now = now();
         $r = ['overstays' => 0, 'no_shows' => 0, 'overdue_passes' => 0, 'anonymised' => 0];
-        foreach (Visitor::with('room')->where('status', 'in')->where('valid_until', '<', $now)->whereNull('overstay_alerted_at')->get() as $v) {
-            LogBookService::system("Visitor overstay: {$v->name} ({$v->pass_no})", 'Pass expired at '.$v->valid_until->format('H:i').' – visiting '.$v->hostLabel()
-                .'. Check whether they are still on the premises; extend the pass or check them out.', 'security', 'high',
-                ['department' => 'security', 'reservation_room_id' => $v->reservation_room_id], true);
-            $v->forceFill(['overstay_alerted_at' => $now])->saveQuietly();
-            $r['overstays']++;
+        $overdueVisitorIds = Visitor::where('status', 'in')->where('valid_until', '<', $now)->whereNull('overstay_alerted_at')->orderBy('id')->pluck('id');
+        foreach ($overdueVisitorIds as $id) {
+            $alerted = DB::transaction(function () use ($id, $now) {
+                $v = Visitor::whereKey($id)->lockForUpdate()->first();
+                if (! $v || $v->status !== 'in' || ! $v->valid_until || $v->valid_until->gte($now) || $v->overstay_alerted_at) {
+                    return false;
+                }
+                $v->load('room');
+                LogBookService::system("Visitor overstay: {$v->name} ({$v->pass_no})", 'Pass expired at '.$v->valid_until->format('H:i').' – visiting '.$v->hostLabel()
+                    .'. Check whether they are still on the premises; extend the pass or check them out.', 'security', 'high',
+                    ['department' => 'security', 'reservation_room_id' => $v->reservation_room_id], true);
+                $v->forceFill(['overstay_alerted_at' => $now])->saveQuietly();
+
+                return true;
+            });
+            $r['overstays'] += $alerted ? 1 : 0;
         }
         $r['no_shows'] = Visitor::where('status', 'expected')->where('valid_until', '<', $now)->update(['status' => 'no_show', 'pre_token' => null, 'updated_at' => $now]);
         $r['overdue_passes'] = GatePassService::alertOverdue();
