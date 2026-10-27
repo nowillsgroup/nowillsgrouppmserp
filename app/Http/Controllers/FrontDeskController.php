@@ -267,9 +267,15 @@ class FrontDeskController extends Controller
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
         ]);
         DB::transaction(function () use ($data, $stay) {
-            $stay->reservation->guest->fill(array_filter($data['guest'], fn ($v) => $v !== null && $v !== ''))->save();
-            $stay->update(['rate' => $data['rate']]);
-            $stay = StayService::checkIn($stay, (int) $data['room_id']);
+            // Match StayService's reservation → stay lock order before writing
+            // registration data or the rate. Updating the stay first here used
+            // to invert that order against cancellation and checkout.
+            $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
+            $lockedStay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            $lockedStay->setRelation('reservation', $reservation);
+            $reservation->guest->fill(array_filter($data['guest'], fn ($v) => $v !== null && $v !== ''))->save();
+            $lockedStay->update(['rate' => $data['rate']]);
+            $stay = StayService::checkIn($lockedStay, (int) $data['room_id']);
             if (($data['advance'] ?? 0) > 0 && ! empty($data['advance_mode'])) {
                 FolioService::payment($stay->folio, (float) $data['advance'], (int) $data['advance_mode'], $data['advance_ref'] ?? null, 'advance', 'payment', [
                     'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
@@ -318,6 +324,19 @@ class FrontDeskController extends Controller
             'override_reason' => 'nullable|string|max:200',
         ]);
         DB::transaction(function () use ($data, $stay) {
+            // Reserve the stay and room before posting nights or settlement
+            // entries. This keeps checkout in the same reservation → stay →
+            // room → folio order as the lifecycle service and prevents two
+            // desk requests from settling a stale balance concurrently.
+            $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
+            $lockedStay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            $room = $lockedStay->room_id ? Room::whereKey($lockedStay->room_id)->lockForUpdate()->first() : null;
+            if ($lockedStay->status !== 'checked_in') {
+                throw ValidationException::withMessages(['settle' => 'This stay is no longer checked in.']);
+            }
+            $lockedStay->setRelation('reservation', $reservation);
+            $lockedStay->setRelation('room', $room);
+            $stay = $lockedStay;
             StayService::postPendingNights($stay, bdate());
             $folio = $stay->fresh()->folio;
             $bal = $folio->balance();
