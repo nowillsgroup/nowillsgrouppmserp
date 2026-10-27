@@ -243,7 +243,7 @@ class RevenueService
     /** Sellable capacity per type (active rooms not out of order). */
     public static function capacity(): Collection
     {
-        return RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', ['out_of_order', 'out_of_service'])])
+        return RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', AvailabilityService::NON_SELLABLE_ROOM_STATUSES)])
             ->orderBy('base_rate')->get();
     }
 

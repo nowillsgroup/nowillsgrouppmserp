@@ -72,7 +72,7 @@ class HousekeepingService
             $existing = HousekeepingTask::where('task_date', $date)->whereNotNull('room_id')->where('task_type', '!=', 'inspection')->pluck('room_id');
             $stayover = setting('hk_daily_stayover', '1') === '1';
             $rooms = Room::with('floor', 'currentStay')->where('is_active', true)->whereNotIn('id', $existing)
-                ->whereNotIn('status', ['out_of_order', 'out_of_service'])
+                ->whereNotIn('status', AvailabilityService::NON_SELLABLE_ROOM_STATUSES)
                 ->where(fn ($q) => $q->whereIn('hk_status', ['dirty', 'touch_up'])->when($stayover, fn ($w) => $w->orWhere('status', 'occupied')))
                 ->get()->sortBy(fn ($r) => sprintf('%05d-%s', $r->floor->sort_order ?? 0, $r->room_no))->values();
             $n = 0;

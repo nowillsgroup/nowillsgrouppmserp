@@ -14,6 +14,9 @@ use Illuminate\Support\Collection;
 
 class AvailabilityService
 {
+    /** Physical room states that remove a room from nightly sale. */
+    public const NON_SELLABLE_ROOM_STATUSES = ['out_of_order', 'out_of_service', 'maintenance', 'house_use'];
+
     /** Stay lines that block inventory in [from, to). */
     public static function blockingStays($from, $to)
     {
@@ -34,7 +37,7 @@ class AvailabilityService
         $to = $from->copy()->addDays($days);
         $roomIds = $roomRows->pluck('id')->map(fn ($id) => (int) $id)->all();
         $activeIds = array_fill_keys($roomIds, true);
-        $baseUnavailable = array_fill_keys($roomRows->whereIn('status', ['out_of_order', 'out_of_service'])
+        $baseUnavailable = array_fill_keys($roomRows->whereIn('status', self::NON_SELLABLE_ROOM_STATUSES)
             ->pluck('id')->map(fn ($id) => (int) $id)->all(), true);
         $businessDate = bdate()->copy()->startOfDay();
         $leases = LeaseService::roomBlocks($from, $to);
@@ -83,7 +86,7 @@ class AvailabilityService
             ->merge(RoomOutage::covering($from, $to)->pluck('room_id')); // dated desk blocks
 
         return Room::with('roomType')->where('is_active', true)
-            ->whereNotIn('status', ['out_of_order', 'out_of_service'])
+            ->whereNotIn('status', self::NON_SELLABLE_ROOM_STATUSES)
             ->whereNotIn('id', $busy)
             ->when($roomTypeId, fn ($q) => $q->where('room_type_id', $roomTypeId))
             ->orderBy('room_no')->get();
@@ -137,12 +140,12 @@ class AvailabilityService
     {
         $from = Carbon::parse($from)->startOfDay();
         $to = $from->copy()->addDays($days);
-        $types = RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', ['out_of_order', 'out_of_service'])])->get();
+        $types = RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', self::NON_SELLABLE_ROOM_STATUSES)])->get();
         $stays = self::blockingStays($from, $to)->get(['room_type_id', 'arrival_date', 'departure_date']);
         $held = self::heldRooms($from, $to, $exceptBlockId, $exceptContractId);
         $leased = LeaseService::roomBlocks($from, $to); // v5.2
         $outages = RoomOutage::covering($from, $to)->with('room:id,room_type_id,status')->get()
-            ->filter(fn ($o) => $o->room && ! in_array($o->room->status, ['out_of_order', 'out_of_service'], true));
+            ->filter(fn ($o) => $o->room && ! in_array($o->room->status, self::NON_SELLABLE_ROOM_STATUSES, true));
         $out = [];
         $capacity = [];
         foreach ($types as $type) {

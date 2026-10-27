@@ -29,7 +29,7 @@ class DashboardController extends Controller
         $total = $rooms->count();
         $to = bdate()->copy()->addDay()->toDateString();
         $activeRoomIds = $rooms->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $unavailableIds = $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->pluck('id')
+        $unavailableIds = $rooms->whereIn('status', \App\Services\AvailabilityService::NON_SELLABLE_ROOM_STATUSES)->pluck('id')
             ->merge(array_intersect(LeaseService::blockedRoomIds($d, $to), $activeRoomIds))
             ->merge(RoomOutage::covering($d, $to)->whereIn('room_id', $rooms->pluck('id'))->pluck('room_id'))
             ->map(fn ($id) => (int) $id)->unique()->values();
