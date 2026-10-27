@@ -240,7 +240,7 @@ class RevenueService
 
     // ───────────────────────── demand: OTB, snapshots, pickup, forecast ─────────────────────────
 
-    /** Sellable capacity per type (active rooms not out of order). */
+    /** Sellable capacity per type, excluding physical room states that remove inventory from nightly sale. */
     public static function capacity(): Collection
     {
         return RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', AvailabilityService::NON_SELLABLE_ROOM_STATUSES)])
