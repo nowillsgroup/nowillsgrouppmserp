@@ -542,29 +542,46 @@ class ConciergeService
     /** seats freed on a departure go to the waitlist in booking order */
     public static function promoteWaitlist(ActivityDeparture $dep): int
     {
-        if ($dep->status !== 'open' || $dep->startsAt()->lte(now())) {
-            return 0;
-        }
-        $n = 0;
-        foreach (ActivityBooking::where('activity_departure_id', $dep->id)->where('status', 'waitlisted')->orderBy('id')->get() as $w) {
-            $left = $dep->seatsLeft();
-            if ($left !== null && $left < $w->pax()) {
-                continue;
+        $promotedIds = DB::transaction(function () use ($dep) {
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
+            if (! $dep || $dep->status !== 'open' || $dep->startsAt()->lte(now())) {
+                return [];
             }
-            $w->forceFill(['status' => 'requested'])->save();
-            ActivityLogger::log('concierge', 'promoted', "Activity {$w->number}: a seat came free – off the waitlist", $w);
-            if ($dep->activity?->instant) {
-                try {
-                    self::confirm($w, null, null, false);
-                } catch (RuntimeException $e) {
-                    report($e);
+            $dep->loadMissing('activity');
+            $promoted = [];
+            $ids = ActivityBooking::where('activity_departure_id', $dep->id)->where('status', 'waitlisted')->orderBy('id')->pluck('id');
+            foreach ($ids as $id) {
+                $w = ActivityBooking::whereKey($id)->lockForUpdate()->first();
+                if (! $w || $w->status !== 'waitlisted' || (int) $w->activity_departure_id !== (int) $dep->id) {
+                    continue;
                 }
+                $left = $dep->seatsLeft();
+                if ($left !== null && $left < $w->pax()) {
+                    continue;
+                }
+                $w->forceFill(['status' => 'requested'])->save();
+                ActivityLogger::log('concierge', 'promoted', "Activity {$w->number}: a seat came free – off the waitlist", $w);
+                if ($dep->activity?->instant) {
+                    try {
+                        self::confirm($w, null, null, false);
+                    } catch (RuntimeException $e) {
+                        report($e);
+                    }
+                }
+                $promoted[] = $w->id;
             }
-            self::notify($w->fresh(), 'seat');
-            $n++;
+
+            return $promoted;
+        });
+
+        foreach ($promotedIds as $id) {
+            $booking = ActivityBooking::find($id);
+            if ($booking && in_array($booking->status, ['requested', 'confirmed'], true)) {
+                self::notify($booking, 'seat');
+            }
         }
 
-        return $n;
+        return count($promotedIds);
     }
 
     public static function complete(ActivityBooking $b, ?User $by): ActivityBooking

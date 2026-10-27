@@ -57,6 +57,23 @@ class ConciergeChargeIdempotencyTest(unittest.TestCase):
         self.assertLess(booking_lock, stale_status_check)
         self.assertLess(cancel_write, promote)
 
+    def test_waitlist_promotion_locks_departure_and_rechecks_each_entry(self):
+        body = method("promoteWaitlist", "complete")
+        departure_lock = body.index("ActivityDeparture::whereKey($dep->id)->lockForUpdate()")
+        candidates = body.index("where('status', 'waitlisted')->orderBy('id')->pluck('id')")
+        booking_lock = body.index("ActivityBooking::whereKey($id)->lockForUpdate()->first()")
+        status_check = body.index("if (! $w || $w->status !== 'waitlisted'", booking_lock)
+        seats = body.index("$left = $dep->seatsLeft()", status_check)
+        promote = body.index("$w->forceFill(['status' => 'requested'])", seats)
+        notifications = body.index("foreach ($promotedIds as $id)")
+        self.assertIn("DB::transaction(function () use ($dep)", body)
+        self.assertLess(departure_lock, candidates)
+        self.assertLess(candidates, booking_lock)
+        self.assertLess(booking_lock, status_check)
+        self.assertLess(status_check, seats)
+        self.assertLess(seats, promote)
+        self.assertLess(body.index("});", promote), notifications)
+
     def test_complete_and_no_show_recheck_current_status_under_booking_lock(self):
         for name, next_name in (("complete", "noShow"), ("noShow", "recognise")):
             with self.subTest(action=name):
