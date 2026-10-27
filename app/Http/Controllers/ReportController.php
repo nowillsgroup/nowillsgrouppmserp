@@ -1532,19 +1532,23 @@ class ReportController extends Controller
     /** Room nights and revenue per day computed from stays + posted tariff. */
     protected function r_occupancy($from, $to): array
     {
-        $total = Room::where('is_active', true)->count();
+        $roomRows = Room::where('is_active', true)->get(['id', 'status']);
+        $days = (int) $from->diffInDays($to) + 1;
+        $sellableByDay = \App\Services\AvailabilityService::sellableRoomCounts($from, $days, $roomRows);
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)->get(['arrival_date', 'departure_date', 'adults', 'children']);
         $rev = FolioTransaction::where('category', 'room')->where('type', 'charge')->where('is_void', false)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->get(['business_date', 'amount'])->groupBy(fn ($t) => $t->business_date->toDateString())->map->sum('amount');
         $rows = collect();
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+            $key = $d->toDateString();
+            $total = $sellableByDay[$key] ?? 0;
             $occ = $stays->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d));
-            $sold = $occ->count(); $r = (float) ($rev[$d->toDateString()] ?? 0);
-            $rows->push(['date' => $d->format('d-m-Y D'), 'total' => $total, 'sold' => $sold, 'vacant' => $total - $sold, 'pax' => $occ->sum('adults') + $occ->sum('children'),
+            $sold = $occ->count(); $r = (float) ($rev[$key] ?? 0);
+            $rows->push(['date' => $d->format('d-m-Y D'), 'total' => $total, 'sold' => $sold, 'vacant' => max(0, $total - $sold), 'pax' => $occ->sum('adults') + $occ->sum('children'),
                 'occ' => $total ? round($sold * 100 / $total, 1) : 0, 'revenue' => $r, 'adr' => $sold ? round($r / $sold, 2) : 0, 'revpar' => $total ? round($r / $total, 2) : 0]);
         }
 
-        return ['cols' => ['date' => 'Date', 'total' => 'Rooms', 'sold' => 'Sold', 'vacant' => 'Vacant', 'pax' => 'Pax', 'occ' => 'Occ %', 'revenue' => 'Room revenue', 'adr' => 'ADR', 'revpar' => 'RevPAR'],
+        return ['cols' => ['date' => 'Date', 'total' => 'Sellable rooms', 'sold' => 'Sold', 'vacant' => 'Vacant', 'pax' => 'Pax', 'occ' => 'Occ %', 'revenue' => 'Room revenue', 'adr' => 'ADR', 'revpar' => 'RevPAR'],
             'rows' => $rows, 'money' => ['revenue', 'adr', 'revpar'], 'sum' => ['sold', 'pax', 'revenue'], 'chart' => ['label' => 'Occupancy %', 'key' => 'occ', 'x' => 'date']];
     }
 
