@@ -213,14 +213,14 @@ class ReservationWorkspaceService
         for ($i = 6; $i >= 0; $i--) {
             $trendDates[] = $date->copy()->subDays($i);
         }
-        // Load stays that intersect the seven-day trend once. dayStats filters this
-        // in-memory range per date instead of repeating covering/arrival/departure queries.
+        // Load stays covering trend nights or with desk activity in the seven-day range once.
+        // dayStats filters this in-memory range rather than repeating covering/arrival/departure queries.
         $trendStart = $trendDates[0]->toDateString();
         $trendEnd = end($trendDates)->copy()->addDay()->toDateString();
         $rangeStaysQuery = ReservationRoom::with(['reservation:id,guest_id', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
             ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
             ->whereDate('arrival_date', '<', $trendEnd)
-            ->whereDate('departure_date', '>', $trendStart);
+            ->whereDate('departure_date', '>=', $trendStart);
         $rangeStaysQuery = $hotelId
             ? $rangeStaysQuery->where('hotel_id', $hotelId)
             : $rangeStaysQuery->whereIn('room_id', $rooms->pluck('id'));
