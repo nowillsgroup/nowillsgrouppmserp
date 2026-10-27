@@ -117,7 +117,10 @@ class ReservationWorkspaceService
 
         $from = $dates[0]->toDateString();
         $to = end($dates)->copy()->addDay()->toDateString();
-        $outages = RoomOutage::covering($from, $to)->whereIn('room_id', $roomIds)->get(['room_id', 'reason', 'starts_on', 'ends_on']);
+        $outages = RoomOutage::query()->whereIn('status', ['active', 'released'])
+            ->whereDate('starts_on', '<', $to)->whereDate('ends_on', '>', $from)
+            ->whereIn('room_id', $roomIds)
+            ->get(['room_id', 'reason', 'starts_on', 'ends_on', 'status', 'released_at']);
         foreach ($outages as $outage) {
             $status = match ($outage->reason) {
                 'maintenance', 'renovation' => 'maintenance',
@@ -128,7 +131,15 @@ class ReservationWorkspaceService
             };
             foreach ($dates as $date) {
                 $key = $date->toDateString();
-                if ($outage->starts_on->toDateString() <= $key && $outage->ends_on->toDateString() > $key) {
+                $historical = $date->lt($businessDate);
+                if (! $historical && $outage->status !== 'active') {
+                    continue;
+                }
+                $effectiveEnd = $outage->ends_on->toDateString();
+                if ($historical && $outage->status === 'released' && $outage->released_at) {
+                    $effectiveEnd = min($effectiveEnd, $outage->released_at->toDateString());
+                }
+                if ($outage->starts_on->toDateString() <= $key && $effectiveEnd > $key) {
                     $maps[$key][$outage->room_id] ??= $status;
                 }
             }

@@ -98,13 +98,13 @@ class LeaseService
 
     // ───────────────────────── hotel rooms blocked by leases ─────────────────────────
 
-    /** Leased hotel rooms overlapping [from, to): collection of [room_id, room_type_id, from, to (exclusive)]. */
+    /** Leased hotel rooms overlapping [from, to), including ended leases for historical dates. */
     public static function roomBlocks($from, $to): Collection
     {
         $f = Carbon::parse($from)->toDateString();
         $t = Carbon::parse($to)->toDateString();
 
-        return Lease::with('unit.room')->whereIn('status', ['draft', 'active', 'notice'])->whereHas('unit', fn ($q) => $q->whereNotNull('room_id'))
+        return Lease::with('unit.room')->whereIn('status', ['draft', 'active', 'notice', 'ended', 'terminated'])->whereHas('unit', fn ($q) => $q->whereNotNull('room_id'))
             ->whereDate('start_date', '<', $t)->get()
             ->filter(fn ($l) => $l->lastDay()->copy()->addDay()->toDateString() > $f)
             ->map(fn ($l) => ['room_id' => $l->unit->room_id, 'room_type_id' => $l->unit->room?->room_type_id, 'from' => $l->start_date->toDateString(),
