@@ -25,7 +25,7 @@ class ReservationWorkspaceService
         $future = $date->gt($businessDate);
         $ids = $rooms->pluck('id');
         $statuses = $past ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $coveringQuery = ReservationRoom::with(['reservation:id,guest_id,adults,children', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
+        $coveringQuery = ReservationRoom::with(['reservation:id,guest_id', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
             ->whereIn('status', $statuses)
             ->whereDate('arrival_date', '<=', $d)
             ->whereDate('departure_date', '>', $d);
@@ -87,7 +87,7 @@ class ReservationWorkspaceService
             'reserved' => $reserved,
             'arrivals' => $arrivals,
             'departures' => $departures,
-            'inhouse' => (int) $guestStays->sum(fn ($stay) => (int) ($stay->reservation->adults ?? 1) + (int) ($stay->reservation->children ?? 0)),
+            'inhouse' => (int) $guestStays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
             'vips' => (int) $guestStays->filter(fn ($stay) => $stay->guest?->is_vip ?? $stay->reservation?->guest?->is_vip ?? false)
                 ->unique(fn ($stay) => $stay->guest_id ?? $stay->reservation?->guest_id ?? 'stay-'.$stay->id)->count(),
         ];
