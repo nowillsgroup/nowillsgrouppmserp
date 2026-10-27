@@ -6,6 +6,7 @@ use App\Models\ReservationRoom;
 use App\Models\ReservationWaitlist;
 use App\Models\Room;
 use App\Models\RoomAmenity;
+use App\Models\RoomOutage;
 use Illuminate\Support\Carbon;
 
 /**
@@ -16,42 +17,142 @@ use Illuminate\Support\Carbon;
  */
 class ReservationWorkspaceService
 {
-    /** KPI values for one date (history: on-the-books; today: live statuses). */
-    protected static function dayStats(\Illuminate\Support\Carbon $date, $rooms, bool $history = false, ?int $hotelId = null): array
+    /** KPI values for one date, interpreted against the hotel's business date. */
+    protected static function dayStats(Carbon $date, $rooms, Carbon $businessDate, array $blockedStatusByRoom, $rangeStays): array
     {
         $d = $date->toDateString();
-        $ids = $rooms->pluck('id');
-        $q = ReservationRoom::whereIn('room_id', $ids)
-            ->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
-        $q = $history
-            ? (clone $q)->whereNotIn('status', ['cancelled', 'no_show'])
-            : (clone $q)->whereIn('status', ['reserved', 'checked_in']);
-        $covering = $q->get();
-        $sold = $covering->where('status', '!=', 'reserved')->count() ?: $covering->count();
-        $reserved = $covering->where('status', 'reserved')->count();
+        $past = $date->lt($businessDate);
+        $future = $date->gt($businessDate);
+        $statuses = $past ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $covering = $rangeStays->filter(fn ($stay) => in_array($stay->status, $statuses, true)
+            && $stay->arrival_date->toDateString() <= $d && $stay->departure_date->toDateString() > $d)->values();
+        $byRoom = $covering->groupBy('room_id');
+        $blockedSet = array_fill_keys(array_keys($blockedStatusByRoom), true);
+        $occupiedIds = [];
+        $reservedIds = [];
 
-        // hotel scope (not room scope) so arrivals still without a room count
-        $deskScope = fn ($q) => $hotelId ? $q->where('hotel_id', $hotelId) : $q->whereIn('room_id', $ids);
-        $arrQ = $deskScope(ReservationRoom::query())->whereDate('arrival_date', $d);
-        $depQ = $deskScope(ReservationRoom::query())->whereDate('departure_date', $d);
-        $arrivals = ($history ? (clone $arrQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $arrQ)->whereIn('status', ['reserved', 'checked_in']))->count();
-        $departures = ($history ? (clone $depQ)->whereNotIn('status', ['cancelled', 'no_show']) : (clone $depQ)->whereIn('status', ['checked_in', 'checked_out']))->count();
+        foreach ($rooms as $room) {
+            if (isset($blockedSet[$room->id])) {
+                continue;
+            }
+            $stays = $byRoom->get($room->id, collect());
+            $occupiedStay = $stays->first(fn ($stay) => in_array($stay->status, $past ? ['checked_in', 'checked_out'] : ['checked_in'], true));
+            if ($occupiedStay || (! $past && ! $future && $room->status === 'occupied')) {
+                $occupiedIds[] = $room->id;
+            } elseif ($stays->contains(fn ($stay) => $stay->status === 'reserved')) {
+                $reservedIds[] = $room->id;
+            }
+        }
 
-        $total = max(1, $rooms->count());
-        $blocked = $rooms->whereIn('status', ['out_of_order', 'maintenance', 'house_use'])->count();
-        $occupied = $sold;
+        $occupied = count($occupiedIds);
+        $reserved = count($reservedIds);
+        $blocked = count($blockedStatusByRoom);
+        $total = $rooms->count();
+        $guestStays = $covering->filter(function ($stay) use ($past, $future) {
+            if ($past) {
+                return in_array($stay->status, ['checked_in', 'checked_out'], true);
+            }
+            if ($future) {
+                return in_array($stay->status, ['reserved', 'checked_in'], true);
+            }
+            return $stay->status === 'checked_in';
+        });
+        $revenueStays = $covering->filter(function ($stay) use ($past, $future) {
+            if ($past) {
+                return in_array($stay->status, ['checked_in', 'checked_out'], true);
+            }
+            return $future ? in_array($stay->status, ['reserved', 'checked_in'], true) : $stay->status === 'checked_in';
+        });
+
+        // The preloaded range includes unassigned hotel-wide desk work as well as room stays.
+        $deskStatuses = $past ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $departureStatuses = $past ? ['checked_in', 'checked_out'] : ($future ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
+        $arrivals = $rangeStays->filter(fn ($stay) => $stay->arrival_date->toDateString() === $d
+            && in_array($stay->status, $deskStatuses, true))->count();
+        $departures = $rangeStays->filter(fn ($stay) => $stay->departure_date->toDateString() === $d
+            && in_array($stay->status, $departureStatuses, true))->count();
+        // Forward OTB occupancy counts every covering booking, including unassigned
+        // stays; the room board's occupied/reserved tiles remain assignment-based.
+        $occupancyRooms = $future ? $covering->count() : $occupied;
+        $sellableRooms = max(0, $total - $blocked);
 
         return [
-            'occupancy' => round(100 * $occupied / $total),
-            'revenue' => (float) $covering->sum('rate'),
+            'occupancy' => $sellableRooms ? round(100 * $occupancyRooms / $sellableRooms) : 0,
+            'revenue' => (float) $revenueStays->sum('rate'),
             'available' => max(0, $total - $occupied - $reserved - $blocked),
             'occupied' => $occupied,
             'reserved' => $reserved,
             'arrivals' => $arrivals,
             'departures' => $departures,
-            'inhouse' => (int) $covering->sum(fn ($s) => (int) ($s->reservation->adults ?? 1) + (int) ($s->reservation->children ?? 0)),
-            'vips' => (int) $covering->filter(fn ($s) => $s->guest?->is_vip ?? $s->reservation->guest?->is_vip ?? false)->count(),
+            'inhouse' => (int) $guestStays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
+            'vips' => (int) $guestStays->filter(fn ($stay) => $stay->guest?->is_vip ?? $stay->reservation?->guest?->is_vip ?? false)
+                ->unique(fn ($stay) => $stay->guest_id ?? $stay->reservation?->guest_id ?? 'stay-'.$stay->id)->count(),
         ];
+    }
+
+    /** Current room flags plus date-bounded outage and lease restrictions for a short date range. */
+    protected static function roomBlockStatusesForDates(array $dates, $rooms): array
+    {
+        if ($dates === []) {
+            return [];
+        }
+
+        $roomIds = $rooms->pluck('id');
+        $base = [];
+        foreach ($rooms as $room) {
+            if (in_array($room->status, ['out_of_order', 'out_of_service', 'maintenance', 'house_use'], true)) {
+                $base[$room->id] = $room->status;
+            }
+        }
+        $businessDate = bdate()->copy()->startOfDay();
+        $maps = [];
+        foreach ($dates as $date) {
+            // Room.status is only the current snapshot; do not project it backward
+            // onto historical dates. Dated outages and leases below remain accurate.
+            $maps[$date->toDateString()] = $date->lt($businessDate) ? [] : $base;
+        }
+
+        $from = $dates[0]->toDateString();
+        $to = end($dates)->copy()->addDay()->toDateString();
+        $outages = RoomOutage::query()->whereIn('status', ['active', 'released'])
+            ->whereDate('starts_on', '<', $to)->whereDate('ends_on', '>', $from)
+            ->whereIn('room_id', $roomIds)
+            ->get(['room_id', 'reason', 'starts_on', 'ends_on', 'status', 'released_at']);
+        foreach ($outages as $outage) {
+            $status = match ($outage->reason) {
+                'maintenance', 'renovation' => 'maintenance',
+                'vip', 'management', 'house', 'owner' => 'house_use',
+                'group' => 'group_hold',
+                'other' => 'other_block',
+                default => 'out_of_order',
+            };
+            foreach ($dates as $date) {
+                $key = $date->toDateString();
+                $historical = $date->lt($businessDate);
+                if (! $historical && $outage->status !== 'active') {
+                    continue;
+                }
+                $effectiveEnd = $outage->ends_on->toDateString();
+                if ($historical && $outage->status === 'released' && $outage->released_at) {
+                    $effectiveEnd = min($effectiveEnd, $outage->released_at->toDateString());
+                }
+                if ($outage->starts_on->toDateString() <= $key && $effectiveEnd > $key) {
+                    $maps[$key][$outage->room_id] ??= $status;
+                }
+            }
+        }
+
+        $leases = LeaseService::roomBlocks($from, $to);
+        foreach ($leases as $lease) {
+            foreach ($dates as $date) {
+                $key = $date->toDateString();
+                if ($lease['from'] <= $key && $lease['to'] > $key && $roomIds->contains($lease['room_id'])) {
+                    $maps[$key][$lease['room_id']] ??= 'leased';
+                }
+            }
+        }
+
+        return $maps;
     }
 
     /** amenity name (lowercased substring) => icon sprite name */
@@ -100,13 +201,35 @@ class ReservationWorkspaceService
     /** The full board for one date. */
     public static function snapshot(?Carbon $date = null): array
     {
-        $date = ($date ?? now())->startOfDay();
-        $today = $date->toDateString();
+        $businessDate = bdate()->copy()->startOfDay();
+        $date = ($date ?? $businessDate->copy())->startOfDay();
+        $selectedDay = $date->toDateString();
+        $isHistory = $date->lt($businessDate);
+        $isFuture = $date->gt($businessDate);
         $hotelId = \App\Support\Tenant::id();
 
         $rooms = Room::with(['roomType', 'floor'])
             ->where('hotel_id', $hotelId)->where('is_active', true)
             ->orderBy('room_no')->get();
+        $trendDates = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $trendDates[] = $date->copy()->subDays($i);
+        }
+        // Load stays covering trend nights or with desk activity in the seven-day range once.
+        // dayStats filters this in-memory range rather than repeating covering/arrival/departure queries.
+        $trendStart = $trendDates[0]->toDateString();
+        $trendEnd = end($trendDates)->copy()->addDay()->toDateString();
+        $rangeStaysQuery = ReservationRoom::with(['reservation:id,guest_id', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+            ->whereDate('arrival_date', '<', $trendEnd)
+            ->whereDate('departure_date', '>=', $trendStart);
+        $rangeStaysQuery = $hotelId
+            ? $rangeStaysQuery->where('hotel_id', $hotelId)
+            : $rangeStaysQuery->whereIn('room_id', $rooms->pluck('id'));
+        $rangeStays = $rangeStaysQuery->get();
+
+        $roomBlockMaps = self::roomBlockStatusesForDates($trendDates, $rooms);
+        $blockedStatusByRoom = $roomBlockMaps[$selectedDay] ?? [];
 
         $activeRoomIds = $rooms->pluck('id');
         $typeAmenities = [];
@@ -114,33 +237,32 @@ class ReservationWorkspaceService
             $typeAmenities[$rt->id] = array_values(array_filter(array_map('trim', explode(',', (string) ($rt->amenities ?? '')))));
         }
 
-        // the stay each room is showing: in-house tonight, or the next arrival
-        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality'])
+        // Only stays actually covering the selected night belong on its room board.
+        // Past boards include completed stays so that a checked-out guest remains visible.
+        $boardStatuses = $isHistory ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality', 'folio'])
             ->where('hotel_id', $hotelId)
-            ->whereIn('status', ['reserved', 'checked_in'])
-            ->whereDate('departure_date', '>', $today)
+            ->whereIn('status', $boardStatuses)
+            ->whereDate('arrival_date', '<=', $selectedDay)
+            ->whereDate('departure_date', '>', $selectedDay)
             ->whereIn('room_id', $activeRoomIds)
+            ->orderByRaw("CASE WHEN status = 'checked_in' THEN 0 WHEN status = 'checked_out' THEN 1 ELSE 2 END")
             ->orderBy('arrival_date')->get()
             ->groupBy('room_id');
 
         $cards = [];
-        $arrivals = [];
-        $departures = [];
-        $vip = [];
-        $sold = 0;
-        $reservedCount = 0;
-        $inHouseGuests = 0;
-        $revenue = 0.0;
 
         foreach ($rooms as $room) {
-            $stay = ($stays->get($room->id) ?? collect())
-                ->first(fn ($s) => $s->arrival_date?->toDateString() <= $today && $s->departure_date?->toDateString() > $today)
-                ?? ($stays->get($room->id) ?? collect())->first();
+            $stay = ($stays->get($room->id) ?? collect())->first();
 
             $status = 'available';
-            if (in_array($room->status, ['out_of_order', 'maintenance', 'house_use'], true)) {
-                $status = $room->status; // out_of_order | maintenance | house_use
-            } elseif ($stay && $stay->status === 'checked_in') {
+            if (isset($blockedStatusByRoom[$room->id])) {
+                $status = $blockedStatusByRoom[$room->id]; // dated outages and leases also remove future inventory from sale
+            } elseif ($stay && in_array($stay->status, $isHistory ? ['checked_in', 'checked_out'] : ['checked_in'], true)) {
+                $status = 'occupied';
+            } elseif (! $isHistory && ! $isFuture && $room->status === 'occupied') {
+                // Keep a physically occupied room out of sale even if its stay record is missing.
+                // The current room flag cannot describe a different room-board date.
                 $status = 'occupied';
             } elseif ($stay && $stay->status === 'reserved') {
                 $status = 'reserved';
@@ -157,13 +279,18 @@ class ReservationWorkspaceService
             $due = null;
             $bestRate = null;
             if ($stay) {
-                try {
-                    $fig = StayService::quoteCheckoutFigures($stay);
-                    $balance = (float) ($fig['balance'] ?? 0);
-                    $due = (float) ($fig['due'] ?? $balance);
-                } catch (\Throwable) {
-                    $balance = null;
-                    $due = null;
+                if ($stay->status === 'checked_in') {
+                    try {
+                        $fig = StayService::quoteCheckoutFigures($stay);
+                        $balance = (float) ($fig['balance'] ?? 0);
+                        $due = (float) ($fig['due'] ?? $balance);
+                    } catch (\Throwable) {
+                        $balance = null;
+                        $due = null;
+                    }
+                } elseif ($stay->status === 'checked_out') {
+                    $balance = $stay->folio ? round((float) $stay->folio->balance(), 2) : null;
+                    $due = $balance;
                 }
                 $bestRate = (float) $stay->rate;
             }
@@ -176,37 +303,39 @@ class ReservationWorkspaceService
                 'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
                 'amenities' => $typeAmenities[$room->room_type_id] ?? [],
-                'arriving_today' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $today,
+                'arriving_on_date' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $selectedDay,
             ];
-
-            if ($stay && $stay->status === 'checked_in') {
-                $sold++;
-                $inHouseGuests += (int) ($stay->reservation->adults ?? 1) + (int) ($stay->reservation->children ?? 0);
-                $revenue += (float) $stay->rate;
-                if ($stay->guest?->is_vip || $stay->reservation->guest?->is_vip) {
-                    $vip[] = $stay;
-                }
-            } elseif ($stay && $stay->status === 'reserved') {
-                $reservedCount++;
-            }
 
         }
 
         // arrivals & departures for the date, regardless of room assignment —
         // an arrival with no room yet is still desk work (room_id is null until
         // it is assigned, so room-scoped queries would silently drop it)
-        $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no'])
+        $deskStatuses = $isHistory ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $departureStatuses = $isHistory ? ['checked_in', 'checked_out'] : ($isFuture ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
+        $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no,status'])
             ->where('hotel_id', $hotelId)
-            ->whereDate('arrival_date', $today)
-            ->whereIn('status', ['reserved', 'checked_in'])
+            ->whereDate('arrival_date', $selectedDay)
+            ->whereIn('status', $deskStatuses)
             ->orderBy('room_id')->get();
 
-        // departures today (regardless of room assignment state)
-        $departures = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no'])
+        // Selected-date departures include reserved future stays and completed departures.
+        $departures = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no', 'folio'])
             ->where('hotel_id', $hotelId)
-            ->whereDate('departure_date', $today)
-            ->whereIn('status', ['checked_in', 'checked_out'])
+            ->whereDate('departure_date', $selectedDay)
+            ->whereIn('status', $departureStatuses)
             ->orderBy('room_id')->get();
+
+        $vipStatuses = $isHistory ? ['checked_in', 'checked_out'] : ($isFuture ? ['reserved', 'checked_in'] : ['checked_in']);
+        $vip = ReservationRoom::with(['guest:id,first_name,last_name,is_vip,nationality', 'reservation:id,guest_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip', 'room:id,room_no'])
+            ->where('hotel_id', $hotelId)
+            ->whereIn('status', $vipStatuses)
+            ->whereDate('arrival_date', '<=', $selectedDay)
+            ->whereDate('departure_date', '>', $selectedDay)
+            ->get()
+            ->filter(fn ($stay) => $stay->guest?->is_vip || $stay->reservation?->guest?->is_vip)
+            ->unique(fn ($stay) => $stay->guest_id ?? $stay->reservation?->guest_id ?? 'stay-'.$stay->id)
+            ->values();
 
         // What each departure will actually settle. A checked-in stay still has
         // nights and fixed charges to post, so its figure is `due`; a stay that
@@ -215,6 +344,10 @@ class ReservationWorkspaceService
         // guest showed GH₵ 774.40 when checkout would collect GH₵ 2,589.40.
         $departureFigures = [];
         foreach ($departures as $s) {
+            if ($s->status === 'reserved') {
+                $departureFigures[$s->id] = ['amount' => null, 'pending' => 0, 'unposted' => 0, 'blocked' => []];
+                continue;
+            }
             // A departure the desk cannot actually check out yet is worse than an
             // understated figure: it sends a guest to the cashier who will be turned
             // away. checkoutHolds() is the same read-only picture the checkout guard
@@ -246,7 +379,7 @@ class ReservationWorkspaceService
                 // stands. It is a better asterisk signal than 'pending' (missing nights
                 // only), which misses extra/early/late and unposted fixed charges.
                 $departureFigures[$s->id] = [
-                    'amount' => (float) ($fig['due'] ?? 0),
+                    'amount' => isset($fig['due']) ? (float) $fig['due'] : null,
                     'pending' => (int) ($fig['missing'] ?? 0),
                     'unposted' => max(0, round((float) ($fig['due'] ?? 0) - (float) ($fig['balance'] ?? 0), 2)),
                     'blocked' => $blocked,
@@ -257,80 +390,100 @@ class ReservationWorkspaceService
             }
         }
 
-        $total = max(1, $rooms->count());
-        $houseUse = $rooms->where('status', 'house_use')->count();
-        $ooo = $rooms->whereIn('status', ['out_of_order', 'maintenance'])->count();
+        // Month markers must describe the whole month, not only records loaded for the selected day.
+        $monthStart = $date->copy()->startOfMonth();
+        $monthEnd = $monthStart->copy()->addMonth();
+        $monthArrivals = ReservationRoom::where('hotel_id', $hotelId)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->whereDate('arrival_date', '>=', $monthStart->toDateString())
+            ->whereDate('arrival_date', '<', $monthEnd->toDateString())
+            ->pluck('arrival_date')->mapWithKeys(fn ($d) => [Carbon::parse($d)->toDateString() => true])->all();
+        $monthDepartures = ReservationRoom::where('hotel_id', $hotelId)
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->whereDate('departure_date', '>=', $monthStart->toDateString())
+            ->whereDate('departure_date', '<', $monthEnd->toDateString())
+            ->pluck('departure_date')->mapWithKeys(fn ($d) => [Carbon::parse($d)->toDateString() => true])->all();
 
-        // 7-day trend + day-over-day deltas: history (t-6..t-1) computed on
-        // the books as of each date (stays not cancelled/no-show), today live.
-        $history = [];
-        for ($i = 6; $i >= 1; $i--) {
-            $history[] = self::dayStats($date->copy()->subDays($i), $rooms, true, $hotelId);
+        // Keep each unassigned arrival's picker aligned to its complete stay range.
+        // Reuse the same availability result for arrivals sharing a date window.
+        $assignableByStay = [];
+        $availabilityByRange = [];
+        foreach ($arrivals->whereNull('room_id')->where('status', 'reserved') as $arrival) {
+            $arrivalDate = $arrival->arrival_date->toDateString();
+            $departureDate = $arrival->departure_date->toDateString();
+            $rangeKey = $arrivalDate.'|'.$departureDate;
+            if (! array_key_exists($rangeKey, $availabilityByRange)) {
+                $availabilityByRange[$rangeKey] = AvailabilityService::reservationRooms($arrivalDate, $departureDate);
+            }
+            $assignableByStay[$arrival->id] = $availabilityByRange[$rangeKey];
         }
-        $todayStats = [
-            'occupancy' => round(100 * $sold / $total),
-            'revenue' => $revenue,
-            'available' => $rooms->count() - $sold - $reservedCount - $houseUse - $ooo,
-            'occupied' => $sold,
-            'reserved' => $reservedCount,
-            'arrivals' => count($arrivals),
-            'departures' => $departures->count(),
-            'inhouse' => $inHouseGuests,
-            'vips' => count($vip),
-        ];
-        $history[] = $todayStats;
-        $keys = array_keys($todayStats);
+
+        $history = [];
+        foreach ($trendDates as $trendDate) {
+            $history[] = self::dayStats(
+                $trendDate,
+                $rooms,
+                $businessDate,
+                $roomBlockMaps[$trendDate->toDateString()] ?? [],
+                $rangeStays
+            );
+        }
+        $selectedStats = $history[count($history) - 1];
+        $keys = array_keys($selectedStats);
         $trend = [];
         $deltas = [];
         foreach ($keys as $k) {
             $trend[$k] = array_map(fn ($d) => $d[$k], $history);
             $prev = (float) $history[count($history) - 2][$k];
-            $now = (float) $todayStats[$k];
-            $deltas[$k] = $prev <= 0 ? null : round(100 * ($now - $prev) / $prev, 1);
+            $current = (float) $selectedStats[$k];
+            $deltas[$k] = $prev <= 0 ? null : round(100 * ($current - $prev) / $prev, 1);
         }
+
+        $blockedCounts = array_count_values(array_values($blockedStatusByRoom));
+        $statusSummary = [
+            'Available' => [$selectedStats['available'], '#10b981'],
+            'Occupied' => [$selectedStats['occupied'], '#3b82f6'],
+            'Reserved' => [$selectedStats['reserved'], '#f59e0b'],
+            'House Use' => [$blockedCounts['house_use'] ?? 0, '#a855f7'],
+            'Out of Order' => [$blockedCounts['out_of_order'] ?? 0, '#ef4444'],
+            'Out of Service' => [$blockedCounts['out_of_service'] ?? 0, '#b91c1c'],
+            'Leased' => [$blockedCounts['leased'] ?? 0, '#64748b'],
+            'Maintenance' => [$blockedCounts['maintenance'] ?? 0, '#f97316'],
+            'Group Hold' => [$blockedCounts['group_hold'] ?? 0, '#0ea5e9'],
+            'Other Block' => [$blockedCounts['other_block'] ?? 0, '#64748b'],
+        ];
 
         return [
             'date' => $date,
+            'businessDate' => $businessDate,
+            'dateMin' => $businessDate->copy()->subDays(62),
+            'dateMax' => $businessDate->copy()->addDays(62),
+            'isHistory' => $isHistory,
+            'isFuture' => $isFuture,
+            'inventoryBlocks' => $blockedStatusByRoom,
             'trend' => $trend,
             'deltas' => $deltas,
-            'kpis' => [
-                'occupancy' => round(100 * $sold / $total),
-                'revenue' => $revenue,
-                'available' => $rooms->count() - $sold - $reservedCount - $houseUse - $ooo,
-                'occupied' => $sold,
-                'reserved' => $reservedCount,
-                'arrivals' => count($arrivals),
-                'departures' => $departures->count(),
-                'inhouse' => $inHouseGuests,
-                'vips' => count($vip),
-            ],
+            'kpis' => $selectedStats,
             'cards' => collect($cards),
             'arrivals' => collect($arrivals),
             'departures' => $departures,
             'departureFigures' => $departureFigures,
             'vip' => collect($vip),
-            'statusSummary' => [
-                'Available' => [$rooms->count() - $sold - $reservedCount - $houseUse - $ooo, '#10b981'],
-                'Occupied' => [$sold, '#3b82f6'],
-                'Reserved' => [$reservedCount, '#f59e0b'],
-                'House Use' => [$houseUse, '#a855f7'],
-                'Out of Order' => [$ooo, '#ef4444'],
-            ],
+            'monthEvents' => ['arrivals' => $monthArrivals, 'departures' => $monthDepartures],
+            'statusSummary' => $statusSummary,
             'hk' => [
                 'Dirty' => $rooms->where('hk_status', 'dirty')->count(),
                 'Clean' => $rooms->whereIn('hk_status', ['clean', 'inspected'])->count(),
                 'Touch-up' => $rooms->where('hk_status', 'touch_up')->count(),
             ],
             'waitlist' => ReservationWaitlist::where('hotel_id', $hotelId)
+                ->where('status', 'waiting')
                 ->with(['guest:id,first_name,last_name', 'roomType:id,name'])
-                ->orderByDesc('created_at')->limit(5)->get(),
+                ->orderByDesc('priority')->orderBy('arrival_date')->orderByDesc('created_at')->limit(5)->get(),
             // rooms the desk may assign for this night — the same source the
             // reservations screen and the assign endpoint validate against, so
             // the inline picker can never offer a room that would be rejected
-            'assignable' => AvailabilityService::reservationRooms(
-                $date->toDateString(),
-                $date->copy()->addDay()->toDateString()
-            ),
+            'assignableByStay' => $assignableByStay,
             'roomTypes' => $rooms->pluck('roomType')->filter()->unique('id')->values(),
             'floors' => $rooms->pluck('floor')->filter()->unique('id')->values(),
         ];

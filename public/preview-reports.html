@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nowills PMS — Reports</title>
-<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/app.css?v=forest-green"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=forest-green">
 <style>
 .page-header{padding:1.5rem 0 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
 .page-header h2{font-size:1.5rem;font-weight:700;margin:0}
 .page-header .actions{display:flex;gap:.5rem;align-items:center}
 .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:1rem;padding:0 .5rem 2rem}
 .report-card{background:#fff;border:1px solid var(--c-border,#e5e7eb);border-radius:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
-.report-card:hover{border-color:var(--c-primary-300,#93c5fd);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.report-card:hover{border-color:var(--c-primary-300,#86efac);box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .report-card-head{padding:.75rem 1rem;border-bottom:1px solid var(--c-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;background:#fafbfc}
-.report-card-head h3{font-size:.9rem;font-weight:600;margin:0;color:var(--c-primary-600,#1d4ed8)}
+.report-card-head h3{font-size:.9rem;font-weight:600;margin:0;color:var(--c-primary-600,#14532d)}
 .report-card-head .count{font-size:.75rem;color:#6b7280;background:#f3f4f6;padding:.1rem .5rem;border-radius:10px}
 .report-list{padding:.5rem 0}
 .report-item{display:flex;align-items:flex-start;gap:.6rem;padding:.5rem 1rem;cursor:pointer;transition:background .1s}
@@ -25,10 +25,10 @@
 .report-item-arrow{color:#9ca3af;font-size:.8rem;flex-shrink:0;margin-top:.4rem}
 .search-bar{position:sticky;top:0;z-index:10;background:#fff;padding:1rem 1.5rem;border-bottom:1px solid var(--c-border,#e5e7eb);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .search-bar input{width:100%;padding:.6rem 1rem .6rem 2.5rem;border:1px solid var(--c-border,#d1d5db);border-radius:8px;font-size:.9rem;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") 10px center/16px no-repeat}
-.search-bar input:focus{outline:none;border-color:var(--c-primary-400,#60a5fa);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.search-bar input:focus{outline:none;border-color:var(--c-primary-400,#4ade80);box-shadow:0 0 0 3px rgba(22,101,52,.12)}
 .filter-tabs{display:flex;gap:.4rem;padding:.75rem 1.5rem;flex-wrap:wrap;background:#fafbfc;border-bottom:1px solid var(--c-border,#e5e7eb)}
 .filter-tab{padding:.35rem .8rem;border-radius:20px;font-size:.8rem;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .1s}
-.filter-tab.active{background:var(--c-primary-50,#eff6ff);color:var(--c-primary-600,#1d4ed8);border-color:var(--c-primary-100,#dbeafe)}
+.filter-tab.active{background:var(--c-primary-50,#f0fdf4);color:var(--c-primary-600,#14532d);border-color:var(--c-primary-100,#dcfce7)}
 .filter-tab:hover:not(.active){background:#f3f4f6;color:#4b5563}
 .no-results{text-align:center;padding:3rem;color:#9ca3af;font-size:.9rem}
 </style>
@@ -36,7 +36,7 @@
 <body>
 <div class="app-shell">
 <aside class="sidebar">
-<div class="sidebar-brand"><div class="brand-mark">N</div><div class="brand-text"><span class="brand-name">Nowills PMS</span><span class="brand-sub">v7.54.0</span></div></div>
+<div class="sidebar-brand"><img class="brand-logo-full" src="/images/brand/nowills-pms-logo-white.png?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
 <input id="navModuleSearch" type="search" placeholder="Search modules…" autocomplete="off">
 <nav class="nav-body">
 <div class="nav-section-label">DASHBOARD</div>

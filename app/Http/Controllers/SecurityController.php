@@ -104,7 +104,7 @@ class SecurityController extends Controller
         $d = $request->validate(['via' => ['nullable', Rule::in(['phone', 'host'])]]);
 
         return $this->guarded(function () use ($visitor, $d) {
-            SecurityService::approve($visitor, $d['via'] ?? 'phone');
+            $visitor = SecurityService::approve($visitor, $d['via'] ?? 'phone');
 
             return back()->with('success', "Visitor {$visitor->pass_no} {$visitor->name} may go up – pass valid until ".$visitor->valid_until->format('H:i').'.')->with('badge_for', $visitor->id);
         });
@@ -115,7 +115,7 @@ class SecurityController extends Controller
         $d = $request->validate(['reason' => 'required|string|max:255']);
 
         return $this->guarded(function () use ($visitor, $d) {
-            SecurityService::deny($visitor, $d['reason']);
+            $visitor = SecurityService::deny($visitor, $d['reason']);
 
             return back()->with('success', "Visitor {$visitor->pass_no} turned away.");
         });
@@ -127,7 +127,7 @@ class SecurityController extends Controller
             'phone' => 'nullable|string|max:30', 'vehicle_no' => 'nullable|string|max:20', 'override_reason' => 'nullable|string|max:255']);
 
         return $this->guarded(function () use ($visitor, $d) {
-            SecurityService::arrive($visitor, $d);
+            $visitor = SecurityService::arrive($visitor, $d);
             $r = back()->with('success', "Expected visitor {$visitor->pass_no} {$visitor->name} checked in.")->with('badge_for', $visitor->id);
 
             return $visitor->watchlist_id ? $r->with('warning', 'Watch-list match: '.$visitor->watch->reason.' – security has been alerted.') : $r;
@@ -137,7 +137,7 @@ class SecurityController extends Controller
     public function checkOut(Visitor $visitor)
     {
         return $this->guarded(function () use ($visitor) {
-            SecurityService::checkOut($visitor);
+            $visitor = SecurityService::checkOut($visitor);
 
             return back()->with('success', "Visitor {$visitor->pass_no} {$visitor->name} checked out.");
         });
@@ -146,7 +146,7 @@ class SecurityController extends Controller
     public function cancel(Visitor $visitor)
     {
         return $this->guarded(function () use ($visitor) {
-            SecurityService::cancel($visitor, 'Cancelled by the desk');
+            $visitor = SecurityService::cancel($visitor, 'Cancelled by the desk');
 
             return back()->with('success', "Expected visitor {$visitor->pass_no} cancelled.");
         });
@@ -157,7 +157,7 @@ class SecurityController extends Controller
         $d = $request->validate(['hours' => 'required|integer|min:1|max:12']);
 
         return $this->guarded(function () use ($visitor, $d) {
-            SecurityService::extend($visitor, (int) $d['hours']);
+            $visitor = SecurityService::extend($visitor, (int) $d['hours']);
 
             return back()->with('success', "Pass {$visitor->pass_no} extended to ".$visitor->valid_until->format('H:i').'.');
         });
@@ -214,8 +214,7 @@ class SecurityController extends Controller
 
     public function toggleWatch(SecurityWatch $watch)
     {
-        $watch->update(['is_active' => ! $watch->is_active]);
-        ActivityLogger::log('security', 'watchlist', ($watch->is_active ? 'Re-activated' : 'Lifted').' watch-list entry: '.$watch->name, $watch);
+        $watch = SecurityService::toggleWatch($watch);
 
         return back()->with('success', $watch->is_active ? "{$watch->name} is back on the watch list." : "Watch-list entry for {$watch->name} lifted.");
     }

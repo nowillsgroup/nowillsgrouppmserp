@@ -5,40 +5,33 @@ namespace App\Services\Interfaces;
 use App\Models\InterfaceCommand;
 
 /**
- * v7.36 – first live PABX driver: a template-driven TCP command link.
+ * v7.36 – template-driven TCP command link for vendor-specific hospitality
+ * PABX protocols. The property supplies templates rather than the PMS claiming
+ * compatibility with a specific PABX without its protocol documentation.
  *
- * Hospitality PBX command protocols are vendor-specific (proprietary dial-codes,
- * AT-style strings or PMS link ASCII protocols). Rather than hard-coding one
- * vendor, the property configures one command template per PMS command under
- * Interfaces › PABX, e.g.
+ * Templates support payload keys plus {date}, {time} and {datetime} (business
+ * date). The rendered ASCII line is sent with CRLF and a reply is matched
+ * against the configured case-insensitive success regex. Blank regex means a
+ * successful completed write is accepted, for silent PABX command ports.
  *
- *   check-in   →  CMD CHECKIN {extension} {name} {cos}
- *   check-out  →  COS {extension} BARRED
- *   COS        →  COS {extension} {cos}
- *   room move  →  MOVE {from} {to}
- *
- * Placeholders are the command payload keys plus {date}, {time} and {datetime}
- * (business date). The built line is written to tcp://host:port followed by
- * CRLF; the reply is matched against the configured success pattern (regex,
- * case-insensitive). Blank pattern = any reply (or none) counts as success for
- * PBXes that do not answer.
- *
- * The same templates are exercised end-to-end by deploy/dev/pbx-sim.mjs and by
- * docs/PBX-ADAPTER.md's certification checklist before hardware acceptance.
+ * End-to-end simulator: deploy/dev/pbx-sim.mjs. Certification guide:
+ * docs/PBX-ADAPTER.md.
  */
 class TcpPbxDriver
 {
-    /** @return array{0: bool, 1: string} [acknowledged, response text] */
-    public static function send(array $cfg, InterfaceCommand $cmd): array
+    /** Build one command line without network access; used by the certification harness. */
+    public static function buildLine(array $cfg, InterfaceCommand $cmd): array
     {
         $tpl = trim((string) ($cfg['pbx_cmd_'.$cmd->command] ?? ''));
         if ($tpl === '') {
-            return [false, "No command template configured for “{$cmd->command}” – set it under Interfaces › PABX (TCP command templates)."];
+            return [null, "No command template configured for “{$cmd->command}” – set it under Interfaces › PABX (TCP command templates)."];
         }
 
         $vars = [];
         foreach (($cmd->payload ?? []) as $k => $v) {
-            if (is_scalar($v) || $v === null) {
+            if (is_array($v)) {
+                $vars['{'.$k.'}'] = implode(',', array_map('strval', $v));
+            } elseif (is_scalar($v) || $v === null) {
                 $vars['{'.$k.'}'] = (string) ($v ?? '');
             }
         }
@@ -47,7 +40,37 @@ class TcpPbxDriver
         $vars['{datetime}'] = bdate()->format('Y-m-d H:i');
         $line = strtr($tpl, $vars);
         if (preg_match_all('/\{[a-z0-9_]+\}/i', $line, $m)) {
-            return [false, 'Command template references unknown placeholder(s): '.implode(', ', array_unique($m[0])).'.'];
+            return [null, 'Command template references unknown placeholder(s): '.implode(', ', array_unique($m[0])).'.'];
+        }
+        if (preg_match('/[\x00-\x1F\x7F]/', $line) || mb_strlen($line) > 512) {
+            return [null, 'The rendered PABX command contains control characters or exceeds 512 characters.'];
+        }
+
+        return [$line, null];
+    }
+
+    /** Interpret the response in isolation, so acknowledgements can be tested without a socket. */
+    public static function acknowledged(array $cfg, string $response, bool $timedOut): array
+    {
+        $response = trim($response);
+        $pattern = trim((string) ($cfg['pbx_tcp_ok'] ?? ''));
+        if ($pattern === '') {
+            return [true, $response !== '' ? mb_substr($response, 0, 200) : 'OK (sent — no reply expected)'];
+        }
+        $ok = @preg_match('~'.$pattern.'~iu', $response) === 1;
+        if (! $ok && $timedOut && $response === '') {
+            return [false, 'No reply from the PABX within the configured timeout.'];
+        }
+
+        return [$ok, $response !== '' ? mb_substr($response, 0, 200) : ($ok ? 'OK (no reply text)' : 'Empty reply – did not match the success pattern')];
+    }
+
+    /** @return array{0: bool, 1: string} [acknowledged, response text] */
+    public static function send(array $cfg, InterfaceCommand $cmd): array
+    {
+        [$line, $error] = self::buildLine($cfg, $cmd);
+        if ($line === null) {
+            return [false, (string) $error];
         }
 
         $host = trim((string) ($cfg['pbx_tcp_host'] ?? ''));
@@ -66,7 +89,17 @@ class TcpPbxDriver
 
         try {
             stream_set_timeout($fp, $timeout);
-            fwrite($fp, $line."\r\n");
+            $out = $line."\r\n";
+            $written = 0;
+            $length = strlen($out);
+            while ($written < $length) {
+                $n = @fwrite($fp, substr($out, $written));
+                if ($n === false || $n === 0) {
+                    return [false, 'Could not write the complete command to the PABX TCP socket.'];
+                }
+                $written += $n;
+            }
+
             $resp = '';
             while (! feof($fp)) {
                 $chunk = fread($fp, 1024);
@@ -79,19 +112,8 @@ class TcpPbxDriver
                 }
             }
             $meta = stream_get_meta_data($fp);
-            $resp = trim($resp);
 
-            $pattern = trim((string) ($cfg['pbx_tcp_ok'] ?? ''));
-            if ($pattern === '') {
-                // Silent PBX: a completed write is the acknowledgement.
-                return [true, $resp !== '' ? mb_substr($resp, 0, 200) : 'OK (sent — no reply expected)'];
-            }
-            $ok = @preg_match('~'.$pattern.'~iu', $resp) === 1;
-            if (! $ok && $meta['timed_out'] && $resp === '') {
-                return [false, 'No reply from the PABX within '.$timeout.'s.'];
-            }
-
-            return [$ok, $resp !== '' ? mb_substr($resp, 0, 200) : ($ok ? 'OK (no reply text)' : 'Empty reply – did not match the success pattern')];
+            return self::acknowledged($cfg, $resp, (bool) ($meta['timed_out'] ?? false));
         } finally {
             fclose($fp);
         }

@@ -6,14 +6,15 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="robots" content="noindex, nofollow">
   <title>@yield('title', 'Organiser Portal') · {{ $hotel->name }}</title>
-  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
+  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head>
 <body class="ptn-body">
 @include('partials.icons')
 @php
   $links = [['organiser.home', 'Home', 'home', true], ['organiser.events', 'My events', 'calendar', true], ['organiser.requests', 'Requests', 'message', $organiser->can('events')], ['organiser.users', 'Users', 'users', $organiser->can('users')]];
 @endphp
-<header class="ptn-top" style="background:#3b0764">
+<header class="ptn-top" style="background:#10271c">
   <div class="ptn-wrap ptn-bar">
     <a class="ptn-brand" href="{{ route('organiser.home') }}"><span class="brand-mark">{{ strtoupper(substr($hotel->name, 0, 1)) }}</span><span>{{ $hotel->name }}<small>EVENT ORGANISER PORTAL</small></span></a>
     <div class="ptn-who">

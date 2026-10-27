@@ -2,14 +2,15 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Two-factor verification · Nowills PMS</title>
-<link rel="stylesheet" href="{{ asset('css/app.css') }}">
+<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head><body>
 @include('partials.icons')
 <div class="auth" style="grid-template-columns:1fr">
   <div class="auth-form">
     <form class="auth-card" method="post" action="{{ route('login.2fa.verify') }}" autocomplete="off" id="tfForm">
       @csrf
-      <div class="brand" style="padding:0;border:0;height:auto;margin-bottom:1rem;color:var(--c-text)"><div class="brand-mark">N</div><div>Nowills PMS</div></div>
+      <div class="brand brand-pms-auth" style="padding:0;border:0;height:auto;margin-bottom:1rem"><img class="brand-logo-auth" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
       <h2><x-icon name="shield"/> Two-factor verification</h2>
       <p class="text-2 mb-2" id="tfHelp">Open your authenticator app and enter the 6-digit code for <b>Nowills PMS</b>.</p>
       @if($errors->any())<div class="alert alert-error"><x-icon name="alert"/><div>{{ $errors->first() }}</div></div>@endif

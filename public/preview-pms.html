@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<title>Nowills PMS · Preview</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=forest-green">
+<link rel="stylesheet" href="/css/app.css?v=forest-green">
+<style>
+:root{--pv-sidebar:252px;--pv-top:62px}
+html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6fb);color:var(--c-text,#0f172a);font-family:var(--font,system-ui,sans-serif)}
+.pv-shell{height:100vh;display:grid;grid-template-columns:var(--pv-sidebar) minmax(0,1fr)}
+.pv-side{min-width:0;background:linear-gradient(180deg,#10271c,#08170f);color:#c6dfce;display:flex;flex-direction:column;z-index:5}
+.pv-brand{height:var(--pv-top);padding:0 16px;display:flex;align-items:center;gap:10px;color:#fff;border-bottom:1px solid #ffffff18;font-weight:750;letter-spacing:.03em}
+.pv-logo{display:block;width:166px;max-width:100%;max-height:34px;height:auto;object-fit:contain;object-position:left center}
+.pv-brand small{display:block;margin-top:2px;color:#a8c0ad;font-size:9px;letter-spacing:.12em;font-weight:600}
+.pv-side-label{padding:18px 17px 7px;color:#86a594;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.pv-nav{overflow:auto;padding:0 9px 12px;flex:1}
+.pv-nav button{width:100%;border:0;background:transparent;color:#c6dfce;border-radius:8px;padding:10px 11px;display:flex;align-items:center;gap:10px;text-align:left;font:inherit;font-size:13px;cursor:pointer}
+.pv-nav button:hover{background:#ffffff0e;color:#fff}
+.pv-nav button.active{color:#fff;background:linear-gradient(90deg,#22c55e4d,#22c55e12);box-shadow:inset 3px 0 #4ade80}
+.pv-nav .pv-icon{width:19px;height:19px;display:grid;place-items:center;color:#86efac;font-size:15px;flex:none}
+.pv-side-foot{padding:12px 16px;border-top:1px solid #ffffff18;color:#91a998;font-size:11px;line-height:1.5}
+.pv-main{min-width:0;display:flex;flex-direction:column;height:100vh}
+.pv-top{height:var(--pv-top);flex:none;background:#fff;border-bottom:1px solid var(--c-border,#e3e8f0);display:flex;align-items:center;gap:12px;padding:0 20px}
+.pv-top .pv-toggle{display:none;border:0;background:transparent;font-size:21px;color:#14532d;cursor:pointer}
+.pv-crumb{font-size:12px;color:#64748b}.pv-crumb b{color:#166534}
+.pv-top-right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.pv-demo{display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.pv-demo i{width:7px;height:7px;border-radius:50%;background:#16a34a}
+.pv-open{color:#166534;text-decoration:none;border:1px solid #d1d5db;border-radius:7px;padding:6px 9px;font-size:12px;font-weight:650;background:#fff}
+.pv-open:hover{background:#f0fdf4;border-color:#86efac;text-decoration:none}
+.pv-content{min-height:0;flex:1;padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.pv-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pv-heading h1{font-size:21px;margin:0;color:#10271c}.pv-heading p{font-size:12px;color:#64748b;margin:4px 0 0}
+.pv-count{font-size:11px;color:#64748b}
+.pv-frame-wrap{min-height:0;flex:1;border:1px solid #dce5df;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 3px 14px #10271c0d}
+#previewFrame{width:100%;height:100%;border:0;display:block;background:#fff}
+.pv-scrim{display:none}
+@media(max-width:850px){.pv-shell{grid-template-columns:minmax(0,1fr)}.pv-side{position:fixed;inset:0 auto 0 0;width:min(var(--pv-sidebar),84vw);transform:translateX(-102%);transition:transform .2s;box-shadow:0 8px 30px #0003}.pv-shell.nav-open .pv-side{transform:translateX(0)}.pv-shell.nav-open .pv-scrim{display:block;position:fixed;inset:0;background:#0b1912aa;z-index:4}.pv-top .pv-toggle{display:block}.pv-content{padding:13px}.pv-top{padding:0 13px}.pv-heading h1{font-size:18px}}
+@media(max-width:480px){.pv-demo{font-size:0;padding:7px}.pv-demo i{width:8px;height:8px}.pv-open{font-size:11px}.pv-content{gap:9px}}
+</style>
+</head>
+<body>
+<div class="pv-shell" id="previewShell">
+  <aside class="pv-side" aria-label="Preview modules">
+    <div class="pv-brand"><img class="pv-logo" src="/images/brand/nowills-pms-logo-white.png?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
+    <div class="pv-side-label">Overview</div>
+    <nav class="pv-nav" id="previewNav">
+      <button type="button" data-title="Login & access" data-file="preview-login.html"><span class="pv-icon">↗</span>Login &amp; access</button>
+      <button type="button" class="active" data-title="Dashboard" data-file="preview-dashboard.html"><span class="pv-icon">▦</span>Dashboard</button>
+      <div class="pv-side-label">Front desk & service</div>
+      <button type="button" data-title="Reservations workspace" data-file="preview-reservations.html"><span class="pv-icon">▤</span>Reservations workspace</button>
+      <button type="button" data-title="Point of sale" data-file="preview-pos.html"><span class="pv-icon">▣</span>Point of sale</button>
+      <button type="button" data-title="POS order" data-file="preview-pos-order.html"><span class="pv-icon">▧</span>POS order details</button>
+      <div class="pv-side-label">Operations</div>
+      <button type="button" data-title="Key management" data-file="preview-keys.html"><span class="pv-icon">⌑</span>Key management</button>
+      <button type="button" data-title="Keycards" data-file="preview-keycards.html"><span class="pv-icon">▱</span>Keycards</button>
+      <button type="button" data-title="Robita guest journey" data-file="preview-robita.html"><span class="pv-icon">✧</span>Robita guest journey</button>
+      <button type="button" data-title="IPTV welcome" data-file="preview-iptv-welcome.html"><span class="pv-icon">▣</span>IPTV welcome screen</button>
+      <div class="pv-side-label">Insights</div>
+      <button type="button" data-title="Reports" data-file="preview-reports.html"><span class="pv-icon">▥</span>Reports library</button>
+    </nav>
+    <div class="pv-side-foot">Forest-green theme preview<br>Sample screens · no live PMS data</div>
+  </aside>
+  <div class="pv-scrim" id="previewScrim"></div>
+  <main class="pv-main">
+    <header class="pv-top">
+      <button class="pv-toggle" type="button" id="previewToggle" aria-label="Open preview menu" aria-expanded="false">☰</button>
+      <div class="pv-crumb">Nowills PMS <span aria-hidden="true">/</span> <b id="previewCrumb">Dashboard</b></div>
+      <div class="pv-top-right"><span class="pv-demo"><i></i>Preview mode · demo data</span><a class="pv-open" id="openCurrent" href="/preview-dashboard.html" target="_blank" rel="noopener">Open screen ↗</a></div>
+    </header>
+    <section class="pv-content">
+      <div class="pv-heading"><div><h1 id="previewTitle">Dashboard</h1><p>Browse representative Nowills PMS screens. These previews are static demonstrations, not a connected hotel account.</p></div><span class="pv-count">10 sample screens</span></div>
+      <div class="pv-frame-wrap"><iframe id="previewFrame" title="Nowills PMS Dashboard preview" src="/preview-dashboard.html"></iframe></div>
+    </section>
+  </main>
+</div>
+<script>
+(() => {
+  const shell=document.getElementById('previewShell'), frame=document.getElementById('previewFrame');
+  const title=document.getElementById('previewTitle'), crumb=document.getElementById('previewCrumb'), open=document.getElementById('openCurrent');
+  const toggle=document.getElementById('previewToggle');
+  document.querySelectorAll('#previewNav button[data-file]').forEach(button=>button.addEventListener('click',()=>{
+    const file=button.dataset.file, name=button.dataset.title;
+    document.querySelectorAll('#previewNav button').forEach(item=>item.classList.toggle('active',item===button));
+    frame.src='/'+file; frame.title='Nowills PMS '+name+' preview';
+    title.textContent=name; crumb.textContent=name; open.href='/'+file;
+    shell.classList.remove('nav-open'); toggle.setAttribute('aria-expanded','false');
+  }));
+  toggle.addEventListener('click',()=>{const openNow=shell.classList.toggle('nav-open');toggle.setAttribute('aria-expanded',String(openNow));});
+  document.getElementById('previewScrim').addEventListener('click',()=>{shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');}});
+  const requestedScreen = new URLSearchParams(window.location.search).get('screen');
+  const initialButton = [...document.querySelectorAll('#previewNav button[data-file]')].find(button => button.dataset.file === requestedScreen);
+  if (initialButton) initialButton.click();
+})();
+</script>
+</body>
+</html>

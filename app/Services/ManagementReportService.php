@@ -26,7 +26,8 @@ class ManagementReportService
         $date = $date->copy()->startOfDay();
         $periods = ['day' => [$date->copy(), $date->copy()], 'mtd' => [$date->copy()->startOfMonth(), $date->copy()], 'ytd' => [$date->copy()->startOfYear(), $date->copy()]];
         $yStart = $periods['ytd'][0];
-        $rooms = Room::where('is_active', true)->count();
+        $roomRows = Room::where('is_active', true)->get(['id', 'status']);
+        $sellableByDay = AvailabilityService::sellableRoomCounts($yStart, (int) $yStart->diffInDays($date) + 1, $roomRows);
 
         // Load the whole YTD window once, then slice per period in memory.
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $date)->whereDate('departure_date', '>', $yStart)
@@ -41,7 +42,6 @@ class ManagementReportService
         $m = [];
         foreach ($periods as $k => [$a, $b]) {
             $in = fn ($d) => $d && $d->betweenIncluded($a, $b->copy()->endOfDay());
-            $days = $a->diffInDays($b) + 1;
             $end = $b->copy()->addDay();
             $nights = $stays->sum(fn ($s) => max(0, (int) $s->arrival_date->max($a)->diffInDays($s->departure_date->min($end), false)));
             $t = $tx->filter(fn ($x) => $in($x->business_date));
@@ -53,7 +53,10 @@ class ManagementReportService
             $other = (float) $charges->whereNotIn('category', [...self::ROOM_CATS, 'fnb'])->sum('amount');
             $disc = (float) $t->whereIn('type', ['discount', 'allowance'])->sum('amount');
             $paid = $t->where('type', 'payment')->whereNotIn('category', ['city_ledger', 'loyalty'])->sum('amount') - $t->where('type', 'refund')->sum('amount') + $direct->sum('total');
-            $available = $rooms * $days;
+            $available = 0;
+            for ($night = $a->copy(); $night->lte($b); $night->addDay()) {
+                $available += $sellableByDay[$night->toDateString()] ?? 0;
+            }
             $m[$k] = [
                 'available' => $available, 'sold' => $nights,
                 'pax' => $stays->sum(fn ($s) => $s->arrival_date->lte($b) && $s->departure_date->gt($b) ? $s->adults + $s->children : 0),

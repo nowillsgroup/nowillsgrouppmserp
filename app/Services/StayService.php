@@ -77,6 +77,11 @@ class StayService
             report($e);
         }
         try {
+            RobitaService::onCheckIn($in);         // v7.57: the room lock is provisioned for the stay
+        } catch (\Throwable $e) {
+            report($e); // never blocks a check-in
+        }
+        try {
             IptvService::onCheckIn($in);           // v7.1: TV PIN issued; the room TV shows the personalised welcome
         } catch (\Throwable $e) {
             report($e);
@@ -384,42 +389,41 @@ class StayService
     public static function checkOut(ReservationRoom $stay, bool $force = false): ReservationRoom
     {
         $out = self::doCheckOut($stay, $force);
-        // The checkout is already committed. Integrations and guest-facing
-        // cleanup must not turn a successful departure into a second failure.
-        try {
-            GuestPortalService::closeForStay($out);
-            UpsellService::onCheckout($out);   // v4.1: unconfirmed early / late requests lapse
-            SecurityService::onCheckOut($out); // v4.2: expected visitors lapse, visitors still inside are flagged
-            FormCService::onCheckOut($out); // v3.4: the departure now has to be reported to the FRRO
-            WakeupService::onCheckOut($out);       // v3.5: pending wake-up calls are cancelled
-            GuestMessageService::onCheckOut($out); // v3.5: undelivered messages lapse (parcels stay to be forwarded)
-        } catch (\Throwable $e) {
-            report($e);
+        // Run every post-commit hook independently: a failure in one subsystem
+        // must not leave the others (or the caller) believing checkout failed.
+        foreach ([
+            fn () => GuestPortalService::closeForStay($out),
+            fn () => UpsellService::onCheckout($out),       // v4.1: unconfirmed early / late requests lapse
+            fn () => SecurityService::onCheckOut($out),     // v4.2: expected visitors lapse, visitors still inside are flagged
+            fn () => FormCService::onCheckOut($out),        // v3.4: the departure now has to be reported to the FRRO
+            fn () => WakeupService::onCheckOut($out),       // v3.5: pending wake-up calls are cancelled
+            fn () => GuestMessageService::onCheckOut($out), // v3.5: undelivered messages lapse (parcels stay to be forwarded)
+            fn () => CallAccountingService::onCheckOut($out), // v3.7: extension barred on the PABX
+            fn () => KeyCardService::onCheckOut($out),        // v3.7: the stay's key cards stop working
+            fn () => RobitaService::onCheckOut($out),         // v7.57: revoke the door credential, not just let it expire
+            fn () => IptvService::onCheckOut($out),           // v7.1: end TV session, rentals and welcome screen
+            fn () => \App\Models\HousekeepingTask::where('room_id', $out->room_id)->whereDate('task_date', bdate()->toDateString())
+                ->where('status', 'pending')->where('task_type', 'cleaning')
+                ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]),
+        ] as $hook) {
+            self::runPostCheckoutHook($hook);
         }
-        try {
-            CallAccountingService::onCheckOut($out); // v3.7: extension barred on the PABX
-            KeyCardService::onCheckOut($out);        // v3.7: the stay's key cards stop working
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        try {
-            IptvService::onCheckOut($out);           // v7.1: TV session ends, rentals stop, the set is reset for the next guest
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        // today's stay-over service becomes a departure clean
-        \App\Models\HousekeepingTask::where('room_id', $out->room_id)->whereDate('task_date', bdate()->toDateString())->where('status', 'pending')->where('task_type', 'cleaning')
-            ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]);
         if ($out->reservation->status === 'checked_out') {
-            try {
-                MessageService::autoThankYou($out->reservation, $out->folio()->first());
-                FeedbackService::scheduleFor($out->reservation); // v3.1: post-stay survey (sent after the configured delay)
-            } catch (\Throwable $e) {
-                report($e); // a guest-message or survey problem must never block a check-out
-            }
+            self::runPostCheckoutHook(fn () => MessageService::autoThankYou($out->reservation, $out->folio()->first()));
+            self::runPostCheckoutHook(fn () => FeedbackService::scheduleFor($out->reservation)); // v3.1
         }
 
         return $out;
+    }
+
+    /** Report a post-commit failure without changing the result of the committed checkout. */
+    protected static function runPostCheckoutHook(callable $hook): void
+    {
+        try {
+            $hook();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     protected static function doCheckOut(ReservationRoom $stay, bool $force): ReservationRoom
@@ -478,6 +482,9 @@ class StayService
             $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
             $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
             $stay->setRelation('reservation', $reservation);
+            if ($stay->status !== 'checked_in') {
+                throw new RuntimeException('Only an in-house stay can be moved.');
+            }
             $fromId = $stay->room_id;
             $roomIds = collect([$stay->room_id, $toRoomId])->filter()->unique()->sort()->values();
             $rooms = Room::whereIn('id', $roomIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
@@ -504,6 +511,11 @@ class StayService
         try {
             CallAccountingService::onRoomMove($stay->fresh(), $fromId); // v3.7: PABX moves the guest's name / class of service
             KeyCardService::onRoomMove($stay->fresh(), $fromId);        // v3.7: old cards cancelled, new ones encoded
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        try {
+            RobitaService::onRoomMove($stay->fresh(), $fromId);         // v7.57: the old door forgets the guest
         } catch (\Throwable $e) {
             report($e);
         }
@@ -625,6 +637,11 @@ class StayService
         if ($checkedIn) {
             try {
                 KeyCardService::onExtend($updated);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                RobitaService::onExtend($updated); // v7.57: the lock learns the new departure too
             } catch (\Throwable $e) {
                 report($e);
             }

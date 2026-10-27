@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@yield('title') · {{ $currentHotel->name ?? '' }}</title>
-<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
+<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 <style>body{background:#eef1f6}</style>
 @stack('head')
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head>
 <body>
 <div class="print-bar no-print">
@@ -19,7 +20,7 @@
       <div class="small text-2">Ph: {{ $currentHotel->phone }} · {{ $currentHotel->email }}</div>
       @if($currentHotel->tax_number)<div class="small"><b>TIN:</b> {{ $currentHotel->tax_number }}</div>@endif
     </div>
-    <div class="right"><h2 style="color:#1d4ed8">@yield('doctitle')</h2>@yield('docmeta')</div>
+    <div class="right"><h2 style="color:#166534">@yield('doctitle')</h2>@yield('docmeta')</div>
   </div>
   @endif
   @yield('content')

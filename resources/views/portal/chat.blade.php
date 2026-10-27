@@ -34,7 +34,7 @@
 .gp-chat{display:flex;flex-direction:column;gap:.6rem;min-height:55vh}
 .gp-thread{flex:1;display:flex;flex-direction:column;gap:.45rem;max-height:62vh;overflow-y:auto;padding:.2rem}
 .gp-bubble{max-width:82%;padding:.55rem .75rem;border-radius:14px;font-size:.92rem;line-height:1.35}
-.gp-bubble.me{align-self:flex-end;background:#1d4ed8;color:#fff;border-bottom-right-radius:4px}
+.gp-bubble.me{align-self:flex-end;background:#166534;color:#fff;border-bottom-right-radius:4px}
 .gp-bubble.them{align-self:flex-start;background:#f1f5f9;color:#0f172a;border-bottom-left-radius:4px}
 .gp-b-body{white-space:pre-line;word-wrap:break-word}
 .gp-b-meta{font-size:.68rem;opacity:.75;margin-top:.2rem}

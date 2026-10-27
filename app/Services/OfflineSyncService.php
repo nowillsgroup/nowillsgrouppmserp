@@ -97,10 +97,10 @@ class OfflineSyncService
             try {
                 $results[] = self::apply($raw, $user, $deviceId);
             } catch (ValidationException $e) {
-                $results[] = self::invalid($raw, collect($e->errors())->flatten()->implode(' '));
+                $results[] = self::invalid($raw, collect($e->errors())->flatten()->implode(' '), 'rejected');
             } catch (Throwable $e) {
                 report($e);
-                $results[] = self::invalid($raw, 'The operation could not be applied. It remains safe to retry.');
+                $results[] = self::invalid($raw, 'The operation could not be applied. It remains safe to retry.', 'retry');
             }
         }
 
@@ -130,7 +130,7 @@ class OfflineSyncService
             'housekeeping.task' => self::applyTask($operationId, $operation, $raw, $payload, $deviceId, $user),
             'housekeeping.maintenance' => self::applyMaintenance($operationId, $operation, $payload, $deviceId, $user),
             'guest_request.create' => self::applyGuestRequest($operationId, $operation, $payload, $deviceId, $user),
-            default => self::persistRejected($operationId, $operation ?: 'unknown', $payload, $deviceId, $user, 'This offline operation is not supported.'),
+            default => self::rejectUnsupported($operationId, $operation ?: 'unknown', $payload, $deviceId, $user),
         };
     }
 
@@ -153,12 +153,16 @@ class OfflineSyncService
             if ($existing) {
                 return self::stored($existing);
             }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
+            }
             $room = Room::whereKey($roomId)->where('is_active', true)->lockForUpdate()->first();
             if (! $room) {
                 return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'The room no longer exists or is not active.');
             }
             $serverChanged = $room->updated_at && Carbon::parse($baseUpdatedAt)->lt($room->updated_at);
-            if ($serverChanged && $room->hk_status !== $status) {
+            $notesChanged = $notes !== null && $notes !== $room->notes;
+            if ($serverChanged && ($room->hk_status !== $status || $notesChanged)) {
                 return self::record($operationId, $operation, $payload, $deviceId, $user, 'conflict', $room->id,
                     ['room' => self::room($room->fresh(['roomType', 'floor']))], 'Room status changed while this device was offline.');
             }
@@ -193,6 +197,9 @@ class OfflineSyncService
             $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
             if ($existing) {
                 return self::stored($existing);
+            }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
             }
             $task = HousekeepingTask::with('room')->whereKey($taskId)->lockForUpdate()->first();
             if (! $task) {
@@ -252,6 +259,9 @@ class OfflineSyncService
             $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
             if ($existing) {
                 return self::stored($existing);
+            }
+            if (! $user->hasPermission('housekeeping.manage') && ! $user->hasPermission('housekeeping.attendant')) {
+                return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'Your login cannot sync housekeeping changes.');
             }
             $task = HousekeepingTask::with('room')->whereKey($taskId)->lockForUpdate()->first();
             if (! $task || ! $task->room) {
@@ -326,14 +336,35 @@ class OfflineSyncService
         });
     }
 
+    /** Persist unsupported operations idempotently too, including a lost-response retry. */
+    protected static function rejectUnsupported(string $operationId, string $operation, array $payload, ?string $deviceId, User $user): array
+    {
+        return DB::transaction(function () use ($operationId, $operation, $payload, $deviceId, $user) {
+            $existing = OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first();
+            if ($existing) {
+                return self::stored($existing);
+            }
+
+            return self::persistRejected($operationId, $operation, $payload, $deviceId, $user, 'This offline operation is not supported.');
+        });
+    }
+
     protected static function baseTimestamp(array $raw, array $payload): string
     {
         $value = (string) ($raw['base_updated_at'] ?? $payload['base_updated_at'] ?? '');
-        if ($value === '' || ! strtotime($value)) {
-            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp is required for conflict protection.']]);
+        if (! preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$/D', $value)) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp must be an ISO 8601 date-time.']]);
+        }
+        try {
+            $timestamp = Carbon::parse($value);
+        } catch (Throwable) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp must be an ISO 8601 date-time.']]);
+        }
+        if ($timestamp->gt(now()->addMinutes(5))) {
+            throw ValidationException::withMessages(['base_updated_at' => ['The snapshot timestamp cannot be more than 5 minutes ahead.']]);
         }
 
-        return $value;
+        return $timestamp->toIso8601String();
     }
 
     protected static function mayActOnTask(HousekeepingTask $task, User $user): bool
@@ -358,9 +389,9 @@ class OfflineSyncService
     }
 
     /** @param array<string, mixed> $raw */
-    protected static function invalid(array $raw, string $message): array
+    protected static function invalid(array $raw, string $message, string $status = 'rejected'): array
     {
-        return ['operation_id' => (string) ($raw['operation_id'] ?? ''), 'status' => 'rejected', 'error' => $message];
+        return ['operation_id' => (string) ($raw['operation_id'] ?? ''), 'status' => $status, 'error' => $message];
     }
 
     /** @param array<string, mixed> $payload */

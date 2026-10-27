@@ -74,7 +74,7 @@
         ['Posted all', money($kpis['posted']), ['view' => 'inhouse'], 'All folio charges posted on this business date'],
         ['Occupancy', $kpis['occupancy'] === null ? '—' : $kpis['occupancy'].'%', ['view' => 'board'], $kpis['sold'].' sold / '.$kpis['sellable'].' sellable'],
         ['ADR', $kpis['adr'] === null ? '—' : money($kpis['adr']), ['view' => 'timeline'], 'Average rate of stays covering this date'],
-        ['RevPAR', $kpis['revpar'] === null ? '—' : money($kpis['revpar']), ['view' => 'board'], 'Posted room revenue divided by active rooms'],
+        ['RevPAR', $kpis['revpar'] === null ? '—' : money($kpis['revpar']), ['view' => 'board'], 'Posted room revenue divided by sellable rooms'],
         ['Deposits', money($kpis['deposits']), ['view' => 'timeline', 'focus' => 'deposit'], 'Advance payments posted today. Click shows stays with a payment on file'],
         ['Outstanding', $credit, ['view' => 'inhouse', 'focus' => 'balance'], 'Open folio balance. Credit means payments already exceed charges'],
       ],
@@ -417,8 +417,8 @@
 @endsection
 @push('head')
 <style>
-.desk{--navy:#0b1b3a;--day:52px;background:#fff;border:1px solid var(--c-border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
-.desk-head{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.1rem 1.2rem;background:linear-gradient(120deg,#0b1b3a,#16315f);color:#fff}
+.desk{--navy:#10271c;--day:52px;background:#fff;border:1px solid var(--c-border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.desk-head{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1.1rem 1.2rem;background:linear-gradient(120deg,#10271c,#173b2a);color:#fff}
 .desk-head h1{color:#fff;font-size:1.45rem;margin:.15rem 0}
 .desk-head p{margin:0;color:#c9d6ee;font-size:.85rem}
 .desk-head .btn{background:#fff;color:var(--navy);border-color:transparent}
@@ -427,7 +427,7 @@
 .kpi-label{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:#5b6b86;font-weight:700}
 .kpi-row{display:flex;gap:.4rem;overflow:auto;padding-bottom:.15rem}
 .kpi{background:#fff;border:1px solid var(--c-border);border-radius:10px;padding:.4rem .55rem;min-width:6.2rem;color:inherit;text-decoration:none}
-.kpi.on{border-color:#0b1b3a;box-shadow:inset 0 0 0 1px #0b1b3a}
+.kpi.on{border-color:#166534;box-shadow:inset 0 0 0 1px #166534}
 .kpi span{display:block;font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;color:var(--c-muted)}
 .kpi strong{font-size:.98rem;color:var(--navy)}
 .date-nav{display:flex;gap:.2rem;align-items:center}
@@ -477,7 +477,7 @@
 .board-card em{font-style:normal;font-size:.75rem;color:var(--c-text-2)}
 .desk-form{margin:.8rem 0;padding-top:.6rem;border-top:1px solid var(--c-border)}
 .desk-form h3{font-size:.9rem;margin-bottom:.35rem}
-.desk-toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#0b1b3a;color:#fff;padding:.6rem 1rem;border-radius:10px;z-index:70}
+.desk-toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#10271c;color:#fff;padding:.6rem 1rem;border-radius:10px;z-index:70}
 .no-photo{width:96px;height:72px;border-radius:8px;background:#e8eef8;color:#1e3a6b;font-size:.68rem;display:grid;place-items:center;text-align:center;padding:.3rem}
 .inline{display:inline}
 .linkish{border:0;background:transparent;color:var(--c-muted);cursor:pointer}

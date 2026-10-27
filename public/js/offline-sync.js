@@ -48,10 +48,12 @@
     return new Promise((resolve, reject) => {
       const tx = db.transaction(store, mode);
       const request = action(tx.objectStore(store));
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('Offline storage failed.'));
-      tx.oncomplete = () => db.close();
-      tx.onerror = () => reject(tx.error || new Error('Offline storage transaction failed.'));
+      let result;
+      request.onsuccess = () => { result = request.result; };
+      request.onerror = () => { db.close(); reject(request.error || new Error('Offline storage failed.')); };
+      tx.oncomplete = () => { db.close(); resolve(result); };
+      tx.onerror = () => { db.close(); reject(tx.error || new Error('Offline storage transaction failed.')); };
+      tx.onabort = () => { db.close(); reject(tx.error || new Error('Offline storage transaction aborted.')); };
     });
   }
 
@@ -236,6 +238,7 @@
         if (result.ticket) notify('Maintenance ticket ' + result.ticket.ticket_no + ' synced.', 'info');
         if (result.status === 'conflict') notify('A housekeeping record changed while this device was offline. Review the server status.', 'error');
         if (result.status === 'rejected') notify(result.error || 'An offline change was rejected.', 'error');
+        if (result.status === 'retry') notify(result.error || 'The change was not confirmed and remains queued for retry.', 'error');
       }
       rows = await allOutbox();
       await updatePending();
@@ -260,7 +263,8 @@
 
   async function queueTaskAction(taskId, action, baseUpdatedAt, checked = [], notes = null) {
     const current = await allOutbox();
-    await Promise.all(current.filter(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId)).map(row => deleteOutbox(row.operation_id)));
+    const pending = current.find(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId));
+    if (pending) throw new Error('This task already has a queued change. Sync it before recording another action.');
     const row = { operation_id: uuid(), hotel, operation: 'housekeeping.task', payload: { task_id: Number(taskId), action, checked, notes }, base_updated_at: baseUpdatedAt, created_at: new Date().toISOString() };
     await saveOutbox(row);
     await updatePending();
@@ -354,7 +358,7 @@
     renderWorkspace();
     queueTaskAction(task.id, action, task.updated_at, checked, notes).then(() => {
       if (!navigator.onLine) notify('Saved on this device. It will sync automatically when online.', 'info');
-    }).catch(() => { Object.assign(task, previous); renderWorkspace(); notify('This task change could not be saved locally.', 'error'); });
+    }).catch(error => { Object.assign(task, previous); renderWorkspace(); notify(error?.message || 'This task change could not be saved locally.', 'error'); });
   });
 
   window.addEventListener('online', () => { setConnectionState(); syncOutbox().then(() => fetchSnapshot()); });

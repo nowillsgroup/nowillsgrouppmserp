@@ -260,7 +260,8 @@ class ReservationDeskService
     /** N-day outlook: arrivals, departures, expected rooms, occupancy, expected room revenue. Read-only. */
     public static function pipeline(Carbon $date, int $days = 7): array
     {
-        $sellable = Room::where('is_active', true)->whereNotIn('status', ['out_of_order', 'out_of_service'])->count();
+        $roomRows = Room::where('is_active', true)->get(['id', 'status']);
+        $sellableByDay = AvailabilityService::sellableRoomCounts($date, $days, $roomRows);
         $out = [];
         for ($i = 0; $i < $days; $i++) {
             $d = $date->copy()->addDays($i);
@@ -273,7 +274,7 @@ class ReservationDeskService
                 'arrivals' => ReservationRoom::whereDate('arrival_date', $ds)->whereIn('status', ['reserved', 'checked_in'])->count(),
                 'departures' => ReservationRoom::whereDate('departure_date', $ds)->whereIn('status', ['checked_in', 'checked_out'])->count(),
                 'rooms' => $rooms,
-                'occ' => $sellable ? round($rooms / $sellable * 100, 1) : 0,
+                'occ' => ($sellableByDay[$ds] ?? 0) ? round($rooms / $sellableByDay[$ds] * 100, 1) : 0,
                 'revenue' => (float) (clone $covering)->sum('rate'),
             ];
         }
@@ -407,12 +408,13 @@ class ReservationDeskService
     public static function kpis(Carbon $date): array
     {
         $d = $date->toDateString();
-        $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
+        $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
+        $coveringStatuses = $historical ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $covering = ReservationRoom::whereIn('status', $coveringStatuses)->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $sold = (clone $covering)->count();
-        $assigned = (clone $covering)->whereNotNull('room_id')->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
-        $sellable = $roomRows->whereNotIn('status', ['out_of_order', 'out_of_service'])->count();
+        $sellable = AvailabilityService::sellableRoomCounts($date, 1, $roomRows)[$d] ?? 0;
         $posted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->sum(DB::raw('amount + tax_amount'));
         $roomPosted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->where('category', 'room')->sum(DB::raw('amount + tax_amount'));
         $deposits = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', 'advance')->sum('amount');
@@ -429,7 +431,7 @@ class ReservationDeskService
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
             'due_out' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
             'available' => AvailabilityService::reservationRooms($d, $date->copy()->addDay()->toDateString())->count(),
-            'occupancy' => $sellable ? round($assigned / $sellable * 100, 1) : null,
+            'occupancy' => $sellable ? round($sold / $sellable * 100, 1) : null,
             'adr' => $sold ? round($onBooks / $sold, 2) : null,
             'on_books' => round($onBooks, 2),
             'posted' => round($posted, 2),
@@ -458,7 +460,7 @@ class ReservationDeskService
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
             'room_posted' => round($roomPosted, 2),
             'deposits' => round($deposits, 2),
-            'revpar' => $roomRows->count() ? round($roomPosted / $roomRows->count(), 2) : null,
+            'revpar' => $sellable ? round($roomPosted / $sellable, 2) : null,
         ];
     }
 
@@ -621,11 +623,13 @@ class ReservationDeskService
             // Serialise blocks with reservation placement and other desk users.
             Room::whereKey($roomId)->lockForUpdate()->firstOrFail();
             [$room, $starts, $ends] = self::blockWindow($roomId, $from, $to);
+            $setsOutOfOrder = $starts->lte(bdate()) && $ends->gt(bdate()) && $room->status === 'vacant';
             $outage = RoomOutage::create([
                 'room_id' => $room->id, 'starts_on' => $starts->toDateString(), 'ends_on' => $ends->toDateString(),
                 'reason' => $reason, 'notes' => $notes, 'status' => 'active', 'created_by' => auth()->id(),
+                'room_status_changed_by_block' => $setsOutOfOrder,
             ]);
-            if ($starts->lte(bdate()) && $ends->gt(bdate()) && $room->status === 'vacant') {
+            if ($setsOutOfOrder) {
                 $room->update(['status' => 'out_of_order', 'notes' => trim(($notes ?: 'Blocked from the reservation desk').' · until '.$ends->format('d M'))]);
             }
             ActivityLogger::log('reservations', 'block', "Blocked room {$room->room_no} {$starts->format('d M')}–{$ends->format('d M')} ({$reason})", $room);
@@ -668,7 +672,7 @@ class ReservationDeskService
             $locked->update(['status' => 'released', 'released_at' => now()]);
             $still = $room && RoomOutage::covering(bdate(), bdate()->copy()->addDay(), $room->id)->where('id', '!=', $locked->id)->exists();
             $ticket = $room && MaintenanceRequest::where('room_id', $room->id)->where('block_room', true)->whereIn('status', ['open', 'in_progress'])->exists();
-            if ($room && $room->status === 'out_of_order' && ! $still && ! $ticket && $room->status !== 'occupied') {
+            if ($room && $locked->room_status_changed_by_block && $room->status === 'out_of_order' && ! $still && ! $ticket) {
                 $room->update(['status' => 'vacant']);
             }
             ActivityLogger::log('reservations', 'unblock', 'Released block on room '.($room->room_no ?? $locked->room_id), $room ?? $locked);

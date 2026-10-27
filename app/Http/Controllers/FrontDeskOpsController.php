@@ -107,7 +107,7 @@ class FrontDeskOpsController extends Controller
         abort_unless($logentry->created_by === auth()->id() || can_do('logbook.manage') || $logentry->department !== 'management', 403);
         $data = $request->validate(['resolution' => 'required|string|max:2000']);
         try {
-            LogBookService::resolve($logentry, $data['resolution']);
+            $logentry = LogBookService::resolve($logentry, $data['resolution']);
         } catch (RuntimeException $e) {
             return $this->fail($e);
         }
@@ -118,7 +118,7 @@ class FrontDeskOpsController extends Controller
     public function reopen(LogEntry $logentry)
     {
         try {
-            LogBookService::reopen($logentry);
+            $logentry = LogBookService::reopen($logentry);
         } catch (RuntimeException $e) {
             return $this->fail($e);
         }
@@ -129,7 +129,7 @@ class FrontDeskOpsController extends Controller
     public function pin(Request $request, LogEntry $logentry)
     {
         $data = $request->validate(['pinned' => 'required|boolean', 'pinned_until' => 'nullable|date|after_or_equal:today']);
-        LogBookService::pin($logentry, (bool) $data['pinned'], $data['pinned_until'] ?? null);
+        $logentry = LogBookService::pin($logentry, (bool) $data['pinned'], $data['pinned_until'] ?? null);
 
         return back()->with('success', $data['pinned'] ? 'Entry pinned to the top of the hand-over.' : 'Entry unpinned.');
     }

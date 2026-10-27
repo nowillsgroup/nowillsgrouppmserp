@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="hotel-code" content="{{ $currentHotel->code ?? '' }}">
+  <meta name="theme-color" content="#14532d">
   <title>@yield('title', 'Dashboard') · {{ $currentHotel->name ?? config('app.name') }}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d4ed8'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>">
-  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ config('pms.version') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
+  <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
   <link rel="stylesheet" href="{{ asset('css/offline.css') }}?v={{ config('pms.version') }}">
   @stack('head')
 </head>
@@ -26,8 +27,8 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">N</div>
-      <div class="brand-copy"><strong>NOWILLS PMS</strong><small>PROPERTY MANAGEMENT SYSTEM</small></div>
+      <img class="brand-logo-full" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite">
+      <img class="brand-logo-mark" src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt="Nowills PMS">
       <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
     </div>
     <label class="nav-search" for="navModuleSearch">

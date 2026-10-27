@@ -85,30 +85,39 @@ class LostFoundService
 
     public static function update(LostFoundItem $item, array $d): LostFoundItem
     {
-        if (! $item->isStored()) {
-            throw new RuntimeException('Only items in store can be edited.');
-        }
-        $cat = array_key_exists($d['category'] ?? '', LostFoundItem::CATEGORIES) ? $d['category'] : $item->category;
-        $valuable = ! empty($d['valuable']) || LostFoundItem::CATEGORIES[$cat][1];
-        $item->fill([
-            'item_name' => trim((string) ($d['item_name'] ?? $item->item_name)) ?: $item->item_name, 'category' => $cat, 'valuable' => $valuable,
-            'description' => trim((string) ($d['description'] ?? '')) ?: null, 'storage_location' => trim((string) ($d['storage_location'] ?? '')) ?: $item->storage_location,
-            'est_value' => isset($d['est_value']) && $d['est_value'] !== '' ? max(0, round((float) $d['est_value'], 2)) : null,
-        ]);
-        if ($item->isDirty('valuable') || $item->isDirty('category')) {
-            $item->retain_until = $item->found_date->copy()->addDays(self::retentionDays($cat, $valuable));
-        }
-        $item->save();
+        return DB::transaction(function () use ($item, $d) {
+            $locked = LostFoundItem::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isStored()) {
+                throw new RuntimeException('Only items in store can be edited.');
+            }
+            $cat = array_key_exists($d['category'] ?? '', LostFoundItem::CATEGORIES) ? $d['category'] : $locked->category;
+            $value = isset($d['est_value']) && $d['est_value'] !== '' ? max(0, round((float) $d['est_value'], 2)) : null;
+            $threshold = FrontDeskOpsService::cfg()['lf_valuable_amount'];
+            $valuable = ! empty($d['valuable']) || LostFoundItem::CATEGORIES[$cat][1] || ($value !== null && $threshold > 0 && $value >= $threshold);
+            if ($locked->valuable && ! $valuable && ! can_do('lostfound.release')) {
+                throw new RuntimeException('Only a supervisor can remove the valuable classification.');
+            }
+            $wasValuable = $locked->valuable;
+            $oldCategory = $locked->category;
+            $locked->fill([
+                'item_name' => trim((string) ($d['item_name'] ?? $locked->item_name)) ?: $locked->item_name, 'category' => $cat, 'valuable' => $valuable,
+                'description' => trim((string) ($d['description'] ?? '')) ?: null,
+                'storage_location' => trim((string) ($d['storage_location'] ?? '')) ?: $locked->storage_location,
+                'est_value' => $value,
+            ]);
+            if ($wasValuable !== $valuable || $oldCategory !== $cat) {
+                $locked->retain_until = $locked->found_date->copy()->addDays(self::retentionDays($cat, $valuable));
+            }
+            $locked->save();
+            ActivityLogger::log('lostfound', 'update', "Updated {$locked->item_no}: {$locked->item_name}".($valuable ? ' (valuable)' : ''), $locked);
 
-        return $item;
+            return $locked;
+        });
     }
 
     /** hand the item back – valuables need the claimant's ID and a user allowed to release them */
     public static function returnItem(LostFoundItem $item, array $d): LostFoundItem
     {
-        if (! $item->isStored()) {
-            throw new RuntimeException("{$item->item_no} is no longer in store.");
-        }
         $claimant = trim((string) ($d['returned_to'] ?? ''));
         if ($claimant === '') {
             throw new RuntimeException('Who is the item being returned to?');
@@ -116,65 +125,80 @@ class LostFoundService
         $method = array_key_exists($d['return_method'] ?? '', LostFoundItem::RETURN_METHODS) ? $d['return_method'] : 'in_person';
         $idType = trim((string) ($d['claimant_id_type'] ?? '')) ?: null;
         $idNo = trim((string) ($d['claimant_id_no'] ?? '')) ?: null;
-        if ($item->valuable) {
-            if (! can_do('lostfound.release')) {
-                throw new RuntimeException('Valuables can only be released by a supervisor (lost & found release permission).');
-            }
-            if ($method === 'in_person' && (! $idType || ! $idNo)) {
-                throw new RuntimeException('Record the claimant\'s photo ID before releasing a valuable.');
-            }
-        }
         if ($method === 'courier' && (trim((string) ($d['courier'] ?? '')) === '' || trim((string) ($d['tracking_no'] ?? '')) === '')) {
             throw new RuntimeException('Enter the courier and the tracking / AWB number.');
         }
-        $item->forceFill([
-            'status' => 'returned', 'returned_to' => mb_substr($claimant, 0, 150), 'claimant_phone' => trim((string) ($d['claimant_phone'] ?? '')) ?: null,
-            'claimant_id_type' => $idType, 'claimant_id_no' => $idNo, 'return_method' => $method,
-            'courier' => $method === 'courier' ? trim($d['courier']) : null, 'tracking_no' => $method === 'courier' ? trim($d['tracking_no']) : null,
-            'courier_charge' => $method === 'courier' ? max(0, round((float) ($d['courier_charge'] ?? 0), 2)) : 0,
-            'returned_date' => bdate()->toDateString(), 'released_by' => auth()->id(),
-        ])->save();
-        LostReport::where('lost_found_item_id', $item->id)->whereIn('status', ['open', 'matched'])->update(['status' => 'closed', 'close_note' => 'Item returned']);
-        ActivityLogger::log('lostfound', 'return', "{$item->item_no} returned to {$claimant} (".LostFoundItem::RETURN_METHODS[$method].')', $item);
+        $returned = DB::transaction(function () use ($item, $d, $claimant, $method, $idType, $idNo) {
+            $locked = LostFoundItem::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isStored()) {
+                throw new RuntimeException("{$locked->item_no} is no longer in store.");
+            }
+            if ($locked->valuable) {
+                if (! can_do('lostfound.release')) {
+                    throw new RuntimeException('Valuables can only be released by a supervisor (lost & found release permission).');
+                }
+                if ($method === 'in_person' && (! $idType || ! $idNo)) {
+                    throw new RuntimeException('Record the claimant\'s photo ID before releasing a valuable.');
+                }
+            }
+            $locked->forceFill([
+                'status' => 'returned', 'returned_to' => mb_substr($claimant, 0, 150), 'claimant_phone' => trim((string) ($d['claimant_phone'] ?? '')) ?: null,
+                'claimant_id_type' => $idType, 'claimant_id_no' => $idNo, 'return_method' => $method,
+                'courier' => $method === 'courier' ? trim($d['courier']) : null, 'tracking_no' => $method === 'courier' ? trim($d['tracking_no']) : null,
+                'courier_charge' => $method === 'courier' ? max(0, round((float) ($d['courier_charge'] ?? 0), 2)) : 0,
+                'returned_date' => bdate()->toDateString(), 'released_by' => auth()->id(),
+            ])->save();
+            ActivityLogger::log('lostfound', 'return', "{$locked->item_no} returned to {$claimant} (".LostFoundItem::RETURN_METHODS[$method].')', $locked);
 
-        return $item;
+            return $locked;
+        });
+        // Close related reports after releasing the item mutex. This keeps
+        // report matching (report → item) deadlock-free while preserving the
+        // return as the authoritative committed transition.
+        LostReport::where('lost_found_item_id', $returned->id)->whereIn('status', ['open', 'matched'])
+            ->update(['status' => 'closed', 'close_note' => 'Item returned']);
+
+        return $returned;
     }
 
     /** dispose after the retention period (police hand-over any time); valuables need a witness who confirms with their password */
     public static function dispose(LostFoundItem $item, array $d): LostFoundItem
     {
-        if (! $item->isStored()) {
-            throw new RuntimeException("{$item->item_no} is no longer in store.");
-        }
-        $method = $d['disposal_method'] ?? '';
-        if (! array_key_exists($method, LostFoundItem::DISPOSAL)) {
-            throw new RuntimeException('Choose how the item is disposed of.');
-        }
-        if ($method !== 'police' && ! $item->isDue()) {
-            throw new RuntimeException("{$item->item_no} must be kept until ".$item->retain_until?->format('d M Y').' (only a police hand-over is allowed earlier).');
-        }
-        if ($item->category === 'documents' && $method !== 'police') {
-            throw new RuntimeException('Passports, IDs and documents may only be handed to the police / issuing authority.');
-        }
-        if (in_array($item->category, ['cash']) && $method === 'finder') {
-            throw new RuntimeException('Cash cannot be given to the finder – hand it to the police or account for it.');
-        }
-        $witness = null;
-        if ($item->valuable) {
-            if (! can_do('lostfound.release')) {
-                throw new RuntimeException('Valuables can only be disposed of by a supervisor (lost & found release permission).');
+        return DB::transaction(function () use ($item, $d) {
+            $locked = LostFoundItem::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isStored()) {
+                throw new RuntimeException("{$locked->item_no} is no longer in store.");
             }
-            $witness = User::where('hotel_id', hotel()->id)->where('username', trim((string) ($d['witness_username'] ?? '')))->where('is_active', true)->first();
-            if (! $witness || $witness->id === auth()->id() || ! Hash::check((string) ($d['witness_password'] ?? ''), $witness->password)) {
-                throw new RuntimeException('A second member of staff must witness the disposal of a valuable (their username and password).');
+            $method = $d['disposal_method'] ?? '';
+            if (! array_key_exists($method, LostFoundItem::DISPOSAL)) {
+                throw new RuntimeException('Choose how the item is disposed of.');
             }
-        }
-        $item->forceFill(['status' => 'disposed', 'disposal_method' => $method, 'disposed_date' => bdate()->toDateString(), 'disposed_by' => auth()->id(),
-            'disposal_witness_id' => $witness?->id, 'disposal_note' => trim((string) ($d['disposal_note'] ?? '')) ? mb_substr(trim($d['disposal_note']), 0, 190) : null,
-            'returned_date' => null])->save();
-        ActivityLogger::log('lostfound', 'dispose', "{$item->item_no} disposed: ".LostFoundItem::DISPOSAL[$method].($witness ? " (witness {$witness->name})" : ''), $item);
+            if ($method !== 'police' && ! $locked->isDue()) {
+                throw new RuntimeException("{$locked->item_no} must be kept until ".$locked->retain_until?->format('d M Y').' (only a police hand-over is allowed earlier).');
+            }
+            if ($locked->category === 'documents' && $method !== 'police') {
+                throw new RuntimeException('Passports, IDs and documents may only be handed to the police / issuing authority.');
+            }
+            if ($locked->category === 'cash' && $method === 'finder') {
+                throw new RuntimeException('Cash cannot be given to the finder – hand it to the police or account for it.');
+            }
+            $witness = null;
+            if ($locked->valuable) {
+                if (! can_do('lostfound.release')) {
+                    throw new RuntimeException('Valuables can only be disposed of by a supervisor (lost & found release permission).');
+                }
+                $witness = User::where('hotel_id', hotel()->id)->where('username', trim((string) ($d['witness_username'] ?? '')))->where('is_active', true)->first();
+                if (! $witness || $witness->id === auth()->id() || ! Hash::check((string) ($d['witness_password'] ?? ''), $witness->password)) {
+                    throw new RuntimeException('A second member of staff must witness the disposal of a valuable (their username and password).');
+                }
+            }
+            $locked->forceFill(['status' => 'disposed', 'disposal_method' => $method, 'disposed_date' => bdate()->toDateString(), 'disposed_by' => auth()->id(),
+                'disposal_witness_id' => $witness?->id, 'disposal_note' => trim((string) ($d['disposal_note'] ?? '')) ? mb_substr(trim($d['disposal_note']), 0, 190) : null,
+                'returned_date' => null])->save();
+            ActivityLogger::log('lostfound', 'dispose', "{$locked->item_no} disposed: ".LostFoundItem::DISPOSAL[$method].($witness ? " (witness {$witness->name})" : ''), $locked);
 
-        return $item;
+            return $locked;
+        });
     }
 
     // ───────────────────────── loss reports ─────────────────────────
@@ -226,37 +250,51 @@ class LostFoundService
 
     public static function match(LostReport $r, LostFoundItem $item): LostReport
     {
-        if ($r->status !== 'open') {
-            throw new RuntimeException("{$r->report_no} is already {$r->status}.");
-        }
-        if (! $item->isStored()) {
-            throw new RuntimeException("{$item->item_no} is no longer in store.");
-        }
-        if (LostReport::where('lost_found_item_id', $item->id)->where('status', 'matched')->exists()) {
-            throw new RuntimeException("{$item->item_no} is already matched to another report.");
-        }
-        DB::transaction(function () use ($r, $item) {
-            $r->forceFill(['status' => 'matched', 'lost_found_item_id' => $item->id])->save();
-            $item->forceFill(['lost_report_id' => $r->id, 'guest_id' => $item->guest_id ?? $r->guest_id])->save();
-        });
-        ActivityLogger::log('lostfound', 'match', "Loss report {$r->report_no} matched to {$item->item_no}", $r);
+        $matched = DB::transaction(function () use ($r, $item) {
+            // Report → item is the common lock order for matching and closing.
+            $report = LostReport::whereKey($r->id)->lockForUpdate()->firstOrFail();
+            if ($report->status !== 'open') {
+                throw new RuntimeException("{$report->report_no} is already {$report->status}.");
+            }
+            $found = LostFoundItem::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            if (! $found->isStored()) {
+                throw new RuntimeException("{$found->item_no} is no longer in store.");
+            }
+            if (LostReport::where('lost_found_item_id', $found->id)->where('status', 'matched')->where('id', '!=', $report->id)->exists()) {
+                throw new RuntimeException("{$found->item_no} is already matched to another report.");
+            }
+            $report->forceFill(['status' => 'matched', 'lost_found_item_id' => $found->id])->save();
+            $found->forceFill(['lost_report_id' => $report->id, 'guest_id' => $found->guest_id ?? $report->guest_id])->save();
 
-        return $r;
+            return $report;
+        });
+        ActivityLogger::log('lostfound', 'match', "Loss report {$matched->report_no} matched to {$item->item_no}", $matched);
+
+        return $matched;
     }
 
     public static function closeReport(LostReport $r, string $note): LostReport
     {
-        if ($r->status === 'closed') {
-            throw new RuntimeException("{$r->report_no} is already closed.");
-        }
-        if (trim($note) === '') {
-            throw new RuntimeException('Add a closing note (e.g. "not found – guest informed").');
-        }
-        if ($r->lost_found_item_id) {
-            LostFoundItem::whereKey($r->lost_found_item_id)->where('lost_report_id', $r->id)->update(['lost_report_id' => null]);
-        }
-        $r->forceFill(['status' => 'closed', 'close_note' => mb_substr(trim($note), 0, 190)])->save();
+        return DB::transaction(function () use ($r, $note) {
+            // Match also locks report before item, so closing cannot deadlock a
+            // simultaneous match or clear a link created after a stale read.
+            $locked = LostReport::whereKey($r->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status === 'closed') {
+                throw new RuntimeException("{$locked->report_no} is already closed.");
+            }
+            if (trim($note) === '') {
+                throw new RuntimeException('Add a closing note (e.g. "not found – guest informed").');
+            }
+            if ($locked->lost_found_item_id) {
+                $item = LostFoundItem::whereKey($locked->lost_found_item_id)->lockForUpdate()->first();
+                if ($item && (int) $item->lost_report_id === (int) $locked->id) {
+                    $item->forceFill(['lost_report_id' => null])->save();
+                }
+            }
+            $locked->forceFill(['status' => 'closed', 'close_note' => mb_substr(trim($note), 0, 190)])->save();
+            ActivityLogger::log('lostfound', 'close_report', "Loss report {$locked->report_no} closed", $locked);
 
-        return $r;
+            return $locked;
+        });
     }
 }

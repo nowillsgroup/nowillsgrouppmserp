@@ -490,13 +490,15 @@ $formValue = fn (string $k, string $d = '') => h((string) ($_POST[$k] ?? $d));
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14532d">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Install · Nowills PMS</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:#f1f5f9; color:#0f172a; }
   .wrap { max-width:900px; margin:0 auto; padding:28px 18px 60px; }
-  header { background:#1d4ed8; color:#fff; padding:20px 18px; }
+  header { background:#166534; color:#fff; padding:20px 18px; }
   header .in { max-width:900px; margin:0 auto; }
   h1 { margin:0; font-size:20px; }
   header p { margin:6px 0 0; opacity:.9; font-size:13px; }
@@ -516,7 +518,7 @@ $formValue = fn (string $k, string $d = '') => h((string) ($_POST[$k] ?? $d));
     width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:14px; background:#fff;
   }
   .full { grid-column:1/-1; }
-  .btn { display:inline-block; background:#1d4ed8; color:#fff; border:0; border-radius:8px; padding:11px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+  .btn { display:inline-block; background:#166534; color:#fff; border:0; border-radius:8px; padding:11px 20px; font-size:15px; font-weight:600; cursor:pointer; }
   .btn[disabled] { background:#94a3b8; cursor:not-allowed; }
   .note { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-size:13.5px; }
   .danger { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; font-size:13.5px; }

@@ -513,9 +513,17 @@
             "perm": "interfaces.manage",
             "badge": null,
             "params": null
+        },
+        {
+            "module": "Interfaces",
+            "label": "Robita Locks",
+            "route": "robita.index",
+            "perm": "robita.manage",
+            "badge": "robita_low_battery",
+            "params": null
         }
     ],
-    "perm_registry_size": 284,
+    "perm_registry_size": 285,
     "perm_missing": [],
     "badge_missing": [],
     "model_rows": {
@@ -540,8 +548,8 @@
         "FormCRecord": {
             "module": "Front Office",
             "table": "form_c_records",
-            "rows": 57,
-            "rows_hotel_1": 57
+            "rows": 58,
+            "rows_hotel_1": 58
         },
         "Guest": {
             "module": "Front Office",
@@ -576,8 +584,8 @@
         "PosOrder": {
             "module": "Front Office",
             "table": "pos_orders",
-            "rows": 482,
-            "rows_hotel_1": 482
+            "rows": 481,
+            "rows_hotel_1": 481
         },
         "RatePlan": {
             "module": "Front Office",
@@ -588,14 +596,14 @@
         "Reservation": {
             "module": "Front Office",
             "table": "reservations",
-            "rows": 203,
-            "rows_hotel_1": 203
+            "rows": 210,
+            "rows_hotel_1": 210
         },
         "ReservationRoom": {
             "module": "Front Office",
             "table": "reservation_rooms",
-            "rows": 212,
-            "rows_hotel_1": 212
+            "rows": 219,
+            "rows_hotel_1": 219
         },
         "Room": {
             "module": "Front Office",
@@ -612,8 +620,8 @@
         "UpsellOrder": {
             "module": "Front Office",
             "table": "upsell_orders",
-            "rows": 29,
-            "rows_hotel_1": 29
+            "rows": 30,
+            "rows_hotel_1": 30
         },
         "User": {
             "module": "Front Office",
@@ -696,8 +704,8 @@
         "Folio": {
             "module": "Reservations",
             "table": "folios",
-            "rows": 161,
-            "rows_hotel_1": 161
+            "rows": 162,
+            "rows_hotel_1": 162
         },
         "Hotel": {
             "module": "Reservations",
@@ -731,8 +739,8 @@
         "RateOverride": {
             "module": "Reservations",
             "table": "rate_overrides",
-            "rows": 17,
-            "rows_hotel_1": 17
+            "rows": 15,
+            "rows_hotel_1": 15
         },
         "ReservationDeskView": {
             "module": "Reservations",
@@ -749,14 +757,14 @@
         "RoomAmenity": {
             "module": "Reservations",
             "table": "room_amenities",
-            "rows": 0,
-            "rows_hotel_1": 0
+            "rows": 14,
+            "rows_hotel_1": 14
         },
         "RoomAmenityLink": {
             "module": "Reservations",
             "table": "room_amenity_links",
-            "rows": 0,
-            "rows_hotel_1": 0
+            "rows": 17,
+            "rows_hotel_1": 17
         },
         "RoomBlock": {
             "module": "Reservations",
@@ -779,8 +787,8 @@
         "Setting": {
             "module": "Reservations",
             "table": "settings",
-            "rows": 498,
-            "rows_hotel_1": 498
+            "rows": 519,
+            "rows_hotel_1": 519
         },
         "TransportTrip": {
             "module": "Reservations",
@@ -821,8 +829,8 @@
         "ActivityLog": {
             "module": "Concierge",
             "table": "activity_logs",
-            "rows": 2410,
-            "rows_hotel_1": 2410
+            "rows": 2418,
+            "rows_hotel_1": 2418
         },
         "ActivitySettlement": {
             "module": "Concierge",
@@ -851,8 +859,8 @@
         "ConversationMessage": {
             "module": "Guest Messaging",
             "table": "conversation_messages",
-            "rows": 48,
-            "rows_hotel_1": 48
+            "rows": 51,
+            "rows_hotel_1": 51
         },
         "InboxBroadcast": {
             "module": "Guest Messaging",
@@ -881,8 +889,8 @@
         "KioskSession": {
             "module": "Self-Service Kiosk",
             "table": "kiosk_sessions",
-            "rows": 64,
-            "rows_hotel_1": 64
+            "rows": 65,
+            "rows_hotel_1": 65
         },
         "TvChannel": {
             "module": "IPTV & Guest Welcome",
@@ -905,8 +913,8 @@
         "TvEvent": {
             "module": "IPTV & Guest Welcome",
             "table": "tv_events",
-            "rows": 705,
-            "rows_hotel_1": 705
+            "rows": 653,
+            "rows_hotel_1": 653
         },
         "TvMessage": {
             "module": "IPTV & Guest Welcome",
@@ -935,8 +943,8 @@
         "TvSession": {
             "module": "IPTV & Guest Welcome",
             "table": "tv_sessions",
-            "rows": 49,
-            "rows_hotel_1": 49
+            "rows": 50,
+            "rows_hotel_1": 50
         },
         "TvWelcomeTemplate": {
             "module": "IPTV & Guest Welcome",
@@ -1015,142 +1023,142 @@
         "Accountant": {
             "perms": 101,
             "fo_perms": 7,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Administrator": {
-            "perms": 284,
-            "fo_perms": 32,
-            "fo_total": 32
+            "perms": 285,
+            "fo_perms": 33,
+            "fo_total": 33
         },
         "Banquet Manager": {
             "perms": 25,
             "fo_perms": 1,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Business Development Manager": {
             "perms": 17,
             "fo_perms": 1,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Chief Engineer": {
             "perms": 38,
             "fo_perms": 4,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Cost Controller": {
             "perms": 10,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Digital Marketing Executive": {
             "perms": 9,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Driver": {
             "perms": 3,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "F&B Manager": {
             "perms": 56,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Front Office Manager": {
-            "perms": 169,
-            "fo_perms": 32,
-            "fo_total": 32
+            "perms": 170,
+            "fo_perms": 33,
+            "fo_total": 33
         },
         "HR Manager": {
             "perms": 27,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Health & Safety Officer": {
             "perms": 17,
             "fo_perms": 2,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Housekeeping Supervisor": {
             "perms": 45,
             "fo_perms": 5,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Kitchen / Chef": {
             "perms": 28,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Laundry Attendant": {
             "perms": 9,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Owner's Representative": {
             "perms": 6,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Quality Manager": {
             "perms": 16,
             "fo_perms": 1,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Receptionist": {
             "perms": 79,
             "fo_perms": 22,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Reservations Agent (CRO)": {
             "perms": 14,
             "fo_perms": 4,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Restaurant Cashier": {
             "perms": 23,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Room Attendant": {
             "perms": 3,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Sales & Marketing": {
             "perms": 44,
             "fo_perms": 4,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Security Officer": {
             "perms": 19,
             "fo_perms": 3,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Spa Desk / Therapist": {
             "perms": 14,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Store Keeper": {
             "perms": 14,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Sustainability Manager": {
             "perms": 13,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Transport Desk / Concierge": {
             "perms": 25,
             "fo_perms": 8,
-            "fo_total": 32
+            "fo_total": 33
         },
         "Valet / Parking Attendant": {
             "perms": 4,
             "fo_perms": 0,
-            "fo_total": 32
+            "fo_total": 33
         }
     },
     "commands": [
@@ -1166,5 +1174,5 @@
         "pms:interfaces",
         "pms:pre-arrival"
     ],
-    "business_date": "2026-10-21"
+    "business_date": "2026-10-26"
 }

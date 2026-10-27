@@ -12,6 +12,7 @@ class RobitaCredential extends Model
 
     public const TYPES = ['card', 'password', 'fingerprint'];
     public const STATUSES = ['active', 'expired', 'cancelled'];
+    public const SYNC_STATES = ['ok', 'pending', 'failed']; // v7.57: did the cloud acknowledge it?
 
     protected $guarded = ['id', 'hotel_id'];
 
@@ -20,6 +21,8 @@ class RobitaCredential extends Model
         return [
             'valid_from' => 'datetime',
             'valid_until' => 'datetime',
+            'synced_at' => 'datetime',
+            'sync_attempts' => 'integer',
         ];
     }
 
@@ -36,6 +39,12 @@ class RobitaCredential extends Model
     public function card()
     {
         return $this->belongsTo(KeyCard::class, 'key_card_id');
+    }
+
+    /** The cloud has not confirmed this credential yet (or it failed). */
+    public function needsSync(): bool
+    {
+        return in_array($this->sync_state, ['pending', 'failed'], true);
     }
 
     public function isActive(): bool

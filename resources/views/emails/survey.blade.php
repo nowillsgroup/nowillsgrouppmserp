@@ -12,7 +12,7 @@
 <table cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>
 @for($i = 0; $i <= 10; $i++)<td style="padding:0 2px"><a href="{{ $url }}?nps={{ $i }}" style="display:inline-block;width:30px;line-height:30px;text-align:center;border-radius:6px;text-decoration:none;font-weight:bold;color:#fff;background:{{ $i <= 6 ? '#dc2626' : ($i <= 8 ? '#d97706' : '#16a34a') }}">{{ $i }}</a></td>@endfor
 </tr></table>
-<table cellpadding="0" cellspacing="0" style="margin:6px 0 18px"><tr><td style="background:#1d4ed8;border-radius:8px"><a href="{{ $url }}" style="display:inline-block;padding:12px 24px;color:#fff;text-decoration:none;font-weight:bold">Share your feedback</a></td></tr></table>
+<table cellpadding="0" cellspacing="0" style="margin:6px 0 18px"><tr><td style="background:#166534;border-radius:8px"><a href="{{ $url }}" style="display:inline-block;padding:12px 24px;color:#fff;text-decoration:none;font-weight:bold">Share your feedback</a></td></tr></table>
 <p style="font-size:12px;color:#64748b">The survey is open until {{ ($inv->expires_at ?? now()->addDays($inv->survey->expiry_days))->format('d M Y') }}. Your answers are read by our management team and used only to improve our service.</p>
 <p style="margin-top:18px">With warm regards,<br><b>{{ setting('fb_signature', 'Guest Relations Manager') }}, {{ $hotel->name }}</b></p>
 @endsection

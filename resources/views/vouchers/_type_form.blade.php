@@ -8,7 +8,7 @@
     <div class="field"><label for="tmin{{ $sfx }}">Min (open amount)</label><input id="tmin{{ $sfx }}" type="number" step="0.01" min="0" name="min_value" value="{{ $t?->min_value }}"></div>
     <div class="field"><label for="tmax{{ $sfx }}">Max (0 = hotel limit)</label><input id="tmax{{ $sfx }}" type="number" step="0.01" min="0" name="max_value" value="{{ $t?->max_value }}"></div>
     <div class="field"><label>Can be used on</label><div class="flex" style="gap:.8rem">@foreach(\App\Models\GiftVoucherType::USES as $k => $l)<label class="flex" style="gap:.3rem;align-items:center"><input type="checkbox" name="usable_on[]" value="{{ $k }}" @checked(in_array($k, $uses, true))> {{ $l }}</label>@endforeach</div></div>
-    <div class="field"><label for="tc{{ $sfx }}">Colour</label><input id="tc{{ $sfx }}" type="color" name="color" value="{{ $t?->color ?? '#0f766e' }}"></div>
+    <div class="field"><label for="tc{{ $sfx }}">Colour</label><input id="tc{{ $sfx }}" type="color" name="color" value="{{ $t?->color ?? '#166534' }}"></div>
     <div class="field span-2"><label for="tt{{ $sfx }}">Terms</label><textarea id="tt{{ $sfx }}" name="terms" rows="2" maxlength="1000">{{ $t?->terms }}</textarea></div>
     <label class="flex" style="gap:.3rem;align-items:center"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" @checked($t ? $t->is_active : true)> Active</label>
   </div>

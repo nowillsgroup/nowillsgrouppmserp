@@ -33,7 +33,20 @@ class WakeupService
         }
 
         return DB::transaction(function () use ($stay, $at, $daily, $note, $source, $requestId, $parentId) {
-            ReservationRoom::whereKey($stay->id)->lockForUpdate()->first();
+            $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                throw new RuntimeException('Wake-up calls can only be booked for in-house or arriving guests.');
+            }
+            if ($at->lt(now()->subMinute())) {
+                throw new RuntimeException('The wake-up time must be in the future.');
+            }
+            $last = Carbon::parse($stay->departure_date->toDateString().' 23:59:59');
+            if ($at->gt($last)) {
+                throw new RuntimeException('The wake-up time is after the guest\'s departure ('.$stay->departure_date->format('d M').').');
+            }
+            if ($stay->status === 'reserved' && $at->lt(Carbon::parse($stay->arrival_date->toDateString()))) {
+                throw new RuntimeException('The wake-up time is before the guest arrives.');
+            }
             $clash = WakeupCall::where('reservation_room_id', $stay->id)->where('status', 'scheduled')
                 ->whereBetween('call_at', [$at->copy()->subMinutes(10), $at->copy()->addMinutes(10)])->first();
             if ($clash) {
@@ -67,7 +80,13 @@ class WakeupService
         $cfg = FrontDeskOpsService::cfg();
 
         return DB::transaction(function () use ($c, $outcome, $note, $cfg) {
-            $c = WakeupCall::whereKey($c->id)->lockForUpdate()->first();
+            $c = WakeupCall::whereKey($c->id)->lockForUpdate()->firstOrFail();
+            if (! $c->isScheduled()) {
+                throw new RuntimeException('This wake-up call is already '.strtolower($c->statusLabel()).'.');
+            }
+            if ($c->call_at->gt(now()->addMinutes(max(15, $cfg['wakeup_lead'])))) {
+                throw new RuntimeException('This call is not due until '.$c->call_at->format('d M H:i').'.');
+            }
             $note = trim((string) $note) ? mb_substr(trim($note), 0, 190) : null;
             WakeupAttempt::create(['wakeup_call_id' => $c->id, 'outcome' => $outcome, 'note' => $note, 'user_id' => auth()->id(), 'attempted_at' => now()]);
             $c->attempts++;
@@ -102,11 +121,18 @@ class WakeupService
         if (! $c->isScheduled()) {
             throw new RuntimeException('This wake-up call is already '.strtolower($c->statusLabel()).'.');
         }
-        $c->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'completed_by' => auth()->id(), 'outcome_note' => trim((string) $reason) ?: ($fromGuest ? 'Cancelled by the guest' : 'Cancelled')])->save();
-        self::closeRequest($c, 'cancelled', 'Wake-up call cancelled');
-        ActivityLogger::log('wakeup', 'cancel', 'Wake-up '.$c->call_at->format('d M H:i').' cancelled'.($reason ? ": {$reason}" : ''), $c);
 
-        return $c;
+        return DB::transaction(function () use ($c, $reason, $fromGuest) {
+            $c = WakeupCall::whereKey($c->id)->lockForUpdate()->firstOrFail();
+            if (! $c->isScheduled()) {
+                throw new RuntimeException('This wake-up call is already '.strtolower($c->statusLabel()).'.');
+            }
+            $c->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'completed_by' => auth()->id(), 'outcome_note' => trim((string) $reason) ?: ($fromGuest ? 'Cancelled by the guest' : 'Cancelled')])->save();
+            self::closeRequest($c, 'cancelled', 'Wake-up call cancelled');
+            ActivityLogger::log('wakeup', 'cancel', 'Wake-up '.$c->call_at->format('d M H:i').' cancelled'.($reason ? ": {$reason}" : ''), $c);
+
+            return $c;
+        });
     }
 
     /** daily calls: book the next morning while the guest is still staying */
@@ -141,29 +167,61 @@ class WakeupService
     }
 
     /** log-book entry (+ optional SMS to the duty manager): late call or no answer – someone must go to the room */
-    public static function escalate(WakeupCall $c, string $why): void
+    public static function escalate(WakeupCall $c, string $why): bool
     {
-        if ($c->escalated_at && $why === 'late') {
-            return;
+        $claimed = DB::transaction(function () use ($c, $why) {
+            $locked = WakeupCall::whereKey($c->id)->lockForUpdate()->first();
+            if (! $locked) {
+                return null;
+            }
+            if ($why === 'late') {
+                $grace = max(1, FrontDeskOpsService::cfg()['wakeup_grace']);
+                if ($locked->status !== 'scheduled' || $locked->escalated_at || (int) $locked->attempts !== 0
+                    || $locked->call_at->gte(now()->subMinutes($grace))) {
+                    return null;
+                }
+            } elseif ($why === 'no_answer' && $locked->status !== 'no_answer') {
+                return null;
+            }
+            $locked->forceFill(['escalated_at' => now()])->save();
+
+            return $locked;
+        });
+        if (! $claimed) {
+            return false;
         }
-        $room = $c->stay?->room?->room_no ?? $c->room?->room_no ?? '—';
+        $room = $claimed->stay?->room?->room_no ?? $claimed->room?->room_no ?? '—';
         $title = $why === 'late'
-            ? "Wake-up call for room {$room} at ".$c->call_at->format('H:i').' has not been made'
-            : "Room {$room} did not answer the ".$c->call_at->format('H:i').' wake-up call – send someone to knock';
-        LogBookService::system($title, 'Guest: '.(GuestMessageService::stayGuest($c->stay)?->full_name ?? '—').($c->note ? ". Note: {$c->note}" : ''), 'guest', 'urgent',
-            ['reservation_room_id' => $c->reservation_room_id], true);
+            ? "Wake-up call for room {$room} at ".$claimed->call_at->format('H:i').' has not been made'
+            : "Room {$room} did not answer the ".$claimed->call_at->format('H:i').' wake-up call – send someone to knock';
+        LogBookService::system($title, 'Guest: '.(GuestMessageService::stayGuest($claimed->stay)?->full_name ?? '—').($claimed->note ? ". Note: {$claimed->note}" : ''), 'guest', 'urgent',
+            ['reservation_room_id' => $claimed->reservation_room_id], true);
         if ($phone = FrontDeskOpsService::cfg()['escalate_phone']) {
-            MessageService::send($phone, hotel()->name.': '.$title.'.', MessageService::defaultChannel(), 'wakeup_escalation', $c);
+            MessageService::send($phone, hotel()->name.': '.$title.'.', MessageService::defaultChannel(), 'wakeup_escalation', $claimed);
         }
-        $c->forceFill(['escalated_at' => now()])->save();
+
+        return true;
     }
 
     public static function onCheckOut(ReservationRoom $stay): int
     {
-        $calls = WakeupCall::where('reservation_room_id', $stay->id)->where('status', 'scheduled')->get();
-        $calls->each(fn ($c) => $c->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'outcome_note' => 'Guest checked out'])->save());
+        $ids = WakeupCall::where('reservation_room_id', $stay->id)->where('status', 'scheduled')->orderBy('id')->pluck('id');
+        $cancelled = 0;
+        foreach ($ids as $id) {
+            $didCancel = DB::transaction(function () use ($id) {
+                $call = WakeupCall::whereKey($id)->lockForUpdate()->first();
+                if (! $call || ! $call->isScheduled()) {
+                    return false;
+                }
+                $call->forceFill(['status' => 'cancelled', 'completed_at' => now(), 'outcome_note' => 'Guest checked out'])->save();
+                self::closeRequest($call, 'cancelled', 'Guest checked out');
 
-        return $calls->count();
+                return true;
+            });
+            $cancelled += $didCancel ? 1 : 0;
+        }
+
+        return $cancelled;
     }
 
     /** room move: the call follows the guest */
@@ -177,21 +235,35 @@ class WakeupService
     {
         $cfg = FrontDeskOpsService::cfg();
         $out = ['escalated' => 0, 'missed' => 0];
-        WakeupCall::with('stay.room', 'room')->where('status', 'scheduled')->whereNull('escalated_at')
-            ->where('call_at', '<', now()->subMinutes(max(1, $cfg['wakeup_grace'])))->where('attempts', 0)->get()
-            ->each(function ($c) use (&$out) {
-                self::escalate($c, 'late');
+        $lateIds = WakeupCall::where('status', 'scheduled')->whereNull('escalated_at')
+            ->where('call_at', '<', now()->subMinutes(max(1, $cfg['wakeup_grace'])))->where('attempts', 0)->orderBy('id')->pluck('id');
+        foreach ($lateIds as $id) {
+            $call = WakeupCall::find($id);
+            if ($call && self::escalate($call, 'late')) {
                 $out['escalated']++;
+            }
+        }
+
+        $missedIds = WakeupCall::where('status', 'scheduled')->where('call_at', '<', now()->subMinutes(self::MISSED_AFTER_MINUTES))->orderBy('id')->pluck('id');
+        foreach ($missedIds as $id) {
+            $call = DB::transaction(function () use ($id) {
+                $locked = WakeupCall::whereKey($id)->lockForUpdate()->first();
+                if (! $locked || ! $locked->isScheduled() || $locked->call_at->gte(now()->subMinutes(self::MISSED_AFTER_MINUTES))) {
+                    return null;
+                }
+                $locked->forceFill(['status' => $locked->attempts ? 'no_answer' : 'missed', 'completed_at' => now(),
+                    'outcome_note' => $locked->attempts ? 'Closed automatically after unanswered attempts' : 'Not called – closed automatically'])->save();
+                self::closeRequest($locked, 'done', 'Wake-up call window passed');
+
+                return $locked;
             });
-        WakeupCall::where('status', 'scheduled')->where('call_at', '<', now()->subMinutes(self::MISSED_AFTER_MINUTES))->get()
-            ->each(function ($c) use (&$out) {
-                $c->forceFill(['status' => $c->attempts ? 'no_answer' : 'missed', 'completed_at' => now(),
-                    'outcome_note' => $c->attempts ? 'Closed automatically after unanswered attempts' : 'Not called – closed automatically'])->save();
-                self::closeRequest($c, 'done', 'Wake-up call window passed');
-                self::rollNext($c);
+            if ($call) {
+                self::rollNext($call);
                 $out['missed']++;
-            });
+            }
+        }
 
         return $out;
     }
+
 }

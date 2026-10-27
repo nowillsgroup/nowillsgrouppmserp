@@ -92,6 +92,7 @@ class ReservationController extends Controller
             'special_request' => 'nullable|string|max:2000',
             'change_reason' => 'nullable|string|max:255',
             'rooms' => 'required|array|min:1|max:50',
+            'rooms.*.stay_id' => $update ? 'nullable|integer|min:1' : 'prohibited',
             'rooms.*.room_type_id' => 'required|integer|owned:room_types',
             'rooms.*.rate_plan_id' => 'nullable|integer|owned:rate_plans',
             'rooms.*.room_id' => 'nullable|integer|owned:rooms',
@@ -160,10 +161,7 @@ class ReservationController extends Controller
             if (! $quote['min_stay_ok']) {
                 throw ValidationException::withMessages(['rooms' => "A minimum stay of {$quote['min_stay']} night(s) applies to {$type->name}."]);
             }
-            $avail = AvailabilityService::typeAvailable((int) $typeId, $from, $to, null, $contractId); // v2.7: own allotment is sellable
-            if ($ignoreReservation) {
-                $avail += ReservationRoom::where('reservation_id', $ignoreReservation)->where('room_type_id', $typeId)->where('status', 'reserved')->count();
-            }
+            $avail = AvailabilityService::typeAvailable((int) $typeId, $from, $to, null, $contractId, $ignoreReservation); // v2.7: own allotment is sellable
             if ($count > $avail) {
                 $name = RoomType::find($typeId)?->name ?? 'room type';
                 throw ValidationException::withMessages(['rooms' => "Only {$avail} {$name} room(s) available for the selected dates (requested {$count}). Overbooking is not allowed."]);
@@ -307,7 +305,10 @@ class ReservationController extends Controller
         return view('reservations.form', $this->formData() + [
             'reservation' => $reservation,
             'guest' => $reservation->guest,
-            'lines' => $reservation->rooms->where('status', 'reserved')->map(fn ($s) => $s->only(['room_type_id', 'room_id', 'rate_plan_id', 'rate', 'adults', 'children']))->values()->all(),
+            'lines' => $reservation->rooms->where('status', 'reserved')->map(fn ($s) => [
+                'stay_id' => $s->id, 'room_type_id' => $s->room_type_id, 'room_id' => $s->room_id,
+                'rate_plan_id' => $s->rate_plan_id, 'rate' => $s->rate, 'adults' => $s->adults, 'children' => $s->children,
+            ])->values()->all(),
         ]);
     }
 
@@ -325,20 +326,55 @@ class ReservationController extends Controller
             abort_unless(in_array($reservation->status, ['confirmed', 'tentative']), 403);
             abort_if($reservation->rooms()->where('status', '!=', 'reserved')->where('status', '!=', 'cancelled')->exists(), 403, 'Some rooms are already checked in. Use Front Desk → Amend stay.');
             $before = ReservationAmendmentService::snapshot($reservation);
+            $existingStays = $reservation->rooms()->where('status', 'reserved')->lockForUpdate()->get()->keyBy('id');
+            $submittedStayIds = collect($data['rooms'])->pluck('stay_id')->filter()->map(fn ($id) => (int) $id);
+            if ($submittedStayIds->count() !== $submittedStayIds->unique()->count()
+                || $submittedStayIds->diff($existingStays->keys())->isNotEmpty()) {
+                throw ValidationException::withMessages(['rooms' => 'One or more room lines are stale or do not belong to this reservation. Reload the reservation and try again.']);
+            }
+            if ($existingStays->keys()->diff($submittedStayIds)->isNotEmpty()) {
+                throw ValidationException::withMessages(['rooms' => 'Use the Cancel room action on the reservation page to remove a booked room; this applies the cancellation policy and channel update safely.']);
+            }
+
+            // Keep each reservation_room identity stable: add-ons, charges, guest
+            // requests and other front-desk records are linked to this row by FK.
+            // Moving dates/types underneath an open upsell or active fixed charge
+            // would make its service date or billing schedule ambiguous, so staff
+            // must reconcile those records before making that particular change.
+            foreach ($data['rooms'] as $line) {
+                if (empty($line['stay_id'])) {
+                    continue;
+                }
+                $stay = $existingStays->get((int) $line['stay_id']);
+                $datesChanged = $stay->arrival_date->toDateString() !== $data['arrival_date']
+                    || $stay->departure_date->toDateString() !== $data['departure_date'];
+                $typeChanged = (int) $stay->room_type_id !== (int) $line['room_type_id'];
+                if (($datesChanged || $typeChanged)
+                    && ($stay->fixedCharges()->where('is_active', true)->exists()
+                        || \App\Models\UpsellOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['requested', 'confirmed'])->exists())) {
+                    throw ValidationException::withMessages(['rooms' => 'Cancel or reconcile active add-ons and fixed charges for the affected room before changing its dates or room type.']);
+                }
+            }
+
             $this->lockInventory($data['rooms'], $reservation->id);
             $this->checkInventory($data['rooms'], $data['arrival_date'], $data['departure_date'], $reservation->id, $contract?->id);
             $guest = $this->upsertGuest($data['guest'], $reservation->guest_id, $data['company_id'] ?? null);
             $reservation->update([
                 'adults' => collect($data['rooms'])->sum('adults'), 'children' => collect($data['rooms'])->sum('children'), 'rate_contract_id' => $contract?->id,
             ] + collect($data)->only(['company_id', 'business_source_id', 'booking_type', 'group_name', 'arrival_date', 'departure_date', 'eta', 'status', 'ota_reference', 'purpose', 'billing_instruction', 'discount_pct', 'special_request'])->all());
-            $reservation->rooms()->where('status', 'reserved')->delete();
+
             foreach ($data['rooms'] as $line) {
-                $reservation->rooms()->create([
+                $attributes = [
                     'room_type_id' => $line['room_type_id'], 'room_id' => $line['room_id'] ?? null, 'rate_plan_id' => $line['rate_plan_id'] ?? null,
                     'guest_id' => $guest->id, 'arrival_date' => $data['arrival_date'], 'departure_date' => $data['departure_date'],
                     'rate' => $line['rate'], 'adults' => $line['adults'], 'children' => $line['children'] ?? 0,
                     'extra_charge' => $this->lineExtra($line, $contract), 'status' => 'reserved',
-                ]);
+                ];
+                if (! empty($line['stay_id'])) {
+                    $existingStays->get((int) $line['stay_id'])->update($attributes);
+                } else {
+                    $reservation->rooms()->create($attributes);
+                }
             }
             $after = ReservationAmendmentService::snapshot($reservation);
             ReservationAmendmentService::record($reservation, 'amended', $before, $after, $data['change_reason'] ?? null, 'front_desk');
@@ -505,7 +541,7 @@ class ReservationController extends Controller
                     $reservation->rooms()->whereKey($stayId)->where('status', 'reserved')->lockForUpdate()->first();
                 }
                 if ($roomIds->isNotEmpty()) {
-                    Room::whereIn('id', $roomIds)->lockForUpdate()->get();
+                    Room::whereIn('id', $roomIds)->orderBy('id')->lockForUpdate()->get();
                 }
                 foreach ($data['assign'] as $stayId => $roomId) {
                     $stay = $reservation->rooms()->whereKey($stayId)->where('status', 'reserved')->lockForUpdate()->first();

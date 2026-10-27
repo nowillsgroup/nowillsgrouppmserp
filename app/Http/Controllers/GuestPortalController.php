@@ -223,10 +223,11 @@ class GuestPortalController extends Controller
     {
         $stay = $this->stay($token);
         $a = SpaAppointment::where('reservation_room_id', $stay->id)->findOrFail($aid);
-        if ($a->status !== 'booked' || Carbon::parse($a->date->toDateString().' '.$a->start_time)->lt(now()->addHours(2))) {
-            return back()->withErrors(['portal' => 'This booking can no longer be cancelled online – please call the spa.']);
+        try {
+            SpaBookingService::cancelFromPortal($a, $stay->id);
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
         }
-        SpaBookingService::setStatus($a, 'cancelled', 'Cancelled by guest via portal');
 
         return back()->with('success', 'Booking cancelled.');
     }

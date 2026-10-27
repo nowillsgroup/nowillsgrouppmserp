@@ -230,19 +230,23 @@ class BudgetService
     }
 
     /**
-     * Actual rooms statistics per fiscal month on closed days: available = active rooms × closed days, sold = nights of
-     * checked-in / checked-out stays, revenue = room revenue in the ledger.
+     * Actual rooms statistics per fiscal month on closed days: available = sellable room-nights through the ledger cutoff,
+     * sold = nights of checked-in / checked-out stays, revenue = room revenue in the ledger.
      *
      * @return array<int, array{available:int, sold:int, occupancy:float, adr:float, revpar:float, revenue:float}>
      */
     public static function actualStats(int $fy): array
     {
         $cut = Carbon::parse(LedgerService::cutoff());
-        $rooms = Room::where('is_active', true)->count();
         $months = self::months($fy);
+        $fyStart = $months[1]->copy()->startOfDay();
+        $fyEnd = $months[12]->copy()->endOfMonth()->startOfDay();
+        $closedThrough = $cut->lt($fyEnd) ? $cut->copy() : $fyEnd->copy();
+        $capacityDays = $closedThrough->lt($fyStart) ? 0 : (int) $fyStart->diffInDays($closedThrough) + 1;
+        $roomRows = Room::where('is_active', true)->get(['id', 'status']);
+        $sellableByDay = $capacityDays ? AvailabilityService::sellableRoomCounts($fyStart, $capacityDays, $roomRows) : [];
         $revAcc = AccountHead::sys('rev_room');
         $act = self::actuals($fy);
-        $fyEnd = $months[12]->copy()->endOfMonth()->startOfDay();
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])
             ->whereDate('arrival_date', '<=', min($fyEnd, $cut)->toDateString())->whereDate('departure_date', '>', $months[1]->toDateString())
             ->get(['arrival_date', 'departure_date']);
@@ -262,7 +266,10 @@ class BudgetService
                     }
                 }
             }
-            $available = $rooms * $days;
+            $available = 0;
+            for ($night = $start->copy(); $days > 0 && $night->lte($last); $night->addDay()) {
+                $available += $sellableByDay[$night->toDateString()] ?? 0;
+            }
             $revenue = round((float) ($act[$revAcc][$m] ?? 0), 2);
             $out[$m] = ['available' => $available, 'sold' => $sold, 'occupancy' => $available ? round($sold * 100 / $available, 2) : 0.0,
                 'adr' => $sold ? round($revenue / $sold, 2) : 0.0, 'revpar' => $available ? round($revenue / $available, 2) : 0.0, 'revenue' => $revenue];
@@ -303,13 +310,21 @@ class BudgetService
         }
     }
 
-    /** default rooms statistics: every active room, every day of the month, nothing sold yet */
+    /** Default monthly sellable room-night capacity, before any budgeted occupancy or revenue. */
     protected static function blankStats(int $fy): array
     {
-        $rooms = Room::where('is_active', true)->count();
+        $months = self::months($fy);
+        $start = $months[1]->copy()->startOfDay();
+        $end = $months[12]->copy()->endOfMonth()->startOfDay();
+        $days = (int) $start->diffInDays($end) + 1;
+        $sellableByDay = AvailabilityService::sellableRoomCounts($start, $days);
         $o = [];
-        foreach (self::months($fy) as $m => $s) {
-            $o[$m] = ['rooms_available' => $rooms * $s->daysInMonth, 'occupancy' => 0, 'adr' => 0];
+        foreach ($months as $m => $s) {
+            $available = 0;
+            for ($night = $s->copy()->startOfDay(); $night->lte($s->copy()->endOfMonth()); $night->addDay()) {
+                $available += $sellableByDay[$night->toDateString()] ?? 0;
+            }
+            $o[$m] = ['rooms_available' => $available, 'occupancy' => 0, 'adr' => 0];
         }
 
         return $o;

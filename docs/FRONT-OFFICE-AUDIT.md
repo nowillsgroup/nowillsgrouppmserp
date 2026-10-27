@@ -1,12 +1,46 @@
 # Front Office & Guest Services — completeness audit
 
-**Date:** 13 Oct 2026 · **Branch:** `arena/49a44449-nowillsgrouppmserp` · **Base:** `a5bc803`
-**Question asked:** *is every function, feature and module of Front Office & Guest Services fully developed?*
-**Answer:** **Yes — with one exception, which was found, fixed and re-verified in this audit.** The section is not a set of mock-ups. All 63 menu pages render, all 370 routes resolve to real controller actions and views, all 31 permissions exist in both config and the database, and 126 scripted write flows plus 14 targeted device probes were driven through the running application and produced real rows, real folio movements and real documents. The single genuine defect was the **Foreign Guests exchange-rate desk**, which was completely unusable (HTTP 500 on save/copy, rates invisible, every exchange refused). It is fixed in this branch.
+**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.77.0
 
-**Navigation follow-up (20 Oct 2026):** The 63-page counts below are the 13 Oct audit snapshot. Desktop Sync is now listed under Front Office, bringing the live Front Office & Guest Services menu to **64 pages**. Its previous `frontoffice.view`/`frontoffice.manage` middleware keys were not registered; the routes now use `offline.desktop.view` and `offline.desktop.sync`, with the new permission definitions and built-in role grants covered by `navigation_permissions.php`. The front-office menu probe now resolves 64 pages with **0 undeclared permissions** and **0 missing badge keys**; Front Office Manager has **32/32** page permissions and Receptionist **22/32**. The live dev preview returned HTTP 200 for Desktop Sync, and the full menu documentation check is clean.
+**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed Front Office gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+
+Two adjacent date-boundary defects were also fixed. The guest-voucher `liabilityAt()` helper omitted timestamp-shaped same-day values from SQLite as-of totals; it now uses `whereDate` (the helper has no current application call site, so this was a latent calculation bug). The date-specific `/api/v1/reports/daily` lookup returned a false 404 for stored timestamp-shaped NightAudit rows; it now queries by date and returns the existing report.
+
+A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). The broad route sweep itself uncovered no additional runtime defect. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
+
+**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; gift-voucher date boundary 1/1; night-audit API date lookup 1/1; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
+
+## Current revalidation (26 Oct 2026)
+
+| Check | Result |
+|---|---|
+| Front Office & Guest Services menu pages | **65/65 HTTP 200**, no structural defects, no empty-content pages flagged |
+| Menu permissions / badge keys | **0 / 0 missing** |
+| Front Office Manager / Receptionist page permissions | **33/33 / 22/33**; the Receptionist omissions are management/security gates |
+| Full parameter-free GET sweep | **460 clean 200 / 471**; all 11 non-200 outcomes explained below |
+| Confirmed Front Office RBAC / UX defects | Front Office Manager lacked `robita.manage`; IPTV invalid-status errors blamed pairing. Both fixed and covered by regression checks |
+| Adjacent DATE-boundary defects | Gift-voucher as-of helper (latent; no current call site) and daily NightAudit API lookup (false 404 for timestamp-shaped rows); both fixed with date-safe lookup and regression checks |
+| Other confirmed Front Office defects | **0 additional defects found in this pass** |
+
+**False positives / expected outcomes (not product defects):** `/api/v1` and its eight tested resources return 401 without an API bearer token; `/group-dashboard` returns 403 to the dev identity because it lacks the separate group-dashboard grant; `/reservations/api/rates` returns 404 when the required `room_type_id` is omitted from the synthetic request. A candidate Carbon-to-date comparison in `IncomeAuditService::resolveCount()` was tested with both model-saved and timestamp-shaped signed audit rows; both correctly blocked resolution, so no change was made. The parameter-free sweep is a broad smoke test, not an authenticated API contract test.
+
+**Empty data is not a missing feature:** the latest disposable database has no saved reservation desk views, waitlist rows, room images, or room-outage records. These are per-user settings, transient guest demand, or property-specific operating data and are created through existing workflows. The optional amenity catalog had rows after the local upgrade, confirming the previous zero counts were dataset-specific.
+
+**Scope limits:** real lock encoders, PABX, IPTV devices, payment credentials, and vendor channel-manager acceptance remain deployment/vendor validation items. Robita guest journeys are automated locally; the generic TCP lock adapter remains template-based until a hardware vendor protocol and device are available. This audit does not certify five-star service outcomes or hardware compatibility.
 
 ---
+
+## Reservation follow-up (27 Oct 2026)
+
+A source review of the New Reservation form found a confirmed DOM-XSS path in the existing-guest lookup: guest-controlled profile fields were concatenated into `innerHTML`. The form also constructed room and rate-plan `<option>` elements from database text in HTML strings, and overlapping asynchronous availability / rate / guest searches could let an older response replace newer choices.
+
+**Fixed:** guest matches and live room/rate choices are now built with DOM APIs and `textContent`; guest search has combobox/listbox semantics, keyboard navigation, empty/error states, and stale-response checks. Room and rate lookups reject stale responses, report lookup failures without blocking the booking, and preserve a selected room while dates are refreshed. Date-only arithmetic now avoids timezone/DST drift and keeps departure after arrival. The existing contract banner remains the only dynamic HTML insertion in the form and HTML-escapes every interpolated server value.
+
+**Verification:** `deploy/dev/audit/reservation_lookup_safety_check.py` (6 source-contract checks), the existing reservation CSV/edit/outage guards (14 checks), inline JavaScript syntax checks, and `git diff --check` pass. A Laravel/PHP runtime flow was not run in this workspace.
+
+## Historical deep-dive (13 Oct 2026 baseline)
+
+The following scorecard, route/flow counts and workflow records describe the earlier 13 Oct snapshot (with a 20 Oct navigation follow-up), not the current inventory above.
 
 ## 1. Scorecard
 
@@ -143,9 +177,9 @@ Not gaps in the product — gaps in a headless sandbox:
 
 ## 7. Recommended follow-ups
 
-1. **Documentation:** correct `docs/MODULES.md`, which still lists FO&GS as 64 pages, and record the extra non-menu page `/reservations/amenities`.
-2. **Defensive sweep:** the `forex_rates` bug is one instance of a known date-storage class. Any remaining `where('…date', $x)` / `updateOrCreate(['…date' => $x])` on a DATE column should be converted to `whereDate()` + lookup-then-update (the earlier sweep found 419 comparable sites; the forex cluster is now clean).
-3. **Message clarity:** `IptvService::setStatus()` reports *A TV awaiting pairing must be paired first* for any invalid status value; splitting the two conditions would make the guard self-explanatory.
+1. **Documentation — closed (26 Oct 2026, v7.74.0):** `docs/MODULES.md` now records the 65-page Front Office & Guest Services menu and retains the separate `/reservations/amenities` route note.
+2. **Defensive DATE-query sweep — partial:** `ForexService`, guest-voucher `liabilityAt()`, and the date-specific NightAudit API lookup now use date-safe comparisons. The latter two mismatches were reproduced against timestamp-shaped SQLite rows and fixed; the voucher helper has no current caller. The broader repository-wide sweep of comparable date predicates remains open—mixed SQLite storage shape alone is not a defect, and the historical 419-site grep count is only a candidate set.
+3. **Message clarity — closed (26 Oct 2026, v7.75.0):** `IptvService::setStatus()` now validates the allowed status values separately from the pending-pairing guard, so invalid input no longer produces the unrelated pairing message. `deploy/dev/audit/iptv_status_validation_check.php` covers both cases.
 4. **Keep the harness:** `deploy/dev/audit/` (`pmshttp.py`, `flows_lib.py`, `form_dump.py`, `flows_a…e.py`) is now a repeatable regression rig for this section — re-run it after any Reservations/Folio change.
 
 ---

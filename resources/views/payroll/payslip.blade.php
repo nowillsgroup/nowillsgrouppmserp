@@ -12,7 +12,7 @@
   <div class="print-head">
     <div>@if($currentHotel->logo_path)<img src="{{ asset($currentHotel->logo_path) }}" alt="" style="max-height:44px;margin-bottom:.3rem;display:block">@endif<h2>{{ $currentHotel->legal_name ?: $currentHotel->name }}</h2>
       <div class="small text-2">{{ $currentHotel->address }}{{ $currentHotel->city ? ', '.$currentHotel->city : '' }}</div></div>
-    <div class="right"><h2 style="color:#1d4ed8">PAYSLIP</h2><div class="small"><b>{{ $run->label() }}</b></div><div class="small">{{ $run->run_no }}@if($run->status === 'draft') · <span style="color:#b45309;font-weight:700">DRAFT</span>@endif</div></div>
+    <div class="right"><h2 style="color:#166534">PAYSLIP</h2><div class="small"><b>{{ $run->label() }}</b></div><div class="small">{{ $run->run_no }}@if($run->status === 'draft') · <span style="color:#b45309;font-weight:700">DRAFT</span>@endif</div></div>
   </div>
   <table class="slip-info"><tr>
     <td><span>Employee</span><b>{{ $e->name }}</b></td><td><span>Code</span>{{ $e->emp_code }}</td><td><span>Designation</span>{{ $e->designation ?? '—' }}</td><td><span>Department</span>{{ $e->department?->name ?? '—' }}</td>

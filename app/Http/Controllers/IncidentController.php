@@ -84,7 +84,7 @@ class IncidentController extends Controller
         $d = $request->validate($this->rules());
 
         return $this->guarded(function () use ($incident, $d) {
-            IncidentService::update($incident, $d);
+            $incident = IncidentService::update($incident, $d);
 
             return back()->with('success', "Incident {$incident->incident_no} updated.");
         });
@@ -106,7 +106,7 @@ class IncidentController extends Controller
         $d = $request->validate(['resolution' => 'required|string|max:4000']);
 
         return $this->guarded(function () use ($incident, $d) {
-            IncidentService::close($incident, $d['resolution']);
+            $incident = IncidentService::close($incident, $d['resolution']);
 
             return back()->with('success', "Incident {$incident->incident_no} closed.");
         });
@@ -117,7 +117,7 @@ class IncidentController extends Controller
         $d = $request->validate(['reason' => 'required|string|max:255']);
 
         return $this->guarded(function () use ($incident, $d) {
-            IncidentService::reopen($incident, $d['reason']);
+            $incident = IncidentService::reopen($incident, $d['reason']);
 
             return back()->with('success', "Incident {$incident->incident_no} reopened.");
         });

@@ -196,6 +196,38 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($a, $d, $by, $source, $adults, $children, $time, $start, $stay, $collection, $guest, $name) {
+            // Lock the activity before the stay/departure so simultaneous first
+            // bookings cannot race to create the same dated departure row.
+            $a = Activity::with('vendor')->whereKey($a->id)->lockForUpdate()->firstOrFail();
+            if (! $a->is_active || ! $a->vendor?->is_active) {
+                throw new RuntimeException($a->name.' is no longer on sale.');
+            }
+            if ($a->vendor->licenceExpired()) {
+                throw new RuntimeException($a->vendor->name.'\'s tourism licence has expired – it can no longer be sold.');
+            }
+            self::checkTiming($a, $start, $source, $by, ! empty($d['override_cutoff']));
+            self::checkParty($a, $adults, $children);
+            if ($stay) {
+                $stay = ReservationRoom::with('guest', 'room', 'reservation.guest')->lockForUpdate()->findOrFail($stay->id);
+                if (! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                    throw new RuntimeException('That stay is '.str_replace('_', ' ', $stay->status).' – it can no longer accept activity bookings.');
+                }
+                if ($source === 'portal' && ! in_array($stay->portalState(), ['inhouse', 'upcoming'], true)) {
+                    throw new RuntimeException('This stay is no longer accepting activity bookings. Please refresh the guest portal.');
+                }
+                if ($collection === 'folio' && ($start->toDateString() < $stay->arrival_date->toDateString() || $start->toDateString() > $stay->departure_date->toDateString())) {
+                    throw new RuntimeException('The activity date is no longer within the stay. Please refresh and choose another date.');
+                }
+                self::checkTiming($a, $start, $source, $by, ! empty($d['override_cutoff']));
+                if ($source === 'portal' && ActivityBooking::where('reservation_room_id', $stay->id)->whereIn('status', ActivityBooking::OPEN)->count() >= 6) {
+                    throw new RuntimeException('You already have several activities booked – please see the concierge for more.');
+                }
+                $guest = $stay->guest ?? $stay->reservation?->guest;
+                $name = trim((string) ($d['guest_name'] ?? '')) ?: ($guest?->full_name ?? '');
+                if ($name === '') {
+                    throw new RuntimeException('Enter the guest\'s name.');
+                }
+            }
             $dep = self::departure($a, $start->toDateString(), $time);
             if ($dep) {
                 $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
@@ -284,11 +316,47 @@ class ConciergeService
             throw new RuntimeException('The new date is outside the stay – it can\'t go on the room bill.');
         }
 
-        return DB::transaction(function () use ($b, $a, $d, $adults, $children, $time, $start, $moved, $by) {
-            $oldDep = $b->departure;
-            $dep = self::departure($a, $start->toDateString(), $time);
+        return DB::transaction(function () use ($b, $a, $d, $by) {
+            // Match booking creation's activity → departure ordering. Lock both
+            // old and new departures in id order before the booking row.
+            $a = Activity::with('vendor')->whereKey($a->id)->lockForUpdate()->firstOrFail();
+            $current = ActivityBooking::whereKey($b->id)->firstOrFail();
+            if (! $current->isOpen()) {
+                throw new RuntimeException("{$current->number} is {$current->statusLabel()} and can't be changed.");
+            }
+            $oldDepartureId = $current->activity_departure_id;
+            $adults = max(0, (int) ($d['adults'] ?? $current->adults));
+            $children = max(0, (int) ($d['children'] ?? $current->children));
+            if ($adults < 1) {
+                throw new RuntimeException('At least one adult has to go.');
+            }
+            $time = (string) ($d['time'] ?? $current->time);
+            $start = Carbon::parse(($d['date'] ?? $current->date->toDateString()).' '.$time);
+            $moved = $start->ne($current->startsAt());
+            if ($moved || $adults + $children > $current->pax()) {
+                self::checkTiming($a, $start, 'desk', $by, ! empty($d['override_cutoff']));
+            }
+            self::checkParty($a, $adults, $children);
+            if ($current->collection === 'folio' && ($stay = $current->stay) && ($start->toDateString() < $stay->arrival_date->toDateString() || $start->toDateString() > $stay->departure_date->toDateString())) {
+                throw new RuntimeException('The new date is outside the stay – it can\'t go on the room bill.');
+            }
+
+            $createdOrFound = self::departure($a, $start->toDateString(), $time);
+            $newDepartureId = $createdOrFound?->id;
+            $departureIds = collect([$oldDepartureId, $newDepartureId])->filter()->unique()->sort()->values();
+            $lockedDepartures = $departureIds->isEmpty() ? collect() : ActivityDeparture::whereIn('id', $departureIds)
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $oldDep = $oldDepartureId ? $lockedDepartures->get($oldDepartureId) : null;
+            $dep = $newDepartureId ? $lockedDepartures->get($newDepartureId) : null;
+
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! $b->isOpen()) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} and can't be changed.");
+            }
+            if ((int) $b->activity_departure_id !== (int) $oldDepartureId) {
+                throw new RuntimeException('The departure changed while this booking was being edited. Refresh and try again.');
+            }
             if ($dep && $b->status !== 'waitlisted') {
-                $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
                 if ($dep->status !== 'open') {
                     throw new RuntimeException('That departure is '.strtolower(ActivityDeparture::STATUSES[$dep->status]).'.');
                 }
@@ -311,7 +379,7 @@ class ConciergeService
                 self::postCharge($b->fresh());
             }
             ActivityLogger::log('concierge', 'changed', "Activity {$b->number} changed: ".$start->format('d M H:i')." · {$b->paxLabel()} · ".money($b->gross), $b);
-            if ($oldDep && $oldDep->id !== $dep?->id) {
+            if ($oldDep && (int) $oldDep->id !== (int) $dep?->id) {
                 self::promoteWaitlist($oldDep);
             }
             if ($moved && $b->status === 'confirmed') {
@@ -332,9 +400,32 @@ class ConciergeService
             throw new RuntimeException("{$b->number} was for ".$b->startsAt()->format('d M H:i').' – it can no longer be confirmed.');
         }
 
-        return DB::transaction(function () use ($b, $vendorRef, $by, $notify) {
-            if ($b->status === 'waitlisted' && ($dep = $b->departure)) {
-                $left = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first()->seatsLeft($b->id);
+        // Waitlisted confirmations take the departure lock before the booking
+        // lock, matching departure cancellation's lock order.
+        $waitlistDepartureId = $b->status === 'waitlisted' ? $b->activity_departure_id : null;
+
+        return DB::transaction(function () use ($b, $vendorRef, $by, $notify, $waitlistDepartureId) {
+            $dep = $waitlistDepartureId
+                ? ActivityDeparture::whereKey($waitlistDepartureId)->lockForUpdate()->firstOrFail()
+                : null;
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($b->status, ['requested', 'waitlisted'], true)) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()}.");
+            }
+            if ($b->startsAt()->lt(now()->subHours(12))) {
+                throw new RuntimeException("{$b->number} was for ".$b->startsAt()->format('d M H:i').' – it can no longer be confirmed.');
+            }
+            if ($b->status === 'waitlisted') {
+                if (! $dep || (int) $b->activity_departure_id !== (int) $waitlistDepartureId) {
+                    throw new RuntimeException('The waitlist entry changed while it was being confirmed. Refresh and try again.');
+                }
+                if ($dep->status === 'cancelled') {
+                    throw new RuntimeException('That departure has been cancelled.');
+                }
+                if ($dep->status !== 'open') {
+                    throw new RuntimeException('That departure is closed for sale.');
+                }
+                $left = $dep->seatsLeft($b->id);
                 if ($left !== null && $left < $b->pax()) {
                     throw new RuntimeException("The departure is still full ({$left} seat(s) left) – the guest stays on the waitlist.");
                 }
@@ -353,24 +444,32 @@ class ConciergeService
     /** put a folio-collected booking on the room bill (once) */
     public static function postCharge(ActivityBooking $b, ?float $amount = null, string $prefix = ''): ?FolioTransaction
     {
-        $amount ??= (float) $b->gross;
-        if ($b->collection !== 'folio' || $amount <= 0 || $b->folio_transaction_id) {
-            return null;
-        }
-        $stay = $b->stay;
-        if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
-            throw new RuntimeException("The stay for {$b->number} is closed – change it to \"Guest pays the vendor\".");
-        }
-        $folio = FolioService::openForStay($stay);
-        if ($folio->status !== 'open') {
-            throw new RuntimeException("Folio {$folio->folio_no} is closed.");
-        }
-        $b->loadMissing('activity');
-        $text = $prefix.$b->activity->name.' – '.$b->date->format('d M').' '.$b->time.' ('.$b->paxLabel().')';
-        $tx = FolioService::charge($folio, 'excursion', mb_substr($text, 0, 190), $amount, false, ['source_type' => 'concierge', 'source_id' => $b->id, 'reference' => $b->number]);
-        $b->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
+        return DB::transaction(function () use ($b, $amount, $prefix) {
+            // Multiple confirmations or fee retries may race. The booking row
+            // is the idempotency mutex for its single room-folio charge.
+            $locked = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($locked->folio_transaction_id) {
+                return $locked->folioTransaction()->first();
+            }
+            $amount ??= (float) $locked->gross;
+            if ($locked->collection !== 'folio' || $amount <= 0) {
+                return null;
+            }
+            $stay = $locked->stay()->with('guest', 'room', 'reservation.guest')->first();
+            if (! $stay || ! in_array($stay->status, ['reserved', 'checked_in'], true)) {
+                throw new RuntimeException("The stay for {$locked->number} is closed – change it to \"Guest pays the vendor\".");
+            }
+            $folio = FolioService::openForStay($stay);
+            if ($folio->status !== 'open') {
+                throw new RuntimeException("Folio {$folio->folio_no} is closed.");
+            }
+            $locked->loadMissing('activity');
+            $text = $prefix.$locked->activity->name.' – '.$locked->date->format('d M').' '.$locked->time.' ('.$locked->paxLabel().')';
+            $tx = FolioService::charge($folio, 'excursion', mb_substr($text, 0, 190), $amount, false, ['source_type' => 'concierge', 'source_id' => $locked->id, 'reference' => $locked->number]);
+            $locked->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id])->save();
 
-        return $tx;
+            return $tx;
+        });
     }
 
     protected static function voidCharge(ActivityBooking $b, string $reason): void
@@ -403,8 +502,20 @@ class ConciergeService
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason for the cancellation.');
         }
+        $departureId = $b->activity_departure_id;
 
-        return DB::transaction(function () use ($b, $reason, $by, $waive, $notify) {
+        return DB::transaction(function () use ($b, $reason, $by, $waive, $notify, $departureId) {
+            // The departure is locked first because waitlist confirmation and
+            // whole-departure cancellation use the same departure → booking order.
+            $dep = $departureId ? ActivityDeparture::whereKey($departureId)->lockForUpdate()->first() : null;
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if (! $b->isOpen()) {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} and can't be cancelled.");
+            }
+            if ((int) $b->activity_departure_id !== (int) $departureId) {
+                throw new RuntimeException('The departure changed while this booking was being cancelled. Refresh and try again.');
+            }
+
             $would = self::cancelFee($b);
             $fee = $waive ? 0.0 : $would;
             self::voidCharge($b, 'Activity cancelled');
@@ -417,8 +528,8 @@ class ConciergeService
                 self::recognise($b->fresh(), bdate()->toDateString());
             }
             ActivityLogger::log('concierge', 'cancelled', "Activity {$b->number} cancelled: {$reason}".($fee > 0 ? ' – fee '.money($fee) : ($waive && $would > 0 ? ' – fee of '.money($would).' waived' : '')), $b);
-            if ($b->departure) {
-                self::promoteWaitlist($b->departure);
+            if ($dep) {
+                self::promoteWaitlist($dep);
             }
             if ($notify) {
                 self::notify($b->fresh(), 'cancelled');
@@ -431,29 +542,46 @@ class ConciergeService
     /** seats freed on a departure go to the waitlist in booking order */
     public static function promoteWaitlist(ActivityDeparture $dep): int
     {
-        if ($dep->status !== 'open' || $dep->startsAt()->lte(now())) {
-            return 0;
-        }
-        $n = 0;
-        foreach (ActivityBooking::where('activity_departure_id', $dep->id)->where('status', 'waitlisted')->orderBy('id')->get() as $w) {
-            $left = $dep->seatsLeft();
-            if ($left !== null && $left < $w->pax()) {
-                continue;
+        $promotedIds = DB::transaction(function () use ($dep) {
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->first();
+            if (! $dep || $dep->status !== 'open' || $dep->startsAt()->lte(now())) {
+                return [];
             }
-            $w->forceFill(['status' => 'requested'])->save();
-            ActivityLogger::log('concierge', 'promoted', "Activity {$w->number}: a seat came free – off the waitlist", $w);
-            if ($dep->activity?->instant) {
-                try {
-                    self::confirm($w, null, null, false);
-                } catch (RuntimeException $e) {
-                    report($e);
+            $dep->loadMissing('activity');
+            $promoted = [];
+            $ids = ActivityBooking::where('activity_departure_id', $dep->id)->where('status', 'waitlisted')->orderBy('id')->pluck('id');
+            foreach ($ids as $id) {
+                $w = ActivityBooking::whereKey($id)->lockForUpdate()->first();
+                if (! $w || $w->status !== 'waitlisted' || (int) $w->activity_departure_id !== (int) $dep->id) {
+                    continue;
                 }
+                $left = $dep->seatsLeft();
+                if ($left !== null && $left < $w->pax()) {
+                    continue;
+                }
+                $w->forceFill(['status' => 'requested'])->save();
+                ActivityLogger::log('concierge', 'promoted', "Activity {$w->number}: a seat came free – off the waitlist", $w);
+                if ($dep->activity?->instant) {
+                    try {
+                        self::confirm($w, null, null, false);
+                    } catch (RuntimeException $e) {
+                        report($e);
+                    }
+                }
+                $promoted[] = $w->id;
             }
-            self::notify($w->fresh(), 'seat');
-            $n++;
+
+            return $promoted;
+        });
+
+        foreach ($promotedIds as $id) {
+            $booking = ActivityBooking::find($id);
+            if ($booking && in_array($booking->status, ['requested', 'confirmed'], true)) {
+                self::notify($booking, 'seat');
+            }
         }
 
-        return $n;
+        return count($promotedIds);
     }
 
     public static function complete(ActivityBooking $b, ?User $by): ActivityBooking
@@ -466,6 +594,13 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($b) {
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->status !== 'confirmed') {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()} – only confirmed bookings can be completed.");
+            }
+            if ($b->date->toDateString() > bdate()->toDateString()) {
+                throw new RuntimeException("{$b->number} is on ".$b->date->format('d M Y').' – it can\'t be completed before it happens.');
+            }
             $b->forceFill(['status' => 'completed', 'completed_at' => now()])->save();
             self::recognise($b);
             ActivityLogger::log('concierge', 'completed', "Activity {$b->number} completed – commission ".money($b->commission), $b);
@@ -484,6 +619,13 @@ class ConciergeService
         }
 
         return DB::transaction(function () use ($b, $reason) {
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->status !== 'confirmed') {
+                throw new RuntimeException("{$b->number} is {$b->statusLabel()}.");
+            }
+            if ($b->startsAt()->gt(now()->addMinutes(30)) && $b->date->toDateString() >= bdate()->toDateString()) {
+                throw new RuntimeException('The activity hasn\'t started yet – cancel it instead.');
+            }
             $upd = ['status' => 'no_show', 'completed_at' => now(), 'cancel_reason' => mb_substr($reason ?: 'Guest did not show', 0, 190)];
             if ($b->collection === 'vendor') {
                 $upd += ['commission' => 0, 'vendor_net' => 0];   // the vendor collects nothing, so owes no commission
@@ -499,31 +641,41 @@ class ConciergeService
     /** commission earned: folio → Dr 2170 / Cr 4089; vendor-collected → Dr 1140 / Cr 4089 (once) */
     public static function recognise(ActivityBooking $b, ?string $date = null): void
     {
-        if ($b->gl_journal_id || $b->recognised_on || (float) $b->commission <= 0) {
-            return;
-        }
-        $date = LedgerService::openDate($date ?? min($b->date->toDateString(), bdate()->toDateString()));
-        $b->loadMissing('activity', 'vendor');
-        $dr = $b->collection === 'folio' ? AccountHead::sys('concierge_payable') : AccountHead::sys('concierge_receivable');
-        $j = LedgerService::post(['date' => $date, 'reference' => $b->number, 'narration' => 'Concierge commission – '.$b->activity->name.' – '.$b->vendor->name,
-            'lines' => [[$dr, (float) $b->commission, $b->vendor->name], [AccountHead::sys('rev_concierge'), -(float) $b->commission, $b->number]]], 'concierge', (string) $b->id);
-        $b->forceFill(['recognised_on' => $date, 'gl_journal_id' => $j->id])->save();
+        DB::transaction(function () use ($b, $date) {
+            // The booking is the once-only guard for commission recognition.
+            $b = ActivityBooking::whereKey($b->id)->lockForUpdate()->firstOrFail();
+            if ($b->gl_journal_id || $b->recognised_on || (float) $b->commission <= 0) {
+                return;
+            }
+            $postingDate = LedgerService::openDate($date ?? min($b->date->toDateString(), bdate()->toDateString()));
+            $b->loadMissing('activity', 'vendor');
+            $dr = $b->collection === 'folio' ? AccountHead::sys('concierge_payable') : AccountHead::sys('concierge_receivable');
+            $j = LedgerService::post(['date' => $postingDate, 'reference' => $b->number, 'narration' => 'Concierge commission – '.$b->activity->name.' – '.$b->vendor->name,
+                'lines' => [[$dr, (float) $b->commission, $b->vendor->name], [AccountHead::sys('rev_concierge'), -(float) $b->commission, $b->number]]], 'concierge', (string) $b->id);
+            $b->forceFill(['recognised_on' => $postingDate, 'gl_journal_id' => $j->id])->save();
+        });
     }
 
     /** vendor cancelled a departure (weather, too few guests): every booking on it is cancelled free of charge */
     public static function cancelDeparture(ActivityDeparture $dep, string $reason, ?User $by): int
     {
-        if ($dep->status === 'cancelled') {
-            throw new RuntimeException('That departure is already cancelled.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason – the guests will be told.');
         }
 
         return DB::transaction(function () use ($dep, $reason, $by) {
-            $n = 0;
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail();
+            if ($dep->status === 'cancelled') {
+                throw new RuntimeException('That departure is already cancelled.');
+            }
             $dep->forceFill(['status' => 'cancelled', 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
-            foreach (ActivityBooking::where('activity_departure_id', $dep->id)->whereIn('status', ActivityBooking::OPEN)->get() as $b) {
+            $n = 0;
+            $ids = ActivityBooking::where('activity_departure_id', $dep->id)->whereIn('status', ActivityBooking::OPEN)->orderBy('id')->pluck('id');
+            foreach ($ids as $id) {
+                $b = ActivityBooking::whereKey($id)->lockForUpdate()->first();
+                if (! $b || ! $b->isOpen() || (int) $b->activity_departure_id !== (int) $dep->id) {
+                    continue;
+                }
                 self::cancel($b, 'Departure cancelled: '.$reason, $by, true);
                 $n++;
             }
@@ -535,21 +687,28 @@ class ConciergeService
 
     public static function setDepartureStatus(ActivityDeparture $dep, string $status, ?int $capacity = null, ?string $guide = null): ActivityDeparture
     {
-        if ($dep->status === 'cancelled') {
-            throw new RuntimeException('That departure is cancelled.');
-        }
         if (! in_array($status, ['open', 'closed'], true)) {
             throw new RuntimeException('Unknown status.');
         }
-        if ($capacity !== null && $capacity < $dep->booked()) {
-            throw new RuntimeException('There are already '.$dep->booked().' guests booked – capacity can\'t go below that.');
-        }
-        $dep->forceFill(['status' => $status, 'capacity' => $capacity, 'guide' => $guide ? mb_substr($guide, 0, 100) : null])->save();
+
+        $updated = DB::transaction(function () use ($dep, $status, $capacity, $guide) {
+            $dep = ActivityDeparture::whereKey($dep->id)->lockForUpdate()->firstOrFail();
+            if ($dep->status === 'cancelled') {
+                throw new RuntimeException('That departure is cancelled.');
+            }
+            $booked = $dep->booked();
+            if ($capacity !== null && $capacity < $booked) {
+                throw new RuntimeException('There are already '.$booked.' guests booked – capacity can\'t go below that.');
+            }
+            $dep->forceFill(['status' => $status, 'capacity' => $capacity, 'guide' => $guide ? mb_substr($guide, 0, 100) : null])->save();
+
+            return $dep;
+        });
         if ($status === 'open') {
-            self::promoteWaitlist($dep);
+            self::promoteWaitlist($updated);
         }
 
-        return $dep;
+        return $updated->fresh();
     }
 
     /** reservation cancelled / no-show: its open bookings go too (no fee) */
@@ -603,13 +762,16 @@ class ConciergeService
     // ───────────────────────── settlements ─────────────────────────
 
     /** bookings that are due for settlement with a vendor */
-    public static function unsettled(?int $vendorId = null, ?string $upTo = null): Collection
+    public static function unsettled(?int $vendorId = null, ?string $upTo = null, bool $forUpdate = false): Collection
     {
-        return ActivityBooking::with('activity', 'vendor')->whereNull('activity_settlement_id')->whereIn('status', ['completed', 'no_show', 'cancelled'])
-            ->where(fn ($q) => $q->where('vendor_net', '!=', 0)->orWhere('commission', '!=', 0))->when($vendorId, fn ($q) => $q->where('activity_vendor_id', $vendorId))->orderBy('date')->orderBy('id')->get()->filter(fn ($b) => ($b->status === 'completed' || $b->status === 'no_show' || ($b->status === 'cancelled' && (float) $b->cancel_fee > 0))
-                && (! $vendorId || $b->activity_vendor_id === $vendorId) && (! $upTo || $b->date->toDateString() <= $upTo)
-                && ((float) $b->vendor_net != 0 || (float) $b->commission != 0))
-            ->values();
+        $query = ActivityBooking::with('activity', 'vendor')->whereNull('activity_settlement_id')->whereIn('status', ['completed', 'no_show', 'cancelled'])
+            ->where(fn ($q) => $q->where('vendor_net', '!=', 0)->orWhere('commission', '!=', 0))
+            ->when($vendorId, fn ($q) => $q->where('activity_vendor_id', $vendorId))->orderBy('date')->orderBy('id');
+        $rows = $forUpdate ? $query->lockForUpdate()->get() : $query->get();
+
+        return $rows->filter(fn ($b) => ($b->status === 'completed' || $b->status === 'no_show' || ($b->status === 'cancelled' && (float) $b->cancel_fee > 0))
+            && (! $vendorId || $b->activity_vendor_id === $vendorId) && (! $upTo || $b->date->toDateString() <= $upTo)
+            && ((float) $b->vendor_net != 0 || (float) $b->commission != 0))->values();
     }
 
     /** per vendor: [vendor, bookings, payable (hotel owes), receivable (vendor owes), net] */
@@ -642,36 +804,40 @@ class ConciergeService
         if ($upTo > $date) {
             throw new RuntimeException('Settle bookings up to the settlement date at the latest.');
         }
-        $rows = self::unsettled($v->id, $upTo);
-        if ($rows->isEmpty()) {
-            throw new RuntimeException('Nothing to settle with '.$v->name.' up to '.dmy($upTo).'.');
-        }
-        $acc = self::payAccounts()->firstWhere('id', $treasuryId);
-        $payable = round($rows->where('collection', 'folio')->sum(fn ($b) => (float) $b->vendor_net), 2);
-        $receivable = round($rows->where('collection', 'vendor')->sum(fn ($b) => (float) $b->commission), 2);
-        $net = round($payable - $receivable, 2);
-        if (abs($net) > 0.004 && ! $acc) {
-            throw new RuntimeException('Choose the bank, Mobile Money or cash account the money '.($net > 0 ? 'is paid from' : 'is received into').'.');
-        }
 
-        return DB::transaction(function () use ($v, $upTo, $acc, $date, $ref, $by, $rows, $payable, $receivable, $net) {
-            $s = ActivitySettlement::create(['number' => Numbering::next('activity_settlement'), 'activity_vendor_id' => $v->id, 'date' => $date, 'up_to' => $upTo, 'bookings' => $rows->count(),
+        return DB::transaction(function () use ($v, $upTo, $treasuryId, $date, $ref, $by) {
+            // Serialize settlements by vendor, then lock and recompute eligible
+            // bookings so concurrent runs cannot pay the same rows twice.
+            $vendor = ActivityVendor::whereKey($v->id)->lockForUpdate()->firstOrFail();
+            $rows = self::unsettled($vendor->id, $upTo, true);
+            if ($rows->isEmpty()) {
+                throw new RuntimeException('Nothing to settle with '.$vendor->name.' up to '.dmy($upTo).'.');
+            }
+            $acc = self::payAccounts()->firstWhere('id', $treasuryId);
+            $payable = round($rows->where('collection', 'folio')->sum(fn ($b) => (float) $b->vendor_net), 2);
+            $receivable = round($rows->where('collection', 'vendor')->sum(fn ($b) => (float) $b->commission), 2);
+            $net = round($payable - $receivable, 2);
+            if (abs($net) > 0.004 && ! $acc) {
+                throw new RuntimeException('Choose the bank, Mobile Money or cash account the money '.($net > 0 ? 'is paid from' : 'is received into').'.');
+            }
+
+            $s = ActivitySettlement::create(['number' => Numbering::next('activity_settlement'), 'activity_vendor_id' => $vendor->id, 'date' => $date, 'up_to' => $upTo, 'bookings' => $rows->count(),
                 'payable' => $payable, 'receivable' => $receivable, 'net' => $net, 'account_head_id' => abs($net) > 0.004 ? $acc->account_head_id : null,
                 'reference' => $ref ? mb_substr($ref, 0, 80) : null, 'status' => 'posted', 'created_by' => $by->id]);
             $lines = [];
             if ($payable) {
-                $lines[] = [AccountHead::sys('concierge_payable'), $payable, $v->name];
+                $lines[] = [AccountHead::sys('concierge_payable'), $payable, $vendor->name];
             }
             if ($receivable) {
-                $lines[] = [AccountHead::sys('concierge_receivable'), -$receivable, $v->name];
+                $lines[] = [AccountHead::sys('concierge_receivable'), -$receivable, $vendor->name];
             }
             if (abs($net) > 0.004) {
                 $lines[] = [$acc->account_head_id, -$net, $s->number];
             }
-            $j = LedgerService::post(['date' => $date, 'reference' => $ref ?: $s->number, 'narration' => 'Activity vendor settlement '.$s->number.' – '.$v->name, 'lines' => $lines], 'concierge_settle', (string) $s->id);
+            $j = LedgerService::post(['date' => $date, 'reference' => $ref ?: $s->number, 'narration' => 'Activity vendor settlement '.$s->number.' – '.$vendor->name, 'lines' => $lines], 'concierge_settle', (string) $s->id);
             $s->forceFill(['gl_journal_id' => $j->id])->save();
             ActivityBooking::whereIn('id', $rows->pluck('id'))->update(['activity_settlement_id' => $s->id]);
-            ActivityLogger::log('concierge', 'settled', "Settlement {$s->number} with {$v->name}: payable ".money($payable).', commission due '.money($receivable).' – '.$s->direction().' '.money(abs($net)), $s);
+            ActivityLogger::log('concierge', 'settled', "Settlement {$s->number} with {$vendor->name}: payable ".money($payable).', commission due '.money($receivable).' – '.$s->direction().' '.money(abs($net)), $s);
 
             return $s;
         });
@@ -679,17 +845,22 @@ class ConciergeService
 
     public static function voidSettlement(ActivitySettlement $s, string $reason, User $by): ActivitySettlement
     {
-        if ($s->status !== 'posted') {
-            throw new RuntimeException("{$s->number} is already void.");
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason for voiding the settlement.');
         }
-        if (ActivitySettlement::where('activity_vendor_id', $s->activity_vendor_id)->where('status', 'posted')->where('id', '>', $s->id)->exists()) {
-            throw new RuntimeException('Void the later settlements with this vendor first.');
-        }
 
         return DB::transaction(function () use ($s, $reason) {
+            // Share the vendor mutex with settlement creation and recheck the
+            // status/order while the rows are serialized.
+            ActivityVendor::whereKey($s->activity_vendor_id)->lockForUpdate()->firstOrFail();
+            $s = ActivitySettlement::whereKey($s->id)->lockForUpdate()->firstOrFail();
+            if ($s->status !== 'posted') {
+                throw new RuntimeException("{$s->number} is already void.");
+            }
+            if (ActivitySettlement::where('activity_vendor_id', $s->activity_vendor_id)->where('status', 'posted')->where('id', '>', $s->id)->exists()) {
+                throw new RuntimeException('Void the later settlements with this vendor first.');
+            }
+            $s->loadMissing('journal');
             if ($s->journal && ! $s->journal->reversed_by_id) {
                 LedgerService::reverse($s->journal, bdate()->toDateString(), 'Settlement voided: '.$reason);
             }

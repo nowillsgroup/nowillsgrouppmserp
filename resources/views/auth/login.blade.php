@@ -2,20 +2,37 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Login · Nowills PMS</title>
-<link rel="stylesheet" href="{{ asset('css/app.css') }}">
-</head><body>
+<link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
+</head><body class="auth-login-page">
 @include('partials.icons')
-<div class="auth">
-  <section class="auth-art" aria-label="Nowills hospitality suite">
+<div class="auth auth-login">
+  <section class="auth-art auth-login-art" aria-label="Nowills hospitality suite">
     <div class="auth-art-head">
-      <div class="brand" style="padding:0;border:0;height:auto"><div class="brand-mark">N</div><div>Nowills PMS<small>CLOUD HOSPITALITY SUITE</small></div></div>
+      <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
       <span class="auth-live"><i></i> Built for hospitality</span>
     </div>
 
     <div class="auth-intro">
       <p class="auth-eyebrow">One calm view of the whole property</p>
-      <h1>Run every room, table and event from one screen.</h1>
-      <p>Reservations, front desk, housekeeping, POS, banquets, inventory, accounts and night audit — unified for hotels, resorts, guest houses, restaurants and cafés.</p>
+      <h1>Hospitality operations,<br>beautifully connected.</h1>
+      <p>Bring reservations, front desk, housekeeping, dining, events and finance together in one clear view—built for the way hospitality works.</p>
+    </div>
+
+    <div class="auth-module-orbit" role="img" aria-label="Nowills PMS core modules: bookings, front desk, rooms, housekeeping, dining, events, finance, reports and guest management">
+      <div class="auth-orbit-ring" aria-hidden="true"></div>
+      <div class="auth-orbit-spinner" aria-hidden="true">
+        <span class="auth-orbit-node" style="--orbit-index:0"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="calendar"/></span><span class="auth-orbit-label">Bookings</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:1"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="id"/></span><span class="auth-orbit-label">Front desk</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:2"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="bed"/></span><span class="auth-orbit-label">Rooms</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:3"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="broom"/></span><span class="auth-orbit-label">Housekeeping</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:4"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="cup"/></span><span class="auth-orbit-label">Dining</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:5"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="star"/></span><span class="auth-orbit-label">Events</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:6"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="wallet"/></span><span class="auth-orbit-label">Finance</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:7"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="chart"/></span><span class="auth-orbit-label">Reports</span></span></span>
+        <span class="auth-orbit-node" style="--orbit-index:8"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="users"/></span><span class="auth-orbit-label">Guests</span></span></span>
+      </div>
+      <div class="auth-orbit-center"><img src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt=""><span>NOWILLS PMS</span></div>
     </div>
 
     <div class="auth-slider" data-auth-slider aria-roledescription="carousel" aria-label="Hospitality spaces">
@@ -51,29 +68,61 @@
       <div><x-icon name="hotel"/><br>Hotels</div><div><x-icon name="cup"/><br>Restaurants</div><div><x-icon name="tree"/><br>Resorts</div><div><x-icon name="house"/><br>Guest Houses</div><div><x-icon name="coffee"/><br>Cafés</div>
     </div>
   </section>
-  <main class="auth-form">
-    <form class="auth-card" method="post" action="{{ route('login.attempt') }}" autocomplete="off">
+  <main class="auth-form auth-login-form">
+    <form class="auth-card auth-login-card" method="post" action="{{ route('login.attempt') }}" autocomplete="on">
       @csrf
-      <div class="auth-form-kicker">Welcome back</div>
-      <h2>Login to your account</h2>
-      <p class="text-2 mb-2">Enter your property credentials to continue.</p>
-      @if($errors->any())<div class="alert alert-error"><x-icon name="alert"/><div>{{ $errors->first() }}</div></div>@endif
-      <div class="field"><label for="hotel_code" id="codeLabel">Hotel ID / Group ID</label><input class="input" id="hotel_code" name="hotel_code" value="{{ old('hotel_code') }}" required autofocus></div>
-      <div class="field"><label for="username">Username</label><input class="input" id="username" name="username" value="{{ old('username') }}" required></div>
-      <div class="field"><label for="password">Password</label><input class="input" id="password" type="password" name="password" required autocomplete="current-password"></div>
-      <div class="flex justify-between items-center mb-2">
-        <label class="check"><input type="checkbox" name="group_login" value="1" @checked(old('group_login')) onchange="document.getElementById('codeLabel').textContent=this.checked?'Group ID':'Hotel ID'"> Group Login</label>
-        <label class="check"><input type="checkbox" name="remember" value="1"> Remember me</label>
+      <div class="auth-form-kicker"><span class="auth-kicker-dot" aria-hidden="true"></span> PROPERTY TEAM ACCESS</div>
+      <h2>Welcome back</h2>
+      <p class="auth-login-subtitle">Sign in with your hotel or group credentials.</p>
+      @if($errors->any())<div class="alert alert-error auth-login-error" role="alert"><x-icon name="alert"/><div>{{ $errors->first() }}</div></div>@endif
+
+      <div class="field auth-login-field">
+        <label for="hotel_code" id="codeLabel">{{ old('group_login') ? 'Group ID' : 'Hotel ID' }}</label>
+        <input class="input" id="hotel_code" name="hotel_code" value="{{ old('hotel_code') }}" placeholder="e.g. NOWILLS" required autofocus autocomplete="organization" autocapitalize="characters" spellcheck="false" aria-describedby="hotelCodeHint">
+        <small class="auth-field-hint" id="hotelCodeHint">Use the ID provided by your property administrator.</small>
       </div>
-      <button class="btn btn-primary btn-lg btn-block" type="submit"><x-icon name="login"/> Sign In</button>
-      <p class="small muted mt-2 center">By signing in you accept the Terms of Service.</p>
+      <div class="field auth-login-field">
+        <label for="username">Username</label>
+        <input class="input" id="username" name="username" value="{{ old('username') }}" placeholder="Your username" required autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="field auth-login-field">
+        <label for="password">Password</label>
+        <div class="auth-password-wrap">
+          <input class="input" id="password" type="password" name="password" placeholder="Your password" required autocomplete="current-password">
+          <button class="auth-password-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+      <div class="auth-login-options">
+        <label class="check" for="group_login"><input id="group_login" type="checkbox" name="group_login" value="1" @checked(old('group_login'))> Group login</label>
+        <label class="check" for="remember"><input id="remember" type="checkbox" name="remember" value="1" @checked(old('remember'))> Remember me</label>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block auth-login-submit" type="submit"><x-icon name="login"/> Sign in</button>
+      <div class="auth-login-help"><span class="auth-lock" aria-hidden="true">✓</span><span>Access is managed by your property administrator.</span></div>
       @if(app()->environment('local'))
-      <div class="alert alert-info small mt-2"><div><b>Demo:</b> Hotel ID <code>NOWILLS</code> · user <code>admin</code> · pass <code>Admin@123</code><br>Group: tick <i>Group Login</i>, ID <code>NWGROUP</code> · <code>groupadmin</code> · <code>Admin@123</code></div></div>
+      <div class="alert alert-info small mt-2"><div><b>Demo:</b> Hotel ID <code>NOWILLS</code> · user <code>admin</code> · pass <code>Admin@123</code><br>Group: tick <i>Group login</i>, ID <code>NWGROUP</code> · <code>groupadmin</code> · <code>Admin@123</code></div></div>
       @endif
     </form>
   </main>
 </div>
 <script>
+(() => {
+  const group = document.getElementById('group_login');
+  const codeLabel = document.getElementById('codeLabel');
+  const password = document.getElementById('password');
+  const passwordToggle = document.querySelector('[data-toggle-password]');
+  const syncCodeLabel = () => { if (codeLabel) codeLabel.textContent = group?.checked ? 'Group ID' : 'Hotel ID'; };
+  group?.addEventListener('change', syncCodeLabel);
+  syncCodeLabel();
+  passwordToggle?.addEventListener('click', () => {
+    if (!password) return;
+    const reveal = password.type === 'password';
+    password.type = reveal ? 'text' : 'password';
+    passwordToggle.textContent = reveal ? 'Hide' : 'Show';
+    passwordToggle.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+    passwordToggle.setAttribute('aria-pressed', String(reveal));
+  });
+})();
+
 (() => {
   const root = document.querySelector('[data-auth-slider]');
   if (!root) return;

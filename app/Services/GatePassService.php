@@ -17,6 +17,11 @@ use RuntimeException;
  */
 class GatePassService
 {
+    protected static function lockPass(GatePass $pass): GatePass
+    {
+        return GatePass::whereKey($pass->id)->lockForUpdate()->firstOrFail();
+    }
+
     /**
      * $d: type, purpose, department_id, party_name, party_phone, carrier_name, vehicle_no, expected_return_date, reason,
      *     items: [[description, asset_id, quantity, unit, est_value], …]
@@ -72,6 +77,25 @@ class GatePassService
         $auto = ! SecurityService::cfg()['gp_approval'];
 
         return DB::transaction(function () use ($d, $type, $ret, $lines, $auto) {
+            if ($type === 'returnable' && $ret < bdate()->toDateString()) {
+                throw new RuntimeException('The expected return date cannot be in the past.');
+            }
+            $assetIds = array_values(array_unique(array_filter(array_map('intval', array_column($lines, 'asset_id')))));
+            sort($assetIds, SORT_NUMERIC);
+            if ($assetIds) {
+                $assets = Asset::whereIn('id', $assetIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                if ($assets->count() !== count($assetIds)) {
+                    throw new RuntimeException('An asset on this pass no longer exists.');
+                }
+                foreach ($assets as $asset) {
+                    if ($asset->status === 'disposed') {
+                        throw new RuntimeException("Asset {$asset->asset_no} is disposed – it cannot go out on a gate pass.");
+                    }
+                    if (self::assetOnOpenPass($asset->id)) {
+                        throw new RuntimeException("Asset {$asset->asset_no} is already on an open gate pass.");
+                    }
+                }
+            }
             $p = GatePass::create(['pass_no' => Numbering::next('gate_pass'), 'type' => $type,
                 'purpose' => array_key_exists($d['purpose'] ?? '', GatePass::PURPOSES) ? $d['purpose'] : 'other',
                 'department_id' => ! empty($d['department_id']) ? Department::findOrFail($d['department_id'])->id : null,
@@ -96,81 +120,100 @@ class GatePassService
 
     public static function approve(GatePass $p): GatePass
     {
-        if ($p->status !== 'pending') {
-            throw new RuntimeException('This gate pass is not waiting for approval.');
-        }
-        if ($p->requested_by === auth()->id() && ! auth()->user()?->is_super_admin) {
-            throw new RuntimeException('You raised this gate pass – another manager has to approve it.');
-        }
-        $p->update(['status' => 'approved', 'approved_by' => auth()->id(), 'approved_at' => now()]);
-        ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no} approved", $p);
+        return DB::transaction(function () use ($p) {
+            $locked = self::lockPass($p);
+            if ($locked->status !== 'pending') {
+                throw new RuntimeException('This gate pass is not waiting for approval.');
+            }
+            if ($locked->requested_by === auth()->id() && ! auth()->user()?->is_super_admin) {
+                throw new RuntimeException('You raised this gate pass – another manager has to approve it.');
+            }
+            $locked->forceFill(['status' => 'approved', 'approved_by' => auth()->id(), 'approved_at' => now()])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no} approved", $locked);
 
-        return $p;
+            return $locked;
+        });
     }
 
     public static function reject(GatePass $p, string $reason): GatePass
     {
-        if ($p->status !== 'pending') {
-            throw new RuntimeException('This gate pass is not waiting for approval.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason.');
         }
-        $p->update(['status' => 'rejected', 'approved_by' => auth()->id(), 'approved_at' => now(), 'reject_reason' => mb_substr(trim($reason), 0, 255)]);
-        ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no} rejected: {$reason}", $p);
 
-        return $p;
+        return DB::transaction(function () use ($p, $reason) {
+            $locked = self::lockPass($p);
+            if ($locked->status !== 'pending') {
+                throw new RuntimeException('This gate pass is not waiting for approval.');
+            }
+            $locked->forceFill(['status' => 'rejected', 'approved_by' => auth()->id(), 'approved_at' => now(), 'reject_reason' => mb_substr(trim($reason), 0, 255)])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no} rejected: {$reason}", $locked);
+
+            return $locked;
+        });
     }
 
     public static function cancel(GatePass $p, string $reason): GatePass
     {
-        if (! in_array($p->status, ['pending', 'approved'], true)) {
-            throw new RuntimeException('Only passes that have not gone out can be cancelled.');
-        }
-        $p->update(['status' => 'cancelled', 'closed_at' => now(), 'closed_by' => auth()->id(), 'close_note' => mb_substr(trim($reason) ?: 'Cancelled', 0, 255)]);
-        ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no} cancelled", $p);
+        return DB::transaction(function () use ($p, $reason) {
+            $locked = self::lockPass($p);
+            if (! in_array($locked->status, ['pending', 'approved'], true)) {
+                throw new RuntimeException('Only passes that have not gone out can be cancelled.');
+            }
+            $locked->forceFill(['status' => 'cancelled', 'closed_at' => now(), 'closed_by' => auth()->id(), 'close_note' => mb_substr(trim($reason) ?: 'Cancelled', 0, 255)])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no} cancelled", $locked);
 
-        return $p;
+            return $locked;
+        });
     }
 
     /** Security at the gate checks the goods against the pass and lets them out. */
     public static function markOut(GatePass $p, ?string $carrier = null, ?string $vehicle = null): GatePass
     {
-        if ($p->status !== 'approved') {
-            throw new RuntimeException($p->status === 'pending' ? 'This gate pass has not been approved – the goods cannot leave.' : 'This gate pass is not valid for exit.');
-        }
-
         return DB::transaction(function () use ($p, $carrier, $vehicle) {
-            $upd = ['out_at' => now(), 'out_by' => auth()->id(), 'carrier_name' => trim((string) $carrier) ?: $p->carrier_name,
-                'vehicle_no' => strtoupper(trim((string) $vehicle)) ?: $p->vehicle_no];
-            if ($p->type === 'returnable') {
+            $locked = self::lockPass($p);
+            if ($locked->status !== 'approved') {
+                throw new RuntimeException($locked->status === 'pending' ? 'This gate pass has not been approved – the goods cannot leave.' : 'This gate pass is not valid for exit.');
+            }
+            $now = now();
+            $upd = ['out_at' => $now, 'out_by' => auth()->id(), 'carrier_name' => trim((string) $carrier) ?: $locked->carrier_name,
+                'vehicle_no' => strtoupper(trim((string) $vehicle)) ?: $locked->vehicle_no];
+            if ($locked->type === 'returnable') {
                 $upd['status'] = 'out';
             } else {
-                $upd += ['status' => 'closed', 'closed_at' => now(), 'closed_by' => auth()->id(), 'close_note' => 'Non-returnable – left the property'];
+                $upd += ['status' => 'closed', 'closed_at' => $now, 'closed_by' => auth()->id(), 'close_note' => 'Non-returnable – left the property'];
             }
-            $p->update($upd);
-            if ($p->purpose === 'repair') {   // assets sent for repair show as "under repair" in the asset register
-                foreach ($p->items()->whereNotNull('asset_id')->with('asset')->get() as $it) {
-                    if ($it->asset?->status === 'active') {
-                        $it->asset->update(['status' => 'in_repair']);
+            $locked->forceFill($upd)->save();
+            if ($locked->purpose === 'repair') {
+                $items = $locked->items()->whereNotNull('asset_id')->orderBy('id')->lockForUpdate()->get();
+                $assetIds = $items->pluck('asset_id')->unique()->sort()->values();
+                $assets = Asset::whereIn('id', $assetIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                foreach ($assets as $asset) {
+                    if ($asset->status === 'active') {
+                        $asset->forceFill(['status' => 'in_repair'])->save();
                     }
                 }
             }
-            ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no}: goods out through the gate".($p->carrier_name ? " with {$p->carrier_name}" : ''), $p);
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no}: goods out through the gate".($locked->carrier_name ? " with {$locked->carrier_name}" : ''), $locked);
 
-            return $p;
+            return $locked;
         });
     }
 
     /** Goods coming back – $lines: [item_id => qty]. Partial returns allowed. */
     public static function receive(GatePass $p, array $lines, ?string $carrier = null, ?string $note = null): GatePassReturn
     {
-        if (! in_array($p->status, GatePass::AWAY, true) || $p->type !== 'returnable') {
-            throw new RuntimeException('Nothing is out on this gate pass.');
-        }
-
         return DB::transaction(function () use ($p, $lines, $carrier, $note) {
-            $items = $p->items()->lockForUpdate()->get()->keyBy('id');
+            $locked = self::lockPass($p);
+            if (! in_array($locked->status, GatePass::AWAY, true) || $locked->type !== 'returnable') {
+                throw new RuntimeException('Nothing is out on this gate pass.');
+            }
+            $items = $locked->items()->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $assets = collect();
+            if ($locked->purpose === 'repair') {
+                $assetIds = $items->pluck('asset_id')->filter()->unique()->sort()->values();
+                $assets = Asset::whereIn('id', $assetIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            }
             $got = [];
             foreach ($lines as $id => $qty) {
                 $qty = round((float) $qty, 2);
@@ -181,20 +224,21 @@ class GatePassService
                 if ($qty > $it->outstanding() + 0.001) {
                     throw new RuntimeException("Only {$it->outstanding()} {$it->unit} of \"{$it->description}\" is still out.");
                 }
-                $it->update(['returned_qty' => round((float) $it->returned_qty + $qty, 2)]);
-                if ($it->asset_id && $it->outstanding() <= 0 && $p->purpose === 'repair' && $it->asset?->status === 'in_repair') {
-                    $it->asset->update(['status' => 'active']);
+                $it->forceFill(['returned_qty' => round((float) $it->returned_qty + $qty, 2)])->save();
+                $asset = $it->asset_id ? $assets->get($it->asset_id) : null;
+                if ($asset && $it->outstanding() <= 0 && $asset->status === 'in_repair') {
+                    $asset->forceFill(['status' => 'active'])->save();
                 }
                 $got[] = ['item_id' => $it->id, 'qty' => $qty];
             }
             if (! $got) {
                 throw new RuntimeException('Enter the quantity that came back.');
             }
-            $r = GatePassReturn::create(['gate_pass_id' => $p->id, 'returned_at' => now(), 'received_by' => auth()->id(),
+            $r = GatePassReturn::create(['gate_pass_id' => $locked->id, 'returned_at' => now(), 'received_by' => auth()->id(),
                 'carrier_name' => trim((string) $carrier) ?: null, 'note' => trim((string) $note) ?: null, 'lines' => $got]);
-            $left = $items->sum(fn ($i) => max(0, $i->fresh()->outstanding()));
-            $p->update($left <= 0 ? ['status' => 'returned', 'closed_at' => now(), 'closed_by' => auth()->id()] : ['status' => 'partial']);
-            ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no}: goods received back".($left <= 0 ? ' – all returned' : ' (partial)'), $p);
+            $left = $items->sum(fn ($i) => max(0, $i->outstanding()));
+            $locked->forceFill($left <= 0 ? ['status' => 'returned', 'closed_at' => now(), 'closed_by' => auth()->id()] : ['status' => 'partial'])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no}: goods received back".($left <= 0 ? ' – all returned' : ' (partial)'), $locked);
 
             return $r;
         });
@@ -203,31 +247,42 @@ class GatePassService
     /** Short-close a returnable pass (item scrapped at the vendor, replaced under warranty, written off…). */
     public static function close(GatePass $p, string $note): GatePass
     {
-        if (! in_array($p->status, GatePass::AWAY, true)) {
-            throw new RuntimeException('Only passes with goods still out can be closed.');
-        }
         if (trim($note) === '') {
             throw new RuntimeException('Explain why the pass is closed without everything coming back.');
         }
-        $p->update(['status' => 'closed', 'closed_at' => now(), 'closed_by' => auth()->id(), 'close_note' => mb_substr(trim($note), 0, 255)]);
-        ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no} closed short: {$note}", $p);
 
-        return $p;
+        return DB::transaction(function () use ($p, $note) {
+            $locked = self::lockPass($p);
+            if (! in_array($locked->status, GatePass::AWAY, true)) {
+                throw new RuntimeException('Only passes with goods still out can be closed.');
+            }
+            $locked->forceFill(['status' => 'closed', 'closed_at' => now(), 'closed_by' => auth()->id(), 'close_note' => mb_substr(trim($note), 0, 255)])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no} closed short: {$note}", $locked);
+
+            return $locked;
+        });
     }
 
     public static function extend(GatePass $p, string $date): GatePass
     {
-        if ($p->type !== 'returnable' || ! in_array($p->status, ['approved', ...GatePass::AWAY], true)) {
-            throw new RuntimeException('Only open returnable passes have a return date.');
-        }
         if ($date < bdate()->toDateString()) {
             throw new RuntimeException('The new return date cannot be in the past.');
         }
-        $old = $p->expected_return_date?->format('d M Y');
-        $p->update(['expected_return_date' => $date, 'overdue_alerted_on' => null]);
-        ActivityLogger::log('security', 'gatepass', "Gate pass {$p->pass_no}: return date moved from {$old} to ".date('d M Y', strtotime($date)), $p);
 
-        return $p;
+        return DB::transaction(function () use ($p, $date) {
+            $locked = self::lockPass($p);
+            if ($date < bdate()->toDateString()) {
+                throw new RuntimeException('The new return date cannot be in the past.');
+            }
+            if ($locked->type !== 'returnable' || ! in_array($locked->status, ['approved', ...GatePass::AWAY], true)) {
+                throw new RuntimeException('Only open returnable passes have a return date.');
+            }
+            $old = $locked->expected_return_date?->format('d M Y');
+            $locked->forceFill(['expected_return_date' => $date, 'overdue_alerted_on' => null])->save();
+            ActivityLogger::log('security', 'gatepass', "Gate pass {$locked->pass_no}: return date moved from {$old} to ".date('d M Y', strtotime($date)), $locked);
+
+            return $locked;
+        });
     }
 
     /** One log-book alert per pass when it first becomes overdue. */
@@ -235,14 +290,25 @@ class GatePassService
     {
         $n = 0;
         $bd = bdate()->toDateString();
-        foreach (GatePass::with('items', 'department')->where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd)
-            ->whereNull('overdue_alerted_on')->get() as $p) {
-            LogBookService::system("Gate pass {$p->pass_no} overdue – goods not back from {$p->party_name}",
-                'Expected back '.$p->expected_return_date->format('d M Y').'. Still out: '.$p->items->filter(fn ($i) => $i->outstanding() > 0)
-                    ->map(fn ($i) => $i->outstanding().' '.$i->unit.' '.$i->description)->join(', ').'.'.($p->department ? ' Department: '.$p->department->name.'.' : ''),
-                'security', 'high', ['department' => 'security'], true);
-            $p->forceFill(['overdue_alerted_on' => $bd])->saveQuietly();
-            $n++;
+        $ids = GatePass::where('type', 'returnable')->whereIn('status', GatePass::AWAY)->whereDate('expected_return_date', '<', $bd)
+            ->whereNull('overdue_alerted_on')->orderBy('id')->pluck('id');
+        foreach ($ids as $id) {
+            $created = DB::transaction(function () use ($id, $bd) {
+                $p = GatePass::whereKey($id)->lockForUpdate()->first();
+                if (! $p || $p->type !== 'returnable' || ! in_array($p->status, GatePass::AWAY, true)
+                    || ! $p->expected_return_date || ! $p->expected_return_date->lt($bd) || $p->overdue_alerted_on) {
+                    return false;
+                }
+                $p->load(['items', 'department']);
+                LogBookService::system("Gate pass {$p->pass_no} overdue – goods not back from {$p->party_name}",
+                    'Expected back '.$p->expected_return_date->format('d M Y').'. Still out: '.$p->items->filter(fn ($i) => $i->outstanding() > 0)
+                        ->map(fn ($i) => $i->outstanding().' '.$i->unit.' '.$i->description)->join(', ').'.'.($p->department ? ' Department: '.$p->department->name.'.' : ''),
+                    'security', 'high', ['department' => 'security'], true);
+                $p->forceFill(['overdue_alerted_on' => $bd])->saveQuietly();
+
+                return true;
+            });
+            $n += $created ? 1 : 0;
         }
 
         return $n;

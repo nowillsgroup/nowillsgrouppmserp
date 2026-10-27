@@ -34,7 +34,10 @@ class IncidentService
         }
         $stay = ! empty($d['reservation_room_id']) ? ReservationRoom::with('guest', 'reservation.guest')->findOrFail($d['reservation_room_id']) : null;
         $room = ! empty($d['room_id']) ? Room::findOrFail($d['room_id']) : null;
-        $assignee = ! empty($d['assigned_to']) ? User::where('hotel_id', Tenant::id())->findOrFail($d['assigned_to']) : null;
+        if ($stay && $room && $stay->room_id && (int) $stay->room_id !== (int) $room->id) {
+            throw new RuntimeException('The selected room does not match the selected stay.');
+        }
+        $assignee = ! empty($d['assigned_to']) ? User::where('hotel_id', Tenant::id())->where('is_active', true)->findOrFail($d['assigned_to']) : null;
         $police = ! empty($d['police_informed']);
 
         return ['type' => $type, 'severity' => $sev, 'occurred_at' => $at, 'location' => mb_substr(trim($d['location']), 0, 150),
@@ -50,10 +53,11 @@ class IncidentService
     {
         $data = self::clean($d);
 
-        return DB::transaction(function () use ($data) {
+        [$i, $alertPhone] = DB::transaction(function () use ($data) {
             $i = SecurityIncident::create($data + ['incident_no' => Numbering::next('incident'), 'status' => 'open', 'created_by' => auth()->id()]);
             ActivityLogger::log('security', 'incident', "Incident {$i->incident_no} reported – {$i->typeLabel()} ({$i->severity}): {$i->title}", $i);
             $cfg = SecurityService::cfg();
+            $alertPhone = '';
             if (SecurityIncident::RANK[$i->severity] >= SecurityIncident::RANK[$cfg['incident_alert']]) {
                 $e = LogBookService::system("Security incident {$i->incident_no}: {$i->title}",
                     $i->typeLabel().' · '.$i->severityLabel().' · '.$i->location.' at '.$i->occurred_at->format('d M H:i').".\n".$i->description
@@ -61,75 +65,99 @@ class IncidentService
                     'incident', $i->severity === 'critical' ? 'urgent' : 'high',
                     ['department' => 'security', 'reservation_room_id' => $i->reservation_room_id, 'room_id' => $i->room_id, 'guest_id' => $i->guest_id], true);
                 $i->forceFill(['log_entry_id' => $e->id])->saveQuietly();
-                if ($cfg['alert_phone'] !== '') {
-                    MessageService::send($cfg['alert_phone'], hotel()->name.": {$i->severityLabel()} security incident {$i->incident_no} – {$i->title} at {$i->location}.", 'sms', 'security_alert', $i);
-                }
+                $alertPhone = $cfg['alert_phone'];
             }
 
-            return $i;
+            return [$i, $alertPhone];
         });
+        if ($alertPhone !== '') {
+            MessageService::send($alertPhone, hotel()->name.": {$i->severityLabel()} security incident {$i->incident_no} – {$i->title} at {$i->location}.", 'sms', 'security_alert', $i);
+        }
+
+        return $i;
+    }
+
+    protected static function lockIncident(SecurityIncident $incident): SecurityIncident
+    {
+        return SecurityIncident::whereKey($incident->id)->lockForUpdate()->firstOrFail();
     }
 
     public static function update(SecurityIncident $i, array $d): SecurityIncident
     {
-        if ($i->status === 'closed') {
-            throw new RuntimeException('Closed incidents cannot be edited – reopen it first.');
-        }
         $data = self::clean($d + $i->only(self::FIELDS));
-        $i->update($data);
-        ActivityLogger::log('security', 'incident', "Incident {$i->incident_no} details updated", $i);
 
-        return $i;
+        return DB::transaction(function () use ($i, $data) {
+            $locked = self::lockIncident($i);
+            if ($locked->status === 'closed') {
+                throw new RuntimeException('Closed incidents cannot be edited – reopen it first.');
+            }
+            $locked->forceFill($data)->save();
+            ActivityLogger::log('security', 'incident', "Incident {$locked->incident_no} details updated", $locked);
+
+            return $locked;
+        });
     }
 
     /** Follow-up note, optionally moving open ↔ investigating. */
     public static function note(SecurityIncident $i, string $note, ?string $status = null): SecurityIncidentUpdate
     {
-        if ($i->status === 'closed') {
-            throw new RuntimeException('This incident is closed – reopen it to add notes.');
-        }
         if (trim($note) === '') {
             throw new RuntimeException('Write the follow-up note.');
         }
-        $status = in_array($status, ['open', 'investigating'], true) && $status !== $i->status ? $status : null;
-        $u = SecurityIncidentUpdate::create(['security_incident_id' => $i->id, 'user_id' => auth()->id(), 'note' => mb_substr(trim($note), 0, 4000), 'status_to' => $status]);
-        $status ? $i->update(['status' => $status]) : $i->touch();
 
-        return $u;
+        return DB::transaction(function () use ($i, $note, $status) {
+            $locked = self::lockIncident($i);
+            if ($locked->status === 'closed') {
+                throw new RuntimeException('This incident is closed – reopen it to add notes.');
+            }
+            $nextStatus = in_array($status, ['open', 'investigating'], true) && $status !== $locked->status ? $status : null;
+            $u = SecurityIncidentUpdate::create(['security_incident_id' => $locked->id, 'user_id' => auth()->id(), 'note' => mb_substr(trim($note), 0, 4000), 'status_to' => $nextStatus]);
+            $nextStatus ? $locked->forceFill(['status' => $nextStatus])->save() : $locked->touch();
+
+            return $u;
+        });
     }
 
     public static function close(SecurityIncident $i, string $resolution): SecurityIncident
     {
-        if ($i->status === 'closed') {
-            throw new RuntimeException('This incident is already closed.');
-        }
         if (trim($resolution) === '') {
             throw new RuntimeException('Record the outcome / resolution before closing.');
         }
-        DB::transaction(function () use ($i, $resolution) {
-            $i->update(['status' => 'closed', 'resolution' => trim($resolution), 'closed_at' => now(), 'closed_by' => auth()->id()]);
-            SecurityIncidentUpdate::create(['security_incident_id' => $i->id, 'user_id' => auth()->id(), 'note' => 'Closed: '.trim($resolution), 'status_to' => 'closed']);
-            if ($i->log_entry_id && ($e = \App\Models\LogEntry::find($i->log_entry_id)) && $e->status === 'open') {
-                LogBookService::resolve($e, "Incident {$i->incident_no} closed: ".mb_substr(trim($resolution), 0, 200));
+        return DB::transaction(function () use ($i, $resolution) {
+            $locked = self::lockIncident($i);
+            if ($locked->status === 'closed') {
+                throw new RuntimeException('This incident is already closed.');
             }
-        });
-        ActivityLogger::log('security', 'incident', "Incident {$i->incident_no} closed", $i);
+            $locked->forceFill(['status' => 'closed', 'resolution' => trim($resolution), 'closed_at' => now(), 'closed_by' => auth()->id()])->save();
+            SecurityIncidentUpdate::create(['security_incident_id' => $locked->id, 'user_id' => auth()->id(), 'note' => 'Closed: '.trim($resolution), 'status_to' => 'closed']);
+            if ($locked->log_entry_id && ($e = \App\Models\LogEntry::whereKey($locked->log_entry_id)->lockForUpdate()->first()) && $e->status === 'open') {
+                LogBookService::resolve($e, "Incident {$locked->incident_no} closed: ".mb_substr(trim($resolution), 0, 200));
+            }
+            ActivityLogger::log('security', 'incident', "Incident {$locked->incident_no} closed", $locked);
 
-        return $i;
+            return $locked;
+        });
     }
 
     public static function reopen(SecurityIncident $i, string $reason): SecurityIncident
     {
-        if ($i->status !== 'closed') {
-            throw new RuntimeException('This incident is not closed.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Say why it is being reopened.');
         }
-        $i->update(['status' => 'investigating', 'closed_at' => null, 'closed_by' => null]);
-        SecurityIncidentUpdate::create(['security_incident_id' => $i->id, 'user_id' => auth()->id(), 'note' => 'Reopened: '.trim($reason), 'status_to' => 'investigating']);
-        ActivityLogger::log('security', 'incident', "Incident {$i->incident_no} reopened: {$reason}", $i);
 
-        return $i;
+        return DB::transaction(function () use ($i, $reason) {
+            $locked = self::lockIncident($i);
+            if ($locked->status !== 'closed') {
+                throw new RuntimeException('This incident is not closed.');
+            }
+            $locked->forceFill(['status' => 'investigating', 'closed_at' => null, 'closed_by' => null])->save();
+            SecurityIncidentUpdate::create(['security_incident_id' => $locked->id, 'user_id' => auth()->id(), 'note' => 'Reopened: '.trim($reason), 'status_to' => 'investigating']);
+            if ($locked->log_entry_id && ($e = \App\Models\LogEntry::whereKey($locked->log_entry_id)->lockForUpdate()->first()) && $e->status === 'resolved') {
+                LogBookService::reopen($e);
+            }
+            ActivityLogger::log('security', 'incident', "Incident {$locked->incident_no} reopened: {$reason}", $locked);
+
+            return $locked;
+        });
     }
 }

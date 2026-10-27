@@ -4,7 +4,7 @@
 @section('docmeta')<div class="small">Concierge{{ $cfg['desk_phone'] ? ' · '.$cfg['desk_phone'] : '' }}</div><div class="small">{{ bdate()->format('F Y') }}</div>@endsection
 @section('content')
 @php $P = \App\Models\ConciergePlace::class; $A = \App\Models\Activity::class; @endphp
-<style>.gcols{columns:2;column-gap:1.6rem}.gcols .gsec{break-inside:avoid;margin-bottom:.8rem}.gsec h4{margin:.2rem 0 .3rem;font-size:.9rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em}
+<style>.gcols{columns:2;column-gap:1.6rem}.gcols .gsec{break-inside:avoid;margin-bottom:.8rem}.gsec h4{margin:.2rem 0 .3rem;font-size:.9rem;color:#166534;text-transform:uppercase;letter-spacing:.04em}
 .gpl{font-size:.8rem;margin-bottom:.35rem;break-inside:avoid}.gpl b{font-size:.84rem}@media(max-width:640px){.gcols{columns:1}}</style>
 @if($activities->isNotEmpty())
 <h3 class="mt-1 mb-0">Tours &amp; excursions – book at the concierge desk or on your guest portal</h3>

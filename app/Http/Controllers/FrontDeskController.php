@@ -88,31 +88,17 @@ class FrontDeskController extends Controller
         if ($stay->room_id === $room->id) {
             return $fail('The stay is already in room '.$room->room_no.'.');
         }
-        if (! $room->is_active || in_array($room->status, ['out_of_order', 'out_of_service'], true)) {
-            return $fail("Room {$room->room_no} is out of order.");
-        }
-        $from = $stay->status === 'checked_in' ? bdate()->copy() : $stay->arrival_date;
-        if (AvailabilityService::blockingStays($from, $stay->departure_date)->where('room_id', $room->id)->where('id', '!=', $stay->id)->exists()) {
-            return $fail("Room {$room->room_no} is booked by another guest between {$from->format('d M')} and {$stay->departure_date->format('d M')}.");
-        }
-        if ($blocked = StayService::outageMessage($room->id, $from, $stay->departure_date)) {
-            return $fail($blocked);
-        }
-        $to = $stay->departure_date->gt($from) ? $stay->departure_date : $from->copy()->addDay();
-        if (! AvailabilityService::roomAvailableForReservation($room->id, $from, $to, $stay->id)) {
-            return $fail("Room {$room->room_no} is not available for this stay (it may be occupied or leased).");
-        }
 
-        $typeNote = $stay->room_type_id !== $room->room_type_id ? " (room type changed to {$room->roomType->name} – rate kept at ".money($stay->rate).')' : '';
         try {
             if ($stay->status === 'checked_in') {
+                $oldRoom = $stay->room?->room_no ?? 'unassigned';
+                $typeNote = $stay->room_type_id !== $room->room_type_id ? " (room type changed to {$room->roomType->name} – rate kept at ".money($stay->rate).')' : '';
                 StayService::moveRoom($stay, $room->id, null, 'Tape chart drag & drop');
-                $msg = "Guest moved from room {$stay->room?->room_no} to {$room->room_no}{$typeNote}.";
+                $msg = "Guest moved from room {$oldRoom} to {$room->room_no}{$typeNote}.";
             } else {
-                $old = $stay->room?->room_no;
-                $stay->update(['room_id' => $room->id, 'room_type_id' => $room->room_type_id]);
-                ActivityLogger::log('frontdesk', 'assign', "Tape chart: {$stay->reservation->reservation_no} ".($old ? "{$old} → " : 'assigned to ').$room->room_no, $stay);
-                $msg = "{$stay->reservation->reservation_no} ".($old ? 'moved to' : 'assigned to')." room {$room->room_no}{$typeNote}.";
+                // The service serializes the reservation, stay and destination
+                // room, then rechecks clashes/outages before assigning.
+                $msg = StayService::placeStay($stay, $room->id, null, 'Tape chart drag & drop');
             }
         } catch (\RuntimeException $e) {
             return $fail($e->getMessage());
@@ -267,9 +253,15 @@ class FrontDeskController extends Controller
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
         ]);
         DB::transaction(function () use ($data, $stay) {
-            $stay->reservation->guest->fill(array_filter($data['guest'], fn ($v) => $v !== null && $v !== ''))->save();
-            $stay->update(['rate' => $data['rate']]);
-            $stay = StayService::checkIn($stay, (int) $data['room_id']);
+            // Match StayService's reservation → stay lock order before writing
+            // registration data or the rate. Updating the stay first here used
+            // to invert that order against cancellation and checkout.
+            $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
+            $lockedStay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            $lockedStay->setRelation('reservation', $reservation);
+            $reservation->guest->fill(array_filter($data['guest'], fn ($v) => $v !== null && $v !== ''))->save();
+            $lockedStay->update(['rate' => $data['rate']]);
+            $stay = StayService::checkIn($lockedStay, (int) $data['room_id']);
             if (($data['advance'] ?? 0) > 0 && ! empty($data['advance_mode'])) {
                 FolioService::payment($stay->folio, (float) $data['advance'], (int) $data['advance_mode'], $data['advance_ref'] ?? null, 'advance', 'payment', [
                     'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
@@ -318,6 +310,19 @@ class FrontDeskController extends Controller
             'override_reason' => 'nullable|string|max:200',
         ]);
         DB::transaction(function () use ($data, $stay) {
+            // Reserve the stay and room before posting nights or settlement
+            // entries. This keeps checkout in the same reservation → stay →
+            // room → folio order as the lifecycle service and prevents two
+            // desk requests from settling a stale balance concurrently.
+            $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
+            $lockedStay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+            $room = $lockedStay->room_id ? Room::whereKey($lockedStay->room_id)->lockForUpdate()->first() : null;
+            if ($lockedStay->status !== 'checked_in') {
+                throw ValidationException::withMessages(['settle' => 'This stay is no longer checked in.']);
+            }
+            $lockedStay->setRelation('reservation', $reservation);
+            $lockedStay->setRelation('room', $room);
+            $stay = $lockedStay;
             StayService::postPendingNights($stay, bdate());
             $folio = $stay->fresh()->folio;
             $bal = $folio->balance();
@@ -408,6 +413,7 @@ class FrontDeskController extends Controller
         ActivityLogger::log('frontdesk', 'amend', "Amended stay {$res->reservation_no}: departure {$old} → ".Carbon::parse($data['departure_date'])->format('d M'), $stay);
         try {
             \App\Services\KeyCardService::onExtend($stay->fresh()); // v3.7: key cards re-validated to the new departure
+            \App\Services\RobitaService::onExtend($stay->fresh());  // v7.57: so is the door credential
         } catch (\Throwable $e) {
             report($e);
         }

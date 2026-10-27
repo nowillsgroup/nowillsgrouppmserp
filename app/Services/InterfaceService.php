@@ -12,7 +12,7 @@ use RuntimeException;
 
 /**
  * v3.7 – hotel system interfaces: settings shared by call accounting and the door-lock system, the PMS → PABX / lock
- * command log with its (demo / offline) driver, and the counters used by the dashboard and navigation badges.
+ * command log with demo / offline / TCP drivers, and the counters used by the dashboard and navigation badges.
  *
  * Real sites plug a vendor driver (FIAS / Micros-Fidelio, Assa Abloy Vision, Salto, Dormakaba, Onity …) in place of the
  * demo driver; the rest of the PMS only ever talks to send().
@@ -44,7 +44,7 @@ class InterfaceService
         'pbx_cmd_move' => '',
         // door locks
         'lock_enabled' => '1',
-        'lock_driver' => 'demo',                        // demo | offline
+        'lock_driver' => 'demo',                        // demo | offline | tcp (v7.58)
         'lock_system' => 'Demo encoder (RFID)',
         'lock_max_cards' => '4',                        // active cards per stay
         'lock_lost_fee' => '250',                       // default lost-card fee (0 = none)
@@ -54,6 +54,18 @@ class InterfaceService
         'lock_areas' => 'Lift,Pool,Gym,Spa,Parking',    // common-area access that can be granted
         'lock_default_areas' => 'Lift,Pool,Gym',
         'lock_master_hours' => '9',                     // default master-key sign-out (one shift)
+        // live lock link (v7.58) – template-driven TCP, same shape as the PABX link
+        'lock_tcp_host' => '',                          // encoder / lock gateway host
+        'lock_tcp_port' => '0',
+        'lock_tcp_timeout' => '5',                      // seconds to wait for the encoder reply
+        'lock_tcp_ok' => '\b(OK|ACK|SUCCESS)\b',        // reply regex (case-insensitive); blank = accept any reply
+        'lock_reply_serial' => '(?:UID|SERIAL|CARD)[^A-Za-z0-9]*([A-Za-z0-9][A-Za-z0-9:-]{3,31})', // where the written card UID sits in the reply
+        'lock_cmd_issue' => '',                         // command templates – placeholders: payload keys + {date} {time} {datetime}
+        'lock_cmd_duplicate' => '',
+        'lock_cmd_cancel' => '',
+        'lock_cmd_checkout' => '',
+        'lock_cmd_extend' => '',
+        'lock_cmd_read' => '',
     ];
 
     public const COS = ['full' => 'Full (incl. international)', 'national' => 'National – no international', 'local' => 'Local only', 'barred' => 'Barred – internal & emergency only'];
@@ -75,7 +87,7 @@ class InterfaceService
         foreach (self::DEFAULTS as $k => $v) {
             $s[$k] = (string) setting($k, $v);
         }
-        foreach (['pbx_min_secs', 'lock_max_cards', 'lock_grace_minutes', 'lock_auto_issue', 'lock_master_hours', 'pbx_tcp_port', 'pbx_tcp_timeout', 'pbx_smdr_port'] as $k) {
+        foreach (['pbx_min_secs', 'lock_max_cards', 'lock_grace_minutes', 'lock_auto_issue', 'lock_master_hours', 'pbx_tcp_port', 'pbx_tcp_timeout', 'pbx_smdr_port', 'lock_tcp_port', 'lock_tcp_timeout'] as $k) {
             $s[$k] = max(0, (int) $s[$k]);
         }
         $s['lock_max_cards'] = max(1, $s['lock_max_cards']);
@@ -108,6 +120,12 @@ class InterfaceService
         if ($okPattern !== '' && @preg_match('~'.$okPattern.'~iu', '') === false) {
             throw new RuntimeException('The TCP success pattern is not a valid regular expression.');
         }
+        foreach (['lock_tcp_ok', 'lock_reply_serial'] as $patternKey) {
+            $pattern = trim((string) ($d[$patternKey] ?? self::DEFAULTS[$patternKey]));
+            if ($pattern !== '' && @preg_match('~'.$pattern.'~iu', '') === false) {
+                throw new RuntimeException('The door-lock '.($patternKey === 'lock_tcp_ok' ? 'success' : 'card UID').' pattern is not a valid regular expression.');
+            }
+        }
         foreach (['pbx_cmd_checkin', 'pbx_cmd_checkout', 'pbx_cmd_cos', 'pbx_cmd_move'] as $k) {
             if (mb_strlen(trim((string) ($d[$k] ?? ''))) > 200) {
                 throw new RuntimeException('Command templates must be at most 200 characters.');
@@ -137,7 +155,7 @@ class InterfaceService
             'pbx_mask_digits' => ! empty($d['pbx_mask_digits']) ? '1' : '0',
             'pbx_default_cos' => array_key_exists($d['pbx_default_cos'] ?? '', self::COS) ? $d['pbx_default_cos'] : 'full',
             'lock_enabled' => ! empty($d['lock_enabled']) ? '1' : '0',
-            'lock_driver' => in_array($d['lock_driver'] ?? '', ['demo', 'offline'], true) ? $d['lock_driver'] : 'demo',
+            'lock_driver' => in_array($d['lock_driver'] ?? '', ['demo', 'offline', 'tcp'], true) ? $d['lock_driver'] : 'demo',
             'lock_system' => mb_substr(trim((string) ($d['lock_system'] ?? '')) ?: 'Door-lock encoder', 0, 60),
             'lock_max_cards' => (string) max(1, min(10, (int) ($d['lock_max_cards'] ?? 4))),
             'lock_lost_fee' => (string) max(0, round((float) ($d['lock_lost_fee'] ?? 0), 2)),
@@ -147,6 +165,17 @@ class InterfaceService
             'lock_areas' => $areas,
             'lock_default_areas' => $defaults,
             'lock_master_hours' => (string) max(1, min(24, (int) ($d['lock_master_hours'] ?? 9))),
+            'lock_tcp_host' => mb_substr(trim((string) ($d['lock_tcp_host'] ?? '')), 0, 190),
+            'lock_tcp_port' => (string) max(0, min(65535, (int) ($d['lock_tcp_port'] ?? 0))),
+            'lock_tcp_timeout' => (string) max(1, min(60, (int) ($d['lock_tcp_timeout'] ?? 5))),
+            'lock_tcp_ok' => mb_substr(trim((string) ($d['lock_tcp_ok'] ?? '')), 0, 120),
+            'lock_reply_serial' => mb_substr(trim((string) ($d['lock_reply_serial'] ?? '')), 0, 190),
+            'lock_cmd_issue' => mb_substr(trim((string) ($d['lock_cmd_issue'] ?? '')), 0, 200),
+            'lock_cmd_duplicate' => mb_substr(trim((string) ($d['lock_cmd_duplicate'] ?? '')), 0, 200),
+            'lock_cmd_cancel' => mb_substr(trim((string) ($d['lock_cmd_cancel'] ?? '')), 0, 200),
+            'lock_cmd_checkout' => mb_substr(trim((string) ($d['lock_cmd_checkout'] ?? '')), 0, 200),
+            'lock_cmd_extend' => mb_substr(trim((string) ($d['lock_cmd_extend'] ?? '')), 0, 200),
+            'lock_cmd_read' => mb_substr(trim((string) ($d['lock_cmd_read'] ?? '')), 0, 200),
         ];
         if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $values['lock_checkout_time'])) {
             throw new RuntimeException('Key expiry time must be HH:MM.');
@@ -195,9 +224,21 @@ class InterfaceService
             $cmd->fill(['status' => 'failed', 'response' => strtoupper($cmd->system).' interface is switched off']);
         } elseif ($driver === 'offline') {
             $cmd->fill(['status' => 'failed', 'response' => ($cmd->system === 'lock' ? 'Encoder' : 'PABX').' not reachable – check the interface PC / cable and retry']);
-        } elseif ($driver === 'tcp') {
-            // live template-driven link (pbx only – the lock whitelist stays demo|offline)
+        } elseif ($driver === 'tcp' && $cmd->system === 'pbx') {
             [$ok, $response] = \App\Services\Interfaces\TcpPbxDriver::send($c, $cmd);
+            $cmd->fill(['status' => $ok ? 'done' : 'failed', 'response' => $response]);
+        } elseif ($driver === 'tcp' && $cmd->system === 'lock') {
+            [$ok, $response, $serial] = \App\Services\Interfaces\TcpLockDriver::send($c, $cmd);
+            if ($ok && in_array($cmd->command, ['issue', 'duplicate'], true)) {
+                if ($serial === null) {
+                    $ok = false;
+                    $response = 'Encoder acknowledged but its reply did not contain a card UID matching the configured serial pattern; refusing to issue a card record without the written card serial.';
+                } else {
+                    $payload = $cmd->payload ?? [];
+                    $payload['serial'] = $serial;
+                    $cmd->payload = $payload;
+                }
+            }
             $cmd->fill(['status' => $ok ? 'done' : 'failed', 'response' => $response]);
         } else {
             $payload = $cmd->payload ?? [];

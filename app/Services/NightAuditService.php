@@ -245,7 +245,7 @@ class NightAuditService
             $taxes = $tx->where('type', 'charge')->sum('tax_amount') + $posDirect->sum('tax') + $counter['tax'];
             $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posDirect->sum('total') + $counter['collections'];
 
-            $totalRooms = Room::where('is_active', true)->count();
+            $totalRooms = AvailabilityService::sellableRoomCounts($date, 1)[$date->toDateString()] ?? 0;
             $occupied = $stays->count();
             $audit = NightAudit::create([
                 'business_date' => $date->toDateString(),

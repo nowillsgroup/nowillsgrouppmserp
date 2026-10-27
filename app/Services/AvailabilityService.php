@@ -14,12 +14,66 @@ use Illuminate\Support\Collection;
 
 class AvailabilityService
 {
+    /** Physical room states that remove a room from nightly sale. */
+    public const NON_SELLABLE_ROOM_STATUSES = ['out_of_order', 'out_of_service', 'maintenance', 'house_use'];
+
     /** Stay lines that block inventory in [from, to). */
     public static function blockingStays($from, $to)
     {
         return ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
             ->whereDate('arrival_date', '<', Carbon::parse($to)->toDateString())
             ->whereDate('departure_date', '>', Carbon::parse($from)->toDateString());
+    }
+
+    /** Sellable active-room counts for each night in [from, from + days). */
+    public static function sellableRoomCounts(Carbon $from, int $days, ?Collection $roomRows = null): array
+    {
+        if ($days <= 0) {
+            return [];
+        }
+
+        $from = $from->copy()->startOfDay();
+        $roomRows ??= Room::where('is_active', true)->get(['id', 'status']);
+        $to = $from->copy()->addDays($days);
+        $roomIds = $roomRows->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $activeIds = array_fill_keys($roomIds, true);
+        $baseUnavailable = array_fill_keys($roomRows->whereIn('status', self::NON_SELLABLE_ROOM_STATUSES)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all(), true);
+        $businessDate = bdate()->copy()->startOfDay();
+        $leases = LeaseService::roomBlocks($from, $to);
+        $outages = RoomOutage::query()->whereIn('status', ['active', 'released'])
+            ->whereDate('starts_on', '<', $to->toDateString())->whereDate('ends_on', '>', $from->toDateString())
+            ->whereIn('room_id', $roomIds)
+            ->get(['room_id', 'starts_on', 'ends_on', 'status', 'released_at']);
+        $counts = [];
+
+        for ($i = 0; $i < $days; $i++) {
+            $dayDate = $from->copy()->addDays($i);
+            $day = $dayDate->toDateString();
+            // Current physical room flags cannot be projected onto historical nights.
+            $blocked = $dayDate->lt($businessDate) ? [] : $baseUnavailable;
+            foreach ($leases as $lease) {
+                if ($lease['from'] <= $day && $lease['to'] > $day && isset($activeIds[(int) $lease['room_id']])) {
+                    $blocked[(int) $lease['room_id']] = true;
+                }
+            }
+            foreach ($outages as $outage) {
+                $historical = $dayDate->lt($businessDate);
+                if (! $historical && $outage->status !== 'active') {
+                    continue;
+                }
+                $effectiveEnd = $outage->ends_on->toDateString();
+                if ($historical && $outage->status === 'released' && $outage->released_at) {
+                    $effectiveEnd = min($effectiveEnd, $outage->released_at->toDateString());
+                }
+                if ($outage->starts_on->toDateString() <= $day && $effectiveEnd > $day) {
+                    $blocked[(int) $outage->room_id] = true;
+                }
+            }
+            $counts[$day] = max(0, count($roomIds) - count(array_intersect_key($blocked, $activeIds)));
+        }
+
+        return $counts;
     }
 
     /** Physical rooms free for the whole range. */
@@ -32,22 +86,28 @@ class AvailabilityService
             ->merge(RoomOutage::covering($from, $to)->pluck('room_id')); // dated desk blocks
 
         return Room::with('roomType')->where('is_active', true)
-            ->whereNotIn('status', ['out_of_order', 'out_of_service'])
+            ->whereNotIn('status', self::NON_SELLABLE_ROOM_STATUSES)
             ->whereNotIn('id', $busy)
             ->when($roomTypeId, fn ($q) => $q->where('room_type_id', $roomTypeId))
             ->orderBy('room_no')->get();
     }
 
     /**
-     * Rooms that the reservations desk may assign for a future stay.
-     * Dirty rooms remain selectable (housekeeping will prepare them), but an
-     * occupied room must never be assigned just because it has no reservation
-     * line attached to it.
+     * Rooms that the reservations desk may assign for a stay.
+     * Dirty rooms remain selectable (housekeeping will prepare them). The
+     * physical occupied flag is a current snapshot, so only exclude it when
+     * the requested interval includes the hotel's business date; other dates
+     * are checked against the dated stay and block records above.
      */
     public static function reservationRooms($from, $to, ?int $roomTypeId = null, ?int $ignoreStayId = null): Collection
     {
-        return self::freeRooms($from, $to, $roomTypeId, $ignoreStayId)
-            ->reject(fn (Room $room) => $room->status === 'occupied')
+        $businessDate = bdate()->copy()->startOfDay();
+        $fromDate = Carbon::parse($from)->startOfDay();
+        $toDate = Carbon::parse($to)->startOfDay();
+        $includesBusinessDate = $fromDate->lte($businessDate) && $toDate->gt($businessDate);
+
+        return self::freeRooms($fromDate, $toDate, $roomTypeId, $ignoreStayId)
+            ->reject(fn (Room $room) => $includesBusinessDate && $room->status === 'occupied')
             ->values();
     }
 
@@ -80,24 +140,26 @@ class AvailabilityService
     {
         $from = Carbon::parse($from)->startOfDay();
         $to = $from->copy()->addDays($days);
-        $types = RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', ['out_of_order', 'out_of_service'])])->get();
+        $types = RoomType::where('is_active', true)->withCount(['rooms' => fn ($q) => $q->where('is_active', true)->whereNotIn('status', self::NON_SELLABLE_ROOM_STATUSES)])->get();
         $stays = self::blockingStays($from, $to)->get(['room_type_id', 'arrival_date', 'departure_date']);
         $held = self::heldRooms($from, $to, $exceptBlockId, $exceptContractId);
         $leased = LeaseService::roomBlocks($from, $to); // v5.2
         $outages = RoomOutage::covering($from, $to)->with('room:id,room_type_id,status')->get()
-            ->filter(fn ($o) => $o->room && ! in_array($o->room->status, ['out_of_order', 'out_of_service'], true));
+            ->filter(fn ($o) => $o->room && ! in_array($o->room->status, self::NON_SELLABLE_ROOM_STATUSES, true));
         $out = [];
+        $capacity = [];
         foreach ($types as $type) {
             foreach (CarbonPeriod::create($from, $to->copy()->subDay()) as $d) {
                 $key = $d->toDateString();
                 $used = $stays->where('room_type_id', $type->id)->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d))->count();
                 $let = $leased->where('room_type_id', $type->id)->filter(fn ($b) => $b['from'] <= $key && $b['to'] > $key)->count();
                 $blocked = $outages->filter(fn ($o) => $o->room->room_type_id === $type->id && $o->starts_on->lte($d) && $o->ends_on->gt($d))->count();
-                $out[$type->id][$key] = $type->rooms_count - $used - $let - $blocked - ($held[$type->id][$key] ?? 0);
+                $capacity[$type->id][$key] = max(0, $type->rooms_count - $let - $blocked);
+                $out[$type->id][$key] = $capacity[$type->id][$key] - $used - ($held[$type->id][$key] ?? 0);
             }
         }
 
-        return ['types' => $types, 'matrix' => $out, 'held' => $held, 'from' => $from, 'days' => $days];
+        return ['types' => $types, 'matrix' => $out, 'capacity' => $capacity, 'held' => $held, 'from' => $from, 'days' => $days];
     }
 
     /**
@@ -154,10 +216,30 @@ class AvailabilityService
             ->each(fn ($s) => $s->block_id = $resToBlock[$s->reservation_id]);
     }
 
-    public static function typeAvailable(int $roomTypeId, $from, $to, ?int $exceptBlockId = null, ?int $exceptContractId = null): int
+    public static function typeAvailable(int $roomTypeId, $from, $to, ?int $exceptBlockId = null, ?int $exceptContractId = null, ?int $exceptReservationId = null): int
     {
-        $m = self::matrix($from, max(1, Carbon::parse($from)->diffInDays(Carbon::parse($to))), $exceptBlockId, $exceptContractId);
+        $from = Carbon::parse($from)->startOfDay();
+        $to = Carbon::parse($to)->startOfDay();
+        $m = self::matrix($from, max(1, $from->diffInDays($to)), $exceptBlockId, $exceptContractId);
+        $daily = $m['matrix'][$roomTypeId] ?? [];
 
-        return empty($m['matrix'][$roomTypeId]) ? 0 : min($m['matrix'][$roomTypeId]);
+        if ($exceptReservationId && $daily) {
+            // Restore only this reservation's actual occupied nights. Adding the
+            // reservation's total room count to every date can overbook when an
+            // edit moves the stay onto different dates.
+            $ownStays = ReservationRoom::where('reservation_id', $exceptReservationId)
+                ->where('room_type_id', $roomTypeId)
+                ->whereIn('status', ['reserved', 'checked_in'])
+                ->whereDate('arrival_date', '<', $to->toDateString())
+                ->whereDate('departure_date', '>', $from->toDateString())
+                ->get(['arrival_date', 'departure_date']);
+
+            foreach ($daily as $date => $count) {
+                $night = Carbon::parse($date);
+                $daily[$date] = $count + $ownStays->filter(fn ($stay) => $stay->arrival_date->lte($night) && $stay->departure_date->gt($night))->count();
+            }
+        }
+
+        return $daily ? min($daily) : 0;
     }
 }

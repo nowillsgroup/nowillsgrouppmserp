@@ -218,7 +218,7 @@ class GiftVoucherController extends Controller
             return back()->withInput()->with('error', 'Stored-value cards are loaded with any amount – leave the fixed value empty.');
         }
         $data['usable_on'] = array_values(array_unique($data['usable_on']));
-        $data['color'] = $data['color'] ?? '#0f766e';
+        $data['color'] = $data['color'] ?? '#166534';
         $data['is_active'] = $request->boolean('is_active', ! $gvtype);
         $gvtype ? $gvtype->update($data) : $gvtype = GiftVoucherType::create($data);
         \App\Services\ActivityLogger::log('vouchers', 'type', "Voucher type “{$gvtype->name}” saved", $gvtype);

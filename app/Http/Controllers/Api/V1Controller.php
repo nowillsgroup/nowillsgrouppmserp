@@ -235,7 +235,7 @@ class V1Controller extends Controller
     {
         if ($r->filled('date')) {
             $r->validate(['date' => 'date_format:Y-m-d']);
-            $a = NightAudit::where('business_date', $r->query('date'))->first();
+            $a = NightAudit::whereDate('business_date', $r->query('date'))->first();
             if (! $a) {
                 return ApiAuthenticate::error('not_found', 'No night audit has closed '.$r->query('date').' yet.', 404);
             }

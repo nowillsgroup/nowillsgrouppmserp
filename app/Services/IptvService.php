@@ -333,7 +333,8 @@ class IptvService
     public static function setStatus(TvDevice $dev, string $status, User $by): void
     {
         self::need(self::canManage($by));
-        self::need(in_array($status, ['active', 'disabled'], true) && $dev->status !== 'pending', 'A TV awaiting pairing must be paired first.');
+        self::need(in_array($status, ['active', 'disabled'], true), 'TV status must be active or disabled.');
+        self::need($dev->status !== 'pending', 'A TV awaiting pairing must be paired first.');
         $dev->update(['status' => $status]);
         if ($status === 'disabled') {
             self::endSessions($dev, 'reset');
@@ -358,7 +359,8 @@ class IptvService
         $p = [];
         if ($cmd === 'volume') {
             $v = (int) ($payload['level'] ?? 0);
-            self::need($v >= 10 && $v <= 100, 'The volume limit is 10 to 100.');
+            $max = self::cfg()['volume_max'];
+            self::need($v >= 10 && $v <= $max, "The volume limit is 10 to {$max}.");
             $p = ['level' => $v];
         } elseif ($cmd === 'tune') {
             $ch = TvChannel::where('is_active', true)->where('number', (int) ($payload['channel'] ?? 0))->first();

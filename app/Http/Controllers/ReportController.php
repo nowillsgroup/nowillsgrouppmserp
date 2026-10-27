@@ -1532,19 +1532,23 @@ class ReportController extends Controller
     /** Room nights and revenue per day computed from stays + posted tariff. */
     protected function r_occupancy($from, $to): array
     {
-        $total = Room::where('is_active', true)->count();
+        $roomRows = Room::where('is_active', true)->get(['id', 'status']);
+        $days = (int) $from->diffInDays($to) + 1;
+        $sellableByDay = \App\Services\AvailabilityService::sellableRoomCounts($from, $days, $roomRows);
         $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)->get(['arrival_date', 'departure_date', 'adults', 'children']);
         $rev = FolioTransaction::where('category', 'room')->where('type', 'charge')->where('is_void', false)->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->get(['business_date', 'amount'])->groupBy(fn ($t) => $t->business_date->toDateString())->map->sum('amount');
         $rows = collect();
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+            $key = $d->toDateString();
+            $total = $sellableByDay[$key] ?? 0;
             $occ = $stays->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d));
-            $sold = $occ->count(); $r = (float) ($rev[$d->toDateString()] ?? 0);
-            $rows->push(['date' => $d->format('d-m-Y D'), 'total' => $total, 'sold' => $sold, 'vacant' => $total - $sold, 'pax' => $occ->sum('adults') + $occ->sum('children'),
+            $sold = $occ->count(); $r = (float) ($rev[$key] ?? 0);
+            $rows->push(['date' => $d->format('d-m-Y D'), 'total' => $total, 'sold' => $sold, 'vacant' => max(0, $total - $sold), 'pax' => $occ->sum('adults') + $occ->sum('children'),
                 'occ' => $total ? round($sold * 100 / $total, 1) : 0, 'revenue' => $r, 'adr' => $sold ? round($r / $sold, 2) : 0, 'revpar' => $total ? round($r / $total, 2) : 0]);
         }
 
-        return ['cols' => ['date' => 'Date', 'total' => 'Rooms', 'sold' => 'Sold', 'vacant' => 'Vacant', 'pax' => 'Pax', 'occ' => 'Occ %', 'revenue' => 'Room revenue', 'adr' => 'ADR', 'revpar' => 'RevPAR'],
+        return ['cols' => ['date' => 'Date', 'total' => 'Sellable rooms', 'sold' => 'Sold', 'vacant' => 'Vacant', 'pax' => 'Pax', 'occ' => 'Occ %', 'revenue' => 'Room revenue', 'adr' => 'ADR', 'revpar' => 'RevPAR'],
             'rows' => $rows, 'money' => ['revenue', 'adr', 'revpar'], 'sum' => ['sold', 'pax', 'revenue'], 'chart' => ['label' => 'Occupancy %', 'key' => 'occ', 'x' => 'date']];
     }
 
@@ -6149,13 +6153,24 @@ class ReportController extends Controller
 
     protected function r_room_outages($from, $to): array
     {
-        $rows = RoomOutage::with('room.roomType')->whereBetween('outage_from', [$from, $to])->get()->map(fn ($r) => [
-            'room' => optional($r->room)->room_no, 'type' => optional($r->room->roomType)->name,
-            'from' => $r->outage_from, 'to' => $r->outage_to, 'category' => $r->category,
-            'reason' => $r->reason, 'estimated_cost' => $r->estimated_cost, 'actual_cost' => $r->actual_cost,
-            'revenue_lost' => $r->revenue_lost, 'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
-        ]);
-        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'from' => 'From', 'to' => 'To', 'category' => 'Category', 'reason' => 'Reason', 'estimated_cost' => 'Est Cost', 'actual_cost' => 'Act Cost', 'revenue_lost' => 'Rev Lost', 'status' => 'Status'], 'rows' => $rows, 'money' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'sum' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'note' => 'Room out-of-order periods with cost and revenue impact.'];
+        // Room outages are dated [starts_on, ends_on) blocks. Include any
+        // block that overlaps the inclusive report window rather than only
+        // outages that began inside it.
+        $rows = RoomOutage::with(['room.roomType', 'creator'])
+            ->whereDate('starts_on', '<=', $to)
+            ->whereDate('ends_on', '>', $from)
+            ->orderBy('starts_on')->orderBy('room_id')->get()->map(fn ($r) => [
+                'room' => optional($r->room)->room_no,
+                'type' => optional($r->room?->roomType)->name,
+                'from' => $r->starts_on,
+                'to' => $r->ends_on,
+                'category' => RoomOutage::REASONS[$r->reason] ?? $r->reason,
+                'status' => $r->status,
+                'user' => $r->creator?->name ?? ($r->created_by ? 'User #'.$r->created_by : '—'),
+                'notes' => $r->notes,
+            ]);
+
+        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'from' => 'From', 'to' => 'To', 'category' => 'Reason', 'status' => 'Status', 'user' => 'Created By', 'notes' => 'Notes'], 'rows' => $rows, 'money' => [], 'sum' => [], 'note' => 'Room blocks overlapping the selected period. End dates are exclusive: the room returns that morning.'];
     }
 
 

@@ -4,7 +4,7 @@
 @section('actions')<span class="small muted">{{ $rows->count() }} properties · live</span>@endsection
 @section('content')
 <div class="stats">
-  <x-stat label="Group occupancy" :value="$totals['occ'].'%'" icon="bed" tone="blue" :sub="$totals['occupied'].' of '.$totals['rooms'].' rooms'"/>
+  <x-stat label="Group occupancy" :value="$totals['occ'].'%'" icon="bed" tone="blue" :sub="$totals['occupied'].' of '.$totals['rooms'].' sellable rooms'"/>
   <x-stat label="Revenue today" :value="money($totals['rev_today'])" icon="chart" tone="green" :sub="'Collections '.money($totals['collections'])"/>
   <x-stat label="Revenue MTD" :value="money($totals['rev_mtd'])" icon="wallet" tone="purple" :sub="'Rooms '.money($totals['room_rev_mtd'])"/>
   <x-stat label="In-house guests" :value="number_format($totals['in_house'])" icon="users" tone="teal" :sub="$totals['arrivals'].' arrivals · '.$totals['departures'].' departures'"/>
@@ -18,7 +18,7 @@
       <tr>
         <td style="min-width:200px"><b>{{ $r['hotel']->name }}</b><div class="tiny muted">{{ $r['hotel']->code }} · {{ ucwords(str_replace('_',' ',$r['hotel']->property_type)) }}{{ $r['hotel']->city ? ' · '.$r['hotel']->city : '' }}</div></td>
         <td class="small">{{ $r['business_date']->format('d M Y') }}</td>
-        <td style="min-width:150px"><div class="flex items-center gap-1"><div class="progress" style="flex:1"><span style="width:{{ $r['occ'] }}%"></span></div><b class="small">{{ $r['occ'] }}%</b></div><div class="tiny muted">{{ $r['occupied'] }}/{{ $r['rooms'] }} rooms</div></td>
+        <td style="min-width:150px"><div class="flex items-center gap-1"><div class="progress" style="flex:1"><span style="width:{{ $r['occ'] }}%"></span></div><b class="small">{{ $r['occ'] }}%</b></div><div class="tiny muted">{{ $r['occupied'] }}/{{ $r['rooms'] }} sellable</div></td>
         <td class="num">{{ $r['in_house'] }}</td>
         <td class="num">{{ $r['arrivals'] }} / {{ $r['departures'] }}</td>
         <td class="num bold">{{ money($r['rev_today']) }}</td>

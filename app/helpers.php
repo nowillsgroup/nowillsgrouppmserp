@@ -15,7 +15,7 @@ if (! function_exists('bdate')) {
     /** Current PMS business date for the active hotel. */
     function bdate(): Carbon
     {
-        return Tenant::hotel()?->business_date?->copy() ?? Carbon::today();
+        return \App\Support\BusinessDateContext::current() ?? Tenant::hotel()?->business_date?->copy() ?? Carbon::today();
     }
 }
 

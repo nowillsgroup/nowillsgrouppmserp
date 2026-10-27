@@ -21,22 +21,28 @@ draft caching.
    `applied` | `duplicate` | `rejected` (rejects are persisted to the sync log
    for audit; a rejected id may be retried, an applied one reports `duplicate`).
 4. **Refresh the cache** — `GET /offline/desktop/delta?since={cursor}` returns
-   everything changed since the watermark (rooms, stays, reservations, folio
-   transactions) so the desktop does not need a full re-export.
+   changes to rooms, room types, rate plans, payment modes, stays, reservations,
+   guests, folios and folio transactions so the desktop does not need a full
+   re-export. The cursor overlaps the read by one second; clients should upsert
+   by row id so a repeated boundary row is harmless.
 
 ## Operations
 
 | Kind | Payload | Delegates to |
 |---|---|---|
 | `desk.check_in` | `stay_id, room_id` | `StayService::checkIn` (vacancy enforced) |
-| `desk.check_out` | `stay_id, force?` | `StayService::checkOut` (zero-balance rule) |
+| `desk.check_out` | `stay_id` | `StayService::checkOut` (zero-balance rule; forced checkout is not available offline) |
 | `desk.charge` | `stay_id, category, description, amount, tax?` | `FolioService::charge` |
 | `desk.payment` | `stay_id, amount, payment_mode_id, reference?` | `FolioService::payment` |
 | `desk.nights` | `stay_id, until?` | `StayService::postPendingNights` |
 
 Business rules are the server's, not the desktop's: an occupied room, a folio
 in balance, an unsupported operation — each is a `rejected` result with the
-real reason, safe to retry after fixing.
+real reason, safe to retry after fixing. Housekeeping operations additionally
+require `housekeeping.attendant` or `housekeeping.manage` (the shared sync route
+also accepts `requests.manage` for guest-request creation). A stale room-status
+change that would replace a newer status or room note returns a `conflict`; the
+current server record is returned instead of overwritten.
 
 ## Workspace
 

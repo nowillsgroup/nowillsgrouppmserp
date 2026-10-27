@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\Guest;
 use App\Models\ReservationRoom;
+use App\Models\Setting;
 use App\Models\SpaAppointment;
 use App\Models\SpaService;
 use App\Support\Numbering;
@@ -95,10 +96,20 @@ class SpaBookingService
         }
 
         return DB::transaction(function () use ($row, $appt) {
+            // Serialize every writer (desk, portal and TV) before the final clash
+            // check, so two simultaneous requests cannot take the same slot.
+            Setting::firstOrCreate(['key' => 'spa_booking_lock'], ['value' => '0']);
+            Setting::where('key', 'spa_booking_lock')->lockForUpdate()->first();
             if ($appt) {
+                $appt = SpaAppointment::whereKey($appt->id)->lockForUpdate()->firstOrFail();
                 if (! $appt->isOpen()) {
                     throw new RuntimeException('Only booked appointments can be changed.');
                 }
+            }
+            if ($msg = self::clash($row['date'], $row['start_time'], $row['end_time'], $row['employee_id'], $row['spa_room_id'], $appt?->id)) {
+                throw new RuntimeException($msg);
+            }
+            if ($appt) {
                 $appt->update($row);
                 ActivityLogger::log('spa', 'update', "Appointment {$appt->appt_no} updated", $appt);
 
@@ -113,17 +124,42 @@ class SpaBookingService
 
     public static function setStatus(SpaAppointment $appt, string $status, ?string $reason = null): SpaAppointment
     {
-        $allowed = ['in_progress' => ['booked'], 'cancelled' => ['booked'], 'no_show' => ['booked'], 'booked' => ['in_progress']];
-        if (! in_array($appt->status, $allowed[$status] ?? [])) {
-            throw new RuntimeException("Cannot change a {$appt->status} appointment to {$status}.");
-        }
-        if ($status === 'cancelled' && ! trim((string) $reason)) {
-            throw new RuntimeException('A cancellation reason is required.');
-        }
-        $appt->update(['status' => $status, 'cancel_reason' => $status === 'cancelled' ? $reason : $appt->cancel_reason]);
-        ActivityLogger::log('spa', $status, "Appointment {$appt->appt_no} → {$status}".($reason ? ": {$reason}" : ''), $appt);
+        return DB::transaction(function () use ($appt, $status, $reason) {
+            $appt = SpaAppointment::whereKey($appt->id)->lockForUpdate()->firstOrFail();
+            $allowed = ['in_progress' => ['booked'], 'cancelled' => ['booked'], 'no_show' => ['booked'], 'booked' => ['in_progress']];
+            if (! in_array($appt->status, $allowed[$status] ?? [])) {
+                throw new RuntimeException("Cannot change a {$appt->status} appointment to {$status}.");
+            }
+            if ($status === 'cancelled' && ! trim((string) $reason)) {
+                throw new RuntimeException('A cancellation reason is required.');
+            }
+            $appt->update(['status' => $status, 'cancel_reason' => $status === 'cancelled' ? $reason : $appt->cancel_reason]);
+            ActivityLogger::log('spa', $status, "Appointment {$appt->appt_no} → {$status}".($reason ? ": {$reason}" : ''), $appt);
 
-        return $appt;
+            return $appt;
+        });
+    }
+
+    /** Guest cancellation rechecks status and the two-hour cutoff under the appointment lock. */
+    public static function cancelFromPortal(SpaAppointment $appt, int $stayId): SpaAppointment
+    {
+        return DB::transaction(function () use ($appt, $stayId) {
+            $appt = SpaAppointment::whereKey($appt->id)->lockForUpdate()->firstOrFail();
+            if ((int) $appt->reservation_room_id !== $stayId) {
+                throw new RuntimeException('That booking was not found.');
+            }
+            if ($appt->status !== 'booked') {
+                throw new RuntimeException('This booking can no longer be cancelled online.');
+            }
+            if (Carbon::parse($appt->date->toDateString().' '.$appt->start_time)->lt(now()->addHours(2))) {
+                throw new RuntimeException('This booking can no longer be cancelled online – please call the spa.');
+            }
+            $reason = 'Cancelled by guest via portal';
+            $appt->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
+            ActivityLogger::log('spa', 'cancelled', "Appointment {$appt->appt_no} → cancelled: {$reason}", $appt);
+
+            return $appt;
+        });
     }
 
     /**
@@ -132,19 +168,22 @@ class SpaBookingService
      */
     public static function settle(SpaAppointment $appt, string $mode, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null): SpaAppointment
     {
-        if (! $appt->isOpen()) {
-            throw new RuntimeException('This appointment is already '.str_replace('_', ' ', $appt->status).'.');
-        }
         if ($mode === 'payment' && GiftVoucherService::isVoucherMode($paymentModeId)) {
             throw new RuntimeException('To pay with a gift voucher, post the treatment to the room and redeem the voucher on the folio.'); // v3.8
         }
-        $net = $appt->net();
-        $desc = ($appt->service->category === 'spa' ? 'Spa' : ucfirst($appt->service->category))." – {$appt->service->name}".($appt->pax > 1 ? " × {$appt->pax}" : '')." ({$appt->appt_no})";
 
-        return DB::transaction(function () use ($appt, $mode, $paymentModeId, $reference, $cheque, $net, $desc) {
+        return DB::transaction(function () use ($appt, $mode, $paymentModeId, $reference, $cheque) {
+            $appt = SpaAppointment::with('service')->whereKey($appt->id)->lockForUpdate()->firstOrFail();
+            if (! $appt->isOpen()) {
+                throw new RuntimeException('This appointment is already '.str_replace('_', ' ', $appt->status).'.');
+            }
+            $net = $appt->net();
+            $desc = ($appt->service->category === 'spa' ? 'Spa' : ucfirst($appt->service->category))." – {$appt->service->name}".($appt->pax > 1 ? " × {$appt->pax}" : '')." ({$appt->appt_no})";
             $folio = null;
             if ($mode === 'room_post') {
-                $stay = $appt->stay;
+                $stay = $appt->reservation_room_id
+                    ? ReservationRoom::whereKey($appt->reservation_room_id)->lockForUpdate()->first()
+                    : null;
                 if (! $stay || $stay->status !== 'checked_in') {
                     throw new RuntimeException('Post to room needs a checked-in guest. Settle by payment instead.');
                 }

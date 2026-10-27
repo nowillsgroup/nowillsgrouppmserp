@@ -11,7 +11,7 @@
     <div style="color:#64748b;font-size:11px">{{ $x['quote']['breakdown'] }}</div></td></tr>
 @endforeach
 </table>
-<table cellpadding="0" cellspacing="0" style="margin:18px 0"><tr><td style="background:#1d4ed8;border-radius:8px"><a href="{{ $url }}" style="display:inline-block;padding:12px 24px;color:#fff;text-decoration:none;font-weight:bold">See offers &amp; add to my stay</a></td></tr></table>
+<table cellpadding="0" cellspacing="0" style="margin:18px 0"><tr><td style="background:#166534;border-radius:8px"><a href="{{ $url }}" style="display:inline-block;padding:12px 24px;color:#fff;text-decoration:none;font-weight:bold">See offers &amp; add to my stay</a></td></tr></table>
 <p style="font-size:12px;color:#64748b">Prices are before taxes and are added to your room bill; nothing is charged now. If the button does not work, copy this link: {{ $url }}</p>
 <p style="margin-top:18px">Warm regards,<br><b>Front Office, {{ $hotel->name }}</b></p>
 @endsection
