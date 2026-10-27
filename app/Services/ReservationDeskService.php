@@ -257,50 +257,11 @@ class ReservationDeskService
         return $q;
     }
 
-    /** Sellable active-room counts for each night in [from, from + days). */
-    protected static function sellableRoomCounts(Carbon $from, int $days, $roomRows): array
-    {
-        if ($days <= 0) {
-            return [];
-        }
-
-        $to = $from->copy()->addDays($days);
-        $roomIds = $roomRows->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $activeIds = array_fill_keys($roomIds, true);
-        $baseUnavailable = array_fill_keys($roomRows->whereIn('status', ['out_of_order', 'out_of_service'])
-            ->pluck('id')->map(fn ($id) => (int) $id)->all(), true);
-        $businessDate = bdate()->copy()->startOfDay();
-        $leases = LeaseService::roomBlocks($from, $to);
-        $outages = RoomOutage::covering($from, $to)->whereIn('room_id', $roomIds)
-            ->get(['room_id', 'starts_on', 'ends_on']);
-        $counts = [];
-
-        for ($i = 0; $i < $days; $i++) {
-            $dayDate = $from->copy()->addDays($i);
-            $day = $dayDate->toDateString();
-            // Current physical room flags cannot be projected onto historical nights.
-            $blocked = $dayDate->lt($businessDate) ? [] : $baseUnavailable;
-            foreach ($leases as $lease) {
-                if ($lease['from'] <= $day && $lease['to'] > $day && isset($activeIds[(int) $lease['room_id']])) {
-                    $blocked[(int) $lease['room_id']] = true;
-                }
-            }
-            foreach ($outages as $outage) {
-                if ($outage->starts_on->toDateString() <= $day && $outage->ends_on->toDateString() > $day) {
-                    $blocked[(int) $outage->room_id] = true;
-                }
-            }
-            $counts[$day] = max(0, count($roomIds) - count(array_intersect_key($blocked, $activeIds)));
-        }
-
-        return $counts;
-    }
-
     /** N-day outlook: arrivals, departures, expected rooms, occupancy, expected room revenue. Read-only. */
     public static function pipeline(Carbon $date, int $days = 7): array
     {
         $roomRows = Room::where('is_active', true)->get(['id', 'status']);
-        $sellableByDay = self::sellableRoomCounts($date, $days, $roomRows);
+        $sellableByDay = AvailabilityService::sellableRoomCounts($date, $days, $roomRows);
         $out = [];
         for ($i = 0; $i < $days; $i++) {
             $d = $date->copy()->addDays($i);
@@ -452,7 +413,7 @@ class ReservationDeskService
         $assigned = (clone $covering)->whereNotNull('room_id')->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
-        $sellable = self::sellableRoomCounts($date, 1, $roomRows)[$d] ?? 0;
+        $sellable = AvailabilityService::sellableRoomCounts($date, 1, $roomRows)[$d] ?? 0;
         $posted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->sum(DB::raw('amount + tax_amount'));
         $roomPosted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->where('category', 'room')->sum(DB::raw('amount + tax_amount'));
         $deposits = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', 'advance')->sum('amount');

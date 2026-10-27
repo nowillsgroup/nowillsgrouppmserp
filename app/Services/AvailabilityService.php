@@ -22,6 +22,57 @@ class AvailabilityService
             ->whereDate('departure_date', '>', Carbon::parse($from)->toDateString());
     }
 
+    /** Sellable active-room counts for each night in [from, from + days). */
+    public static function sellableRoomCounts(Carbon $from, int $days, ?Collection $roomRows = null): array
+    {
+        if ($days <= 0) {
+            return [];
+        }
+
+        $from = $from->copy()->startOfDay();
+        $roomRows ??= Room::where('is_active', true)->get(['id', 'status']);
+        $to = $from->copy()->addDays($days);
+        $roomIds = $roomRows->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $activeIds = array_fill_keys($roomIds, true);
+        $baseUnavailable = array_fill_keys($roomRows->whereIn('status', ['out_of_order', 'out_of_service'])
+            ->pluck('id')->map(fn ($id) => (int) $id)->all(), true);
+        $businessDate = bdate()->copy()->startOfDay();
+        $leases = LeaseService::roomBlocks($from, $to);
+        $outages = RoomOutage::query()->whereIn('status', ['active', 'released'])
+            ->whereDate('starts_on', '<', $to->toDateString())->whereDate('ends_on', '>', $from->toDateString())
+            ->whereIn('room_id', $roomIds)
+            ->get(['room_id', 'starts_on', 'ends_on', 'status', 'released_at']);
+        $counts = [];
+
+        for ($i = 0; $i < $days; $i++) {
+            $dayDate = $from->copy()->addDays($i);
+            $day = $dayDate->toDateString();
+            // Current physical room flags cannot be projected onto historical nights.
+            $blocked = $dayDate->lt($businessDate) ? [] : $baseUnavailable;
+            foreach ($leases as $lease) {
+                if ($lease['from'] <= $day && $lease['to'] > $day && isset($activeIds[(int) $lease['room_id']])) {
+                    $blocked[(int) $lease['room_id']] = true;
+                }
+            }
+            foreach ($outages as $outage) {
+                $historical = $dayDate->lt($businessDate);
+                if (! $historical && $outage->status !== 'active') {
+                    continue;
+                }
+                $effectiveEnd = $outage->ends_on->toDateString();
+                if ($historical && $outage->status === 'released' && $outage->released_at) {
+                    $effectiveEnd = min($effectiveEnd, $outage->released_at->toDateString());
+                }
+                if ($outage->starts_on->toDateString() <= $day && $effectiveEnd > $day) {
+                    $blocked[(int) $outage->room_id] = true;
+                }
+            }
+            $counts[$day] = max(0, count($roomIds) - count(array_intersect_key($blocked, $activeIds)));
+        }
+
+        return $counts;
+    }
+
     /** Physical rooms free for the whole range. */
     public static function freeRooms($from, $to, ?int $roomTypeId = null, ?int $ignoreStayId = null): Collection
     {
