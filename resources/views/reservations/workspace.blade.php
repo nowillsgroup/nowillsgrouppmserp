@@ -92,6 +92,7 @@
   ];
   $kpis = [];
   foreach ($tile as $key => [$label, $fmt]) {
+      if ($key === 'revenue' && ! can_do('revenue.view')) continue;
       $delta = $deltas[$key] ?? null;
       $tone = $delta === null || $delta == 0 ? 'green' : ($delta > 0 ? 'green' : 'red');
       $kpis[] = [
@@ -119,7 +120,7 @@
   @if ($canOpenKpi)</a>@else</div>@endif
   @endforeach
 </div>
-<div class="ws-revenue-note muted small">Room-rate value totals the nightly rate for each covering stay; it excludes taxes, fees, and folio postings.</div>
+@if (can_do('revenue.view'))<div class="ws-revenue-note muted small">Room-rate value totals the nightly rate for each covering stay; it excludes taxes, fees, and folio postings.</div>@endif
 
 {{-- ── Filters ── --}}
 <div class="ws-filters">
@@ -194,9 +195,11 @@
           </div>
           <div class="ws-rate-row small">
             <div><span class="muted">Nightly rate</span><br><span class="bold">{{ money($c['rate']) }}</span> <span class="muted">/n</span></div>
-            @php $cardDue = $c['due'] ?? $c['balance']; @endphp
-            @if ($cardDue !== null)
-            <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? 'Final folio balance' : 'Estimated checkout amount, including nights and fixed charges still to post' }}">{{ $cardDue > 0 ? money($cardDue).' due' : 'Settled' }}</div>
+            @if (can_do('folio.view'))
+              @php $cardDue = $c['due'] ?? $c['balance']; @endphp
+              @if ($cardDue !== null)
+              <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? 'Final folio balance' : 'Estimated checkout amount, including nights and fixed charges still to post' }}">{{ $cardDue > 0 ? money($cardDue).' due' : 'Settled' }}</div>
+              @endif
             @endif
           </div>
         </div>
@@ -347,8 +350,11 @@
           <span><b>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</b>
           <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}
             @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
-            @if ($da !== null) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? money($da).' to settle' : 'settled' }}</b>@endif
-            @if (! empty($df['blocked']))<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>@endif
+            @if ($da !== null && can_do('folio.view')) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? money($da).' to settle' : 'settled' }}</b>@endif
+            @if (! empty($df['blocked']))
+              @if (can_do('folio.view'))<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>
+              @else<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ checkout blocked · {{ count($df['blocked']) }} item(s)</span>@endif
+            @endif
           </span></span>
         @if ($departureHref)</a>@else</div>@endif
       @empty<div class="muted small">No departures on this date.</div>@endforelse
@@ -439,8 +445,8 @@
       <table class="ws-resv-t">
         <tr><td class="muted">Confirmation</td><td class="bold">{{ $stay->reservation?->reservation_no ?? '—' }}</td><td class="muted">Source</td><td class="bold">{{ $stay->reservation?->businessSource?->name ?? 'Direct' }}</td></tr>
         <tr><td class="muted">Stay</td><td class="bold">{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format('d M') }} → {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format('d M') }} · {{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</td><td class="muted">Guests</td><td class="bold">{{ $stay->adults }} Adults · {{ $stay->children }} Children</td></tr>
-        <tr><td class="muted">Rate</td><td class="bold">{{ money($c['rate']) }}/n</td><td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? money($c['balance']) : (($c['balance'] ?? 0) < 0 ? money(abs($c['balance'])).' in credit' : 'Settled') }}</td></tr>
-        @if (($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">{{ money($c['due']) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
+        <tr><td class="muted">Rate</td><td class="bold">{{ money($c['rate']) }}/n</td>@if (can_do('folio.view'))<td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? money($c['balance']) : (($c['balance'] ?? 0) < 0 ? money(abs($c['balance'])).' in credit' : 'Settled') }}</td>@else<td colspan="2"></td>@endif</tr>
+        @if (can_do('folio.view') && ($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">{{ money($c['due']) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
       </table>
     </div></div>@endif</div>
     @if (count($roomActions))<div class="ws-rail-title" style="margin-top:16px">QUICK LINKS</div><div class="ws-quick">

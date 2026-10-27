@@ -11,10 +11,9 @@
 @endphp
 
 @section('content')
-<div class="kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0">
-  @foreach ([
+@php
+  $reportKpis = [
     ['Occupancy', $kpis['occupancy'].'%'],
-    [$isFuture ? 'Booked room-rate value' : ($isHistory ? 'Room-rate value' : 'Room-rate total'), money($kpis['revenue'])],
     ['Available', $kpis['available']],
     ['Occupied', $kpis['occupied']],
     ['Reserved', $kpis['reserved']],
@@ -23,7 +22,13 @@
     [$isFuture ? 'Guests expected' : ($isHistory ? 'Guests staying' : 'In-house guests'), $kpis['inhouse']],
     [$isFuture ? 'VIP guests expected' : 'VIP guests', $kpis['vips']],
     ['Rooms (active)', $cards->count()],
-  ] as [$label, $value])
+  ];
+  if (can_do('revenue.view')) {
+      array_splice($reportKpis, 1, 0, [[$isFuture ? 'Booked room-rate value' : ($isHistory ? 'Room-rate value' : 'Room-rate total'), money($kpis['revenue'])]]);
+  }
+@endphp
+<div class="kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0">
+  @foreach ($reportKpis as [$label, $value])
   <div style="border:1px solid #d7dce5;border-radius:8px;padding:8px 10px">
     <div class="small text-2" style="text-transform:uppercase;letter-spacing:.4px">{{ $label }}</div>
     <div style="font-size:16px;font-weight:700">{{ $value }}</div>
@@ -53,7 +58,7 @@
 
     <h3 style="margin:14px 0 6px">Departures · {{ $date->format('j M Y') }} · {{ $departures->count() }}</h3>
     <table class="tbl">
-      <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>Balance</th></tr></thead>
+      <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>@if (can_do('folio.view'))Balance @else Checkout @endif</th></tr></thead>
       <tbody>
         @forelse ($departures as $s)
         @php
@@ -66,14 +71,19 @@
           <td>{{ $s->room?->room_no ?? '—' }}</td>
           <td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td>
           <td>{{ $s->reservation?->businessSource?->name ?? 'Direct' }}</td>
-          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? money($bal) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}@if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif</td>
+          <td class="{{ can_do('folio.view') && ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">
+            @if (can_do('folio.view'))
+              {{ $bal === null ? '—' : (($bal > 0 ? money($bal) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}
+              @if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif
+            @elseif (! empty($df['blocked']))Checkout blocked · {{ count($df['blocked']) }} item(s)@else—@endif
+          </td>
         </tr>
         @empty
         <tr><td colspan="4" class="text-2">No departures on this date.</td></tr>
         @endforelse
       </tbody>
     </table>
-    @if (collect($departureFigures ?? [])->filter(fn ($f) => ($f['unposted'] ?? 0) > 0)->isNotEmpty())
+    @if (can_do('folio.view') && collect($departureFigures ?? [])->filter(fn ($f) => ($f['unposted'] ?? 0) > 0)->isNotEmpty())
     <div class="text-2 small">* still in house: the figure is what checkout will collect, including nights and fixed charges not yet posted.</div>
     @endif
   </div>
@@ -117,7 +127,7 @@
 
 <h3 style="margin:16px 0 6px">Room board · {{ $date->format('j M Y') }}</h3>
 <table class="tbl">
-  <thead><tr><th>Room</th><th>Type</th><th>Status</th><th>Guest / state</th><th>Arrive</th><th>Depart</th><th>Rate</th><th>Balance</th></tr></thead>
+  <thead><tr><th>Room</th><th>Type</th><th>Status</th><th>Guest / state</th><th>Arrive</th><th>Depart</th><th>Rate</th>@if (can_do('folio.view'))<th>Balance</th>@endif</tr></thead>
   <tbody>
     @foreach ($cards as $c)
     <tr>
@@ -135,7 +145,7 @@
       <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->arrival_date)->format('d M') : '—' }}</td>
       <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->departure_date)->format('d M') : '—' }}</td>
       <td>{{ money($c['rate']) }}</td>
-      <td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] !== null && $c['balance'] > 0 ? money($c['balance']) : '—' }}</td>
+      @if (can_do('folio.view'))<td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] !== null && $c['balance'] > 0 ? money($c['balance']) : '—' }}</td>@endif
     </tr>
     @endforeach
   </tbody>
