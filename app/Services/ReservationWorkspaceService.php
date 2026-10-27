@@ -219,7 +219,7 @@ class ReservationWorkspaceService
         // Only stays actually covering the selected night belong on its room board.
         // Past boards include completed stays so that a checked-out guest remains visible.
         $boardStatuses = $isHistory ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality', 'folio'])
+        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality', 'folio'])
             ->where('hotel_id', $hotelId)
             ->whereIn('status', $boardStatuses)
             ->whereDate('arrival_date', '<=', $selectedDay)
