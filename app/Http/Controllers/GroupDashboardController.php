@@ -6,6 +6,7 @@ use App\Models\FolioTransaction;
 use App\Models\PosOrder;
 use App\Models\ReservationRoom;
 use App\Models\Room;
+use App\Services\AvailabilityService;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -68,6 +69,8 @@ class GroupDashboardController extends Controller
         $bd = $hotel->business_date->copy();
         $d = $bd->toDateString();
         $rooms = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
+        $totalRooms = $rooms->count();
+        $sellable = AvailabilityService::sellableRoomCounts($bd, 1, $rooms)[$d] ?? 0;
         $occupied = $rooms->where('status', 'occupied')->count();
         $rev = $this->revenue($bd->copy()->startOfMonth()->min($bd->copy()->subDays(13))->toDateString(), $d);
         $mtdFrom = $bd->copy()->startOfMonth()->toDateString();
@@ -84,7 +87,7 @@ class GroupDashboardController extends Controller
 
         return [
             'hotel' => $hotel, 'business_date' => $bd,
-            'rooms' => $rooms->count(), 'occupied' => $occupied, 'occ' => $rooms->count() ? round($occupied * 100 / $rooms->count(), 1) : 0,
+            'rooms' => $sellable, 'total_rooms' => $totalRooms, 'occupied' => $occupied, 'occ' => $sellable ? round($occupied * 100 / $sellable, 1) : 0,
             'ooo' => $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->count(), 'dirty' => $rooms->where('hk_status', 'dirty')->count(),
             'in_house' => (int) ReservationRoom::where('status', 'checked_in')->sum(DB::raw('adults + children')),
             'arrivals' => ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $d)->count(),
