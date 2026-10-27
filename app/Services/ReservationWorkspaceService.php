@@ -72,8 +72,8 @@ class ReservationWorkspaceService
         $deskScope = fn ($q) => $hotelId ? $q->where('hotel_id', $hotelId) : $q->whereIn('room_id', $ids);
         $arrQ = $deskScope(ReservationRoom::query())->whereDate('arrival_date', $d);
         $depQ = $deskScope(ReservationRoom::query())->whereDate('departure_date', $d);
-        $deskStatuses = $past ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $departureStatuses = $past ? ['reserved', 'checked_in', 'checked_out'] : ($future ? ['reserved', 'checked_in'] : ['reserved', 'checked_in', 'checked_out']);
+        $deskStatuses = $past ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $departureStatuses = $past ? ['checked_in', 'checked_out'] : ($future ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
         $arrivals = (clone $arrQ)->whereIn('status', $deskStatuses)->count();
         $departures = (clone $depQ)->whereIn('status', $departureStatuses)->count();
         $occupancyRooms = $future ? $occupied + $reserved : $occupied;
@@ -284,8 +284,8 @@ class ReservationWorkspaceService
         // arrivals & departures for the date, regardless of room assignment —
         // an arrival with no room yet is still desk work (room_id is null until
         // it is assigned, so room-scoped queries would silently drop it)
-        $deskStatuses = $isHistory ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $departureStatuses = $isHistory ? ['reserved', 'checked_in', 'checked_out'] : ($isFuture ? ['reserved', 'checked_in'] : ['reserved', 'checked_in', 'checked_out']);
+        $deskStatuses = $isHistory ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $departureStatuses = $isHistory ? ['checked_in', 'checked_out'] : ($isFuture ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
         $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no,status'])
             ->where('hotel_id', $hotelId)
             ->whereDate('arrival_date', $selectedDay)
