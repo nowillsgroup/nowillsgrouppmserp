@@ -93,18 +93,60 @@ const plans = @json($ratePlans->groupBy('room_type_id'));
 const initial = @json(old('rooms', $lines));
 const tbody = document.querySelector('#linesTable tbody');
 const A = document.querySelector('[name=arrival_date]'), D = document.querySelector('[name=departure_date]');
-function nights(){ return Math.max(0, Math.round((new Date(D.value) - new Date(A.value)) / 86400000)); }
+function nights(){
+  if (!A.value || !D.value) return 0;
+  const arrival = Date.parse(`${A.value}T00:00:00Z`), departure = Date.parse(`${D.value}T00:00:00Z`);
+  return Number.isFinite(arrival) && Number.isFinite(departure) ? Math.max(0, Math.round((departure - arrival) / 86400000)) : 0;
+}
+function nextDate(value){
+  if (!value) return '';
+  const [year, month, day] = value.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+}
 function reindex(){ [...tbody.rows].forEach((tr,i) => tr.querySelectorAll('[data-k]').forEach(el => el.name = `rooms[${i}][${el.dataset.k}]`)); }
 function total(){ const n = nights(); document.getElementById('nights').value = n; let g = 0;
   [...tbody.rows].forEach(tr => { const v = (parseFloat(tr.querySelector('[data-k=rate]').value)||0) * n; g += v; tr.querySelector('[data-total]').textContent = v.toFixed(2); });
   document.getElementById('grandTotal').textContent = g.toFixed(2); }
-function loadRooms(tr, keep){ const type = tr.querySelector('[data-k=room_type_id]').value, sel = tr.querySelector('[data-k=room_id]');
-  if (!type || !A.value || !D.value) return;
-  getJSON(`{{ route('reservations.api.rooms') }}?room_type_id=${type}&from=${A.value}&to=${D.value}&company_id=${CO?.value || ''}`).then(list => {
-    const cur = keep ?? sel.value; sel.innerHTML = '<option value="">Auto-assign</option>' + list.map(r => `<option value="${r.id}">${r.room_no}${r.hk==='dirty'?' (dirty)':''}</option>`).join('');
-    if (cur) { if (![...sel.options].some(o => o.value == cur)) sel.insertAdjacentHTML('beforeend', `<option value="${cur}">#${cur} (current)</option>`); sel.value = cur; } }); }
-function fillPlans(tr, keep){ const type = tr.querySelector('[data-k=room_type_id]').value, sel = tr.querySelector('[data-k=rate_plan_id]');
-  sel.innerHTML = '<option value="">Rack rate</option>' + (plans[type]||[]).map(p => `<option value="${p.id}" data-rate="${p.rate}">${p.name} – ${p.rate}</option>`).join(''); if (keep) sel.value = keep; }
+function option(label, value = ''){ const el = document.createElement('option'); el.value = value; el.textContent = label; return el; }
+function loadRooms(tr, keep){
+  const type = tr.querySelector('[data-k=room_type_id]').value, sel = tr.querySelector('[data-k=room_id]');
+  const cur = keep ?? tr.dataset.selectedRoom ?? sel.value;
+  const request = (Number(tr.dataset.roomsRequest) || 0) + 1;
+  tr.dataset.roomsRequest = request;
+  tr.dataset.selectedRoom = cur;
+  if (!type || !A.value || !D.value || D.value <= A.value) { sel.replaceChildren(option('Choose room type and dates')); return; }
+  const params = new URLSearchParams({room_type_id:type, from:A.value, to:D.value, company_id:CO?.value || ''});
+  sel.disabled = true;
+  sel.replaceChildren(option('Checking room availability…'));
+  getJSON(`{{ route('reservations.api.rooms') }}?${params.toString()}`).then(list => {
+    if (request !== Number(tr.dataset.roomsRequest)) return;
+    if (!Array.isArray(list)) throw new Error('Invalid room availability response');
+    const options = list.length ? [option('Auto-assign')] : [option('No rooms available for these dates')];
+    list.forEach(room => options.push(option(`${room.room_no}${room.hk === 'dirty' ? ' (dirty)' : ''}`, String(room.id))));
+    if (cur && !list.some(room => String(room.id) === String(cur))) options.push(option(`#${cur} (current booking)`, String(cur)));
+    sel.replaceChildren(...options);
+    if (cur) sel.value = String(cur);
+    tr.dataset.selectedRoom = sel.value;
+  }).catch(() => {
+    if (request !== Number(tr.dataset.roomsRequest)) return;
+    sel.replaceChildren(option('Could not load rooms — change dates to retry'));
+    sel.title = 'The live room list could not be loaded. The reservation will still be checked before saving.';
+  }).finally(() => {
+    if (request === Number(tr.dataset.roomsRequest)) sel.disabled = false;
+  });
+}
+function fillPlans(tr, keep){
+  const type = tr.querySelector('[data-k=room_type_id]').value, sel = tr.querySelector('[data-k=rate_plan_id]');
+  const options = [option('Rack rate')];
+  (plans[type] || []).forEach(plan => {
+    const el = option(`${plan.name} – ${plan.rate}`, String(plan.id));
+    el.dataset.rate = plan.rate;
+    options.push(el);
+  });
+  sel.replaceChildren(...options);
+  if (keep) sel.value = keep;
+}
 // seasonal pricing: rack-rate lines get the average nightly rate for the chosen dates
 // v2.7: with a company that has an active contract, rack-rate lines get the negotiated price (per adults: single / double)
 const CO = document.getElementById('f_company_id'), CI = document.getElementById('contractInfo');
@@ -113,14 +155,27 @@ function contractBanner(c){ if (!c) { CI.classList.add('hidden'); CI.innerHTML =
   const part = c.contract_nights < c.nights ? ` · <b>${c.nights - c.contract_nights} of ${c.nights} night(s) at the public rate</b> (${esc(c.why.join(', '))})` : '';
   CI.innerHTML = `<b>Contract ${esc(c.code)}</b> – ${esc(c.name)} · ${esc(c.basis)} · ${esc(c.meal_plan)}${c.lra ? ' · last-room availability' : ''}${part}. Rack-rate lines are priced from the contract.`;
   CI.dataset.code = c.code; CI.classList.remove('hidden'); }
-function seasonRate(tr){ const type = tr.querySelector('[data-k=room_type_id]').value, r = tr.querySelector('[data-k=rate]');
-  if (!type || !A.value || !D.value || tr.querySelector('[data-k=rate_plan_id]').value) return;
-  const ad = tr.querySelector('[data-k=adults]').value || 1;
-  getJSON(`{{ route('reservations.api.rates') }}?room_type_id=${type}&from=${A.value}&to=${D.value}&company_id=${CO?.value || ''}&adults=${ad}`).then(q => { r.value = q.rate;
-    if (q.contract) { r.title = `Contract ${q.contract.code} (public rate ${q.contract.public_rate})`; r.style.borderColor = 'var(--c-green-500, #16a34a)'; r.dataset.contract = q.contract.code; contractBanner(q.contract); }
+function seasonRate(tr){
+  const type = tr.querySelector('[data-k=room_type_id]').value, r = tr.querySelector('[data-k=rate]');
+  const plan = tr.querySelector('[data-k=rate_plan_id]').value;
+  const request = (Number(tr.dataset.rateRequest) || 0) + 1;
+  tr.dataset.rateRequest = request;
+  if (!type || !A.value || !D.value || D.value <= A.value || plan) return;
+  const adults = tr.querySelector('[data-k=adults]').value || 1;
+  const params = new URLSearchParams({room_type_id:type, from:A.value, to:D.value, company_id:CO?.value || '', adults});
+  getJSON(`{{ route('reservations.api.rates') }}?${params.toString()}`).then(quote => {
+    if (request !== Number(tr.dataset.rateRequest) || type !== tr.querySelector('[data-k=room_type_id]').value
+      || A.value !== params.get('from') || D.value !== params.get('to') || plan !== tr.querySelector('[data-k=rate_plan_id]').value) return;
+    if (!quote || !Number.isFinite(Number(quote.rate))) throw new Error('Invalid rate quote response');
+    r.value = quote.rate;
+    if (quote.contract) { r.title = `Contract ${quote.contract.code} (public rate ${quote.contract.public_rate})`; r.style.borderColor = 'var(--c-green-500, #16a34a)'; r.dataset.contract = quote.contract.code; contractBanner(quote.contract); }
     else { delete r.dataset.contract; if (![...tbody.rows].some(x => x.querySelector('[data-k=rate]').dataset.contract)) contractBanner(null);
-      r.title = q.seasons.length ? 'Season: ' + q.seasons.join(', ') : 'Rack rate'; r.style.borderColor = q.seasons.length ? 'var(--c-amber-500, #f59e0b)' : ''; }
-    total(); }); }
+      r.title = quote.seasons?.length ? 'Season: ' + quote.seasons.join(', ') : 'Rack rate'; r.style.borderColor = quote.seasons?.length ? 'var(--c-amber-500, #f59e0b)' : ''; }
+    total();
+  }).catch(() => {
+    if (request === Number(tr.dataset.rateRequest)) r.title = 'Rate could not be refreshed. Check the amount before saving.';
+  });
+}
 function addLine(d = {}){ const tr = document.getElementById('lineTpl').content.firstElementChild.cloneNode(true); tbody.appendChild(tr);
   tr.querySelector('[data-k=stay_id]').value = d.stay_id ?? '';
   const remove = tr.querySelector('[data-remove-line]');
@@ -129,14 +184,31 @@ function addLine(d = {}){ const tr = document.getElementById('lineTpl').content.
   if (d.room_type_id) { t.value = d.room_type_id; fillPlans(tr, d.rate_plan_id); loadRooms(tr, d.room_id); }
   if (d.adults) tr.querySelector('[data-k=adults]').value = d.adults; if (d.children) tr.querySelector('[data-k=children]').value = d.children;
   r.value = d.rate ?? (t.selectedOptions[0]?.dataset.rate || '');
-  t.addEventListener('change', () => { fillPlans(tr); r.value = t.selectedOptions[0]?.dataset.rate || ''; loadRooms(tr, ''); seasonRate(tr); total(); });
+  t.addEventListener('change', () => { tr.dataset.selectedRoom = ''; fillPlans(tr); r.value = t.selectedOptions[0]?.dataset.rate || ''; loadRooms(tr, ''); seasonRate(tr); total(); });
   p.addEventListener('change', () => { r.value = p.selectedOptions[0]?.dataset.rate || t.selectedOptions[0]?.dataset.rate || ''; seasonRate(tr); total(); });
+  tr.querySelector('[data-k=room_id]').addEventListener('change', (event) => { tr.dataset.selectedRoom = event.target.value; });
   if (d.room_type_id && !d.rate) seasonRate(tr);
-  tr.querySelector('[data-k=adults]').addEventListener('change', () => { if (CO?.value) seasonRate(tr); });
-  r.addEventListener('input', total); reindex(); total(); }
+  tr.querySelector('[data-k=adults]').addEventListener('change', () => seasonRate(tr));
+  r.addEventListener('input', () => { tr.dataset.rateRequest = (Number(tr.dataset.rateRequest) || 0) + 1; total(); });
+  reindex(); total(); }
 (initial.length ? initial : [{}]).forEach(addLine);
 CO?.addEventListener('change', () => { contractBanner(null); [...tbody.rows].forEach(tr => seasonRate(tr)); });
 @if(! $editing && ! old('rooms')) document.addEventListener('DOMContentLoaded', () => { if (CO?.value) [...tbody.rows].forEach(tr => seasonRate(tr)); }); @endif
-[A, D].forEach(el => el.addEventListener('change', () => { if (new Date(D.value) <= new Date(A.value)) { const x = new Date(A.value); x.setDate(x.getDate()+1); D.value = x.toISOString().slice(0,10); } [...tbody.rows].forEach(tr => { loadRooms(tr); seasonRate(tr); }); total(); }));
+function refreshDateQuotes(){ [...tbody.rows].forEach(tr => { loadRooms(tr); seasonRate(tr); }); total(); }
+if (A.value) D.min = nextDate(A.value);
+A.addEventListener('change', () => {
+  if (A.value) {
+    D.min = nextDate(A.value);
+    if (!D.value || D.value < D.min) D.value = D.min;
+  } else D.removeAttribute('min');
+  refreshDateQuotes();
+});
+D.addEventListener('change', () => {
+  if (A.value) {
+    D.min = nextDate(A.value);
+    if (!D.value || D.value < D.min) D.value = D.min;
+  }
+  refreshDateQuotes();
+});
 </script>
 @endpush

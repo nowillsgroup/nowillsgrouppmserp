@@ -30,6 +30,14 @@ A separate sweep requested **471 unique, parameter-free GET paths** from the ful
 
 ---
 
+## Reservation follow-up (27 Oct 2026)
+
+A source review of the New Reservation form found a confirmed DOM-XSS path in the existing-guest lookup: guest-controlled profile fields were concatenated into `innerHTML`. The form also constructed room and rate-plan `<option>` elements from database text in HTML strings, and overlapping asynchronous availability / rate / guest searches could let an older response replace newer choices.
+
+**Fixed:** guest matches and live room/rate choices are now built with DOM APIs and `textContent`; guest search has combobox/listbox semantics, keyboard navigation, empty/error states, and stale-response checks. Room and rate lookups reject stale responses, report lookup failures without blocking the booking, and preserve a selected room while dates are refreshed. Date-only arithmetic now avoids timezone/DST drift and keeps departure after arrival. The existing contract banner remains the only dynamic HTML insertion in the form and HTML-escapes every interpolated server value.
+
+**Verification:** `deploy/dev/audit/reservation_lookup_safety_check.py` (6 source-contract checks), the existing reservation CSV/edit/outage guards (14 checks), inline JavaScript syntax checks, and `git diff --check` pass. A Laravel/PHP runtime flow was not run in this workspace.
+
 ## Historical deep-dive (13 Oct 2026 baseline)
 
 The following scorecard, route/flow counts and workflow records describe the earlier 13 Oct snapshot (with a 20 Oct navigation follow-up), not the current inventory above.
