@@ -35,7 +35,8 @@ body{background:#f4f6fb;padding-bottom:calc(5.2rem + env(safe-area-inset-bottom)
 .stars{display:inline-flex;flex-direction:row-reverse;gap:.15rem}.stars input{display:none}
 .stars label{font-size:1.6rem;color:#cbd5e1;cursor:pointer;line-height:1}.stars input:checked~label,.stars label:hover,.stars label:hover~label{color:#f59e0b}
 .wifi-pass{font-family:ui-monospace,monospace;background:#f1f5f9;border-radius:6px;padding:.1rem .45rem}
-</style></head>
+</style><link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
+</head>
 <body>@include('partials.icons')
 <header class="gp-head">
   <div class="top"><div class="brand">@if($hotel->logo_path)<img src="{{ asset($hotel->logo_path) }}" alt="">@endif{{ $hotel->name }}</div>

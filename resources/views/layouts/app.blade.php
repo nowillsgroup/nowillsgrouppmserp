@@ -7,7 +7,7 @@
   <meta name="hotel-code" content="{{ $currentHotel->code ?? '' }}">
   <meta name="theme-color" content="#14532d">
   <title>@yield('title', 'Dashboard') · {{ $currentHotel->name ?? config('app.name') }}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23166534'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
   <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
   <link rel="stylesheet" href="{{ asset('css/offline.css') }}?v={{ config('pms.version') }}">
   @stack('head')

@@ -490,6 +490,8 @@ $formValue = fn (string $k, string $d = '') => h((string) ($_POST[$k] ?? $d));
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14532d">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>Install · Nowills PMS</title>
 <style>
   :root { color-scheme: light; }

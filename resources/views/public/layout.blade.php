@@ -1,6 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#14532d">
 <title>@yield('title') · {{ $hotel->name }}</title><link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
-<style>.pub-head{background:linear-gradient(135deg,#10271c,#166534);color:#fff;padding:2.2rem 1rem 3.5rem;text-align:center}.pub-head h1{font-size:1.9rem}.pub-wrap{max-width:980px;margin:-2.2rem auto 2rem;padding:0 1rem}</style></head>
+<style>.pub-head{background:linear-gradient(135deg,#10271c,#166534);color:#fff;padding:2.2rem 1rem 3.5rem;text-align:center}.pub-head h1{font-size:1.9rem}.pub-wrap{max-width:980px;margin:-2.2rem auto 2rem;padding:0 1rem}</style><link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
+</head>
 <body>@include('partials.icons')
 <div class="pub-head"><h1>{{ $hotel->name }}</h1><div style="opacity:.8">{{ $hotel->address }}{{ $hotel->city ? ', '.$hotel->city : '' }} · {{ $hotel->phone }}</div></div>
 <div class="pub-wrap">

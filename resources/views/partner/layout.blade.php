@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>@yield('title', 'Partner Portal') · {{ $hotel->name }}</title>
   <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head>
 <body class="ptn-body">
 @include('partials.icons')

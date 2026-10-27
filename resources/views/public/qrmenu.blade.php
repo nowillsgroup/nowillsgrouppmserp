@@ -27,7 +27,8 @@ body{background:#f6f7fb;padding-bottom:6rem}
 .qm-allergy{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;margin:.4rem 0 0 .4rem;cursor:pointer}
 .al-picks{display:grid;grid-template-columns:1fr 1fr;gap:.35rem .8rem;margin:.6rem 0}.al-picks label{font-size:.88rem;display:flex;gap:.4rem;align-items:center}
 .st{font-size:.72rem;padding:.1rem .45rem;border-radius:999px}.st.pending{background:#fef3c7;color:#92400e}.st.accepted{background:#dcfce7;color:#166534}.st.cancelled{background:#fee2e2;color:#991b1b}
-</style></head>
+</style><link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
+</head>
 <body>@include('partials.icons')
 <div class="qm-head"><h1>{{ $table->outlet->name }}</h1><div class="sub">{{ $hotel->name }}</div><span class="qm-table">Table {{ $table->table_no }}</span><button type="button" class="qm-allergy" id="qmAllergyBtn" onclick="document.getElementById('alSheet').classList.add('show')">⚠ Allergies <span id="qmAllergyN"></span></button></div>
 
