@@ -395,12 +395,17 @@ class ReservationWorkspaceService
             ->pluck('departure_date')->mapWithKeys(fn ($d) => [Carbon::parse($d)->toDateString() => true])->all();
 
         // Keep each unassigned arrival's picker aligned to its complete stay range.
+        // Reuse the same availability result for arrivals sharing a date window.
         $assignableByStay = [];
+        $availabilityByRange = [];
         foreach ($arrivals->whereNull('room_id')->where('status', 'reserved') as $arrival) {
-            $assignableByStay[$arrival->id] = AvailabilityService::reservationRooms(
-                $arrival->arrival_date->toDateString(),
-                $arrival->departure_date->toDateString()
-            );
+            $arrivalDate = $arrival->arrival_date->toDateString();
+            $departureDate = $arrival->departure_date->toDateString();
+            $rangeKey = $arrivalDate.'|'.$departureDate;
+            if (! array_key_exists($rangeKey, $availabilityByRange)) {
+                $availabilityByRange[$rangeKey] = AvailabilityService::reservationRooms($arrivalDate, $departureDate);
+            }
+            $assignableByStay[$arrival->id] = $availabilityByRange[$rangeKey];
         }
 
         $history = [];
