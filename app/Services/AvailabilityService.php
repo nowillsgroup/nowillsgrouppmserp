@@ -39,15 +39,21 @@ class AvailabilityService
     }
 
     /**
-     * Rooms that the reservations desk may assign for a future stay.
-     * Dirty rooms remain selectable (housekeeping will prepare them), but an
-     * occupied room must never be assigned just because it has no reservation
-     * line attached to it.
+     * Rooms that the reservations desk may assign for a stay.
+     * Dirty rooms remain selectable (housekeeping will prepare them). The
+     * physical occupied flag is a current snapshot, so only exclude it when
+     * the requested interval includes the hotel's business date; other dates
+     * are checked against the dated stay and block records above.
      */
     public static function reservationRooms($from, $to, ?int $roomTypeId = null, ?int $ignoreStayId = null): Collection
     {
-        return self::freeRooms($from, $to, $roomTypeId, $ignoreStayId)
-            ->reject(fn (Room $room) => $room->status === 'occupied')
+        $businessDate = bdate()->copy()->startOfDay();
+        $fromDate = Carbon::parse($from)->startOfDay();
+        $toDate = Carbon::parse($to)->startOfDay();
+        $includesBusinessDate = $fromDate->lte($businessDate) && $toDate->gt($businessDate);
+
+        return self::freeRooms($fromDate, $toDate, $roomTypeId, $ignoreStayId)
+            ->reject(fn (Room $room) => $includesBusinessDate && $room->status === 'occupied')
             ->values();
     }
 
