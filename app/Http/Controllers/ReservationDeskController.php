@@ -43,12 +43,12 @@ class ReservationDeskController extends Controller
         $out = fopen('php://temp', 'w+');
         fputcsv($out, ['Reservation', 'Guest', 'Phone', 'Arrival', 'Departure', 'Nights', 'Rooms', 'Adults', 'Children', 'Source', 'Status', 'Group']);
         foreach ($rows as $r) {
-            fputcsv($out, [
+            fputcsv($out, array_map(fn ($value) => $this->csvSafe($value), [
                 $r->reservation_no, $r->guest->full_name ?? '', $r->guest->phone ?? '',
                 $r->arrival_date->format('Y-m-d'), $r->departure_date->format('Y-m-d'), $r->nights,
                 $r->rooms->where('status', '!=', 'cancelled')->map(fn ($s) => $s->room?->room_no ?? $s->roomType->code)->join(', '),
                 $r->adults, $r->children, $r->source?->name, $r->status, $r->group_name,
-            ]);
+            ]));
         }
         rewind($out);
         $csv = stream_get_contents($out);
@@ -57,6 +57,14 @@ class ReservationDeskController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="reservations-'.now()->format('Ymd-His').'.csv"',
         ]);
+    }
+
+    /** Neutralise user-controlled text before a spreadsheet opens the CSV. */
+    protected function csvSafe($value): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/^[\\t\\r\\n ]*[=+\\-@]/', $value) && ! is_numeric($value) ? "'".$value : $value;
     }
 
     public function printPlan(Request $request)
