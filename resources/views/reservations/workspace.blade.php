@@ -55,8 +55,8 @@
       @elseif ($isHistory)<span class="badge badge-slate" style="margin-left:6px">Historic board</span>
       @else<span class="badge badge-green" style="margin-left:6px">Business date</span>@endif
     </div>
-    @if ($isHistory)<div class="muted small ws-history-note">Past stays are inferred from current records; room and housekeeping states are current, not historical snapshots.</div>
-    @elseif ($isFuture)<div class="muted small ws-history-note">Forward reservations and dated blocks apply to this night; housekeeping is current and availability may change.</div>@endif
+    @if ($isHistory)<div class="muted small ws-history-note">Past stays are inferred from current reservation records; dated outages and leases are honored, but room-status and housekeeping history is unavailable.</div>
+    @elseif ($isFuture)<div class="muted small ws-history-note">Forward reservations, active non-occupancy room flags and dated blocks apply; housekeeping is current and availability may change.</div>@endif
   </div>
   <div class="flex gap">
     <span class="badge badge-slate" id="wsClock" title="Data generated when this page was rendered">Board snapshot · {{ now()->format('H:i:s') }}</span>

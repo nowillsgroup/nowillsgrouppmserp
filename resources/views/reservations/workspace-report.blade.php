@@ -151,7 +151,7 @@
   </tbody>
 </table>
 
-<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. Room-rate value totals nightly rates for stays covering the selected date; it excludes taxes, fees, and folio postings. @if ($isHistory) Historical occupancy is inferred from current stay records; physical room and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect reservations and dated blocks currently recorded; physical room and housekeeping flags are current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
+<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if (can_do('revenue.view'))Room-rate value totals nightly rates for stays covering the selected date; it excludes taxes, fees, and folio postings. @endif @if ($isHistory) Historical occupancy is inferred from current stay records; dated outage and lease records apply, but physical room-status and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect current reservations, active non-occupancy room flags, and dated blocks; housekeeping is current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
 @endsection
 
 @push('head')
