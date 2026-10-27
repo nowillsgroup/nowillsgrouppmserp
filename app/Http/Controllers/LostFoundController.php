@@ -95,7 +95,7 @@ class LostFoundController extends Controller
             'return_method' => 'required|in:'.implode(',', array_keys(LostFoundItem::RETURN_METHODS)), 'courier' => 'nullable|string|max:60', 'tracking_no' => 'nullable|string|max:60',
             'courier_charge' => 'nullable|numeric|min:0|max:100000']);
         try {
-            LostFoundService::returnItem($item, $data);
+            $item = LostFoundService::returnItem($item, $data);
         } catch (RuntimeException $e) {
             return $this->fail($e);
         }
