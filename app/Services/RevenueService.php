@@ -50,7 +50,7 @@ class RevenueService
 
     /**
      * Occupancy on the books for [from, from+days): [Y-m-d => ['hotel' => %, 'types' => [id => %], 'sold', 'cap', 'left' => [id => n]]].
-     * Sold includes rooms held by group blocks; capacity excludes out-of-order rooms.
+     * Sold includes rooms held by group blocks; capacity excludes rooms unavailable to sale on each date.
      */
     public static function occupancy(Carbon $from, int $days): array
     {
@@ -58,7 +58,7 @@ class RevenueService
         $out = [];
         foreach ($m['types'] as $type) {
             foreach ($m['matrix'][$type->id] ?? [] as $date => $sellable) {
-                $cap = (int) $type->rooms_count;
+                $cap = (int) ($m['capacity'][$type->id][$date] ?? $type->rooms_count);
                 $sold = max(0, $cap - $sellable);
                 $out[$date]['types'][$type->id] = $cap ? (int) min(100, round($sold * 100 / $cap)) : 100;
                 $out[$date]['left'][$type->id] = $sellable;
@@ -416,6 +416,7 @@ class RevenueService
         $cap = (int) $types->sum('rooms_count');
         $avgRate = $cap ? $types->sum(fn ($t) => (float) $t->base_rate * $t->rooms_count) / $cap : 0;
         $otb = self::otb($from, $days);
+        $capacityByDay = AvailabilityService::sellableRoomCounts($from, $days);
         $curve = self::pickupCurve();
         $today = bdate()->toDateString();
         $snap1 = self::snapshotRooms(bdate()->copy()->subDay()->toDateString());
@@ -429,14 +430,15 @@ class RevenueService
             $dowSamples = $curve['samples'][$d->dayOfWeekIso] ?? 0;
             $bucket = $dowSamples >= 3 ? $d->dayOfWeekIso : 0;
             $pick = $date >= $today ? (float) ($curve[$bucket][$lead + 1] ?? 0) : 0.0;
-            $fc = (int) min($cap, round($sold + $pick));
+            $capDay = (int) ($capacityByDay[$date] ?? 0);
+            $fc = (int) max($sold, min($capDay, round($sold + $pick)));
             $rows[$date] = [
                 'date' => $date, 'dow' => $d->format('D'), 'weekend' => in_array($d->dayOfWeek, RateService::WEEKEND, true), 'lead' => $lead,
-                'cap' => $cap, 'rooms' => $o['rooms'], 'held' => $o['held'], 'occ' => $cap ? round($sold * 100 / $cap, 1) : 0,
-                'revenue' => $o['revenue'], 'adr' => round($adr, 2), 'revpar' => $cap ? round($o['revenue'] / $cap, 2) : 0,
+                'cap' => $capDay, 'rooms' => $o['rooms'], 'held' => $o['held'], 'occ' => $capDay ? round($sold * 100 / $capDay, 1) : 0,
+                'revenue' => $o['revenue'], 'adr' => round($adr, 2), 'revpar' => $capDay ? round($o['revenue'] / $capDay, 2) : 0,
                 'pickup1' => $snap1 !== null && $date >= $today ? $o['rooms'] - ($snap1[$date] ?? 0) : null,
                 'pickup7' => $snap7 !== null && $date >= $today ? $o['rooms'] - ($snap7[$date] ?? 0) : null,
-                'fc_rooms' => $fc, 'fc_occ' => $cap ? round($fc * 100 / $cap, 1) : 0,
+                'fc_rooms' => $fc, 'fc_occ' => $capDay ? round($fc * 100 / $capDay, 1) : 0,
                 'fc_revenue' => round($o['revenue'] + max(0, $fc - $sold) * ($adr ?: $avgRate) + $o['held'] * ($adr ?: $avgRate), 2),
             ];
         }

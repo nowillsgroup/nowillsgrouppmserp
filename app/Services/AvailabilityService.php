@@ -144,17 +144,19 @@ class AvailabilityService
         $outages = RoomOutage::covering($from, $to)->with('room:id,room_type_id,status')->get()
             ->filter(fn ($o) => $o->room && ! in_array($o->room->status, ['out_of_order', 'out_of_service'], true));
         $out = [];
+        $capacity = [];
         foreach ($types as $type) {
             foreach (CarbonPeriod::create($from, $to->copy()->subDay()) as $d) {
                 $key = $d->toDateString();
                 $used = $stays->where('room_type_id', $type->id)->filter(fn ($s) => $s->arrival_date->lte($d) && $s->departure_date->gt($d))->count();
                 $let = $leased->where('room_type_id', $type->id)->filter(fn ($b) => $b['from'] <= $key && $b['to'] > $key)->count();
                 $blocked = $outages->filter(fn ($o) => $o->room->room_type_id === $type->id && $o->starts_on->lte($d) && $o->ends_on->gt($d))->count();
-                $out[$type->id][$key] = $type->rooms_count - $used - $let - $blocked - ($held[$type->id][$key] ?? 0);
+                $capacity[$type->id][$key] = max(0, $type->rooms_count - $let - $blocked);
+                $out[$type->id][$key] = $capacity[$type->id][$key] - $used - ($held[$type->id][$key] ?? 0);
             }
         }
 
-        return ['types' => $types, 'matrix' => $out, 'held' => $held, 'from' => $from, 'days' => $days];
+        return ['types' => $types, 'matrix' => $out, 'capacity' => $capacity, 'held' => $held, 'from' => $from, 'days' => $days];
     }
 
     /**
