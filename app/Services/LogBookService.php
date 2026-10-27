@@ -14,6 +14,11 @@ use RuntimeException;
 /** v3.5 – shift log book & hand-over. */
 class LogBookService
 {
+    protected static function lockEntry(LogEntry $entry): LogEntry
+    {
+        return LogEntry::whereKey($entry->id)->lockForUpdate()->firstOrFail();
+    }
+
     public static function create(array $d, string $source = 'manual'): LogEntry
     {
         $title = trim((string) ($d['title'] ?? ''));
@@ -55,43 +60,57 @@ class LogBookService
         if ($body === '') {
             throw new RuntimeException('Write a comment first.');
         }
-        $c = LogEntryComment::create(['log_entry_id' => $e->id, 'user_id' => auth()->id(), 'body' => mb_substr($body, 0, 2000)]);
-        self::markRead(collect([$e]), (int) auth()->id());
-        $e->touch();
 
-        return $c;
+        return DB::transaction(function () use ($e, $body) {
+            $locked = self::lockEntry($e);
+            $comment = LogEntryComment::create(['log_entry_id' => $locked->id, 'user_id' => auth()->id(), 'body' => mb_substr($body, 0, 2000)]);
+            self::markRead(collect([$locked]), (int) auth()->id());
+            $locked->touch();
+
+            return $comment;
+        });
     }
 
     public static function resolve(LogEntry $e, string $resolution): LogEntry
     {
-        if ($e->status === 'resolved') {
-            throw new RuntimeException('This entry is already resolved.');
-        }
         if (trim($resolution) === '') {
             throw new RuntimeException('Say how it was resolved.');
         }
-        $e->forceFill(['status' => 'resolved', 'resolution' => mb_substr(trim($resolution), 0, 2000), 'resolved_at' => now(), 'resolved_by' => auth()->id()])->save();
-        ActivityLogger::log('logbook', 'resolve', "Log book resolved: {$e->title}", $e);
 
-        return $e;
+        return DB::transaction(function () use ($e, $resolution) {
+            $locked = self::lockEntry($e);
+            if ($locked->status === 'resolved') {
+                throw new RuntimeException('This entry is already resolved.');
+            }
+            $locked->forceFill(['status' => 'resolved', 'resolution' => mb_substr(trim($resolution), 0, 2000), 'resolved_at' => now(), 'resolved_by' => auth()->id()])->save();
+            ActivityLogger::log('logbook', 'resolve', "Log book resolved: {$locked->title}", $locked);
+
+            return $locked;
+        });
     }
 
     public static function reopen(LogEntry $e): LogEntry
     {
-        if ($e->status !== 'resolved') {
-            throw new RuntimeException('Only resolved entries can be re-opened.');
-        }
-        $e->forceFill(['status' => 'open', 'resolved_at' => null, 'resolved_by' => null])->save();
-        ActivityLogger::log('logbook', 'reopen', "Log book re-opened: {$e->title}", $e);
+        return DB::transaction(function () use ($e) {
+            $locked = self::lockEntry($e);
+            if ($locked->status !== 'resolved') {
+                throw new RuntimeException('Only resolved entries can be re-opened.');
+            }
+            $locked->forceFill(['status' => 'open', 'resolved_at' => null, 'resolved_by' => null])->save();
+            ActivityLogger::log('logbook', 'reopen', "Log book re-opened: {$locked->title}", $locked);
 
-        return $e;
+            return $locked;
+        });
     }
 
     public static function pin(LogEntry $e, bool $on, ?string $until = null): LogEntry
     {
-        $e->forceFill(['pinned' => $on, 'pinned_until' => $on ? $until : null])->save();
+        return DB::transaction(function () use ($e, $on, $until) {
+            $locked = self::lockEntry($e);
+            $locked->forceFill(['pinned' => $on, 'pinned_until' => $on ? $until : null])->save();
 
-        return $e;
+            return $locked;
+        });
     }
 
     /** acknowledge ("I have read the hand-over") */
