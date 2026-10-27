@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<title>Sign in · Nowills PMS Preview</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=forest-green">
+<link rel="stylesheet" href="/css/app.css?v=forest-green">
+<style>
+html,body{min-height:100%;margin:0}body{background:#f5f8f6}.auth-login-page{min-height:100vh}.auth-login{min-height:100vh}
+.preview-login-note{margin:1rem 0 0;padding:.7rem .8rem;border:1px solid #bae6c5;border-radius:9px;background:#f0fdf4;color:#166534;font-size:.76rem}
+.preview-login-foot{position:fixed;right:1rem;bottom:.7rem;color:#85948a;font-size:.65rem;pointer-events:none}
+@media(max-width:860px){.preview-login-foot{position:static;text-align:center;padding:0 1rem 1rem}}
+</style>
+</head>
+<body class="auth-login-page">
+<div class="auth auth-login">
+  <section class="auth-art auth-login-art" aria-label="Nowills hospitality suite">
+    <div class="auth-art-head">
+      <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth" src="/images/brand/nowills-pms-logo-white.png?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
+      <span class="auth-live"><i></i> Built for hospitality</span>
+    </div>
+    <div class="auth-intro">
+      <p class="auth-eyebrow">One calm view of the whole property</p>
+      <h1>Hospitality operations,<br>beautifully connected.</h1>
+      <p>Bring reservations, front desk, housekeeping, dining, events and finance together in one clear view—built for the way hospitality works.</p>
+    </div>
+    <div class="auth-slider" data-auth-slider aria-roledescription="carousel" aria-label="Hospitality spaces">
+      <div class="auth-slides">
+        <figure class="auth-slide is-active"><img src="/images/login/g1.jpg" alt="Aerial view of a beach resort"><figcaption><strong>Resort &amp; recreation</strong><span>See the whole property from one connected view.</span></figcaption></figure>
+        <figure class="auth-slide"><img src="/images/login/g3.jpg" alt="Resort exterior"><figcaption><strong>Hospitality, rooted here</strong><span>One connected system for every part of the resort.</span></figcaption></figure>
+        <figure class="auth-slide"><img src="/images/login/g4.jpg" alt="Conference hall"><figcaption><strong>Conferences &amp; events</strong><span>Make every moment count at your property.</span></figcaption></figure>
+      </div>
+      <div class="auth-slider-bar">
+        <div class="auth-slider-buttons"><button type="button" class="auth-slider-btn" data-auth-prev aria-label="Previous image">‹</button><button type="button" class="auth-slider-btn" data-auth-next aria-label="Next image">›</button></div>
+        <div class="auth-dots" role="tablist" aria-label="Choose a hospitality image"><button type="button" class="auth-dot is-active" data-auth-dot="0" role="tab" aria-label="Show image 1" aria-selected="true"></button><button type="button" class="auth-dot" data-auth-dot="1" role="tab" aria-label="Show image 2" aria-selected="false"></button><button type="button" class="auth-dot" data-auth-dot="2" role="tab" aria-label="Show image 3" aria-selected="false"></button></div>
+        <span class="auth-slider-count" data-auth-count>01 / 03</span>
+      </div>
+    </div>
+    <div class="auth-tiles"><div>Hotels</div><div>Restaurants</div><div>Resorts</div><div>Guest houses</div><div>Cafés</div></div>
+  </section>
+  <main class="auth-form auth-login-form">
+    <form class="auth-card auth-login-card" id="previewLoginForm" autocomplete="on">
+      <div class="auth-form-kicker"><span class="auth-kicker-dot" aria-hidden="true"></span> PROPERTY TEAM ACCESS</div>
+      <h2>Welcome back</h2>
+      <p class="auth-login-subtitle">Sign in with your hotel or group credentials.</p>
+      <div class="field auth-login-field"><label for="hotel_code" id="codeLabel">Hotel ID</label><input class="input" id="hotel_code" name="hotel_code" placeholder="e.g. NOWILLS" required autocomplete="organization" autocapitalize="characters" spellcheck="false" aria-describedby="hotelCodeHint"><small class="auth-field-hint" id="hotelCodeHint">Use the ID provided by your property administrator.</small></div>
+      <div class="field auth-login-field"><label for="username">Username</label><input class="input" id="username" name="username" placeholder="Your username" required autocomplete="username" autocapitalize="none" spellcheck="false"></div>
+      <div class="field auth-login-field"><label for="password">Password</label><div class="auth-password-wrap"><input class="input" id="password" type="password" name="password" placeholder="Your password" required autocomplete="current-password"><button class="auth-password-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false">Show</button></div></div>
+      <div class="auth-login-options"><label class="check" for="group_login"><input id="group_login" type="checkbox" name="group_login" value="1"> Group login</label><label class="check" for="remember"><input id="remember" type="checkbox" name="remember" value="1"> Remember me</label></div>
+      <button class="btn btn-primary btn-lg btn-block auth-login-submit" type="submit">Sign in <span aria-hidden="true">→</span></button>
+      <div class="auth-login-help"><span class="auth-lock" aria-hidden="true">✓</span><span>Access is managed by your property administrator.</span></div>
+      <p class="preview-login-note" id="previewLoginStatus" role="status" hidden>Preview only — sign-in is not connected to a PMS account.</p>
+    </form>
+  </main>
+</div>
+<div class="preview-login-foot">Static preview · sample screen only</div>
+<script>
+(() => {
+  const group=document.getElementById('group_login'), label=document.getElementById('codeLabel');
+  const pass=document.getElementById('password'), toggle=document.querySelector('[data-toggle-password]');
+  group.addEventListener('change',()=>{label.textContent=group.checked?'Group ID':'Hotel ID'});
+  toggle.addEventListener('click',()=>{const show=pass.type==='password';pass.type=show?'text':'password';toggle.textContent=show?'Hide':'Show';toggle.setAttribute('aria-label',show?'Hide password':'Show password');toggle.setAttribute('aria-pressed',String(show));});
+  document.getElementById('previewLoginForm').addEventListener('submit',event=>{event.preventDefault();document.getElementById('previewLoginStatus').hidden=false;});
+  const root=document.querySelector('[data-auth-slider]'), slides=[...document.querySelectorAll('.auth-slide')], dots=[...document.querySelectorAll('[data-auth-dot]')];let active=0;
+  const show=n=>{active=(n+slides.length)%slides.length;slides.forEach((s,i)=>{s.classList.toggle('is-active',i===active);s.setAttribute('aria-hidden',String(i!==active));});dots.forEach((d,i)=>{d.classList.toggle('is-active',i===active);d.setAttribute('aria-selected',String(i===active));});document.querySelector('[data-auth-count]').textContent=String(active+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');};
+  root.querySelector('[data-auth-prev]').addEventListener('click',()=>show(active-1));root.querySelector('[data-auth-next]').addEventListener('click',()=>show(active+1));dots.forEach(d=>d.addEventListener('click',()=>show(Number(d.dataset.authDot))));
+})();
+</script>
+</body>
+</html>
