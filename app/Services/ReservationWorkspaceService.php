@@ -41,7 +41,7 @@ class ReservationWorkspaceService
             }
             $stays = $byRoom->get($room->id, collect());
             $occupiedStay = $stays->first(fn ($stay) => in_array($stay->status, $past ? ['checked_in', 'checked_out'] : ['checked_in'], true));
-            if ($occupiedStay || (! $past && $room->status === 'occupied')) {
+            if ($occupiedStay || (! $past && ! $future && $room->status === 'occupied')) {
                 $occupiedIds[] = $room->id;
             } elseif ($stays->contains(fn ($stay) => $stay->status === 'reserved')) {
                 $reservedIds[] = $room->id;
@@ -239,9 +239,9 @@ class ReservationWorkspaceService
                 $status = $blockedStatusByRoom[$room->id]; // dated outages and leases also remove future inventory from sale
             } elseif ($stay && in_array($stay->status, $isHistory ? ['checked_in', 'checked_out'] : ['checked_in'], true)) {
                 $status = 'occupied';
-            } elseif (! $isHistory && $room->status === 'occupied') {
+            } elseif (! $isHistory && ! $isFuture && $room->status === 'occupied') {
                 // Keep a physically occupied room out of sale even if its stay record is missing.
-                // The current room flag cannot describe a historical room-board date.
+                // The current room flag cannot describe a different room-board date.
                 $status = 'occupied';
             } elseif ($stay && $stay->status === 'reserved') {
                 $status = 'reserved';
