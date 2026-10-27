@@ -214,8 +214,7 @@ class SecurityController extends Controller
 
     public function toggleWatch(SecurityWatch $watch)
     {
-        $watch->update(['is_active' => ! $watch->is_active]);
-        ActivityLogger::log('security', 'watchlist', ($watch->is_active ? 'Re-activated' : 'Lifted').' watch-list entry: '.$watch->name, $watch);
+        $watch = SecurityService::toggleWatch($watch);
 
         return back()->with('success', $watch->is_active ? "{$watch->name} is back on the watch list." : "Watch-list entry for {$watch->name} lifted.");
     }

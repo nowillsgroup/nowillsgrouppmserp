@@ -5,6 +5,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 SERVICE = (ROOT / "app/Services/SecurityService.php").read_text()
 CONTROLLER = (ROOT / "app/Http/Controllers/SecurityController.php").read_text()
+CONTROLLER = (ROOT / "app/Http/Controllers/SecurityController.php").read_text()
 
 
 def method(name):
@@ -38,6 +39,25 @@ class SecurityVisitorLifecycleLockTest(unittest.TestCase):
         self.assertLess(watch_lock, screen)
         self.assertLess(screen, block)
         self.assertLess(block, admit)
+
+    def test_watchlist_toggle_uses_shared_mutex_and_fresh_active_state(self):
+        body = method("toggleWatch")
+        mutex = body.index("self::lockWatchlist();")
+        row = body.index("SecurityWatch::whereKey($w->id)->lockForUpdate()->firstOrFail()", mutex)
+        flip = body.index("$locked->forceFill(['is_active' => ! $locked->is_active])", row)
+        self.assertLess(mutex, row)
+        self.assertLess(row, flip)
+        self.assertIn("$watch = SecurityService::toggleWatch($watch);", CONTROLLER)
+
+    def test_security_setting_updates_commit_atomically(self):
+        body = method("saveSettings")
+        transaction = body.index("DB::transaction(")
+        write = body.index("Setting::updateOrCreate(", transaction)
+        end = body.index("        });", write)
+        version = body.index("Setting::$version++", end)
+        self.assertLess(transaction, write)
+        self.assertLess(write, end)
+        self.assertLess(end, version)
 
     def test_watchlist_edits_share_admission_mutex_and_lock_existing_entry(self):
         body = method("saveWatch")

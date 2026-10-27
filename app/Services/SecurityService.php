@@ -62,11 +62,13 @@ class SecurityService
             'sec_retention_days' => (string) max(30, min(3650, (int) $d['retention_days'])), 'sec_gp_approval' => ! empty($d['gp_approval']) ? '1' : '0',
             'sec_incident_alert' => array_key_exists($d['incident_alert'] ?? '', SecurityIncident::RANK) ? $d['incident_alert'] : 'high',
             'sec_alert_phone' => trim((string) ($d['alert_phone'] ?? ''))];
-        foreach ($vals as $k => $v) {
-            Setting::updateOrCreate(['key' => $k], ['value' => $v]);
-        }
+        DB::transaction(function () use ($vals) {
+            foreach ($vals as $k => $v) {
+                Setting::updateOrCreate(['key' => $k], ['value' => $v]);
+            }
+            ActivityLogger::log('security', 'settings', 'Security settings updated');
+        });
         Setting::$version++;
-        ActivityLogger::log('security', 'settings', 'Security settings updated');
     }
 
     // ───────── helpers ─────────
@@ -573,6 +575,18 @@ class SecurityService
             }
             $locked->save();
             ActivityLogger::log('security', 'watchlist', ($isNew ? 'Added to' : 'Updated on').' the watch list: '.$locked->name.' ('.$locked->level.')', $locked);
+
+            return $locked;
+        });
+    }
+
+    public static function toggleWatch(SecurityWatch $w): SecurityWatch
+    {
+        return DB::transaction(function () use ($w) {
+            self::lockWatchlist();
+            $locked = SecurityWatch::whereKey($w->id)->lockForUpdate()->firstOrFail();
+            $locked->forceFill(['is_active' => ! $locked->is_active])->save();
+            ActivityLogger::log('security', 'watchlist', ($locked->is_active ? 'Re-activated' : 'Lifted').' watch-list entry: '.$locked->name, $locked);
 
             return $locked;
         });
