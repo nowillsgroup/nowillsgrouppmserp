@@ -55,6 +55,22 @@ class FrontDeskCheckInLockTest(unittest.TestCase):
         self.assertIn("StayService::placeStay($stay", body)
         self.assertNotIn("$stay->update(['room_id'", body)
 
+    def test_room_move_rechecks_in_house_state_before_locking_or_changing_rooms(self):
+        start = SERVICE.index("public static function moveRoom(")
+        end = SERVICE.index("public static function outageMessage(", start)
+        body = SERVICE[start:end]
+        reservation_lock = body.index("Reservation::whereKey($stay->reservation_id)->lockForUpdate()")
+        stay_lock = body.index("ReservationRoom::whereKey($stay->id)->lockForUpdate()", reservation_lock)
+        status_check = body.index("if ($stay->status !== 'checked_in')", stay_lock)
+        rooms = body.index("Room::whereIn('id', $roomIds)", status_check)
+        move_record = body.index("RoomMove::create(", rooms)
+        update = body.index("$stay->update(['room_id'", move_record)
+        self.assertLess(reservation_lock, stay_lock)
+        self.assertLess(stay_lock, status_check)
+        self.assertLess(status_check, rooms)
+        self.assertLess(rooms, move_record)
+        self.assertLess(move_record, update)
+
     def test_reserved_room_assignment_revalidates_under_shared_locks(self):
         start = SERVICE.index("public static function placeStay(")
         end = SERVICE.rfind("\n}")

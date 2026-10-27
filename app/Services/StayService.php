@@ -482,6 +482,9 @@ class StayService
             $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
             $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
             $stay->setRelation('reservation', $reservation);
+            if ($stay->status !== 'checked_in') {
+                throw new RuntimeException('Only an in-house stay can be moved.');
+            }
             $fromId = $stay->room_id;
             $roomIds = collect([$stay->room_id, $toRoomId])->filter()->unique()->sort()->values();
             $rooms = Room::whereIn('id', $roomIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
