@@ -49,6 +49,8 @@
       @if (! $isToday)
         <a class="btn btn-sm btn-ghost" data-ws-nav href="{{ route('reservations.workspace', array_merge(request()->except('date'), ['date' => $businessDate->toDateString()])) }}">Business date</a>
       @endif
+      <label class="ws-date-jump-label" for="wsDateJump">Go to</label>
+      <input id="wsDateJump" class="ws-date-jump" type="date" value="{{ $date->toDateString() }}" min="{{ $dateMin->toDateString() }}" max="{{ $dateMax->toDateString() }}" aria-label="Jump to reservation board date">
       @if ($isFuture)<span class="badge badge-blue" style="margin-left:6px">Planning ahead</span>
       @elseif ($isHistory)<span class="badge badge-slate" style="margin-left:6px">Historic board</span>
       @else<span class="badge badge-green" style="margin-left:6px">Business date</span>@endif
@@ -491,6 +493,13 @@
     applyWsFilters();
   });
   document.getElementById('refreshWsBoard')?.addEventListener('click', () => window.location.reload());
+  document.getElementById('wsDateJump')?.addEventListener('change', event => {
+    const input = event.currentTarget;
+    if (!input.value || input.value < input.min || input.value > input.max) return;
+    const target = new URL(window.location.href);
+    target.searchParams.set('date', input.value);
+    window.location.assign(target.pathname + target.search + target.hash);
+  });
 
   let activeModal = null;
   let returnFocus = null;
@@ -537,6 +546,8 @@
 .ws-title{font-size:22px;margin:0}
 .ws-date-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .ws-date-nav .disabled{opacity:.4;pointer-events:none}
+.ws-date-jump-label{font-size:11px;color:#64748b;margin-left:4px}
+.ws-date-jump{width:132px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#334155;font-size:12px}
 .ws-history-note{margin-top:5px;max-width:720px}
 .ws-photo-link:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
 .ws-extend-form .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
