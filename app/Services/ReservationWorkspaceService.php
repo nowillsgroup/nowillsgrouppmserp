@@ -18,18 +18,14 @@ use Illuminate\Support\Carbon;
 class ReservationWorkspaceService
 {
     /** KPI values for one date, interpreted against the hotel's business date. */
-    protected static function dayStats(Carbon $date, $rooms, Carbon $businessDate, array $blockedStatusByRoom, ?int $hotelId = null): array
+    protected static function dayStats(Carbon $date, $rooms, Carbon $businessDate, array $blockedStatusByRoom, $rangeStays): array
     {
         $d = $date->toDateString();
         $past = $date->lt($businessDate);
         $future = $date->gt($businessDate);
-        $ids = $rooms->pluck('id');
         $statuses = $past ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $coveringQuery = ReservationRoom::with(['reservation:id,guest_id', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
-            ->whereIn('status', $statuses)
-            ->whereDate('arrival_date', '<=', $d)
-            ->whereDate('departure_date', '>', $d);
-        $covering = ($hotelId ? $coveringQuery->where('hotel_id', $hotelId) : $coveringQuery->whereIn('room_id', $ids))->get();
+        $covering = $rangeStays->filter(fn ($stay) => in_array($stay->status, $statuses, true)
+            && $stay->arrival_date->toDateString() <= $d && $stay->departure_date->toDateString() > $d)->values();
         $byRoom = $covering->groupBy('room_id');
         $blockedSet = array_fill_keys(array_keys($blockedStatusByRoom), true);
         $occupiedIds = [];
@@ -68,14 +64,13 @@ class ReservationWorkspaceService
             return $future ? in_array($stay->status, ['reserved', 'checked_in'], true) : $stay->status === 'checked_in';
         });
 
-        // Hotel-scoped so unassigned arrivals and departures remain visible.
-        $deskScope = fn ($q) => $hotelId ? $q->where('hotel_id', $hotelId) : $q->whereIn('room_id', $ids);
-        $arrQ = $deskScope(ReservationRoom::query())->whereDate('arrival_date', $d);
-        $depQ = $deskScope(ReservationRoom::query())->whereDate('departure_date', $d);
+        // The preloaded range includes unassigned hotel-wide desk work as well as room stays.
         $deskStatuses = $past ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
         $departureStatuses = $past ? ['checked_in', 'checked_out'] : ($future ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
-        $arrivals = (clone $arrQ)->whereIn('status', $deskStatuses)->count();
-        $departures = (clone $depQ)->whereIn('status', $departureStatuses)->count();
+        $arrivals = $rangeStays->filter(fn ($stay) => $stay->arrival_date->toDateString() === $d
+            && in_array($stay->status, $deskStatuses, true))->count();
+        $departures = $rangeStays->filter(fn ($stay) => $stay->departure_date->toDateString() === $d
+            && in_array($stay->status, $departureStatuses, true))->count();
         $occupancyRooms = $future ? $occupied + $reserved : $occupied;
         $sellableRooms = max(0, $total - $blocked);
 
@@ -218,6 +213,19 @@ class ReservationWorkspaceService
         for ($i = 6; $i >= 0; $i--) {
             $trendDates[] = $date->copy()->subDays($i);
         }
+        // Load stays that intersect the seven-day trend once. dayStats filters this
+        // in-memory range per date instead of repeating covering/arrival/departure queries.
+        $trendStart = $trendDates[0]->toDateString();
+        $trendEnd = end($trendDates)->copy()->addDay()->toDateString();
+        $rangeStaysQuery = ReservationRoom::with(['reservation:id,guest_id', 'reservation.guest:id,is_vip', 'guest:id,is_vip'])
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+            ->whereDate('arrival_date', '<', $trendEnd)
+            ->whereDate('departure_date', '>', $trendStart);
+        $rangeStaysQuery = $hotelId
+            ? $rangeStaysQuery->where('hotel_id', $hotelId)
+            : $rangeStaysQuery->whereIn('room_id', $rooms->pluck('id'));
+        $rangeStays = $rangeStaysQuery->get();
+
         $roomBlockMaps = self::roomBlockStatusesForDates($trendDates, $rooms);
         $blockedStatusByRoom = $roomBlockMaps[$selectedDay] ?? [];
 
@@ -415,7 +423,7 @@ class ReservationWorkspaceService
                 $rooms,
                 $businessDate,
                 $roomBlockMaps[$trendDate->toDateString()] ?? [],
-                $hotelId
+                $rangeStays
             );
         }
         $selectedStats = $history[count($history) - 1];
