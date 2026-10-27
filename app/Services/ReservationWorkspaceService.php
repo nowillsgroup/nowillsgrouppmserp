@@ -358,7 +358,7 @@ class ReservationWorkspaceService
                 // stands. It is a better asterisk signal than 'pending' (missing nights
                 // only), which misses extra/early/late and unposted fixed charges.
                 $departureFigures[$s->id] = [
-                    'amount' => (float) ($fig['due'] ?? 0),
+                    'amount' => isset($fig['due']) ? (float) $fig['due'] : null,
                     'pending' => (int) ($fig['missing'] ?? 0),
                     'unposted' => max(0, round((float) ($fig['due'] ?? 0) - (float) ($fig['balance'] ?? 0), 2)),
                     'blocked' => $blocked,
