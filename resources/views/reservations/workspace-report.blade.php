@@ -14,7 +14,7 @@
 <div class="kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0">
   @foreach ([
     ['Occupancy', $kpis['occupancy'].'%'],
-    [$isFuture ? 'Room revenue booked' : ($isHistory ? 'Room revenue recorded' : 'Room revenue'), money($kpis['revenue'])],
+    [$isFuture ? 'Booked room-rate value' : ($isHistory ? 'Room-rate value' : 'Room-rate total'), money($kpis['revenue'])],
     ['Available', $kpis['available']],
     ['Occupied', $kpis['occupied']],
     ['Reserved', $kpis['reserved']],
@@ -141,7 +141,7 @@
   </tbody>
 </table>
 
-<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if ($isHistory) Historical occupancy is inferred from current stay records; physical room and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect reservations and dated blocks currently recorded; physical room and housekeeping flags are current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
+<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. Room-rate value totals nightly rates for stays covering the selected date; it excludes taxes, fees, and folio postings. @if ($isHistory) Historical occupancy is inferred from current stay records; physical room and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect reservations and dated blocks currently recorded; physical room and housekeeping flags are current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
 @endsection
 
 @push('head')

@@ -67,7 +67,7 @@
 @php
   use App\Services\ReservationWorkspaceService as WS;
   $guestLabel = $isFuture ? 'Guests expected' : ($isHistory ? 'Guests staying' : 'In-house guests');
-  $revenueLabel = $isFuture ? 'Room revenue booked' : ($isHistory ? 'Room revenue recorded' : 'Room revenue');
+  $revenueLabel = $isFuture ? 'Booked room-rate value' : ($isHistory ? 'Room-rate value' : 'Room-rate total');
   $tile = [
     'occupancy' => ['Occupancy', fn ($v) => $v.'%'],
     'revenue' => [$revenueLabel, fn ($v) => money($v)],
@@ -95,6 +95,7 @@
       $delta = $deltas[$key] ?? null;
       $tone = $delta === null || $delta == 0 ? 'green' : ($delta > 0 ? 'green' : 'red');
       $kpis[] = [
+          'key' => $key,
           'label' => $label,
           'value' => $fmt($trend[$key][count($trend[$key]) - 1]),
           'delta' => $delta === null ? '—' : ($delta > 0 ? '+' : '').$delta.'%',
@@ -107,9 +108,9 @@
 @endphp
 <div class="ws-kpis">
   @foreach ($kpis as $k)
-  @php $canOpenKpi = can_do($k['permission']); @endphp
-  @if ($canOpenKpi)<a class="ws-kpi" href="{{ $k['link'] }}" style="color:inherit;text-decoration:none" title="Change compared with the previous selected day">
-  @else<div class="ws-kpi" title="Change compared with the previous selected day">
+  @php $canOpenKpi = $isToday && $k['key'] !== 'revenue' && can_do($k['permission']); @endphp
+  @if ($canOpenKpi)<a class="ws-kpi" href="{{ $k['link'] }}" style="color:inherit;text-decoration:none" title="{{ $k['label'] === $revenueLabel ? 'Sum of nightly rates for stays covering this date; excludes taxes, fees, and folio postings.' : 'Change compared with the previous selected day' }}">
+  @else<div class="ws-kpi" title="{{ $k['label'] === $revenueLabel ? 'Sum of nightly rates for stays covering this date; excludes taxes, fees, and folio postings.' : 'Change compared with the previous selected day' }}">
   @endif
     <div class="flex gap"><span class="ws-kpi-delta {{ $k['tone'] === 'red' ? 'down' : 'up' }}">{{ $k['delta'] }}</span></div>
     {!! WS::spark($k['series'], $k['tone']) !!}
@@ -118,6 +119,7 @@
   @if ($canOpenKpi)</a>@else</div>@endif
   @endforeach
 </div>
+<div class="ws-revenue-note muted small">Room-rate value totals the nightly rate for each covering stay; it excludes taxes, fees, and folio postings.</div>
 
 {{-- ── Filters ── --}}
 <div class="ws-filters">
@@ -551,7 +553,8 @@
 .ws-history-note{margin-top:5px;max-width:720px}
 .ws-photo-link:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
 .ws-extend-form .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.ws-kpis{display:grid;grid-template-columns:repeat(9,1fr);gap:8px;margin-bottom:12px}
+.ws-kpis{display:grid;grid-template-columns:repeat(9,1fr);gap:8px;margin-bottom:6px}
+.ws-revenue-note{margin:0 0 12px 2px}
 .ws-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px}
 .ws-kpi-delta{font-size:11px;font-weight:600}
 .ws-kpi-delta.up{color:#16a34a}.ws-kpi-delta.down{color:#ef4444}
