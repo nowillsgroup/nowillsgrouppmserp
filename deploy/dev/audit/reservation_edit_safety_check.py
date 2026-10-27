@@ -54,6 +54,20 @@ class ReservationEditSafetyTest(unittest.TestCase):
         self.assertIn("$ownStays->filter(fn ($stay) => $stay->arrival_date->lte($night)", AVAILABILITY)
         self.assertIn("->whereDate('arrival_date', '<', $to->toDateString())", AVAILABILITY)
 
+    def test_multi_room_assignment_locks_destination_rooms_in_stable_order(self):
+        start = CONTROLLER.index("public function assignRooms(")
+        end = CONTROLLER.index("public function print(", start)
+        method = CONTROLLER[start:end]
+        reservation_lock = method.index("Reservation::whereKey($reservation->id)->lockForUpdate()")
+        stay_lock = method.index("where('status', 'reserved')->lockForUpdate()->first();", reservation_lock)
+        room_lock = method.index("Room::whereIn('id', $roomIds)->orderBy('id')->lockForUpdate()->get()", stay_lock)
+        availability = method.index("AvailabilityService::roomAvailableForReservation(", room_lock)
+        update = method.index("$stay->update(['room_id' => $room->id", availability)
+        self.assertLess(reservation_lock, stay_lock)
+        self.assertLess(stay_lock, room_lock)
+        self.assertLess(room_lock, availability)
+        self.assertLess(availability, update)
+
     def test_migrations_confirm_the_original_cascade_risk(self):
         self.assertIn("Schema::create('upsell_orders'", UPSELL_MIGRATION)
         self.assertIn("foreignId('reservation_room_id')->constrained()->cascadeOnDelete()", UPSELL_MIGRATION)

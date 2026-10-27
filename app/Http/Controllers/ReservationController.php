@@ -541,7 +541,7 @@ class ReservationController extends Controller
                     $reservation->rooms()->whereKey($stayId)->where('status', 'reserved')->lockForUpdate()->first();
                 }
                 if ($roomIds->isNotEmpty()) {
-                    Room::whereIn('id', $roomIds)->lockForUpdate()->get();
+                    Room::whereIn('id', $roomIds)->orderBy('id')->lockForUpdate()->get();
                 }
                 foreach ($data['assign'] as $stayId => $roomId) {
                     $stay = $reservation->rooms()->whereKey($stayId)->where('status', 'reserved')->lockForUpdate()->first();
