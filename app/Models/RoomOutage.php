@@ -39,6 +39,11 @@ class RoomOutage extends Model
         return $this->belongsTo(Room::class);
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     /** Active outages that cover any night in [from, to). */
     public static function covering($from, $to, ?int $roomId = null)
     {

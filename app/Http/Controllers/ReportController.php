@@ -6149,13 +6149,24 @@ class ReportController extends Controller
 
     protected function r_room_outages($from, $to): array
     {
-        $rows = RoomOutage::with('room.roomType')->whereBetween('outage_from', [$from, $to])->get()->map(fn ($r) => [
-            'room' => optional($r->room)->room_no, 'type' => optional($r->room->roomType)->name,
-            'from' => $r->outage_from, 'to' => $r->outage_to, 'category' => $r->category,
-            'reason' => $r->reason, 'estimated_cost' => $r->estimated_cost, 'actual_cost' => $r->actual_cost,
-            'revenue_lost' => $r->revenue_lost, 'status' => $r->status, 'user' => $r->user_id, 'notes' => $r->notes,
-        ]);
-        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'from' => 'From', 'to' => 'To', 'category' => 'Category', 'reason' => 'Reason', 'estimated_cost' => 'Est Cost', 'actual_cost' => 'Act Cost', 'revenue_lost' => 'Rev Lost', 'status' => 'Status'], 'rows' => $rows, 'money' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'sum' => ['estimated_cost', 'actual_cost', 'revenue_lost'], 'note' => 'Room out-of-order periods with cost and revenue impact.'];
+        // Room outages are dated [starts_on, ends_on) blocks. Include any
+        // block that overlaps the inclusive report window rather than only
+        // outages that began inside it.
+        $rows = RoomOutage::with(['room.roomType', 'creator'])
+            ->whereDate('starts_on', '<=', $to)
+            ->whereDate('ends_on', '>', $from)
+            ->orderBy('starts_on')->orderBy('room_id')->get()->map(fn ($r) => [
+                'room' => optional($r->room)->room_no,
+                'type' => optional($r->room?->roomType)->name,
+                'from' => $r->starts_on,
+                'to' => $r->ends_on,
+                'category' => RoomOutage::REASONS[$r->reason] ?? $r->reason,
+                'status' => $r->status,
+                'user' => $r->creator?->name ?? ($r->created_by ? 'User #'.$r->created_by : '—'),
+                'notes' => $r->notes,
+            ]);
+
+        return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'from' => 'From', 'to' => 'To', 'category' => 'Reason', 'status' => 'Status', 'user' => 'Created By', 'notes' => 'Notes'], 'rows' => $rows, 'money' => [], 'sum' => [], 'note' => 'Room blocks overlapping the selected period. End dates are exclusive: the room returns that morning.'];
     }
 
 
