@@ -121,27 +121,36 @@ class LaundryController extends Controller
     {
         $request->validate(['q' => 'nullable|array', 'q.*' => 'array', 'q.*.*' => 'nullable|integer|min:0|max:99', 'r' => 'nullable|array', 'r.*' => 'nullable|string|max:150',
             'speed' => 'nullable|in:normal,express']);
-        if ($request->filled('speed') && $request->input('speed') !== $lorder->speed && $lorder->isOpen()) {
-            $lorder->forceFill(['speed' => $request->input('speed'), 'promised_at' => $lorder->collected_at->copy()->addHours(LaundryService::hours($request->input('speed')))])->save();
+        try {
+            $o = LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'));
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
-        $o = LaundryService::setLines($lorder, $this->gridLines($request));
 
         return back()->with('success', "Items saved – {$o->pieces} pcs, ".money($o->total).' before tax.');
     }
 
     public function ready(LaundryOrder $lorder)
     {
-        LaundryService::markReady($lorder);
+        try {
+            $ready = LaundryService::markReady($lorder);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', "Laundry {$lorder->order_no} is ready for delivery.");
+        return back()->with('success', "Laundry {$ready->order_no} is ready for delivery.");
     }
 
     public function deliver(Request $request, LaundryOrder $lorder)
     {
         $data = $request->validate(['payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:60', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100']);
-        $o = LaundryService::deliver($lorder, $data['payment_mode_id'] ?? null, $data['reference'] ?? null, [
-            'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-        ]);
+        try {
+            $o = LaundryService::deliver($lorder, $data['payment_mode_id'] ?? null, $data['reference'] ?? null, [
+                'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
+            ]);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
         $t = $o->folioTransaction;
 
         return back()->with('success', "Delivered. ".money((float) $t->amount + (float) $t->tax_amount).($o->type === 'guest' ? " charged to folio {$o->folio->folio_no}." : " received – invoice {$o->folio->invoice_no}."));
@@ -150,9 +159,13 @@ class LaundryController extends Controller
     public function cancel(Request $request, LaundryOrder $lorder)
     {
         $data = $request->validate(['reason' => 'required|string|max:190']);
-        LaundryService::cancel($lorder, $data['reason']);
+        try {
+            $cancelled = LaundryService::cancel($lorder, $data['reason']);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', "Laundry {$lorder->order_no} cancelled.");
+        return back()->with('success', "Laundry {$cancelled->order_no} cancelled.");
     }
 
     // ------------------------------------------------------------ price list & settings

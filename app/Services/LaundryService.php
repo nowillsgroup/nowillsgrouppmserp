@@ -8,6 +8,7 @@ use App\Models\GuestRequest;
 use App\Models\LaundryItem;
 use App\Models\LaundryOrder;
 use App\Models\PaymentMode;
+use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Support\Numbering;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +61,15 @@ class LaundryService
         }
 
         $order = DB::transaction(function () use ($d, $type, $speed, $stay, $req) {
+            if ($stay) {
+                $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
+                $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
+                if ($stay->status !== 'checked_in' || ! $stay->room_id) {
+                    throw new RuntimeException('Laundry can only be collected from an in-house room.');
+                }
+                $stay->setRelation('reservation', $reservation);
+                $stay->load(['guest', 'room']);
+            }
             $o = LaundryOrder::create([
                 'order_no' => Numbering::next('laundry_order'), 'type' => $type, 'speed' => $speed, 'status' => 'collected',
                 'reservation_room_id' => $stay?->id, 'room_id' => $stay?->room_id, 'guest_request_id' => $req?->id,
@@ -88,10 +98,10 @@ class LaundryService
      * Replace the order's items. Each line: laundry_item_id, service (wash|dryclean|press), qty, optional remark.
      * Prices always come from the price list, never from the form.
      */
-    public static function setLines(LaundryOrder $o, array $lines, bool $log = true): LaundryOrder
+    public static function setLines(LaundryOrder $o, array $lines, bool $log = true, ?string $speed = null): LaundryOrder
     {
-        if (! $o->isOpen()) {
-            throw new RuntimeException("Laundry {$o->order_no} is {$o->statusLabel()} and can't be changed.");
+        if ($speed !== null && ! array_key_exists($speed, self::SPEEDS)) {
+            throw new RuntimeException('Choose a valid laundry speed.');
         }
         $clean = [];
         foreach ($lines as $l) {
@@ -113,33 +123,49 @@ class LaundryService
                 'amount' => round($rate * $qty, 2), 'remark' => ! empty($l['remark']) ? mb_substr(trim($l['remark']), 0, 150) : null];
         }
 
-        DB::transaction(function () use ($o, $clean) {
-            $o->lines()->delete();
-            $o->lines()->createMany($clean);
+        $updated = DB::transaction(function () use ($o, $clean, $speed) {
+            $locked = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isOpen()) {
+                throw new RuntimeException("Laundry {$locked->order_no} is {$locked->statusLabel()} and can't be changed.");
+            }
+            if ($speed !== null && $speed !== $locked->speed) {
+                $locked->speed = $speed;
+                $locked->promised_at = ($locked->collected_at ?? now())->copy()->addHours(self::hours($speed));
+            }
+            $locked->lines()->delete();
+            $locked->lines()->createMany($clean);
             $sub = round(array_sum(array_column($clean, 'amount')), 2);
-            $exp = $o->speed === 'express' ? round($sub * self::expressPct() / 100, 2) : 0.0;
-            $o->forceFill(['subtotal' => $sub, 'express_charge' => $exp, 'total' => round($sub + $exp, 2), 'pieces' => array_sum(array_column($clean, 'qty')),
-                'status' => $o->status === 'collected' && $clean ? 'processing' : ($clean ? $o->status : 'collected')])->save();
+            $exp = $locked->speed === 'express' ? round($sub * self::expressPct() / 100, 2) : 0.0;
+            $nextStatus = $clean ? 'processing' : 'collected';
+            $locked->forceFill(['subtotal' => $sub, 'express_charge' => $exp, 'total' => round($sub + $exp, 2), 'pieces' => array_sum(array_column($clean, 'qty')),
+                'status' => $nextStatus, 'ready_at' => null])->save();
+
+            return $locked->fresh('lines');
         });
         if ($log) {
-            ActivityLogger::log('laundry', 'items', "Laundry {$o->order_no} itemised: {$o->pieces} pcs, ".money($o->total), $o);
+            ActivityLogger::log('laundry', 'items', "Laundry {$updated->order_no} itemised: {$updated->pieces} pcs, ".money($updated->total), $updated);
         }
 
-        return $o->fresh('lines');
+        return $updated;
     }
 
     public static function markReady(LaundryOrder $o): LaundryOrder
     {
-        if (! in_array($o->status, ['collected', 'processing'])) {
-            throw new RuntimeException("Laundry {$o->order_no} is already {$o->statusLabel()}.");
-        }
-        if ($o->pieces < 1) {
-            throw new RuntimeException('Add the items before marking the order ready.');
-        }
-        $o->forceFill(['status' => 'ready', 'ready_at' => now()])->save();
-        ActivityLogger::log('laundry', 'ready', "Laundry {$o->order_no} ready", $o);
+        $ready = DB::transaction(function () use ($o) {
+            $locked = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($locked->status, ['collected', 'processing'], true)) {
+                throw new RuntimeException("Laundry {$locked->order_no} is already {$locked->statusLabel()}.");
+            }
+            if ($locked->pieces < 1) {
+                throw new RuntimeException('Add the items before marking the order ready.');
+            }
+            $locked->forceFill(['status' => 'ready', 'ready_at' => now()])->save();
 
-        return $o;
+            return $locked;
+        });
+        ActivityLogger::log('laundry', 'ready', "Laundry {$ready->order_no} ready", $ready);
+
+        return $ready;
     }
 
     /**
@@ -161,7 +187,13 @@ class LaundryService
         }
 
         DB::transaction(function () use ($o, $paymentModeId, $reference, $cheque) {
-            $o = LaundryOrder::lockForUpdate()->findOrFail($o->id);
+            $o = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($o->status, ['processing', 'ready'], true)) {
+                throw new RuntimeException("Laundry {$o->order_no} is already {$o->statusLabel()} and can't be delivered.");
+            }
+            if ((float) $o->total <= 0) {
+                throw new RuntimeException('The order has no chargeable items.');
+            }
             if ($o->folio_transaction_id) {
                 throw new RuntimeException("Laundry {$o->order_no} has already been charged.");
             }
@@ -195,16 +227,21 @@ class LaundryService
 
     public static function cancel(LaundryOrder $o, string $reason): LaundryOrder
     {
-        if (! $o->isOpen()) {
-            throw new RuntimeException("Laundry {$o->order_no} is already {$o->statusLabel()}.");
-        }
-        $o->forceFill(['status' => 'cancelled', 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
-        if ($o->guest_request_id && ($req = GuestRequest::find($o->guest_request_id)) && in_array($req->status, GuestRequest::OPEN)) {
-            GuestPortalService::transition($req, 'decline', 'Laundry order cancelled: '.$reason);
-        }
-        ActivityLogger::log('laundry', 'cancel', "Laundry {$o->order_no} cancelled: {$reason}", $o);
+        $cancelled = DB::transaction(function () use ($o, $reason) {
+            $locked = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isOpen()) {
+                throw new RuntimeException("Laundry {$locked->order_no} is already {$locked->statusLabel()}.");
+            }
+            $locked->forceFill(['status' => 'cancelled', 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
+            if ($locked->guest_request_id && ($req = GuestRequest::find($locked->guest_request_id)) && in_array($req->status, GuestRequest::OPEN, true)) {
+                GuestPortalService::transition($req, 'decline', 'Laundry order cancelled: '.$reason);
+            }
+            ActivityLogger::log('laundry', 'cancel', "Laundry {$locked->order_no} cancelled: {$reason}", $locked);
 
-        return $o;
+            return $locked;
+        });
+
+        return $cancelled;
     }
 
     /** Orders still with the laundry for a stay – shown as a warning at check-out. */
