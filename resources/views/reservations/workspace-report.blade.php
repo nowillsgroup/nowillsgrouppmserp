@@ -14,7 +14,7 @@
 <div class="kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0">
   @foreach ([
     ['Occupancy', $kpis['occupancy'].'%'],
-    [$isFuture ? 'Room revenue booked' : ($isHistory ? 'Room revenue recorded' : 'Room revenue'), 'GH₵ '.number_format($kpis['revenue'])],
+    [$isFuture ? 'Room revenue booked' : ($isHistory ? 'Room revenue recorded' : 'Room revenue'), money($kpis['revenue'])],
     ['Available', $kpis['available']],
     ['Occupied', $kpis['occupied']],
     ['Reserved', $kpis['reserved']],
@@ -43,7 +43,7 @@
           <td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td>
           <td>{{ $s->reservation?->businessSource?->name ?? 'Direct' }}</td>
           <td>{{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}</td>
-          <td>GH₵{{ number_format((float) $s->rate, 2) }}</td>
+          <td>{{ money((float) $s->rate) }}</td>
         </tr>
         @empty
         <tr><td colspan="5" class="text-2">No arrivals on this date.</td></tr>
@@ -66,7 +66,7 @@
           <td>{{ $s->room?->room_no ?? '—' }}</td>
           <td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td>
           <td>{{ $s->reservation?->businessSource?->name ?? 'Direct' }}</td>
-          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? 'GH₵ '.number_format($bal, 2) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}@if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif</td>
+          <td class="{{ ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $bal === null ? '—' : (($bal > 0 ? money($bal) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}@if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif</td>
         </tr>
         @empty
         <tr><td colspan="4" class="text-2">No departures on this date.</td></tr>
@@ -134,8 +134,8 @@
       </td>
       <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->arrival_date)->format('d M') : '—' }}</td>
       <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->departure_date)->format('d M') : '—' }}</td>
-      <td>GH₵{{ number_format($c['rate'], 2) }}</td>
-      <td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] !== null && $c['balance'] > 0 ? 'GH₵ '.number_format($c['balance'], 2) : '—' }}</td>
+      <td>{{ money($c['rate']) }}</td>
+      <td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] !== null && $c['balance'] > 0 ? money($c['balance']) : '—' }}</td>
     </tr>
     @endforeach
   </tbody>

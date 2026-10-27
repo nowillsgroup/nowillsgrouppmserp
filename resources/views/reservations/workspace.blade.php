@@ -70,7 +70,7 @@
   $revenueLabel = $isFuture ? 'Room revenue booked' : ($isHistory ? 'Room revenue recorded' : 'Room revenue');
   $tile = [
     'occupancy' => ['Occupancy', fn ($v) => $v.'%'],
-    'revenue' => [$revenueLabel, fn ($v) => 'GH₵ '.number_format($v)],
+    'revenue' => [$revenueLabel, fn ($v) => money($v)],
     'available' => ['Available', fn ($v) => $v],
     'occupied' => ['Occupied', fn ($v) => $v],
     'reserved' => ['Reserved', fn ($v) => $v],
@@ -163,7 +163,7 @@
 
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Open room {{ $room->room_no }} details" title="Room details" style="background:{{ $room->roomType?->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           <span class="ws-photo-tag">{{ strtoupper($room->roomType?->code ?? $room->roomType?->name ?? 'ROOM') }}</span>
-          <span class="ws-photo-rate">GH₵{{ number_format($c['rate']) }} <small>/ night</small></span>
+          <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
         </div>
         <div class="ws-room-meta small muted">
           <span><x-icon name="home" /> {{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
@@ -191,17 +191,17 @@
             <span><b>{{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format('d M') }}</b><br><span class="muted">Depart</span></span>
           </div>
           <div class="ws-rate-row small">
-            <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵{{ number_format($c['rate']) }}</span> <span class="muted">/n</span></div>
+            <div><span class="muted">Nightly rate</span><br><span class="bold">{{ money($c['rate']) }}</span> <span class="muted">/n</span></div>
             @php $cardDue = $c['due'] ?? $c['balance']; @endphp
             @if ($cardDue !== null)
-            <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? 'Final folio balance' : 'Estimated checkout amount, including nights and fixed charges still to post' }}">{{ $cardDue > 0 ? 'GH₵ '.number_format($cardDue, 0).' due' : 'Settled' }}</div>
+            <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? 'Final folio balance' : 'Estimated checkout amount, including nights and fixed charges still to post' }}">{{ $cardDue > 0 ? money($cardDue).' due' : 'Settled' }}</div>
             @endif
           </div>
         </div>
         @else
         <div class="ws-guest vacant">
           <div class="muted small">{{ $c['status'] === 'occupied' ? 'OCCUPIED · NO LINKED STAY' : ($c['status'] === 'available' ? 'VACANT · RACK RATE' : 'ROOM UNAVAILABLE') }}</div>
-          <div class="ws-vacant-rate">GH₵ {{ number_format($c['rate']) }} <small class="muted">/night</small></div>
+          <div class="ws-vacant-rate">{{ money($c['rate']) }} <small class="muted">/night</small></div>
           @if ($c['status'] === 'available' && ! $isHistory && can_do('reservations.create'))
             <a class="btn btn-sm btn-primary ws-reserve" href="{{ route('reservations.create', ['room' => $room->id, 'arrival' => $date->toDateString(), 'departure' => $date->copy()->addDay()->toDateString()]) }}">Reserve Room</a>
           @endif
@@ -345,7 +345,7 @@
           <span><b>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</b>
           <span class="muted small">Rm {{ $s->room?->room_no ?? '—' }} · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}
             @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
-            @if ($da !== null) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? 'GH₵ '.number_format($da, 2).' to settle' : 'settled' }}</b>@endif
+            @if ($da !== null) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}">{{ $da > 0 ? money($da).' to settle' : 'settled' }}</b>@endif
             @if (! empty($df['blocked']))<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>@endif
           </span></span>
         @if ($departureHref)</a>@else</div>@endif
@@ -420,7 +420,7 @@
       <div><div id="roomModalTitle{{ $room->id }}" class="bold">{{ $room->roomType?->name ?? 'Room details' }} · {{ $room->roomType?->code ?? '' }}</div>
         <div class="small" style="opacity:.85">{{ $room->floor?->name ? 'Floor '.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->name : '' }}</div></div>
       <div class="text-right"><span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-        <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵{{ number_format($c['rate']) }} <small>/ night</small></div></div>
+        <div class="ws-photo-rate" style="position:static;margin-top:6px">{{ money($c['rate']) }} <small>/ night</small></div></div>
     </div>
   </div>
   <div class="modal-body">
@@ -437,8 +437,8 @@
       <table class="ws-resv-t">
         <tr><td class="muted">Confirmation</td><td class="bold">{{ $stay->reservation?->reservation_no ?? '—' }}</td><td class="muted">Source</td><td class="bold">{{ $stay->reservation?->businessSource?->name ?? 'Direct' }}</td></tr>
         <tr><td class="muted">Stay</td><td class="bold">{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format('d M') }} → {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format('d M') }} · {{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</td><td class="muted">Guests</td><td class="bold">{{ $stay->reservation?->adults ?? 1 }} Adults · {{ $stay->reservation?->children ?? 0 }} Children</td></tr>
-        <tr><td class="muted">Rate</td><td class="bold">GH₵{{ number_format($c['rate']) }}/n</td><td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? 'GH₵ '.number_format($c['balance'], 0) : (($c['balance'] ?? 0) < 0 ? 'GH₵ '.number_format(abs($c['balance']), 0).' in credit' : 'Settled') }}</td></tr>
-        @if (($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">GH₵ {{ number_format($c['due'], 2) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
+        <tr><td class="muted">Rate</td><td class="bold">{{ money($c['rate']) }}/n</td><td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ ($c['balance'] ?? 0) > 0 ? money($c['balance']) : (($c['balance'] ?? 0) < 0 ? money(abs($c['balance'])).' in credit' : 'Settled') }}</td></tr>
+        @if (($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">{{ money($c['due']) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
       </table>
     </div></div>@endif</div>
     @if (count($roomActions))<div class="ws-rail-title" style="margin-top:16px">QUICK LINKS</div><div class="ws-quick">
