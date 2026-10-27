@@ -66,7 +66,8 @@ class DashboardController extends Controller
             'events' => BanquetEvent::with('functions.hall', 'functions.items')->whereDate('end_date', '>=', $d)->whereIn('status', ['definite', 'tentative'])->orderBy('event_date')->take(5)->get(),
             'openTickets' => MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->count(),
             'openPos' => PosOrder::whereIn('status', ['open', 'billed'])->count(),
-            'lowStock' => InventoryItem::where('is_active', true)->get()->filter(fn ($i) => $i->stock() <= $i->reorder_level)->take(6),
+            'lowStock' => InventoryItem::where('is_active', true)->withSum('movements as stock_qty', 'qty')->get()
+                ->filter(fn ($i) => (float) ($i->stock_qty ?? 0) <= (float) $i->reorder_level)->take(6),
             'activity' => ActivityLog::with('user')->latest('created_at')->take(8)->get(),
             'newBookings' => Reservation::whereDate('created_at', $d)->count(),
         ]);
