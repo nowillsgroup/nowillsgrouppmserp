@@ -71,11 +71,13 @@ class ReservationWorkspaceService
             && in_array($stay->status, $deskStatuses, true))->count();
         $departures = $rangeStays->filter(fn ($stay) => $stay->departure_date->toDateString() === $d
             && in_array($stay->status, $departureStatuses, true))->count();
-        $occupancyRooms = $future ? $occupied + $reserved : $occupied;
+        // Forward OTB occupancy counts every covering booking, including unassigned
+        // stays; the room board's occupied/reserved tiles remain assignment-based.
+        $occupancyRooms = $future ? $covering->count() : $occupied;
         $sellableRooms = max(0, $total - $blocked);
 
         return [
-            'occupancy' => $sellableRooms ? min(100, round(100 * $occupancyRooms / $sellableRooms)) : 0,
+            'occupancy' => $sellableRooms ? round(100 * $occupancyRooms / $sellableRooms) : 0,
             'revenue' => (float) $revenueStays->sum('rate'),
             'available' => max(0, $total - $occupied - $reserved - $blocked),
             'occupied' => $occupied,
