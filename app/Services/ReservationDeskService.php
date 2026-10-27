@@ -408,7 +408,9 @@ class ReservationDeskService
     public static function kpis(Carbon $date): array
     {
         $d = $date->toDateString();
-        $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
+        $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
+        $coveringStatuses = $historical ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $covering = ReservationRoom::whereIn('status', $coveringStatuses)->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $sold = (clone $covering)->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
