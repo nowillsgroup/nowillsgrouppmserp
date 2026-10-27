@@ -119,6 +119,8 @@ class ReservationWorkspaceService
             $status = match ($outage->reason) {
                 'maintenance', 'renovation' => 'maintenance',
                 'vip', 'management', 'house', 'owner' => 'house_use',
+                'group' => 'group_hold',
+                'other' => 'other_block',
                 default => 'out_of_order',
             };
             foreach ($dates as $date) {
@@ -417,6 +419,8 @@ class ReservationWorkspaceService
             'Out of Service' => [$blockedCounts['out_of_service'] ?? 0, '#b91c1c'],
             'Leased' => [$blockedCounts['leased'] ?? 0, '#64748b'],
             'Maintenance' => [$blockedCounts['maintenance'] ?? 0, '#f97316'],
+            'Group Hold' => [$blockedCounts['group_hold'] ?? 0, '#0ea5e9'],
+            'Other Block' => [$blockedCounts['other_block'] ?? 0, '#64748b'],
         ];
 
         return [
