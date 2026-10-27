@@ -29,8 +29,8 @@ class DashboardController extends Controller
         $ooo = $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->count();
         $arrivals = ReservationRoom::with('reservation.guest', 'roomType', 'room')->where('status', 'reserved')->whereDate('arrival_date', $d)->get();
         $departures = ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->get();
-        $checkedOutToday = ReservationRoom::where('status', 'checked_out')->whereDate('checked_out_at', today())->count();
-        $checkedInToday = ReservationRoom::where('status', 'checked_in')->whereDate('checked_in_at', today())->count();
+        // Keep dashboard movement counts on the same hotel business date as its room board.
+        $checkedInToday = ReservationRoom::where('status', 'checked_in')->whereDate('checked_in_at', $d)->count();
 
         $tx = FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->get();
         $posToday = PosOrder::whereDate('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')->get();
@@ -48,7 +48,7 @@ class DashboardController extends Controller
         return view('dashboard', [
             'total' => $total, 'occupied' => $occupied, 'vacant' => $rooms->where('status', 'vacant')->count(), 'ooo' => $ooo,
             'dirty' => $rooms->where('hk_status', 'dirty')->count(), 'arrivals' => $arrivals, 'departures' => $departures,
-            'checkedOutToday' => $checkedOutToday, 'checkedInToday' => $checkedInToday, 'inHouseGuests' => $inHouseGuests,
+            'checkedInToday' => $checkedInToday, 'inHouseGuests' => $inHouseGuests,
             'occPct' => $total ? round($occupied * 100 / $total, 1) : 0,
             'roomRevenue' => $roomRevenue, 'otherRevenue' => $otherRevenue, 'collections' => $collections,
             'adr' => $occupied ? $roomRevenue / max(1, $occupied) : 0,
@@ -58,7 +58,7 @@ class DashboardController extends Controller
             'openPos' => PosOrder::whereIn('status', ['open', 'billed'])->count(),
             'lowStock' => InventoryItem::where('is_active', true)->get()->filter(fn ($i) => $i->stock() <= $i->reorder_level)->take(6),
             'activity' => ActivityLog::with('user')->latest('created_at')->take(8)->get(),
-            'newBookings' => Reservation::whereDate('created_at', today())->count(),
+            'newBookings' => Reservation::whereDate('created_at', $d)->count(),
         ]);
     }
 
