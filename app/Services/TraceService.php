@@ -6,6 +6,7 @@ use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\Trace;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /** v3.5 – traces: dated to-dos for a department, optionally tied to a reservation / stay; rolled forward by the night audit. */
@@ -24,56 +25,90 @@ class TraceService
         if ($date->lt(bdate()->copy()->startOfDay())) {
             throw new RuntimeException('A trace cannot be dated in the past.');
         }
-        $stay = ! empty($d['reservation_room_id']) ? ReservationRoom::find($d['reservation_room_id']) : null;
-        $res = $stay?->reservation ?? (! empty($d['reservation_id']) ? Reservation::find($d['reservation_id']) : null);
-        if ($res && in_array($res->status, ['cancelled', 'no_show', 'checked_out'], true) && ! $stay) {
-            throw new RuntimeException('That reservation is '.str_replace('_', ' ', $res->status).'.');
-        }
+        $stayId = ! empty($d['reservation_room_id']) ? (int) $d['reservation_room_id'] : null;
+        $reservationId = ! empty($d['reservation_id']) ? (int) $d['reservation_id'] : null;
         $time = trim((string) ($d['due_time'] ?? ''));
-        $t = Trace::create([
-            'trace_date' => $date->toDateString(), 'due_time' => $time !== '' ? substr($time, 0, 5).':00' : null,
-            'department' => array_key_exists($d['department'] ?? '', self::DEPARTMENTS) ? $d['department'] : 'front_office',
-            'reservation_id' => $res?->id, 'reservation_room_id' => $stay?->id, 'guest_id' => $stay?->guest_id ?? $res?->guest_id,
-            'text' => mb_substr($text, 0, 255), 'status' => 'open', 'created_by' => auth()->id(),
-        ]);
-        ActivityLogger::log('traces', 'create', 'Trace '.$t->trace_date->format('d M').' ('.self::DEPARTMENTS[$t->department].'): '.$t->text, $t);
 
-        return $t;
+        return DB::transaction(function () use ($d, $text, $date, $stayId, $reservationId, $time) {
+            $stay = null;
+            $res = null;
+            if ($stayId) {
+                $snapshot = ReservationRoom::whereKey($stayId)->firstOrFail();
+                $res = Reservation::whereKey($snapshot->reservation_id)->lockForUpdate()->firstOrFail();
+                $stay = ReservationRoom::whereKey($snapshot->id)->lockForUpdate()->firstOrFail();
+                $stay->setRelation('reservation', $res);
+            } elseif ($reservationId) {
+                $res = Reservation::whereKey($reservationId)->lockForUpdate()->firstOrFail();
+            }
+            if ($res && in_array($res->status, ['cancelled', 'no_show', 'checked_out'], true) && ! $stay) {
+                throw new RuntimeException('That reservation is '.str_replace('_', ' ', $res->status).'.');
+            }
+            if ($date->lt(bdate()->copy()->startOfDay())) {
+                throw new RuntimeException('A trace cannot be dated in the past.');
+            }
+            $t = Trace::create([
+                'trace_date' => $date->toDateString(), 'due_time' => $time !== '' ? substr($time, 0, 5).':00' : null,
+                'department' => array_key_exists($d['department'] ?? '', self::DEPARTMENTS) ? $d['department'] : 'front_office',
+                'reservation_id' => $res?->id, 'reservation_room_id' => $stay?->id, 'guest_id' => $stay?->guest_id ?? $res?->guest_id,
+                'text' => mb_substr($text, 0, 255), 'status' => 'open', 'created_by' => auth()->id(),
+            ]);
+            ActivityLogger::log('traces', 'create', 'Trace '.$t->trace_date->format('d M').' ('.self::DEPARTMENTS[$t->department].'): '.$t->text, $t);
+
+            return $t;
+        });
     }
 
     public static function complete(Trace $t, ?string $note = null): Trace
     {
-        if (! $t->isOpen()) {
-            throw new RuntimeException('This trace is already '.$t->status.'.');
-        }
-        $t->forceFill(['status' => 'done', 'done_at' => now(), 'done_by' => auth()->id(), 'done_note' => trim((string) $note) ? mb_substr(trim($note), 0, 190) : null])->save();
-        ActivityLogger::log('traces', 'done', 'Trace done: '.$t->text, $t);
+        return DB::transaction(function () use ($t, $note) {
+            $locked = Trace::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isOpen()) {
+                throw new RuntimeException('This trace is already '.$locked->status.'.');
+            }
+            $locked->forceFill(['status' => 'done', 'done_at' => now(), 'done_by' => auth()->id(), 'done_note' => trim((string) $note) ? mb_substr(trim($note), 0, 190) : null])->save();
+            ActivityLogger::log('traces', 'done', 'Trace done: '.$locked->text, $locked);
 
-        return $t;
+            return $locked;
+        });
     }
 
     public static function cancel(Trace $t, string $reason): Trace
     {
-        if (! $t->isOpen()) {
-            throw new RuntimeException('This trace is already '.$t->status.'.');
-        }
         if (trim($reason) === '') {
             throw new RuntimeException('Give a reason.');
         }
-        $t->forceFill(['status' => 'cancelled', 'done_at' => now(), 'done_by' => auth()->id(), 'done_note' => mb_substr(trim($reason), 0, 190)])->save();
 
-        return $t;
+        return DB::transaction(function () use ($t, $reason) {
+            $locked = Trace::whereKey($t->id)->lockForUpdate()->firstOrFail();
+            if (! $locked->isOpen()) {
+                throw new RuntimeException('This trace is already '.$locked->status.'.');
+            }
+            $locked->forceFill(['status' => 'cancelled', 'done_at' => now(), 'done_by' => auth()->id(), 'done_note' => mb_substr(trim($reason), 0, 190)])->save();
+            ActivityLogger::log('traces', 'cancel', 'Trace cancelled: '.$locked->text.' – '.trim($reason), $locked);
+
+            return $locked;
+        });
     }
 
     /** night audit: open traces up to the closing date move to the next business day */
     public static function carryForward(Carbon $closing): int
     {
+        $closingDate = $closing->toDateString();
         $next = $closing->copy()->addDay()->toDateString();
+        $ids = Trace::where('status', 'open')->whereDate('trace_date', '<=', $closingDate)->orderBy('id')->pluck('id');
         $n = 0;
-        Trace::where('status', 'open')->whereDate('trace_date', '<=', $closing->toDateString())->get()->each(function (Trace $t) use ($next, &$n) {
-            $t->forceFill(['carried_from' => $t->carried_from ?? $t->trace_date, 'trace_date' => $next])->save();
-            $n++;
-        });
+        foreach ($ids as $id) {
+            $carried = DB::transaction(function () use ($id, $closingDate, $next) {
+                $trace = Trace::whereKey($id)->lockForUpdate()->first();
+                if (! $trace || $trace->status !== 'open' || $trace->trace_date->toDateString() > $closingDate) {
+                    return false;
+                }
+                $trace->forceFill(['carried_from' => $trace->carried_from ?? $trace->trace_date, 'trace_date' => $next])->save();
+
+                return true;
+            });
+            $n += $carried ? 1 : 0;
+        }
 
         return $n;
     }
