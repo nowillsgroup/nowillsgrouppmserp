@@ -13,7 +13,7 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
 .pv-shell{height:100vh;display:grid;grid-template-columns:var(--pv-sidebar) minmax(0,1fr)}
 .pv-side{min-width:0;background:linear-gradient(180deg,#10271c,#08170f);color:#c6dfce;display:flex;flex-direction:column;z-index:5}
 .pv-brand{height:var(--pv-top);padding:0 16px;display:flex;align-items:center;gap:10px;color:#fff;border-bottom:1px solid #ffffff18;font-weight:750;letter-spacing:.03em}
-.pv-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,#166534,#047857);box-shadow:0 4px 12px #16653466;font-size:17px}
+.pv-logo{display:block;width:166px;max-width:100%;max-height:34px;height:auto;object-fit:contain;object-position:left center}
 .pv-brand small{display:block;margin-top:2px;color:#a8c0ad;font-size:9px;letter-spacing:.12em;font-weight:600}
 .pv-side-label{padding:18px 17px 7px;color:#86a594;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
 .pv-nav{overflow:auto;padding:0 9px 12px;flex:1}
@@ -45,7 +45,7 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
 <body>
 <div class="pv-shell" id="previewShell">
   <aside class="pv-side" aria-label="Preview modules">
-    <div class="pv-brand"><div class="pv-mark">N</div><div>NOWILLS PMS<small>PROPERTY MANAGEMENT SYSTEM</small></div></div>
+    <div class="pv-brand"><img class="pv-logo" src="/images/brand/nowills-pms-logo-white.png" alt="Nowills PMS — Cloud Hospitality Suite"></div>
     <div class="pv-side-label">Overview</div>
     <nav class="pv-nav" id="previewNav">
       <button type="button" class="active" data-title="Dashboard" data-file="preview-dashboard.html"><span class="pv-icon">▦</span>Dashboard</button>
