@@ -98,7 +98,7 @@ class GatePassController extends Controller
     public function approve(GatePass $gatepass)
     {
         return $this->guarded(function () use ($gatepass) {
-            GatePassService::approve($gatepass);
+            $gatepass = GatePassService::approve($gatepass);
 
             return back()->with('success', "Gate pass {$gatepass->pass_no} approved – security may let the goods out.");
         });
@@ -109,7 +109,7 @@ class GatePassController extends Controller
         $d = $request->validate(['reason' => 'required|string|max:255']);
 
         return $this->guarded(function () use ($gatepass, $d) {
-            GatePassService::reject($gatepass, $d['reason']);
+            $gatepass = GatePassService::reject($gatepass, $d['reason']);
 
             return back()->with('success', "Gate pass {$gatepass->pass_no} rejected.");
         });
@@ -121,7 +121,7 @@ class GatePassController extends Controller
         $d = $request->validate(['reason' => 'nullable|string|max:255']);
 
         return $this->guarded(function () use ($gatepass, $d) {
-            GatePassService::cancel($gatepass, $d['reason'] ?? 'Cancelled');
+            $gatepass = GatePassService::cancel($gatepass, $d['reason'] ?? 'Cancelled');
 
             return back()->with('success', "Gate pass {$gatepass->pass_no} cancelled.");
         });
@@ -132,7 +132,7 @@ class GatePassController extends Controller
         $d = $request->validate(['carrier_name' => 'nullable|string|max:120', 'vehicle_no' => 'nullable|string|max:20']);
 
         return $this->guarded(function () use ($gatepass, $d) {
-            GatePassService::markOut($gatepass, $d['carrier_name'] ?? null, $d['vehicle_no'] ?? null);
+            $gatepass = GatePassService::markOut($gatepass, $d['carrier_name'] ?? null, $d['vehicle_no'] ?? null);
 
             return back()->with('success', "Gate pass {$gatepass->pass_no}: goods checked out through the gate.");
         });
@@ -144,6 +144,7 @@ class GatePassController extends Controller
 
         return $this->guarded(function () use ($gatepass, $d) {
             GatePassService::receive($gatepass, $d['qty'], $d['carrier_name'] ?? null, $d['note'] ?? null);
+            $gatepass = $gatepass->fresh();
 
             return back()->with('success', $gatepass->status === 'returned' ? "Everything on {$gatepass->pass_no} is back – pass completed." : "Return recorded on {$gatepass->pass_no} – some items are still out.");
         });
@@ -154,7 +155,7 @@ class GatePassController extends Controller
         $d = $request->validate(['note' => 'required|string|max:255']);
 
         return $this->guarded(function () use ($gatepass, $d) {
-            GatePassService::close($gatepass, $d['note']);
+            $gatepass = GatePassService::close($gatepass, $d['note']);
 
             return back()->with('success', "Gate pass {$gatepass->pass_no} closed.");
         });
@@ -165,7 +166,7 @@ class GatePassController extends Controller
         $d = $request->validate(['date' => 'required|date']);
 
         return $this->guarded(function () use ($gatepass, $d) {
-            GatePassService::extend($gatepass, $d['date']);
+            $gatepass = GatePassService::extend($gatepass, $d['date']);
 
             return back()->with('success', "Return date for {$gatepass->pass_no} moved to ".$gatepass->expected_return_date->format('d M Y').'.');
         });
