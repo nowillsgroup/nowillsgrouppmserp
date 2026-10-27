@@ -243,8 +243,16 @@
   {{-- ── Right rail ── --}}
   <div class="ws-rail">
     <div class="card ws-rail-card"><div class="card-body">
-      @php $m = $date->copy()->startOfMonth(); $days = $m->daysInMonth; $pad = ((int) $m->format('w') + 6) % 7; @endphp
-      <div class="bold small" style="text-transform:uppercase">{{ $m->format('F Y') }}</div>
+      @php
+        $m = $date->copy()->startOfMonth(); $days = $m->daysInMonth; $pad = ((int) $m->format('w') + 6) % 7;
+        $prevMonthDate = $m->copy()->subDay();
+        $nextMonthDate = $m->copy()->addMonth();
+      @endphp
+      <div class="ws-cal-head">
+        @if ($prevMonthDate->gte($dateMin))<a class="btn btn-sm btn-ghost" data-ws-nav href="{{ route('reservations.workspace', array_merge(request()->except('date'), ['date' => $prevMonthDate->toDateString()])) }}" aria-label="Previous month" title="Previous month">‹</a>@else<span class="btn btn-sm btn-ghost disabled" aria-disabled="true">‹</span>@endif
+        <div class="bold small" style="text-transform:uppercase">{{ $m->format('F Y') }}</div>
+        @if ($nextMonthDate->lte($dateMax))<a class="btn btn-sm btn-ghost" data-ws-nav href="{{ route('reservations.workspace', array_merge(request()->except('date'), ['date' => $nextMonthDate->toDateString()])) }}" aria-label="Next month" title="Next month">›</a>@else<span class="btn btn-sm btn-ghost disabled" aria-disabled="true">›</span>@endif
+      </div>
       <div class="ws-cal">
         @foreach (['M','T','W','T','F','S','S'] as $d)<span class="ws-cal-d muted">{{ $d }}</span>@endforeach
         @for ($i = 0; $i < $pad; $i++)<span></span>@endfor
@@ -589,6 +597,8 @@
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
 .ws-person{display:flex;gap:8px;align-items:center;padding:5px 0;text-decoration:none;color:inherit}
 .ws-person:hover{background:#f8fafc}
+.ws-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.ws-cal-head .disabled{opacity:.35;pointer-events:none}
 .ws-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px}
 .ws-cal-d{text-align:center;font-size:9px}
 .ws-cal-day{text-align:center;padding:3px 0;border-radius:6px;position:relative;color:inherit;text-decoration:none;display:block}
