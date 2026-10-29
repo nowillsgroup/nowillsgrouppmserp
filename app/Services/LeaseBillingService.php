@@ -12,6 +12,7 @@ use App\Support\Numbering;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -213,6 +214,47 @@ class LeaseBillingService
         ActivityLogger::log('leases', $kind, LeasePayment::KINDS[$kind]." {$p->receipt_no} ".money($amount).($wht > 0 ? ' + WHT '.money($wht) : '')." – {$l->lease_no}", $p);
 
         return $p->refresh();
+    }
+
+    /** Split a rent receipt or security-deposit receipt into atomic direct tenders. WHT remains single-tender. */
+    public static function payMany(Lease $l, string $kind, array $lines, ?User $u = null, ?string $date = null, ?string $note = null): array
+    {
+        $lines = array_values($lines);
+        if (! in_array($kind, ['payment', 'deposit'], true)) {
+            throw ValidationException::withMessages(['kind' => 'Split tender is available for rent receipts and deposits only.']);
+        }
+        if (count($lines) < 2 || count($lines) > 10) {
+            throw ValidationException::withMessages(['payments' => 'Use between two and ten tender rows.']);
+        }
+        $normalized = [];
+        foreach ($lines as $i => $line) {
+            if (! is_array($line)) {
+                throw ValidationException::withMessages(["payments.{$i}" => 'Each tender must be an object.']);
+            }
+            $amount = round((float) ($line['amount'] ?? 0), 2);
+            $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])
+                ->find((int) ($line['payment_mode_id'] ?? 0));
+            if ($amount <= 0 || ! $mode) {
+                throw ValidationException::withMessages(["payments.{$i}" => 'Choose an active cash, card, bank or mobile-money mode and an amount above zero.']);
+            }
+            $reference = trim((string) ($line['reference'] ?? ''));
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $reference = trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $reference,
+                ])));
+            }
+            $normalized[] = ['amount' => $amount, 'mode_id' => (int) $mode->id, 'reference' => $reference ?: null];
+        }
+
+        return DB::transaction(function () use ($l, $kind, $normalized, $u, $date, $note) {
+            $receipts = [];
+            foreach ($normalized as $line) {
+                // Existing per-receipt checks enforce advance-rent and deposit caps after prior rows are applied.
+                $receipts[] = self::pay($l, $kind, $line['amount'], $line['mode_id'], $line['reference'], $u, $date, 0, null, $note);
+            }
+
+            return $receipts;
+        });
     }
 
     public static function voidPayment(LeasePayment $p, string $reason, ?User $u = null): void

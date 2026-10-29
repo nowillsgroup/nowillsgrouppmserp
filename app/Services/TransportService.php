@@ -17,6 +17,7 @@ use App\Support\Numbering;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -491,7 +492,7 @@ class TransportService
 
     /**
      * Finish the trip: closing odometer, extras (waiting / tolls on the guest), extra km from the tariff, then
-     * charge – room folio, walk-in invoice paid by $d['payment_mode_id'], or nothing for complimentary.
+     * charge – room folio, walk-in invoice paid by one method or split tenders, or nothing for complimentary.
      */
     public static function complete(TransportTrip $t, array $d = []): TransportTrip
     {
@@ -521,9 +522,32 @@ class TransportService
             }
             $total = round((float) $t->amount + $extra, 2);
             $pm = ! empty($d['payment_mode_id']) ? (int) $d['payment_mode_id'] : null;
+            $payments = array_values($d['payments'] ?? []);
+            if ($payments && $t->billing !== 'direct') {
+                throw ValidationException::withMessages(['payments' => 'Split tender is available only for direct payment.']);
+            }
+            if ($payments && (count($payments) < 2 || count($payments) > 10)) {
+                throw ValidationException::withMessages(['payments' => 'Use between two and ten payment tenders.']);
+            }
+            if ($payments && $total <= 0) {
+                throw ValidationException::withMessages(['payments' => 'There is no balance to settle by direct payment.']);
+            }
+            if ($payments && $pm) {
+                throw ValidationException::withMessages(['payments' => 'Use either one payment mode or split tender lines, not both.']);
+            }
             if ($t->billing === 'direct' && $total > 0) {
-                if (! $pm || ! PaymentMode::where('is_active', true)->whereKey($pm)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
-                    throw new RuntimeException('Choose how the guest paid (cash, card, UPI / mobile money or bank).');
+                if ($payments) {
+                    foreach ($payments as $i => $line) {
+                        $lineAmount = round((float) ($line['amount'] ?? 0), 2);
+                        if ($lineAmount <= 0) {
+                            throw ValidationException::withMessages(["payments.{$i}.amount" => 'Enter a positive tender amount.']);
+                        }
+                        if (! PaymentMode::where('is_active', true)->whereKey((int) ($line['payment_mode_id'] ?? 0))->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                            throw ValidationException::withMessages(["payments.{$i}.payment_mode_id" => 'Choose an active direct payment mode.']);
+                        }
+                    }
+                } elseif (! $pm || ! PaymentMode::where('is_active', true)->whereKey($pm)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                    throw ValidationException::withMessages(['payment_mode_id' => 'Choose how the guest paid (cash, card, UPI / mobile money or bank).']);
                 }
             }
 
@@ -554,11 +578,30 @@ class TransportService
                 $guestId = $t->guest_id ?? Guest::create(['first_name' => $name[0], 'last_name' => $name[1] ?? null, 'phone' => $t->phone])->id;
                 $folio = FolioService::openStandalone(['guest_id' => $guestId, 'type' => 'walk_in']);
                 $tx = FolioService::charge($folio, 'transport', self::chargeText($t), $total, true, ['source_type' => 'transport', 'source_id' => $t->id, 'reference' => $t->trip_no]);
-                FolioService::payment($folio, round((float) $tx->amount + (float) $tx->tax_amount, 2), $pm, ($d['reference'] ?? null) ?: $t->trip_no, 'settlement', 'payment', [
-                    'bank_name' => $d['cheque_bank_name'] ?? null, 'number' => $d['cheque_number'] ?? null, 'bank_branch' => $d['cheque_bank_branch'] ?? null,
-                ]);
+                $amountDue = round((float) $tx->amount + (float) $tx->tax_amount, 2);
+                if ($payments) {
+                    $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $payments)), 2);
+                    if (abs($allocated - $amountDue) > 0.005) {
+                        throw ValidationException::withMessages(['payments' => 'Payment tenders must total '.money($amountDue).' to settle the trip.']);
+                    }
+                    foreach ($payments as $line) {
+                        $lineReference = trim((string) ($line['reference'] ?? '')) ?: $t->trip_no;
+                        if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                            $lineReference = mb_substr(trim(implode(' · ', array_filter([
+                                $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference,
+                            ]))), 0, 80);
+                        }
+                        FolioService::payment($folio, round((float) $line['amount'], 2), (int) $line['payment_mode_id'], $lineReference, 'settlement', 'payment', [
+                            'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                        ]);
+                    }
+                } else {
+                    FolioService::payment($folio, $amountDue, $pm, ($d['reference'] ?? null) ?: $t->trip_no, 'settlement', 'payment', [
+                        'bank_name' => $d['cheque_bank_name'] ?? null, 'number' => $d['cheque_number'] ?? null, 'bank_branch' => $d['cheque_bank_branch'] ?? null,
+                    ]);
+                }
                 FolioService::close($folio->fresh());
-                $t->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id, 'payment_mode_id' => $pm, 'guest_id' => $guestId])->save();
+                $t->forceFill(['folio_id' => $folio->id, 'folio_transaction_id' => $tx->id, 'payment_mode_id' => $payments ? null : $pm, 'guest_id' => $guestId])->save();
             }
             if ($t->guest_request_id && ($req = GuestRequest::find($t->guest_request_id)) && $req->isOpen()) {
                 GuestPortalService::transition($req, 'done', "Transfer completed – {$t->trip_no}");

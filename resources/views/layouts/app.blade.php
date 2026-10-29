@@ -25,17 +25,17 @@
   $alertPreview = \App\Services\NotificationCenter::preview($alerts);
 @endphp
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="primary-sidebar">
     <div class="brand">
       <img class="brand-logo-full" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite">
       <img class="brand-logo-mark" src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt="Nowills PMS">
       <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
     </div>
-    <label class="nav-search" for="navModuleSearch">
+    <div class="nav-search">
       <x-icon name="search" size="sm"/>
       <input id="navModuleSearch" type="search" placeholder="Search modules…" autocomplete="off" aria-label="Search modules">
       <button type="button" class="nav-search-clear" data-clear-nav-search aria-label="Clear module search" title="Clear search">×</button>
-    </label>
+    </div>
     @php
     $isActive = function (array $item) use (&$isActive): bool {
         if (isset($item['route'])) {
@@ -74,6 +74,7 @@
   @endphp
   <nav class="nav" aria-label="Primary navigation">
     @include('partials.sidebar-nav', ['items' => $menu, 'isActive' => $isActive, 'canSee' => $canSee])
+    <p class="nav-search-empty" data-nav-search-empty role="status" hidden>No modules match that search. Try another term.</p>
   </nav>
     <div class="side-profile">
       <a href="{{ route('profile') }}" title="Open profile">
@@ -87,10 +88,11 @@
     </div>
     <div class="side-foot">v{{ config('pms.version') }} · {{ $currentHotel->code }}</div>
   </aside>
+  <button type="button" class="nav-scrim" data-close-nav aria-label="Close navigation" tabindex="-1"></button>
 
   <div class="main">
     <header class="topbar">
-      <button class="btn btn-ghost btn-icon menu-btn" data-toggle-nav aria-label="Menu"><x-icon name="menu"/></button>
+      <button class="btn btn-ghost btn-icon menu-btn" data-toggle-nav aria-label="Open navigation" aria-expanded="false" aria-controls="primary-sidebar"><x-icon name="menu"/></button>
       <form class="top-search" action="{{ route('search') }}" method="get" role="search">
         <x-icon name="search" size="sm"/>
         <input id="globalSearch" name="q" value="{{ request('q') }}" placeholder="Search guest, reservation, room, company, folio…  ( / )" autocomplete="off">

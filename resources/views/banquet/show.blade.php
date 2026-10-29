@@ -83,10 +83,14 @@
       </ul>
       @if(can_do('banquet.billing') && $e->isOpen() && ! $e->billed_at)
       <form method="post" action="{{ route('banquet.deposit', $e) }}" class="deposit-form mt-1" id="depositForm">@csrf
-        <div class="flex gap-1"><input type="number" name="amount" step="0.01" min="0.01" class="input" required placeholder="Amount" value="{{ $e->deposit_due > $deposits ? round($e->deposit_due - $deposits, 2) : ($deposits ? '' : $suggestDeposit) }}">
-        <select name="payment_mode_id" class="input" required data-payment-mode>@foreach($modes as $id => $n)<option value="{{ $id }}">{{ $n }}</option>@endforeach</select></div>
-        <div class="flex gap-1 mt-1"><input name="reference" class="input grow" maxlength="60" placeholder="Reference (cheque / UTR / receipt)"><button class="btn btn-primary" id="takeDeposit"><x-icon name="wallet"/> Receive</button></div>
-        <x-cheque-fields class="span-all"/>
+        <div id="banquetDepositSingle">
+          <div class="flex gap-1"><input type="number" name="amount" step="0.01" min="0.01" max="99999999" class="input" required placeholder="Amount" value="{{ old('amount', $e->deposit_due > $deposits ? round($e->deposit_due - $deposits, 2) : ($deposits ? '' : $suggestDeposit)) }}">
+          <select name="payment_mode_id" class="input" required data-payment-mode>@foreach($modes as $id => $n)<option value="{{ $id }}" @selected((string) old('payment_mode_id') === (string) $id)>{{ $n }}</option>@endforeach</select></div>
+          <div class="flex gap-1 mt-1"><input name="reference" class="input grow" maxlength="80" placeholder="Reference (cheque / UTR / receipt)" value="{{ old('reference') }}"></div>
+          <x-cheque-fields class="span-all"/>
+        </div>
+        <x-payment-split-tender widget-id="banquetDepositSplit" single-id="banquetDepositSingle" :modes="$modes" label="deposit"/>
+        <button class="btn btn-primary mt-1" id="takeDeposit"><x-icon name="wallet"/> Receive deposit</button>
       </form>
       @endif
       @if(can_do('banquet.billing') && $folio && $folio->status === 'open' && $folio->balance() < -0.009 && in_array($e->status, ['cancelled', 'lost', 'completed']))

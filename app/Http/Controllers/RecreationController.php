@@ -20,7 +20,7 @@ class RecreationController extends Controller
 {
     private function modes()
     {
-        return PaymentMode::where('is_active', true)->orderBy('id')->get();
+        return PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])->orderBy('id')->get();
     }
 
     // ───────────────────────── ticket outlet (POS) ─────────────────────────

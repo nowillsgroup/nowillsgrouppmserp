@@ -103,6 +103,11 @@ class ReservationController extends Controller
             'advance_mode' => 'nullable|integer|owned:payment_modes',
             'advance_ref' => 'nullable|string|max:80',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => $update ? 'prohibited' : 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ];
     }
 
@@ -220,12 +225,13 @@ class ReservationController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate($this->rules());
-        if (($data['advance'] ?? 0) > 0 && empty($data['advance_mode'])) {
-            throw ValidationException::withMessages(['advance_mode' => 'Select a payment mode for the advance.']);
+        if (! empty($data['payments']) && ($data['advance'] ?? 0) > 0) {
+            throw ValidationException::withMessages(['payments' => 'Use either the single advance fields or split tender lines, not both.']);
         }
+        $advanceLines = ! empty($data['payments']) || ($data['advance'] ?? 0) > 0 ? $this->advancePaymentLines($request, $data) : [];
         $contract = $this->contractAndCredit($data);
 
-        $reservation = DB::transaction(function () use ($data, $contract) {
+        $reservation = DB::transaction(function () use ($data, $contract, $advanceLines) {
             $this->lockInventory($data['rooms']);
             $this->checkInventory($data['rooms'], $data['arrival_date'], $data['departure_date'], null, $contract?->id);
             $guest = $this->upsertGuest($data['guest'], $data['guest_id'] ?? null, $data['company_id'] ?? null);
@@ -244,11 +250,13 @@ class ReservationController extends Controller
                     'extra_charge' => $this->lineExtra($line, $contract), 'status' => 'reserved',
                 ]);
             }
-            if (! empty($data['advance']) && $data['advance'] > 0) {
+            if ($advanceLines) {
                 $folio = FolioService::openStandalone(['reservation_id' => $res->id, 'guest_id' => $guest->id, 'type' => 'guest']);
-                FolioService::payment($folio, (float) $data['advance'], (int) $data['advance_mode'], $data['advance_ref'] ?? null, 'advance', 'payment', [
-                    'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-                ]);
+                foreach ($advanceLines as $line) {
+                    FolioService::payment($folio, (float) $line['amount'], (int) $line['payment_mode_id'], $line['reference'] ?? null, 'advance', 'payment', [
+                        'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                    ]);
+                }
             }
             $createdState = ReservationAmendmentService::snapshot($res);
             ReservationAmendmentService::record($res, 'created', null, $createdState, null, 'front_desk');
@@ -468,16 +476,58 @@ class ReservationController extends Controller
         return back()->with('success', 'Reservation confirmed.');
     }
 
+    protected function advancePaymentLines(Request $request, array $data): array
+    {
+        $usingSplit = ! empty($data['payments']);
+        $lines = $usingSplit ? array_values($data['payments']) : [[
+            'amount' => $data['amount'] ?? $data['advance'] ?? null, 'payment_mode_id' => $data['payment_mode_id'] ?? $data['advance_mode'] ?? null,
+            'reference' => $data['reference'] ?? $data['advance_ref'] ?? null, 'momo_network' => $data['momo_network'] ?? null,
+            'momo_phone' => $data['momo_phone'] ?? null, 'cheque_bank_name' => $data['cheque_bank_name'] ?? null,
+            'cheque_number' => $data['cheque_number'] ?? null, 'cheque_bank_branch' => $data['cheque_bank_branch'] ?? null,
+        ]];
+        if (! $usingSplit && (empty($lines[0]['amount']) || empty($lines[0]['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payment_mode_id' => 'Enter an amount and choose a payment mode.']);
+        }
+
+        $voucherCount = 0;
+        foreach ($lines as $i => &$line) {
+            $mode = PaymentMode::find((int) ($line['payment_mode_id'] ?? 0));
+            if (! $mode || ! $mode->is_active || $mode->type === 'city_ledger') {
+                throw ValidationException::withMessages([$usingSplit ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose an active direct payment mode.']);
+            }
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $line['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $line['reference'] ?? null,
+                ]))), 0, 80);
+            }
+            $line['amount'] = round((float) $line['amount'], 2);
+            $line['payment_mode_id'] = (int) $mode->id;
+            $line['_mode_name'] = $mode->name;
+            if (\App\Services\GiftVoucherService::isVoucherMode((int) $mode->id)) {
+                $voucherCount++;
+            }
+        }
+        unset($line);
+        if ($voucherCount && count($lines) !== 1) {
+            throw ValidationException::withMessages(['payments' => 'A gift voucher must be used as a single tender.']);
+        }
+
+        return $lines;
+    }
+
     public function previewAdvance(Request $request, Reservation $reservation)
     {
         $data = $request->validate([
-            'amount' => 'required|numeric|min:1', 'payment_mode_id' => 'required|integer|owned:payment_modes',
+            'amount' => 'nullable|numeric|min:1', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
             'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
-        $reference = $data['reference'] ?? null;
-        if ($request->filled('momo_network') || $request->filled('momo_phone')) {
-            $reference = mb_substr(trim(implode(' · ', array_filter([$data['momo_network'] ?? null, $data['momo_phone'] ?? null, $reference]))), 0, 80);
-        }
+        $lines = $this->advancePaymentLines($request, $data);
         try {
             ShiftService::assertOpen();
         } catch (\RuntimeException $e) {
@@ -487,14 +537,18 @@ class ReservationController extends Controller
                 ? response()->json(['ok' => false, 'message' => $msg], 422)
                 : back()->with('error', $msg);
         }
-        $mode = PaymentMode::find($data['payment_mode_id']);
+        $total = round(array_sum(array_column($lines, 'amount')), 2);
+        $modes = implode(' + ', array_unique(array_column($lines, '_mode_name')));
+        $references = collect($lines)->map(fn ($line) => filled($line['reference'] ?? null) ? $line['_mode_name'].': '.$line['reference'] : null)->filter()->implode('; ');
         $open = $reservation->rooms()->where('status', 'checked_in')->whereHas('folio', fn ($q) => $q->where('status', 'open'))->exists()
             || Folio::where('reservation_id', $reservation->id)->where('status', 'open')->exists();
-        $msg = 'An advance of '.money($data['amount']).' by '.($mode->name ?? 'the selected mode')
-            .($reference ? ' · '.$reference : '')
+        $msg = 'An advance of '.money($total).' by '.$modes.($references ? ' · '.$references : '')
             .' would be recorded for '.$reservation->reservation_no.'. '
             .($open ? 'It would post on the open folio.' : 'No folio is open, so confirm opens one through the existing advance action.')
             .' Nothing is saved until you confirm.';
+        if (count($lines) === 1 && \App\Services\GiftVoucherService::isVoucherMode((int) $lines[0]['payment_mode_id'])) {
+            $msg .= ' Confirm redeems the voucher code in the reference. It is not redeemed now.';
+        }
         if ($request->expectsJson()) {
             return response()->json(['ok' => true, 'message' => $msg]);
         }
@@ -504,11 +558,18 @@ class ReservationController extends Controller
 
     public function advance(Request $request, Reservation $reservation)
     {
-        $data = $request->validate(['amount' => 'required|numeric|min:1', 'payment_mode_id' => 'required|integer|owned:payment_modes', 'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100']);
-        if ($request->filled('momo_network') || $request->filled('momo_phone')) {
-            $data['reference'] = mb_substr(trim(implode(' · ', array_filter([$data['momo_network'] ?? null, $data['momo_phone'] ?? null, $data['reference'] ?? null]))), 0, 80);
-        }
-        DB::transaction(function () use ($reservation, $data) {
+        $data = $request->validate([
+            'amount' => 'nullable|numeric|min:1', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+        ]);
+        $lines = $this->advancePaymentLines($request, $data);
+        DB::transaction(function () use ($reservation, $lines) {
             // Serialize folio selection/creation with other advance payments for
             // this booking, so concurrent desk clicks cannot create two advance
             // folios or post against a stale closed one.
@@ -516,13 +577,15 @@ class ReservationController extends Controller
             $stay = $locked->rooms()->where('status', 'checked_in')->lockForUpdate()->first();
             $folio = $stay?->folio ?? Folio::where('reservation_id', $locked->id)->whereNull('reservation_room_id')->where('status', 'open')->lockForUpdate()->first()
                 ?? FolioService::openStandalone(['reservation_id' => $locked->id, 'guest_id' => $locked->guest_id, 'type' => 'guest']);
-            FolioService::payment($folio, (float) $data['amount'], (int) $data['payment_mode_id'], $data['reference'] ?? null, 'advance', 'payment', [
-                'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-            ]);
-            ActivityLogger::log('folio', 'advance', 'Advance '.money($data['amount'])." received for {$locked->reservation_no}", $locked);
+            foreach ($lines as $line) {
+                FolioService::payment($folio, (float) $line['amount'], (int) $line['payment_mode_id'], $line['reference'] ?? null, 'advance', 'payment', [
+                    'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                ]);
+                ActivityLogger::log('folio', 'advance', 'Advance '.money($line['amount'])." received for {$locked->reservation_no}", $locked);
+            }
         });
 
-        return back()->with('success', 'Advance payment recorded.');
+        return back()->with('success', count($lines) > 1 ? count($lines).' advance tenders recorded.' : 'Advance payment recorded.');
     }
 
     public function assignRooms(Request $request, Reservation $reservation)

@@ -52,12 +52,15 @@
           <x-field name="discount_pct" label="Discount %" type="number" step="0.01" min="0" max="100" :value="$reservation->discount_pct ?? 0"/>
           @unless($editing)
           <div class="form-section">Advance payment</div>
-          <x-field name="advance" label="Amount" type="number" step="0.01" min="0" value="0"/>
-          <div class="mt-1"></div>
-          <x-field name="advance_mode" label="Mode" type="select" :options="$paymentModes" data-payment-mode/>
-          <div class="mt-1"></div>
-          <x-field name="advance_ref" label="Reference / Txn ID"/>
-          <x-cheque-fields/>
+          <div id="reservationAdvanceSingle">
+            <x-field name="advance" label="Amount" type="number" step="0.01" min="0" value="0"/>
+            <div class="mt-1"></div>
+            <x-field name="advance_mode" label="Mode" type="select" :options="$paymentModes" data-payment-mode/>
+            <div class="mt-1"></div>
+            <x-field name="advance_ref" label="Reference / Txn ID"/>
+            <x-cheque-fields/>
+          </div>
+          <x-payment-split-tender widget-id="reservationAdvanceSplit" single-id="reservationAdvanceSingle" :modes="$paymentModes" label="deposit"/>
           @endunless
         </div>
       </div>

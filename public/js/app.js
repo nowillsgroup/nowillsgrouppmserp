@@ -4,6 +4,8 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   window.PMS = { $, $$ };
+  const moduleSearch = $('#navModuleSearch');
+  const nav = $('.nav');
 
   // Sidebar groups and persisted desktop compact mode.
   const navStateKey = 'nowills-nav-state';
@@ -18,16 +20,43 @@
     button.addEventListener('click', () => {
       const open = group.classList.toggle('open');
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
-      localStorage.setItem(navStateKey + ':' + key, open ? 'open' : 'closed');
+      if (!moduleSearch?.value.trim()) localStorage.setItem(navStateKey + ':' + key, open ? 'open' : 'closed');
+    });
+    const collapsedDesktop = () => document.body.classList.contains('sidebar-collapsed') && window.innerWidth > 860;
+    group.addEventListener('mouseenter', () => { if (collapsedDesktop()) button.setAttribute('aria-expanded', 'true'); });
+    group.addEventListener('mouseleave', () => {
+      if (collapsedDesktop() && !group.matches(':focus-within')) button.setAttribute('aria-expanded', 'false');
+    });
+    group.addEventListener('focusin', () => { if (collapsedDesktop()) button.setAttribute('aria-expanded', 'true'); });
+    group.addEventListener('focusout', event => {
+      if (collapsedDesktop() && !group.contains(event.relatedTarget)) button.setAttribute('aria-expanded', 'false');
     });
   });
-  $$('[data-toggle-nav]').forEach(b => b.addEventListener('click', () => document.body.classList.toggle('nav-open')));
-  $$('.nav a').forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+  const navToggleButtons = $$('[data-toggle-nav]');
+  const closeNavButtons = $$('[data-close-nav]');
+  const setMobileNavOpen = (open, returnFocus = false) => {
+    document.body.classList.toggle('nav-open', open);
+    navToggleButtons.forEach(button => {
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      button.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    });
+    if (open) setTimeout(() => $('#navModuleSearch')?.focus(), 80);
+    else if (returnFocus) navToggleButtons[0]?.focus();
+  };
+  navToggleButtons.forEach(button => button.addEventListener('click', () => {
+    setMobileNavOpen(!document.body.classList.contains('nav-open'));
+  }));
+  closeNavButtons.forEach(button => button.addEventListener('click', () => setMobileNavOpen(false, true)));
+  $$('.nav a').forEach(a => a.addEventListener('click', () => setMobileNavOpen(false)));
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 860 && document.body.classList.contains('nav-open')) setMobileNavOpen(false);
+  });
 
   const sidebarKey = 'nowills-sidebar-collapsed';
   const collapseButton = $('[data-collapse-sidebar]');
   const applySidebarMode = collapsed => {
     document.body.classList.toggle('sidebar-collapsed', collapsed);
+    document.body.classList.toggle('sidebar-searching', collapsed && !!moduleSearch?.value.trim());
     if (collapseButton) {
       collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
       collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
@@ -40,39 +69,69 @@
     localStorage.setItem(sidebarKey, collapsed ? '1' : '0');
   });
   window.addEventListener('resize', () => {
-    if (window.innerWidth <= 860) document.body.classList.remove('sidebar-collapsed');
-    else if (localStorage.getItem(sidebarKey) === '1') document.body.classList.add('sidebar-collapsed');
+    if (window.innerWidth <= 860) {
+      document.body.classList.remove('sidebar-collapsed', 'sidebar-searching');
+    } else if (localStorage.getItem(sidebarKey) === '1') applySidebarMode(true);
   });
 
-  // Client-side module search keeps the existing permission-filtered menu intact.
-  const moduleSearch = $('#navModuleSearch');
-  const nav = $('.nav');
+  // Client-side module search keeps the permission-filtered menu and reveals matching paths.
   const clearModuleSearch = $('[data-clear-nav-search]');
   if (moduleSearch && nav) {
     const groups = $$('.nav-group', nav);
     const items = $$('.nav-item', nav);
+    const emptyMessage = $('[data-nav-search-empty]', nav);
+    const syncExpanded = group => {
+      const button = group.querySelector(':scope > button');
+      if (button) button.setAttribute('aria-expanded', group.classList.contains('open') ? 'true' : 'false');
+    };
+    const revealAncestors = item => {
+      item.classList.remove('nav-search-hidden');
+      let parent = item.parentElement?.closest('.nav-group');
+      while (parent) {
+        parent.classList.remove('nav-search-hidden');
+        parent.classList.add('open');
+        syncExpanded(parent);
+        parent = parent.parentElement?.closest('.nav-group');
+      }
+    };
+    const revealGroupContents = group => {
+      group.classList.remove('nav-search-hidden');
+      group.classList.add('open');
+      syncExpanded(group);
+      group.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('nav-search-hidden');
+        if (item.classList.contains('nav-group')) {
+          item.classList.add('open');
+          syncExpanded(item);
+        }
+      });
+    };
     const runModuleSearch = () => {
       const query = moduleSearch.value.trim().toLowerCase();
       moduleSearch.closest('.nav-search')?.classList.toggle('has-value', !!query);
       nav.classList.toggle('nav-searching', !!query);
+      document.body.classList.toggle('sidebar-searching', !!query && document.body.classList.contains('sidebar-collapsed'));
       if (!query) {
         groups.forEach(group => {
           if (group.dataset.searchOpen !== undefined) group.classList.toggle('open', group.dataset.searchOpen === '1');
           delete group.dataset.searchOpen;
+          syncExpanded(group);
         });
         items.forEach(item => item.classList.remove('nav-search-hidden'));
+        if (emptyMessage) emptyMessage.hidden = true;
         return;
       }
       groups.forEach(group => {
         if (group.dataset.searchOpen === undefined) group.dataset.searchOpen = group.classList.contains('open') ? '1' : '0';
       });
+      items.forEach(item => item.classList.add('nav-search-hidden'));
       items.forEach(item => {
-        const labels = $$('.nav-label', item).map(label => label.textContent.toLowerCase());
-        const match = labels.some(label => label.includes(query));
-        const descendantMatch = $$('.nav-label', item).some(label => label.textContent.toLowerCase().includes(query));
-        item.classList.toggle('nav-search-hidden', !match && !descendantMatch);
-        if (descendantMatch && item.classList.contains('nav-group')) item.classList.add('open');
+        const label = (item.dataset.navLabel || '').trim().toLowerCase();
+        if (!label.includes(query)) return;
+        if (item.classList.contains('nav-group')) revealGroupContents(item);
+        else revealAncestors(item);
       });
+      if (emptyMessage) emptyMessage.hidden = !$$('.nav-link-item:not(.nav-search-hidden)', nav).length;
     };
     moduleSearch.addEventListener('input', runModuleSearch);
     clearModuleSearch?.addEventListener('click', () => { moduleSearch.value = ''; runModuleSearch(); moduleSearch.focus(); });
@@ -99,7 +158,11 @@
     }
     if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) { e.target.closest('.modal')?.classList.remove('show'); }
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.modal.show').forEach(m => m.classList.remove('show')); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    $$('.modal.show').forEach(m => m.classList.remove('show'));
+    if (document.body.classList.contains('nav-open')) setMobileNavOpen(false, true);
+  });
 
   // Confirmations
   document.addEventListener('submit', e => {

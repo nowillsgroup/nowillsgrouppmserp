@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Guest;
+use App\Models\PaymentMode;
 use App\Models\ReservationRoom;
 use App\Models\Setting;
 use App\Models\SpaAppointment;
@@ -12,6 +13,7 @@ use App\Support\Numbering;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -166,16 +168,18 @@ class SpaBookingService
      * Complete & settle. room_post = charge the in-house guest's folio; payment = charge + pay + close a non-resident folio;
      * complimentary = no revenue (logged).
      */
-    public static function settle(SpaAppointment $appt, string $mode, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null): SpaAppointment
+    public static function settle(SpaAppointment $appt, string $mode, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null, array $payments = []): SpaAppointment
     {
-        if ($mode === 'payment' && GiftVoucherService::isVoucherMode($paymentModeId)) {
-            throw new RuntimeException('To pay with a gift voucher, post the treatment to the room and redeem the voucher on the folio.'); // v3.8
-        }
-
-        return DB::transaction(function () use ($appt, $mode, $paymentModeId, $reference, $cheque) {
+        return DB::transaction(function () use ($appt, $mode, $paymentModeId, $reference, $cheque, $payments) {
             $appt = SpaAppointment::with('service')->whereKey($appt->id)->lockForUpdate()->firstOrFail();
             if (! $appt->isOpen()) {
                 throw new RuntimeException('This appointment is already '.str_replace('_', ' ', $appt->status).'.');
+            }
+            if ($payments && $mode !== 'payment') {
+                throw ValidationException::withMessages(['payments' => 'Split tender is available only for direct payment.']);
+            }
+            if ($payments && (count($payments) < 2 || count($payments) > 10)) {
+                throw ValidationException::withMessages(['payments' => 'Use between two and ten payment tenders.']);
             }
             $net = $appt->net();
             $desc = ($appt->service->category === 'spa' ? 'Spa' : ucfirst($appt->service->category))." – {$appt->service->name}".($appt->pax > 1 ? " × {$appt->pax}" : '')." ({$appt->appt_no})";
@@ -192,20 +196,46 @@ class SpaBookingService
                     FolioService::charge($folio, 'spa', $desc, $net, true, ['source_type' => 'spa', 'source_id' => $appt->id]);
                 }
             } elseif ($mode === 'payment') {
-                if (! $paymentModeId) {
-                    throw new RuntimeException('Choose a payment mode.');
+                $allocations = $payments ?: [[
+                    'amount' => null, 'payment_mode_id' => $paymentModeId, 'reference' => $reference,
+                    'cheque_bank_name' => $cheque['bank_name'] ?? null, 'cheque_number' => $cheque['number'] ?? null,
+                    'cheque_bank_branch' => $cheque['bank_branch'] ?? null,
+                ]];
+                if (! $payments && ! $paymentModeId) {
+                    throw ValidationException::withMessages(['payment_mode_id' => 'Choose a payment mode.']);
                 }
                 $guestId = $appt->guest_id ?? Guest::create(['first_name' => mb_substr($appt->customer_name, 0, 80), 'phone' => $appt->customer_phone])->id;
                 $folio = FolioService::openStandalone(['guest_id' => $guestId, 'type' => 'walk_in', 'reservation_room_id' => null]);
                 if ($net > 0) {
                     FolioService::charge($folio, 'spa', $desc, $net, true, ['source_type' => 'spa', 'source_id' => $appt->id]);
-                    FolioService::payment($folio, $folio->fresh()->balance(), $paymentModeId, $reference, 'settlement', 'payment', $cheque);
+                    $expected = round($folio->fresh()->balance(), 2);
+                    $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $allocations)), 2);
+                    if ($payments && abs($allocated - $expected) > 0.005) {
+                        throw ValidationException::withMessages(['payments' => 'Payment tenders must total '.money($expected).' to settle the treatment.']);
+                    }
+                    foreach ($allocations as $i => $line) {
+                        $modeId = (int) ($line['payment_mode_id'] ?? 0);
+                        $paymentMode = PaymentMode::where('is_active', true)->whereKey($modeId)->where('type', '!=', 'city_ledger')->first();
+                        if (! $paymentMode || GiftVoucherService::isVoucherMode($modeId)) {
+                            throw ValidationException::withMessages([$payments ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose an active direct payment mode. Gift vouchers must be redeemed on a room folio.']);
+                        }
+                        $lineReference = trim((string) ($line['reference'] ?? ''));
+                        if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                            $lineReference = mb_substr(trim(implode(' · ', array_filter([
+                                $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference,
+                            ]))), 0, 80);
+                        }
+                        FolioService::payment($folio, $payments ? (float) $line['amount'] : $expected, $modeId, $lineReference ?: null, 'settlement', 'payment', [
+                            'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null,
+                            'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                        ]);
+                    }
                 }
                 FolioService::close($folio->fresh());
             } elseif ($mode !== 'complimentary') {
                 throw new RuntimeException('Unknown settlement mode.');
             }
-            $appt->update(['status' => 'completed', 'settlement' => $mode, 'payment_mode_id' => $mode === 'payment' ? $paymentModeId : null,
+            $appt->update(['status' => 'completed', 'settlement' => $mode, 'payment_mode_id' => $mode === 'payment' && ! $payments ? $paymentModeId : null,
                 'folio_id' => $folio?->id, 'settled_at' => now()]);
             ActivityLogger::log('spa', 'settle', "Appointment {$appt->appt_no} settled ({$mode}) ".money($mode === 'complimentary' ? 0 : $net), $appt);
 

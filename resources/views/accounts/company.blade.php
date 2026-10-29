@@ -12,6 +12,11 @@
 </tbody><tfoot><tr><td colspan="4" class="right">Closing balance</td><td class="num">{{ money($rows->sum('debit'), false) }}</td><td class="num">{{ money($rows->sum('credit'), false) }}</td><td class="num">{{ money($bal) }}</td></tr></tfoot></table></div></div>
 <div class="modal" id="rcModal"><div class="modal-box"><form method="post" action="{{ route('accounts.company.receipt', $company) }}">@csrf
 <div class="modal-head"><h3>Receive Payment – {{ $company->name }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-<div class="modal-body form-grid"><x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="max(0,$bal)" required/><x-field name="payment_mode_id" label="Mode" type="select" :options="$paymentModes" required/><x-field name="date" label="Date" type="date" :value="bdate()->toDateString()" required/><x-field name="reference" label="Cheque / UTR no."/></div>
+<div class="modal-body">
+  <div class="form-grid" id="company-receipt-single"><x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="max(0,$bal)" required/><x-field name="payment_mode_id" label="Mode" type="select" :options="$paymentModes" required/><x-field name="reference" label="Cheque / UTR no."/></div>
+  <div class="form-grid mt-1"><x-field name="date" label="Date" type="date" :value="bdate()->toDateString()" required/></div>
+  <x-payment-split-tender widget-id="city-ledger-receipt-split" single-id="company-receipt-single" :modes="$splitModes" label="company receipt" :show-cheque="false"/>
+  <p class="tiny muted">Split receipts can be partial; each tender is recorded separately against the company receivable.</p>
+</div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Save Receipt</button></div></form></div></div>
 @endsection

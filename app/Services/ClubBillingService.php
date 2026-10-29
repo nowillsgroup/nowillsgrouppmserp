@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Numbering;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -166,6 +167,57 @@ class ClubBillingService
         ActivityLogger::log('club', $kind, ucfirst($kind)." {$p->receipt_no} ".money($amount)." – {$m->membership_no}", $p);
 
         return $p->refresh();
+    }
+
+    /** Post a split receipt atomically. The allocations may settle only part of the account balance. */
+    public static function payMany(ClubMembership $m, array $lines, ?User $u = null, ?string $date = null): array
+    {
+        $lines = array_values($lines);
+        if (count($lines) < 2 || count($lines) > 10) {
+            throw ValidationException::withMessages(['payments' => 'Use between two and ten tender rows.']);
+        }
+        $normalized = [];
+        foreach ($lines as $i => $line) {
+            if (! is_array($line)) {
+                throw ValidationException::withMessages(["payments.{$i}" => 'Each tender must be an object.']);
+            }
+            $amount = round((float) ($line['amount'] ?? 0), 2);
+            $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])
+                ->find((int) ($line['payment_mode_id'] ?? 0));
+            if ($amount <= 0 || ! $mode) {
+                throw ValidationException::withMessages(["payments.{$i}" => 'Choose an active cash, card, bank or mobile-money mode and an amount above zero.']);
+            }
+            $reference = trim((string) ($line['reference'] ?? ''));
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $reference = trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $reference,
+                ])));
+            }
+            $normalized[] = ['amount' => $amount, 'mode' => $mode, 'reference' => $reference ?: null];
+        }
+        $paidOn = Carbon::parse($date ?? bdate())->toDateString();
+
+        return DB::transaction(function () use ($m, $normalized, $u, $paidOn) {
+            $receipts = [];
+            foreach ($normalized as $line) {
+                $receipts[] = ClubPayment::create([
+                    'receipt_no' => Numbering::next('club_receipt'),
+                    'club_membership_id' => $m->id,
+                    'kind' => 'payment',
+                    'date' => $paidOn,
+                    'payment_mode_id' => $line['mode']->id,
+                    'amount' => $line['amount'],
+                    'reference' => $line['reference'] ? mb_substr($line['reference'], 0, 80) : null,
+                    'user_id' => $u?->id,
+                ]);
+            }
+            self::reallocate($m);
+            foreach ($receipts as $receipt) {
+                ActivityLogger::log('club', 'payment', "Payment {$receipt->receipt_no} ".money($receipt->amount)." – {$m->membership_no}", $receipt);
+            }
+
+            return collect($receipts)->map(fn ($receipt) => $receipt->refresh())->all();
+        });
     }
 
     public static function voidPayment(ClubPayment $p, string $reason, ?User $u = null): void
@@ -411,14 +463,24 @@ class ClubBillingService
 
     public static function forDayPass(ClubDayPass $d): ?array
     {
-        if ($d->cancelled_at || $d->reservation_room_id || $d->sale_id || ! $d->payment_mode_id || (float) $d->total <= 0) {
+        if ($d->cancelled_at || $d->reservation_room_id || $d->sale_id || (float) $d->total <= 0) {
             return null; // room charges reach the ledger through the folio; outlet passes post via their sale
         }
+        $d->loadMissing('payments.paymentMode', 'paymentMode');
+        $lines = [];
+        foreach ($d->payments as $payment) {
+            $lines[] = [LedgerService::modeAccount($payment->payment_mode_id, 'cash'), (float) $payment->amount, $payment->paymentMode?->name];
+        }
+        if (! $lines && $d->payment_mode_id) {
+            $lines[] = [LedgerService::modeAccount($d->payment_mode_id, 'cash'), (float) $d->total, $d->paymentMode?->name];
+        }
+        if (! $lines) {
+            return null;
+        }
+        $lines[] = [AccountHead::sys('rev_club_other'), -(float) $d->amount, ClubDayPass::KINDS[$d->kind] ?? 'Day pass'];
+        $lines = array_merge($lines, LedgerService::taxLines((float) $d->tax, 'club', (float) $d->tax_rate));
 
-        return ['date' => $d->date->toDateString(), 'reference' => $d->pass_no, 'narration' => 'Health club day pass – '.$d->name,
-            'lines' => [[LedgerService::modeAccount($d->payment_mode_id, 'cash'), (float) $d->total, $d->paymentMode?->name],
-                [AccountHead::sys('rev_club_other'), -(float) $d->amount, ClubDayPass::KINDS[$d->kind] ?? 'Day pass'],
-                ...LedgerService::taxLines((float) $d->tax, 'club', (float) $d->tax_rate)]];
+        return ['date' => $d->date->toDateString(), 'reference' => $d->pass_no, 'narration' => 'Health club day pass – '.$d->name, 'lines' => $lines];
     }
 
     /** v7.38 Recreation outlet sale taken over the counter (split tenders). Room charges reach the ledger through the folio. */

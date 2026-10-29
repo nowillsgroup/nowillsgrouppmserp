@@ -166,6 +166,8 @@ class LeaseController extends Controller
         $charges = LeaseCharge::with('creditOf')->where('lease_id', $lease->id)->orderByDesc('date')->orderByDesc('id')->get();
         $payments = LeasePayment::with('paymentMode', 'user')->where('lease_id', $lease->id)->orderByDesc('date')->orderByDesc('id')->get();
         $unit = $lease->unit;
+        $modes = PaymentMode::where('is_active', true)->orderBy('id')->get();
+        $splitModes = $modes->whereIn('type', ['cash', 'card', 'bank', 'wallet'])->mapWithKeys(fn ($mode) => [$mode->id => $mode->name]);
 
         return view('leases.show', [
             'l' => $lease, 'unit' => $unit, 'charges' => $charges, 'payments' => $payments,
@@ -174,7 +176,7 @@ class LeaseController extends Controller
             'inspections' => LeaseInspection::with('user', 'charge')->where('lease_id', $lease->id)->orderByDesc('date')->get(),
             'tickets' => MaintenanceRequest::where(fn ($q) => $q->when($unit->room_id, fn ($w) => $w->where('room_id', $unit->room_id))->orWhere('location', 'like', "%{$unit->code}%"))
                 ->where('created_at', '>=', $lease->start_date->copy()->subDays(7))->latest()->limit(20)->get(),
-            'modes' => PaymentMode::where('is_active', true)->orderBy('id')->get(),
+            'modes' => $modes, 'splitModes' => $splitModes,
             'settlement' => in_array($lease->status, ['ended', 'terminated'], true) ? LS::settlement($lease) : null,
             'checklist' => LeaseInspection::CHECKLIST,
             'lastReadings' => collect(LeaseMeterReading::METERS)->mapWithKeys(fn ($m, $k) => [$k => LeaseMeterReading::where('lease_unit_id', $unit->id)->where('meter', $k)->orderByDesc('date')->orderByDesc('id')->first()]),

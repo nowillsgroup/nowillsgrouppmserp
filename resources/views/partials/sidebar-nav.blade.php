@@ -52,7 +52,7 @@
     @php $lastSection = $section; @endphp
   @endif
   @if($hasChildren)
-    <div class="nav-item nav-group {{ $isCategory ? 'nav-category' : 'nav-module' }} {{ $active ? 'open' : '' }}" data-nav-key="{{ $key }}">
+    <div class="nav-item nav-group {{ $isCategory ? 'nav-category' : 'nav-module' }} {{ $active ? 'open' : '' }}" data-nav-key="{{ $key }}" data-nav-label="{{ $item['label'] }}">
       <button type="button" aria-expanded="{{ $active ? 'true' : 'false' }}" aria-controls="{{ $key }}-children" title="{{ $item['label'] }}">
         <x-icon :name="$item['icon'] ?? 'grid'"/>
         <span class="nav-label">{{ $item['label'] }}</span>
@@ -63,7 +63,7 @@
       </div>
     </div>
   @elseif(isset($item['route']))
-    <div class="nav-item nav-link-item {{ $active ? 'active' : '' }}" data-nav-key="{{ $key }}">
+    <div class="nav-item nav-link-item {{ $active ? 'active' : '' }}" data-nav-key="{{ $key }}" data-nav-label="{{ $item['label'] }}">
       <a href="{{ route($item['route'], $item['params'] ?? []) }}" @if($active) aria-current="page" @endif title="{{ $item['label'] }}">
         <x-icon :name="$item['icon'] ?? 'grid'"/>
         <span class="nav-label">{{ $item['label'] }}</span>

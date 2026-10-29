@@ -46,9 +46,18 @@
       @endif
       @if(in_array($t->status, ['en_route', 'onboard']))
         <form method="post" action="{{ route('tr.my.action', [$t, 'complete']) }}" class="acts" style="grid-template-columns:1fr 1fr">@csrf
+          <input type="hidden" name="split_trip_id" value="{{ $t->id }}">
           <input type="number" name="odo_end" class="input" placeholder="Closing km" aria-label="Closing odometer">
           <input type="number" name="extra_amount" class="input" placeholder="Waiting / tolls" step="0.01" aria-label="Extras">
-          @if($t->billing === 'direct')<select name="payment_mode_id" class="input" required aria-label="Paid by" data-payment-mode>@foreach(\App\Models\PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online'])->pluck('name', 'id') as $id => $n)<option value="{{ $id }}">{{ $n }}</option>@endforeach</select><input name="reference" class="input" placeholder="Payment reference" aria-label="Payment reference"><x-cheque-fields class="span-all"/>@endif
+          @if($t->billing === 'direct')
+            <div id="driverTransportSingle-{{ $t->id }}" class="form-grid span-all">
+              <select name="payment_mode_id" class="input" aria-label="Paid by" data-payment-mode><option value="">Choose payment mode</option>@foreach($paymentModes as $id => $n)<option value="{{ $id }}">{{ $n }}</option>@endforeach</select>
+              <input name="momo_network" class="input" maxlength="20" placeholder="MoMo network" aria-label="MoMo network">
+              <input name="momo_phone" class="input" maxlength="30" placeholder="MoMo phone" aria-label="MoMo phone">
+              <input name="reference" class="input span-all" maxlength="80" placeholder="Payment reference" aria-label="Payment reference"><x-cheque-fields class="span-all"/>
+            </div>
+            <x-payment-split-tender widget-id="driverTransportSplit-{{ $t->id }}" single-id="driverTransportSingle-{{ $t->id }}" :modes="$paymentModes" :old-lines="((int) old('split_trip_id') === (int) $t->id) ? old('payments', []) : []" label="payment"/>
+          @endif
           <button class="btn btn-primary drv-complete" style="grid-column:1/-1">Trip completed</button></form>
       @endif
     </div>

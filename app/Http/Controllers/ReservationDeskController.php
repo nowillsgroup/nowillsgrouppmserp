@@ -39,24 +39,25 @@ class ReservationDeskController extends Controller
 
     public function export(Request $request)
     {
-        $rows = ReservationDeskService::listQuery($request)->limit(5000)->get();
-        $out = fopen('php://temp', 'w+');
-        fputcsv($out, ['Reservation', 'Guest', 'Phone', 'Arrival', 'Departure', 'Nights', 'Rooms', 'Adults', 'Children', 'Source', 'Status', 'Group']);
-        foreach ($rows as $r) {
-            fputcsv($out, array_map(fn ($value) => $this->csvSafe($value), [
-                $r->reservation_no, $r->guest->full_name ?? '', $r->guest->phone ?? '',
-                $r->arrival_date->format('Y-m-d'), $r->departure_date->format('Y-m-d'), $r->nights,
-                $r->rooms->where('status', '!=', 'cancelled')->map(fn ($s) => $s->room?->room_no ?? $s->roomType->code)->join(', '),
-                $r->adults, $r->children, $r->source?->name, $r->status, $r->group_name,
-            ]));
-        }
-        rewind($out);
-        $csv = stream_get_contents($out);
+        $query = ReservationDeskService::listQuery($request);
+        $filename = 'reservations-'.now()->format('Ymd-His').'.csv';
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="reservations-'.now()->format('Ymd-His').'.csv"',
-        ]);
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // Help spreadsheet apps detect UTF-8 guest and company names.
+            fputcsv($out, ['Reservation', 'Booked on', 'Guest', 'Phone', 'Arrival', 'Departure', 'Nights', 'Rooms', 'Adults', 'Children', 'Booking channel', 'Source', 'Company', 'Status', 'Group']);
+            $query->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $r) {
+                    fputcsv($out, array_map(fn ($value) => $this->csvSafe($value), [
+                        $r->reservation_no, $r->created_at?->format('Y-m-d H:i:s') ?? '', $r->guest->full_name ?? '', $r->guest->phone ?? '',
+                        $r->arrival_date->format('Y-m-d'), $r->departure_date->format('Y-m-d'), $r->nights,
+                        $r->rooms->where('status', '!=', 'cancelled')->map(fn ($s) => $s->room?->room_no ?? $s->roomType->code)->join(', '),
+                        $r->adults, $r->children, $r->otaChannel?->name, $r->source?->name, $r->company?->name, $r->status, $r->group_name,
+                    ]));
+                }
+            });
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /** Neutralise user-controlled text before a spreadsheet opens the CSV. */

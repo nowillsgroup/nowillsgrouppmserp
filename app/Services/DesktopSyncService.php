@@ -32,7 +32,7 @@ use Illuminate\Validation\ValidationException;
  *   desk.check_in   {stay_id, room_id}
  *   desk.check_out  {stay_id}
  *   desk.charge     {stay_id, category, description, amount, tax?}
- *   desk.payment    {stay_id, amount, payment_mode_id, reference?}
+ *   desk.payment    {stay_id, amount, payment_mode_id, reference?} OR {stay_id, payments:[{amount, payment_mode_id, reference?, momo_network?, momo_phone?, cheque_*?}]}
  *   desk.nights     {stay_id, until}       post room-nights up to `until`
  *
  * Every kind accepts `occurred_at` (ISO-8601) for back-dated offline work.
@@ -265,23 +265,71 @@ class DesktopSyncService
     protected static function opPayment(string $operationId, array $payload, $at, ?string $deviceId, User $user): array
     {
         $stay = self::stay($payload);
-        $amount = (float) ($payload['amount'] ?? 0);
-        $modeId = (int) ($payload['payment_mode_id'] ?? 0);
-        if ($amount <= 0) {
-            throw ValidationException::withMessages(['amount' => ['amount must be greater than zero.']]);
-        }
-        if (! $modeId) {
-            throw ValidationException::withMessages(['payment_mode_id' => ['payment_mode_id is required.']]);
+        $rawLines = $payload['payments'] ?? [];
+        $usingSplit = ! empty($rawLines);
+        $lines = $usingSplit && is_array($rawLines) ? array_values($rawLines) : [];
+        $amount = 0.0;
+        $modeId = 0;
+        if ($usingSplit) {
+            if (! is_array($payload['payments']) || count($lines) < 2 || count($lines) > 10) {
+                throw ValidationException::withMessages(['payments' => ['Split payment requires two to ten tender rows.']]);
+            }
+            if (! empty($payload['payment_mode_id'])) {
+                throw ValidationException::withMessages(['payments' => ['Use either split tenders or one payment mode, not both.']]);
+            }
+            foreach ($lines as $i => $line) {
+                if (! is_array($line)) {
+                    throw ValidationException::withMessages(["payments.{$i}" => ['Each tender must be an object.']]);
+                }
+                $amount = round((float) ($line['amount'] ?? 0), 2);
+                $mode = PaymentMode::where('is_active', true)->find((int) ($line['payment_mode_id'] ?? 0));
+                if ($amount <= 0 || ! $mode || in_array($mode->type, ['city_ledger', 'online', 'gift_voucher'], true)) {
+                    throw ValidationException::withMessages(["payments.{$i}" => ['Each tender needs a positive amount and an active direct payment mode; gift vouchers must be submitted alone.']]);
+                }
+                $lines[$i]['amount'] = $amount;
+                $lines[$i]['mode'] = $mode;
+            }
+        } else {
+            $amount = round((float) ($payload['amount'] ?? 0), 2);
+            $modeId = (int) ($payload['payment_mode_id'] ?? 0);
+            if ($amount <= 0) {
+                throw ValidationException::withMessages(['amount' => ['amount must be greater than zero.']]);
+            }
+            if (! $modeId) {
+                throw ValidationException::withMessages(['payment_mode_id' => ['payment_mode_id is required.']]);
+            }
         }
 
-        return DB::transaction(function () use ($operationId, $payload, $at, $deviceId, $user, $stay, $amount, $modeId) {
+        return DB::transaction(function () use ($operationId, $payload, $at, $deviceId, $user, $stay, $amount, $modeId, $usingSplit, $lines) {
             if ($duplicate = self::priorApplied($operationId, $user)) {
                 return $duplicate;
             }
             $folio = FolioService::openForStay($stay->fresh());
-            $tx = FolioService::payment($folio, $amount, $modeId, $payload['reference'] ?? 'OFFLINE '.$operationId);
+            $transactions = [];
+            if ($usingSplit) {
+                foreach ($lines as $index => $line) {
+                    $reference = trim((string) ($line['reference'] ?? '')) ?: 'OFFLINE '.$operationId.'-'.($index + 1);
+                    if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                        $reference = trim(implode(' · ', array_filter([
+                            $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $reference,
+                        ])));
+                    }
+                    $transactions[] = FolioService::payment($folio, $line['amount'], (int) $line['mode']->id, mb_substr($reference, 0, 80), 'settlement', 'payment', [
+                        'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null,
+                        'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                    ]);
+                }
+                $amount = round(array_sum(array_column($lines, 'amount')), 2);
+            } else {
+                $transactions[] = FolioService::payment($folio, $amount, $modeId, $payload['reference'] ?? 'OFFLINE '.$operationId);
+            }
 
-            return self::applied($operationId, 'desk.payment', $payload, $deviceId, $user, $stay->id, ['transaction_id' => $tx->id, 'amount' => $amount, 'occurred_at' => $at?->toIso8601String()]);
+            return self::applied($operationId, 'desk.payment', $payload, $deviceId, $user, $stay->id, [
+                'transaction_id' => $transactions[0]->id,
+                'transaction_ids' => array_map(fn ($tx) => $tx->id, $transactions),
+                'amount' => $amount,
+                'occurred_at' => $at?->toIso8601String(),
+            ]);
         });
     }
 

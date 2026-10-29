@@ -105,7 +105,14 @@
     <x-field name="odo_end" label="Closing odometer (km)" type="number" :hint="$t->tariff && (float) $t->tariff->per_km > 0 ? $t->tariff->included_km.' km included, then '.money($t->tariff->per_km).'/km – added automatically' : null"/>
     <x-field name="extra_amount" label="Extras on the guest" type="number" step="0.01" value="0" hint="waiting, parking, tolls"/>
     <x-field name="extra_note" label="Extras note" placeholder="1 h waiting (flight delayed)"/>
-    @if($t->billing === 'direct')<x-field name="payment_mode_id" label="Guest paid by" type="select" :options="$paymentModes" required data-payment-mode/><x-field name="reference" label="Reference"/><x-cheque-fields/>@endif
+    @if($t->billing === 'direct')
+      <div id="transportSingleTender-{{ $t->id }}" class="form-grid span-all">
+        <x-field name="payment_mode_id" label="Guest paid by" type="select" :options="$paymentModes" data-payment-mode/>
+        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+        <x-field name="reference" label="Reference" class="span-all"/><x-cheque-fields/>
+      </div>
+      <x-payment-split-tender widget-id="transportSplitTender-{{ $t->id }}" single-id="transportSingleTender-{{ $t->id }}" :modes="$paymentModes" label="payment"/>
+    @endif
     <p class="tiny muted span-all">{{ $t->billing === 'room' ? 'The fare '.($t->folio_transaction_id ? 'is already on the bill – any extras will be added.' : 'will be posted to the room bill.') : ($t->billing === 'direct' ? 'A paid invoice is issued for the fare + extras.' : 'Complimentary – nothing is charged.') }}</p>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary" id="confirmComplete">Complete trip</button></div>

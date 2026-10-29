@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -506,20 +507,39 @@ class ParkingService
             self::need(filled($d['waive_reason'] ?? null), 'Give the reason for waiving the charge.');
         }
 
-        DB::transaction(function () use ($s, $d, $u, $lost, $waive) {
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && (count($payments) < 2 || count($payments) > 10 || ! empty($d['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payments' => 'Use two to ten tender rows and do not combine split tender with a single payment mode.']);
+        }
+
+        DB::transaction(function () use ($s, $d, $u, $lost, $waive, $payments) {
             $s = ParkingSession::with(['stay.guest', 'vehicle'])->lockForUpdate()->findOrFail($s->id);
             self::need($s->isActive(), "Ticket {$s->number} is already {$s->statusLabel()}.");
             $q = self::quote($s, now(), $lost);
+            if ($payments && ($waive || $q['net'] <= 0)) {
+                throw ValidationException::withMessages(['payments' => 'Split tender is available only when a parking charge is due.']);
+            }
             $folio = null;
             $mode = null;
             if ($q['net'] > 0 && ! $waive) {
                 $stay = $s->stay;
                 $toRoom = $s->kind === 'guest' && $stay && $stay->status === 'checked_in' && ($d['settle'] ?? 'room') === 'room';
+                if ($payments && $toRoom) {
+                    throw ValidationException::withMessages(['payments' => 'Split tender is available only when settling directly, not when posting to a guest room.']);
+                }
                 if ($toRoom) {
                     $folio = FolioService::openForStay($stay);
                 } else {
                     $mode = (int) ($d['payment_mode_id'] ?? 0);
-                    self::need($mode && self::walkInModes()->contains('id', $mode), 'Choose a cash, card, mobile money or bank payment mode.');
+                    if (! $payments) {
+                        self::need($mode && self::walkInModes()->contains('id', $mode), 'Choose a cash, card, mobile money or bank payment mode.');
+                    } else {
+                        foreach ($payments as $i => $line) {
+                            if (! self::walkInModes()->contains('id', (int) ($line['payment_mode_id'] ?? 0))) {
+                                throw ValidationException::withMessages(["payments.{$i}.payment_mode_id" => 'Choose a cash, card, mobile money or bank payment mode.']);
+                            }
+                        }
+                    }
                     $gid = $stay?->guest_id ?? $s->vehicle?->guest_id;
                     if (! $gid) {
                         $parts = preg_split('/\s+/', trim((string) ($s->guest_name ?: 'Parking visitor')), 2);
@@ -533,9 +553,32 @@ class ParkingService
                         'folio_id' => $folio->id, 'folio_transaction_id' => $tx->id]);
                 }
                 if (! $toRoom) {
-                    FolioService::payment($folio, round($folio->fresh()->balance(), 2), $mode, filled($d['reference'] ?? null) ? mb_substr($d['reference'], 0, 60) : $s->number, 'settlement', 'payment', [
-                        'bank_name' => $d['cheque_bank_name'] ?? null, 'number' => $d['cheque_number'] ?? null, 'bank_branch' => $d['cheque_bank_branch'] ?? null,
-                    ]);
+                    $amountDue = round($folio->fresh()->balance(), 2);
+                    if ($payments) {
+                        $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $payments)), 2);
+                        if (abs($allocated - $amountDue) > 0.005) {
+                            throw ValidationException::withMessages(['payments' => 'Payment tenders must total '.money($amountDue).' to settle the parking charge.']);
+                        }
+                        foreach ($payments as $line) {
+                            $lineReference = trim((string) ($line['reference'] ?? '')) ?: $s->number;
+                            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                                $lineReference = mb_substr(trim(implode(' · ', array_filter([
+                                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference,
+                                ]))), 0, 80);
+                            }
+                            FolioService::payment($folio, round((float) $line['amount'], 2), (int) $line['payment_mode_id'], $lineReference, 'settlement', 'payment', [
+                                'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                            ]);
+                        }
+                        $mode = null;
+                    } else {
+                        $reference = trim(implode(' · ', array_filter([
+                            $d['momo_network'] ?? null, $d['momo_phone'] ?? null, filled($d['reference'] ?? null) ? mb_substr($d['reference'], 0, 80) : null,
+                        ]))) ?: $s->number;
+                        FolioService::payment($folio, $amountDue, $mode, $reference, 'settlement', 'payment', [
+                            'bank_name' => $d['cheque_bank_name'] ?? null, 'number' => $d['cheque_number'] ?? null, 'bank_branch' => $d['cheque_bank_branch'] ?? null,
+                        ]);
+                    }
                     FolioService::close($folio->fresh());
                 }
             }

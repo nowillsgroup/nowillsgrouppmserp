@@ -33,12 +33,12 @@ draft caching.
 | `desk.check_in` | `stay_id, room_id` | `StayService::checkIn` (vacancy enforced) |
 | `desk.check_out` | `stay_id` | `StayService::checkOut` (zero-balance rule; forced checkout is not available offline) |
 | `desk.charge` | `stay_id, category, description, amount, tax?` | `FolioService::charge` |
-| `desk.payment` | `stay_id, amount, payment_mode_id, reference?` | `FolioService::payment` |
+| `desk.payment` | Legacy `stay_id, amount, payment_mode_id, reference?`, or `stay_id, payments[{amount, payment_mode_id, reference?, momo_network?, momo_phone?, cheque_*?}]` (2–10 rows) | `FolioService::payment` (one transaction per tender) |
 | `desk.nights` | `stay_id, until?` | `StayService::postPendingNights` |
 
 Business rules are the server's, not the desktop's: an occupied room, a folio
 in balance, an unsupported operation — each is a `rejected` result with the
-real reason, safe to retry after fixing. Housekeeping operations additionally
+real reason, safe to retry after fixing. Folio payments may remain partial; split tender writes one payment transaction per row, while a gift voucher must use the legacy single-tender fields. Housekeeping operations additionally
 require `housekeeping.attendant` or `housekeeping.manage` (the shared sync route
 also accepts `requests.manage` for guest-request creation). A stale room-status
 change that would replace a newer status or room note returns a `conflict`; the

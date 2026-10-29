@@ -328,24 +328,44 @@ class BanquetSalesService
 
     public static function takeDeposit(BanquetEvent $e, float $amount, int $modeId, ?string $reference = null, ?array $cheque = null): FolioTransaction
     {
+        return self::takeDeposits($e, [[
+            'amount' => $amount, 'payment_mode_id' => $modeId, 'reference' => $reference, 'cheque' => $cheque ?? [],
+        ]])->first();
+    }
+
+    /** Record one or more separately auditable tender lines for a banquet deposit. */
+    public static function takeDeposits(BanquetEvent $e, array $lines): Collection
+    {
         if (! $e->isOpen() || $e->billed_at) {
             throw ValidationException::withMessages(['amount' => 'Deposits can only be taken on open bookings.']);
         }
-        $mode = PaymentMode::find($modeId);
-        if (! $mode || in_array($mode->type, ['city_ledger', 'online', 'gift_voucher'], true)) {
-            throw ValidationException::withMessages(['payment_mode_id' => 'Take the deposit in cash, card, UPI, bank or wallet – send a payment link from the folio for online payment.']);
+        if (! $lines) {
+            throw ValidationException::withMessages(['amount' => 'Enter at least one deposit tender.']);
         }
-        if ($amount <= 0) {
-            throw ValidationException::withMessages(['amount' => 'Enter the amount received.']);
+        foreach ($lines as $i => $line) {
+            $amountField = count($lines) > 1 ? "payments.{$i}.amount" : 'amount';
+            $modeField = count($lines) > 1 ? "payments.{$i}.payment_mode_id" : 'payment_mode_id';
+            if ((float) ($line['amount'] ?? 0) <= 0) {
+                throw ValidationException::withMessages([$amountField => 'Enter an amount received.']);
+            }
+            $mode = PaymentMode::find((int) ($line['payment_mode_id'] ?? 0));
+            if (! $mode || ! $mode->is_active || in_array($mode->type, ['city_ledger', 'online', 'gift_voucher'], true)) {
+                throw ValidationException::withMessages([$modeField => 'Take the deposit in cash, card, UPI, bank or wallet – send a payment link from the folio for online payment.']);
+            }
         }
         try {
-            return DB::transaction(function () use ($e, $amount, $modeId, $reference, $cheque) {
+            return DB::transaction(function () use ($e, $lines) {
                 $folio = self::folioFor($e);
-                $tx = FolioService::payment($folio, $amount, $modeId, $reference, 'advance', 'payment', $cheque);
-                $tx->update(['description' => "Deposit – {$e->event_no}", 'source_type' => 'banquet', 'source_id' => $e->id]);
-                ActivityLogger::log('banquet', 'deposit', "Deposit ".money($amount)." on {$e->event_no}", $e);
+                $transactions = collect();
+                foreach ($lines as $line) {
+                    $amount = round((float) $line['amount'], 2);
+                    $tx = FolioService::payment($folio, $amount, (int) $line['payment_mode_id'], $line['reference'] ?? null, 'advance', 'payment', $line['cheque'] ?? []);
+                    $tx->update(['description' => "Deposit – {$e->event_no}", 'source_type' => 'banquet', 'source_id' => $e->id]);
+                    $transactions->push($tx);
+                }
+                ActivityLogger::log('banquet', 'deposit', "Deposit ".money($transactions->sum('amount'))." on {$e->event_no} (".$transactions->count().' tender(s))', $e);
 
-                return $tx;
+                return $transactions;
             });
         } catch (\RuntimeException $x) {
             throw ValidationException::withMessages(['amount' => $x->getMessage()]);

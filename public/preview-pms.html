@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#14532d">
 <title>Nowills PMS · Preview</title>
+<script>
+  // The root preview opens the full PMS shell with the requested Reservations workspace.
+  // Keep the dashboard and sample gallery available as direct preview URLs.
+  if (window.location.pathname === '/' && !new URLSearchParams(window.location.search).has('gallery')) {
+    window.location.replace('/preview-reservations-full.html');
+  }
+</script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=forest-green">
-<link rel="stylesheet" href="/css/app.css?v=forest-green">
+<link rel="stylesheet" href="/css/app.css?v=forest-green-nav-polish">
 <style>
 :root{--pv-sidebar:252px;--pv-top:62px}
 html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6fb);color:var(--c-text,#0f172a);font-family:var(--font,system-ui,sans-serif)}
@@ -16,11 +23,24 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
 .pv-logo{display:block;width:166px;max-width:100%;max-height:34px;height:auto;object-fit:contain;object-position:left center}
 .pv-brand small{display:block;margin-top:2px;color:#a8c0ad;font-size:9px;letter-spacing:.12em;font-weight:600}
 .pv-side-label{padding:18px 17px 7px;color:#86a594;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-.pv-nav{overflow:auto;padding:0 9px 12px;flex:1}
-.pv-nav button{width:100%;border:0;background:transparent;color:#c6dfce;border-radius:8px;padding:10px 11px;display:flex;align-items:center;gap:10px;text-align:left;font:inherit;font-size:13px;cursor:pointer}
-.pv-nav button:hover{background:#ffffff0e;color:#fff}
-.pv-nav button.active{color:#fff;background:linear-gradient(90deg,#22c55e4d,#22c55e12);box-shadow:inset 3px 0 #4ade80}
-.pv-nav .pv-icon{width:19px;height:19px;display:grid;place-items:center;color:#86efac;font-size:15px;flex:none}
+.pv-search{position:relative;display:flex;align-items:center;margin:12px 12px 4px;color:#a8c0ad}
+.pv-search>span{position:absolute;left:11px;font-size:18px;line-height:1}
+.pv-search input{width:100%;height:38px;padding:0 32px 0 34px;border:1px solid #b1cdb933;border-radius:9px;background:#04110a47;color:#fff;font:inherit;font-size:12px;outline:none;transition:border-color .16s,box-shadow .16s}
+.pv-search input::placeholder{color:#a8c0ad}
+.pv-search input:focus{border-color:#4ade80;box-shadow:0 0 0 3px #4ade8020}
+.pv-search-clear{display:none;position:absolute;right:6px;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:#c6dfce;font-size:17px;cursor:pointer}
+.pv-search:focus-within .pv-search-clear,.pv-search.has-value .pv-search-clear{display:grid;place-items:center}
+.pv-search-clear:hover{background:#ffffff16;color:#fff}
+.pv-nav{overflow:auto;padding:0 9px 12px;flex:1;scrollbar-width:thin;scrollbar-color:#456650 transparent;overscroll-behavior:contain}
+.pv-nav button{width:100%;min-height:40px;border:0;background:transparent;color:#c6dfce;border-radius:8px;padding:9px 11px;display:flex;align-items:center;gap:10px;text-align:left;font:inherit;font-size:13px;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
+.pv-nav button:hover{background:#e7ffee15;color:#fff}
+.pv-nav button:focus-visible{outline:2px solid #86efac;outline-offset:2px}
+.pv-nav button.active{color:#fff;background:linear-gradient(90deg,#22c55e4a,#22c55e10);box-shadow:inset 3px 0 #6ee7a1,0 5px 14px #03120929}
+.pv-nav button[hidden],.pv-side-label[hidden]{display:none}
+.pv-nav .pv-icon{width:25px;height:25px;display:grid;place-items:center;border:1px solid #ffffff12;border-radius:7px;background:#ffffff08;color:#9bf0b8;font-size:15px;flex:none}
+.pv-nav button.active .pv-icon{background:#22c55e2c;border-color:#86efac38;color:#d7ffe2}
+.pv-empty{margin:10px 8px;padding:11px;border:1px dashed #c6dfce35;border-radius:9px;color:#c6dfce;font-size:12px;line-height:1.5}
+.pv-empty[hidden]{display:none}
 .pv-side-foot{padding:12px 16px;border-top:1px solid #ffffff18;color:#91a998;font-size:11px;line-height:1.5}
 .pv-main{min-width:0;display:flex;flex-direction:column;height:100vh}
 .pv-top{height:var(--pv-top);flex:none;background:#fff;border-bottom:1px solid var(--c-border,#e3e8f0);display:flex;align-items:center;gap:12px;padding:0 20px}
@@ -46,8 +66,9 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
 <div class="pv-shell" id="previewShell">
   <aside class="pv-side" aria-label="Preview modules">
     <div class="pv-brand"><img class="pv-logo" src="/images/brand/nowills-pms-logo-white.png?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
+    <div class="pv-search"><span aria-hidden="true">⌕</span><input id="previewModuleSearch" type="search" placeholder="Find a sample screen…" autocomplete="off" aria-label="Search preview screens"><button class="pv-search-clear" type="button" id="clearPreviewSearch" aria-label="Clear screen search">×</button></div>
     <div class="pv-side-label">Overview</div>
-    <nav class="pv-nav" id="previewNav">
+    <nav class="pv-nav" id="previewNav" aria-label="Preview screens">
       <button type="button" data-title="Login & access" data-file="preview-login.html"><span class="pv-icon">↗</span>Login &amp; access</button>
       <button type="button" class="active" data-title="Dashboard" data-file="preview-dashboard.html"><span class="pv-icon">▦</span>Dashboard</button>
       <div class="pv-side-label">Front desk & service</div>
@@ -61,6 +82,7 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
       <button type="button" data-title="IPTV welcome" data-file="preview-iptv-welcome.html"><span class="pv-icon">▣</span>IPTV welcome screen</button>
       <div class="pv-side-label">Insights</div>
       <button type="button" data-title="Reports" data-file="preview-reports.html"><span class="pv-icon">▥</span>Reports library</button>
+      <p class="pv-empty" id="previewSearchEmpty" role="status" hidden>No sample screens match that search.</p>
     </nav>
     <div class="pv-side-foot">Forest-green theme preview<br>Sample screens · no live PMS data</div>
   </aside>
@@ -81,20 +103,58 @@ html,body{height:100%;margin:0}body{overflow:hidden;background:var(--c-bg,#f4f6f
 (() => {
   const shell=document.getElementById('previewShell'), frame=document.getElementById('previewFrame');
   const title=document.getElementById('previewTitle'), crumb=document.getElementById('previewCrumb'), open=document.getElementById('openCurrent');
-  const toggle=document.getElementById('previewToggle');
-  document.querySelectorAll('#previewNav button[data-file]').forEach(button=>button.addEventListener('click',()=>{
-    const file=button.dataset.file, name=button.dataset.title;
-    document.querySelectorAll('#previewNav button').forEach(item=>item.classList.toggle('active',item===button));
-    frame.src='/'+file; frame.title='Nowills PMS '+name+' preview';
-    title.textContent=name; crumb.textContent=name; open.href='/'+file;
-    shell.classList.remove('nav-open'); toggle.setAttribute('aria-expanded','false');
-  }));
-  toggle.addEventListener('click',()=>{const openNow=shell.classList.toggle('nav-open');toggle.setAttribute('aria-expanded',String(openNow));});
-  document.getElementById('previewScrim').addEventListener('click',()=>{shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');}});
-  const requestedScreen = new URLSearchParams(window.location.search).get('screen');
-  const initialButton = [...document.querySelectorAll('#previewNav button[data-file]')].find(button => button.dataset.file === requestedScreen);
-  if (initialButton) initialButton.click();
+  const toggle=document.getElementById('previewToggle'), nav=document.getElementById('previewNav');
+  const search=document.getElementById('previewModuleSearch'), clearSearch=document.getElementById('clearPreviewSearch');
+  const screens=[...nav.querySelectorAll('button[data-file]')], empty=document.getElementById('previewSearchEmpty');
+  const stripEmbeddedNavigation=()=>{
+    try{
+      const doc=frame.contentDocument;
+      if(!doc?.head||doc.getElementById('gallery-preview-chrome'))return;
+      const style=doc.createElement('style');
+      style.id='gallery-preview-chrome';
+      style.textContent='.sidebar,.nav-scrim{display:none!important}.main{margin-left:0!important}.topbar .menu-btn{display:none!important}body{overflow-x:hidden!important}';
+      doc.head.appendChild(style);
+    }catch(_){/* Keep standalone previews usable if they are ever hosted cross-origin. */}
+  };
+  frame.addEventListener('load',stripEmbeddedNavigation);
+  if(frame.contentDocument?.readyState==='complete')stripEmbeddedNavigation();
+  const closeDrawer=returnFocus=>{shell.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false');if(returnFocus)toggle.focus();};
+  screens.forEach(button=>{
+    button.addEventListener('click',()=>{
+      const file=button.dataset.file, name=button.dataset.title;
+      screens.forEach(item=>{item.classList.toggle('active',item===button);if(item===button)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
+      frame.src='/'+file; frame.title='Nowills PMS '+name+' preview';
+      title.textContent=name; crumb.textContent=name; open.href='/'+file;
+      closeDrawer(false);
+    });
+  });
+  const filterScreens=()=>{
+    const query=search.value.trim().toLowerCase();
+    search.closest('.pv-search').classList.toggle('has-value',!!query);
+    let heading=null, sectionHasMatches=false, visible=0;
+    const finishSection=()=>{if(heading)heading.hidden=!!query&&!sectionHasMatches;};
+    [...nav.children].forEach(node=>{
+      if(node.classList.contains('pv-side-label')){finishSection();heading=node;sectionHasMatches=false;return;}
+      if(!node.matches('button[data-file]'))return;
+      const match=!query||node.dataset.title.toLowerCase().includes(query);
+      node.hidden=!match;
+      if(match){sectionHasMatches=true;visible++;}
+    });
+    finishSection();
+    empty.hidden=visible>0;
+  };
+  search.addEventListener('input',filterScreens);
+  clearSearch.addEventListener('click',()=>{search.value='';filterScreens();search.focus();});
+  toggle.addEventListener('click',()=>{
+    const openNow=!shell.classList.contains('nav-open');
+    shell.classList.toggle('nav-open',openNow);toggle.setAttribute('aria-expanded',String(openNow));
+    if(openNow)search.focus();
+  });
+  document.getElementById('previewScrim').addEventListener('click',()=>closeDrawer(true));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&shell.classList.contains('nav-open'))closeDrawer(true);});
+  const requestedScreen=new URLSearchParams(window.location.search).get('screen');
+  const initialButton=screens.find(button=>button.dataset.file===requestedScreen);
+  if(initialButton)initialButton.click();else screens.find(button=>button.classList.contains('active'))?.setAttribute('aria-current','page');
 })();
 </script>
 </body>

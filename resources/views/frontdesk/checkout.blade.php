@@ -60,7 +60,7 @@
       @if($totals['refunds'] > 0)<li><span>Refunds</span><b>{{ money($totals['refunds']) }}</b></li>@endif
       <li style="font-size:1.1rem"><span class="bold">Balance {{ $totals['balance'] < 0 ? '(refund due)' : 'due' }}</span><b class="{{ $totals['balance'] > 0 ? 'text-red' : 'text-green' }}">{{ money(abs($totals['balance'])) }}</b></li>
     </ul></div></div>
-    <form method="post" action="{{ route('frontdesk.checkout.store', $stay) }}" class="card" data-confirm="Confirm check-out and generate invoice?">@csrf
+    <form method="post" action="{{ route('frontdesk.checkout.store', $stay) }}" class="card" id="checkoutSettleForm" data-confirm="Confirm check-out and generate invoice?">@csrf
       <div class="card-head"><h3>Settlement</h3></div>
       <div class="card-body">
         <div class="field mb-1"><label>Settle by</label>
@@ -70,10 +70,19 @@
             <option value="none">No balance / already settled</option>
           </select></div>
         <div id="payBox">
-          <x-field name="amount" label="{{ $totals['balance'] < 0 ? 'Refund amount' : 'Amount' }}" type="number" step="0.01" hint="Leave blank to settle the balance after unposted nights are added. A typed amount is a part payment and will not close the folio if anything remains."/><div class="mt-1"></div>
-          <x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" data-payment-mode/><div class="mt-1"></div>
-          <x-field name="reference" label="Reference / Txn ID" hint="Gift Voucher: the voucher code"/>
-          <x-cheque-fields/>
+          <div id="checkoutSinglePayment">
+            <x-field name="amount" label="{{ $totals['balance'] < 0 ? 'Refund amount' : 'Amount' }}" type="number" step="0.01" hint="Leave blank to settle the full balance after unposted nights are added. A typed amount must equal the full balance to complete checkout."/><div class="mt-1"></div>
+            <x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" data-payment-mode/><div class="mt-1"></div>
+            <div class="form-grid"><x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/></div>
+            <div class="mt-1"></div><x-field name="reference" label="Reference / Txn ID" hint="Gift Voucher: the voucher code"/>
+            <x-cheque-fields/>
+          </div>
+          <div class="mt-1"><button type="button" class="btn btn-sm" id="checkoutToggleSplit">Split across payment methods</button></div>
+          <div id="checkoutSplitPayment" class="mt-1" hidden>
+            <p class="small muted">Add at least two tenders and allocate the full amount due (after any unposted nights). Expected settlement: <b>{{ money(abs($checkoutDue ?? $totals['balance'])) }}</b>; allocated so far: <b id="checkoutAllocationTotal">0.00</b>. The entries are recorded together on the folio.</p>
+            <div id="checkoutPaymentAllocations"></div>
+            <button type="button" class="btn btn-sm mt-1" id="checkoutAddPaymentAllocation">Add another payment method</button>
+          </div>
         </div>
         <div id="coBox" class="hidden">@include('credit._picker', ['companies' => $companies, 'value' => $stay->reservation->company_id, 'amount' => max(0, $checkoutDue ?? $totals['balance'])])</div>
       </div>
@@ -85,4 +94,94 @@
 @endsection
 @push('scripts')<script>
 const s = document.getElementById('settleBy'); const f = () => { document.getElementById('payBox').classList.toggle('hidden', s.value !== 'payment'); document.getElementById('coBox').classList.toggle('hidden', s.value !== 'company'); }; s.addEventListener('change', f); f();
+(() => {
+  const form = document.getElementById('checkoutSettleForm');
+  const toggle = document.getElementById('checkoutToggleSplit');
+  const single = document.getElementById('checkoutSinglePayment');
+  const split = document.getElementById('checkoutSplitPayment');
+  const rows = document.getElementById('checkoutPaymentAllocations');
+  const allocationTotal = document.getElementById('checkoutAllocationTotal');
+  if (!form || !toggle || !single || !split || !rows) return;
+  const modes = @json($paymentModes);
+  const oldLines = @js(old('payments', []));
+  const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let sequence = 0;
+  let restoredOldLines = false;
+  const addRow = (line = {}) => {
+    if (!line || typeof line !== 'object') line = {};
+    const i = sequence++;
+    const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+    rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-checkout-payment-row style="border:1px solid var(--c-border);padding:.65rem;border-radius:var(--radius)">
+      <div class="field"><label>Payment method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+      <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+      <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
+      <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
+      <div class="field span-all"><label>Reference / transaction ID</label><input name="payments[${i}][reference]" maxlength="80" placeholder="Receipt, card authorisation, or voucher code"></div>
+      <details class="span-all"><summary class="tiny bold">Cheque details (if applicable)</summary><div class="form-grid mt-1">
+        <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
+        <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
+        <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
+      </div></details>
+      <button type="button" class="btn btn-sm btn-ghost" data-remove-checkout-payment>Remove this tender</button>
+    </div>`);
+    const row = rows.lastElementChild;
+    for (const key of ['payment_mode_id', 'amount', 'reference', 'momo_network', 'momo_phone', 'cheque_bank_name', 'cheque_number', 'cheque_bank_branch']) {
+      const field = row.querySelector(`[name="payments[${i}][${key}]"]`);
+      if (field && line[key] !== undefined && line[key] !== null) field.value = String(line[key]);
+    }
+    syncChequeRows();
+    updateTotal();
+  };
+  const syncChequeRows = () => rows.querySelectorAll('[data-checkout-payment-row]').forEach(row => {
+    const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+    const required = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
+    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; });
+  });
+  const updateTotal = () => {
+    const total = [...rows.querySelectorAll('input[name$="[amount]"]')].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+    if (allocationTotal) allocationTotal.textContent = total.toFixed(2);
+  };
+  rows.addEventListener('input', updateTotal);
+  rows.addEventListener('change', event => { updateTotal();
+    if (event.target.matches('select[name$="[payment_mode_id]"]')) syncChequeRows();
+  });
+  const syncControls = () => {
+    const paymentEnabled = s.value === 'payment';
+    const splitEnabled = !split.hidden;
+    single.querySelectorAll('input,select').forEach(input => { input.disabled = !paymentEnabled || splitEnabled; });
+    split.querySelectorAll('input,select').forEach(input => { input.disabled = !paymentEnabled || !splitEnabled; });
+    toggle.disabled = !paymentEnabled;
+  };
+  const setSplit = enabled => {
+    single.hidden = enabled;
+    split.hidden = !enabled;
+    toggle.textContent = enabled ? 'Use one payment method' : 'Split across payment methods';
+    if (enabled && rows.children.length === 0) {
+      if (!restoredOldLines && Array.isArray(oldLines) && oldLines.length) {
+        oldLines.slice(0, 10).forEach(line => addRow(line));
+        restoredOldLines = true;
+      }
+      while (rows.children.length < 2) addRow();
+    }
+    if (!enabled) rows.replaceChildren();
+    syncControls();
+  };
+  s.addEventListener('change', syncControls);
+  syncControls();
+  toggle.addEventListener('click', () => setSplit(split.hidden));
+  if (Array.isArray(oldLines) && oldLines.length) setSplit(true);
+  document.getElementById('checkoutAddPaymentAllocation')?.addEventListener('click', addRow);
+  rows.addEventListener('click', event => {
+    if (event.target.closest('[data-remove-checkout-payment]')) {
+      event.target.closest('[data-checkout-payment-row]')?.remove();
+      updateTotal();
+    }
+  });
+  form.addEventListener('submit', event => {
+    if (s.value === 'payment' && !split.hidden && rows.querySelectorAll('[data-checkout-payment-row]').length < 2) {
+      event.preventDefault();
+      alert('Add at least two payment methods, or switch back to a single payment.');
+    }
+  });
+})();
 </script>@endpush

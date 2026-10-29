@@ -1,13 +1,21 @@
 @extends('layouts.app')
 @section('title', 'Reservations')
 @section('actions')
+  @if(($view ?? null) === 'list')<a href="{{ route('reservations.export', request()->query()) }}" class="btn"><x-icon name="download"/> Export list</a>@endif
   <a href="{{ route('reservations.availability') }}" class="btn"><x-icon name="grid"/> Availability</a>
   @if(can_do('reservations.create'))<a href="{{ route('reservations.create') }}" class="btn btn-primary"><x-icon name="plus"/> New Reservation</a>@endif
 @endsection
 @section('content')
 @php
   $q = request()->except('page');
-  $go = fn (array $extra = []) => route('reservations.index', array_merge($q, $extra));
+  $go = function (array $extra = []) use ($q) {
+    $query = array_merge($q, $extra);
+    if (($query['view'] ?? null) === 'list') {
+      unset($query['tab'], $query['vip']);
+    }
+
+    return route('reservations.index', $query);
+  };
   $tabCounts = $tabs;
   $nav = [
     'arrivals' => 'Arrivals', 'duein' => 'Due in', 'inhouse' => 'In-house', 'stayover' => 'Stayover', 'dueout' => 'Due out',
@@ -16,27 +24,42 @@
   ];
   $views = ['dashboard' => 'Dashboard', 'timeline' => 'Timeline', 'board' => 'Room board', 'list' => 'List', 'arrivals' => 'Arrivals', 'departures' => 'Departures', 'inhouse' => 'In-house', 'unassigned' => 'Unassigned', 'waitlist' => 'Waitlist', 'groups' => 'Groups'];
 @endphp
-<div id="desk" class="desk">
-  <header class="desk-head">
-    <div>
-      <div class="tiny" style="letter-spacing:.14em;text-transform:uppercase;opacity:.75">Nowills · Front office</div>
-      <h1>Reservation desk</h1>
-      <p>{{ $date->format('l, d M Y') }} · business date {{ bdate()->format('d M Y') }} · {{ $kpis['sellable'] }} rooms on sale</p>
-    </div>
-    <div class="flex gap-1 wrap">
-      <a class="btn btn-sm" href="{{ $go(['view' => 'dashboard']) }}">Dashboard</a>
-      <a class="btn btn-sm" href="{{ route('reservations.plan', request()->only(['date','days','group'])) }}" target="_blank">Print plan</a>
-      <a class="btn btn-sm" href="{{ route('reservations.daysummary', request()->only(['date','days','group'])) }}" target="_blank">Day summary</a>
-      <button type="button" class="btn btn-sm" id="print-btn">Print view</button>
-      <a class="btn btn-sm" href="{{ route('reservations.export', request()->query()) }}">Export</a>
-      <a class="btn btn-sm" href="{{ route('reservations.amenities') }}">Amenities &amp; photos</a>
-      @if(can_do('nightaudit.run'))<a class="btn btn-sm" href="{{ route('nightaudit.index') }}">Night audit</a>@endif
-      @if(can_do('gl.view'))<a class="btn btn-sm" href="{{ route('gl.index') }}">Ledger</a>@endif
-      @if(can_do('logs.view'))<a class="btn btn-sm" href="{{ route('logs.index') }}">Audit log</a>@endif
-      @if(can_do('users.manage'))<a class="btn btn-sm" href="{{ route('roles.index') }}">Permissions</a>@endif
-    </div>
-  </header>
+<div id="desk" class="desk" data-view="{{ $view }}">
+  @if($view === 'list')
+    <header class="reservation-list-hero">
+      <div class="reservation-list-hero-copy">
+        <span class="reservation-list-eyebrow"><x-icon name="calendar" size="sm"/> FRONT OFFICE <span>/</span> RESERVATION REGISTER</span>
+        <h2>Every stay, clearly in view.</h2>
+        <p>Find a booking, check the guest journey, and move from search to action without losing context.</p>
+      </div>
+      <div class="reservation-list-hero-aside">
+        <div class="reservation-list-date"><span>DESK DATE</span><strong>{{ $date->format('D, d M Y') }}</strong><small>Business date · {{ bdate()->format('d M Y') }}</small></div>
+        <button type="button" class="btn btn-sm" id="print-btn"><x-icon name="print" size="sm"/> Print this page</button>
+      </div>
+    </header>
+  @else
+    <header class="desk-head">
+      <div>
+        <div class="tiny" style="letter-spacing:.14em;text-transform:uppercase;opacity:.75">Nowills · Front office</div>
+        <h1>Reservation desk</h1>
+        <p>{{ $date->format('l, d M Y') }} · business date {{ bdate()->format('d M Y') }} · {{ $kpis['sellable'] }} rooms on sale</p>
+      </div>
+      <div class="flex gap-1 wrap">
+        <a class="btn btn-sm" href="{{ $go(['view' => 'dashboard']) }}">Dashboard</a>
+        <a class="btn btn-sm" href="{{ route('reservations.plan', request()->only(['date','days','group'])) }}" target="_blank">Print plan</a>
+        <a class="btn btn-sm" href="{{ route('reservations.daysummary', request()->only(['date','days','group'])) }}" target="_blank">Day summary</a>
+        <button type="button" class="btn btn-sm" id="print-btn">Print view</button>
+        <a class="btn btn-sm" href="{{ route('reservations.export', request()->query()) }}">Export</a>
+        <a class="btn btn-sm" href="{{ route('reservations.amenities') }}">Amenities &amp; photos</a>
+        @if(can_do('nightaudit.run'))<a class="btn btn-sm" href="{{ route('nightaudit.index') }}">Night audit</a>@endif
+        @if(can_do('gl.view'))<a class="btn btn-sm" href="{{ route('gl.index') }}">Ledger</a>@endif
+        @if(can_do('logs.view'))<a class="btn btn-sm" href="{{ route('logs.index') }}">Audit log</a>@endif
+        @if(can_do('users.manage'))<a class="btn btn-sm" href="{{ route('roles.index') }}">Permissions</a>@endif
+      </div>
+    </header>
+  @endif
 
+  @if($view !== 'list')
   @php
     $credit = $kpis['outstanding'] < 0 ? money(abs($kpis['outstanding'])).' credit' : money($kpis['outstanding']);
     $kpiGroups = [
@@ -80,6 +103,8 @@
       ],
     ];
   @endphp
+  @endif
+  @if($view !== 'list')
   <section class="kpi-strip" aria-label="Today's figures">
     @foreach($kpiGroups as $groupName => $items)
       <div class="kpi-group">
@@ -145,12 +170,13 @@
     <button class="btn btn-primary btn-sm">Apply</button>
     <a class="btn btn-sm" href="{{ route('reservations.index') }}">Reset</a>
   </form>
+  @endif
 
-  <div class="desk-views" role="tablist">
+  <nav class="desk-views {{ $view === 'list' ? 'reservation-list-views' : '' }}" aria-label="Reservation desk views">
     @foreach($views as $key => $label)
-      <a href="{{ $go(['view' => $key]) }}" class="{{ $view === $key ? 'on' : '' }}" role="tab">{{ $label }}</a>
+      <a href="{{ $go(['view' => $key]) }}" class="desk-view-link {{ $view === $key ? 'on' : '' }}" @if($view === $key) aria-current="page" @endif>{{ $label }}</a>
     @endforeach
-    <label class="zoom">Column <input id="col-zoom" type="range" min="36" max="92" value="52" aria-label="Timeline column width"></label>
+    @if($view !== 'list')<label class="zoom">Column <input id="col-zoom" type="range" min="36" max="92" value="52" aria-label="Timeline column width"></label>@endif
     @if($saved->isNotEmpty())
       <span class="tiny muted">Saved:</span>
       @foreach($saved as $sv)
@@ -165,7 +191,7 @@
       <label class="tiny"><input type="checkbox" name="is_default" value="1"> Default</label>
       <button class="btn btn-sm">Save</button>
     </form>
-  </div>
+  </nav>
 
   @if($view === 'dashboard')
     @include('reservations.desk-dashboard')
@@ -263,54 +289,167 @@
       @endforelse
     </div>
   @elseif($view === 'list')
-    <div class="tabs">
-      <a href="{{ $go(['view' => 'list', 'status' => null]) }}" class="{{ !request('status') ? 'active' : '' }}">All ({{ $counts->sum() }})</a>
-      @foreach(['confirmed','tentative','checked_in','checked_out','cancelled','no_show'] as $s)
-        <a href="{{ $go(['view' => 'list', 'status' => $s]) }}" class="{{ request('status') === $s ? 'active' : '' }}">{{ ucwords(str_replace('_',' ',$s)) }} ({{ $counts[$s] ?? 0 }})</a>
-      @endforeach
-    </div>
-    <div class="card"><div class="card-body">
-      <form class="filters" method="get">
+    @php
+      $statusOptions = [
+        ['all', 'All stays', null, $counts->sum()],
+        ['confirmed', 'Confirmed', 'confirmed', $counts['confirmed'] ?? 0],
+        ['tentative', 'Tentative', 'tentative', $counts['tentative'] ?? 0],
+        ['checked_in', 'In-house', 'checked_in', $counts['checked_in'] ?? 0],
+        ['checked_out', 'Checked out', 'checked_out', $counts['checked_out'] ?? 0],
+        ['cancelled', 'Cancelled', 'cancelled', $counts['cancelled'] ?? 0],
+        ['no_show', 'No-show', 'no_show', $counts['no_show'] ?? 0],
+      ];
+      $statusValue = request('status');
+      $currentStatus = is_string($statusValue) && in_array($statusValue, ['confirmed', 'tentative', 'checked_in', 'checked_out', 'cancelled', 'no_show'], true) ? $statusValue : 'all';
+      $searchValue = is_string(request('q')) ? trim(request('q')) : '';
+      $arrivalOnValue = is_string(request('arrival_on')) ? request('arrival_on') : '';
+      $departureOnValue = is_string(request('departure_on')) ? request('departure_on') : '';
+      $fromValue = is_string(request('from')) ? request('from') : '';
+      $toValue = is_string(request('to')) ? request('to') : '';
+      $earliestArrivalValue = max($arrivalOnValue, $fromValue);
+      $departureMinValue = $earliestArrivalValue !== '' ? \Illuminate\Support\Carbon::parse($earliestArrivalValue)->addDay()->toDateString() : '';
+      $dateFilterWarning = null;
+      if ($fromValue !== '' && $toValue !== '' && $fromValue > $toValue) {
+        $dateFilterWarning = 'Arrival start must be on or before arrival end.';
+      } elseif ($arrivalOnValue !== '' && $fromValue !== '' && $arrivalOnValue < $fromValue) {
+        $dateFilterWarning = 'Arrival on must be on or after Arrival from.';
+      } elseif ($arrivalOnValue !== '' && $toValue !== '' && $arrivalOnValue > $toValue) {
+        $dateFilterWarning = 'Arrival on must be on or before Arrival to.';
+      } elseif ($departureOnValue !== '' && $earliestArrivalValue !== '' && $departureOnValue <= $earliestArrivalValue) {
+        $dateFilterWarning = 'Departure on must be after the earliest selected arrival date.';
+      }
+      $sourceValue = is_scalar(request('source')) ? (string) request('source') : '';
+      $typeValue = is_string(request('type')) ? request('type') : '';
+      $channelValue = is_scalar(request('channel')) ? (string) request('channel') : '';
+      $companyValue = is_scalar(request('company')) ? (string) request('company') : '';
+      $requestedSort = request('sort');
+      $sortValue = is_string($requestedSort) && in_array($requestedSort, ['arrival', 'arrival_asc', 'arrival_desc', 'departure', 'departure_desc', 'created'], true) && ($requestedSort !== 'arrival_asc' || $currentStatus === 'checked_out') ? $requestedSort : 'arrival';
+      $pageSizeValue = $reservations->perPage();
+    @endphp
+    <section class="reservation-list-module" aria-label="Reservation register">
+      <nav class="reservation-status-tabs" aria-label="Filter reservations by status">
+        @foreach($statusOptions as [$key, $label, $statusValue, $count])
+          <a href="{{ $go(['view' => 'list', 'status' => $statusValue, 'page' => null]) }}" class="reservation-status-tab {{ $currentStatus === $key ? 'is-active' : '' }}" @if($currentStatus === $key) aria-current="page" @endif>
+            <span>{{ $label }}</span><b>{{ number_format($count) }}</b>
+          </a>
+        @endforeach
+      </nav>
+
+      <form class="reservation-list-filter" method="get" id="reservationListFilter">
         <input type="hidden" name="view" value="list">
-        <input type="hidden" name="status" value="{{ request('status') }}">
-        <div class="field" style="flex:1;min-width:220px"><label>Search</label><input name="q" value="{{ request('q') }}" placeholder="Res. no, guest, phone, group, OTA ref…"></div>
-        <div class="field"><label>Arrival from</label><input type="date" name="from" value="{{ request('from') }}"></div>
-        <div class="field"><label>Arrival to</label><input type="date" name="to" value="{{ request('to') }}"></div>
-        <div class="field"><label>Source</label><select name="source"><option value="">All</option>@foreach($sources as $id => $n)<option value="{{ $id }}" @selected(request('source') == $id)>{{ $n }}</option>@endforeach</select></div>
-        <div class="field"><label>Type</label><select name="type"><option value="">All</option><option value="individual" @selected(request('type')=='individual')>Individual</option><option value="group" @selected(request('type')=='group')>Group</option></select></div>
+        <input type="hidden" name="status" value="{{ $currentStatus === 'all' ? '' : $currentStatus }}">
+        <label class="reservation-search-field">
+          <span class="reservation-filter-label">Search reservations</span>
+          <span class="reservation-search-control"><x-icon name="search" size="sm"/><input type="search" name="q" value="{{ $searchValue }}" placeholder="Guest, email, reservation, room, phone, company or OTA reference" autocomplete="off" maxlength="160" enterkeyhint="search" aria-label="Search reservations"><button type="button" class="reservation-search-clear" data-clear-reservation-search aria-label="Clear search" @if($searchValue === '') hidden @endif>×</button></span>
+        </label>
+        <label><span class="reservation-filter-label">Arrives on</span><input type="date" name="arrival_on" value="{{ $arrivalOnValue }}" @if($fromValue !== '') min="{{ $fromValue }}" @endif @if($toValue !== '') max="{{ $toValue }}" @endif></label>
+        <label><span class="reservation-filter-label">Departs on</span><input type="date" name="departure_on" value="{{ $departureOnValue }}" @if($departureMinValue !== '') min="{{ $departureMinValue }}" @endif></label>
+        <label><span class="reservation-filter-label">Arrival from</span><input type="date" name="from" value="{{ $fromValue }}" @if($toValue !== '') max="{{ $toValue }}" @endif></label>
+        <label><span class="reservation-filter-label">Arrival to</span><input type="date" name="to" value="{{ $toValue }}" @if($fromValue !== '') min="{{ $fromValue }}" @endif></label>
+        <label><span class="reservation-filter-label">Source</span><select name="source"><option value="">All sources</option>@foreach($sources as $id => $n)<option value="{{ $id }}" @selected($sourceValue == $id)>{{ $n }}</option>@endforeach</select></label>
+        <label><span class="reservation-filter-label">Booking type</span><select name="type"><option value="">All types</option><option value="individual" @selected($typeValue === 'individual')>Individual</option><option value="group" @selected($typeValue === 'group')>Group</option></select></label>
+        <label><span class="reservation-filter-label">Company</span><select name="company"><option value="">All companies</option>@foreach($companies as $id => $name)<option value="{{ $id }}" @selected($companyValue == $id)>{{ $name }}</option>@endforeach</select></label>
         @if($channels->isNotEmpty())
-        <div class="field"><label>Channel</label><select name="channel"><option value="">All</option>@foreach($channels as $id => $n)<option value="{{ $id }}" @selected(request('channel') == $id)>{{ $n }}</option>@endforeach</select></div>
+          <label><span class="reservation-filter-label">Channel</span><select name="channel"><option value="">All channels</option>@foreach($channels as $id => $n)<option value="{{ $id }}" @selected($channelValue == $id)>{{ $n }}</option>@endforeach</select></label>
         @endif
-        <div class="field"><label>Sort</label><select name="sort"><option value="arrival">Arrival date</option><option value="created" @selected(request('sort')=='created')>Newest first</option></select></div>
-        <button class="btn btn-primary">Filter</button>
+        <label><span class="reservation-filter-label">Sort by</span><select name="sort"><option value="arrival" @selected($sortValue === 'arrival')>Arrival date · {{ $currentStatus === 'checked_out' ? 'latest' : 'earliest' }}</option>@if($currentStatus === 'checked_out')<option value="arrival_asc" @selected($sortValue === 'arrival_asc')>Arrival date · earliest</option>@else<option value="arrival_desc" @selected($sortValue === 'arrival_desc')>Arrival date · latest</option>@endif<option value="departure" @selected($sortValue === 'departure')>Departure date · earliest</option><option value="departure_desc" @selected($sortValue === 'departure_desc')>Departure date · latest</option><option value="created" @selected($sortValue === 'created')>Newest booking</option></select></label>
+        <label><span class="reservation-filter-label">Rows</span><select name="per_page"><option value="25" @selected($reservations->perPage() === 25)>25</option><option value="50" @selected($reservations->perPage() === 50)>50</option><option value="100" @selected($reservations->perPage() === 100)>100</option></select></label>
+        <div class="reservation-filter-actions"><button class="btn btn-primary"><x-icon name="grid" size="sm"/> Apply filters</button><a class="btn btn-ghost" href="{{ route('reservations.index', ['view' => 'list']) }}">Reset</a></div>
       </form>
-    </div></div>
-    <div class="card flush"><div class="card-body table-wrap">
-      <table class="table">
-        <thead><tr><th>Res. No</th><th>Guest</th><th>Arrival</th><th>Departure</th><th>N</th><th>Rooms</th><th>Pax</th><th>Source</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-        @forelse($reservations as $r)
-          <tr>
-            <td><a href="{{ route('reservations.show', $r) }}" class="bold">{{ $r->reservation_no }}</a>@if($r->booking_type==='group')<div class="tiny"><span class="badge badge-purple">Group</span> {{ $r->group_name }}</div>@endif</td>
-            <td>{{ $r->guest->full_name }}@if($r->guest->is_vip) <span class="badge badge-purple">VIP</span>@endif<div class="tiny muted">{{ $r->guest->phone }}{{ $r->company ? ' · '.$r->company->name : '' }}</div></td>
-            <td class="nowrap">{{ $r->arrival_date->format('d M Y') }}</td><td class="nowrap">{{ $r->departure_date->format('d M Y') }}</td><td>{{ $r->nights }}</td>
-            <td class="small">{{ $r->rooms->where('status','!=','cancelled')->map(fn($s) => $s->room?->room_no ?? $s->roomType->code)->join(', ') }}</td>
-            <td>{{ $r->adults }}/{{ $r->children }}</td>
-            <td class="small">{{ $r->source?->name }}</td>
-            <td>{!! status_badge($r->status) !!}</td>
-            <td class="nowrap">
-              @php $openStay = $r->rooms->first(fn ($s) => in_array($s->status, ['reserved', 'checked_in'], true)); @endphp
-              @if($openStay)<a class="btn btn-sm" href="{{ route('reservations.stay', $openStay) }}">Open</a>@endif
-              <a class="btn btn-sm" href="{{ route('reservations.show', $r) }}"><x-icon name="eye" size="sm"/></a>
-            </td>
-          </tr>
-        @empty
-          <tr><td colspan="10"><x-empty text="No reservations match your filters." icon="calendar"/></td></tr>
-        @endforelse
-        </tbody>
-      </table>
-      {{ $reservations->links() }}
-    </div></div>
+      @if($dateFilterWarning)
+        <p class="reservation-date-alert" role="alert">{{ $dateFilterWarning }} Adjust the dates or clear one of them.</p>
+      @endif
+
+      <div class="reservation-list-results" role="status" aria-live="polite" aria-atomic="true">
+        <div><strong>{{ number_format($reservations->firstItem() ?? 0) }}–{{ number_format($reservations->lastItem() ?? 0) }}</strong><span> of </span><strong>{{ number_format($reservations->total()) }}</strong><span> reservations</span></div>
+        @if($searchValue !== '')<span class="reservation-query-note"><x-icon name="search" size="sm"/> Matching “{{ $searchValue }}”</span>@endif
+      </div>
+      @php
+        $filterChips = [];
+        $statusLabels = ['confirmed' => 'Confirmed', 'tentative' => 'Tentative', 'checked_in' => 'In-house', 'checked_out' => 'Checked out', 'cancelled' => 'Cancelled', 'no_show' => 'No-show'];
+        if ($currentStatus !== 'all') $filterChips[] = ['status', 'Status: '.$statusLabels[$currentStatus]];
+        if ($searchValue !== '') $filterChips[] = ['q', 'Search: '.$searchValue];
+        if ($fromValue !== '') $filterChips[] = ['from', 'Arrival from: '.\Illuminate\Support\Carbon::parse($fromValue)->format('d M Y')];
+        if ($toValue !== '') $filterChips[] = ['to', 'Arrival to: '.\Illuminate\Support\Carbon::parse($toValue)->format('d M Y')];
+        if ($arrivalOnValue !== '') $filterChips[] = ['arrival_on', 'Arrival on: '.\Illuminate\Support\Carbon::parse($arrivalOnValue)->format('d M Y')];
+        if ($departureOnValue !== '') $filterChips[] = ['departure_on', 'Departure on: '.\Illuminate\Support\Carbon::parse($departureOnValue)->format('d M Y')];
+        if ($sourceValue !== '') $filterChips[] = ['source', 'Source: '.($sources->get($sourceValue) ?? 'Selected')];
+        if (in_array($typeValue, ['individual', 'group'], true)) $filterChips[] = ['type', 'Type: '.ucfirst($typeValue)];
+        if ($channelValue !== '') $filterChips[] = ['channel', 'Channel: '.($channels->get($channelValue) ?? 'Selected')];
+        if ($companyValue !== '') $filterChips[] = ['company', 'Company: '.($companies->get($companyValue) ?? 'Selected')];
+        if ($sortValue !== 'arrival') $filterChips[] = ['sort', 'Sort: '.match($sortValue) { 'arrival_asc' => 'Arrival date · earliest', 'arrival_desc' => 'Arrival date · latest', 'departure' => 'Departure date · earliest', 'departure_desc' => 'Departure date · latest', 'created' => 'Newest booking', default => 'Arrival date · earliest' }];
+        if ($pageSizeValue !== 25) $filterChips[] = ['per_page', 'Rows: '.$reservations->perPage()];
+        $hasListCriteria = $currentStatus !== 'all' || (bool) array_filter($filterChips, fn ($chip) => ! in_array($chip[0], ['sort', 'per_page'], true));
+      @endphp
+      @if($filterChips)
+        <div class="reservation-active-filters" role="group" aria-label="Active reservation filters">
+          <span class="reservation-active-label">Filters</span>
+          @foreach($filterChips as [$filterKey, $filterLabel])
+            @php $withoutFilter = request()->query(); unset($withoutFilter[$filterKey], $withoutFilter['page']); $withoutFilter['view'] = 'list'; @endphp
+            <a href="{{ route('reservations.index', $withoutFilter) }}" aria-label="Remove {{ $filterLabel }} filter">{{ $filterLabel }} <b aria-hidden="true">×</b></a>
+          @endforeach
+          <a class="reservation-clear-filters" href="{{ route('reservations.index', ['view' => 'list']) }}">Clear all</a>
+        </div>
+      @endif
+
+      <div class="table-wrap reservation-table-wrap">
+        <table class="table reservation-table">
+          <caption class="sr-only">Reservation search results</caption>
+          <thead><tr><th scope="col">Reservation</th><th scope="col">Guest</th><th scope="col">Stay</th><th scope="col">Rooms</th><th scope="col">Guests</th><th scope="col">Channel / source</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+          @forelse($reservations as $r)
+            @php
+              $activeRooms = $r->rooms->where('status', '!=', 'cancelled');
+              $openStay = $r->rooms->first(fn ($s) => in_array($s->status, ['reserved', 'checked_in'], true));
+              $bookedAt = $r->created_at?->format($sortValue === 'created' ? 'd M Y, H:i' : 'd M Y') ?? 'date unavailable';
+              $guestPhone = trim((string) ($r->guest?->phone ?? ''));
+              $callPhone = preg_match('/^\\+?[0-9][0-9 .()-]{5,}$/', $guestPhone) ? preg_replace('/[^0-9+]/', '', $guestPhone) : null;
+            @endphp
+            <tr>
+              <td data-label="Reservation">
+                <div class="reservation-number-stack">
+                  <a href="{{ route('reservations.show', $r) }}" class="reservation-number">{{ $r->reservation_no }}</a>
+                  <small class="reservation-created-at">Booked {{ $bookedAt }}</small>
+                </div>
+                @if($r->booking_type === 'group')<div class="reservation-row-tag"><span class="badge badge-purple">Group</span><span>{{ $r->group_name }}</span></div>@endif
+              </td>
+              <td data-label="Guest">
+                <div class="reservation-guest-name">{{ $r->guest?->full_name ?? 'Guest profile unavailable' }}@if($r->guest?->is_vip)<span class="badge badge-amber">VIP</span>@endif</div>
+                <div class="reservation-guest-meta">@if($callPhone)<a href="tel:{{ $callPhone }}" aria-label="Call {{ $r->guest?->full_name ?? 'guest' }} at {{ $guestPhone }}" title="Call guest">{{ $guestPhone }}</a>@else{{ $guestPhone ?: 'No phone on file' }}@endif @if($r->company)<span>· {{ $r->company->name }}</span>@endif</div>
+              </td>
+              <td data-label="Stay">
+                <div class="reservation-stay-dates"><span><small><abbr title="Arrival">ARR</abbr></small>{{ $r->arrival_date->format('d M Y') }}</span><span><small><abbr title="Departure">DEP</abbr></small>{{ $r->departure_date->format('d M Y') }}</span></div>
+                <span class="reservation-night-count">{{ $r->nights }} {{ \Illuminate\Support\Str::plural('night', $r->nights) }}</span>
+              </td>
+              <td data-label="Rooms">
+                @if($activeRooms->isNotEmpty())
+                  <div class="reservation-room-tags">
+                    @foreach($activeRooms->take(2) as $stay)
+                      <span>{{ $stay->room?->room_no ?? $stay->roomType?->code ?? 'Unassigned' }}</span>
+                    @endforeach
+                    @if($activeRooms->count() > 2)<span class="reservation-room-more">+{{ $activeRooms->count() - 2 }}</span>@endif
+                  </div>
+                  <small class="reservation-cell-note">{{ $activeRooms->count() }} {{ \Illuminate\Support\Str::plural('room', $activeRooms->count()) }}</small>
+                @else
+                  <span class="reservation-cell-note">No active rooms</span>
+                @endif
+              </td>
+              <td data-label="Guests"><span class="reservation-pax"><b>{{ $r->adults }}</b> adults</span><span class="reservation-pax-sub">{{ $r->children }} children</span></td>
+              <td data-label="Channel / source"><span class="reservation-source">{{ $r->otaChannel?->name ?? $r->source?->name ?? 'Direct' }}</span>@if($r->otaChannel && $r->source)<span class="reservation-cell-note">Source · {{ $r->source->name }}</span>@endif @if($r->ota_reference)<span class="reservation-cell-note">Ref · {{ $r->ota_reference }}</span>@endif</td>
+              <td data-label="Status">{!! status_badge($r->status) !!}</td>
+              <td data-label="Actions" class="reservation-row-actions">
+                <a class="btn btn-sm" href="{{ route('reservations.show', $r) }}" aria-label="View reservation {{ $r->reservation_no }}" title="View reservation"><x-icon name="eye" size="sm"/></a>
+                @if($openStay)<a class="btn btn-sm" href="{{ route('reservations.stay', $openStay) }}" aria-label="Open stay for {{ $r->reservation_no }}" title="Open stay"><x-icon name="bed" size="sm"/></a>@endif
+              </td>
+            </tr>
+          @empty
+            <tr class="reservation-empty-row"><td colspan="8"><div class="reservation-empty"><span class="reservation-empty-icon"><x-icon name="calendar"/></span><strong>{{ $hasListCriteria ? 'No reservations match these filters' : 'No reservations yet' }}</strong><span>{{ $hasListCriteria ? 'Try adjusting your search or removing a filter.' : 'Create the first reservation to start building the register.' }}</span>@if($hasListCriteria)<a class="btn btn-sm" href="{{ route('reservations.index', ['view' => 'list']) }}">Clear filters</a>@elseif(can_do('reservations.create'))<a class="btn btn-sm btn-primary" href="{{ route('reservations.create') }}">New reservation</a>@endif</div></td></tr>
+          @endforelse
+          </tbody>
+        </table>
+        <div class="reservation-pagination">{{ $reservations->links() }}</div>
+      </div>
+    </section>
   @elseif($view === 'arrivals')
     @include('reservations.desk-lines', ['rows' => $arrivals, 'mode' => 'arrival'])
   @elseif($view === 'departures')
@@ -529,6 +668,192 @@
 .desk.dark .room-thumb{background:#132443;border-color:#1e3a66}
 .desk.dark .room-thumb .type-code{background:#1a3158;color:#dbe7ff}
 .desk.dark .rt-mini{border-color:#1e3a66}
+
+/* Reservation register — quiet, information-dense and quick to scan. */
+#desk[data-view="list"]{background:transparent;border:0;box-shadow:none;overflow:visible}
+.reservation-list-hero{position:relative;isolation:isolate;display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:164px;margin:0 0 16px;padding:26px 30px;border:1px solid #174d37;border-radius:18px;overflow:hidden;color:#fff;background:linear-gradient(115deg,#123b2b 0%,#176342 58%,#23764e 100%);box-shadow:0 12px 30px rgba(16,58,40,.14)}
+.reservation-list-hero:after{content:"";position:absolute;z-index:-1;width:310px;height:310px;right:16%;top:-195px;border:1px solid rgba(255,255,255,.12);border-radius:50%;box-shadow:0 0 0 35px rgba(255,255,255,.035),0 0 0 75px rgba(255,255,255,.025)}
+.reservation-list-hero-copy{max-width:680px}
+.reservation-list-eyebrow{display:flex;align-items:center;gap:8px;color:#c7ead5;font-size:.66rem;font-weight:800;letter-spacing:.14em}
+.reservation-list-eyebrow span{opacity:.55}
+.reservation-list-hero h2{margin:10px 0 6px;color:#fff;font-size:clamp(1.35rem,2.4vw,1.9rem);line-height:1.15;letter-spacing:-.035em}
+.reservation-list-hero p{max-width:560px;margin:0;color:#d1e6d9;font-size:.9rem;line-height:1.55}
+.reservation-list-hero-aside{display:flex;align-items:center;gap:18px;flex:none}
+.reservation-list-date{display:flex;flex-direction:column;gap:3px;padding-left:18px;border-left:1px solid rgba(255,255,255,.22)}
+.reservation-list-date span{color:#c7ead5;font-size:.62rem;font-weight:800;letter-spacing:.12em}
+.reservation-list-date strong{font-size:.95rem;white-space:nowrap}
+.reservation-list-date small{color:#d1e6d9;font-size:.72rem;white-space:nowrap}
+.reservation-list-hero .btn{background:#fff;color:#14532d;border-color:#fff;min-height:40px}
+.reservation-list-views{margin-bottom:14px;padding:6px 8px;border:1px solid var(--c-border);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(18,43,31,.04)}
+.reservation-list-views .desk-view-link{padding:7px 11px;background:transparent;color:#53665b;font-size:.78rem;font-weight:700;text-decoration:none}
+.reservation-list-views .desk-view-link:hover{background:#f0f7f2;color:#14532d}
+.reservation-list-views .desk-view-link.on{background:#e6f3e9;color:#14532d;box-shadow:inset 0 0 0 1px #c7e5ce}
+.reservation-list-views .inline.flex{margin-left:auto;align-items:center}
+.reservation-list-module{display:flex;flex-direction:column;gap:12px}
+.reservation-status-tabs{display:flex;gap:4px;align-items:stretch;padding:5px;overflow-x:auto;border:1px solid var(--c-border);border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(18,43,31,.045);scrollbar-width:thin}
+.reservation-status-tab{display:flex;align-items:center;gap:9px;min-height:42px;padding:0 12px;border:1px solid transparent;border-radius:10px;color:#58665f;text-decoration:none;white-space:nowrap;transition:background .15s ease,color .15s ease,border-color .15s ease}
+.reservation-status-tab span{font-size:.78rem;font-weight:700}
+.reservation-status-tab b{display:inline-grid;min-width:24px;height:22px;place-items:center;padding:0 6px;border-radius:7px;background:#f0f3f1;color:#5f6d64;font-size:.68rem;font-weight:800}
+.reservation-status-tab:hover{background:#f5f9f6;color:#14532d}
+.reservation-status-tab.is-active{border-color:#c6e1cd;background:#eaf5ed;color:#14532d}
+.reservation-status-tab.is-active b{background:#d5ebda;color:#14532d}
+.reservation-list-filter{display:grid;grid-template-columns:minmax(240px,1.65fr) repeat(4,minmax(120px,1fr));gap:11px 12px;align-items:end;padding:16px;border:1px solid var(--c-border);border-radius:14px;background:#fff;box-shadow:0 3px 12px rgba(18,43,31,.04)}
+.reservation-list-filter>label{display:flex;min-width:0;flex-direction:column;gap:6px}
+.reservation-list-filter .reservation-search-field{grid-column:span 2}
+.reservation-filter-label{color:#5f6d64;font-size:.63rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.reservation-list-filter input,.reservation-list-filter select{width:100%;min-width:0;height:40px;padding:0 10px;border:1px solid #dce5df;border-radius:9px;background:#fff;color:#1e3026;font:inherit;font-size:.79rem;outline:none;transition:border-color .15s ease,box-shadow .15s ease}
+.reservation-list-filter input:focus,.reservation-list-filter select:focus{border-color:#2e8155;box-shadow:0 0 0 3px rgba(46,129,85,.13)}
+.reservation-search-control{position:relative;display:flex;align-items:center}
+.reservation-search-control>svg{position:absolute;left:11px;color:#738078;pointer-events:none}
+.reservation-search-control input{padding-left:36px;padding-right:36px}
+.reservation-search-control input::-webkit-search-cancel-button{display:none}
+.reservation-search-clear{position:absolute;right:7px;display:grid;width:27px;height:27px;place-items:center;border:0;border-radius:7px;background:#eef3ef;color:#4b5d51;font-size:1.1rem;line-height:1;cursor:pointer}
+.reservation-search-clear:hover{background:#dcebe0;color:#14532d}
+.reservation-search-clear[hidden]{display:none}
+.reservation-filter-actions{display:flex;align-items:center;gap:6px;min-height:40px}
+.reservation-filter-actions .btn{height:40px;white-space:nowrap}
+.reservation-date-alert{margin:0;padding:10px 12px;border:1px solid #f1c0b8;border-radius:9px;background:#fff4f2;color:#9a3412;font-size:.78rem;font-weight:650}
+.reservation-list-results{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:30px;padding:0 3px;color:#68766e;font-size:.78rem}
+.reservation-list-results strong{color:#24372b;font-variant-numeric:tabular-nums}
+.reservation-query-note{display:inline-flex;align-items:center;gap:6px;max-width:50%;overflow:hidden;color:#557262;text-overflow:ellipsis;white-space:nowrap}
+.reservation-active-filters{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.reservation-active-label{margin-right:2px;color:#5f6d64;font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.reservation-active-filters a{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:5px 8px;border:1px solid #dce8df;border-radius:999px;background:#f6faf7;color:#46604e;font-size:.68rem;text-decoration:none;overflow-wrap:anywhere}
+.reservation-active-filters a:hover{border-color:#afd2b8;background:#edf6ef;color:#14532d}
+.reservation-active-filters a b{color:#5f6d64;font-size:.9rem}
+.reservation-active-filters .reservation-clear-filters{border-color:transparent;background:transparent;color:#25613d;font-weight:750}
+.reservation-table-wrap{overflow:auto;border:1px solid var(--c-border);border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(18,43,31,.055)}
+.reservation-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0}
+.reservation-table thead th{padding:12px 13px;border-bottom:1px solid #e6ece8;background:#f7faf8;color:#5f6d64;font-size:.62rem;font-weight:800;letter-spacing:.09em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.reservation-table tbody td{padding:13px;border-bottom:1px solid #edf1ee;color:#283a2f;font-size:.79rem;vertical-align:middle}
+.reservation-table tbody tr:last-child td{border-bottom:0}
+.reservation-table tbody tr:not(.reservation-empty-row):hover td{background:#f8fbf9}
+.reservation-number{color:#155e3b;font-size:.82rem;font-weight:800;text-decoration:none;white-space:nowrap}
+.reservation-number:hover{text-decoration:underline;text-underline-offset:3px}
+.reservation-number-stack{display:flex;min-width:0;flex-direction:column;gap:3px}
+.reservation-created-at{color:#5f6d64;font-size:.63rem}
+.reservation-row-tag{display:flex;align-items:center;gap:5px;margin-top:5px;color:#5f6d64;font-size:.68rem}
+.reservation-row-tag .badge{font-size:.6rem}
+.reservation-guest-name{display:flex;align-items:center;gap:6px;color:#20342a;font-weight:750;white-space:nowrap}
+.reservation-guest-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;color:#5f6d64;font-size:.68rem}
+.reservation-guest-meta a{color:inherit;text-decoration:underline;text-decoration-color:#a7c3ae;text-underline-offset:2px}
+.reservation-guest-meta a:hover{text-decoration-color:currentColor}
+.reservation-stay-dates{display:flex;gap:9px;white-space:nowrap}
+.reservation-stay-dates>span{display:flex;flex-direction:column;gap:2px;font-weight:700;font-variant-numeric:tabular-nums}
+.reservation-stay-dates small{color:#5f6d64;font-size:.55rem;font-weight:800;letter-spacing:.08em}
+.reservation-stay-dates abbr{text-decoration:none}
+.reservation-night-count,.reservation-cell-note{display:block;margin-top:4px;color:#5f6d64;font-size:.66rem}
+.reservation-room-tags{display:flex;flex-wrap:wrap;gap:4px}
+.reservation-room-tags span{display:inline-flex;align-items:center;padding:3px 6px;border:1px solid #dce9df;border-radius:6px;background:#f4f9f5;color:#325b40;font-size:.66rem;font-weight:750;white-space:nowrap}
+.reservation-room-tags .reservation-room-more{border-color:#e4eae5;background:#f6f7f6;color:#5f6d64}
+.reservation-pax{display:block;color:#3c5144;font-size:.72rem;white-space:nowrap}
+.reservation-pax b{color:#193b29;font-size:.9rem}
+.reservation-pax-sub{display:block;margin-top:3px;color:#5f6d64;font-size:.66rem;white-space:nowrap}
+.reservation-source{display:block;color:#42564a;font-weight:650;white-space:nowrap}
+.reservation-row-actions{display:flex;justify-content:flex-end;gap:5px;white-space:nowrap}
+.reservation-row-actions .btn{width:34px;height:34px;justify-content:center;padding:0;border-color:#dfe8e1;background:#fff;color:#42634e}
+.reservation-row-actions .btn:hover{border-color:#b8d6c0;background:#eff7f1;color:#14532d}
+.reservation-row-actions svg{width:15px;height:15px}
+.reservation-empty-row td{padding:42px 16px!important}
+.reservation-empty{display:flex;align-items:center;flex-direction:column;gap:8px;color:#5f6d64;text-align:center}
+.reservation-empty-icon{display:grid;width:48px;height:48px;place-items:center;margin-bottom:4px;border:1px solid #dcebe0;border-radius:14px;background:#f2f8f4;color:#49805a}
+.reservation-empty-icon svg{width:22px;height:22px}
+.reservation-empty strong{color:#304338;font-size:.95rem}
+.reservation-empty>span:not(.reservation-empty-icon){font-size:.77rem}
+.reservation-empty .btn{margin-top:4px}
+.reservation-pagination{padding:12px 14px;border-top:1px solid #edf1ee;background:#fff}
+#desk[data-view="list"] .reservation-pagination nav{display:flex;justify-content:center}
+.desk.dark[data-view="list"] .reservation-list-views,.desk.dark[data-view="list"] .reservation-status-tabs,.desk.dark[data-view="list"] .reservation-list-filter,.desk.dark[data-view="list"] .reservation-table-wrap,.desk.dark[data-view="list"] .reservation-pagination{border-color:#263b31;background:#13231a}
+.desk.dark[data-view="list"] .reservation-list-views .desk-view-link{color:#c1d2c6}
+.desk.dark[data-view="list"] .reservation-list-views .desk-view-link.on,.desk.dark[data-view="list"] .reservation-status-tab.is-active{border-color:#36774d;background:#1b3a29;color:#d7f0dd}
+.desk.dark[data-view="list"] .reservation-status-tab{color:#bac8be}
+.desk.dark[data-view="list"] .reservation-date-alert{border-color:#754238;background:#301e1a;color:#ffcabd}
+.desk.dark[data-view="list"] .reservation-status-tab b,.desk.dark[data-view="list"] .reservation-search-clear{background:#20362a;color:#c0d1c4}
+.desk.dark[data-view="list"] .reservation-list-filter input,.desk.dark[data-view="list"] .reservation-list-filter select,.desk.dark[data-view="list"] .reservation-row-actions .btn{border-color:#30483a;background:#102018;color:#e1eee4}
+.desk.dark[data-view="list"] .reservation-table thead th{border-color:#30483a;background:#172a1f;color:#aebfb2}
+.desk.dark[data-view="list"] .reservation-table tbody td{border-color:#263b31;color:#d5e2d8}
+.desk.dark[data-view="list"] .reservation-table tbody tr:not(.reservation-empty-row):hover td{background:#192f22}
+.desk.dark[data-view="list"] .reservation-number,.desk.dark[data-view="list"] .reservation-guest-name,.desk.dark[data-view="list"] .reservation-list-results strong,.desk.dark[data-view="list"] .reservation-empty strong{color:#d7f0dd}
+.desk.dark[data-view="list"] .reservation-list-results,.desk.dark[data-view="list"] .reservation-query-note,.desk.dark[data-view="list"] .reservation-active-label,.desk.dark[data-view="list"] .reservation-active-filters a,.desk.dark[data-view="list"] .reservation-row-tag,.desk.dark[data-view="list"] .reservation-created-at,.desk.dark[data-view="list"] .reservation-guest-meta,.desk.dark[data-view="list"] .reservation-night-count,.desk.dark[data-view="list"] .reservation-cell-note,.desk.dark[data-view="list"] .reservation-pax-sub,.desk.dark[data-view="list"] .reservation-stay-dates small,.desk.dark[data-view="list"] .reservation-empty{color:#a9bdae}
+.desk.dark[data-view="list"] .reservation-active-filters a{border-color:#365341;background:#1a3323}
+.desk.dark[data-view="list"] .reservation-active-filters .reservation-clear-filters{border-color:transparent;background:transparent;color:#b8e2c4}
+.desk.dark[data-view="list"] .reservation-table tbody td:before{color:#a0b3a4}
+.desk.dark[data-view="list"] .reservation-empty-icon{border-color:#365341;background:#1a3323;color:#b8e2c4}
+.desk.dark[data-view="list"] .reservation-room-tags span{border-color:#365341;background:#1a3323;color:#d7e9db}
+.desk.dark[data-view="list"] .reservation-pax,.desk.dark[data-view="list"] .reservation-source{color:#c4d4c8}
+.desk.dark[data-view="list"] .reservation-room-tags .reservation-room-more{background:#20362a;color:#c0d1c4}
+.reservation-status-tab:focus-visible,.reservation-list-views .desk-view-link:focus-visible,.reservation-active-filters a:focus-visible,.reservation-guest-meta a:focus-visible,.reservation-row-actions .btn:focus-visible,.reservation-search-clear:focus-visible{outline:3px solid #77b989;outline-offset:2px;position:relative;z-index:2}
+@media(max-width:1250px){.reservation-list-filter{grid-template-columns:repeat(4,minmax(130px,1fr))}.reservation-list-filter .reservation-search-field{grid-column:span 2}.reservation-filter-actions{grid-column:span 2}}
+@media(max-width:850px){
+  .reservation-list-hero{align-items:flex-start;flex-direction:column;padding:22px}
+  .reservation-list-hero-aside{justify-content:space-between;width:100%}
+  .reservation-list-date{padding-left:0;border-left:0}
+  .reservation-list-views{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+  .reservation-list-views .inline.flex{margin-left:0}
+  .reservation-list-filter{grid-template-columns:repeat(2,minmax(0,1fr));padding:13px}
+  .reservation-list-filter .reservation-search-field,.reservation-filter-actions{grid-column:1/-1}
+}
+@media(max-width:640px){
+  #desk[data-view="list"]{padding-bottom:0}
+  .reservation-list-hero{min-height:0;gap:17px;margin-bottom:11px;padding:19px;border-radius:14px}
+  .reservation-list-hero h2{font-size:1.4rem}
+  .reservation-list-hero p{font-size:.8rem}
+  .reservation-list-hero-aside{align-items:center}
+  .reservation-list-date strong{font-size:.82rem}
+  .reservation-list-date small{font-size:.64rem}
+  .reservation-status-tabs{border-radius:11px}
+  .reservation-status-tab{min-height:38px;padding:0 9px}
+  .reservation-status-tab span{font-size:.7rem}
+  .reservation-status-tab b{min-width:21px;height:20px}
+  .reservation-list-filter{gap:9px;padding:11px}
+  .reservation-list-filter input,.reservation-list-filter select{height:38px;font-size:.75rem}
+  .reservation-filter-actions .btn{flex:1;justify-content:center}
+  .reservation-list-results{align-items:flex-start;flex-direction:column;gap:4px;padding:0 2px}
+  .reservation-query-note{max-width:100%}
+  .reservation-table{min-width:0}
+  .reservation-table thead{display:none}
+  .reservation-table,.reservation-table tbody{display:block;width:100%}
+  .reservation-table tbody tr:not(.reservation-empty-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 8px;padding:7px 10px;border-bottom:1px solid #e9efeb}
+  .reservation-table tbody td{display:block;min-width:0;padding:9px 5px;border:0;font-size:.74rem}
+  .reservation-number{white-space:normal;overflow-wrap:anywhere}
+  .reservation-guest-meta,.reservation-source,.reservation-cell-note{overflow-wrap:anywhere}
+  .reservation-source{white-space:normal}
+  .reservation-stay-dates{flex-direction:column;gap:4px;white-space:normal}
+  .reservation-room-tags span{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .reservation-table tbody td:before{display:block;margin-bottom:4px;color:#5f6d64;content:attr(data-label);font-size:.55rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+  .reservation-table tbody td[data-label="Reservation"]{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .reservation-table tbody td[data-label="Reservation"]:before{display:none}
+  .reservation-table tbody td[data-label="Guest"]{grid-column:1/-1}
+  .reservation-table tbody td[data-label="Actions"]{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:3px}
+  .reservation-table tbody td[data-label="Actions"]:before{display:none}
+  .reservation-guest-name{min-width:0;white-space:normal;overflow-wrap:anywhere}
+  .reservation-row-tag,.reservation-row-tag>span:last-child{min-width:0;overflow-wrap:anywhere}
+  .reservation-stay-dates{gap:7px;font-size:.7rem}
+  .reservation-table tbody tr.reservation-empty-row{display:block;padding:0;border:0}
+  .reservation-empty-row td{display:block;padding:34px 12px!important}
+  .reservation-pagination{padding:10px 7px}
+}
+@media(max-width:390px){.reservation-list-filter{grid-template-columns:minmax(0,1fr)}.reservation-list-filter .reservation-search-field,.reservation-filter-actions{grid-column:auto}.reservation-list-hero-aside{align-items:flex-start;flex-direction:column}.reservation-list-hero .btn{width:100%;justify-content:center}}
+@media(prefers-reduced-motion:reduce){.reservation-status-tab,.reservation-list-filter input,.reservation-list-filter select{transition:none}}
+@media print{
+  .page-head .actions,.reservation-status-tabs,.reservation-list-filter,.reservation-list-views,.reservation-list-hero .btn,.reservation-pagination,.reservation-row-actions{display:none!important}
+  .reservation-list-hero{min-height:0;padding:10px 0;border:0;border-radius:0;background:#fff;color:#17251b;box-shadow:none}
+  .reservation-list-hero h2,.reservation-list-date strong{color:#17251b}
+  .reservation-list-hero p,.reservation-list-date small,.reservation-list-eyebrow,.reservation-list-date span{color:#526257}
+  .reservation-list-hero:after{display:none}
+  .reservation-table-wrap{overflow:visible;border:0;box-shadow:none}
+  .reservation-table{min-width:0}
+  #desk[data-view="list"] .reservation-table-wrap{background:#fff!important;color:#17251b!important}
+  #desk[data-view="list"] .reservation-table thead th{border-color:#e6ece8!important;background:#f7faf8!important;color:#5f6d64!important}
+  #desk[data-view="list"] .reservation-table tbody td{border-color:#edf1ee!important;background:#fff!important;color:#283a2f!important}
+  #desk[data-view="list"] .reservation-number{color:#155e3b!important}
+  #desk[data-view="list"] .reservation-guest-name{color:#20342a!important}
+  #desk[data-view="list"] .reservation-list-results,#desk[data-view="list"] .reservation-active-label,#desk[data-view="list"] .reservation-created-at,#desk[data-view="list"] .reservation-guest-meta,#desk[data-view="list"] .reservation-row-tag,#desk[data-view="list"] .reservation-stay-dates small,#desk[data-view="list"] .reservation-night-count,#desk[data-view="list"] .reservation-cell-note,#desk[data-view="list"] .reservation-pax-sub,#desk[data-view="list"] .reservation-empty{color:#5f6d64!important}
+  #desk[data-view="list"] .reservation-list-results strong{color:#24372b!important}
+  #desk[data-view="list"] .reservation-pax,#desk[data-view="list"] .reservation-source{color:#42564a!important}
+  #desk[data-view="list"] .reservation-active-filters a{border-color:#dce8df!important;background:#f6faf7!important;color:#46604e!important}
+  #desk[data-view="list"] .reservation-room-tags span{border-color:#dce9df!important;background:#f4f9f5!important;color:#325b40!important}
+}
 </style>
 @endpush
 @push('scripts')
@@ -571,7 +896,16 @@
     document.body.classList.toggle('dark', mode === 'dark');
   };
   apply(localStorage.getItem(key) || localStorage.getItem('nowills-desk-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-  document.getElementById('print-btn').addEventListener('click', () => window.print());
+  document.getElementById('print-btn')?.addEventListener('click', () => window.print());
+  const reservationSearch = document.querySelector('#reservationListFilter input[name="q"]');
+  const clearReservationSearch = document.querySelector('[data-clear-reservation-search]');
+  reservationSearch?.addEventListener('input', () => { if (clearReservationSearch) clearReservationSearch.hidden = !reservationSearch.value; });
+  clearReservationSearch?.addEventListener('click', () => {
+    if (!reservationSearch) return;
+    reservationSearch.value = '';
+    clearReservationSearch.hidden = true;
+    reservationSearch.form?.requestSubmit();
+  });
   function jsonPost(url, body) {
     return fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }, body: body })
       .then(r => r.json().then(j => ({ ok: r.ok, j })).catch(() => ({ ok: false, j: { message: 'The server did not answer.' } })));
@@ -612,14 +946,16 @@
       if (ok) form.dataset.seen = previewKey(form);
     });
   });
-  const tickUrl = @json(route('reservations.tick'));
-  let tick = @json($tick);
-  setInterval(() => {
-    fetch(tickUrl + '?date=' + @json($date->toDateString()), { headers: { 'Accept': 'application/json' } })
-      .then(r => r.ok ? r.json() : null)
-      .then(j => { if (j && j.tick && j.tick !== tick) { tick = j.tick; say('The desk changed in another session. Reload to see it.'); } })
-      .catch(() => {});
-  }, 60000);
+  if (desk && desk.dataset.view !== 'list') {
+    const tickUrl = @json(route('reservations.tick'));
+    let tick = @json($tick ?? null);
+    setInterval(() => {
+      fetch(tickUrl + '?date=' + @json($date->toDateString()), { headers: { 'Accept': 'application/json' } })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (j && j.tick && j.tick !== tick) { tick = j.tick; say('The desk changed in another session. Reload to see it.'); } })
+        .catch(() => {});
+    }, 60000);
+  }
 })();
 </script>
 @endpush
