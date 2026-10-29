@@ -11,6 +11,7 @@ use App\Services\TaxService;
 use App\Support\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /** v5.2 Tenant accounts: receipts (with withholding tax), deposits, extra charges, credit notes, statements, arrears. */
@@ -51,13 +52,37 @@ class LeaseBillingController extends Controller
 
     public function pay(Request $request, Lease $lease)
     {
-        $d = $request->validate(['kind' => 'required|in:payment,deposit', 'amount' => 'required|numeric|min:0.01', 'payment_mode_id' => 'required|integer', 'reference' => 'nullable|string|max:80',
-            'wht_amount' => 'nullable|numeric|min:0', 'wht_cert_no' => 'nullable|string|max:40', 'note' => 'nullable|string|max:255']);
+        $d = $request->validate([
+            'kind' => 'required|in:payment,deposit', 'amount' => 'nullable|numeric|min:0.01',
+            'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:80',
+            'wht_amount' => 'nullable|numeric|min:0', 'wht_cert_no' => 'nullable|string|max:40', 'note' => 'nullable|string|max:255',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+        ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && ((float) ($d['amount'] ?? 0) > 0 || ! empty($d['payment_mode_id']) || (float) ($d['wht_amount'] ?? 0) > 0)) {
+            throw ValidationException::withMessages(['payments' => 'Use split tenders without a single payment mode or WHT amount. Record WHT with one tender.']);
+        }
+        if (! $payments && (empty($d['amount']) || empty($d['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payment_mode_id' => 'Enter an amount and choose a payment mode, or add split tender rows.']);
+        }
 
-        return $this->attempt(fn () => LB::pay($lease, $d['kind'], (float) $d['amount'], (int) $d['payment_mode_id'], $d['reference'] ?? null, $request->user(), null,
-            (float) ($d['wht_amount'] ?? 0), $d['wht_cert_no'] ?? null, $d['note'] ?? null),
-            fn ($p) => ($p->kind === 'deposit' ? 'Deposit' : 'Receipt')." {$p->receipt_no} – ".money($p->amount).((float) $p->wht_amount > 0 ? ' + WHT '.money($p->wht_amount) : '')
-                .'. Balance '.money(LB::balance($lease)).', deposit held '.money(LB::depositHeld($lease)).'.');
+        return $this->attempt(function () use ($lease, $payments, $d, $request) {
+            if ($payments) {
+                return LB::payMany($lease, $d['kind'], $payments, $request->user(), null, $d['note'] ?? null);
+            }
+
+            return LB::pay($lease, $d['kind'], (float) $d['amount'], (int) $d['payment_mode_id'], $d['reference'] ?? null, $request->user(), null,
+                (float) ($d['wht_amount'] ?? 0), $d['wht_cert_no'] ?? null, $d['note'] ?? null);
+        }, function ($result) use ($lease, $d) {
+            $receipts = is_array($result) ? $result : [$result];
+            $label = ($d['kind'] === 'deposit' ? 'Deposit' : 'Receipt').(count($receipts) > 1 ? 's' : '');
+            $numbers = implode(', ', array_map(fn ($receipt) => $receipt->receipt_no, $receipts));
+            $amount = array_sum(array_map(fn ($receipt) => (float) $receipt->amount + (float) $receipt->wht_amount, $receipts));
+
+            return "{$label} {$numbers} – ".money($amount).'. Balance '.money(LB::balance($lease)).', deposit held '.money(LB::depositHeld($lease)).'.';
+        });
     }
 
     public function refund(Request $request, Lease $lease)

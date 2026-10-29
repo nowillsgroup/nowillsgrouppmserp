@@ -2,14 +2,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Nowills PMS — post-deploy hook for CyberPanel / OpenLiteSpeed
 #
-# Run it after every `git pull` on the server:
+# Run it manually after each `git pull` on the server:
 #
-#   bash /home/nowills.com/pms.nowills.com/deploy/cyberpanel/post-deploy.sh
+#   bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh
 #
-# It is also the exact command to paste into
-#   CyberPanel → Websites → Manage → Manage Git → Commands
-# one single line with no ; & | $ characters, which is what CyberPanel's input
-# filter accepts. CyberPanel then runs it after every successful webhook pull.
+# Production updates for pms.nowills.com are manual: do not connect this script to
+# CyberPanel push-to-deploy, a GitHub webhook, or an automated GitHub Action.
 #
 # What it does, in order:
 #   1. refuses to run if the Composer tree (build/vendor) is missing

@@ -65,20 +65,83 @@ class ReservationDeskService
 
     public static function page(Request $request): array
     {
-        self::syncAmenities();
-        try {
-            $date = Carbon::parse($request->input('date', bdate()->toDateString()))->startOfDay();
-        } catch (\Throwable) {
-            $date = Carbon::parse(bdate()->toDateString())->startOfDay();
+        $scalarDefaults = [
+            'date' => bdate()->toDateString(), 'days' => 14, 'group' => 'type', 'view' => '', 'tab' => '', 'q' => '',
+            'status' => '', 'source' => '', 'type' => '', 'channel' => '', 'company' => '', 'arrival_on' => '', 'departure_on' => '', 'from' => '', 'to' => '',
+            'sort' => 'arrival', 'per_page' => 25, 'page' => 1, 'room_type' => '', 'amenity' => '', 'hk' => '', 'floor' => '',
+            'focus' => '', 'vip' => '',
+        ];
+        foreach ($scalarDefaults as $key => $fallback) {
+            $value = $request->input($key);
+            if ($value !== null && ! is_scalar($value)) {
+                $request->merge([$key => $fallback]);
+            }
         }
+        if ($request->query->has('page')) {
+            $rawPage = $request->query->get('page');
+            $pageNumber = is_scalar($rawPage) ? filter_var($rawPage, FILTER_VALIDATE_INT) : false;
+            $request->merge(['page' => $pageNumber !== false && $pageNumber > 0 ? (int) $pageNumber : 1]);
+        }
+        $rawSearch = $request->input('q');
+        if (is_string($rawSearch)) {
+            $request->merge(['q' => mb_substr(trim($rawSearch), 0, 160)]);
+        }
+        foreach (['source', 'channel', 'company'] as $idFilter) {
+            $rawId = $request->input($idFilter);
+            if ($rawId !== null && $rawId !== '') {
+                $id = self::validPositiveId($rawId);
+                $request->merge([$idFilter => $id === null ? '' : (string) $id]);
+            }
+        }
+        $dateString = self::validDateString($request->input('date')) ?? bdate()->toDateString();
+        $request->merge(['date' => $dateString]);
+        foreach (['arrival_on', 'departure_on', 'from', 'to'] as $dateFilter) {
+            $rawDate = $request->input($dateFilter);
+            if ($rawDate !== null) {
+                $request->merge([$dateFilter => self::validDateString($rawDate) ?? '']);
+            }
+        }
+        $date = Carbon::createFromFormat('!Y-m-d', $dateString)->startOfDay();
         $days = min(31, max(7, (int) $request->input('days', 14)));
         $to = $date->copy()->addDays($days);
         $view = $request->input('view');
         if (! in_array($view, self::VIEWS, true)) {
-            $view = $request->hasAny(['status', 'q', 'from', 'to', 'source', 'type', 'sort', 'channel']) ? 'list' : 'dashboard';
+            $view = $request->hasAny(['status', 'q', 'arrival_on', 'departure_on', 'from', 'to', 'source', 'type', 'sort', 'channel', 'per_page']) ? 'list' : 'dashboard';
+        }
+        if ($view === 'list') {
+            $legacyTab = $request->input('tab');
+            if (! $request->filled('status') && in_array($legacyTab, ['noshow', 'cancelled'], true)) {
+                $request->merge(['status' => $legacyTab === 'noshow' ? 'no_show' : 'cancelled']);
+            }
+            if ($request->input('sort') === 'arrival_asc' && $request->input('status') !== 'checked_out') {
+                $request->merge(['sort' => 'arrival']);
+            }
+            $request->query->remove('tab');
         }
         $group = in_array($request->input('group'), ['floor', 'hk', 'status', 'type'], true) ? $request->input('group') : 'type';
 
+        if ($view === 'list') {
+            $pageSize = self::listPageSize($request);
+            $reservations = self::listQuery($request)->paginate($pageSize);
+            if ($reservations->currentPage() > $reservations->lastPage()) {
+                $request->merge(['page' => $reservations->lastPage()]);
+                $reservations = self::listQuery($request)->paginate($pageSize);
+            }
+            $reservations = $reservations->withQueryString();
+
+            return [
+                'view' => $view, 'date' => $date, 'days' => $days, 'to' => $to, 'group' => $group,
+                'tabs' => collect(), 'reservations' => $reservations,
+                'counts' => self::listStatusCounts($request),
+                'sources' => BusinessSource::orderBy('name')->pluck('name', 'id'),
+                'channels' => OtaChannel::orderBy('name')->pluck('name', 'id'),
+                'companies' => Company::orderBy('name')->get(['id', 'name', 'is_active'])
+                    ->mapWithKeys(fn ($company) => [$company->id => $company->name.($company->is_active ? '' : ' (inactive)')]),
+                'saved' => ReservationDeskView::where('user_id', auth()->id())->orderBy('name')->get(),
+            ];
+        }
+
+        self::syncAmenities();
         $rooms = Room::with(['roomType.amenityLinks.amenity', 'roomType.images', 'floor', 'images', 'amenityLinks.amenity'])
             ->where('is_active', true)->orderBy('room_no')->get();
         $amenityId = (int) $request->input('amenity');
@@ -209,8 +272,8 @@ class ReservationDeskService
             'noShows' => $view === 'dashboard' ? self::noShows($date) : null,
             'unassigned' => $unassigned, 'groups' => $groups,
             'waitlist' => ReservationWaitlist::with(['guest', 'roomType', 'reservation'])->orderByDesc('priority')->orderBy('arrival_date')->get(),
-            'reservations' => $view === 'list' ? self::listQuery($request)->paginate(25)->withQueryString() : null,
-            'counts' => Reservation::select('status', DB::raw('count(*) c'))->groupBy('status')->pluck('c', 'status'),
+            'reservations' => $view === 'list' ? self::listQuery($request)->paginate(self::listPageSize($request))->withQueryString() : null,
+            'counts' => $view === 'list' ? self::listStatusCounts($request) : Reservation::select('status', DB::raw('count(*) c'))->groupBy('status')->pluck('c', 'status'),
             'sources' => BusinessSource::orderBy('name')->pluck('name', 'id'),
             'roomTypes' => RoomType::where('is_active', true)->orderBy('name')->get(),
             'channels' => OtaChannel::orderBy('name')->pluck('name', 'id'),
@@ -224,35 +287,109 @@ class ReservationDeskService
         ];
     }
 
+    private static function validDateString($value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+        [$year, $month, $day] = array_map('intval', explode('-', $value));
+
+        return checkdate($month, $day, $year) ? $value : null;
+    }
+
+    private static function validPositiveId($value): ?int
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+        $id = filter_var((string) $value, FILTER_VALIDATE_INT);
+
+        return $id !== false && $id > 0 ? $id : null;
+    }
+
+    public static function listPageSize(Request $request): int
+    {
+        $value = $request->input('per_page', 25);
+        $perPage = is_scalar($value) ? filter_var((string) $value, FILTER_VALIDATE_INT) : false;
+
+        return $perPage !== false && in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
+    }
+
+    public static function listStatusCounts(Request $request)
+    {
+        $filters = $request->query->all();
+        unset($filters['status'], $filters['page']);
+        $facetRequest = Request::create($request->url(), 'GET', $filters);
+
+        return self::listQuery($facetRequest)->reorder()
+            ->select('status', DB::raw('count(*) as aggregate'))
+            ->groupBy('status')->pluck('aggregate', 'status');
+    }
+
     public static function listQuery(Request $request)
     {
-        try {
-            $date = Carbon::parse($request->input('date', bdate()->toDateString()))->toDateString();
-        } catch (\Throwable) {
-            $date = bdate()->toDateString();
+        $date = self::validDateString($request->input('date')) ?? bdate()->toDateString();
+        $rawSearch = $request->input('q');
+        $search = is_string($rawSearch) ? mb_substr(trim($rawSearch), 0, 160) : '';
+        $rawStatus = $request->input('status');
+        $status = is_string($rawStatus) && in_array($rawStatus, ['tentative', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'], true) ? $rawStatus : null;
+        $rawType = $request->input('type');
+        $type = is_string($rawType) && in_array($rawType, ['individual', 'group'], true) ? $rawType : null;
+        $sourceId = self::validPositiveId($request->input('source'));
+        $channelId = self::validPositiveId($request->input('channel'));
+        $companyId = self::validPositiveId($request->input('company'));
+        $arrivalOn = self::validDateString($request->input('arrival_on'));
+        $departureOn = self::validDateString($request->input('departure_on'));
+        $from = self::validDateString($request->input('from'));
+        $to = self::validDateString($request->input('to'));
+        $registerView = $request->input('view') === 'list';
+        $tab = $registerView ? null : $request->input('tab');
+        $vipOnly = ! $registerView && ($request->input('tab') === 'vip' || $request->boolean('vip'));
+        $q = Reservation::with(['guest', 'source', 'otaChannel', 'rooms.room', 'rooms.roomType', 'company'])
+            ->when($search !== '', fn ($w) => $w->where(fn ($x) => $x->where('reservation_no', 'like', "%$search%")
+                ->orWhere('group_name', 'like', "%$search%")
+                ->orWhere('ota_reference', 'like', "%$search%")
+                ->orWhereHas('guest', fn ($g) => $g->whereNull('privacy_status')->search($search))
+                ->orWhereHas('company', fn ($company) => $company->where('name', 'like', "%$search%"))
+                ->orWhereHas('otaChannel', fn ($channel) => $channel->where('name', 'like', "%$search%"))
+                ->orWhereHas('source', fn ($source) => $source->where('name', 'like', "%$search%"))
+                ->orWhereHas('rooms.room', fn ($room) => $room->where('room_no', 'like', "%$search%"))
+                ->orWhereHas('rooms.roomType', fn ($roomType) => $roomType->where('code', 'like', "%$search%")->orWhere('name', 'like', "%$search%"))))
+            ->when($status, fn ($w) => $w->where('status', $status))
+            ->when($sourceId, fn ($w) => $w->where('business_source_id', $sourceId))
+            ->when($arrivalOn, fn ($w) => $w->whereDate('arrival_date', $arrivalOn))
+            ->when($departureOn, fn ($w) => $w->whereDate('departure_date', $departureOn))
+            ->when($from, fn ($w) => $w->whereDate('arrival_date', '>=', $from))
+            ->when($to, fn ($w) => $w->whereDate('arrival_date', '<=', $to))
+            ->when($type, fn ($w) => $w->where('booking_type', $type))
+            ->when($channelId, fn ($w) => $w->where('ota_channel_id', $channelId))
+            ->when($tab === 'arrivals', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
+            ->when($tab === 'inhouse', fn ($w) => $w->where('status', 'checked_in'))
+            ->when($tab === 'stayover', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', '>', $date))
+            ->when($tab === 'dueout', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', $date))
+            ->when($tab === 'departures', fn ($w) => $w->whereDate('departure_date', $date)->whereIn('status', ['checked_in', 'checked_out']))
+            ->when($tab === 'unassigned', fn ($w) => $w->whereHas('rooms', fn ($r) => $r->whereNull('room_id')->where('status', 'reserved')))
+            ->when($vipOnly, fn ($w) => $w->whereHas('guest', fn ($g) => $g->where('is_vip', true))->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
+            ->when($tab === 'groups', fn ($w) => $w->where('booking_type', 'group')->whereNotIn('status', ['cancelled', 'no_show']))
+            ->when($tab === 'cancelled', fn ($w) => $w->where('status', 'cancelled'))
+            ->when($tab === 'duein', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed']))
+            ->when($tab === 'noshow', fn ($w) => $w->where('status', 'no_show'))
+            ->when($companyId, fn ($w) => $w->where('company_id', $companyId));
+        $requestedSort = $request->input('sort', 'arrival');
+        $sort = is_string($requestedSort) && in_array($requestedSort, ['arrival', 'arrival_asc', 'arrival_desc', 'departure', 'departure_desc', 'created'], true) ? $requestedSort : 'arrival';
+        if ($sort === 'arrival_asc' && $status !== 'checked_out') {
+            $sort = 'arrival';
         }
-        $q = Reservation::with(['guest', 'source', 'rooms.room', 'rooms.roomType', 'company'])
-            ->when($request->q, fn ($w, $t) => $w->where(fn ($x) => $x->where('reservation_no', 'like', "%$t%")->orWhere('group_name', 'like', "%$t%")->orWhere('ota_reference', 'like', "%$t%")->orWhereHas('guest', fn ($g) => $g->whereNull('privacy_status')->search($t))))
-            ->when($request->status, fn ($w, $s) => $w->where('status', $s))
-            ->when($request->source, fn ($w, $s) => $w->where('business_source_id', $s))
-            ->when($request->from, fn ($w, $d) => $w->whereDate('arrival_date', '>=', $d))
-            ->when($request->to, fn ($w, $d) => $w->whereDate('arrival_date', '<=', $d))
-            ->when($request->type, fn ($w, $t) => $w->where('booking_type', $t))
-            ->when($request->channel, fn ($w, $c) => $w->where('ota_channel_id', (int) $c))
-            ->when($request->input('tab') === 'arrivals', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
-            ->when($request->input('tab') === 'inhouse', fn ($w) => $w->where('status', 'checked_in'))
-            ->when($request->input('tab') === 'stayover', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', '>', $date))
-            ->when($request->input('tab') === 'dueout', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', $date))
-            ->when($request->input('tab') === 'departures', fn ($w) => $w->whereDate('departure_date', $date)->whereIn('status', ['checked_in', 'checked_out']))
-            ->when($request->input('tab') === 'unassigned', fn ($w) => $w->whereHas('rooms', fn ($r) => $r->whereNull('room_id')->where('status', 'reserved')))
-            ->when($request->input('tab') === 'vip' || $request->boolean('vip'), fn ($w) => $w->whereHas('guest', fn ($g) => $g->where('is_vip', true))->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
-            ->when($request->input('tab') === 'groups', fn ($w) => $w->where('booking_type', 'group')->whereNotIn('status', ['cancelled', 'no_show']))
-            ->when($request->input('tab') === 'cancelled', fn ($w) => $w->where('status', 'cancelled'))
-            ->when($request->input('tab') === 'duein', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed']))
-            ->when($request->input('tab') === 'noshow', fn ($w) => $w->where('status', 'no_show'))
-            ->when($request->company, fn ($w, $c) => $w->where('company_id', (int) $c));
-        $sort = $request->input('sort', 'arrival');
-        $q->orderBy($sort === 'created' ? 'created_at' : 'arrival_date', $sort === 'created' ? 'desc' : ($request->status === 'checked_out' ? 'desc' : 'asc'));
+        [$column, $direction] = match ($sort) {
+            'created' => ['created_at', 'desc'],
+            'arrival_asc' => ['arrival_date', 'asc'],
+            'arrival_desc' => ['arrival_date', 'desc'],
+            'departure' => ['departure_date', 'asc'],
+            'departure_desc' => ['departure_date', 'desc'],
+            default => ['arrival_date', $status === 'checked_out' ? 'desc' : 'asc'],
+        };
+        $tieDirection = in_array($sort, ['created', 'arrival_desc', 'departure_desc'], true) ? 'desc' : 'asc';
+        $q->orderBy($column, $direction)->orderBy('id', $tieDirection);
 
         return $q;
     }

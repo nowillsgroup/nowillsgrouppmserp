@@ -18,7 +18,9 @@
     <tr data-pass="{{ $p->pass_no }}" class="{{ $p->cancelled_at ? 'muted' : '' }}"><td class="bold">{{ $p->pass_no }}</td><td class="small">{{ dmy($p->date) }}</td>
       <td>{{ $p->name }}<div class="tiny muted">{{ \App\Models\ClubDayPass::KINDS[$p->kind] }}{{ $p->host ? ' of '.$p->host->name : '' }}{{ $p->phone ? ' · '.$p->phone : '' }}</div>@if($p->cancelled_at)<div class="tiny text-red">cancelled: {{ $p->cancel_reason }}</div>@endif</td>
       <td class="num">{{ $p->adults }}{{ $p->children ? '+'.$p->children : '' }}</td>
-      <td class="small">{{ $p->stay ? 'Room '.$p->stay->room?->room_no : $p->paymentMode?->name }}{{ $p->reference ? ' · '.$p->reference : '' }}</td>
+      <td class="small">{{ $p->stay ? 'Room '.$p->stay->room?->room_no : ($p->payments->isNotEmpty() ? 'Split: '.$p->payments->map(fn ($pay) => $pay->paymentMode?->name)->filter()->unique()->join(' + ') : $p->paymentMode?->name) }}{{ $p->reference ? ' · '.$p->reference : '' }}
+        @if($p->payments->isNotEmpty())<div class="tiny muted">{{ $p->payments->map(fn ($pay) => money($pay->amount).' · '.($pay->paymentMode?->name ?? '—').($pay->momo_network ? ' · '.$pay->momo_network : '').($pay->momo_phone ? ' · '.$pay->momo_phone : '').($pay->reference ? ' · '.$pay->reference : ''))->join(' / ') }}</div>@endif
+      </td>
       <td class="num bold">{{ money($p->total, false) }}</td>
       <td class="num">@if(! $p->cancelled_at && $p->date->toDateString() === bdate()->toDateString() && can_do('club.desk'))<button class="btn btn-sm btn-ghost" data-modal="cancelPassModal" data-title="Cancel {{ $p->pass_no }}" data-action="{{ route('club.passes.cancel', $p) }}">Cancel</button>@endif</td></tr>
   @empty <tr><td colspan="7"><x-empty text="No day passes sold." icon="receipt"/></td></tr> @endforelse</tbody></table></div></div>
@@ -34,8 +36,14 @@
     <x-field name="adults" label="Adults" type="number" value="1" min="0" max="10" required/>
     <x-field name="children" label="Children under 12" type="number" value="0" min="0" max="10"/>
     <div class="field span-2"><label>Settlement</label><div class="flex gap-2"><label class="check"><input type="radio" name="settle" value="pay" checked> <span>Pay now</span></label><label class="check"><input type="radio" name="settle" value="room"> <span>Charge to an in-house room</span></label></div></div>
-    <div class="field" data-settle="pay"><label for="dp_mode">Mode</label><select name="payment_mode_id" id="dp_mode">@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
-    <div class="field" data-settle="pay"><label for="dp_ref">Reference</label><input name="reference" id="dp_ref"></div>
+    <div data-settle="pay" class="span-2">
+      <div id="clubDayPassSingleTender" class="form-grid">
+        <div class="field"><label for="dp_mode">Mode</label><select name="payment_mode_id" id="dp_mode" required>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
+        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+        <div class="field span-2"><label for="dp_ref">Reference</label><input name="reference" id="dp_ref" maxlength="80"></div>
+      </div>
+      <x-payment-split-tender widget-id="clubDayPassSplitTender" single-id="clubDayPassSingleTender" :modes="$splitModes" label="payment" :show-cheque="false"/>
+    </div>
     <div class="field" data-settle="room" hidden><label for="dp_room">Room no.</label><input name="room_no" id="dp_room" placeholder="101"></div>
   </div>
   <p class="bold" id="dpTotal"></p><p class="tiny muted">Prices are {{ \App\Services\TaxService::pricesInclusive() ? 'tax-inclusive' : 'exclusive of VAT, NHIL, GETFund and Tourism Levy ('.rtrim(rtrim(number_format($rate, 2), '0'), '.').'%)' }}. A room charge appears on the guest's folio.</p></div>
@@ -52,6 +60,11 @@
 <script>
 (() => { const f = document.getElementById('sellForm'); if (!f) return; const A = {{ $adult }}, C = {{ $child }}, R = {{ $rate }} / 100;
   const sync = () => { const s = f.querySelector('[name=settle]:checked').value; f.querySelectorAll('[data-settle]').forEach(el => el.hidden = el.dataset.settle !== s);
+    const single = document.getElementById('clubDayPassSingleTender'), widget = document.getElementById('clubDayPassSplitTender');
+    const panel = widget?.querySelector('[data-split-panel]');
+    if (s !== 'pay' && panel && !panel.hidden) widget.querySelector('[data-split-toggle]')?.click();
+    const splitOn = Boolean(panel && !panel.hidden);
+    single?.querySelectorAll('input,select,textarea').forEach(input => { input.disabled = s !== 'pay' || splitOn; });
     const net = (+f.adults.value || 0) * A + (+f.children.value || 0) * C, tot = Math.round(net * (1 + R) * 100) / 100;
     document.getElementById('dpTotal').textContent = 'Total GH₵ ' + tot.toFixed(2) + ' (net ' + net.toFixed(2) + ')'; };
   f.addEventListener('input', sync); f.addEventListener('change', sync); document.addEventListener('click', e => { if (e.target.closest('[data-modal=sellModal]')) setTimeout(sync, 0); });

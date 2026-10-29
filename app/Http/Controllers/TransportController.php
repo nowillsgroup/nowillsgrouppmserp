@@ -18,6 +18,7 @@ use App\Services\TransportService as TS;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /** v3.3 guest transport & fleet desk (staff side + the driver's phone screen). */
@@ -260,10 +261,36 @@ class TransportController extends Controller
         return back()->with('success', "{$trip->passenger_name} is on board.");
     }
 
+    protected function completionData(Request $request): array
+    {
+        $d = $request->validate([
+            'odo_start' => 'nullable|integer|min:0|max:9999999', 'odo_end' => 'nullable|integer|min:0|max:9999999',
+            'extra_amount' => 'nullable|numeric|min:0|max:999999', 'extra_note' => 'nullable|string|max:120',
+            'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:80',
+            'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+        ]);
+        $d['payments'] = array_values($d['payments'] ?? []);
+        if ($d['payments'] && ! empty($d['payment_mode_id'])) {
+            throw ValidationException::withMessages(['payments' => 'Use either one payment mode or split tender lines, not both.']);
+        }
+        if (filled($d['momo_network'] ?? null) || filled($d['momo_phone'] ?? null)) {
+            $d['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                $d['momo_network'] ?? null, $d['momo_phone'] ?? null, $d['reference'] ?? null,
+            ]))), 0, 80);
+        }
+
+        return $d;
+    }
+
     public function complete(Request $request, TransportTrip $trip)
     {
-        $d = $request->validate(['odo_start' => 'nullable|integer|min:0|max:9999999', 'odo_end' => 'nullable|integer|min:0|max:9999999', 'extra_amount' => 'nullable|numeric|min:0|max:999999',
-            'extra_note' => 'nullable|string|max:120', 'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:60', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100']);
+        $d = $this->completionData($request);
         try {
             $t = TS::complete($trip, $d);
         } catch (RuntimeException $e) {
@@ -365,7 +392,8 @@ class TransportController extends Controller
             ->orderByRaw("CASE WHEN status IN ('en_route','onboard') THEN 0 WHEN status = 'assigned' THEN 1 ELSE 2 END")->orderBy('busy_from')->get() : collect();
 
         return view('transport.my', ['driver' => $driver, 'trips' => $trips, 'drivers' => can_do('transport.book') ? Driver::where('is_active', true)->orderBy('name')->pluck('name', 'id') : collect(),
-            'vehicles' => Vehicle::where('is_active', true)->orderBy('code')->get()]);
+            'vehicles' => Vehicle::where('is_active', true)->orderBy('code')->get(),
+            'paymentModes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->pluck('name', 'id')]);
     }
 
     public function myAction(Request $request, TransportTrip $trip, string $action)
@@ -375,8 +403,7 @@ class TransportController extends Controller
             match ($action) {
                 'start' => TS::start($trip, $request->filled('odo_start') ? (int) $request->validate(['odo_start' => 'integer|min:0|max:9999999'])['odo_start'] : null),
                 'onboard' => TS::onboard($trip),
-                'complete' => TS::complete($trip, $request->validate(['odo_end' => 'nullable|integer|min:0|max:9999999', 'extra_amount' => 'nullable|numeric|min:0|max:999999', 'extra_note' => 'nullable|string|max:120', 'reference' => 'nullable|string|max:60', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100'])
-                    + ($trip->billing === 'direct' ? $request->validate(['payment_mode_id' => 'required|integer|owned:payment_modes']) : [])),
+                'complete' => TS::complete($trip, $this->completionData($request)),
                 'noshow' => TS::noShow($trip, 'Guest not at the pick-up point (driver)'),
             };
         } catch (RuntimeException $e) {

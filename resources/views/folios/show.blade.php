@@ -117,12 +117,22 @@
 
 <div class="modal" id="payModal"><div class="modal-box"><form method="post" action="{{ route('folios.payment', $folio) }}">@csrf
   <div class="modal-head"><h3>Payment / Refund</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-  <div class="modal-body form-grid">
-    <x-field name="type" label="Type" type="select" :options="['payment'=>'Receive payment','refund'=>'Refund to guest']" :placeholder="false"/>
-    <x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="$totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
-    <x-field name="payment_mode_id" label="Mode" type="select" :options="$paymentModes" required data-payment-mode/>
-    <x-field name="reference" label="Reference / Txn ID" hint="Gift Voucher payments: enter the voucher code (GV-XXXX-XXXX)"/>
-    <x-cheque-fields/>
+  <div class="modal-body">
+    <div class="form-grid">
+      <x-field name="type" label="Type" type="select" :options="['payment'=>'Receive payment','refund'=>'Refund to guest']" :placeholder="false"/>
+    </div>
+    <div id="folioSinglePayment" class="form-grid mt-1">
+      <x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="$totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
+      <x-field name="payment_mode_id" label="Mode" type="select" :options="$paymentModes" required data-payment-mode/>
+      <x-field name="reference" label="Reference / Txn ID" hint="Gift Voucher payments: enter the voucher code (GV-XXXX-XXXX)"/>
+      <x-cheque-fields/>
+    </div>
+    <div id="folioSplitPayment" class="mt-1" hidden>
+      <p class="small muted">Current folio balance: <b>{{ money($totals['balance']) }}</b>. Enter one amount per tender; total allocated: <b id="folioAllocationTotal">0.00</b>. Partial payments are allowed, and the folio remains open until its balance is zero. Gift vouchers must be used on their own.</p>
+      <div id="folioPaymentAllocations"></div>
+      <button type="button" class="btn btn-sm mt-1" id="folioAddPaymentAllocation">Add another payment method</button>
+    </div>
+    <div class="mt-1"><button type="button" class="btn btn-sm" id="folioToggleSplit">Split across payment methods</button></div>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Save</button></div>
 </form></div></div>
@@ -211,5 +221,88 @@
 @endif
 @endsection
 @push('scripts')
-<script>function txCount(){ const n = document.querySelectorAll('.txsel:checked').length; const b = document.getElementById('moveBtn'); if (b) { b.disabled = !n; document.getElementById('txN').textContent = n; } }</script>
+<script>
+function txCount(){ const n = document.querySelectorAll('.txsel:checked').length; const b = document.getElementById('moveBtn'); if (b) { b.disabled = !n; document.getElementById('txN').textContent = n; } }
+(() => {
+  const form = document.querySelector('#payModal form');
+  const toggle = document.getElementById('folioToggleSplit');
+  const single = document.getElementById('folioSinglePayment');
+  const split = document.getElementById('folioSplitPayment');
+  const rows = document.getElementById('folioPaymentAllocations');
+  const allocationTotal = document.getElementById('folioAllocationTotal');
+  if (!form || !toggle || !single || !split || !rows) return;
+  const modes = @json($paymentModes);
+  const oldLines = @js(old('payments', []));
+  const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let sequence = 0;
+  let restoredOldLines = false;
+  const addRow = (line = {}) => {
+    if (!line || typeof line !== 'object') line = {};
+    const i = sequence++;
+    const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+    rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-folio-payment-row style="border:1px solid var(--c-border);padding:.65rem;border-radius:var(--radius)">
+      <div class="field"><label>Payment method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+      <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+      <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
+      <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
+      <div class="field span-all"><label>Reference / transaction ID</label><input name="payments[${i}][reference]" maxlength="80" placeholder="Receipt, card authorisation, or voucher code"></div>
+      <details class="span-all"><summary class="tiny bold">Cheque details (if applicable)</summary><div class="form-grid mt-1">
+        <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
+        <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
+        <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
+      </div></details>
+      <button type="button" class="btn btn-sm btn-ghost" data-remove-folio-payment>Remove this tender</button>
+    </div>`);
+    const row = rows.lastElementChild;
+    for (const key of ['payment_mode_id', 'amount', 'reference', 'momo_network', 'momo_phone', 'cheque_bank_name', 'cheque_number', 'cheque_bank_branch']) {
+      const field = row.querySelector(`[name="payments[${i}][${key}]"]`);
+      if (field && line[key] !== undefined && line[key] !== null) field.value = String(line[key]);
+    }
+    syncChequeRows();
+    updateTotal();
+  };
+  const syncChequeRows = () => rows.querySelectorAll('[data-folio-payment-row]').forEach(row => {
+    const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+    const required = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
+    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; });
+  });
+  const updateTotal = () => {
+    const total = [...rows.querySelectorAll('input[name$="[amount]"]')].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+    if (allocationTotal) allocationTotal.textContent = total.toFixed(2);
+  };
+  rows.addEventListener('input', updateTotal);
+  rows.addEventListener('change', event => { updateTotal();
+    if (event.target.matches('select[name$="[payment_mode_id]"]')) syncChequeRows();
+  });
+  const setSplit = enabled => {
+    single.hidden = enabled;
+    split.hidden = !enabled;
+    single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+    toggle.textContent = enabled ? 'Use one payment method' : 'Split across payment methods';
+    if (enabled && rows.children.length === 0) {
+      if (!restoredOldLines && Array.isArray(oldLines) && oldLines.length) {
+        oldLines.slice(0, 10).forEach(line => addRow(line));
+        restoredOldLines = true;
+      }
+      while (rows.children.length < 2) addRow();
+    }
+    if (!enabled) rows.replaceChildren();
+  };
+  toggle.addEventListener('click', () => setSplit(split.hidden));
+  if (Array.isArray(oldLines) && oldLines.length) setSplit(true);
+  document.getElementById('folioAddPaymentAllocation')?.addEventListener('click', addRow);
+  rows.addEventListener('click', event => {
+    if (event.target.closest('[data-remove-folio-payment]')) {
+      event.target.closest('[data-folio-payment-row]')?.remove();
+      updateTotal();
+    }
+  });
+  form.addEventListener('submit', event => {
+    if (!split.hidden && rows.querySelectorAll('[data-folio-payment-row]').length < 2) {
+      event.preventDefault();
+      alert('Add at least two payment methods, or switch back to a single payment.');
+    }
+  });
+})();
+</script>
 @endpush

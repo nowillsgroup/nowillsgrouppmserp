@@ -5,16 +5,19 @@ namespace App\Services;
 use App\Models\ClubBooking;
 use App\Models\ClubCharge;
 use App\Models\ClubDayPass;
+use App\Models\ClubDayPassPayment;
 use App\Models\ClubMember;
 use App\Models\ClubMembership;
 use App\Models\ClubPlan;
 use App\Models\ClubVisit;
+use App\Models\PaymentMode;
 use App\Models\ReservationRoom;
 use App\Models\User;
 use App\Support\Numbering;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -128,7 +131,7 @@ class ClubService
     /**
      * Enrol a new membership. $d: club_plan_id, holder_name, phone, email, company_id, guest_id, start_date, auto_renew,
      * source, notes, waive_joining, persons[] (name, relation, gender, dob, phone, emergency_contact, health),
-     * payment (amount, payment_mode_id, reference). $asOf back-dates the documents (demo data / migration).
+     * payment (amount, payment_mode_id, reference) or optional payments[] split rows. $asOf back-dates the documents (demo data / migration).
      */
     public static function enrol(array $d, ?User $u = null, ?string $asOf = null): ClubMembership
     {
@@ -158,8 +161,13 @@ class ClubService
         if ($persons->count() > $plan->max_persons) {
             throw new RuntimeException("The {$plan->name} plan covers at most {$plan->max_persons} person(s).");
         }
+        $paymentData = $d['payment'] ?? [];
+        $paymentLines = array_values($paymentData['payments'] ?? []);
+        if ($paymentLines && ((float) ($paymentData['amount'] ?? 0) > 0 || ! empty($paymentData['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payment' => 'Use either one enrolment payment or split tender rows, not both.']);
+        }
 
-        return DB::transaction(function () use ($plan, $d, $u, $today, $start, $persons, $holder) {
+        return DB::transaction(function () use ($plan, $d, $u, $today, $start, $persons, $holder, $paymentLines) {
             $m = ClubMembership::create([
                 'membership_no' => Numbering::next('club_membership'),
                 'club_plan_id' => $plan->id,
@@ -184,7 +192,9 @@ class ClubService
             }
             ClubBillingService::raise($m, 'subscription', "{$plan->name} – ".dmy($start).' to '.dmy($m->end_date), (float) $plan->price,
                 ['date' => $today, 'period_start' => $start, 'period_end' => $m->end_date->toDateString(), 'due_date' => max($today, $start)], $u);
-            if (! empty($d['payment']['amount']) && (float) $d['payment']['amount'] > 0) {
+            if ($paymentLines) {
+                ClubBillingService::payMany($m, $paymentLines, $u, $today);
+            } elseif (! empty($d['payment']['amount']) && (float) $d['payment']['amount'] > 0) {
                 ClubBillingService::pay($m, (float) $d['payment']['amount'], (int) $d['payment']['payment_mode_id'], $d['payment']['reference'] ?? null, $u, $today);
             }
             ActivityLogger::log('club', 'enrolled', "Membership {$m->membership_no} – {$m->holder_name} ({$plan->name})", $m);
@@ -600,7 +610,7 @@ class ClubService
      * A member brings a guest. The free monthly allowance is used first; beyond it a guest pass is charged to the
      * member's account (or paid now by $modeId).
      */
-    public static function checkInGuest(ClubMember $host, string $name, string $facility, ?User $u = null, ?int $modeId = null, ?Carbon $at = null): ClubVisit
+    public static function checkInGuest(ClubMember $host, string $name, string $facility, ?User $u = null, ?int $modeId = null, ?Carbon $at = null, array $payments = [], ?string $reference = null): ClubVisit
     {
         $name = trim($name);
         if ($name === '') {
@@ -613,16 +623,24 @@ class ClubService
         }
         $m = $host->membership;
 
-        return DB::transaction(function () use ($host, $name, $facility, $u, $modeId, $at, $m) {
+        return DB::transaction(function () use ($host, $name, $facility, $u, $modeId, $at, $m, $payments, $reference) {
             $passId = null;
             $chargeId = null;
             if (self::guestPassesLeft($m) <= 0) {
                 $price = (float) self::cfg('club_guestpass');
-                if ($modeId) {
-                    $passId = self::sellDayPass(['kind' => 'guest', 'name' => $name, 'adults' => 1, 'host_member_id' => $host->id, 'payment_mode_id' => $modeId, 'amount' => $price], $u, null, false)->id;
+                if ($payments && $modeId) {
+                    throw ValidationException::withMessages(['payments' => 'Use either one payment mode or split tenders, not both.']);
+                }
+                if ($payments) {
+                    $passId = self::sellDayPass(['kind' => 'guest', 'name' => $name, 'adults' => 1, 'host_member_id' => $host->id,
+                        'payments' => $payments, 'reference' => $reference, 'amount' => $price], $u, null, false)->id;
+                } elseif ($modeId) {
+                    $passId = self::sellDayPass(['kind' => 'guest', 'name' => $name, 'adults' => 1, 'host_member_id' => $host->id, 'payment_mode_id' => $modeId, 'reference' => $reference, 'amount' => $price], $u, null, false)->id;
                 } else {
                     $chargeId = ClubBillingService::raise($m, 'guest_pass', "Guest pass – {$name} (guest of {$host->name})", $price, ['due_date' => self::today()], $u)->id;
                 }
+            } elseif ($payments) {
+                throw ValidationException::withMessages(['payments' => 'The member has a free guest pass available; no payment should be taken.']);
             }
 
             return ClubVisit::create(['visitor_type' => 'guest', 'host_member_id' => $host->id, 'club_day_pass_id' => $passId, 'club_charge_id' => $chargeId,
@@ -737,7 +755,14 @@ class ClubService
         if (! empty($d['room_no']) && ! $stay) {
             throw new RuntimeException("Room {$d['room_no']} has no in-house guest to charge.");
         }
-        if (! $stay && empty($d['payment_mode_id'])) {
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && $stay) {
+            throw ValidationException::withMessages(['payments' => 'Split tender is only available for a direct day-pass sale, not a room charge.']);
+        }
+        if ($payments && (count($payments) < 2 || count($payments) > 10 || ! empty($d['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payments' => 'Use two to ten tender rows and do not combine split tender with a single payment mode.']);
+        }
+        if (! $stay && ! $payments && empty($d['payment_mode_id'])) {
             throw new RuntimeException('Take payment or charge the pass to a room.');
         }
         if ($facility) {
@@ -747,10 +772,32 @@ class ClubService
             }
         }
         $t = ClubBillingService::tax($net);
-        $net = $t['net']; // v7.39 tax-inclusive prices are split into net + tax here
+        $net = $t['net']; // tax-inclusive prices are split into net + tax here
+        if ($payments) {
+            $allocated = 0.0;
+            foreach ($payments as $i => &$line) {
+                $amount = round((float) ($line['amount'] ?? 0), 2);
+                $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])->find((int) ($line['payment_mode_id'] ?? 0));
+                if ($amount <= 0 || ! $mode) {
+                    throw ValidationException::withMessages(["payments.{$i}" => ['Choose an active cash, card, bank or mobile-money method and an amount above zero.']]);
+                }
+                $line['amount'] = $amount;
+                $line['mode'] = $mode;
+                $allocated = round($allocated + $amount, 2);
+            }
+            unset($line);
+            if (abs($allocated - (float) $t['total']) > 0.005) {
+                throw ValidationException::withMessages(['payments' => 'Tender allocations must total '.money((float) $t['total']).' for this pass.']);
+            }
+        } elseif (! $stay) {
+            $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])->find((int) ($d['payment_mode_id'] ?? 0));
+            if (! $mode) {
+                throw ValidationException::withMessages(['payment_mode_id' => 'Choose an active cash, card, bank or mobile-money payment mode.']);
+            }
+        }
         $date = $asOf ?? self::today();
 
-        return DB::transaction(function () use ($d, $u, $facility, $log, $name, $adults, $children, $kind, $net, $stay, $t, $date) {
+        return DB::transaction(function () use ($d, $u, $facility, $log, $name, $adults, $children, $kind, $net, $stay, $t, $date, $payments) {
             $p = ClubDayPass::create([
                 'pass_no' => Numbering::next('club_daypass'),
                 'date' => $date,
@@ -764,11 +811,20 @@ class ClubService
                 'tax_rate' => $t['rate'],
                 'tax' => $t['tax'],
                 'total' => $t['total'],
-                'payment_mode_id' => $stay ? null : (int) $d['payment_mode_id'],
+                'payment_mode_id' => $stay || $payments ? null : (int) $d['payment_mode_id'],
                 'reservation_room_id' => $stay?->id,
                 'reference' => $d['reference'] ?? null,
                 'user_id' => $u?->id,
             ]);
+            foreach ($payments as $line) {
+                ClubDayPassPayment::create([
+                    'club_day_pass_id' => $p->id, 'payment_mode_id' => $line['mode']->id, 'amount' => $line['amount'],
+                    'reference' => trim((string) ($line['reference'] ?? $d['reference'] ?? '')) ?: $p->pass_no,
+                    'momo_network' => $line['momo_network'] ?? null, 'momo_phone' => $line['momo_phone'] ?? null,
+                    'cheque_bank_name' => $line['cheque_bank_name'] ?? null, 'cheque_number' => $line['cheque_number'] ?? null,
+                    'cheque_bank_branch' => $line['cheque_bank_branch'] ?? null,
+                ]);
+            }
             if ($stay) {
                 $folio = FolioService::openForStay($stay);
                 $tx = FolioService::charge($folio, 'club', "Health club day pass {$p->pass_no} – {$name}", $net, null, ['tax_rate' => $t['rate'], 'source_type' => 'club', 'source_id' => $p->id]);
@@ -779,10 +835,10 @@ class ClubService
                     'name' => $p->name, 'facility' => $facility, 'pax' => $adults + $children, 'checked_in_at' => now(), 'user_id' => $u?->id]);
             }
             if ($log) {
-                ActivityLogger::log('club', 'day_pass', "Day pass {$p->pass_no} – {$name} ".money($p->total).($stay ? ' to room '.$stay->room?->room_no : ''), $p);
+                ActivityLogger::log('club', 'day_pass', "Day pass {$p->pass_no} – {$name} ".money($p->total).($stay ? ' to room '.$stay->room?->room_no : ($payments ? ' paid in '.count($payments).' tenders' : '')) , $p);
             }
 
-            return $p;
+            return $p->load('payments.paymentMode');
         });
     }
 

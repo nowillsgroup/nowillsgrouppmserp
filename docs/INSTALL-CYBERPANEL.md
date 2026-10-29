@@ -1,10 +1,12 @@
 # Deploying Nowills PMS on a Hostinger VPS with CyberPanel
 
 Target in this guide: **https://pms.nowills.com** — the PMS running on a CyberPanel
-(OpenLiteSpeed) server, deployed straight from the GitHub repository
-`nowillsgroup/nowillsgrouppmserp`, with a post-deploy hook so a `git push` becomes a live update.
+(OpenLiteSpeed) server, deployed from the GitHub repository
+`nowillsgroup/nowillsgrouppmserp`. Releases are pulled manually over SSH after they are merged to
+`main`; the post-pull maintenance script is also run manually. This deployment does not use a
+GitHub webhook, CyberPanel push-to-deploy, or GitHub Actions.
 
-Version 7.56.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
+Version 7.77.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
 
 > This is the CyberPanel counterpart of [INSTALL-CPANEL.md](INSTALL-CPANEL.md). The CMS-style
 > "Git deploy" in Hostinger's hPanel does not apply to a VPS with CyberPanel — code lives on the
@@ -30,7 +32,7 @@ Version 7.56.0 · PHP 8.3+ · MySQL 8 / MariaDB 10.3+ · OpenLiteSpeed
 ├── public/                                 ← the ONLY web-reachable folder
 │   ├── index.php  .htaccess  install.php  css/ js/ uploads/
 ├── .env                                    ← written by the installer, never in git
-└── deploy/cyberpanel/post-deploy.sh        ← post-deploy hook (steps 7 and 9)
+└── deploy/cyberpanel/post-deploy.sh        ← manually run after install and each manual pull
 ```
 
 The virtual host's **Document Root must point at `public/`**. Everything that is secret or
@@ -413,53 +415,12 @@ bash "$SITE/deploy/cyberpanel/post-deploy.sh"
 If the bad release added migrations, also restore the pre-deploy database backup from
 `storage/app/backups/` (or the CyberPanel snapshot) — code rollback does not undo a schema change.
 
-### Optional later — push-to-deploy with CyberPanel Git Manager
+### Deployment mode: manual only
 
-Only if you get tired of the two commands (and are willing to expose port 8090 to GitHub).
-It does exactly the same pull, plus the same hook as the post-pull command.
-
-1. **Manage → Manage Git** (top right of the website panel).
-2. *Select Folder to Track*: the site folder. It already contains a git repository from step 5, so
-   CyberPanel adopts it. (If you skipped step 5 and let CyberPanel clone, the folder must be empty.)
-3. **View/Setup Remote** → *Deployment Key*: copy the key →
-   GitHub → repo → **Settings → Deploy keys → Add deploy key** → paste → *Allow write access* **off**
-   (read is enough). Back in CyberPanel: host `github.com`, username `nowillsgroup`,
-   repo `nowillsgrouppmserp` → **Save**.
-   *A public repository still needs this key, because CyberPanel pulls over SSH
-   (`git@github.com:nowillsgroup/nowillsgrouppmserp.git`).*
-4. **Commands** — the hook that runs after every successful pull. Paste exactly this one line
-   (CyberPanel's input filter rejects `;`, `&&`, `|`, `$`):
-
-   ```
-   bash /home/pms.nowills.com/public_html/deploy/cyberpanel/post-deploy.sh
-   ```
-
-5. Copy the **Webhook URL** CyberPanel shows (it already carries the site's secret).
-6. GitHub → repo → **Settings → Webhooks → Add webhook**:
-   * Payload URL: the URL from step 5
-   * Content type: `application/json`
-   * Secret: only if your CyberPanel version shows a separate Secret field
-   * **SSL verification: disable** when the URL is `https://<IP>:8090` — the CyberPanel panel
-     certificate is self-signed and GitHub would reject it. (With a valid panel hostname + SSL you
-     can leave verification on.)
-   * Events: *Just the push event* · Active: ✔
-7. Push something to `main`, then check **Manage Git** (the pull log) and
-   `storage/logs/deploy.log` on the server.
-
-Caveats worth knowing:
-
-* The webhook has to reach port **8090** from the internet. If your firewall restricts 8090 to your
-  own IP, the webhook will time out — keep using the manual pull (step 9).
-* The pull target for the webhook is the **site folder** for a main website and the child domain's
-  path for a subdomain — i.e. always the folder you pointed the document root into. Nothing to
-  configure.
-* CyberPanel 2.4.2 had a bug where a security filter rejected webhook JSON containing `{}` and the
-  pull never ran. If deliveries show a 403/500 in GitHub, update CyberPanel, or go back to the
-  manual pull (step 9).
-* Git Manager pulls `git pull` (no `--ff-only`) as the site user. If you ever committed directly on
-  the server via File Manager, reconcile first (`git status`, `git stash`, `git checkout -- <file>`).
-* Nothing in a pull touches `.env`, `public/uploads/` or `storage/` — they are gitignored, so logos,
-  uploads, backups and your keys survive every deploy.
+Do not configure CyberPanel push-to-deploy, a GitHub webhook, or an automated GitHub Action for
+this site. No deployment port or webhook endpoint should be exposed. After a pull request is merged
+to `main`, follow step 9 over SSH: run `git pull --ff-only` as the site user, then run the
+post-deploy script manually. This keeps each production update an explicit operator action.
 
 ---
 
@@ -555,7 +516,7 @@ paste its output here if you want a second pair of eyes on it.
 | **503 Maintenance** | `rm storage/framework/maintenance.php` (or `artisan up`). |
 | **Scheduled work never happens** | Cron command must use the absolute `lsphp` path and the absolute `artisan` path. Check the cron log / that the job landed in the right user's crontab (`crontab -u pms.nowills.com -l`). |
 | **New release deploys but the UI is unchanged** | Compiled config/routes/views were not cleared. Run the post-deploy hook (step 9) — that is exactly what it does. |
-| **Webhook says 403 / nothing pulls** | Use the exact URL (with secret) from the panel; disable SSL verification for a self-signed panel cert; make sure 8090 is reachable from GitHub; on CyberPanel 2.4.2 upgrade the panel. |
+| **A manual pull fails** | Check `git -C /home/pms.nowills.com/public_html status`, verify the site user can read the Git remote, and use `git pull --ff-only` from step 9. This deployment does not use a webhook or automated pull. |
 | **CSS/JS 404 after a pull** | `public/.htaccess` was overwritten or the pull left the working tree dirty — `git -C <site> status`, then `git checkout -- public/.htaccess`. |
 
 ---

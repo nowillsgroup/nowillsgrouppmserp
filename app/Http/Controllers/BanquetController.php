@@ -219,12 +219,52 @@ class BanquetController extends Controller
 
     public function deposit(Request $request, BanquetEvent $event)
     {
-        $data = $request->validate(['amount' => 'required|numeric|min:0.01|max:99999999', 'payment_mode_id' => 'required|integer|owned:payment_modes', 'reference' => 'nullable|string|max:60', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100']);
-        $tx = Sales::takeDeposit($event, (float) $data['amount'], (int) $data['payment_mode_id'], $data['reference'] ?? null, [
-            'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
+        $data = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01|max:99999999', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'reference' => 'nullable|string|max:80', 'cheque_bank_name' => 'nullable|string|max:100',
+            'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01|max:99999999',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
+        $usingSplit = ! empty($data['payments']);
+        if ($usingSplit && (($data['amount'] ?? 0) > 0 || ! empty($data['payment_mode_id']))) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payments' => 'Use either the single deposit fields or split tender lines, not both.']);
+        }
+        if ($usingSplit) {
+            $lines = array_values($data['payments']);
+        } else {
+            if (empty($data['amount']) || empty($data['payment_mode_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Enter the deposit amount and choose a payment mode.']);
+            }
+            $lines = [[
+                'amount' => $data['amount'], 'payment_mode_id' => $data['payment_mode_id'], 'reference' => $data['reference'] ?? null,
+                'cheque' => ['bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null],
+            ]];
+        }
+        if ($usingSplit) {
+            foreach ($lines as &$line) {
+                if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                    $line['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                        $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $line['reference'] ?? null,
+                    ]))), 0, 80);
+                }
+                $line['cheque'] = [
+                    'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null,
+                    'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                ];
+            }
+            unset($line);
+        }
+        $transactions = Sales::takeDeposits($event, $lines);
+        $message = $transactions->count() === 1
+            ? 'Deposit of '.money($transactions->first()->amount).' received on folio '
+            : $transactions->count().' deposit tenders totalling '.money($transactions->sum('amount')).' received on folio ';
 
-        return back()->with('success', 'Deposit of '.money($tx->amount).' received on folio '.$event->fresh()->folio?->folio_no.'.');
+        return back()->with('success', $message.$event->fresh()->folio?->folio_no.'.');
     }
 
     public function refund(Request $request, BanquetEvent $event)

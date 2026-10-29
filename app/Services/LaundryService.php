@@ -12,6 +12,7 @@ use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Support\Numbering;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -171,7 +172,7 @@ class LaundryService
     /**
      * Hand the laundry back. In-house guest → one charge on the room folio. Walk-in → a paid, closed invoice.
      */
-    public static function deliver(LaundryOrder $o, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null): LaundryOrder
+    public static function deliver(LaundryOrder $o, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null, array $payments = []): LaundryOrder
     {
         if (! in_array($o->status, ['processing', 'ready'])) {
             throw new RuntimeException($o->status === 'collected' ? 'Add the items before delivering.' : "Laundry {$o->order_no} is already {$o->statusLabel()}.");
@@ -179,14 +180,26 @@ class LaundryService
         if ((float) $o->total <= 0) {
             throw new RuntimeException('The order has no chargeable items.');
         }
-        if ($o->type === 'walk_in' && ! $paymentModeId) {
-            throw new RuntimeException('Choose how the customer is paying.');
+        $payments = array_values($payments);
+        if ($payments && $o->type !== 'walk_in') {
+            throw ValidationException::withMessages(['payments' => 'Split tender is available only for walk-in laundry payments.']);
         }
-        if ($o->type === 'walk_in' && ! PaymentMode::where('is_active', true)->whereKey($paymentModeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
-            throw new RuntimeException('Choose a cash, card, UPI / mobile money or bank payment mode.');
+        if ($payments && ($paymentModeId || count($payments) < 2 || count($payments) > 10)) {
+            throw ValidationException::withMessages(['payments' => $paymentModeId ? 'Use either one payment mode or split tender rows, not both.' : 'Use between two and ten payment tenders.']);
+        }
+        if ($o->type === 'walk_in' && ! $payments && ! $paymentModeId) {
+            throw ValidationException::withMessages(['payment_mode_id' => 'Choose how the customer is paying.']);
+        }
+        if ($o->type === 'walk_in') {
+            $modes = $payments ? array_column($payments, 'payment_mode_id') : [$paymentModeId];
+            foreach ($modes as $i => $modeId) {
+                if (! PaymentMode::where('is_active', true)->whereKey((int) $modeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                    throw ValidationException::withMessages([$payments ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose a cash, card, UPI / mobile money or bank payment mode.']);
+                }
+            }
         }
 
-        DB::transaction(function () use ($o, $paymentModeId, $reference, $cheque) {
+        DB::transaction(function () use ($o, $paymentModeId, $reference, $cheque, $payments) {
             $o = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
             if (! in_array($o->status, ['processing', 'ready'], true)) {
                 throw new RuntimeException("Laundry {$o->order_no} is already {$o->statusLabel()} and can't be delivered.");
@@ -196,6 +209,9 @@ class LaundryService
             }
             if ($o->folio_transaction_id) {
                 throw new RuntimeException("Laundry {$o->order_no} has already been charged.");
+            }
+            if ($payments && $o->type !== 'walk_in') {
+                throw ValidationException::withMessages(['payments' => 'Split tender is available only for walk-in laundry payments.']);
             }
             $desc = "Laundry {$o->order_no} – {$o->pieces} pc".($o->pieces === 1 ? '' : 's').($o->speed === 'express' ? ' (express)' : '');
             $extra = ['source_type' => 'laundry', 'source_id' => $o->id, 'reference' => $o->order_no];
@@ -211,11 +227,35 @@ class LaundryService
                 $guest = Guest::create(['first_name' => $name[0], 'last_name' => $name[1] ?? null, 'phone' => $o->phone]);
                 $folio = FolioService::openStandalone(['guest_id' => $guest->id, 'type' => 'walk_in']);
                 $tx = FolioService::charge($folio, 'laundry', $desc, (float) $o->total, true, $extra);
-                FolioService::payment($folio, round((float) $tx->amount + (float) $tx->tax_amount, 2), $paymentModeId, $reference ?: $o->order_no, 'settlement', 'payment', $cheque);
+                $amountDue = round((float) $tx->amount + (float) $tx->tax_amount, 2);
+                if ($payments) {
+                    $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $payments)), 2);
+                    if (abs($allocated - $amountDue) > 0.005) {
+                        throw ValidationException::withMessages(['payments' => 'Payment tenders must total '.money($amountDue).' to settle the laundry order.']);
+                    }
+                    foreach ($payments as $i => $line) {
+                        $modeId = (int) ($line['payment_mode_id'] ?? 0);
+                        if (! PaymentMode::where('is_active', true)->whereKey($modeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                            throw ValidationException::withMessages(["payments.{$i}.payment_mode_id" => 'Choose an active direct payment mode.']);
+                        }
+                        $lineReference = trim((string) ($line['reference'] ?? '')) ?: $o->order_no;
+                        if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                            $lineReference = mb_substr(trim(implode(' · ', array_filter([
+                                $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference,
+                            ]))), 0, 80);
+                        }
+                        FolioService::payment($folio, round((float) $line['amount'], 2), $modeId, $lineReference, 'settlement', 'payment', [
+                            'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null,
+                            'bank_branch' => $line['cheque_bank_branch'] ?? null,
+                        ]);
+                    }
+                } else {
+                    FolioService::payment($folio, $amountDue, (int) $paymentModeId, $reference ?: $o->order_no, 'settlement', 'payment', $cheque);
+                }
                 FolioService::close($folio->fresh());
             }
             $o->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'delivered_by' => auth()->id(), 'folio_id' => $folio->id,
-                'folio_transaction_id' => $tx->id, 'payment_mode_id' => $o->type === 'walk_in' ? $paymentModeId : null])->save();
+                'folio_transaction_id' => $tx->id, 'payment_mode_id' => $o->type === 'walk_in' && ! $payments ? $paymentModeId : null])->save();
             if ($o->guest_request_id && ($req = GuestRequest::find($o->guest_request_id)) && in_array($req->status, GuestRequest::OPEN)) {
                 GuestPortalService::transition($req, 'done', "Laundry delivered – {$o->pieces} pcs");
             }

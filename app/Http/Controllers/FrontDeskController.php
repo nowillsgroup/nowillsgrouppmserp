@@ -137,6 +137,46 @@ class FrontDeskController extends Controller
         return $this->stayList('departures', ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->orderBy('departure_date'), 'Departures');
     }
 
+    /** Normalize the initial deposit in either legacy single-tender form or split rows. */
+    protected function advancePaymentLines(array $data): array
+    {
+        $usingSplit = ! empty($data['payments']);
+        if ($usingSplit && ($data['advance'] ?? 0) > 0) {
+            throw ValidationException::withMessages(['payments' => 'Use either the single deposit fields or split tender lines, not both.']);
+        }
+        if (! $usingSplit && ($data['advance'] ?? 0) <= 0) {
+            return [];
+        }
+        $lines = $usingSplit ? array_values($data['payments']) : [[
+            'amount' => $data['advance'], 'payment_mode_id' => $data['advance_mode'] ?? null,
+            'reference' => $data['advance_ref'] ?? null, 'cheque_bank_name' => $data['cheque_bank_name'] ?? null,
+            'cheque_number' => $data['cheque_number'] ?? null, 'cheque_bank_branch' => $data['cheque_bank_branch'] ?? null,
+        ]];
+        $voucherCount = 0;
+        foreach ($lines as $i => &$line) {
+            $mode = PaymentMode::find((int) ($line['payment_mode_id'] ?? 0));
+            if (! $mode || ! $mode->is_active || $mode->type === 'city_ledger') {
+                throw ValidationException::withMessages([$usingSplit ? "payments.{$i}.payment_mode_id" : 'advance_mode' => 'Choose an active direct payment mode for the deposit.']);
+            }
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $line['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $line['reference'] ?? null,
+                ]))), 0, 80);
+            }
+            $line['amount'] = round((float) $line['amount'], 2);
+            $line['payment_mode_id'] = (int) $mode->id;
+            if (\App\Services\GiftVoucherService::isVoucherMode((int) $mode->id)) {
+                $voucherCount++;
+            }
+        }
+        unset($line);
+        if ($voucherCount && count($lines) !== 1) {
+            throw ValidationException::withMessages(['payments' => 'A gift voucher must be used as a single tender.']);
+        }
+
+        return $lines;
+    }
+
     // ---------------- Walk-in ----------------
     public function walkIn(Request $request)
     {
@@ -169,10 +209,13 @@ class FrontDeskController extends Controller
             'purpose' => 'nullable|string|max:60', 'special_request' => 'nullable|string|max:1000',
             'advance' => 'nullable|numeric|min:0', 'advance_mode' => 'nullable|integer|owned:payment_modes', 'advance_ref' => 'nullable|string|max:80',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
-        if (($data['advance'] ?? 0) > 0 && empty($data['advance_mode'])) {
-            throw ValidationException::withMessages(['advance_mode' => 'Select payment mode.']);
-        }
+        $advanceLines = $this->advancePaymentLines($data);
         $room = Room::findOrFail($data['room_id']);
         $arr = bdate();
         $dep = bdate()->addDays((int) $data['nights']);
@@ -180,7 +223,7 @@ class FrontDeskController extends Controller
             throw ValidationException::withMessages(['room_id' => "Room {$room->room_no} is not available for {$data['nights']} night(s)."]);
         }
 
-        $stay = DB::transaction(function () use ($data, $room, $arr, $dep) {
+        $stay = DB::transaction(function () use ($data, $room, $arr, $dep, $advanceLines) {
             $guest = ! empty($data['guest_id']) ? Guest::findOrFail($data['guest_id']) : (Guest::whereNull('privacy_status')->where('phone', $data['guest']['phone'])->where('first_name', $data['guest']['first_name'])->first() ?? new Guest);
             if ($guest->isPrivacyLocked()) {
                 $guest = new Guest; // erased / restricted profiles are never reused – a returning guest gets a fresh profile
@@ -206,9 +249,9 @@ class FrontDeskController extends Controller
                 'children' => $data['children'] ?? 0, 'extra_charge' => $extra, 'status' => 'reserved',
             ]);
             $stay = StayService::checkIn($stay, $room->id);
-            if (($data['advance'] ?? 0) > 0) {
-                FolioService::payment($stay->folio, (float) $data['advance'], (int) $data['advance_mode'], $data['advance_ref'] ?? null, 'advance', 'payment', [
-                    'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
+            foreach ($advanceLines as $line) {
+                FolioService::payment($stay->folio, (float) $line['amount'], (int) $line['payment_mode_id'], $line['reference'] ?? null, 'advance', 'payment', [
+                    'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
                 ]);
             }
 
@@ -234,7 +277,13 @@ class FrontDeskController extends Controller
         return view('frontdesk.checkin', [
             'upOffers' => $upOffers, 'upOrders' => \App\Models\UpsellOrder::with('offer')->where('reservation_room_id', $stay->id)->orderByDesc('id')->get(),
             'stay' => $stay, 'guest' => $stay->reservation->guest, 'fullGuest' => true,
-            'rooms' => $free->sortBy(fn ($r) => [$r->room_type_id !== $stay->room_type_id, $r->room_no]),
+            'rooms' => $free->sort(function ($a, $b) use ($stay) {
+                $aType = $a->room_type_id === $stay->room_type_id ? 0 : 1;
+                $bType = $b->room_type_id === $stay->room_type_id ? 0 : 1;
+                $aReadiness = match ($a->hk_status) { 'inspected' => 0, 'clean' => 1, default => 2 };
+                $bReadiness = match ($b->hk_status) { 'inspected' => 0, 'clean' => 1, default => 2 };
+                return ($aType <=> $bType) ?: ($aReadiness <=> $bReadiness) ?: strnatcasecmp((string) $a->room_no, (string) $b->room_no);
+            })->values(),
             'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
         ]);
     }
@@ -251,8 +300,14 @@ class FrontDeskController extends Controller
             'rate' => 'required|numeric|min:0', 'advance' => 'nullable|numeric|min:0', 'advance_mode' => 'nullable|integer|owned:payment_modes',
             'advance_ref' => 'nullable|string|max:80',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
-        DB::transaction(function () use ($data, $stay) {
+        $advanceLines = $this->advancePaymentLines($data);
+        DB::transaction(function () use ($data, $stay, $advanceLines) {
             // Match StayService's reservation → stay lock order before writing
             // registration data or the rate. Updating the stay first here used
             // to invert that order against cancellation and checkout.
@@ -262,9 +317,9 @@ class FrontDeskController extends Controller
             $reservation->guest->fill(array_filter($data['guest'], fn ($v) => $v !== null && $v !== ''))->save();
             $lockedStay->update(['rate' => $data['rate']]);
             $stay = StayService::checkIn($lockedStay, (int) $data['room_id']);
-            if (($data['advance'] ?? 0) > 0 && ! empty($data['advance_mode'])) {
-                FolioService::payment($stay->folio, (float) $data['advance'], (int) $data['advance_mode'], $data['advance_ref'] ?? null, 'advance', 'payment', [
-                    'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
+            foreach ($advanceLines as $line) {
+                FolioService::payment($stay->folio, (float) $line['amount'], (int) $line['payment_mode_id'], $line['reference'] ?? null, 'advance', 'payment', [
+                    'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null, 'bank_branch' => $line['cheque_bank_branch'] ?? null,
                 ]);
             }
         });
@@ -300,13 +355,75 @@ class FrontDeskController extends Controller
         ]);
     }
 
+    /** Validate and post split checkout tenders atomically on the caller's checkout transaction. */
+    protected function postCheckoutPaymentAllocations(\App\Models\Folio $folio, array $allocations, float $expected, string $type): void
+    {
+        if (count($allocations) < 2 || count($allocations) > 10) {
+            throw ValidationException::withMessages(['payments' => 'Use between two and ten payment tenders.']);
+        }
+        if (! in_array($type, ['payment', 'refund'], true)) {
+            throw ValidationException::withMessages(['payments' => 'Choose a valid checkout settlement type.']);
+        }
+        $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $allocations)), 2);
+        if (abs($allocated - $expected) > 0.005) {
+            throw ValidationException::withMessages(['payments' => 'Payment allocations must total '.money($expected).' to complete check-out.']);
+        }
+        $voucherCount = 0;
+        foreach ($allocations as $i => $line) {
+            $mode = PaymentMode::find((int) $line['payment_mode_id']);
+            if (! $mode || ! $mode->is_active || $mode->type === 'city_ledger') {
+                throw ValidationException::withMessages(["payments.{$i}.payment_mode_id" => 'Choose an active direct payment mode.']);
+            }
+            if (\App\Services\GiftVoucherService::isVoucherMode((int) $mode->id)) {
+                $voucherCount++;
+            }
+        }
+        if ($voucherCount && count($allocations) !== 1) {
+            throw ValidationException::withMessages(['payments' => 'A gift voucher must be used as a single tender.']);
+        }
+        foreach ($allocations as $line) {
+            $reference = trim((string) ($line['reference'] ?? ''));
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $reference = mb_substr(trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $reference,
+                ]))), 0, 80);
+            }
+            FolioService::payment($folio, (float) $line['amount'], (int) $line['payment_mode_id'], $reference ?: null, 'settlement', $type, [
+                'bank_name' => $line['cheque_bank_name'] ?? null,
+                'number' => $line['cheque_number'] ?? null,
+                'bank_branch' => $line['cheque_bank_branch'] ?? null,
+            ]);
+        }
+    }
+
+    /** Checkout by direct payment must clear the whole folio balance, single or split tender. */
+    protected function checkoutSettlementAmount(float $balance, $submitted): float
+    {
+        $expected = round($balance, 2);
+        $amount = $submitted === null || $submitted === '' ? $expected : round((float) $submitted, 2);
+        if (abs($amount - $expected) > 0.005) {
+            throw ValidationException::withMessages(['amount' => 'The checkout payment must equal the full outstanding balance of '.money($expected).'.']);
+        }
+
+        return $expected;
+    }
+
     public function checkOut(Request $request, ReservationRoom $stay)
     {
         $data = $request->validate([
             'settle' => 'required|in:payment,company,none',
             'amount' => 'nullable|numeric|min:0', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
-            'reference' => 'nullable|string|max:80', 'company_id' => 'nullable|integer|owned:companies',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'company_id' => 'nullable|integer|owned:companies',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+            'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20',
+            'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
             'override_reason' => 'nullable|string|max:200',
         ]);
         DB::transaction(function () use ($data, $stay) {
@@ -326,14 +443,26 @@ class FrontDeskController extends Controller
             StayService::postPendingNights($stay, bdate());
             $folio = $stay->fresh()->folio;
             $bal = $folio->balance();
+            $splitPayments = array_values($data['payments'] ?? []);
             if ($bal > 0) {
                 if ($data['settle'] === 'payment') {
-                    if (empty($data['payment_mode_id'])) {
-                        throw ValidationException::withMessages(['payment_mode_id' => 'Select payment mode.']);
+                    if ($splitPayments) {
+                        $this->postCheckoutPaymentAllocations($folio, $splitPayments, round($bal, 2), 'payment');
+                    } else {
+                        if (empty($data['payment_mode_id'])) {
+                            throw ValidationException::withMessages(['payment_mode_id' => 'Select payment mode.']);
+                        }
+                        $settlementAmount = $this->checkoutSettlementAmount($bal, $data['amount'] ?? null);
+                        $reference = trim((string) ($data['reference'] ?? ''));
+                        if (filled($data['momo_network'] ?? null) || filled($data['momo_phone'] ?? null)) {
+                            $reference = mb_substr(trim(implode(' · ', array_filter([
+                                $data['momo_network'] ?? null, $data['momo_phone'] ?? null, $reference,
+                            ]))), 0, 80);
+                        }
+                        FolioService::payment($folio, $settlementAmount, (int) $data['payment_mode_id'], $reference ?: null, 'settlement', 'payment', [
+                            'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
+                        ]);
                     }
-                    FolioService::payment($folio, min($bal, (float) (($data['amount'] ?? null) ?: $bal)), (int) $data['payment_mode_id'], $data['reference'] ?? null, 'settlement', 'payment', [
-                        'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-                    ]);
                 } elseif ($data['settle'] === 'company') {
                     $cid = $data['company_id'] ?? $stay->reservation->company_id;
                     if (! $cid) {
@@ -342,10 +471,21 @@ class FrontDeskController extends Controller
                     FolioService::transferToCityLedger($folio, (int) $cid, $data['override_reason'] ?? null);
                     $folio->update(['company_id' => $cid]);
                 }
-            } elseif ($bal < 0 && ! empty($data['payment_mode_id'])) {
-                FolioService::payment($folio, abs($bal), (int) $data['payment_mode_id'], 'Refund at check-out', 'settlement', 'refund', [
+            } elseif ($bal < 0) {
+                if ($splitPayments && $data['settle'] === 'payment') {
+                    $this->postCheckoutPaymentAllocations($folio, $splitPayments, round(abs($bal), 2), 'refund');
+                } elseif (! empty($data['payment_mode_id'])) {
+                    $refundAmount = $this->checkoutSettlementAmount(abs($bal), $data['amount'] ?? null);
+                    $refundReference = trim((string) ($data['reference'] ?? '')) ?: 'Refund at check-out';
+                    if (filled($data['momo_network'] ?? null) || filled($data['momo_phone'] ?? null)) {
+                        $refundReference = mb_substr(trim(implode(' · ', array_filter([
+                            $refundReference, $data['momo_network'] ?? null, $data['momo_phone'] ?? null,
+                        ]))), 0, 80);
+                    }
+                    FolioService::payment($folio, $refundAmount, (int) $data['payment_mode_id'], $refundReference, 'settlement', 'refund', [
                         'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
                     ]);
+                }
             }
             StayService::checkOut($stay->fresh(), false);
         });

@@ -66,15 +66,42 @@
       @if($canOp)
       <form method="post" action="{{ route('parking.exit', $s) }}" id="pkExitForm" data-confirm="Release {{ $s->plate }}?">@csrf
         <div class="form-grid">
-          @if($s->kind === 'guest' && $s->stay?->status === 'checked_in')<div class="field span-all"><label>Settle</label><select name="settle"><option value="room">Post to room {{ $s->stay->room?->room_no }}</option><option value="pay">Pay now</option></select></div>@endif
-          <div class="field"><label>Payment mode</label><select name="payment_mode_id" data-payment-mode><option value="">—</option>@foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach</select></div>
-          <div class="field"><label>Reference</label><input name="reference" maxlength="60" placeholder="MoMo / card ref"></div>
-          <x-cheque-fields class="span-all"/>
+          @if($s->kind === 'guest' && $s->stay?->status === 'checked_in')<div class="field span-all"><label>Settle</label><select name="settle" data-parking-settle><option value="room">Post to room {{ $s->stay->room?->room_no }}</option><option value="pay">Pay now</option></select></div>@endif
+          <div id="pkDirectTender-{{ $s->id }}" data-parking-direct-tender @if($s->kind === 'guest' && $s->stay?->status === 'checked_in') hidden @endif>
+            <div id="pkSingleTender-{{ $s->id }}" class="form-grid">
+              <div class="field"><label>Payment mode</label><select name="payment_mode_id" data-payment-mode><option value="">—</option>@foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach</select></div>
+              <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+              <div class="field span-all"><label>Reference</label><input name="reference" maxlength="80" placeholder="MoMo / card ref"></div>
+              <x-cheque-fields class="span-all"/>
+            </div>
+            <x-payment-split-tender widget-id="pkSplitTender-{{ $s->id }}" single-id="pkSingleTender-{{ $s->id }}" :modes="$splitModes" label="payment"/>
+          </div>
           @if($s->kind !== 'staff')<div class="field span-all"><label class="check"><input type="checkbox" name="lost_ticket" value="1"> Lost ticket</label></div>@endif
           @if($canMg)<div class="field span-all"><label class="check"><input type="checkbox" name="waive" value="1"> Waive the charge (manager)</label><input name="waive_reason" maxlength="190" placeholder="reason for waiving" class="mt-1"></div>@endif
         </div>
         <button class="btn btn-primary mt-1">{{ $s->is_valet ? 'Hand over the car' : 'Release' }}</button>
       </form>
+      @push('scripts')
+      <script>
+      (() => {
+        const form = document.getElementById('pkExitForm');
+        const direct = form?.querySelector('[data-parking-direct-tender]');
+        const settle = form?.querySelector('[data-parking-settle]');
+        if (!form || !direct) return;
+        const sync = () => {
+          const toRoom = settle && settle.value === 'room';
+          if (toRoom) {
+            const widget = direct.querySelector('[data-split-tender-widget]');
+            if (widget && !widget.querySelector('[data-split-panel]')?.hidden) widget.querySelector('[data-split-toggle]')?.click();
+          }
+          direct.hidden = Boolean(toRoom);
+          direct.querySelectorAll('input,select,textarea').forEach(input => { input.disabled = Boolean(toRoom); });
+        };
+        settle?.addEventListener('change', sync);
+        sync();
+      })();
+      </script>
+      @endpush
       @endif
     </div></div>
     @if($s->kind === 'visitor' && $canVal && $cfg['validation_max'] > 0)

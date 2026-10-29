@@ -10,7 +10,7 @@ Cron Jobs, but no SSH, no Composer and no Artisan.
 If you have SSH access, the shorter route in the [README](../README.md#installation) works and is
 preferable. Everything below is the no-shell path.
 
-Version 7.56.0 · PHP 8.3+ · MySQL 5.7+ / MariaDB 10.3+
+Version 7.77.0 · PHP 8.3+ · MySQL 5.7+ / MariaDB 10.3+
 
 ---
 

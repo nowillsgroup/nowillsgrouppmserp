@@ -36,11 +36,13 @@ class ParkingController extends Controller
 
     protected function lookups(): array
     {
+        $modes = PS::walkInModes();
+
         return [
             'zones' => ParkingZone::where('is_active', true)->orderBy('sort')->orderBy('code')->get(),
             'stays' => ReservationRoom::with(['guest', 'room'])->where(fn ($q) => $q->where('status', 'checked_in')
                 ->orWhere(fn ($w) => $w->where('status', 'reserved')->whereDate('arrival_date', '<=', bdate()->toDateString())))->get()->sortBy(fn ($s) => $s->room?->room_no ?? 'zzz')->values(),
-            'modes' => PS::walkInModes(), 'cfg' => PS::cfg(), 'runners' => PS::runners(),
+            'modes' => $modes, 'splitModes' => $modes->pluck('name', 'id'), 'cfg' => PS::cfg(), 'runners' => PS::runners(),
         ];
     }
 
@@ -161,7 +163,16 @@ class ParkingController extends Controller
     public function checkOut(Request $r, ParkingSession $parkingsession)
     {
         return $this->attempt(function () use ($r, $parkingsession) {
-            $s = PS::checkOut($parkingsession, $r->only('lost_ticket', 'settle', 'payment_mode_id', 'reference', 'waive', 'waive_reason', 'cheque_bank_name', 'cheque_number', 'cheque_bank_branch'), $r->user());
+            $data = $r->validate([
+                'lost_ticket' => 'nullable|boolean', 'settle' => 'nullable|in:room,pay', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+                'reference' => 'nullable|string|max:80', 'waive' => 'nullable|boolean', 'waive_reason' => 'nullable|string|max:190',
+                'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+                'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30', 'payments' => 'nullable|array|min:2|max:10',
+                'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+                'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+                'payments.*.cheque_bank_name' => 'nullable|string|max:100', 'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+            ]);
+            $s = PS::checkOut($parkingsession, $data, $r->user());
             $msg = "{$s->plate} has left ({$s->durationLabel()}).";
             if ((float) $s->fee > 0) {
                 $msg .= $s->folio?->status === 'open' ? ' '.money($s->fee).' + tax posted to '.$s->folio->folio_no.'.' : ' Paid '.money($s->folio?->fresh()?->totals()['payments'] ?? $s->fee).($s->folio?->invoice_no ? ', invoice '.$s->folio->invoice_no : '').'.';

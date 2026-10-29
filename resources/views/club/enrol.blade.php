@@ -50,11 +50,14 @@
       </ul>
       @if(can_do('club.manage'))<label class="check mt-1"><input type="checkbox" name="waive_joining" value="1" id="waive"> <span>Waive the joining fee (promotion)</span></label>@endif
       <div class="form-section mt-1"><b class="small">Payment now (optional)</b>
-        <div class="form-grid">
+        <div class="form-grid" id="enrol-payment-single">
           <x-field name="pay_amount" label="Amount" type="number" step="0.01" min="0"/>
           <div class="field"><label for="f_mode">Mode</label><select name="payment_mode_id" id="f_mode"><option value="">—</option>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
           <x-field name="reference" label="Reference" class="span-2" placeholder="MoMo txn ID / card slip"/>
+          <div class="field"><label for="enrol_momo_network">MoMo network</label><input name="momo_network" id="enrol_momo_network" maxlength="20"></div>
+          <div class="field"><label for="enrol_momo_phone">MoMo phone</label><input name="momo_phone" id="enrol_momo_phone" maxlength="30"></div>
         </div>
+        <x-payment-split-tender widget-id="club-enrolment-split" single-id="enrol-payment-single" :modes="$splitModes" label="enrolment payment" :show-cheque="false"/>
       </div>
       <button class="btn btn-primary btn-block mt-1" id="enrolSave"><x-icon name="check"/> Create membership</button>
       <p class="tiny muted">The subscription is invoiced now and earned day by day over the term; the joining fee is income today.</p>

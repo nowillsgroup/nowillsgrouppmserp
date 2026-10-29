@@ -25,10 +25,13 @@
   </div>
   <div>
     <div class="card"><div class="card-head"><h3>Advance / Deposit</h3></div><div class="card-body">
-      <x-field name="advance" label="Amount" type="number" step="0.01" min="0" value="0"/><div class="mt-1"></div>
-      <x-field name="advance_mode" label="Mode" type="select" :options="$paymentModes" data-payment-mode/><div class="mt-1"></div>
-      <x-field name="advance_ref" label="Reference"/>
-      <x-cheque-fields/>
+      <div id="walkinAdvanceSingle">
+        <x-field name="advance" label="Amount" type="number" step="0.01" min="0" value="0"/><div class="mt-1"></div>
+        <x-field name="advance_mode" label="Mode" type="select" :options="$paymentModes" data-payment-mode/><div class="mt-1"></div>
+        <x-field name="advance_ref" label="Reference"/>
+        <x-cheque-fields/>
+      </div>
+      <x-payment-split-tender widget-id="walkinAdvanceSplit" single-id="walkinAdvanceSingle" :modes="$paymentModes" label="deposit"/>
     </div></div>
     <div class="card"><div class="card-body"><x-field name="special_request" label="Remarks" type="textarea"/></div></div>
     <div class="card"><div class="card-body"><ul class="list"><li><span>Estimated room charges</span><b id="est">—</b></li></ul></div></div>

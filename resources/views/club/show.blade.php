@@ -116,11 +116,15 @@
 @if(can_do('club.members'))
 <div class="modal" id="payModal"><div class="modal-box"><form method="post" action="{{ route('club.members.pay', $m) }}" data-reset>@csrf
   <div class="modal-head"><h3>Take payment – {{ $m->membership_no }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-  <div class="modal-body"><div class="form-grid">
-    <x-field name="amount" label="Amount (GH₵)" type="number" step="0.01" min="0.01" required/>
-    <div class="field"><label for="p_mode">Mode <span class="req">*</span></label><select name="payment_mode_id" id="p_mode" required>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
-    <x-field name="reference" label="Reference" class="span-2" placeholder="MoMo transaction ID / card slip no."/>
-  </div><p class="small">Balance due: <b>{{ money(max(0, $balance)) }}</b></p></div>
+  <div class="modal-body">
+    <div id="pay-single" class="form-grid">
+      <x-field name="amount" label="Amount (GH₵)" type="number" step="0.01" min="0.01" required/>
+      <div class="field"><label for="p_mode">Mode <span class="req">*</span></label><select name="payment_mode_id" id="p_mode" required>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
+      <x-field name="reference" label="Reference" class="span-2" placeholder="MoMo transaction ID / card slip no."/>
+    </div>
+    <x-payment-split-tender widget-id="club-payment-split" single-id="pay-single" :modes="$splitModes" label="receipt payment" :show-cheque="false"/>
+    <p class="small">Balance due: <b>{{ money(max(0, $balance)) }}</b></p>
+  </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary" id="paySave">Receive</button></div>
 </form></div></div>
 
@@ -129,9 +133,10 @@
   <div class="modal-body">
     <p class="small">{{ $m->status === 'expired' ? 'The membership lapsed on '.dmy($m->end_date).' – the new term starts today.' : 'The next term starts on '.dmy($m->end_date->copy()->addDay()).'.' }}</p>
     <div class="field"><label for="rn_plan">Plan</label><select name="club_plan_id" id="rn_plan">@foreach($plans as $p)<option value="{{ $p->id }}" @selected($p->id === $m->club_plan_id)>{{ $p->name }} – {{ money($p->price, false) }} / {{ strtolower($p->termLabel()) }}{{ $p->max_persons < $m->members->where('is_active', true)->count() ? ' (too few cards)' : '' }}</option>@endforeach</select></div>
-    <div class="form-grid"><x-field name="pay_amount" label="Payment now (optional)" type="number" step="0.01" min="0"/>
+    <div id="renew-single" class="form-grid"><x-field name="pay_amount" label="Payment now (optional)" type="number" step="0.01" min="0"/>
       <div class="field"><label for="rn_mode">Mode</label><select name="payment_mode_id" id="rn_mode"><option value="">—</option>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
       <x-field name="reference" label="Reference" class="span-2"/></div>
+    <x-payment-split-tender widget-id="club-renewal-split" single-id="renew-single" :modes="$splitModes" label="renewal payment" :show-cheque="false"/>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary" id="renewSave">Raise renewal</button></div>
 </form></div></div>

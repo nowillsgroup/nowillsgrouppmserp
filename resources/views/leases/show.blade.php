@@ -143,14 +143,18 @@
   <div class="modal-head"><h3>Receive money – {{ $l->lease_no }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body"><div class="form-grid">
     <div class="field"><label for="p_kind">For</label><select name="kind" id="p_kind"><option value="payment">Rent &amp; charges (receipt)</option><option value="deposit">Security deposit</option></select></div>
-    <div class="field"><label for="p_amount">Amount received (GH₵) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="amount" id="p_amount" required></div>
-    <div class="field"><label for="p_mode">Mode <span class="req">*</span></label><select name="payment_mode_id" id="p_mode" required>{!! $modeOpts !!}</select></div>
-    <div class="field"><label for="p_ref">Reference</label><input name="reference" id="p_ref" maxlength="80" placeholder="Bank transfer / MoMo ID / cheque no."></div>
+    <div id="lease-payment-single" class="form-grid span-all">
+      <div class="field"><label for="p_amount">Amount received (GH₵) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="amount" id="p_amount" required></div>
+      <div class="field"><label for="p_mode">Mode <span class="req">*</span></label><select name="payment_mode_id" id="p_mode" required>{!! $modeOpts !!}</select></div>
+      <div class="field"><label for="p_ref">Reference</label><input name="reference" id="p_ref" maxlength="80" placeholder="Bank transfer / MoMo ID / cheque no."></div>
+    </div>
     @if((float) $l->wht_pct > 0)
     <div class="field"><label for="p_wht">Tax withheld by the tenant (GH₵)</label><input type="number" step="0.01" min="0" name="wht_amount" id="p_wht"></div>
     <div class="field"><label for="p_cert">WHT certificate no.</label><input name="wht_cert_no" id="p_cert" maxlength="40"></div>
     @endif
   </div>
+  <x-payment-split-tender widget-id="lease-payment-split" single-id="lease-payment-single" :modes="$splitModes" label="lease payment" :show-cheque="false"/>
+  <p class="tiny muted">Rent receipts and security deposits may be split across cash, card, bank or mobile money. Record withholding tax with one tender.</p>
   <p class="small">Balance due: <b>{{ money(max(0, $balance)) }}</b>@if($deposit < (float) $l->deposit_amount) · deposit outstanding <b>{{ money((float) $l->deposit_amount - $deposit) }}</b>@endif</p>
   @if((float) $l->wht_pct > 0)<p class="tiny muted">{{ $l->company?->name ?? 'The tenant' }} withholds {{ rtrim(rtrim(number_format($l->wht_pct, 2), '0'), '.') }}% of rent and pays it to GRA; the amount withheld also settles the account and is booked to 1315 WHT recoverable.</p>@endif</div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary" id="paySave">Receive</button></div>

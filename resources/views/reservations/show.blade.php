@@ -278,7 +278,11 @@
 
 <div class="modal" id="advModal"><div class="modal-box"><form method="post" action="{{ route('reservations.advance', $r) }}">@csrf
   <div class="modal-head"><h3>Receive advance</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-  <div class="modal-body form-grid"><x-field name="amount" label="Amount" type="number" step="0.01" min="1" required/><x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" required data-payment-mode/><x-field name="reference" label="Reference" class="span-all"/><x-cheque-fields/></div>
+  <div class="modal-body">
+    <div id="advanceSingleTender" class="form-grid"><x-field name="amount" label="Amount" type="number" step="0.01" min="1" required/><x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" required data-payment-mode/><x-field name="reference" label="Reference" class="span-all"/><x-cheque-fields/></div>
+    <div class="mt-1"><button type="button" class="btn btn-sm" id="advanceSplitToggle">Split advance across methods</button></div>
+    <div id="advanceSplitTender" class="mt-1" hidden><p class="small muted">Enter one amount per method. Total allocated: <b id="advanceAllocationTotal">0.00</b>.</p><div id="advanceAllocations"></div><button type="button" class="btn btn-sm mt-1" id="advanceAddAllocation">Add payment method</button></div>
+  </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Save Payment</button></div>
 </form></div></div>
 
@@ -321,4 +325,76 @@
 @if(can_do('payments.request') && !in_array($r->status, ['checked_out','cancelled','no_show']))
 @include('payments._request-modal', ['payRes' => $r, 'payFolio' => null, 'paySuggest' => \App\Services\OnlinePaymentService::suggest($r, null), 'payGuest' => $r->guest])
 @endif
+@push('scripts')
+<script>
+(() => {
+  const form = document.querySelector('#advModal form');
+  const toggle = document.getElementById('advanceSplitToggle');
+  const single = document.getElementById('advanceSingleTender');
+  const split = document.getElementById('advanceSplitTender');
+  const rows = document.getElementById('advanceAllocations');
+  const total = document.getElementById('advanceAllocationTotal');
+  if (!form || !toggle || !single || !split || !rows) return;
+  const modes = @json($paymentModes);
+  const oldLines = @js(old('payments', []));
+  const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let sequence = 0, restored = false;
+  const update = () => {
+    const sum = [...rows.querySelectorAll('input[name$="[amount]"]')].reduce((n, input) => n + (Number(input.value) || 0), 0);
+    if (total) total.textContent = sum.toFixed(2);
+  };
+  const syncCheque = () => rows.querySelectorAll('[data-advance-row]').forEach(row => {
+    const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+    const cheque = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
+    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = cheque; });
+  });
+  const addRow = (line = {}) => {
+    if (!line || typeof line !== 'object') line = {};
+    const i = sequence++;
+    const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+    rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-advance-row style="border:1px solid var(--c-border);padding:.6rem;border-radius:var(--radius)">
+      <div class="field"><label>Payment method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+      <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+      <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
+      <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
+      <div class="field span-all"><label>Reference</label><input name="payments[${i}][reference]" maxlength="80"></div>
+      <details class="span-all"><summary class="tiny bold">Cheque details</summary><div class="form-grid mt-1">
+        <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
+        <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
+        <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
+      </div></details>
+      <button type="button" class="btn btn-sm btn-ghost" data-remove-advance>Remove tender</button>
+    </div>`);
+    const row = rows.lastElementChild;
+    for (const key of ['payment_mode_id','amount','reference','momo_network','momo_phone','cheque_bank_name','cheque_number','cheque_bank_branch']) {
+      const input = row.querySelector(`[name="payments[${i}][${key}]"]`);
+      if (input && line[key] !== undefined && line[key] !== null) input.value = String(line[key]);
+    }
+    syncCheque(); update();
+  };
+  const setSplit = enabled => {
+    single.hidden = enabled; split.hidden = !enabled;
+    single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+    toggle.textContent = enabled ? 'Use one payment method' : 'Split advance across methods';
+    if (enabled && !rows.children.length) {
+      if (!restored && Array.isArray(oldLines) && oldLines.length) { oldLines.slice(0,10).forEach(addRow); restored = true; }
+      while (rows.children.length < 2) addRow();
+    }
+    if (!enabled) rows.replaceChildren();
+    update();
+  };
+  toggle.addEventListener('click', () => setSplit(split.hidden));
+  document.getElementById('advanceAddAllocation')?.addEventListener('click', () => addRow());
+  rows.addEventListener('input', update);
+  rows.addEventListener('change', event => { update(); if (event.target.matches('select[name$="[payment_mode_id]"]')) syncCheque(); });
+  rows.addEventListener('click', event => { if (event.target.closest('[data-remove-advance]')) { event.target.closest('[data-advance-row]')?.remove(); update(); } });
+  form.addEventListener('submit', event => {
+    if (!split.hidden && rows.querySelectorAll('[data-advance-row]').length < 2) {
+      event.preventDefault(); alert('Add at least two payment methods, or switch back to one method.');
+    }
+  });
+  if (Array.isArray(oldLines) && oldLines.length) setSplit(true);
+})();
+</script>
+@endpush
 @endsection

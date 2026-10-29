@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\ReservationRoom;
 use App\Models\ReservationWaitlist;
 use App\Models\Room;
-use App\Models\RoomAmenity;
 use App\Models\RoomOutage;
 use Illuminate\Support\Carbon;
 
@@ -65,7 +64,9 @@ class ReservationWorkspaceService
         });
 
         // The preloaded range includes unassigned hotel-wide desk work as well as room stays.
-        $deskStatuses = $past ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $deskStatuses = $past
+            ? ['checked_in', 'checked_out']
+            : ($future ? ['reserved', 'checked_in'] : ['reserved', 'checked_in', 'checked_out']);
         $departureStatuses = $past ? ['checked_in', 'checked_out'] : ($future ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
         $arrivals = $rangeStays->filter(fn ($stay) => $stay->arrival_date->toDateString() === $d
             && in_array($stay->status, $deskStatuses, true))->count();
@@ -85,7 +86,7 @@ class ReservationWorkspaceService
             'arrivals' => $arrivals,
             'departures' => $departures,
             'inhouse' => (int) $guestStays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
-            'vips' => (int) $guestStays->filter(fn ($stay) => $stay->guest?->is_vip ?? $stay->reservation?->guest?->is_vip ?? false)
+            'vips' => (int) $guestStays->filter(fn ($stay) => $stay->guest?->is_vip || $stay->reservation?->guest?->is_vip)
                 ->unique(fn ($stay) => $stay->guest_id ?? $stay->reservation?->guest_id ?? 'stay-'.$stay->id)->count(),
         ];
     }
@@ -193,9 +194,21 @@ class ReservationWorkspaceService
             $y = round(22 - (($v - $min) / $span) * 18, 1);
             $pts[] = $x.','.$y;
         }
-        $color = $tone === 'red' ? '#ef4444' : '#10b981';
+        $color = match ($tone) {
+            'red' => '#ef4444',
+            'neutral' => '#64748b',
+            default => '#10b981',
+        };
 
         return '<svg viewBox="0 0 80 24" class="ws-spark" aria-hidden="true"><polyline fill="none" stroke="'.$color.'" stroke-width="1.6" stroke-linejoin="round" points="'.implode(' ', $pts).'"/></svg>';
+    }
+
+    /** Linked amenities allowed on the operational room board. */
+    protected static function deskAmenityNames($links)
+    {
+        return $links->map(fn ($link) => $link->amenity)
+            ->filter(fn ($amenity) => $amenity && $amenity->is_active && $amenity->show_on_desk)
+            ->pluck('name')->filter()->values();
     }
 
     /** The full board for one date. */
@@ -208,7 +221,7 @@ class ReservationWorkspaceService
         $isFuture = $date->gt($businessDate);
         $hotelId = \App\Support\Tenant::id();
 
-        $rooms = Room::with(['roomType', 'floor'])
+        $rooms = Room::with(['roomType.amenityLinks.amenity', 'amenityLinks.amenity', 'floor'])
             ->where('hotel_id', $hotelId)->where('is_active', true)
             ->orderBy('room_no')->get();
         $trendDates = [];
@@ -234,13 +247,17 @@ class ReservationWorkspaceService
         $activeRoomIds = $rooms->pluck('id');
         $typeAmenities = [];
         foreach ($rooms->pluck('roomType')->filter()->unique('id') as $rt) {
-            $typeAmenities[$rt->id] = array_values(array_filter(array_map('trim', explode(',', (string) ($rt->amenities ?? '')))));
+            $legacy = preg_split('/[,;|]/', (string) ($rt->amenities ?? '')) ?: [];
+            $linked = self::deskAmenityNames($rt->amenityLinks);
+            $typeAmenities[$rt->id] = collect($legacy)->merge($linked)
+                ->map(fn ($name) => is_string($name) ? trim($name) : '')
+                ->filter()->unique()->values()->all();
         }
 
         // Only stays actually covering the selected night belong on its room board.
         // Past boards include completed stays so that a checked-out guest remains visible.
         $boardStatuses = $isHistory ? ['reserved', 'checked_in', 'checked_out'] : ['reserved', 'checked_in'];
-        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'guest:id,first_name,last_name,is_vip,nationality', 'folio'])
+        $stays = ReservationRoom::with(['reservation:id,guest_id,business_source_id,company_id,reservation_no,group_name,ota_reference', 'reservation.guest:id,first_name,last_name,is_vip,nationality,phone,email', 'reservation.businessSource:id,name', 'reservation.company:id,name', 'guest:id,first_name,last_name,is_vip,nationality,phone,email', 'folio'])
             ->where('hotel_id', $hotelId)
             ->whereIn('status', $boardStatuses)
             ->whereDate('arrival_date', '<=', $selectedDay)
@@ -254,6 +271,8 @@ class ReservationWorkspaceService
 
         foreach ($rooms as $room) {
             $stay = ($stays->get($room->id) ?? collect())->first();
+            $roomAmenities = self::deskAmenityNames($room->amenityLinks);
+            $amenities = collect($typeAmenities[$room->room_type_id] ?? [])->merge($roomAmenities)->unique()->values()->all();
 
             $status = 'available';
             if (isset($blockedStatusByRoom[$room->id])) {
@@ -302,7 +321,7 @@ class ReservationWorkspaceService
                 'balance' => $balance,
                 'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
-                'amenities' => $typeAmenities[$room->room_type_id] ?? [],
+                'amenities' => $amenities,
                 'arriving_on_date' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $selectedDay,
             ];
 
@@ -311,16 +330,18 @@ class ReservationWorkspaceService
         // arrivals & departures for the date, regardless of room assignment —
         // an arrival with no room yet is still desk work (room_id is null until
         // it is assigned, so room-scoped queries would silently drop it)
-        $deskStatuses = $isHistory ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $deskStatuses = $isHistory
+            ? ['checked_in', 'checked_out']
+            : ($isFuture ? ['reserved', 'checked_in'] : ['reserved', 'checked_in', 'checked_out']);
         $departureStatuses = $isHistory ? ['checked_in', 'checked_out'] : ($isFuture ? ['reserved', 'checked_in'] : ['checked_in', 'checked_out']);
-        $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no,status'])
+        $arrivals = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no,status,hk_status,is_active'])
             ->where('hotel_id', $hotelId)
             ->whereDate('arrival_date', $selectedDay)
             ->whereIn('status', $deskStatuses)
             ->orderBy('room_id')->get();
 
         // Selected-date departures include reserved future stays and completed departures.
-        $departures = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no', 'folio'])
+        $departures = ReservationRoom::with(['reservation:id,guest_id,business_source_id,adults,children', 'reservation.guest:id,first_name,last_name,is_vip,nationality', 'guest:id,first_name,last_name,is_vip,nationality', 'reservation.businessSource:id,name', 'room:id,room_no', 'folio'])
             ->where('hotel_id', $hotelId)
             ->whereDate('departure_date', $selectedDay)
             ->whereIn('status', $departureStatuses)
@@ -452,6 +473,10 @@ class ReservationWorkspaceService
             'Group Hold' => [$blockedCounts['group_hold'] ?? 0, '#0ea5e9'],
             'Other Block' => [$blockedCounts['other_block'] ?? 0, '#64748b'],
         ];
+        $waitlistQuery = ReservationWaitlist::query()->where('hotel_id', $hotelId)->where('status', 'waiting');
+        $waitlistCount = (clone $waitlistQuery)->count();
+        $waitlist = (clone $waitlistQuery)->with(['guest:id,first_name,last_name', 'roomType:id,name'])
+            ->orderByDesc('priority')->orderBy('arrival_date')->orderByDesc('created_at')->limit(5)->get();
 
         return [
             'date' => $date,
@@ -476,10 +501,8 @@ class ReservationWorkspaceService
                 'Clean' => $rooms->whereIn('hk_status', ['clean', 'inspected'])->count(),
                 'Touch-up' => $rooms->where('hk_status', 'touch_up')->count(),
             ],
-            'waitlist' => ReservationWaitlist::where('hotel_id', $hotelId)
-                ->where('status', 'waiting')
-                ->with(['guest:id,first_name,last_name', 'roomType:id,name'])
-                ->orderByDesc('priority')->orderBy('arrival_date')->orderByDesc('created_at')->limit(5)->get(),
+            'waitlist' => $waitlist,
+            'waitlistCount' => $waitlistCount,
             // rooms the desk may assign for this night — the same source the
             // reservations screen and the assign endpoint validate against, so
             // the inline picker can never offer a room that would be rejected

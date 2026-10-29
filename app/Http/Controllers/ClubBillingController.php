@@ -12,6 +12,8 @@ use App\Services\TaxService;
 use App\Support\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /** v5.1 Members' accounts: renewals, receipts, refunds, credit notes, statements, arrears. */
@@ -61,24 +63,68 @@ class ClubBillingController extends Controller
 
     public function renew(Request $request, ClubMembership $membership)
     {
-        $d = $request->validate(['club_plan_id' => 'nullable|integer', 'pay_amount' => 'nullable|numeric|min:0', 'payment_mode_id' => 'nullable|integer|required_with:pay_amount', 'reference' => 'nullable|string|max:80']);
+        $d = $request->validate([
+            'club_plan_id' => 'nullable|integer', 'pay_amount' => 'nullable|numeric|min:0',
+            'payment_mode_id' => 'nullable|integer|owned:payment_modes|required_with:pay_amount', 'reference' => 'nullable|string|max:80',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+        ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && ((float) ($d['pay_amount'] ?? 0) > 0 || ! empty($d['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payments' => 'Use either one renewal payment or split tender rows, not both.']);
+        }
 
-        return $this->attempt(function () use ($membership, $d, $request) {
-            $c = ClubService::renew($membership->load('plan'), $request->user(), null, $d['club_plan_id'] ?? null);
-            if ((float) ($d['pay_amount'] ?? 0) > 0) {
-                ClubBillingService::pay($membership, (float) $d['pay_amount'], (int) $d['payment_mode_id'], $d['reference'] ?? null, $request->user());
-            }
+        return $this->attempt(function () use ($membership, $d, $payments, $request) {
+            return DB::transaction(function () use ($membership, $d, $payments, $request) {
+                $c = ClubService::renew($membership->load('plan'), $request->user(), null, $d['club_plan_id'] ?? null);
+                if ($payments) {
+                    ClubBillingService::payMany($membership, $payments, $request->user());
+                } elseif ((float) ($d['pay_amount'] ?? 0) > 0) {
+                    ClubBillingService::pay($membership, (float) $d['pay_amount'], (int) $d['payment_mode_id'], $d['reference'] ?? null, $request->user());
+                }
 
-            return $c;
+                return $c;
+            });
         }, fn ($c) => "Renewal {$c->charge_no} raised – ".money($c->total).'. Paid through '.dmy($c->period_end).' once settled.');
     }
 
     public function pay(Request $request, ClubMembership $membership)
     {
-        $d = $request->validate(['amount' => 'required|numeric|min:0.01', 'payment_mode_id' => 'required|integer', 'reference' => 'nullable|string|max:80']);
+        $d = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+        ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && (! empty($d['payment_mode_id']) || ! empty($d['amount']))) {
+            throw ValidationException::withMessages(['payments' => 'Use either one receipt tender or split tender rows, not both.']);
+        }
+        $reference = trim((string) ($d['reference'] ?? ''));
+        if (filled($d['momo_network'] ?? null) || filled($d['momo_phone'] ?? null)) {
+            $reference = mb_substr(trim(implode(' · ', array_filter([
+                $d['momo_network'] ?? null, $d['momo_phone'] ?? null, $reference,
+            ]))), 0, 80);
+        }
 
-        return $this->attempt(fn () => ClubBillingService::pay($membership, (float) $d['amount'], (int) $d['payment_mode_id'], $d['reference'] ?? null, $request->user()),
-            fn ($p) => "Receipt {$p->receipt_no} – ".money($p->amount).'. Balance now '.money(ClubBillingService::balance($membership)).'.');
+        return $this->attempt(function () use ($membership, $payments, $d, $reference, $request) {
+            if ($payments) {
+                return ClubBillingService::payMany($membership, $payments, $request->user());
+            }
+            if (empty($d['amount']) || empty($d['payment_mode_id'])) {
+                throw new RuntimeException('Enter an amount and choose a payment method.');
+            }
+
+            return ClubBillingService::pay($membership, (float) $d['amount'], (int) $d['payment_mode_id'], $reference ?: null, $request->user());
+        }, function ($result) use ($membership) {
+            $receipts = is_array($result) ? $result : [$result];
+            $refs = implode(', ', array_map(fn ($p) => $p->receipt_no, $receipts));
+            $amount = array_sum(array_map(fn ($p) => (float) $p->amount, $receipts));
+
+            return (count($receipts) > 1 ? 'Receipts '.$refs : 'Receipt '.$refs).' – '.money($amount).'. Balance now '.money(ClubBillingService::balance($membership)).'.';
+        });
     }
 
     public function refund(Request $request, ClubMembership $membership)

@@ -107,9 +107,15 @@ class FolioController extends Controller
     public function previewPayment(Request $request, Folio $folio)
     {
         $data = $request->validate([
-            'amount' => 'required|numeric|min:0.01', 'payment_mode_id' => 'required|integer|owned:payment_modes',
+            'amount' => 'nullable|numeric|min:0.01', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
             'reference' => 'nullable|string|max:80', 'type' => 'required|in:payment,refund',
             'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30',
         ]);
         if ($folio->status !== 'open') {
             $msg = 'Folio '.$folio->folio_no.' is closed. Nothing was posted.';
@@ -127,14 +133,50 @@ class FolioController extends Controller
                 ? response()->json(['ok' => false, 'message' => $msg], 422)
                 : back()->with('error', $msg);
         }
-        $amount = round((float) $data['amount'], 2);
-        $reference = $this->momoReference($request, $data['reference'] ?? null);
-        $mode = PaymentMode::find($data['payment_mode_id']);
+        $usingSplit = ! empty($data['payments']);
+        $allocations = $usingSplit ? array_values($data['payments']) : [[
+            'amount' => $data['amount'] ?? null,
+            'payment_mode_id' => $data['payment_mode_id'] ?? null,
+            'reference' => $data['reference'] ?? null,
+            'momo_network' => $data['momo_network'] ?? null,
+            'momo_phone' => $data['momo_phone'] ?? null,
+        ]];
+        if (! $usingSplit && (empty($allocations[0]['amount']) || empty($allocations[0]['payment_mode_id']))) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payment_mode_id' => 'Enter an amount and choose a payment mode.']);
+        }
+        $amount = 0.0;
+        $modes = [];
+        $references = [];
+        $voucherLines = 0;
+        foreach ($allocations as $i => $line) {
+            $mode = PaymentMode::find((int) ($line['payment_mode_id'] ?? 0));
+            if (! $mode || ! $mode->is_active || $mode->type === 'city_ledger') {
+                throw \Illuminate\Validation\ValidationException::withMessages([$usingSplit ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose an active direct payment mode.']);
+            }
+            $amount += round((float) $line['amount'], 2);
+            $modes[] = $mode->name;
+            $lineReference = trim((string) ($line['reference'] ?? ''));
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $lineReference = trim(implode(' · ', array_filter([$line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference])));
+            }
+            if ($lineReference !== '') {
+                $references[] = $mode->name.': '.$lineReference;
+            }
+            if (GiftVoucherService::isVoucherMode((int) $mode->id)) {
+                $voucherLines++;
+            }
+        }
+        $amount = round($amount, 2);
+        if ($voucherLines && count($allocations) !== 1) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payments' => 'A gift voucher must be used as a single tender.']);
+        }
+        $reference = $usingSplit ? implode('; ', $references) : $this->momoReference($request, $data['reference'] ?? null);
         $next = $data['type'] === 'refund' ? $folio->balance() + $amount : $folio->balance() - $amount;
-        $msg = ucfirst($data['type']).' of '.money($amount).' by '.($mode->name ?? 'the selected mode')
+        $modeSummary = implode(' + ', array_unique($modes));
+        $msg = ucfirst($data['type']).' of '.money($amount).' by '.$modeSummary
             .($reference ? ' · '.$reference : '')
             .' would leave '.money($next).' on '.$folio->folio_no.'.';
-        if (GiftVoucherService::isVoucherMode((int) $data['payment_mode_id'])) {
+        if ($voucherLines) {
             $msg .= ' Confirm redeems the voucher code in the reference. It is not redeemed now.';
         }
         $msg .= ' Nothing is saved until you confirm.';
@@ -148,18 +190,75 @@ class FolioController extends Controller
     public function payment(Request $request, Folio $folio)
     {
         $data = $request->validate([
-            'amount' => 'required|numeric|min:0.01', 'payment_mode_id' => 'required|integer|owned:payment_modes',
+            'amount' => 'nullable|numeric|min:0.01', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
             'reference' => 'nullable|string|max:80', 'type' => 'required|in:payment,refund',
             'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30',
+            'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20',
+            'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
-        $data['reference'] = $this->momoReference($request, $data['reference'] ?? null);
-        FolioService::payment($folio, (float) $data['amount'], (int) $data['payment_mode_id'], $data['reference'] ?? null, 'settlement', $data['type'], [
-            'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-        ]);
-        ActivityLogger::log('folio', $data['type'], ucfirst($data['type']).' '.money($data['amount'])." on {$folio->folio_no}", $folio);
 
-        return back()->with('success', ucfirst($data['type']).' recorded.');
+        $usingSplit = ! empty($data['payments']);
+        $payments = $usingSplit ? array_values($data['payments']) : [[
+            'amount' => $data['amount'] ?? null,
+            'payment_mode_id' => $data['payment_mode_id'] ?? null,
+            'reference' => $data['reference'] ?? null,
+            'cheque_bank_name' => $data['cheque_bank_name'] ?? null,
+            'cheque_number' => $data['cheque_number'] ?? null,
+            'cheque_bank_branch' => $data['cheque_bank_branch'] ?? null,
+        ]];
+        if (! $usingSplit) {
+            if (empty($payments[0]['amount']) || empty($payments[0]['payment_mode_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['payment_mode_id' => 'Enter an amount and choose a payment mode.']);
+            }
+            $payments[0]['reference'] = $this->momoReference($request, $payments[0]['reference'] ?? null);
+        } else {
+            foreach ($payments as &$payment) {
+                if (filled($payment['momo_network'] ?? null) || filled($payment['momo_phone'] ?? null)) {
+                    $payment['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                        $payment['momo_network'] ?? null, $payment['momo_phone'] ?? null, $payment['reference'] ?? null,
+                    ]))), 0, 80);
+                }
+            }
+            unset($payment);
+        }
+
+        $voucherLines = 0;
+        foreach ($payments as $i => $payment) {
+            $mode = PaymentMode::find((int) ($payment['payment_mode_id'] ?? 0));
+            if (! $mode || ! $mode->is_active || $mode->type === 'city_ledger') {
+                throw \Illuminate\Validation\ValidationException::withMessages([$usingSplit ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose an active direct payment mode.']);
+            }
+            if (GiftVoucherService::isVoucherMode((int) $mode->id)) {
+                $voucherLines++;
+            }
+        }
+        if ($voucherLines && count($payments) !== 1) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['payments' => 'A gift voucher must be redeemed as a single tender.']);
+        }
+
+        DB::transaction(function () use ($payments, $data, $folio) {
+            foreach ($payments as $payment) {
+                $amount = round((float) $payment['amount'], 2);
+                $reference = trim((string) ($payment['reference'] ?? '')) ?: null;
+                $cheque = [
+                    'bank_name' => $payment['cheque_bank_name'] ?? null,
+                    'number' => $payment['cheque_number'] ?? null,
+                    'bank_branch' => $payment['cheque_bank_branch'] ?? null,
+                ];
+                FolioService::payment($folio, $amount, (int) $payment['payment_mode_id'], $reference, 'settlement', $data['type'], $cheque);
+                ActivityLogger::log('folio', $data['type'], ucfirst($data['type']).' '.money($amount)." on {$folio->folio_no}", $folio);
+            }
+        });
+
+        return back()->with('success', count($payments) > 1 ? count($payments).' tender entries recorded.' : ucfirst($data['type']).' recorded.');
     }
 
     public function discount(Request $request, Folio $folio)

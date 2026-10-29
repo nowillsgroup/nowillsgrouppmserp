@@ -138,21 +138,29 @@
   @endif
 
   @if(can_do('folio.payment'))
-  <form method="post" action="{{ $folio && $folio->status === 'open' ? route('folios.payment', $folio) : route('reservations.advance', $res) }}" class="desk-form" data-preview="{{ $folio && $folio->status === 'open' ? route('folios.payment.preview', $folio) : route('reservations.advance.preview', $res) }}">
+  <form method="post" action="{{ $folio && $folio->status === 'open' ? route('folios.payment', $folio) : route('reservations.advance', $res) }}" class="desk-form" id="deskStayPaymentForm" data-preview="{{ $folio && $folio->status === 'open' ? route('folios.payment.preview', $folio) : route('reservations.advance.preview', $res) }}">
     @csrf
     @if($folio && $folio->status === 'open')<input type="hidden" name="type" value="payment">@endif
     <h3>{{ $folio && $folio->status === 'open' ? 'Take payment' : 'Take advance' }}</h3>
-    <div class="flex gap-1 wrap">
+    <div id="deskSinglePayment" class="flex gap-1 wrap">
       <input name="amount" type="number" min="0.01" step="0.01" required placeholder="Amount" aria-label="Amount" style="width:7rem">
       <select name="payment_mode_id" required aria-label="Payment mode" data-payment-mode>
         @foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
       </select>
       <input name="momo_network" placeholder="MoMo network" aria-label="Mobile Money network" style="width:7rem">
-      <input name="momo_phone" placeholder="MoMo phone" aria-label="Mobile Money phone" style="width:8rem">
+      <input name="momo_phone" placeholder="Mobile Money phone" aria-label="Mobile Money phone" style="width:8rem">
       <input name="reference" placeholder="Transaction ID" aria-label="Transaction reference" style="width:8rem">
       <x-cheque-fields class="span-all"/>
-      <button class="btn btn-sm" type="button" data-quote>Preview payment</button>
-      <button class="btn btn-sm btn-primary">Confirm payment</button>
+    </div>
+    <div class="mt-1"><button class="btn btn-sm" type="button" id="deskSplitToggle">Split {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button></div>
+    <div id="deskSplitPayment" class="mt-1" hidden>
+      <p class="tiny muted">Add two or more tenders. They will be posted together as separate entries{{ $folio && $folio->status === 'open' ? ' to this folio; partial payments are allowed' : ' as an advance on the reservation' }}. Total allocated: <b id="deskAllocationTotal">0.00</b>.</p>
+      <div id="deskPaymentAllocations"></div>
+      <button class="btn btn-sm mt-1" type="button" id="deskAddPaymentAllocation">Add payment method</button>
+    </div>
+    <div class="flex gap-1 wrap mt-1">
+      <button class="btn btn-sm" type="button" data-quote>Preview {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button>
+      <button class="btn btn-sm btn-primary">Confirm {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button>
     </div>
     <p class="quote tiny muted">Preview shows where the money would sit. Nothing is posted until you confirm. A receipt prints only after the payment is on the folio.</p>
   </form>
@@ -226,12 +234,76 @@
 <script>
 (function () {
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-  const keyOf = form => {
-    const fd = new FormData(form);
-    return ['arrival_date', 'departure_date', 'split_date', 'room_id', 'rate', 'amount', 'category', 'description', 'apply_tax', 'payment_mode_id', 'momo_network', 'momo_phone', 'reference', 'cheque_bank_name', 'cheque_number', 'cheque_bank_branch', 'type'].map(k => fd.get(k) || '').join('|');
-  };
+  const keyOf = form => [...new FormData(form).entries()].map(([key, value]) => `${key}=${String(value)}`).join('|');
+  const paymentForm = document.getElementById('deskStayPaymentForm');
+  if (paymentForm && document.getElementById('deskSplitToggle')) {
+    const toggle = document.getElementById('deskSplitToggle');
+    const single = document.getElementById('deskSinglePayment');
+    const split = document.getElementById('deskSplitPayment');
+    const rows = document.getElementById('deskPaymentAllocations');
+    const totalEl = document.getElementById('deskAllocationTotal');
+    const modes = @json($modes->pluck('name', 'id'));
+    const oldLines = @js(old('payments', []));
+    const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let seq = 0, restored = false;
+    const updateTotal = () => {
+      const sum = [...rows.querySelectorAll('input[name$="[amount]"]')].reduce((n, input) => n + (Number(input.value) || 0), 0);
+      if (totalEl) totalEl.textContent = sum.toFixed(2);
+    };
+    const syncCheque = () => rows.querySelectorAll('[data-desk-payment-row]').forEach(row => {
+      const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+      const required = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
+      row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; });
+    });
+    const addRow = (line = {}) => {
+      if (!line || typeof line !== 'object') line = {};
+      const i = seq++;
+      const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+      rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-desk-payment-row style="border:1px solid var(--c-border);padding:.55rem;border-radius:var(--radius)">
+        <div class="field"><label>Method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+        <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+        <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
+        <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
+        <div class="field span-all"><label>Reference / transaction ID</label><input name="payments[${i}][reference]" maxlength="80"></div>
+        <details class="span-all"><summary class="tiny bold">Cheque details</summary><div class="form-grid mt-1">
+          <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
+          <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
+          <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
+        </div></details>
+        <button class="btn btn-sm btn-ghost" type="button" data-remove-desk-payment>Remove tender</button>
+      </div>`);
+      const row = rows.lastElementChild;
+      for (const key of ['payment_mode_id','amount','momo_network','momo_phone','reference','cheque_bank_name','cheque_number','cheque_bank_branch']) {
+        const field = row.querySelector(`[name="payments[${i}][${key}]"]`);
+        if (field && line[key] !== undefined && line[key] !== null) field.value = String(line[key]);
+      }
+      syncCheque(); updateTotal();
+    };
+    const setSplit = enabled => {
+      single.hidden = enabled; split.hidden = !enabled;
+      single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+      toggle.textContent = enabled ? 'Use one payment method' : 'Split payment';
+      if (enabled && !rows.children.length) {
+        if (!restored && Array.isArray(oldLines) && oldLines.length) { oldLines.slice(0,10).forEach(addRow); restored = true; }
+        while (rows.children.length < 2) addRow();
+      }
+      if (!enabled) rows.replaceChildren();
+      updateTotal();
+    };
+    toggle.addEventListener('click', () => setSplit(split.hidden));
+    document.getElementById('deskAddPaymentAllocation')?.addEventListener('click', () => addRow());
+    rows.addEventListener('input', updateTotal);
+    rows.addEventListener('change', event => { updateTotal(); if (event.target.matches('select[name$="[payment_mode_id]"]')) syncCheque(); });
+    rows.addEventListener('click', event => { if (event.target.closest('[data-remove-desk-payment]')) { event.target.closest('[data-desk-payment-row]')?.remove(); updateTotal(); } });
+    if (Array.isArray(oldLines) && oldLines.length) setSplit(true);
+  }
   document.querySelectorAll('[data-quote]').forEach(btn => btn.addEventListener('click', () => {
     const form = btn.closest('form');
+    const split = form.querySelector('#deskSplitPayment');
+    if (split && !split.hidden && form.querySelectorAll('[data-desk-payment-row]').length < 2) {
+      const p = form.querySelector('.quote'); if (p) p.textContent = 'Add at least two payment methods, or switch back to one method.';
+      return;
+    }
     fetch(form.dataset.preview, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }, body: new FormData(form) })
       .then(r => r.json().then(j => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {

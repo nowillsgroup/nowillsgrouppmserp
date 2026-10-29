@@ -109,7 +109,7 @@ class LaundryController extends Controller
         }
 
         return view('laundry.show', ['o' => $lorder, 'items' => LaundryService::priceList(), 'current' => $current, 'remarks' => $remarks,
-            'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->orderBy('id')->get(), 'expressPct' => LaundryService::expressPct()]);
+            'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->orderBy('id')->pluck('name', 'id'), 'expressPct' => LaundryService::expressPct()]);
     }
 
     public function docket(LaundryOrder $lorder)
@@ -143,11 +143,27 @@ class LaundryController extends Controller
 
     public function deliver(Request $request, LaundryOrder $lorder)
     {
-        $data = $request->validate(['payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:60', 'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100']);
+        $data = $request->validate([
+            'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:80',
+            'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
+            'payments' => 'nullable|array|min:2|max:10',
+            'payments.*.amount' => 'required|numeric|min:0.01', 'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes',
+            'payments.*.reference' => 'nullable|string|max:80', 'payments.*.momo_network' => 'nullable|string|max:20',
+            'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
+            'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+        ]);
+        $payments = array_values($data['payments'] ?? []);
+        $reference = trim((string) ($data['reference'] ?? ''));
+        if (filled($data['momo_network'] ?? null) || filled($data['momo_phone'] ?? null)) {
+            $reference = mb_substr(trim(implode(' · ', array_filter([
+                $data['momo_network'] ?? null, $data['momo_phone'] ?? null, $reference,
+            ]))), 0, 80);
+        }
         try {
-            $o = LaundryService::deliver($lorder, $data['payment_mode_id'] ?? null, $data['reference'] ?? null, [
+            $o = LaundryService::deliver($lorder, $data['payment_mode_id'] ?? null, $reference ?: null, [
                 'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-            ]);
+            ], $payments);
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }

@@ -29,6 +29,11 @@ class ClubDayPass extends Model
         return $this->belongsTo(PaymentMode::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(ClubDayPassPayment::class, 'club_day_pass_id');
+    }
+
     public function stay()
     {
         return $this->belongsTo(ReservationRoom::class, 'reservation_room_id');

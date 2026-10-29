@@ -110,6 +110,11 @@ class Reservation extends Model
         return $this->belongsTo(BusinessSource::class, 'business_source_id');
     }
 
+    public function otaChannel()
+    {
+        return $this->belongsTo(OtaChannel::class, 'ota_channel_id');
+    }
+
     public function rooms()
     {
         return $this->hasMany(ReservationRoom::class);

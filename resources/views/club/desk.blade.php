@@ -106,7 +106,13 @@
     <x-field name="name" label="Guest's name" required/>
     @if($passesLeft > 0)<p class="small text-green">Uses 1 of {{ $passesLeft }} free guest pass(es) left this month.</p>
     @else<p class="small">No free guest passes left this month – a guest pass of {{ money(\App\Services\ClubService::cfg('club_guestpass')) }} + tax is charged.</p>
-      <div class="field"><label for="g_mode">Pay now by</label><select name="payment_mode_id" id="g_mode"><option value="">Charge to the member's account</option>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>@endif
+      <div id="clubGuestSingleTender" class="form-grid">
+        <div class="field span-all"><label for="g_mode">Pay now by</label><select name="payment_mode_id" id="g_mode"><option value="">Charge to the member's account</option>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
+        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+        <div class="field span-all"><label>Reference</label><input name="reference" maxlength="80" placeholder="optional"></div>
+      </div>
+      <x-payment-split-tender widget-id="clubGuestSplitTender" single-id="clubGuestSingleTender" :modes="$splitModes" label="guest-pass payment" :show-cheque="false"/>
+    @endif
     <p class="tiny muted">The member must be present and is responsible for their guest.</p>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary" id="guestSave">Check guest in</button></div>

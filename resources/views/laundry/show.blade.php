@@ -65,9 +65,15 @@
   <div class="modal-body">
     <p class="m-0 mb-1">{{ $o->pieces }} pcs · <b>{{ money($o->total) }}</b> + laundry tax.</p>
     @if($o->type === 'guest')<p class="small muted m-0">This is charged to room {{ $o->room?->room_no }}'s folio.</p>
-    @else<div class="form-grid"><div class="field"><label>Paid by</label><select name="payment_mode_id" class="input" required data-payment-mode>@foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach</select></div>
-      <div class="field"><label>Reference</label><input name="reference" class="input" maxlength="60" placeholder="optional"></div>
-      <x-cheque-fields class="span-all"/></div>@endif
+    @else
+      <div id="laundrySingleTender-{{ $o->id }}" class="form-grid">
+        <div class="field"><label>Paid by</label><select name="payment_mode_id" class="input" required data-payment-mode>@foreach($modes as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></div>
+        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+        <div class="field span-all"><label>Reference</label><input name="reference" class="input" maxlength="80" placeholder="optional"></div>
+        <x-cheque-fields class="span-all"/>
+      </div>
+      <x-payment-split-tender widget-id="laundrySplitTender-{{ $o->id }}" single-id="laundrySingleTender-{{ $o->id }}" :modes="$modes" label="payment"/>
+    @endif
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Back</button><button class="btn btn-success"><x-icon name="check"/> Deliver</button></div>
 </form></div></div>

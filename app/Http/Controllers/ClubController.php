@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /** v5.1 Health club: dashboard, check-in desk, members, day passes, plans & settings. */
@@ -76,6 +77,7 @@ class ClubController extends Controller
         if (! array_key_exists($facility, ClubPlan::FACILITIES)) {
             $facility = 'gym';
         }
+        $modes = $this->modes();
 
         return view('club.desk', [
             'q' => $q, 'found' => $found, 'person' => $person, 'facility' => $facility,
@@ -85,7 +87,7 @@ class ClubController extends Controller
             'occ' => ClubService::occupancy(),
             'inNow' => ClubService::openVisits()->with('member')->latest('checked_in_at')->get(),
             'recent' => ClubVisit::with('member', 'overrider')->whereDate('checked_in_at', now()->toDateString())->latest('id')->take(15)->get(),
-            'modes' => $this->modes(),
+            'modes' => $modes, 'splitModes' => $modes->mapWithKeys(fn ($m) => [$m->id => $m->name]),
         ]);
     }
 
@@ -105,11 +107,30 @@ class ClubController extends Controller
 
     public function guest(Request $request)
     {
-        $d = $request->validate(['club_member_id' => 'required|integer', 'facility' => ['required', Rule::in(array_keys(ClubPlan::FACILITIES))], 'name' => 'required|string|max:120', 'payment_mode_id' => 'nullable|integer']);
+        $d = $request->validate([
+            'club_member_id' => 'required|integer', 'facility' => ['required', Rule::in(array_keys(ClubPlan::FACILITIES))],
+            'name' => 'required|string|max:120', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+            'payments.*.cheque_bank_name' => 'nullable|string|max:100', 'payments.*.cheque_number' => 'nullable|string|max:20',
+            'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+        ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && ! empty($d['payment_mode_id'])) {
+            throw ValidationException::withMessages(['payments' => 'Use either one payment mode or split tender rows, not both.']);
+        }
+        $reference = trim((string) ($d['reference'] ?? ''));
+        if (filled($d['momo_network'] ?? null) || filled($d['momo_phone'] ?? null)) {
+            $reference = mb_substr(trim(implode(' · ', array_filter([
+                $d['momo_network'] ?? null, $d['momo_phone'] ?? null, $reference,
+            ]))), 0, 80);
+        }
         $p = ClubMember::findOrFail($d['club_member_id']);
 
         try {
-            $v = ClubService::checkInGuest($p, $d['name'], $d['facility'], $request->user(), $d['payment_mode_id'] ?? null);
+            $v = ClubService::checkInGuest($p, $d['name'], $d['facility'], $request->user(), $d['payment_mode_id'] ?? null, null, $payments, $reference ?: null);
         } catch (RuntimeException $e) {
             return redirect()->route('club.desk', ['member' => $p->id, 'facility' => $d['facility']])->with('error', $e->getMessage());
         }
@@ -184,7 +205,7 @@ class ClubController extends Controller
     public function create()
     {
         return view('club.enrol', ['plans' => ClubPlan::where('is_active', true)->orderBy('category')->orderBy('price')->get(), 'companies' => Company::orderBy('name')->get(['id', 'name']),
-            'modes' => $this->modes(), 'tax' => ClubBillingService::tax(100)['rate']]);
+            'modes' => $this->modes(), 'splitModes' => $this->modes()->mapWithKeys(fn ($pm) => [$pm->id => $pm->name]), 'tax' => ClubBillingService::tax(100)['rate']]);
     }
 
     public function store(Request $request)
@@ -195,12 +216,29 @@ class ClubController extends Controller
             'source' => 'nullable|string', 'notes' => 'nullable|string|max:500',
             'persons' => 'array|max:8', 'persons.*.name' => 'nullable|string|max:120', 'persons.*.relation' => 'nullable|string', 'persons.*.gender' => 'nullable|in:M,F',
             'persons.*.dob' => 'nullable|date|before:today', 'persons.*.phone' => 'nullable|string|max:30', 'persons.*.emergency_contact' => 'nullable|string|max:120', 'persons.*.health' => 'nullable|boolean',
-            'pay_amount' => 'nullable|numeric|min:0', 'payment_mode_id' => 'nullable|integer|required_with:pay_amount', 'reference' => 'nullable|string|max:80',
+            'pay_amount' => 'nullable|numeric|min:0', 'payment_mode_id' => 'nullable|integer|owned:payment_modes|required_with:pay_amount',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
         ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($payments && ((float) ($d['pay_amount'] ?? 0) > 0 || ! empty($d['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payments' => 'Use either one enrolment payment or split tender rows, not both.']);
+        }
         if (! empty($d['waive_joining']) && ! $request->user()->hasPermission('club.manage')) {
             return back()->withInput()->with('error', 'Only a club manager can waive the joining fee.');
         }
-        $d['payment'] = ['amount' => $d['pay_amount'] ?? 0, 'payment_mode_id' => $d['payment_mode_id'] ?? null, 'reference' => $d['reference'] ?? null];
+        $reference = trim((string) ($d['reference'] ?? ''));
+        if (filled($d['momo_network'] ?? null) || filled($d['momo_phone'] ?? null)) {
+            $reference = mb_substr(trim(implode(' · ', array_filter([
+                $d['momo_network'] ?? null, $d['momo_phone'] ?? null, $reference,
+            ]))), 0, 80);
+        }
+        $d['payment'] = [
+            'amount' => $d['pay_amount'] ?? 0, 'payment_mode_id' => $d['payment_mode_id'] ?? null,
+            'reference' => $reference ?: null, 'payments' => $payments,
+        ];
         $d['auto_renew'] = $request->boolean('auto_renew');
 
         try {
@@ -230,6 +268,7 @@ class ClubController extends Controller
             'plans' => ClubPlan::where('is_active', true)->orderBy('price')->get(),
             'companies' => Company::orderBy('name')->get(['id', 'name']),
             'modes' => $this->modes(),
+            'splitModes' => $this->modes()->mapWithKeys(fn ($pm) => [$pm->id => $pm->name]),
             'visits30' => ClubVisit::whereIn('club_member_id', $cards)->where('denied', false)->where('checked_in_at', '>=', now()->subDays(30))->count(),
         ]);
     }
@@ -343,10 +382,11 @@ class ClubController extends Controller
     public function passes(Request $request)
     {
         $date = $request->query('date');
-        $rows = ClubDayPass::with('paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->whereDate('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
+        $modes = $this->modes();
+        $rows = ClubDayPass::with('paymentMode', 'payments.paymentMode', 'stay.room', 'host', 'user')->when($date, fn ($q) => $q->whereDate('date', $date))->latest('date')->latest('id')->paginate(40)->withQueryString();
         $today = ClubDayPass::whereNull('cancelled_at')->whereDate('date', bdate()->toDateString());
 
-        return view('club.passes', ['rows' => $rows, 'date' => $date, 'modes' => $this->modes(),
+        return view('club.passes', ['rows' => $rows, 'date' => $date, 'modes' => $modes, 'splitModes' => $modes->mapWithKeys(fn ($m) => [$m->id => $m->name]),
             'todayCount' => (clone $today)->sum(\DB::raw('adults + children')), 'todayTotal' => (clone $today)->sum('total'),
             'mtd' => ClubDayPass::whereNull('cancelled_at')->whereDate('date', '>=', bdate()->copy()->startOfMonth()->toDateString())->whereDate('date', '<=', bdate()->toDateString())->sum('amount'),
             'adult' => (float) ClubService::cfg('club_daypass_adult'), 'child' => (float) ClubService::cfg('club_daypass_child'), 'rate' => ClubBillingService::tax(100)['rate']]);
@@ -354,14 +394,38 @@ class ClubController extends Controller
 
     public function sellPass(Request $request)
     {
-        $d = $request->validate(['name' => 'required|string|max:120', 'phone' => 'nullable|string|max:30', 'adults' => 'required|integer|min:0|max:10', 'children' => 'nullable|integer|min:0|max:10',
-            'settle' => 'required|in:pay,room', 'payment_mode_id' => 'nullable|required_if:settle,pay|integer', 'room_no' => 'nullable|required_if:settle,room|string|max:20',
-            'reference' => 'nullable|string|max:80', 'facility' => ['nullable', Rule::in(array_keys(ClubPlan::FACILITIES))]]);
+        $d = $request->validate([
+            'name' => 'required|string|max:120', 'phone' => 'nullable|string|max:30', 'adults' => 'required|integer|min:0|max:10', 'children' => 'nullable|integer|min:0|max:10',
+            'settle' => 'required|in:pay,room', 'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'room_no' => 'nullable|required_if:settle,room|string|max:20',
+            'reference' => 'nullable|string|max:80', 'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
+            'facility' => ['nullable', Rule::in(array_keys(ClubPlan::FACILITIES))],
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:80',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+            'payments.*.cheque_bank_name' => 'nullable|string|max:100', 'payments.*.cheque_number' => 'nullable|string|max:20',
+            'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
+        ]);
+        $payments = array_values($d['payments'] ?? []);
+        if ($d['settle'] === 'pay' && ! $payments && empty($d['payment_mode_id'])) {
+            throw ValidationException::withMessages(['payment_mode_id' => 'Choose a payment mode or split the payment.']);
+        }
+        if ($payments && ! empty($d['payment_mode_id'])) {
+            throw ValidationException::withMessages(['payments' => 'Use either one payment mode or split tender rows, not both.']);
+        }
+        if ($d['settle'] === 'room' && $payments) {
+            throw ValidationException::withMessages(['payments' => 'Split tender is available only for direct day-pass payments.']);
+        }
         if ($d['settle'] === 'room') {
             unset($d['payment_mode_id']);
         } else {
             unset($d['room_no']);
         }
+        if (filled($d['momo_network'] ?? null) || filled($d['momo_phone'] ?? null)) {
+            $d['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                $d['momo_network'] ?? null, $d['momo_phone'] ?? null, $d['reference'] ?? null,
+            ]))), 0, 80);
+        }
+        $d['payments'] = $payments;
 
         return $this->attempt(fn () => ClubService::sellDayPass($d, $request->user(), $d['facility'] ?? null),
             fn ($p) => "Day pass {$p->pass_no} – ".money($p->total).($p->reservation_room_id ? ' charged to the room' : ' received').(! empty($d['facility']) ? ' and checked in' : '').'.');

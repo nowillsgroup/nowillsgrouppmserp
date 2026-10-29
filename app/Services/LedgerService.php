@@ -722,7 +722,7 @@ class LedgerService
                 ->each(fn ($c) => $run('club_chg', (string) $c->id, fn () => ClubBillingService::forCharge($c)));
             $scope(\App\Models\ClubPayment::with('membership', 'paymentMode'), 'date')->orderBy('id')->get()
                 ->each(fn ($p) => $run('club_pay', (string) $p->id, fn () => ClubBillingService::forPayment($p)));
-            $scope(\App\Models\ClubDayPass::with('paymentMode'), 'date')->orderBy('id')->get()
+            $scope(\App\Models\ClubDayPass::with('paymentMode', 'payments.paymentMode'), 'date')->orderBy('id')->get()
                 ->each(fn ($d) => $run('club_dp', (string) $d->id, fn () => ClubBillingService::forDayPass($d)));
             $scope(\App\Models\ClubTicketSale::with(['payments.paymentMode', 'items']), 'business_date')->orderBy('id')->get()
                 ->each(fn ($s) => $run('club_tsale', (string) $s->id, fn () => ClubBillingService::forTicketSale($s)));

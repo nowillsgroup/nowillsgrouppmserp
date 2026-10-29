@@ -112,9 +112,13 @@
   <div class="modal-head"><h3 data-title>Settle</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <x-field name="settlement" label="Settle by" type="select" :options="['room_post'=>'Post to room (in-house guest)','payment'=>'Direct payment','complimentary'=>'Complimentary']" :placeholder="false" class="span-all"/>
-    <x-field name="payment_mode_id" label="Payment mode (direct payment)" type="select" :options="$paymentModes" data-payment-mode/>
-    <x-field name="reference" label="Reference"/>
-    <x-cheque-fields/>
+    <div id="spaSingleTender" class="form-grid span-all">
+      <x-field name="payment_mode_id" label="Payment mode (direct payment)" type="select" :options="$paymentModes" data-payment-mode/>
+      <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
+      <x-field name="reference" label="Reference" class="span-all"/>
+      <x-cheque-fields/>
+    </div>
+    <x-payment-split-tender widget-id="spaSplitTender" single-id="spaSingleTender" :modes="$paymentModes" label="payment"/>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Complete</button></div>
 </form></div></div>
@@ -125,3 +129,24 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Cancel appointment</button></div>
 </form></div></div>
 @endsection
+@push('scripts')
+<script>
+(() => {
+  const settlement = document.querySelector('#settleModal [name="settlement"]');
+  const widget = document.getElementById('spaSplitTender');
+  const toggle = widget?.querySelector('[data-split-toggle]');
+  const panel = widget?.querySelector('[data-split-panel]');
+  if (!settlement || !toggle || !panel) return;
+  const sync = () => {
+    const directPayment = settlement.value === 'payment';
+    if (!directPayment && !panel.hidden) toggle.click();
+    toggle.hidden = !directPayment;
+  };
+  settlement.addEventListener('change', sync);
+  document.addEventListener('click', event => {
+    if (event.target.closest('[data-modal="settleModal"]')) setTimeout(sync, 0);
+  });
+  sync();
+})();
+</script>
+@endpush

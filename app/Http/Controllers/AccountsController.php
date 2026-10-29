@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Support\Numbering;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AccountsController extends Controller
 {
@@ -87,17 +88,71 @@ class AccountsController extends Controller
             ->map(fn ($v) => ['date' => $v->date, 'due' => null, 'ref' => $v->voucher_no, 'desc' => 'Receipt '.($v->reference ? '#'.$v->reference : ''), 'debit' => 0, 'credit' => (float) $v->amount, 'folio' => null]);
         $rows = $debits->concat($credits)->sortBy(fn ($r) => $r['date']->format('Y-m-d'))->values();
 
-        return view('accounts.company', ['company' => $company, 'rows' => $rows, 'paymentModes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'gift_voucher'])->pluck('name', 'id')]);
+        $paymentModes = PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'gift_voucher'])->pluck('name', 'id');
+        $splitModes = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])->orderBy('id')->pluck('name', 'id');
+
+        return view('accounts.company', compact('company', 'rows', 'paymentModes', 'splitModes'));
     }
 
     public function companyReceipt(Request $request, Company $company)
     {
-        $data = $request->validate(['amount' => 'required|numeric|min:0.01', 'payment_mode_id' => 'required|integer|owned:payment_modes', 'date' => 'required|date', 'reference' => 'nullable|string|max:60']);
+        $data = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01', 'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'date' => 'required|date', 'reference' => 'nullable|string|max:60',
+            'payments' => 'nullable|array|min:2|max:10', 'payments.*.amount' => 'required|numeric|min:0.01',
+            'payments.*.payment_mode_id' => 'required|integer|owned:payment_modes', 'payments.*.reference' => 'nullable|string|max:60',
+            'payments.*.momo_network' => 'nullable|string|max:20', 'payments.*.momo_phone' => 'nullable|string|max:30',
+        ]);
+        $lines = array_values($data['payments'] ?? []);
+        if ($lines && ((float) ($data['amount'] ?? 0) > 0 || ! empty($data['payment_mode_id']))) {
+            throw ValidationException::withMessages(['payments' => 'Use either one receipt tender or split tender rows, not both.']);
+        }
+        if (! $lines) {
+            if (empty($data['amount']) || empty($data['payment_mode_id'])) {
+                throw ValidationException::withMessages(['payment_mode_id' => 'Enter a receipt amount and choose a payment mode, or add split tender rows.']);
+            }
+            $lines = [[
+                'amount' => $data['amount'], 'payment_mode_id' => $data['payment_mode_id'], 'reference' => $data['reference'] ?? null,
+            ]];
+        }
+        foreach ($lines as $index => &$line) {
+            $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])
+                ->find((int) ($line['payment_mode_id'] ?? 0));
+            if (! $mode && count($lines) > 1) {
+                throw ValidationException::withMessages(["payments.{$index}.payment_mode_id" => 'Split receipts require an active cash, card, bank or mobile-money mode.']);
+            }
+            if (filled($line['momo_network'] ?? null) || filled($line['momo_phone'] ?? null)) {
+                $line['reference'] = mb_substr(trim(implode(' · ', array_filter([
+                    $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $line['reference'] ?? null,
+                ]))), 0, 60);
+            }
+        }
+        unset($line);
         $head = AccountHead::find(AccountHead::sys('city_ledger')); // receipts settle the receivable, not income
-        Voucher::create($data + ['voucher_no' => Numbering::next('voucher'), 'type' => 'receipt', 'account_head_id' => $head->id, 'company_id' => $company->id, 'party_name' => $company->name, 'narration' => 'Payment against city ledger', 'user_id' => auth()->id()]);
-        ActivityLogger::log('accounts', 'cl_receipt', 'City ledger receipt '.money($data['amount'])." from {$company->name}", $company);
+        $receipts = DB::transaction(function () use ($lines, $data, $company, $head) {
+            $rows = collect();
+            foreach ($lines as $line) {
+                $amount = round((float) $line['amount'], 2);
+                if ($amount <= 0) {
+                    throw ValidationException::withMessages(['amount' => 'Receipt tender amounts must be positive.']);
+                }
+                $mode = PaymentMode::find((int) ($line['payment_mode_id'] ?? 0));
+                if (! $mode || ! $mode->is_active || in_array($mode->type, ['city_ledger', 'online', 'gift_voucher'], true)) {
+                    throw ValidationException::withMessages(['payment_mode_id' => 'Choose an active direct payment mode for the receipt.']);
+                }
+                $rows->push(Voucher::create([
+                    'voucher_no' => Numbering::next('voucher'), 'type' => 'receipt', 'date' => $data['date'],
+                    'account_head_id' => $head->id, 'company_id' => $company->id, 'party_name' => $company->name,
+                    'amount' => $amount, 'payment_mode_id' => $mode->id, 'reference' => $line['reference'] ?? null,
+                    'narration' => 'Payment against city ledger', 'user_id' => auth()->id(),
+                ]));
+            }
+            ActivityLogger::log('accounts', 'cl_receipt', 'City ledger receipt '.money($rows->sum('amount'))." from {$company->name} (".$rows->count().' tender(s))', $company);
 
-        return back()->with('success', 'Receipt recorded.');
+            return $rows;
+        });
+
+        return back()->with('success', $receipts->count().' receipt tender(s) totalling '.money($receipts->sum('amount')).' recorded.');
     }
 
     public function cashBook(Request $request)

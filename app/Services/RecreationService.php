@@ -113,11 +113,19 @@ class RecreationService
                 throw ValidationException::withMessages(['room_no' => 'Room '.($roomNo ?: '—').' has no in-house guest to charge.']);
             }
         } else {
-            foreach (array_values(array_filter($d['payments'] ?? [])) as $i => $pay) {
-                $mode = PaymentMode::find((int) ($pay['payment_mode_id'] ?? 0));
+            $rawPayments = $d['payments'] ?? [];
+            if (! is_array($rawPayments) || count($rawPayments) > 10) {
+                throw ValidationException::withMessages(['payments' => 'A ticket sale accepts one to ten direct payment rows.']);
+            }
+            foreach (array_values(array_filter($rawPayments)) as $i => $pay) {
+                if (! is_array($pay)) {
+                    throw ValidationException::withMessages(["payments.{$i}" => ['Each tender must be an object.']]);
+                }
+                $mode = PaymentMode::where('is_active', true)->whereIn('type', ['cash', 'card', 'bank', 'wallet'])
+                    ->find((int) ($pay['payment_mode_id'] ?? 0));
                 $amt = round((float) ($pay['amount'] ?? 0), 2);
                 if (! $mode || $amt <= 0) {
-                    throw ValidationException::withMessages(['payments' => 'Payment '.($i + 1).': choose a mode and an amount above zero.']);
+                    throw ValidationException::withMessages(["payments.{$i}" => ['Choose an active cash, card, bank or mobile-money mode and an amount above zero. Gift vouchers are not accepted at this outlet.']]);
                 }
                 $payments[] = ['mode' => $mode, 'amount' => $amt, 'reference' => trim((string) ($pay['reference'] ?? '')) ?: null];
             }

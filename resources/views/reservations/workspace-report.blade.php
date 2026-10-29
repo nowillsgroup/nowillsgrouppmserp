@@ -8,6 +8,24 @@
 @php
   use App\Services\ReservationWorkspaceService as WS;
   $isToday = $date->toDateString() === $businessDate->toDateString();
+  $revenueExplanation = $isToday
+      ? 'Current room-rate total includes checked-in stays covering the hotel business date; arrivals not yet checked in are excluded. Excludes taxes, fees, and folio postings.'
+      : ($isFuture
+          ? 'Booked room-rate value includes reserved and checked-in stays covering the selected date. Excludes taxes, fees, and folio postings.'
+          : 'Historical room-rate value includes checked-in and checked-out stays covering the selected date. Excludes taxes, fees, and folio postings.');
+  $guestDisplayName = static function ($stay): string {
+      $guest = $stay?->guest ?? $stay?->reservation?->guest;
+      $name = trim(trim((string) ($guest?->first_name ?? '')).' '.trim((string) ($guest?->last_name ?? '')));
+      return $name !== '' ? $name : 'Guest details unavailable';
+  };
+  $stayDateFormat = static fn ($stay): string => $stay && $stay->arrival_date->year !== $stay->departure_date->year ? 'd M Y' : 'd M';
+  $waitlistGuestDisplayName = static function ($entry): string {
+      $guestName = trim(trim((string) ($entry?->guest?->first_name ?? '')).' '.trim((string) ($entry?->guest?->last_name ?? '')));
+      if ($guestName !== '') return $guestName;
+      $contactName = trim((string) ($entry?->contact_name ?? ''));
+      return $contactName !== '' ? $contactName : 'Guest details unavailable';
+  };
+  $canViewHousekeeping = can_do('housekeeping.view') || can_do('housekeeping.attendant') || can_do('housekeeping.manage');
 @endphp
 
 @section('content')
@@ -40,12 +58,13 @@
   <div>
     <h3 style="margin:10px 0 6px">Arrivals · {{ $date->format('j M Y') }} · {{ $arrivals->count() }}</h3>
     <table class="tbl">
-      <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>Nights</th><th>Rate</th></tr></thead>
+      <caption class="sr-only">Arrivals on {{ $date->format('j F Y') }}</caption>
+      <thead><tr><th scope="col">Room</th><th scope="col">Guest</th><th scope="col">Source</th><th scope="col">Nights</th><th scope="col">Rate</th></tr></thead>
       <tbody>
         @forelse ($arrivals as $s)
         <tr>
           <td>{{ $s->room?->room_no ?? '—' }}</td>
-          <td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td>
+          <td>{{ $guestDisplayName($s) }}</td>
           <td>{{ $s->reservation?->businessSource?->name ?? 'Direct' }}</td>
           <td>{{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}</td>
           <td>{{ money((float) $s->rate) }}</td>
@@ -58,7 +77,8 @@
 
     <h3 style="margin:14px 0 6px">Departures · {{ $date->format('j M Y') }} · {{ $departures->count() }}</h3>
     <table class="tbl">
-      <thead><tr><th>Room</th><th>Guest</th><th>Source</th><th>@if (can_do('folio.view'))Balance @else Checkout @endif</th></tr></thead>
+      <caption class="sr-only">Departures on {{ $date->format('j F Y') }}</caption>
+      <thead><tr><th scope="col">Room</th><th scope="col">Guest</th><th scope="col">Source</th><th scope="col">@if (can_do('folio.view'))Checkout / balance @else Checkout @endif</th></tr></thead>
       <tbody>
         @forelse ($departures as $s)
         @php
@@ -69,11 +89,11 @@
         @endphp
         <tr>
           <td>{{ $s->room?->room_no ?? '—' }}</td>
-          <td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td>
+          <td>{{ $guestDisplayName($s) }}</td>
           <td>{{ $s->reservation?->businessSource?->name ?? 'Direct' }}</td>
           <td class="{{ can_do('folio.view') && ($bal ?? 0) > 0 ? 'neg' : 'text-2' }}">
             @if (can_do('folio.view'))
-              {{ $bal === null ? '—' : (($bal > 0 ? money($bal) : 'Settled').($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}
+              {{ $bal === null ? '—' : (($bal > 0 ? money($bal).' due' : ($bal < 0 ? money(abs($bal)).' credit' : 'Settled')).($bal > 0 && ($df['unposted'] ?? 0) > 0 ? ' *' : '')) }}
               @if (! empty($df['blocked']))<div class="small">⚠ held: {{ implode(', ', $df['blocked']) }}</div>@endif
             @elseif (! empty($df['blocked']))Checkout blocked · {{ count($df['blocked']) }} item(s)@else—@endif
           </td>
@@ -91,43 +111,52 @@
   <div>
     <h3 style="margin:10px 0 6px">Room status for selected date</h3>
     <table class="tbl">
-      <thead><tr><th>Status</th><th>Rooms</th></tr></thead>
+      <caption class="sr-only">Room status counts for {{ $date->format('j F Y') }}</caption>
+      <thead><tr><th scope="col">Status</th><th scope="col">Rooms</th></tr></thead>
       <tbody>
         @foreach ($statusSummary as $label => [$n, $color])
         <tr><td>{{ $label }}</td><td>{{ $n }}</td></tr>
         @endforeach
+        @if ($canViewHousekeeping)
         <tr><td><b>{{ ! $isToday ? 'Current housekeeping — dirty' : 'Housekeeping — dirty' }}</b></td><td>{{ $hk['Dirty'] }}</td></tr>
         <tr><td><b>{{ ! $isToday ? 'Current housekeeping — touch-up' : 'Housekeeping — touch-up' }}</b></td><td>{{ $hk['Touch-up'] }}</td></tr>
+        @endif
       </tbody>
     </table>
 
     <h3 style="margin:14px 0 6px">{{ $isFuture ? 'Expected VIP guests' : ($isHistory ? 'VIP stays' : 'VIP in-house') }} · {{ $vip->count() }}</h3>
     <table class="tbl">
+      <caption class="sr-only">{{ $isFuture ? 'Expected VIP guests' : ($isHistory ? 'VIP stays' : 'VIP in-house') }} on {{ $date->format('j F Y') }}</caption>
+      <thead class="sr-only"><tr><th scope="col">Room</th><th scope="col">Guest</th></tr></thead>
       <tbody>
         @forelse ($vip as $s)
-        <tr><td>{{ $s->room?->room_no ?? '—' }}</td><td>{{ $s->guest?->first_name ?? $s->reservation?->guest?->first_name }} {{ $s->guest?->last_name ?? $s->reservation?->guest?->last_name }}</td></tr>
+        <tr><td>{{ $s->room?->room_no ?? '—' }}</td><td>{{ $guestDisplayName($s) }}</td></tr>
         @empty
         <tr><td class="text-2">No VIP guests for this date.</td></tr>
         @endforelse
       </tbody>
     </table>
 
-    <h3 style="margin:14px 0 6px">Waiting list · {{ $waitlist->count() }}</h3>
+    <h3 style="margin:14px 0 6px">Waiting list · {{ $waitlistCount }}</h3>
     <table class="tbl">
+      <caption class="sr-only">Current waiting list, up to five entries in priority and arrival order; total {{ $waitlistCount }}</caption>
+      <thead class="sr-only"><tr><th scope="col">Guest</th><th scope="col">Arrival</th><th scope="col">Departure</th><th scope="col">Nights</th><th scope="col">Room type</th></tr></thead>
       <tbody>
         @forelse ($waitlist as $w)
-        <tr><td>{{ $w->guest?->first_name ?? $w->contact_name }}</td><td>{{ \Illuminate\Support\Carbon::parse($w->arrival_date)->format('Y-m-d') }}</td><td>{{ $w->roomType?->name ?? 'Any' }}</td></tr>
+        <tr><td>{{ $waitlistGuestDisplayName($w) }}</td><td>{{ $w->arrival_date->format('d M Y') }}</td><td>{{ $w->departure_date->format('d M Y') }}</td><td>{{ max(1, $w->arrival_date->diffInDays($w->departure_date)) }}</td><td>{{ $w->roomType?->name ?? 'Any' }}</td></tr>
         @empty
-        <tr><td class="text-2">Waiting list is empty.</td></tr>
+        <tr><td colspan="5" class="text-2">Waiting list is empty.</td></tr>
         @endforelse
       </tbody>
     </table>
+    @if ($waitlistCount > $waitlist->count())<div class="text-2 small">Showing the top {{ $waitlist->count() }} of {{ $waitlistCount }} entries by priority.</div>@endif
   </div>
 </div>
 
 <h3 style="margin:16px 0 6px">Room board · {{ $date->format('j M Y') }}</h3>
 <table class="tbl">
-  <thead><tr><th>Room</th><th>Type</th><th>Status</th><th>Guest / state</th><th>Arrive</th><th>Depart</th><th>Rate</th>@if (can_do('folio.view'))<th>Balance</th>@endif</tr></thead>
+  <caption class="sr-only">Room board for {{ $date->format('j F Y') }}</caption>
+  <thead><tr><th scope="col">Room</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Guest / state</th><th scope="col">Arrive</th><th scope="col">Depart</th><th scope="col">Rate</th>@if (can_do('folio.view'))<th scope="col">Balance</th>@endif</tr></thead>
   <tbody>
     @foreach ($cards as $c)
     <tr>
@@ -136,22 +165,22 @@
       <td>{{ ucwords(str_replace('_', ' ', $c['status'])) }}</td>
       <td>
         @if ($c['stay'])
-          {{ $c['stay']->guest?->first_name ?? $c['stay']->reservation?->guest?->first_name }} {{ $c['stay']->guest?->last_name ?? $c['stay']->reservation?->guest?->last_name }}
+          {{ $guestDisplayName($c['stay']) }}
           {{ $c['arriving_on_date'] ? '(arriving on this date)' : '' }}
         @else
           <span class="text-2">{{ $c['status'] === 'available' ? 'Vacant' : ($c['status'] === 'occupied' ? 'Occupied · no linked stay' : 'Room unavailable') }}</span>
         @endif
       </td>
-      <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->arrival_date)->format('d M') : '—' }}</td>
-      <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->departure_date)->format('d M') : '—' }}</td>
+      <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->arrival_date)->format($stayDateFormat($c['stay'])) : '—' }}</td>
+      <td>{{ $c['stay'] ? \Illuminate\Support\Carbon::parse($c['stay']->departure_date)->format($stayDateFormat($c['stay'])) : '—' }}</td>
       <td>{{ money($c['rate']) }}</td>
-      @if (can_do('folio.view'))<td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] !== null && $c['balance'] > 0 ? money($c['balance']) : '—' }}</td>@endif
+      @if (can_do('folio.view'))<td class="{{ ($c['balance'] ?? 0) > 0 ? 'neg' : 'text-2' }}">{{ $c['balance'] === null ? '—' : ($c['balance'] > 0 ? money($c['balance']) : ($c['balance'] < 0 ? money(abs($c['balance'])).' credit' : 'Settled')) }}</td>@endif
     </tr>
     @endforeach
   </tbody>
 </table>
 
-<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if (can_do('revenue.view'))Room-rate value totals nightly rates for stays covering the selected date; it excludes taxes, fees, and folio postings. @endif @if ($isHistory) Historical occupancy is inferred from current stay records; dated outage and lease records apply, but physical room-status and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect current reservations, active non-occupancy room flags, and dated blocks; housekeeping is current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
+<p class="small text-2" style="margin-top:14px">Generated {{ now()->format('d M Y H:i') }} · Reservation Workspace Day Report. @if (can_do('revenue.view')){{ $revenueExplanation }} @endif @if ($isHistory) Historical occupancy is inferred from current stay records; dated outage and lease records apply, but physical room-status and housekeeping history is unavailable. @elseif ($isFuture) Forward figures reflect current reservations, active non-occupancy room flags, and dated blocks; housekeeping is current. @else Figures reflect the current PMS business date; dated outages and leases affect availability. @endif</p>
 @endsection
 
 @push('head')
@@ -161,5 +190,6 @@
 .tbl th{background:#f1f5f9;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
 .neg{color:#dc2626;font-weight:700}
 h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#475569}
+@media screen and (max-width:760px){.print-page .kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.print-page .two{grid-template-columns:minmax(0,1fr)!important}}
 </style>
 @endpush
