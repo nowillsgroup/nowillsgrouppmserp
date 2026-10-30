@@ -265,7 +265,7 @@ return [
             ['label' => 'Reservations', 'icon' => 'calendar', 'children' => [
                 ['label' => 'Reservation Workspace', 'route' => 'reservations.workspace', 'perm' => 'reservations.view', 'badge' => 'ws_arrivals'],
                 ['label' => 'New Reservation', 'route' => 'reservations.create', 'perm' => 'reservations.create'],
-                ['label' => 'Reservation List', 'route' => 'reservations.index', 'perm' => 'reservations.view'],
+                ['label' => 'Reservation List', 'route' => 'reservations.index', 'params' => ['view' => 'list'], 'perm' => 'reservations.view'],
                 ['label' => 'Availability', 'route' => 'reservations.availability', 'perm' => 'reservations.view'],
                 ['label' => 'Group Blocks', 'route' => 'blocks.index', 'perm' => 'reservations.view'],
                 ['label' => 'Rate Calendar', 'route' => 'rates.index', 'perm' => 'reservations.rates'],

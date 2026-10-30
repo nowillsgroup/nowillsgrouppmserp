@@ -8,9 +8,22 @@ ROOT = Path(__file__).resolve().parents[3]
 VIEW = (ROOT / "resources/views/reservations/index.blade.php").read_text()
 SERVICE = (ROOT / "app/Services/ReservationDeskService.php").read_text()
 DESK_CONTROLLER = (ROOT / "app/Http/Controllers/ReservationDeskController.php").read_text()
+PMS_CONFIG = (ROOT / "config/pms.php").read_text()
+SIDEBAR_PARTIAL = (ROOT / "resources/views/partials/sidebar-nav.blade.php").read_text()
+APP_LAYOUT = (ROOT / "resources/views/layouts/app.blade.php").read_text()
 
 
 class ReservationListPolishTest(unittest.TestCase):
+    def test_reservation_list_sidebar_link_opens_and_marks_the_register_active(self):
+        start = PMS_CONFIG.index("['label' => 'Reservation List'")
+        item = PMS_CONFIG[start:PMS_CONFIG.index("\n", start)]
+        self.assertIn("'route' => 'reservations.index'", item)
+        self.assertIn("'params' => ['view' => 'list']", item)
+        for source in (SIDEBAR_PARTIAL, APP_LAYOUT):
+            with self.subTest(source='sidebar navigation active state'):
+                self.assertIn("parse_str((string) parse_url($target, PHP_URL_QUERY), $targetQuery)", source)
+                self.assertIn("request()->query($key) != $value", source)
+
     def test_list_view_gets_a_dedicated_register_shell(self):
         self.assertIn('data-view="{{ $view }}"', VIEW)
         self.assertIn("@if($view === 'list')", VIEW)
