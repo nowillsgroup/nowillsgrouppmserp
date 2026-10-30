@@ -340,7 +340,8 @@
         <input type="hidden" name="status" value="{{ $currentStatus === 'all' ? '' : $currentStatus }}">
         <label class="reservation-search-field">
           <span class="reservation-filter-label">Search reservations</span>
-          <span class="reservation-search-control"><x-icon name="search" size="sm"/><input type="search" name="q" value="{{ $searchValue }}" placeholder="Guest, email, reservation, room, phone, company or OTA reference" autocomplete="off" maxlength="160" enterkeyhint="search" aria-label="Search reservations"><button type="button" class="reservation-search-clear" data-clear-reservation-search aria-label="Clear search" @if($searchValue === '') hidden @endif>×</button></span>
+          <span class="reservation-search-control"><x-icon name="search" size="sm"/><input type="search" name="q" value="{{ $searchValue }}" placeholder="Guest, email, reservation, room, phone, company or OTA reference" autocomplete="off" maxlength="160" enterkeyhint="search" aria-label="Search reservations" aria-describedby="reservationSearchHint"><kbd class="reservation-search-shortcut" data-search-shortcut aria-hidden="true" @if($searchValue !== '') hidden @endif>/</kbd><button type="button" class="reservation-search-clear" data-clear-reservation-search aria-label="Clear search" @if($searchValue === '') hidden @endif>×</button></span>
+          <span id="reservationSearchHint" class="sr-only">Press slash to focus search. Press Escape to clear and apply the search.</span>
         </label>
         <label><span class="reservation-filter-label">Arrives on</span><input type="date" name="arrival_on" value="{{ $arrivalOnValue }}" @if($fromValue !== '') min="{{ $fromValue }}" @endif @if($toValue !== '') max="{{ $toValue }}" @endif></label>
         <label><span class="reservation-filter-label">Departs on</span><input type="date" name="departure_on" value="{{ $departureOnValue }}" @if($departureMinValue !== '') min="{{ $departureMinValue }}" @endif></label>
@@ -710,6 +711,8 @@
 .reservation-search-clear{position:absolute;right:7px;display:grid;width:27px;height:27px;place-items:center;border:0;border-radius:7px;background:#eef3ef;color:#4b5d51;font-size:1.1rem;line-height:1;cursor:pointer}
 .reservation-search-clear:hover{background:#dcebe0;color:#14532d}
 .reservation-search-clear[hidden]{display:none}
+.reservation-search-shortcut{position:absolute;right:10px;display:grid;min-width:21px;height:21px;place-items:center;border:1px solid #dce5df;border-radius:5px;background:#f7faf8;color:#68766e;font:inherit;font-size:.68rem;font-weight:700;line-height:1}
+.reservation-search-shortcut[hidden]{display:none}
 .reservation-filter-actions{display:flex;align-items:center;gap:6px;min-height:40px}
 .reservation-filter-actions .btn{height:40px;white-space:nowrap}
 .reservation-date-alert{margin:0;padding:10px 12px;border:1px solid #f1c0b8;border-radius:9px;background:#fff4f2;color:#9a3412;font-size:.78rem;font-weight:650}
@@ -899,12 +902,32 @@
   document.getElementById('print-btn')?.addEventListener('click', () => window.print());
   const reservationSearch = document.querySelector('#reservationListFilter input[name="q"]');
   const clearReservationSearch = document.querySelector('[data-clear-reservation-search]');
-  reservationSearch?.addEventListener('input', () => { if (clearReservationSearch) clearReservationSearch.hidden = !reservationSearch.value; });
+  const reservationSearchShortcut = document.querySelector('[data-search-shortcut]');
+  const syncReservationSearchControls = () => {
+    const hasQuery = Boolean(reservationSearch?.value);
+    if (clearReservationSearch) clearReservationSearch.hidden = !hasQuery;
+    if (reservationSearchShortcut) reservationSearchShortcut.hidden = hasQuery;
+  };
+  reservationSearch?.addEventListener('input', syncReservationSearchControls);
   clearReservationSearch?.addEventListener('click', () => {
     if (!reservationSearch) return;
     reservationSearch.value = '';
-    clearReservationSearch.hidden = true;
+    syncReservationSearchControls();
     reservationSearch.form?.requestSubmit();
+  });
+  document.addEventListener('keydown', event => {
+    if (!reservationSearch || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target;
+    const isEditing = target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+    if (event.key === '/' && !isEditing) {
+      event.preventDefault();
+      reservationSearch.focus();
+    } else if (event.key === 'Escape' && target === reservationSearch && reservationSearch.value) {
+      event.preventDefault();
+      reservationSearch.value = '';
+      syncReservationSearchControls();
+      reservationSearch.form?.requestSubmit();
+    }
   });
   function jsonPost(url, body) {
     return fetch(url, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }, body: body })
