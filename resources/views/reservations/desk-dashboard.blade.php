@@ -12,27 +12,21 @@
       $photoByRoom[$r->id] = \App\Services\ReservationDeskService::photoPath($r);
   }
 @endphp
-<div class="card">
-  <div class="card-body flex gap-1 wrap" style="align-items:center">
-    <span class="small muted">Quick actions</span>
-    @if(can_do('reservations.create'))<a class="btn btn-sm btn-primary" href="{{ route('reservations.create') }}">New reservation</a>@endif
-    @if(can_do('frontdesk.checkin'))<a class="btn btn-sm btn-accent" href="{{ route('frontdesk.walkin') }}">Walk-in</a>@endif
-    <a class="btn btn-sm" href="{{ route('reservations.availability') }}">Availability</a>
-    <a class="btn btn-sm" href="{{ route('frontdesk.tapechart') }}">Tape chart</a>
-    <a class="btn btn-sm" href="{{ $dashGo(['view' => 'board']) }}">Room board</a>
-    <a class="btn btn-sm" href="{{ route('reservations.daysummary', request()->only(['date', 'days', 'group'])) }}" target="_blank">Day summary</a>
-  </div>
-</div>
-<div class="card">
-  <div class="card-head"><h3>Rooms — {{ $date->format('d M Y') }}</h3><span class="small muted">{{ count($rooms) }} rooms · photos from the room attachments</span></div>
+<div class="desk-dashboard">
+<div class="card desk-dashboard-room-panel">
+  <div class="card-head"><div><span class="desk-section-eyebrow">LIVE ROOM STATUS</span><h3>Room snapshot</h3></div><span class="small muted">{{ count($rooms) }} active rooms · {{ $date->format('d M Y') }}</span></div>
   <div class="card-body" style="padding-top:.4rem">
-    <div class="room-strip">
-      @foreach($rooms as $room)
-        <a class="room-thumb {{ $room->status }}" href="{{ route('reservations.room', $room) }}" title="{{ $room->room_no }} · {{ ucwords(str_replace('_', ' ', $room->status)) }} · {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}">
-          @if($photoByRoom[$room->id] ?? null)<img src="{{ asset($photoByRoom[$room->id]) }}" alt="Room {{ $room->room_no }}">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
-          <span class="rt-no">{{ $room->room_no }}</span>
+    <div class="room-strip-legend" role="group" aria-label="Room status key"><span><i class="room-status-dot vacant"></i>Vacant</span><span><i class="room-status-dot occupied"></i>Occupied</span><span><i class="room-status-dot out"></i>Out of order / service</span><span>Housekeeping status on each room</span></div>
+    <div class="room-strip" role="list" aria-label="Active rooms for {{ $date->format('d M Y') }}">
+      @forelse($rooms as $room)
+        <a class="room-thumb {{ $room->status }}" role="listitem" href="{{ route('reservations.room', $room) }}" aria-label="Room {{ $room->room_no }}, {{ ucwords(str_replace('_', ' ', $room->status)) }}, housekeeping {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}" title="{{ $room->room_no }} · {{ ucwords(str_replace('_', ' ', $room->status)) }} · {{ ucwords(str_replace('_', ' ', $room->hk_status)) }}">
+          @if($photoByRoom[$room->id] ?? null)<img src="{{ asset($photoByRoom[$room->id]) }}" alt="" loading="lazy">@else<span class="type-code" title="No photo on file">{{ $room->roomType->code }}</span>@endif
+          <span class="room-status-label">{{ ucwords(str_replace('_', ' ', $room->status)) }}</span>
+          <span class="rt-no">{{ $room->room_no }} <small>{{ ucwords(str_replace('_', ' ', $room->hk_status)) }}</small></span>
         </a>
-      @endforeach
+      @empty
+        <p class="desk-room-empty">No active rooms to show for this desk.</p>
+      @endforelse
     </div>
   </div>
 </div>
@@ -42,30 +36,28 @@
     <div class="grid g-2">
       <div>
         <div class="tiny muted" style="margin-bottom:.3rem">Expected occupancy</div>
-        <div class="bar-chart">
+        <div class="bar-chart" role="group" aria-label="Expected occupancy for the next 14 days">
           @foreach($pipeline as $p)
-            <div class="col"><div class="b" style="height: {{ max(2, min(100, $p['occ'])) }}%" data-v="{{ $p['date']->format('d M') }} · {{ $p['occ'] }}%"></div><small>{{ $p['date']->format('d/m') }}</small></div>
+            <div class="col"><div class="b" role="img" aria-label="{{ $p['date']->format('d M') }}: expected occupancy {{ $p['occ'] }} percent" title="{{ $p['date']->format('d M') }} · {{ $p['occ'] }}%" style="height: {{ max(2, min(100, $p['occ'])) }}%" data-v="{{ $p['date']->format('d M') }} · {{ $p['occ'] }}%"></div><small>{{ $p['date']->format('d/m') }}</small></div>
           @endforeach
         </div>
       </div>
       <div>
         <div class="tiny muted" style="margin-bottom:.3rem">Expected room revenue (pre-tax)</div>
-        <div class="bar-chart">
+        <div class="bar-chart" role="group" aria-label="Expected room revenue before tax for the next 14 days">
           @foreach($pipeline as $p)
-            <div class="col"><div class="b" style="height: {{ max(2, $p['revenue'] / $maxRev * 100) }}%" data-v="{{ $p['date']->format('d M') }} · {{ money($p['revenue']) }}"></div><small>{{ $p['date']->format('d/m') }}</small></div>
+            <div class="col"><div class="b" role="img" aria-label="{{ $p['date']->format('d M') }}: expected revenue {{ money($p['revenue']) }} before tax" title="{{ $p['date']->format('d M') }} · {{ money($p['revenue']) }}" style="height: {{ max(2, $p['revenue'] / $maxRev * 100) }}%" data-v="{{ $p['date']->format('d M') }} · {{ money($p['revenue']) }}"></div><small>{{ $p['date']->format('d/m') }}</small></div>
           @endforeach
         </div>
       </div>
     </div>
-    <div style="margin-top:1rem">
-      <div class="tiny muted" style="margin-bottom:.3rem">Arrivals vs departures — next 7 days
-        <span style="display:inline-block;width:.6rem;height:.6rem;border-radius:2px;background:linear-gradient(180deg,#22c55e,#15803d)"></span> arrivals
-        <span style="display:inline-block;width:.6rem;height:.6rem;border-radius:2px;background:linear-gradient(180deg,#f59e0b,#b45306)"></span> departures</div>
-      <div class="bar-chart">
+    <div class="desk-flow-chart">
+      <div class="desk-flow-chart-heading"><span class="tiny muted">Arrivals vs departures — next 7 days</span><span class="desk-chart-legend" role="group" aria-label="Chart legend"><span><i class="arrivals"></i>Arrivals</span><span><i class="departures"></i>Departures</span></span></div>
+      <div class="bar-chart" role="group" aria-label="Daily arrivals and departures for the next 7 days">
         @foreach(array_slice($pipeline, 0, 7) as $p)
-          <div class="col"><div style="display:flex;align-items:flex-end;gap:3px;width:100%;height:100%">
-            <div class="b" style="height: {{ max(2, $p['arrivals'] / $maxFlow * 100) }}%; flex:1; max-width:none; background: linear-gradient(180deg, #22c55e, #15803d)" data-v="{{ $p['date']->format('d M') }} · Arrivals {{ $p['arrivals'] }}"></div>
-            <div class="b" style="height: {{ max(2, $p['departures'] / $maxFlow * 100) }}%; flex:1; max-width:none; background: linear-gradient(180deg, #f59e0b, #b45306)" data-v="{{ $p['date']->format('d M') }} · Departures {{ $p['departures'] }}"></div>
+          <div class="col"><div class="desk-flow-bars">
+            <div class="b arrivals" role="img" aria-label="{{ $p['date']->format('d M') }}: {{ $p['arrivals'] }} arrivals" title="{{ $p['date']->format('d M') }} · Arrivals {{ $p['arrivals'] }}" style="height: {{ max(2, $p['arrivals'] / $maxFlow * 100) }}%" data-v="{{ $p['date']->format('d M') }} · Arrivals {{ $p['arrivals'] }}"></div>
+            <div class="b departures" role="img" aria-label="{{ $p['date']->format('d M') }}: {{ $p['departures'] }} departures" title="{{ $p['date']->format('d M') }} · Departures {{ $p['departures'] }}" style="height: {{ max(2, $p['departures'] / $maxFlow * 100) }}%" data-v="{{ $p['date']->format('d M') }} · Departures {{ $p['departures'] }}"></div>
           </div><small>{{ $p['date']->format('d/m') }}</small></div>
         @endforeach
       </div>
@@ -332,4 +324,5 @@
       </tbody>
     </table>
   </div>
+</div>
 </div>

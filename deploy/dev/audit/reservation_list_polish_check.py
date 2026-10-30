@@ -34,9 +34,9 @@ class ReservationListPolishTest(unittest.TestCase):
     def test_list_hides_room_dashboard_controls_that_do_not_apply(self):
         guard = "@if($view !== 'list')"
         self.assertIn(guard, VIEW)
-        self.assertIn('<section class="kpi-strip"', VIEW)
+        self.assertIn('<section class="kpi-strip {{ $view === \'dashboard\' ? \'dashboard-kpi-strip\' : \'\' }}"', VIEW)
         self.assertIn('<nav class="desk-nav"', VIEW)
-        self.assertIn('<form class="desk-tools"', VIEW)
+        self.assertIn('<form class="desk-tools', VIEW)
         self.assertIn("'reservation-list-views'", VIEW)
 
     def test_list_request_skips_heavy_dashboard_and_inventory_loading(self):

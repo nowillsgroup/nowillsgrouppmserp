@@ -1,8 +1,9 @@
 @extends('layouts.app')
-@section('title', 'Reservations')
+@section('title', ($view ?? null) === 'dashboard' ? 'Reservation Desk' : 'Reservations')
 @section('actions')
   @if(($view ?? null) === 'list')<a href="{{ route('reservations.export', request()->query()) }}" class="btn"><x-icon name="download"/> Export list</a>@endif
   <a href="{{ route('reservations.availability') }}" class="btn"><x-icon name="grid"/> Availability</a>
+  @if(($view ?? null) === 'dashboard' && can_do('frontdesk.checkin'))<a href="{{ route('frontdesk.walkin') }}" class="btn btn-accent"><x-icon name="plus"/> Walk-in</a>@endif
   @if(can_do('reservations.create'))<a href="{{ route('reservations.create') }}" class="btn btn-primary"><x-icon name="plus"/> New Reservation</a>@endif
 @endsection
 @section('content')
@@ -36,6 +37,38 @@
         <div class="reservation-list-date"><span>DESK DATE</span><strong>{{ $date->format('D, d M Y') }}</strong><small>Business date · {{ bdate()->format('d M Y') }}</small></div>
         <button type="button" class="btn btn-sm" id="print-btn"><x-icon name="print" size="sm"/> Print this page</button>
       </div>
+    </header>
+  @elseif($view === 'dashboard')
+    <header class="desk-head desk-dashboard-hero">
+      <div class="desk-dashboard-hero-copy">
+        <span class="desk-dashboard-eyebrow"><x-icon name="hotel" size="sm"/> FRONT OFFICE <span aria-hidden="true">/</span> DAILY OPERATIONS</span>
+        <h2>Today at a glance</h2>
+        <div class="desk-dashboard-date-line">
+          <span>{{ $date->format('l, d M Y') }}</span>
+          <span>Business date · {{ bdate()->format('d M Y') }}</span>
+          <span>{{ number_format($kpis['sellable']) }} rooms on sale</span>
+        </div>
+      </div>
+      <form class="desk-dashboard-search" action="{{ route('reservations.index') }}" method="get" role="search">
+        <input type="hidden" name="view" value="list">
+        <label for="deskDashboardSearch">Find a reservation</label>
+        <div class="desk-dashboard-search-control"><x-icon name="search" size="sm"/><input id="deskDashboardSearch" type="search" name="q" maxlength="160" placeholder="Guest, confirmation, phone or room" autocomplete="off"><button type="submit" class="btn btn-sm"><x-icon name="search" size="sm"/> Search</button></div>
+      </form>
+      <details class="desk-dashboard-tools">
+        <summary><x-icon name="grid" size="sm"/> Desk tools</summary>
+        <div class="desk-dashboard-tool-menu">
+          <a href="{{ route('reservations.plan', request()->only(['date','days','group'])) }}" target="_blank" rel="noopener">Print plan</a>
+          <a href="{{ route('reservations.daysummary', request()->only(['date','days','group'])) }}" target="_blank" rel="noopener">Day summary</a>
+          <button type="button" id="print-btn">Print this desk</button>
+          <a href="{{ route('reservations.export', request()->query()) }}">Export reservations</a>
+          <a href="{{ route('frontdesk.tapechart') }}">Tape chart</a>
+          <a href="{{ route('reservations.amenities') }}">Amenities &amp; photos</a>
+          @if(can_do('nightaudit.run'))<a href="{{ route('nightaudit.index') }}">Night audit</a>@endif
+          @if(can_do('gl.view'))<a href="{{ route('gl.index') }}">Ledger</a>@endif
+          @if(can_do('logs.view'))<a href="{{ route('logs.index') }}">Audit log</a>@endif
+          @if(can_do('users.manage'))<a href="{{ route('roles.index') }}">Permissions</a>@endif
+        </div>
+      </details>
     </header>
   @else
     <header class="desk-head">
@@ -102,22 +135,58 @@
         ['Outstanding', $credit, ['view' => 'inhouse', 'focus' => 'balance'], 'Open folio balance. Credit means payments already exceed charges'],
       ],
     ];
+    $dashboardStats = [
+      ['Rooms available', $kpis['available'], 'of '.$kpis['sellable'].' sellable rooms', ['view' => 'board', 'focus' => 'available'], 'key', 'green'],
+      ['Arrivals', $kpis['arrivals'], $kpis['due_in'].' still due to check in', ['view' => 'arrivals'], 'calendar', 'green'],
+      ['Departures', $kpis['due_out'], 'scheduled for today', ['view' => 'departures'], 'door', 'amber'],
+      ['In-house', $kpis['inhouse'], $kpis['occupied'].' rooms occupied', ['view' => 'inhouse'], 'users', 'blue'],
+      ['Occupancy', $kpis['occupancy'] === null ? '—' : $kpis['occupancy'].'%', $kpis['sold'].' sold · '.$kpis['sellable'].' sellable', ['view' => 'board'], 'chart', 'forest'],
+      ['Unassigned', $kpis['unassigned'], 'reserved stays need a room', ['view' => 'unassigned'], 'alert', $kpis['unassigned'] > 0 ? 'red' : 'green'],
+    ];
   @endphp
   @endif
   @if($view !== 'list')
-  <section class="kpi-strip" aria-label="Today's figures">
-    @foreach($kpiGroups as $groupName => $items)
-      <div class="kpi-group">
-        <div class="kpi-label">{{ $groupName }}</div>
-        <div class="kpi-row">
-          @foreach($items as [$label, $value, $extra, $hint])
-            <a class="kpi {{ request('focus') === ($extra['focus'] ?? null) && request('view') === ($extra['view'] ?? null) ? 'on' : '' }}" href="{{ $go($extra) }}" title="{{ $hint }}"><span>{{ $label }}</span><strong>{{ $value }}</strong></a>
+  <section class="kpi-strip {{ $view === 'dashboard' ? 'dashboard-kpi-strip' : '' }}" aria-label="Today's figures">
+    @if($view === 'dashboard')
+      <div class="desk-summary-grid" role="group" aria-label="Front desk snapshot">
+        @foreach($dashboardStats as [$label, $value, $note, $extra, $icon, $tone])
+          <a class="desk-summary-card tone-{{ $tone }}" href="{{ $go($extra) }}" aria-label="{{ $label }}: {{ $value }}. {{ $note }}">
+            <span class="desk-summary-card-top"><span>{{ $label }}</span><x-icon :name="$icon" size="sm"/></span>
+            <strong>{{ $value }}</strong>
+            <small>{{ $note }}</small>
+          </a>
+        @endforeach
+      </div>
+      <details class="desk-metric-details">
+        <summary>All desk figures <span>Rooms · reservations · revenue</span></summary>
+        <div class="desk-metric-groups">
+          @foreach($kpiGroups as $groupName => $items)
+            <div class="kpi-group">
+              <div class="kpi-label">{{ $groupName }}</div>
+              <div class="kpi-row">
+                @foreach($items as [$label, $value, $extra, $hint])
+                  <a class="kpi {{ request('focus') === ($extra['focus'] ?? null) && request('view') === ($extra['view'] ?? null) ? 'on' : '' }}" href="{{ $go($extra) }}" title="{{ $hint }}"><span>{{ $label }}</span><strong>{{ $value }}</strong></a>
+                @endforeach
+              </div>
+            </div>
           @endforeach
         </div>
-      </div>
-    @endforeach
+      </details>
+    @else
+      @foreach($kpiGroups as $groupName => $items)
+        <div class="kpi-group">
+          <div class="kpi-label">{{ $groupName }}</div>
+          <div class="kpi-row">
+            @foreach($items as [$label, $value, $extra, $hint])
+              <a class="kpi {{ request('focus') === ($extra['focus'] ?? null) && request('view') === ($extra['view'] ?? null) ? 'on' : '' }}" href="{{ $go($extra) }}" title="{{ $hint }}"><span>{{ $label }}</span><strong>{{ $value }}</strong></a>
+            @endforeach
+          </div>
+        </div>
+      @endforeach
+    @endif
   </section>
 
+  @if($view !== 'dashboard')
   <nav class="desk-nav" aria-label="Reservation status">
     <a href="{{ $go(['tab' => null, 'view' => 'timeline']) }}" class="{{ !request('tab') && $view === 'timeline' ? 'on' : '' }}">All</a>
     @foreach($nav as $key => $label)
@@ -125,11 +194,12 @@
       <a href="{{ $go(['tab' => $key, 'view' => $target]) }}" class="{{ request('tab') === $key || $view === $key ? 'on' : '' }}">{{ $label }} <em>{{ $tabCounts[$key] ?? 0 }}</em></a>
     @endforeach
   </nav>
+  @endif
 
-  <form class="desk-tools" method="get">
+  <form class="desk-tools {{ $view === 'dashboard' ? 'desk-dashboard-date-tools' : '' }}" method="get">
     <input type="hidden" name="view" value="{{ $view }}">
     @if(request('tab'))<input type="hidden" name="tab" value="{{ request('tab') }}">@endif
-    <label>Date
+    <label>{{ $view === 'dashboard' ? 'Desk date' : 'Date' }}
       <span class="date-nav">
         <a href="{{ $go(['date' => $date->copy()->subDay()->toDateString()]) }}" aria-label="Previous day">‹</a>
         <input type="date" name="date" value="{{ $date->toDateString() }}">
@@ -137,6 +207,9 @@
         <a href="{{ $go(['date' => bdate()->toDateString()]) }}">Today</a>
       </span>
     </label>
+    @if($view === 'dashboard')
+      <button class="btn btn-primary btn-sm" type="submit">Update desk date</button>
+    @else
     <label>Days
       <select name="days">
         @foreach([7, 14, 21, 31] as $n)<option value="{{ $n }}" @selected($days === $n)>{{ $n }}</option>@endforeach
@@ -169,6 +242,7 @@
     </label>
     <button class="btn btn-primary btn-sm">Apply</button>
     <a class="btn btn-sm" href="{{ route('reservations.index') }}">Reset</a>
+    @endif
   </form>
   @endif
 
@@ -176,7 +250,7 @@
     @foreach($views as $key => $label)
       <a href="{{ $go(['view' => $key]) }}" class="desk-view-link {{ $view === $key ? 'on' : '' }}" @if($view === $key) aria-current="page" @endif>{{ $label }}</a>
     @endforeach
-    @if($view !== 'list')<label class="zoom">Column <input id="col-zoom" type="range" min="36" max="92" value="52" aria-label="Timeline column width"></label>@endif
+    @if($view === 'timeline')<label class="zoom">Column <input id="col-zoom" type="range" min="36" max="92" value="52" aria-label="Timeline column width"></label>@endif
     @if($saved->isNotEmpty())
       <span class="tiny muted">Saved:</span>
       @foreach($saved as $sv)
@@ -856,6 +930,164 @@
   #desk[data-view="list"] .reservation-pax,#desk[data-view="list"] .reservation-source{color:#42564a!important}
   #desk[data-view="list"] .reservation-active-filters a{border-color:#dce8df!important;background:#f6faf7!important;color:#46604e!important}
   #desk[data-view="list"] .reservation-room-tags span{border-color:#dce9df!important;background:#f4f9f5!important;color:#325b40!important}
+}
+
+/* Reservation desk dashboard: clear hierarchy, operational focus, forest-green brand. */
+#desk[data-view="dashboard"]{overflow:visible;border:0;background:transparent;box-shadow:none}
+#desk[data-view="dashboard"] .desk-dashboard-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,1.1fr) auto;align-items:center;gap:22px;min-height:166px;margin-bottom:14px;padding:24px 26px;border:1px solid #164d37;border-radius:18px;overflow:visible;background:radial-gradient(circle at 75% 0%,rgba(148,213,168,.19),transparent 34%),linear-gradient(115deg,#102d21 0%,#145437 58%,#1b6842 100%);box-shadow:0 16px 34px rgba(16,58,40,.14)}
+.desk-dashboard-hero:before{content:"";position:absolute;z-index:-1;right:22%;top:-125px;width:260px;height:260px;border:1px solid rgba(255,255,255,.11);border-radius:50%;box-shadow:0 0 0 32px rgba(255,255,255,.025),0 0 0 68px rgba(255,255,255,.018);pointer-events:none}
+.desk-dashboard-hero-copy{min-width:0}
+.desk-dashboard-eyebrow{display:flex;align-items:center;gap:8px;color:#c8ebd4;font-size:.64rem;font-weight:850;letter-spacing:.14em}
+.desk-dashboard-eyebrow span{opacity:.6}
+.desk-dashboard-hero h2{margin:9px 0 8px;color:#fff;font-size:clamp(1.4rem,2.2vw,1.9rem);line-height:1.1;letter-spacing:-.035em}
+.desk-dashboard-date-line{display:flex;flex-wrap:wrap;gap:6px 12px;color:#d2e7d8;font-size:.73rem}
+.desk-dashboard-date-line span+span{padding-left:11px;border-left:1px solid rgba(255,255,255,.25)}
+.desk-dashboard-search{position:relative;z-index:1;padding:12px;border:1px solid rgba(255,255,255,.21);border-radius:13px;background:rgba(255,255,255,.09);backdrop-filter:blur(7px)}
+.desk-dashboard-search label{display:block;margin:0 0 6px;color:#e0f0e5;font-size:.7rem;font-weight:750}
+.desk-dashboard-search-control{display:flex;align-items:center;gap:7px;padding:4px 5px 4px 11px;border:1px solid rgba(255,255,255,.32);border-radius:10px;background:#fff;color:#20392c}
+.desk-dashboard-search-control>svg{flex:none;color:#66776c}
+.desk-dashboard-search-control input{width:100%;min-width:0;height:34px;border:0;outline:0;background:transparent;color:#20392c;font:inherit;font-size:.78rem}
+.desk-dashboard-search-control input::placeholder{color:#63736a}
+.desk-dashboard-search-control .btn{flex:none;min-height:34px;border-color:#dce9df;background:#edf6ef;color:#14532d}
+.desk-dashboard-search-control:focus-within{outline:3px solid rgba(195,235,207,.42)}
+.desk-dashboard-tools{position:relative;z-index:4;align-self:center}
+.desk-dashboard-tools summary{display:flex;align-items:center;gap:7px;min-height:42px;padding:0 12px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:.76rem;font-weight:750;white-space:nowrap;cursor:pointer;list-style:none}
+.desk-dashboard-tools summary::-webkit-details-marker{display:none}
+.desk-dashboard-tools summary:hover,.desk-dashboard-tools[open] summary{background:rgba(255,255,255,.2)}
+.desk-dashboard-tools summary:focus-visible,.desk-dashboard-tool-menu a:focus-visible,.desk-dashboard-tool-menu button:focus-visible{outline:3px solid #b8e4c6;outline-offset:2px}
+.desk-dashboard-tool-menu{position:absolute;top:calc(100% + 8px);right:0;display:grid;min-width:205px;max-height:65vh;overflow:auto;padding:6px;border:1px solid #dbe7de;border-radius:12px;background:#fff;box-shadow:0 14px 34px rgba(12,34,22,.2)}
+.desk-dashboard-tool-menu a,.desk-dashboard-tool-menu button{display:block;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#274334;font:inherit;font-size:.77rem;text-align:left;text-decoration:none;cursor:pointer}
+.desk-dashboard-tool-menu a:hover,.desk-dashboard-tool-menu button:hover{background:#edf6ef;color:#14532d}
+#desk[data-view="dashboard"] .dashboard-kpi-strip{display:block;padding:0;background:transparent}
+.desk-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.desk-summary-card{--stat-accent:#28734c;display:flex;min-width:0;min-height:122px;flex-direction:column;justify-content:space-between;gap:8px;padding:13px 14px;border:1px solid #e0e9e2;border-top:3px solid var(--stat-accent);border-radius:14px;background:#fff;color:#24392c;text-decoration:none;box-shadow:0 4px 12px rgba(18,43,31,.045);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.desk-summary-card:hover{transform:translateY(-2px);border-color:#c6ddcb;box-shadow:0 10px 20px rgba(18,43,31,.09)}
+.desk-summary-card:focus-visible{outline:3px solid #4b9a67;outline-offset:2px}
+.desk-summary-card.tone-green{--stat-accent:#258153}.desk-summary-card.tone-amber{--stat-accent:#c17a19}.desk-summary-card.tone-blue{--stat-accent:#3b7183}.desk-summary-card.tone-forest{--stat-accent:#14532d}.desk-summary-card.tone-red{--stat-accent:#bd4c43}
+.desk-summary-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#66766b;font-size:.67rem;font-weight:800;letter-spacing:.055em;text-transform:uppercase}
+.desk-summary-card-top svg{width:18px;height:18px;color:var(--stat-accent)}
+.desk-summary-card>strong{color:#173d2a;font-size:1.8rem;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.desk-summary-card>small{color:#627267;font-size:.68rem;line-height:1.35}
+.desk-metric-details{margin-top:10px;border:1px solid #e0e9e2;border-radius:13px;background:#fff}
+.desk-metric-details summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;color:#284636;font-size:.76rem;font-weight:800;cursor:pointer;list-style:none}
+.desk-metric-details summary::-webkit-details-marker{display:none}
+.desk-metric-details summary:after{content:"+";display:grid;width:22px;height:22px;place-items:center;border-radius:7px;background:#eff6f0;color:#24603d;font-size:1rem}
+.desk-metric-details[open] summary:after{content:"−"}
+.desk-metric-details summary span{margin-left:auto;color:#65756a;font-size:.67rem;font-weight:550}
+.desk-metric-details summary:focus-visible{outline:3px solid #4b9a67;outline-offset:2px}
+.desk-metric-groups{display:grid;gap:9px;padding:0 13px 13px}
+.desk-metric-groups .kpi-group{grid-template-columns:5.5rem minmax(0,1fr);padding-top:9px;border-top:1px solid #edf1ed}
+.desk-metric-groups .kpi-row{scrollbar-width:thin}
+#desk[data-view="dashboard"] .desk-dashboard-date-tools{display:flex;align-items:center;gap:12px;margin:2px 0 12px;padding:0 2px}
+.desk-dashboard-date-tools label{flex-direction:row;align-items:center;gap:9px;color:#52645a;font-size:.72rem;font-weight:750}
+.desk-dashboard-date-tools .date-nav{gap:5px}
+.desk-dashboard-date-tools .date-nav a{display:inline-grid;min-width:34px;height:34px;place-items:center;border-color:#e0e9e2;background:#fff;color:#365343;font-weight:700}
+.desk-dashboard-date-tools .date-nav a:hover{border-color:#a9ccb2;background:#f2f8f3;color:#14532d}
+.desk-dashboard-date-tools input[type="date"]{min-height:34px;border-color:#dce7de;border-radius:9px;background:#fff;color:#274334}
+#desk[data-view="dashboard"]>.desk-views{gap:5px;margin:0 0 14px;padding:7px;border:1px solid #e0e9e2;border-radius:13px;background:#fff;box-shadow:0 3px 10px rgba(18,43,31,.035)}
+#desk[data-view="dashboard"]>.desk-views .desk-view-link{padding:7px 10px;border-radius:8px;background:transparent;color:#53665b;font-size:.74rem;font-weight:750;text-decoration:none}
+#desk[data-view="dashboard"]>.desk-views .desk-view-link:hover{background:#f1f7f2;color:#14532d}
+#desk[data-view="dashboard"]>.desk-views .desk-view-link.on{background:#e7f3ea;color:#14532d;box-shadow:inset 0 0 0 1px #c7e5ce}
+.desk-dashboard{display:grid;gap:14px}
+.desk-dashboard .card{margin:0;border-color:#e2e9e3;border-radius:15px;box-shadow:0 5px 16px rgba(18,43,31,.045)}
+.desk-dashboard .card-head{min-height:58px;padding:12px 16px;border-bottom-color:#edf1ed}
+.desk-dashboard .card-head h3{color:#233c2d;font-size:.9rem;letter-spacing:-.01em}
+.desk-dashboard .card-body{padding:14px 16px}
+.desk-dashboard .grid.g-2{align-items:start;gap:14px}
+.desk-section-eyebrow{display:block;margin-bottom:3px;color:#4f7458;font-size:.57rem;font-weight:850;letter-spacing:.13em}
+.desk-dashboard-room-panel .card-head{align-items:end}
+.room-strip-legend{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:0 0 10px;color:#69796e;font-size:.65rem}
+.room-strip-legend>span{display:inline-flex;align-items:center;gap:5px}
+.room-status-dot{width:7px;height:7px;border-radius:50%;background:#45966a}.room-status-dot.occupied{background:#d0655b}.room-status-dot.out{background:#8b6b9e}
+.desk-dashboard .room-strip{display:flex;gap:8px;overflow-x:auto;padding:1px 2px 8px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.desk-dashboard .room-thumb{position:relative;flex:0 0 100px;aspect-ratio:1.18;border-color:#dfe8e1;border-radius:11px;background:#f1f6f2;scroll-snap-align:start;transition:transform .15s ease,box-shadow .15s ease}
+.desk-dashboard .room-thumb:hover{z-index:1;transform:translateY(-2px);box-shadow:0 8px 16px rgba(18,43,31,.15)}
+.desk-dashboard .room-thumb:focus-visible{outline:3px solid #4b9a67;outline-offset:2px}
+.desk-dashboard .room-thumb.occupied{border-color:#e6b8b3}
+.desk-dashboard .room-thumb.out_of_order,.desk-dashboard .room-thumb.out_of_service{border-color:#c9bdd0}
+.desk-room-empty{margin:4px 0;color:#65756a;font-size:.74rem}
+.room-status-label{position:absolute;top:5px;left:5px;max-width:calc(100% - 10px);overflow:hidden;padding:3px 5px;border-radius:5px;background:rgba(26,70,45,.9);color:#fff;font-size:.5rem;font-weight:800;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
+.room-thumb.occupied .room-status-label{background:rgba(137,48,42,.92)}
+.room-thumb.out_of_order .room-status-label,.room-thumb.out_of_service .room-status-label{background:rgba(79,58,91,.92)}
+.desk-dashboard .room-thumb .rt-no{display:flex;align-items:center;justify-content:center;gap:4px;padding:4px;background:rgba(19,43,30,.88);font-size:.68rem;font-weight:800}
+.desk-dashboard .room-thumb .rt-no small{color:#d8e9dc;font-size:.52rem;font-weight:600}
+.desk-dashboard .bar-chart{gap:4px;height:150px;padding:10px 4px 0;border-bottom:1px solid #e9efea}
+.desk-dashboard .bar-chart .col{min-width:0}
+.desk-dashboard .bar-chart .col small{color:#65756a;font-size:.58rem}
+.desk-dashboard .bar-chart .col .b{min-width:4px;border-radius:5px 5px 1px 1px;box-shadow:0 2px 4px rgba(19,71,43,.11)}
+.desk-dashboard .list li{padding:.65rem 0;border-bottom-color:#edf1ed;font-size:.79rem}
+.desk-dashboard .list li>div{min-width:0}
+.desk-dashboard .list li .tiny{line-height:1.45}
+.desk-dashboard .list li .btn{flex:none}
+.desk-dashboard .table{font-size:.75rem}
+.desk-dashboard .table thead th{background:#f6f9f6;color:#53655a;font-size:.62rem;letter-spacing:.07em;text-transform:uppercase}
+.desk-dashboard .table tbody tr:hover td{background:#f7faf7}
+.desk-dashboard .table-wrap{border-radius:10px}
+.desk-dashboard .badge{white-space:nowrap}
+.desk-dashboard .card-head>a{color:#267246;font-size:.72rem;font-weight:750;text-decoration:none}
+.desk-dashboard .card-head>a:hover{text-decoration:underline;text-underline-offset:3px}
+.desk-dashboard .list>li.muted{padding:12px 0;color:#65756a;font-size:.74rem}
+.desk-dashboard .desk-chart-legend{display:flex;flex-wrap:wrap;gap:10px;color:#637469;font-size:.66rem}
+.desk-dashboard .desk-chart-legend span{display:inline-flex;align-items:center;gap:5px}
+.desk-dashboard .desk-chart-legend i{width:8px;height:8px;border-radius:2px;background:#258153}
+.desk-dashboard .desk-chart-legend .departures{background:#c17a19}
+.desk-flow-chart{margin-top:14px}
+.desk-flow-chart-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.desk-flow-bars{display:flex;align-items:flex-end;gap:3px;width:100%;height:100%}
+.desk-flow-bars .b{flex:1;max-width:none}
+.desk-flow-bars .b.arrivals{background:linear-gradient(180deg,#49a86f,#227349)}
+.desk-flow-bars .b.departures{background:linear-gradient(180deg,#e8b04f,#b77419)}
+.desk.dark[data-view="dashboard"]{background:transparent;color:#e2ece4}
+.desk.dark[data-view="dashboard"] .desk-summary-card,.desk.dark[data-view="dashboard"] .desk-metric-details,.desk.dark[data-view="dashboard"]>.desk-views{border-color:#294333;background:#14251a}
+.desk.dark[data-view="dashboard"] .desk-summary-card-top,.desk.dark[data-view="dashboard"] .desk-summary-card>small,.desk.dark[data-view="dashboard"] .desk-metric-details summary span{color:#adbdaf}
+.desk.dark[data-view="dashboard"] .desk-summary-card>strong,.desk.dark[data-view="dashboard"] .desk-metric-details summary{color:#dbecdf}
+.desk.dark[data-view="dashboard"] .desk-metric-groups .kpi-group{border-color:#294333}
+.desk.dark[data-view="dashboard"]>.desk-views .desk-view-link{color:#bfd0c2}
+.desk.dark[data-view="dashboard"]>.desk-views .desk-view-link.on{background:#21432c;color:#d8f0dd}
+.desk.dark[data-view="dashboard"] .desk-dashboard-date-tools label{color:#bfd0c2}
+.desk.dark[data-view="dashboard"] .desk-dashboard-date-tools .date-nav a,.desk.dark[data-view="dashboard"] .desk-dashboard-date-tools input[type="date"]{border-color:#304b38;background:#14251a;color:#dceade}
+.desk.dark[data-view="dashboard"] .desk-dashboard .card{border-color:#294333;background:#13231a}
+.desk.dark[data-view="dashboard"] .desk-dashboard .card-head{border-color:#294333}
+.desk.dark[data-view="dashboard"] .desk-dashboard .card-head h3{color:#dceade}
+.desk.dark[data-view="dashboard"] .desk-dashboard .room-thumb{border-color:#365341;background:#1a3323}
+.desk.dark[data-view="dashboard"] .desk-dashboard .table thead th{border-color:#294333;background:#1a2e21;color:#bed0c2}
+.desk.dark[data-view="dashboard"] .desk-dashboard .table tbody td{border-color:#294333;color:#d3e1d5}
+.desk.dark[data-view="dashboard"] .desk-dashboard .bar-chart{border-color:#294333}
+.desk.dark[data-view="dashboard"] .desk-dashboard .bar-chart .col small,.desk.dark[data-view="dashboard"] .desk-chart-legend,.desk.dark[data-view="dashboard"] .room-strip-legend,.desk.dark[data-view="dashboard"] .desk-room-empty{color:#adbdaf}
+.desk.dark[data-view="dashboard"] .desk-section-eyebrow{color:#a8cdb2}
+@media(max-width:1180px){
+  #desk[data-view="dashboard"] .desk-dashboard-hero{grid-template-columns:minmax(220px,1fr) minmax(240px,1fr);}
+  .desk-dashboard-tools{grid-column:2;justify-self:end}
+  .desk-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  #desk[data-view="dashboard"] .desk-dashboard-hero{grid-template-columns:1fr;gap:14px;padding:18px}
+  .desk-dashboard-tools{grid-column:auto;justify-self:start}
+  .desk-dashboard-tool-menu{right:auto;left:0}
+  .desk-dashboard-date-tools{align-items:flex-start!important;flex-direction:column}
+  .desk-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .desk-summary-card{min-height:108px;padding:11px}
+  .desk-summary-card>strong{font-size:1.6rem}
+  .desk-metric-groups .kpi-group{grid-template-columns:1fr;gap:5px}
+  .desk-dashboard .grid.g-2{grid-template-columns:minmax(0,1fr)}
+  .desk-dashboard .card-head{align-items:flex-start}
+}
+@media(max-width:420px){
+  .desk-summary-grid{grid-template-columns:minmax(0,1fr)}
+  .desk-summary-card{min-height:96px}
+  .desk-dashboard-date-line{gap:4px 8px;font-size:.67rem}
+  .desk-dashboard-date-line span+span{padding-left:8px}
+  .desk-metric-details summary{flex-wrap:wrap}
+  .desk-metric-details summary span{width:100%;margin-left:0}
+  .desk-dashboard .room-thumb{flex-basis:84px}
+}
+@media(prefers-reduced-motion:reduce){.desk-summary-card,.desk-dashboard .room-thumb{transition:none}}
+@media print{
+  #desk[data-view="dashboard"] .desk-dashboard-hero{min-height:0;padding:10px;border:0;border-radius:0;background:#fff;color:#17251b;box-shadow:none}
+  #desk[data-view="dashboard"] .desk-dashboard-eyebrow,#desk[data-view="dashboard"] .desk-dashboard-date-line{color:#526257}
+  #desk[data-view="dashboard"] .desk-dashboard-hero h2{color:#17251b}
+  #desk[data-view="dashboard"] .desk-dashboard-search,#desk[data-view="dashboard"] .desk-dashboard-tools,.dashboard-kpi-strip .desk-metric-details,#desk[data-view="dashboard"]>.desk-views,#desk[data-view="dashboard"] .desk-dashboard-date-tools{display:none!important}
+  #desk[data-view="dashboard"] .desk-summary-card,#desk[data-view="dashboard"] .desk-dashboard .card{break-inside:avoid;box-shadow:none}
 }
 </style>
 @endpush
