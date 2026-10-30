@@ -182,6 +182,15 @@ class ReservationListPolishTest(unittest.TestCase):
         self.assertIn('.reservation-guest-meta a:focus-visible', VIEW)
         self.assertIn('.reservation-row-actions .btn:focus-visible', VIEW)
 
+    def test_search_shortcuts_are_discoverable_and_do_not_interrupt_typing(self):
+        self.assertIn('data-search-shortcut', VIEW)
+        self.assertIn('id="reservationSearchHint"', VIEW)
+        self.assertIn('Press slash to focus search. Press Escape to clear and apply the search.', VIEW)
+        self.assertIn("if (event.key === '/' && !isEditing)", VIEW)
+        self.assertIn("event.key === 'Escape' && target === reservationSearch", VIEW)
+        self.assertIn('syncReservationSearchControls();', VIEW)
+        self.assertIn('.reservation-search-shortcut[hidden]{display:none}', VIEW)
+
     def test_sort_keys_are_allowlisted_and_have_a_stable_tie_breaker(self):
         self.assertIn("'created' => ['created_at', 'desc']", SERVICE)
         self.assertIn("'arrival_asc' => ['arrival_date', 'asc']", SERVICE)
