@@ -39,7 +39,18 @@
     @php
     $isActive = function (array $item) use (&$isActive): bool {
         if (isset($item['route'])) {
-            return request()->url() === route($item['route'], $item['params'] ?? []);
+            $target = route($item['route'], $item['params'] ?? []);
+            if (request()->url() !== strtok($target, '?')) {
+                return false;
+            }
+            parse_str((string) parse_url($target, PHP_URL_QUERY), $targetQuery);
+            foreach ($targetQuery as $key => $value) {
+                if (request()->query($key) != $value) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         foreach ($item['children'] ?? [] as $child) {
