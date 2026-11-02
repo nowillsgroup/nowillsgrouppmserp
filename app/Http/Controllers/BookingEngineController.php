@@ -38,6 +38,10 @@ class BookingEngineController extends Controller
     public function show(Request $request, string $code)
     {
         $hotel = $this->hotel($code);
+        $request->validate(['rooms' => 'nullable|integer|min:1|max:5', 'adults' => 'nullable|integer|min:1|max:20']);
+        $rooms = (int) $request->input('rooms', 1);
+        $adults = (int) $request->input('adults', 2);
+        $adultsPerRoom = max(1, intdiv($adults, max(1, $rooms)));
         $min = $hotel->business_date->toDateString();
         $arr = $request->input('arrival', $min);
         $dep = $request->input('departure', Carbon::parse($arr)->addDay()->toDateString());
@@ -60,8 +64,8 @@ class BookingEngineController extends Controller
             $promoCode = '';
         }
         $types = RoomType::where('is_active', true)->where('show_online', true)->orderBy('base_rate')->get()
-            ->each(function ($t) use ($arr, $dep, $promoCode, &$promoError, $contract) {
-                $t->quote = $contract ? ContractService::quote($contract, $t, $arr, $dep, 1) : RateService::quote($t, $arr, $dep);
+            ->each(function ($t) use ($arr, $dep, $promoCode, &$promoError, $contract, $adultsPerRoom) {
+                $t->quote = $contract ? ContractService::quote($contract, $t, $arr, $dep, $adultsPerRoom) : RateService::quote($t, $arr, $dep);
                 $t->promo = null;
                 if ($promoCode !== '') {
                     try {
@@ -83,7 +87,7 @@ class BookingEngineController extends Controller
 
         return view('public.booking', ['deposit' => \App\Services\OnlinePaymentService::depositPolicy(), 'hotel' => $hotel, 'types' => $types, 'arrival' => $arr, 'departure' => $dep,
             'promoCode' => $promoCode, 'promoError' => $promoError, 'token' => $token, 'dl' => $dl, 'contract' => $contract, 'corpCode' => $corpCode, 'corpError' => $corpError,
-            'nights' => Carbon::parse($arr)->diffInDays(Carbon::parse($dep))]);
+            'rooms' => $rooms, 'adults' => $adults, 'adultsPerRoom' => $adultsPerRoom, 'nights' => Carbon::parse($arr)->diffInDays(Carbon::parse($dep))]);
     }
 
     public function store(Request $request, string $code)

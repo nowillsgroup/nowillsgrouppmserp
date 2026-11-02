@@ -69,8 +69,10 @@ class BusinessDevService
         self::need($stale >= 1 && $stale <= 60, 'Rate shops go stale after 1 to 60 days.');
         $notice = (int) ($d['partner_notice_days'] ?? 0);
         self::need($notice >= 7 && $notice <= 180, 'The partnership renewal notice is between 7 and 180 days.');
-        $rt = ($d['benchmark_room_type'] ?? '') === '' ? '' : (string) (int) $d['benchmark_room_type'];
-        self::need($rt === '' || RoomType::whereKey((int) $rt)->exists(), 'Choose a room type of this hotel.');
+        $rawRoomType = trim((string) ($d['benchmark_room_type'] ?? ''));
+        self::need($rawRoomType === '' || (ctype_digit($rawRoomType) && (int) $rawRoomType > 0), 'Choose an active room type of this hotel.');
+        $rt = $rawRoomType === '' ? '' : (string) (int) $rawRoomType;
+        self::need($rt === '' || RoomType::whereKey((int) $rt)->where('is_active', true)->exists(), 'Choose an active room type of this hotel.');
         foreach (['bd_discount_rate' => (string) round((float) $rate, 2), 'bd_shop_stale_days' => (string) $stale, 'bd_partner_notice_days' => (string) $notice, 'bd_benchmark_room_type' => $rt] as $k => $v) {
             Setting::updateOrCreate(['key' => $k], ['value' => $v]);
         }
@@ -192,8 +194,9 @@ class BusinessDevService
     public static function benchmarkType(): ?RoomType
     {
         $id = self::cfg()['benchmark_room_type'];
+        $selected = $id ? RoomType::whereKey($id)->where('is_active', true)->first() : null;
 
-        return ($id ? RoomType::find($id) : null) ?? RoomType::orderBy('base_rate')->first();
+        return $selected ?? RoomType::where('is_active', true)->orderBy('base_rate')->first();
     }
 
     /** our own public rate for a stay date (benchmark room type, after revenue management) */
@@ -263,9 +266,10 @@ class BusinessDevService
     }
 
     /** forward price position: our average rate vs the comp-set average over shops in the window (100 = at par) */
-    public static function ratePosition(Carbon $from, int $days): array
+    public static function ratePosition(Carbon $from, int $days, ?string $channel = null): array
     {
-        $shops = BdRateShop::with('lines')->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())->get()
+        $shops = BdRateShop::with('lines')->whereDate('stay_date', '>=', $from->toDateString())->whereDate('stay_date', '<=', $from->copy()->addDays($days - 1)->toDateString())
+            ->when($channel, fn ($q) => $q->where('channel', $channel))->get()
             ->filter(fn ($s) => $s->own_rate !== null && $s->compAverage() !== null);
         if ($shops->isEmpty()) {
             return ['shops' => 0, 'own' => null, 'comp' => null, 'index' => null, 'cheaper' => 0, 'dearer' => 0];

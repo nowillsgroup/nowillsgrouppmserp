@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\HousekeepingTask;
+use App\Models\MaintenanceRequest;
 use App\Models\PaymentMode;
 use App\Models\ReservationDeskView;
 use App\Models\ReservationRoom;
@@ -103,14 +105,39 @@ class ReservationDeskController extends Controller
 
     public function roomCard(Request $request, Room $room)
     {
-        $room->load(['roomType.amenityLinks.amenity', 'roomType.images', 'floor', 'images', 'amenityLinks.amenity', 'currentStay.reservation.guest']);
-        $outage = RoomOutage::where('room_id', $room->id)->where('status', 'active')->orderBy('starts_on')->first();
+        $roomRelations = ['roomType.amenityLinks.amenity', 'roomType.images', 'floor', 'images', 'amenityLinks.amenity', 'currentStay.reservation.guest'];
+        if (can_do('folio.view')) {
+            $roomRelations[] = 'currentStay.folio';
+        }
+        $room->load($roomRelations);
+        $today = bdate()->toDateString();
+        $outages = RoomOutage::where('room_id', $room->id)
+            ->where('status', 'active')
+            ->whereDate('ends_on', '>', $today)
+            ->orderBy('starts_on')
+            ->get();
+        $tasks = HousekeepingTask::with('employee')->where('room_id', $room->id)->latest('task_date')->limit(5)->get();
+        $tickets = MaintenanceRequest::where('room_id', $room->id)->latest('id')->limit(5)->get();
+        $openTicketCount = MaintenanceRequest::where('room_id', $room->id)->whereIn('status', ['open', 'in_progress'])->count();
+        $history = ReservationRoom::with('reservation.guest')->where('room_id', $room->id)
+            ->where('status', 'checked_out')->orderByDesc('departure_date')->limit(5)->get();
+        $upcomingStays = ReservationRoom::with(['reservation.guest', 'reservation.source'])
+            ->where('room_id', $room->id)->where('status', 'reserved')->whereDate('arrival_date', '>=', $today)
+            ->orderBy('arrival_date')->limit(5)->get();
+        $photo = ReservationDeskService::photoPath($room);
+        $roomImages = $room->images->concat($room->roomType?->images ?? collect())->unique('path')->values();
 
         return $this->card($request, 'reservations.desk-room', [
             'room' => $room,
-            'outage' => $outage,
+            'outages' => $outages,
+            'tasks' => $tasks,
+            'tickets' => $tickets,
+            'openTicketCount' => $openTicketCount,
+            'history' => $history,
+            'upcomingStays' => $upcomingStays,
+            'roomImages' => $roomImages,
             'amenities' => ReservationDeskService::amenityNames($room),
-            'photo' => ReservationDeskService::photoPath($room),
+            'photo' => $photo,
             'title' => 'Room '.$room->room_no,
         ]);
     }
@@ -207,6 +234,8 @@ class ReservationDeskController extends Controller
 
     public function place(Request $request, ReservationRoom $stay)
     {
+        abort_unless(can_do('frontdesk.roommove') || ($stay->status === 'reserved' && can_do('reservations.edit')), 403);
+
         $data = $request->validate([
             'room_id' => 'required|integer|owned:rooms',
             'rate' => 'nullable|numeric|min:0',

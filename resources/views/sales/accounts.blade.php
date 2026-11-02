@@ -1,12 +1,25 @@
 @extends('layouts.app')
 @section('title', 'Sales Accounts')
-@section('crumbs') Sales / Accounts @endsection
+@section('crumbs') Sales & Marketing / Accounts @endsection
 @php $C = \App\Models\Company::class; @endphp
 @section('actions')
   <a class="btn" href="{{ route('reports.show', ['report' => 'account_production']) }}"><x-icon name="download"/> Production report</a>
   @if(can_do('sales.edit') || can_do('sales.manage'))<button class="btn btn-primary" data-modal="accountModalNew" id="newAccountBtn"><x-icon name="plus"/> New account</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
+@php
+  $keyAccounts = $list->filter(fn ($c) => $c->is_active && $c->sales_status === 'active' && in_array($c->tier, ['key', 'major'], true));
+  $priorityFollowups = $keyAccounts->filter(fn ($c) => ! isset($touch[$c->id]) || $touch[$c->id]->lt($dormantCut))->count();
+  $accountRevenueYtd = (float) $prod->sum('revenue');
+  $accountWeightedPipe = (float) $pipe->sum();
+@endphp
+<div class="stats" id="accountsStats">
+  <x-stat label="Accounts in view" :value="number_format($list->count())" icon="building" tone="blue" :sub="$list->whereNull('account_manager_id')->count().' unassigned'"/>
+  <x-stat label="Room revenue YTD" :value="money_short($accountRevenueYtd)" icon="money" tone="green" :sub="number_format($prod->sum('nights')).' room nights'"/>
+  <x-stat label="Weighted pipeline" :value="money_short($accountWeightedPipe)" icon="trend" tone="purple" sub="open opportunities for these accounts"/>
+  <x-stat label="Priority follow-ups" :value="number_format($priorityFollowups)" icon="alert" :tone="$priorityFollowups ? 'amber' : 'green'" sub="key / major accounts overdue for a touch"/>
+</div>
 <div class="card"><div class="card-body"><form method="get" class="flex gap-1 wrap" style="align-items:center" id="accFilter">
   <input name="q" value="{{ request('q') }}" placeholder="Name, contact or city" aria-label="Search">
   <select name="type" aria-label="Type"><option value="">Corporate &amp; agents</option>@foreach(['corporate' => 'Corporate', 'travel_agent' => 'Travel agents', 'ota' => 'OTAs'] as $k => $l)<option value="{{ $k }}" @selected(request('type') === $k)>{{ $l }}</option>@endforeach</select>

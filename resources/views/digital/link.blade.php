@@ -5,9 +5,10 @@
 @section('actions')
   <a class="btn" href="{{ route('digital.link.qr', $l) }}" id="qrBtn"><x-icon name="qr"/> QR code (SVG)</a>
   @if($w)<button class="btn" data-modal="linkModal" id="editLinkBtn"><x-icon name="edit"/> Edit</button>
-  <form method="post" action="{{ route('digital.link.toggle', $l) }}">@csrf<button class="btn" id="toggleLinkBtn">{{ $l->is_active ? 'Pause tracking' : 'Re-activate' }}</button></form>@endif
+  <form method="post" action="{{ route('digital.link.toggle', $l) }}" @if($l->is_active) data-confirm="Pause tracking for {{ $l->name }}? New clicks will no longer be attributed to this link." @endif>@csrf<button class="btn {{ $l->is_active ? 'btn-danger' : 'btn-primary' }}" id="toggleLinkBtn">{{ $l->is_active ? 'Pause tracking' : 'Re-activate' }}</button></form>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $l->is_active ? 'green' : 'slate' }}" id="linkStatus" data-status="{{ $l->is_active ? 'active' : 'paused' }}">{{ $l->is_active ? 'Tracking' : 'Paused' }}</span>@if($l->campaign)<a class="badge badge-blue" href="{{ route('digital.campaign', $l->campaign) }}">{{ $l->campaign->number }} {{ $l->campaign->name }}</a>@endif</div>
 <div class="stats" id="linkStats">
   <x-stat label="Clicks" :value="number_format($s['clicks'])" icon="link" tone="blue" :sub="number_format($s['unique']).' unique visitors'"/>
@@ -19,7 +20,7 @@
 <div>
 <div class="card" id="linkUrls"><div class="card-body"><dl class="kv"><dt>Short link</dt><dd><code id="shortUrl">{{ $l->shortUrl() }}</code></dd><dt>Opens</dt><dd class="small" style="word-break:break-all"><code>{{ \App\Services\DigitalMarketingService::buildUrl($l) }}</code></dd>
   <dt>Tags</dt><dd class="small">utm_source={{ $l->utm_source }} · utm_medium={{ $l->utm_medium }} · utm_campaign={{ $l->utm_campaign }}{{ $l->utm_content ? ' · utm_content='.$l->utm_content : '' }}</dd><dt>Created</dt><dd>{{ $l->created_at->format('d M Y') }} by {{ $l->creator?->name ?? '—' }}</dd></dl></div></div>
-<div class="card flush mt-1" id="linkBookings"><div class="card-head"><h3><x-icon name="bed"/> Credited bookings</h3></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Reservation</th><th>Guest</th><th>Stay</th><th>Status</th><th>Booked</th></tr></thead><tbody>
+<div class="card flush mt-1" id="linkBookings"><div class="card-head"><div><h3><x-icon name="bed"/> Credited bookings</h3><p class="tiny muted">Cancelled reservations are excluded from the booking and revenue metrics.</p></div></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Reservation</th><th>Guest</th><th>Stay</th><th>Status</th><th>Booked</th></tr></thead><tbody>
 @forelse($res as $r)<tr><td><a href="{{ route('reservations.show', $r) }}">{{ $r->reservation_no }}</a></td><td class="small">{{ $r->guest?->full_name }}</td><td class="small nowrap">{{ $r->arrival_date->format('d M') }} – {{ $r->departure_date->format('d M') }}</td><td><span class="badge badge-slate">{{ $r->status }}</span></td><td class="small">{{ $r->created_at->format('d M') }}</td></tr>
 @empty<tr><td colspan="5" class="empty">No bookings credited yet.</td></tr>@endforelse</tbody></table></div></div>
 <div class="card flush mt-1" id="clickLog"><div class="card-head"><h3><x-icon name="clock"/> Recent clicks</h3></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>When</th><th>Device</th><th>From</th></tr></thead><tbody>

@@ -8,12 +8,15 @@ use App\Models\Hotel;
 use App\Services\ActivityLogger;
 use App\Services\Migration\Importers\BankAccountMappingPreflightImporter;
 use App\Services\Migration\Importers\CompanyImporter;
+use App\Services\Migration\Importers\ConfiguredMasterImporter;
 use App\Services\Migration\Importers\EmployeeImporter;
 use App\Services\Migration\Importers\GuestImporter;
 use App\Services\Migration\Importers\ReservationImporter;
 use App\Services\Migration\Importers\RoomImporter;
 use App\Services\Migration\Importers\SupplierImporter;
 use App\Services\Migration\Importers\InventoryItemImporter;
+use App\Services\Migration\Importers\MenuItemImporter;
+use App\Services\Migration\Importers\BanquetEnquiryImporter;
 use App\Services\Migration\Importers\OpeningStockImporter;
 use App\Services\Migration\Importers\OpeningGlImporter;
 use App\Services\Migration\Importers\OpeningApImporter;
@@ -44,6 +47,8 @@ class MigrationService
         'rooms' => RoomImporter::class,
         'suppliers' => SupplierImporter::class,
         'inventory_items' => InventoryItemImporter::class,
+        'menu_items' => MenuItemImporter::class,
+        'banquet_enquiries' => BanquetEnquiryImporter::class,
         'opening_stock' => OpeningStockImporter::class,
         'opening_ap' => OpeningApImporter::class,
         'opening_ar' => OpeningArImporter::class,
@@ -60,20 +65,74 @@ class MigrationService
 
     public const MAX_ROWS = 5000;
 
+    public static function datasetKeys(): array
+    {
+        return array_merge(array_keys(self::DATASETS), ConfiguredMasterImporter::datasetKeys());
+    }
+
+    public static function orderedDatasetKeys(): array
+    {
+        return array_merge(self::ORDER, ConfiguredMasterImporter::datasetKeys(), ['menu_items', 'banquet_enquiries']);
+    }
+
     public static function importers(): array
     {
         $out = [];
         foreach (self::DATASETS as $key => $class) {
             $out[$key] = new $class;
         }
+        foreach (ConfiguredMasterImporter::datasetKeys() as $key) {
+            $out[$key] = new ConfiguredMasterImporter($key);
+        }
 
         return $out;
     }
 
+    public static function isConfiguredMasterDataset(string $dataset): bool
+    {
+        return str_starts_with($dataset, 'masters__') && in_array($dataset, ConfiguredMasterImporter::datasetKeys(), true);
+    }
+
+    public static function canAccessDataset(string $dataset): bool
+    {
+        if ($dataset === 'menu_items') {
+            return (new MenuItemImporter())->canAccess();
+        }
+        if ($dataset === 'banquet_enquiries') {
+            return (new BanquetEnquiryImporter())->canAccess();
+        }
+
+        return self::isConfiguredMasterDataset($dataset)
+            ? (new ConfiguredMasterImporter($dataset))->canAccess()
+            : isset(self::DATASETS[$dataset]);
+    }
+
+    public static function assertCanAccessDataset(string $dataset): void
+    {
+        if ($dataset === 'menu_items') {
+            (new MenuItemImporter())->authorizeAccess();
+            return;
+        }
+        if ($dataset === 'banquet_enquiries') {
+            (new BanquetEnquiryImporter())->authorizeAccess();
+            return;
+        }
+        if (self::isConfiguredMasterDataset($dataset)) {
+            (new ConfiguredMasterImporter($dataset))->authorizeAccess();
+            return;
+        }
+        if (! isset(self::DATASETS[$dataset])) {
+            throw ValidationException::withMessages(['dataset' => 'Unknown import or export dataset.']);
+        }
+    }
+
     public static function importer(string $dataset): DatasetImporter
     {
+        if (self::isConfiguredMasterDataset($dataset)) {
+            return new ConfiguredMasterImporter($dataset);
+        }
         if (! isset(self::DATASETS[$dataset])) {
-            throw ValidationException::withMessages(['dataset' => "Unknown dataset \"{$dataset}\". Choose: ".implode(', ', array_keys(self::DATASETS)).'.']);
+            throw ValidationException::withMessages(['dataset' => "Unknown dataset \"{$dataset}\". Choose: ".implode(', ', self::datasetKeys()).'.']);
         }
 
         return new (self::DATASETS[$dataset]);
@@ -85,6 +144,7 @@ class MigrationService
     public static function register(Hotel $hotel, string $dataset, string $tmpPath, ?string $sourceName = null, ?string $originalName = null, ?int $userId = null): DataMigrationBatch
     {
         $importer = self::importer($dataset);
+        self::assertCanAccessDataset($dataset);
         if (in_array($dataset, ['bank_account_mappings'], true)
             && $sourceName && preg_match('/\\d{6,}|(?<!\\d)(?:\\d[ -]?){8,}(?!\\d)/u', $sourceName)) {
             throw ValidationException::withMessages(['source_name' => 'Do not include a bank/card number in the migration source label.']);
@@ -123,6 +183,32 @@ class MigrationService
                     $seenFields[$canonicalName] = true;
                 }
             }
+            if (self::isConfiguredMasterDataset($dataset) || in_array($dataset, ['menu_items', 'banquet_enquiries'], true)) {
+                $allowedHeaders = [];
+                foreach ($importer->columns() as $name => $spec) {
+                    $allowedHeaders[mb_strtolower($name)] = $name;
+                    foreach (($spec['aliases'] ?? []) as $alias) {
+                        $allowedHeaders[mb_strtolower($alias)] = $name;
+                    }
+                }
+                $seenFields = [];
+                foreach ($header as $column) {
+                    $normalized = mb_strtolower(trim((string) $column));
+                    $canonicalName = $allowedHeaders[$normalized] ?? null;
+                    if ($canonicalName === null) {
+                        throw ValidationException::withMessages(['file' => 'This adapter CSV contains an undocumented column. Use only the downloaded template columns; identifiers, system-managed fields, media and transaction data cannot be imported here.']);
+                    }
+                    if (isset($seenFields[$canonicalName])) {
+                        throw ValidationException::withMessages(['file' => "The CSV contains duplicate columns for {$canonicalName}."]);
+                    }
+                    $seenFields[$canonicalName] = true;
+                }
+                foreach (array_keys($importer->columns()) as $requiredColumn) {
+                    if (! isset($seenFields[$requiredColumn])) {
+                        throw ValidationException::withMessages(['file' => "Adapter CSV is missing the template column: {$requiredColumn}."]);
+                    }
+                }
+            }
             $canonical = $importer->canonicalize($header, array_fill(0, count($header), ''));
             foreach ($importer->columns() as $name => $spec) {
                 if (! empty($spec['required']) && ! array_key_exists($name, $canonical)) {
@@ -139,6 +225,9 @@ class MigrationService
                     throw ValidationException::withMessages(['file' => 'Stopped after '.self::MAX_ROWS.' rows – split the file and import it in batches.']);
                 }
                 $canonicalRow = $importer->canonicalize($header, $csvRow);
+                if ((self::isConfiguredMasterDataset($dataset) || in_array($dataset, ['menu_items', 'banquet_enquiries'], true)) && count($csvRow) > count($header) && collect(array_slice($csvRow, count($header)))->contains(fn ($value) => trim((string) $value) !== '')) {
+                    throw ValidationException::withMessages(['file' => 'The CSV contains values outside the documented columns; remove them before upload.']);
+                }
                 if (in_array($dataset, ['bank_account_mappings'], true)) {
                     if (count($csvRow) > count($header) && collect(array_slice($csvRow, count($header)))->contains(fn ($value) => trim((string) $value) !== '')) {
                         throw ValidationException::withMessages(['file' => 'The bank-account mapping CSV contains data outside the documented columns; remove it before upload.']);
@@ -202,6 +291,7 @@ class MigrationService
      */
     public static function run(DataMigrationBatch $batch, bool $dryRun): array
     {
+        self::assertCanAccessDataset($batch->dataset);
         if (! $dryRun && ! self::importer($batch->dataset)->supportsApply()) {
             $message = match ($batch->dataset) {
                 'opening_gl' => 'This dataset is currently preflight-only. Full trial-balance posting stays disabled until AP policy is approved, the related opening subledgers and control accounts are signed off, and duplicate-posting controls are verified.',
@@ -214,9 +304,10 @@ class MigrationService
 
         $run = fn () => self::runRows($batch, $dryRun);
 
-        // Opening stock, AP/AR snapshots, and archive-only history batches are cutover units:
-        // either every write commits, or none does. AP/AR and both history archives never post GL.
-        return ! $dryRun && in_array($batch->dataset, ['opening_stock', 'opening_ap', 'opening_ar', 'historical_stock', 'paid_supplier_history'], true)
+        // Cutover snapshots, archive-only history and banquet enquiry batches are atomic units:
+        // either every write commits, or none does. Banquet applies are separately preflighted
+        // and remain enquiry-only; AP/AR and both history archives never post GL.
+        return ! $dryRun && in_array($batch->dataset, ['opening_stock', 'opening_ap', 'opening_ar', 'historical_stock', 'paid_supplier_history', 'banquet_enquiries'], true)
             ? DB::transaction($run)
             : $run();
     }
@@ -230,11 +321,26 @@ class MigrationService
         $rows = DataMigrationRow::where('batch_id', $batch->id)->orderBy('row_no')->get();
         $payloads = $rows->map(fn ($rowRec) => (array) $rowRec->payload)->all();
         $batchError = $ctx->asTenant(fn () => $importer->validateBatch($payloads, $ctx));
+        $banquetPreflightErrors = [];
+        if (! $dryRun && $batch->dataset === 'banquet_enquiries' && $batchError === null) {
+            foreach ($rows as $rowRec) {
+                $row = (array) $rowRec->payload;
+                $error = $ctx->asTenant(fn () => $importer->validateRow($row, $ctx, $rowRec->row_no));
+                if ($error !== null) {
+                    $banquetPreflightErrors[(int) $rowRec->row_no] = $error;
+                }
+            }
+        }
         foreach ($rows as $rowRec) {
             $row = (array) $rowRec->payload;
-            $outcome = $ctx->asTenant(function () use ($importer, $row, $ctx, $rowRec, $dryRun, $batchError) {
+            $outcome = $ctx->asTenant(function () use ($importer, $row, $ctx, $rowRec, $dryRun, $batchError, $batch, $banquetPreflightErrors) {
                 if ($batchError !== null) {
                     return ['status' => 'failed', 'message' => $batchError, 'model_type' => null, 'model_id' => null];
+                }
+                if ($batch->dataset === 'banquet_enquiries' && $banquetPreflightErrors) {
+                    $message = $banquetPreflightErrors[$rowRec->row_no] ?? 'Batch was not applied because another enquiry failed final preflight.';
+
+                    return ['status' => isset($banquetPreflightErrors[$rowRec->row_no]) ? 'failed' : 'skipped', 'message' => $message, 'model_type' => null, 'model_id' => null];
                 }
                 $err = $importer->validateRow($row, $ctx, $rowRec->row_no);
                 if ($err !== null) {
@@ -288,6 +394,7 @@ class MigrationService
     /** Reconciliation figures for the batch's dataset. */
     public static function report(DataMigrationBatch $batch): array
     {
+        self::assertCanAccessDataset($batch->dataset);
         $importer = self::importer($batch->dataset);
         $ctx = new ImportContext($batch, $batch->hotel);
 

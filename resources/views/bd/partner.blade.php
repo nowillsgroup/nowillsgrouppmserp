@@ -13,17 +13,18 @@
   @if($w && $p->status !== 'terminated')<button class="btn btn-danger" data-modal="endModal" id="terminateBtn">End partnership</button>@endif
 @endsection
 @section('content')
+@include('bd._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $p->statusTone() }}" id="partnerStatus" data-status="{{ $p->status }}">{{ $p->statusLabel() }}</span><span class="badge badge-blue">{{ $p->typeLabel() }}</span><span class="badge badge-slate">{{ $PT::AGREEMENTS[$p->agreement] }}</span>@foreach($flags as $f)<span class="badge badge-{{ $f[2] }}">{{ $f[1] }}</span>@endforeach</div>
 <div class="stats" id="partnerStats">
   <x-stat label="Revenue {{ bdate()->year }}" :value="money_short($ytd['revenue'])" icon="money" tone="green" :sub="$ly['revenue'] > 0 ? 'LY '.money_short($ly['revenue']) : 'no production last year'"/>
   <x-stat label="Room nights" :value="number_format($ytd['nights'])" icon="moon" tone="blue" :sub="$ytd['bookings'].' bookings'.($p->target_nights ? ' · target '.number_format($p->target_nights) : '')"/>
   <x-stat label="Target achieved" :value="($ytd['revenue_pct'] ?? $ytd['nights_pct']) !== null ? ($ytd['revenue_pct'] ?? $ytd['nights_pct']).'%' : '—'" icon="trend" tone="purple" :sub="(float) $p->target_revenue ? 'of '.money_short($p->target_revenue) : ''"/>
-  <x-stat label="Commission" :value="money_short($ytd['commission'])" icon="wallet" tone="amber" :sub="$p->commission_pct !== null ? rtrim(rtrim($p->commission_pct, '0'), '.').'% of room revenue' : 'no commission'"/>
+  <x-stat label="Estimated commission" :value="money_short($ytd['commission'])" icon="wallet" tone="amber" :sub="$p->commission_pct !== null ? rtrim(rtrim($p->commission_pct, '0'), '.').'% of credited room value · estimate only' : 'no commission agreement'/>
 </div>
 <div class="g-2-1 mt-1">
   <div>
     <div class="card flush" id="partnerMonths"><div class="card-head"><h3><x-icon name="calendar"/> {{ bdate()->year }} by arrival month</h3></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Month</th><th class="num">Bookings</th><th class="num">Nights</th><th class="num">Revenue</th></tr></thead><tbody>
-      @foreach($months as $m)<tr class="{{ $m['month']->gt(bdate()) ? 'muted' : '' }}"><td>{{ $m['month']->format('M') }}</td><td class="num">{{ $m['bookings'] ?: '' }}</td><td class="num">{{ $m['nights'] ?: '' }}</td><td class="num">{{ $m['revenue'] ? number_format($m['revenue'], 2) : '' }}</td></tr>@endforeach
+      @foreach($months as $m)<tr class="{{ $m['month']->gt(bdate()) ? 'muted' : '' }}"><td>{{ $m['month']->format('M') }}</td><td class="num">{{ $m['bookings'] ?: '' }}</td><td class="num">{{ $m['nights'] ?: '' }}</td><td class="num">{{ $m['revenue'] ? money($m['revenue']) : '' }}</td></tr>@endforeach
     </tbody></table></div></div>
     <div class="card flush mt-1" id="partnerStays"><div class="card-head"><h3><x-icon name="bed"/> Recent stays credited</h3></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Reservation</th><th>Guest</th><th>Arrival</th><th>Source</th><th>Status</th></tr></thead><tbody>
       @forelse($stays as $r)<tr><td><a href="{{ route('reservations.show', $r) }}">{{ $r->reservation_no }}</a></td><td>{{ $r->guest?->full_name }}</td><td class="nowrap">{{ $r->arrival_date->format('d M Y') }}</td><td class="small">{{ $r->source?->name }}</td><td class="small">{{ ucfirst(str_replace('_', ' ', $r->status)) }}</td></tr>

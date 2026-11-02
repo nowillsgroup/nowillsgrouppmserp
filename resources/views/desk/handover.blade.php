@@ -2,11 +2,13 @@
 @section('title', 'Shift Hand-over')
 @section('crumbs') Desk Operations / Shift Hand-over @endsection
 @section('actions')
+  <a class="btn" href="{{ route('desk.shift') }}"><x-icon name="clock"/> My shift</a>
   <a class="btn" href="{{ route('desk.handover.print') }}" target="_blank" id="printHandover"><x-icon name="print"/> Print hand-over sheet</a>
   <a class="btn" href="{{ route('desk.logbook') }}"><x-icon name="book"/> Log book</a>
 @endsection
 @section('content')
 @php $s = $snap; $all = $recent->merge($open)->merge($pinned)->unique('id'); $unread = $all->filter(fn ($e) => ! $e->readBy(auth()->id())); @endphp
+@include('desk._workspace-nav')
 <div class="alert alert-info" id="handoverHead"><x-icon name="swap"/><div><b>{{ \App\Models\LogEntry::SHIFTS[$shift] }} shift</b> · business date {{ bdate()->format('D d M Y') }} · showing everything logged since <b>{{ $since->format('d M H:i') }}</b> (start of the previous shift), all open items and pinned notes.
   @if($unread->count())<form method="post" action="{{ route('desk.logbook.ack') }}" style="display:inline;margin-left:.6rem">@csrf @foreach($unread as $e)<input type="hidden" name="ids[]" value="{{ $e->id }}">@endforeach<button class="btn btn-sm btn-primary" id="ackHandover"><x-icon name="check"/> I have read the hand-over ({{ $unread->count() }})</button></form>
   @else <span class="text-green" id="handoverRead">✓ You have read everything.</span>@endif

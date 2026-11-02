@@ -77,7 +77,7 @@ class BusinessDevController extends Controller
         $days = collect(range(0, 13))->map(fn ($k) => $from->copy()->addDays($k));
 
         return view('bd.compset', ['from' => $from, 'channel' => $channel, 'days' => $days, 'grid' => BD::shopGrid($from, 14, $channel), 'competitors' => BD::competitors(false),
-            'active' => BD::competitors(), 'series' => BD::benchmarkSeries(12), 'position' => BD::ratePosition($from, 14), 'type' => BD::benchmarkType(),
+            'active' => BD::competitors(), 'series' => BD::benchmarkSeries(12), 'position' => BD::ratePosition($from, 14, $channel), 'type' => BD::benchmarkType(),
             'ownRates' => $days->mapWithKeys(fn ($d) => [$d->toDateString() => BD::ownRate($d)]), 'lastShop' => BD::lastShop()]);
     }
 
@@ -138,10 +138,19 @@ class BusinessDevController extends Controller
     public function partners(Request $r)
     {
         $status = array_key_exists((string) $r->query('status'), BdPartner::STATUSES) ? $r->query('status') : null;
+        $search = mb_substr(trim((string) $r->query('q', '')), 0, 120);
         $list = BdPartner::with('owner', 'source', 'promo', 'company')->when($status, fn ($q) => $q->where('status', $status), fn ($q) => $q->where('status', '!=', 'terminated'))
+            ->when($search !== '', function ($q) use ($search) {
+                $like = '%'.$search.'%';
+                $q->where(function ($q) use ($like) {
+                    $q->where('number', 'like', $like)->orWhere('name', 'like', $like)->orWhere('contact_name', 'like', $like)->orWhere('email', 'like', $like)
+                        ->orWhereHas('source', fn ($q) => $q->where('name', 'like', $like))->orWhereHas('promo', fn ($q) => $q->where('code', 'like', $like))
+                        ->orWhereHas('company', fn ($q) => $q->where('name', 'like', $like));
+                });
+            })
             ->orderByRaw("FIELD(status, 'active', 'negotiating', 'prospect', 'expired', 'terminated')")->orderBy('name')->get();
 
-        return view('bd.partners', ['status' => $status, 'rows' => $list->map(fn ($p) => [$p, BD::partnerProduction($p), BD::partnerFlags($p)]),
+        return view('bd.partners', ['status' => $status, 'q' => $search, 'rows' => $list->map(fn ($p) => [$p, BD::partnerProduction($p), BD::partnerFlags($p)]),
             'totals' => BD::partnerTotals()] + $this->lookups());
     }
 
@@ -248,7 +257,7 @@ class BusinessDevController extends Controller
 
     public function settings()
     {
-        return view('bd.settings', ['cfg' => BD::cfg(), 'types' => RoomType::orderBy('base_rate')->get(), 'type' => BD::benchmarkType()]);
+        return view('bd.settings', ['cfg' => BD::cfg(), 'types' => RoomType::where('is_active', true)->orderBy('base_rate')->get(), 'type' => BD::benchmarkType()]);
     }
 
     public function settingsSave(Request $r)

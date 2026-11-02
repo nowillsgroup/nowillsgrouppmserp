@@ -16,6 +16,7 @@ use App\Models\TvPage;
 use App\Models\TvPurchase;
 use App\Models\TvSession;
 use App\Models\TvWelcomeTemplate;
+use App\Services\GuestPortalService;
 use App\Services\IptvService as IS;
 use App\Support\TvLang;
 use Carbon\Carbon;
@@ -286,9 +287,10 @@ class IptvController extends Controller
             $preview = ['stay' => $stay, 'lang' => $lang, 'segments' => IS::segmentsOf($stay), 'auto' => IS::resolveTemplate($stay, $lang)] + ($tpl
                 ? ['template' => $tpl, 'headline' => IS::render($tpl->headline, $stay), 'body' => IS::render($tpl->body, $stay), 'theme' => $tpl->theme]
                 : IS::welcome($stay, $lang) + ['template' => null]);
+            $preview['portal'] = GuestPortalService::portalQrData($stay);
         }
 
-        return view('iptv.welcome', ['list' => TvWelcomeTemplate::orderBy('language')->orderByDesc('priority')->orderBy('name')->get(), 'stays' => $stays, 'preview' => $preview, 'welcomeImage' => IS::cfg()['welcome_image'],
+        return view('iptv.welcome', ['list' => TvWelcomeTemplate::orderBy('language')->orderByDesc('priority')->orderBy('name')->get(), 'stays' => $stays, 'preview' => $preview, 'welcomeImage' => IS::cfg()['welcome_image'], 'features' => IS::features(),
             'shown' => TvSession::whereNotNull('tv_welcome_template_id')->selectRaw('tv_welcome_template_id, COUNT(*) n')->groupBy('tv_welcome_template_id')->pluck('n', 'tv_welcome_template_id')]);
     }
 

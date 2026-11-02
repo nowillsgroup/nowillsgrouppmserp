@@ -1,9 +1,9 @@
 @props(['class' => 'span-all'])
 <div {{ $attributes->merge(['class' => 'form-grid '.$class]) }} data-cheque-fields hidden>
   <div class="field span-all"><strong>Cheque details</strong><span class="hint">Complete these details when the payment mode is Cheque.</span></div>
-  <x-field name="cheque_bank_name" label="Bank name" maxlength="100" autocomplete="organization"/>
-  <x-field name="cheque_number" label="Cheque number" maxlength="20"/>
-  <x-field name="cheque_bank_branch" label="Bank branch" maxlength="100"/>
+  <x-field name="cheque_bank_name" label="Bank name" maxlength="100" autocomplete="organization" disabled/>
+  <x-field name="cheque_number" label="Cheque number" maxlength="20" disabled/>
+  <x-field name="cheque_bank_branch" label="Bank branch" maxlength="100" disabled/>
 </div>
 @once
 @push('scripts')
@@ -16,7 +16,10 @@
       const label = mode.selectedOptions?.[0]?.textContent?.trim().toLowerCase() || '';
       const cheque = label.includes('cheque');
       details.hidden = !cheque;
-      details.querySelectorAll('input').forEach(function (input) { input.required = cheque; });
+      details.querySelectorAll('input').forEach(function (input) {
+        input.required = cheque;
+        input.disabled = !cheque;
+      });
     };
     mode.addEventListener('change', sync);
     sync();

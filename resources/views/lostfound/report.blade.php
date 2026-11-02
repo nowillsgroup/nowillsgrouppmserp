@@ -5,6 +5,7 @@
   @if($r->status !== 'closed')<button class="btn" data-modal="closeRepModal" id="closeReportBtn">Close report</button>@endif
 @endsection
 @section('content')
+@include('desk._workspace-nav')
 <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:1rem;align-items:start">
 <div class="card"><div class="card-head"><h3>{{ $r->item }}</h3><span class="badge badge-{{ ['open' => 'amber', 'matched' => 'blue', 'closed' => 'slate'][$r->status] }}" id="reportStatus">{{ ucfirst($r->status) }}</span></div>
   <div class="card-body"><dl class="kv">

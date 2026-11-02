@@ -1,5 +1,5 @@
-@props(['name', 'label' => null, 'type' => 'text', 'value' => null, 'required' => false, 'options' => null, 'placeholder' => null, 'hint' => null, 'class' => ''])
-@php $val = old($name, $value); $id = 'f_'.str_replace(['[',']'], '_', $name); @endphp
+@props(['name', 'id' => null, 'label' => null, 'type' => 'text', 'value' => null, 'required' => false, 'options' => null, 'placeholder' => null, 'hint' => null, 'class' => ''])
+@php $val = old($name, $value); $id = $id ?: 'f_'.str_replace(['[',']'], '_', $name); @endphp
 <div class="field {{ $class }}">
   @if($label)<label for="{{ $id }}">{{ $label }} @if($required)<span class="req">*</span>@endif</label>@endif
   @if($type === 'select')

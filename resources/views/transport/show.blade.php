@@ -108,8 +108,8 @@
     @if($t->billing === 'direct')
       <div id="transportSingleTender-{{ $t->id }}" class="form-grid span-all">
         <x-field name="payment_mode_id" label="Guest paid by" type="select" :options="$paymentModes" data-payment-mode/>
-        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
-        <x-field name="reference" label="Reference" class="span-all"/><x-cheque-fields/>
+        <x-payment-momo-fields mode-name="payment_mode_id"/>
+        <x-field name="reference" label="Reference / transaction ID" class="span-all"/><x-cheque-fields/>
       </div>
       <x-payment-split-tender widget-id="transportSplitTender-{{ $t->id }}" single-id="transportSingleTender-{{ $t->id }}" :modes="$paymentModes" label="payment"/>
     @endif

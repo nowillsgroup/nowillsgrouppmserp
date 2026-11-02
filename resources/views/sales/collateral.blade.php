@@ -6,17 +6,29 @@
   @if($mk)<button class="btn btn-primary" data-modal="collModalNew" id="addCollBtn"><x-icon name="plus"/> Add collateral</button>@endif
 @endsection
 @section('content')
-<div class="card"><div class="card-body"><form method="get" class="flex gap-1 wrap" style="align-items:center">
+@include('sales._workspace-nav')
+@php
+  $expiredCollateral = $list->filter(fn ($x) => $x->isExpired())->count();
+  $activeCollateral = $list->where('is_active', true)->count();
+  $downloadCount = (int) $list->sum('downloads');
+@endphp
+<div class="stats" id="collateralStats">
+  <x-stat label="Items in view" :value="number_format($list->count())" icon="book" tone="blue"/>
+  <x-stat label="Active items" :value="number_format($activeCollateral)" icon="check" tone="green"/>
+  <x-stat label="Expired" :value="number_format($expiredCollateral)" icon="alert" :tone="$expiredCollateral ? 'red' : 'slate'" sub="validity date passed"/>
+  <x-stat label="Downloads" :value="number_format($downloadCount)" icon="download" tone="purple" sub="all items in view"/>
+</div>
+<div class="card mt-1"><div class="card-body"><form method="get" class="flex gap-1 wrap" style="align-items:center">
   <input name="q" value="{{ request('q') }}" placeholder="Title" aria-label="Search"><select name="kind" aria-label="Kind"><option value="">Any kind</option>@foreach($K::KINDS as $k => $l)<option value="{{ $k }}" @selected(request('kind') === $k)>{{ $l }}</option>@endforeach</select>
-  <label class="small"><input type="checkbox" name="inactive" value="1" @checked(request('inactive'))> Include archived</label><button class="btn">Filter</button></form></div></div>
+  <label class="small"><input type="checkbox" name="inactive" value="1" @checked(request('inactive'))> Include archived</label><button class="btn">Filter</button>@if(request()->query())<a class="btn btn-ghost" href="{{ route('sales.collateral') }}">Clear</a>@endif</form></div></div>
 <div class="card flush mt-1"><div class="card-body table-wrap"><table class="table table-compact" id="collTable">
   <thead><tr><th>Title</th><th>Kind</th><th>Language</th><th>Version</th><th>Valid until</th><th class="num">Downloads</th><th></th></tr></thead>
   <tbody>@forelse($list as $x)
     <tr data-coll="{{ $x->id }}" class="{{ $x->isExpired() ? 'row-warn' : '' }}"><td><b>{{ $x->title }}</b>@unless($x->is_active) <span class="badge badge-slate">archived</span>@endunless<div class="tiny muted">{{ $x->file_name }}{{ $x->file_size ? ' · '.number_format($x->file_size / 1024).' KB' : '' }}{{ $x->notes ? ' · '.$x->notes : '' }}</div></td>
       <td class="small">{{ $K::KINDS[$x->kind] ?? $x->kind }}</td><td class="small">{{ $K::LANGUAGES[$x->language] ?? $x->language }}</td><td class="small">{{ $x->version ?? '—' }}</td>
       <td class="small {{ $x->isExpired() ? 'text-red bold' : '' }}">{{ $x->valid_until?->format('d M Y') ?? '—' }}{{ $x->isExpired() ? ' · expired' : '' }}</td><td class="num">{{ $x->downloads }}</td>
-      <td class="nowrap">@if($x->file_path)<a class="btn btn-sm" href="{{ route('sales.collateral.download', $x) }}"><x-icon name="download"/></a>@endif @if($x->url)<a class="btn btn-sm btn-ghost" href="{{ $x->url }}" target="_blank" rel="noopener"><x-icon name="link"/></a>@endif
-        @if($mk)<button class="btn btn-sm btn-ghost btn-icon" data-modal="collModal{{ $x->id }}" title="Edit"><x-icon name="edit"/></button>@endif</td></tr>
+      <td class="nowrap">@if($x->file_path)<a class="btn btn-sm" href="{{ route('sales.collateral.download', $x) }}" aria-label="Download {{ $x->title }}" title="Download {{ $x->title }}"><x-icon name="download"/></a>@endif @if($x->url)<a class="btn btn-sm btn-ghost" href="{{ $x->url }}" target="_blank" rel="noopener" aria-label="Open link for {{ $x->title }}" title="Open link"><x-icon name="link"/></a>@endif
+        @if($mk)<button class="btn btn-sm btn-ghost btn-icon" data-modal="collModal{{ $x->id }}" aria-label="Edit {{ $x->title }}" title="Edit"><x-icon name="edit"/></button>@endif</td></tr>
   @empty<tr><td colspan="7" class="empty">No collateral yet – upload the hotel brochure, rate cards and fact sheets so the sales team always sends the current version.</td></tr>@endforelse</tbody>
 </table></div></div>
 @if($mk)

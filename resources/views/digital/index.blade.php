@@ -7,6 +7,7 @@
   @if(can_do('digital.content') || can_do('digital.manage'))<a class="btn btn-primary" href="{{ route('digital.calendar') }}#new" id="newPostBtn"><x-icon name="plus"/> New post</a>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <h3 class="mb-1">{{ $month->format('F Y') }}</h3>
 @php $alertN = $alerts['review'] + $alerts['missed'] + $alerts['audits'] + $alerts['over_budget'] + $alerts['influencers']; @endphp
 @if($alertN)<div class="alert alert-warn" id="dmAlerts"><x-icon name="alert"/> <span>

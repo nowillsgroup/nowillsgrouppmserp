@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', $o->number.' '.$o->name)
-@section('crumbs') <a href="{{ route('sales.opportunities') }}">Sales / Opportunities</a> / {{ $o->number }} @endsection
+@section('crumbs') <a href="{{ route('sales.opportunities') }}">Sales & Marketing / Opportunities</a> / {{ $o->number }} @endsection
 @php $O = \App\Models\SalesOpportunity::class; $idx = array_search($o->stage, $O::OPEN, true); @endphp
 @section('actions')
   <a class="btn" href="{{ route('sales.proposal', $o) }}" target="_blank" id="proposalBtn"><x-icon name="print"/> Proposal</a>
@@ -9,6 +9,7 @@
   @if($canEdit && ! $o->isOpen())<form method="post" action="{{ route('sales.opportunity.reopen', $o) }}" data-confirm="Reopen {{ $o->number }}?">@csrf<button class="btn" id="reopenBtn"><x-icon name="refresh"/> Reopen</button></form>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
 <div class="sa-stages" id="stageBar" data-stage="{{ $o->stage }}">@foreach($O::OPEN as $i => $s)
   <div class="sa-step {{ $o->stage === $s ? 'current' : (($idx !== false && $i < $idx) || ! $o->isOpen() ? 'past' : '') }}">{{ $O::STAGES[$s][0] }}</div>@endforeach
   <div class="sa-step {{ $o->stage === 'won' ? 'won' : ($o->stage === 'lost' ? 'lost' : '') }}">{{ $o->stage === 'lost' ? 'Lost' : 'Won' }}</div></div>

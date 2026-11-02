@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Robita Lock Settings')
+@section('title', 'Robita Demo Settings')
 @section('crumbs') Interfaces / Robita Locks / Settings @endsection
 @section('actions')
   <a class="btn" href="{{ route('robita.index') }}"><x-icon name="grid"/> Dashboard</a>
@@ -8,67 +8,40 @@
 @endsection
 @section('content')
 
+<div class="alert alert-warning" style="margin-bottom:.8rem">
+  <x-icon name="alert"/>
+  <div><b>Local demo only.</b> Journey automation updates PMS records and simulated events. No Robita cloud calls, polling, credential delivery, or physical lock actuation are enabled. Vendor protocol documentation and hardware acceptance are required before integration.</div>
+</div>
+@if($cfg['legacy_cloud_configured'])
+  <div class="alert alert-warning" style="margin-bottom:.8rem">
+    <x-icon name="alert"/>
+    <div>
+      A legacy cloud URL/access token is saved but ignored. No requests are sent to it. You can explicitly remove these obsolete values here.
+      <form method="post" action="{{ route('robita.settings.forget_legacy_cloud') }}" style="margin-top:.5rem" data-confirm="Remove the ignored legacy Robita cloud URL and access token for this hotel? No vendor request will be sent.">@csrf<button class="btn btn-sm btn-danger"><x-icon name="x" size="sm"/> Forget legacy URL &amp; token</button></form>
+    </div>
+  </div>
+@endif
+
 <form method="post" action="{{ route('robita.settings.store') }}">@csrf
   <div class="card">
-    <div class="card-head"><h3><x-icon name="link" size="sm"/> Cloud Connection</h3></div>
+    <div class="card-head"><h3><x-icon name="tool" size="sm"/> Demo Workflow</h3></div>
     <div class="card-body">
       <div class="form-grid">
-        <div style="grid-column:1/-1">
-          <label>Robita Cloud URL</label>
-          <input class="input" name="robita_cloud_url" value="{{ $cfg['robita_cloud_url'] }}" placeholder="https://api.robita.example.com">
-          <span class="hint">Leave empty for demo mode — commands acknowledged locally, no cloud calls.</span>
-        </div>
         <div>
-          <label>Access Token</label>
-          <input class="input" name="robita_access_token" value="{{ $cfg['robita_access_token'] }}" placeholder="40-character token">
-          <span class="hint">Generated when cloud URL is first set. Store securely.</span>
-        </div>
-        <div>
-          <label>Default Device Model</label>
-          <input class="input" name="robita_default_model" value="{{ $cfg['robita_default_model'] }}" placeholder="Robita S1">
-        </div>
-      </div>
-      <div class="form-grid" style="margin-top:.6rem">
-        <div>
-          <label>Event Poll Interval (minutes)</label>
-          <input class="input" type="number" name="robita_poll_minutes" value="{{ $cfg['robita_poll_minutes'] }}" min="0" max="60">
-          <span class="hint">0 = webhook only, no polling.</span>
+          <label>Default Device Model Label</label>
+          <input class="input" name="robita_default_model" value="{{ $cfg['robita_default_model'] }}" maxlength="40" placeholder="Robita S1">
+          <span class="hint">Display label only. It does not identify or provision hardware.</span>
         </div>
         <div>
           <label>Low Battery Alert Threshold</label>
           <input class="input" type="number" name="robita_battery_alert" value="{{ $cfg['robita_battery_alert'] }}" min="0" max="100">
-          <span class="hint">Alert fires when battery drops below this percentage.</span>
+          <span class="hint">Used only for normalized event data; demo records do not invent a battery level.</span>
         </div>
         <div>
-          <label>Auto-Register Devices</label>
-          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_register" value="1" @checked($cfg['robita_auto_register'] === '1')> Auto-provision devices on first credential</label>
-        </div>
-        <div>
-          <label>Guest Journey</label>
-          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_issue" value="1" @checked($cfg['robita_auto_issue'] === '1')> Issue the door credential automatically at check-in</label>
-          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_revoke" value="1" @checked($cfg['robita_auto_revoke'] === '1')> Revoke it at check-out, on a room move and when it expires</label>
-          <span class="hint">Rooms without a mapped device are skipped. Extensions always move the credential to the new departure.</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-head"><h3><x-icon name="link" size="sm"/> Webhook &amp; Polling</h3></div>
-    <div class="card-body">
-      <div class="alert alert-info">
-        <x-icon name="link"/>
-        <div>Configure the Robita cloud to push events to the PMS at:</div>
-        <input class="input mono" readonly value="{{ url('/api/robita/'.$cfg['robita_webhook_token']) }}" style="margin-top:.4rem" onclick="this.select()">
-      </div>
-      <div class="form-grid" style="margin-top:.6rem">
-        <div>
-          <label>Webhook Token</label>
-          <input class="input" name="robita_webhook_token" value="{{ $cfg['robita_webhook_token'] }}" placeholder="40-character token">
-          <span class="hint">Appears in the webhook URL above. Regenerate to block old pushes.</span>
-        </div>
-        <div style="display:flex;align-items:flex-end">
-          <button type="button" class="btn btn-primary" data-confirm="Regenerate access and webhook tokens? Old tokens stop working immediately." onclick="event.preventDefault();if(confirm('Regenerate access and webhook tokens? Old tokens stop working immediately.')){document.getElementById('regenTokens').submit();}"><x-icon name="refresh"/> Regenerate Tokens</button>
+          <label>Guest Journey Automation</label>
+          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_issue" value="1" @checked($cfg['robita_auto_issue'] === '1')> Create local credential records at check-in and room move</label>
+          <label class="flex" style="gap:.4rem;align-items:center"><input type="checkbox" name="robita_auto_revoke" value="1" @checked($cfg['robita_auto_revoke'] === '1')> Cancel local records at checkout, room move and expiry</label>
+          <span class="hint">Extensions update local expiry records. None of these actions are sent to a lock.</span>
         </div>
       </div>
     </div>
@@ -80,5 +53,26 @@
   </div>
 </form>
 
-<form id="regenTokens" method="post" action="{{ route('robita.tokens') }}" style="display:none">@csrf</form>
+<div class="card">
+  <div class="card-head"><h3><x-icon name="link" size="sm"/> Normalized Event Intake</h3></div>
+  <div class="card-body">
+    <div class="alert alert-info">
+      <x-icon name="alert"/>
+      <div>This endpoint is for a future trusted bridge using the PMS normalized schema. It is not a Robita vendor webhook implementation; do not configure a lock or vendor cloud against it without protocol review.</div>
+    </div>
+    <dl class="kv" style="margin-top:.7rem">
+      <dt>Method</dt><dd><span class="badge badge-slate">POST</span></dd>
+      <dt>Endpoint</dt><dd class="mono">{{ url('/api/robita/events') }}</dd>
+      <dt>Authentication</dt><dd>Authorization: Bearer &lt;token&gt;</dd>
+      <dt>Accepted events</dt><dd>Normalized JSON only; see <code>docs/ROBITA-LOCK-INTEGRATION.md</code>.</dd>
+    </dl>
+    <label style="display:block;margin-top:.7rem">Per-hotel bearer token</label>
+    <input class="input mono" type="password" id="robitaWebhookToken" readonly value="{{ $cfg['robita_webhook_token'] }}" autocomplete="off">
+    <div class="flex" style="gap:.4rem;margin-top:.5rem">
+      <button type="button" class="btn btn-sm" onclick="const i=document.getElementById('robitaWebhookToken');i.type=i.type==='password'?'text':'password';"><x-icon name="eye" size="sm"/> Show / hide</button>
+      <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('robitaWebhookToken').value)"><x-icon name="link" size="sm"/> Copy token</button>
+      <form method="post" action="{{ route('robita.tokens') }}" data-confirm="Regenerate the bearer token? Existing bridge clients will immediately lose access.">@csrf<button class="btn btn-sm btn-danger"><x-icon name="refresh" size="sm"/> Regenerate</button></form>
+    </div>
+  </div>
+</div>
 @endsection

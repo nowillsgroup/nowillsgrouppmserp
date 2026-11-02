@@ -2,6 +2,7 @@
 @section('title', 'Desk Operations Settings')
 @section('crumbs') Desk Operations / Settings @endsection
 @section('content')
+@include('desk._workspace-nav')
 <form method="post" action="{{ route('desk.settings.save') }}" id="deskSettings">@csrf
 <div class="card"><div class="card-head"><h3>Shifts & log book</h3></div><div class="card-body"><div class="form-grid">
   <x-field name="shift_morning" label="Morning shift starts" type="time" :value="$c['shift_morning']" required/>

@@ -141,6 +141,7 @@ class FrontDeskOpsService
             'departed_parcels' => GuestMessage::whereIn('status', GuestMessage::OPEN)->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count(),
             'traces_today' => Trace::where('status', 'open')->whereDate('trace_date', '<=', $today)->count(),
             'log_unread' => $userId ? LogBookService::unreadCount($userId) : 0,
+            'shift_handover_pending' => FrontDeskShiftSessionService::pendingCount($userId),
             'log_open' => LogEntry::where('status', 'open')->count(),
             'log_urgent' => LogEntry::where('status', 'open')->where('priority', 'urgent')->count(),
             'log_follow_ups' => LogEntry::where('status', 'open')->whereNotNull('follow_up_at')->where('follow_up_at', '<=', now())->count(),

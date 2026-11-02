@@ -13,10 +13,10 @@
     <div class="field"><label>Stay from</label><input type="date" name="stay_from" value="{{ $i?->stay_from?->toDateString() }}"></div>
     <div class="field"><label>Stay to</label><input type="date" name="stay_to" value="{{ $i?->stay_to?->toDateString() }}"></div>
     <div class="field"><label>Content due</label><input type="date" name="due_date" value="{{ $i?->due_date?->toDateString() }}"></div>
-    <div class="field"><label>Tracked link</label><select name="link_id"><option value="">—</option>@foreach($linkList as $l)<option value="{{ $l->id }}" @selected($i?->link_id === $l->id)>/go/{{ $l->code }}</option>@endforeach</select></div>
-    <div class="field"><label>Cash fee (GH₵)</label><input type="number" min="0" step="0.01" name="fee" value="{{ $i?->fee ?? 0 }}"></div>
-    <div class="field"><label>Complimentary value (GH₵)</label><input type="number" min="0" step="0.01" name="comp_value" value="{{ $i?->comp_value ?? 0 }}"></div>
-    <div class="field"><label>Reservation no. (ID)</label><input type="number" min="1" name="reservation_id" value="{{ $i?->reservation_id }}" placeholder="optional"></div>
+    <div class="field"><label>Tracked link</label><select name="link_id"><option value="">—</option>@foreach($linkList as $l)<option value="{{ $l->id }}" @selected($i?->link_id === $l->id)>/go/{{ $l->code }}</option>@endforeach</select><span class="tiny muted">Use one dedicated tracked link per creator to keep booking attribution unique.</span></div>
+    <div class="field"><label>Cash fee ({{ hotel()->currency_symbol ?? 'GH₵' }})</label><input type="number" min="0" step="0.01" name="fee" value="{{ $i?->fee ?? 0 }}"></div>
+    <div class="field"><label>Complimentary value ({{ hotel()->currency_symbol ?? 'GH₵' }})</label><input type="number" min="0" step="0.01" name="comp_value" value="{{ $i?->comp_value ?? 0 }}"></div>
+    <div class="field"><label>Reservation ID</label><input type="number" min="1" name="reservation_id" value="{{ $i?->reservation_id }}" placeholder="Optional internal ID"></div>
     <div class="field span-all"><label>Deliverables</label><textarea name="deliverables" rows="3" placeholder="3 Instagram reels + 8 stories with link sticker, 1 blog post; usage rights 12 months">{{ $i?->deliverables }}</textarea></div>
     <div class="field span-all"><label>Notes</label><textarea name="notes" rows="2">{{ $i?->notes }}</textarea></div>
   </div></div>

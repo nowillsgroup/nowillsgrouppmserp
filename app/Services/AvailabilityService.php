@@ -111,6 +111,64 @@ class AvailabilityService
             ->values();
     }
 
+    /** Room IDs blocked by active or released outages on a historical night. */
+    public static function historicalOutageRoomIds($date): Collection
+    {
+        $day = Carbon::parse($date)->startOfDay();
+        $nextDay = $day->copy()->addDay();
+        $dayKey = $day->toDateString();
+        $outages = RoomOutage::query()->whereIn('status', ['active', 'released'])
+            ->whereDate('starts_on', '<', $nextDay->toDateString())
+            ->whereDate('ends_on', '>', $dayKey)
+            ->get(['room_id', 'starts_on', 'ends_on', 'status', 'released_at']);
+        $roomIds = collect();
+        foreach ($outages as $outage) {
+            $effectiveEnd = $outage->ends_on->toDateString();
+            if ($outage->status === 'released' && $outage->released_at) {
+                $effectiveEnd = min($effectiveEnd, $outage->released_at->toDateString());
+            }
+            if ($outage->starts_on->toDateString() <= $dayKey && $effectiveEnd > $dayKey) {
+                $roomIds->push((int) $outage->room_id);
+            }
+        }
+
+        return $roomIds->unique()->values();
+    }
+
+    /**
+     * Physical rooms that were free on a historical hotel night. Current room
+     * status flags are not historical data; use dated leases, outages, and
+     * completed/in-house room stays instead.
+     */
+    public static function historicalReservationRooms($date, ?int $roomTypeId = null): Collection
+    {
+        $day = Carbon::parse($date)->startOfDay();
+        $nextDay = $day->copy()->addDay();
+        $dayKey = $day->toDateString();
+        $roomRows = Room::with('roomType')->where('is_active', true)
+            ->when($roomTypeId, fn ($query) => $query->where('room_type_id', $roomTypeId))
+            ->orderBy('room_no')->get();
+        $roomIds = $roomRows->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($roomIds === []) {
+            return collect();
+        }
+
+        $unavailable = array_fill_keys(array_map('intval', LeaseService::blockedRoomIds($day, $nextDay)), true);
+        foreach (self::historicalOutageRoomIds($day)->intersect($roomIds) as $roomId) {
+            $unavailable[(int) $roomId] = true;
+        }
+
+        $occupiedIds = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])
+            ->whereNotNull('room_id')->whereIn('room_id', $roomIds)
+            ->whereDate('arrival_date', '<=', $dayKey)->whereDate('departure_date', '>', $dayKey)
+            ->distinct()->pluck('room_id')->map(fn ($id) => (int) $id);
+        foreach ($occupiedIds as $roomId) {
+            $unavailable[$roomId] = true;
+        }
+
+        return $roomRows->reject(fn (Room $room) => isset($unavailable[(int) $room->id]))->values();
+    }
+
     /** Whether a physical room is safe to assign for the requested dates. */
     public static function roomAvailableForReservation(int $roomId, $from, $to, ?int $ignoreStayId = null): bool
     {

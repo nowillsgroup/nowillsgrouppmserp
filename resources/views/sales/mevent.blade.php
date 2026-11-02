@@ -10,6 +10,7 @@
     <button class="btn btn-danger" data-modal="cancelEventModal" id="cancelEventBtn">Cancel</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $e->statusColor() }}" id="eventStatus" data-status="{{ $e->status }}">{{ $e->statusLabel() }}</span><span class="badge badge-slate"><x-icon :name="$e->typeIcon()"/> {{ $e->typeLabel() }}</span></div>
 <div class="stats" id="eventStats">
   <x-stat label="Budget" :value="money_short($e->budget)" icon="wallet" tone="blue" :sub="in_array($e->status, ['done', 'cancelled']) ? 'actual '.money($e->actual_cost) : 'not yet spent'"/>

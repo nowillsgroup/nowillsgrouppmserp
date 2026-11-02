@@ -20,6 +20,7 @@
 #tvPreboot .tv-welcome-kicker{margin:0 0 .8rem;color:#ead4a0;font-size:.72rem;font-weight:750;letter-spacing:.21em;line-height:1.4;text-transform:uppercase}
 #tvPreboot .tv-welcome-rule{display:block;width:3.15rem;height:.12rem;margin:.2rem 0 1.1rem;background:#ead4a0}
 #tvPreboot .tv-welcome-h{max-width:58rem;margin:.15rem 0 .8rem;color:#fff8e9;font-family:Georgia,"Times New Roman",serif;font-size:4.4rem;font-weight:400;letter-spacing:-.035em;line-height:1.07;text-shadow:0 .2rem 1.25rem rgba(0,0,0,.44)}
+#tvPreboot .tv-welcome-guest-greeting{margin:-.35rem 0 .65rem;color:#ead4a0;font-family:Georgia,"Times New Roman",serif;font-size:1.55rem;line-height:1.25;text-shadow:0 .1rem .6rem rgba(0,0,0,.35)}
 #tvPreboot .tv-welcome-body{max-width:45rem}
 #tvPreboot .tv-welcome-body p{margin:.35rem 0;color:rgba(255,255,255,.9);font-size:1.15rem;line-height:1.52;text-shadow:0 .1rem .6rem rgba(0,0,0,.3)}
 #tvPreboot .tv-welcome-stay-card{grid-column:2;grid-row:2;align-self:end;width:100%;margin-bottom:1.1rem;padding:1.2rem 1.25rem;border:1px solid rgba(239,220,180,.38);border-radius:1rem;background:linear-gradient(145deg,rgba(14,27,27,.84),rgba(14,25,24,.66));box-shadow:0 1rem 2.8rem rgba(0,0,0,.24);backdrop-filter:blur(9px)}
@@ -30,7 +31,7 @@
 #tvPreboot .tv-welcome-stay-detail strong{overflow:hidden;color:#fff;font-size:1.1rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
 #tvPreboot .tv-welcome-wifi{padding-top:.85rem;border-top:1px solid rgba(255,255,255,.16)}
 #tvPreboot .tv-welcome-wifi-label{display:flex;align-items:center;gap:.45rem;color:rgba(255,255,255,.76);font-size:.8rem}
-#tvPreboot .tv-welcome-wifi-icon{color:#ead4a0;font-size:1.1rem}
+#tvPreboot .tv-welcome-wifi-icon{display:block;flex:none;width:1.1rem;height:1.1rem;color:#ead4a0;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 #tvPreboot .tv-welcome-wifi-name{display:block;margin-top:.32rem;color:#fff;font-size:1rem}
 #tvPreboot .tv-welcome-wifi-password{display:block;margin-top:.18rem;color:rgba(255,255,255,.7);font-size:.75rem}
 #tvPreboot .tv-welcome-actions{grid-column:1;grid-row:3;display:flex;flex-direction:column;align-items:flex-start;gap:.65rem;align-self:end;min-width:0}
@@ -57,24 +58,28 @@
     $welcome = $boot['welcome'] ?? [];
     $guest = $boot['guest'] ?? [];
     $wifi = $boot['wifi'] ?? [];
+    $welcomeTileIcons = ['tv' => 'tv', 'movies' => 'movies', 'dining' => 'dining', 'services' => 'services', 'messages' => 'messages', 'bill' => 'bill', 'info' => 'info', 'explore' => 'explore', 'checkout' => 'checkout', 'feedback' => 'feedback'];
+    $welcomeFeatureTiles = collect($welcomeTileIcons)->filter(fn ($icon, $feature) => !empty($boot['features'][$feature]))->all();
     $prebootWelcome = ($boot['mode'] ?? '') === 'room' && (bool) ($welcome['show'] ?? false);
     $prebootVacant = ($boot['mode'] ?? '') === 'vacant';
     $prebootClass = ($prebootWelcome || $prebootVacant) ? ' tv-welcome-mode' : '';
 @endphp
 <body class="tv tv-th-{{ $welcome['theme'] ?? 'night' }}{{ $prebootClass }}">
+@include('tv._icons')
 <div id="tvApp" data-base="{{ url('/tv/'.$token) }}" data-welcome-image="{{ $welcomeImageUrl }}" data-hotel-logo="{{ $hotel->logo_path ? asset($hotel->logo_path) : '' }}">
 @if($prebootWelcome || $prebootVacant)
   <section class="tv-welcome-screen{{ $prebootVacant ? ' tv-welcome-layout-vacant' : '' }}" id="tvPreboot">
     <div class="tv-welcome-backdrop" aria-hidden="true"><img class="tv-welcome-photo" src="{{ $welcomeImageUrl }}" alt=""><div class="tv-welcome-shade"></div><div class="tv-welcome-frame"></div></div>
-    <div class="tv-welcome-layout{{ $prebootVacant ? ' tv-welcome-layout-vacant' : '' }}">
+    <div class="tv-welcome-layout{{ $prebootVacant ? ' tv-welcome-layout-vacant' : '' }}{{ $prebootWelcome ? ' tv-welcome-layout-integrated' : '' }}">
       <div class="tv-welcome-brand">
         @if($hotel->logo_path)<span class="tv-welcome-logo-frame"><img class="tv-welcome-logo" src="{{ asset($hotel->logo_path) }}" alt=""></span>@else<span class="tv-welcome-monogram" aria-hidden="true">✦</span>@endif
         <span class="tv-welcome-brand-text"><small>{{ $boot['t']['welcome'] ?? 'Welcome' }}</small><strong>{{ $hotel->name }}</strong></span>
       </div>
       @if($prebootWelcome)
         <div class="tv-welcome-main">
-          <p class="tv-welcome-kicker">{{ !empty($boot['hotel']['city']) ? mb_strtoupper($boot['hotel']['city']).' · A WARM WELCOME' : 'A WARM WELCOME' }}</p><span class="tv-welcome-rule" aria-hidden="true"></span>
+          <p class="tv-welcome-kicker">{{ !empty($boot['hotel']['city']) ? mb_strtoupper($boot['hotel']['city']).' · AKWAABA / BIENVENUE' : 'AKWAABA / BIENVENUE' }}</p><span class="tv-welcome-rule" aria-hidden="true"></span>
           <h1 class="tv-welcome-h">{{ $welcome['headline'] ?? ($boot['t']['welcome'] ?? 'Welcome') }}</h1>
+          @if(!empty($guest['name']))<p class="tv-welcome-guest-greeting">{{ $boot['t']['welcome'] ?? 'Welcome' }}, {{ $guest['name'] }}</p>@endif
           <div class="tv-welcome-body">@foreach(preg_split('/\r\n|\r|\n/', (string) ($welcome['body'] ?? '')) as $line)@if(trim($line) !== '')<p>{{ $line }}</p>@endif @endforeach</div>
         </div>
         <div class="tv-welcome-stay-card">
@@ -83,11 +88,16 @@
             @if(!empty($guest['room']))<div class="tv-welcome-stay-detail"><small>{{ $boot['t']['room'] ?? 'Room' }}</small><strong>{{ $guest['room'] }}</strong></div>@endif
             @if(!empty($guest['departure']))<div class="tv-welcome-stay-detail"><small>{{ $boot['t']['departure'] ?? 'Departure' }}</small><strong>{{ $guest['departure'] }}</strong></div>@endif
           </div>
-          @if(!empty($wifi['name']))<div class="tv-welcome-wifi"><div class="tv-welcome-wifi-label"><span class="tv-welcome-wifi-icon">◔</span><span>{{ $boot['t']['wifi'] ?? 'Wi-Fi' }}</span></div><strong class="tv-welcome-wifi-name">{{ $wifi['name'] }}</strong>@if(!empty($wifi['password']))<span class="tv-welcome-wifi-password">{{ $boot['t']['password'] ?? 'Password' }} · {{ $wifi['password'] }}</span>@endif</div>@endif
+          @if(!empty($wifi['name']))<div class="tv-welcome-wifi"><div class="tv-welcome-wifi-label"><svg class="tv-welcome-wifi-icon" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" aria-hidden="true"><use href="#tv-glyph-wifi" xlink:href="#tv-glyph-wifi"/></svg><span>{{ $boot['t']['wifi'] ?? 'Wi-Fi' }}</span></div><strong class="tv-welcome-wifi-name">{{ $wifi['name'] }}</strong>@if(!empty($wifi['password']))<span class="tv-welcome-wifi-password">{{ $boot['t']['password'] ?? 'Password' }} · {{ $wifi['password'] }}</span>@endif</div>@endif
+          @if(!empty($boot['portal']['qr']))<div class="tv-welcome-portal"><img class="tv-welcome-portal-qr" src="data:image/svg+xml;base64,{{ $boot['portal']['qr'] }}" alt="{{ $boot['t']['guest_portal'] ?? 'Guest portal' }} QR code"><div class="tv-welcome-portal-copy"><strong>{{ $boot['t']['guest_portal'] ?? 'Guest portal' }}</strong><span>{{ $boot['t']['scan_portal'] ?? 'Scan to open on your phone' }}</span></div></div>@endif
         </div>
-        <div class="tv-welcome-actions"><span class="tv-btn tv-big tv-primary tv-welcome-continue">{{ $boot['t']['continue'] ?? 'Continue' }} ›</span><div class="tv-welcome-language"><span class="tv-welcome-language-label">{{ $boot['t']['language'] ?? 'Language' }}</span><div class="tv-welcome-language-list">@foreach(($boot['langs'] ?? []) as $code => $label)<span class="tv-btn{{ $code === ($boot['lang'] ?? '') ? ' on' : '' }}">{{ $label }}</span>@endforeach</div></div></div>
+        <div class="tv-welcome-quick-access" aria-label="Hotel services">
+          <div class="tv-welcome-quick-heading"><strong>YOUR HOTEL, AT A GLANCE</strong><span>Choose a service to get started</span></div>
+          <div class="tv-tiles tv-welcome-tiles" aria-hidden="true">@foreach($welcomeFeatureTiles as $feature => $icon)<span class="tv-tile tv-welcome-static-tile"><span class="tv-tile-i"><svg class="tv-tile-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24"><use href="#tv-glyph-{{ $icon }}" xlink:href="#tv-glyph-{{ $icon }}"/></svg></span><span>{{ $boot['t'][$feature] ?? ucfirst($feature) }}</span></span>@endforeach</div>
+        </div>
+        <div class="tv-welcome-actions"><div class="tv-welcome-language"><span class="tv-welcome-language-label">{{ $boot['t']['language'] ?? 'Language' }}</span><div class="tv-welcome-language-list">@foreach(($boot['langs'] ?? []) as $code => $label)<span class="tv-btn{{ $code === ($boot['lang'] ?? '') ? ' on' : '' }}">{{ $label }}</span>@endforeach</div></div></div>
       @else
-        <div class="tv-welcome-main tv-welcome-main-vacant"><p class="tv-welcome-kicker">{{ ($boot['t']['vacant'] ?? 'Welcome to').(!empty($boot['hotel']['city']) ? ' '.$boot['hotel']['city'] : '') }}</p><span class="tv-welcome-rule" aria-hidden="true"></span><h1 class="tv-welcome-h">{{ $hotel->name }}</h1><div class="tv-welcome-actions"><span class="tv-btn tv-big tv-primary tv-welcome-continue">📺 {{ $boot['t']['tv'] ?? 'Live TV' }}</span></div></div>
+        <div class="tv-welcome-main tv-welcome-main-vacant"><p class="tv-welcome-kicker">{{ ($boot['t']['vacant'] ?? 'Welcome to').(!empty($boot['hotel']['city']) ? ' '.$boot['hotel']['city'] : '') }}</p><span class="tv-welcome-rule" aria-hidden="true"></span><h1 class="tv-welcome-h">{{ $hotel->name }}</h1><div class="tv-welcome-actions"><span class="tv-btn tv-big tv-primary tv-welcome-continue">{{ $boot['t']['tv'] ?? 'Live TV' }}</span></div></div>
       @endif
       <div class="tv-welcome-footer"><span class="tv-welcome-footer-line"></span><span>{{ !empty($boot['hotel']['city']) ? mb_strtoupper($boot['hotel']['city']).' · GHANA' : 'A PLACE TO UNWIND' }}</span></div>
     </div>

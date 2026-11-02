@@ -232,7 +232,7 @@ class GstController extends Controller
             return back()->with('error', 'Buyer details are locked once the document is stamped by E-VAT or the VAT return is filed.');
         }
         $before = $folio->supply_type;
-        $snap = GstService::snapshot($folio->load('company', 'guest'));
+        $snap = GstService::snapshot($folio->load('company', 'guest', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company'));
         $folio->forceFill($snap)->save();
         ActivityLogger::log('gst', 'buyer', "Buyer details refreshed on {$folio->invoice_no} ({$before} → {$snap['supply_type']})", $folio);
         if (EInvoiceService::eligible($folio) && setting('gst_einvoice_auto', '1') === '1') {
@@ -241,7 +241,7 @@ class GstController extends Controller
             return back()->with($ok ? 'success' : 'warning', $ok ? 'Buyer details refreshed and the document stamped by E-VAT.' : 'Buyer details refreshed; E-VAT still failing: '.$folio->fresh()->irn_error);
         }
 
-        return back()->with('success', 'Buyer details refreshed from the '.($folio->company_id ? 'company' : 'guest').' profile.');
+        return back()->with('success', 'Buyer details refreshed from the linked guest or company profile.');
     }
 
     public function cancel(Request $request, Folio $folio)

@@ -52,9 +52,8 @@
           @if($t->billing === 'direct')
             <div id="driverTransportSingle-{{ $t->id }}" class="form-grid span-all">
               <select name="payment_mode_id" class="input" aria-label="Paid by" data-payment-mode><option value="">Choose payment mode</option>@foreach($paymentModes as $id => $n)<option value="{{ $id }}">{{ $n }}</option>@endforeach</select>
-              <input name="momo_network" class="input" maxlength="20" placeholder="MoMo network" aria-label="MoMo network">
-              <input name="momo_phone" class="input" maxlength="30" placeholder="MoMo phone" aria-label="MoMo phone">
-              <input name="reference" class="input span-all" maxlength="80" placeholder="Payment reference" aria-label="Payment reference"><x-cheque-fields class="span-all"/>
+              <x-payment-momo-fields mode-name="payment_mode_id" class="form-grid mt-1 span-all"/>
+              <input name="reference" class="input span-all" maxlength="80" placeholder="Reference / transaction ID" aria-label="Payment reference"><x-cheque-fields class="span-all"/>
             </div>
             <x-payment-split-tender widget-id="driverTransportSplit-{{ $t->id }}" single-id="driverTransportSingle-{{ $t->id }}" :modes="$paymentModes" :old-lines="((int) old('split_trip_id') === (int) $t->id) ? old('payments', []) : []" label="payment"/>
           @endif

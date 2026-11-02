@@ -114,8 +114,8 @@
     <x-field name="settlement" label="Settle by" type="select" :options="['room_post'=>'Post to room (in-house guest)','payment'=>'Direct payment','complimentary'=>'Complimentary']" :placeholder="false" class="span-all"/>
     <div id="spaSingleTender" class="form-grid span-all">
       <x-field name="payment_mode_id" label="Payment mode (direct payment)" type="select" :options="$paymentModes" data-payment-mode/>
-      <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
-      <x-field name="reference" label="Reference" class="span-all"/>
+      <x-payment-momo-fields mode-name="payment_mode_id"/>
+      <x-field name="reference" label="Reference / transaction ID" class="span-all"/>
       <x-cheque-fields/>
     </div>
     <x-payment-split-tender widget-id="spaSplitTender" single-id="spaSingleTender" :modes="$paymentModes" label="payment"/>

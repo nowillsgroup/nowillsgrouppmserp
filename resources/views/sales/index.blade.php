@@ -1,12 +1,18 @@
 @extends('layouts.app')
-@section('title', 'Sales Dashboard')
-@section('crumbs') Sales / Dashboard @endsection
+@section('title', 'Sales & Marketing')
+@section('crumbs') Commercial workspace / Sales & Marketing @endsection
 @php $O = \App\Models\SalesOpportunity::class; $p = $pipe['total']; $max = max(1, collect($O::OPEN)->max(fn ($s) => $pipe[$s]['value'])); @endphp
 @section('actions')
+  <a class="btn" href="{{ route('sales.marketing') }}"><x-icon name="calendar"/> Marketing plan</a>
   <a class="btn" href="{{ route('sales.activities', ['owner' => 'me']) }}"><x-icon name="calendar"/> My diary</a>
+  @if(can_do('sales.marketing') || can_do('sales.manage'))<button class="btn" data-modal="meventModalNew" id="newEventBtn"><x-icon name="plus"/> New event</button>@endif
   @if(can_do('sales.edit') || can_do('sales.manage'))<button class="btn btn-primary" data-modal="oppModalNew" id="newOppBtn"><x-icon name="plus"/> New opportunity</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
+<div class="sm-hero">
+  <div class="sm-hero-copy"><span class="sm-hero-kicker">Commercial performance · {{ bdate()->format('F Y') }}</span><h1>Sales &amp; Marketing</h1><p>One working view for account production, deal momentum, sales follow-ups and marketing investment.</p></div>
+</div>
 @include('sales._owner_toggle')
 @if($alerts['overdue'])<div class="alert alert-warn" id="overdueAlert"><x-icon name="alert"/> {{ $alerts['overdue'] }} sales activit{{ $alerts['overdue'] === 1 ? 'y is' : 'ies are' }} overdue – <a href="{{ route('sales.activities', ['status' => 'overdue'] + ($owner ? ['owner' => request('owner')] : [])) }}">open the diary</a>.</div>@endif
 
@@ -71,5 +77,29 @@
 @empty<div class="muted small">No birthdays coming up.</div>@endforelse</div></div>
 </div>
 </div>
+
+<section class="card flush sm-marketing-overview" id="marketingOverview">
+  <div class="card-head"><div><h3><x-icon name="calendar"/> Marketing performance · {{ $marketingYear }}</h3><p>Budget and spend include all marketing lines; leads and wins are event-attributed. Owner filters above apply to sales figures; marketing results are team-wide.</p></div><a class="btn btn-sm btn-ghost" href="{{ route('sales.marketing') }}">Open marketing calendar →</a></div>
+  <div class="card-body pad">
+    <div class="sm-marketing-metrics">
+      <div class="sm-marketing-metric"><span>Annual budget</span><strong>{{ money_short($marketingSummary['budget']) }}</strong></div>
+      <div class="sm-marketing-metric"><span>Actual spend</span><strong>{{ money_short($marketingSummary['spent']) }}</strong></div>
+      <div class="sm-marketing-metric"><span>Committed</span><strong>{{ money_short($marketingSummary['committed']) }}</strong></div>
+      <div class="sm-marketing-metric"><span>Completed event leads</span><strong>{{ number_format($marketingSummary['leads']) }}</strong></div>
+      <div class="sm-marketing-metric"><span>Event-attributed won revenue</span><strong>{{ money_short($marketingSummary['attributed']) }}</strong></div>
+    </div>
+    <h4 class="small mb-05">Upcoming activity <span class="muted normal">· next 30 days</span></h4>
+    @forelse($upcomingMarketing as $event)
+      <a class="sm-event-row" href="{{ route('sales.mevent', $event) }}">
+        <span><span class="sm-event-title">{{ $event->name }}</span><span class="sm-event-meta">{{ $event->typeLabel() }} · {{ $event->owner?->name ?? 'Unassigned' }}</span></span>
+        <span class="badge badge-{{ $event->statusColor() }}">{{ $event->statusLabel() }}</span>
+        <span class="sm-event-meta">{{ $event->start_date->format('d M') }}{{ $event->end_date->ne($event->start_date) ? ' – '.$event->end_date->format('d M') : '' }}</span>
+      </a>
+    @empty
+      <div class="muted small pad">No planned marketing events scheduled in the next 30 days. <a href="{{ route('sales.marketing') }}">Review the calendar</a>.</div>
+    @endforelse
+  </div>
+</section>
 @if(can_do('sales.edit') || can_do('sales.manage'))@include('sales._opp_modal', ['o' => null])@endif
+@if(can_do('sales.marketing') || can_do('sales.manage'))@include('sales._mevent_modal', ['e' => null])@endif
 @endsection

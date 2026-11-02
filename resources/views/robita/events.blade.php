@@ -8,11 +8,12 @@
 @section('content')
 @php $c = $counts; @endphp
 
+<div class="alert alert-warning" style="margin-bottom:.8rem"><x-icon name="alert"/><div>Events are either local demo actions or normalized payloads from a future trusted bridge. They are not proof of physical lock activity; undocumented vendor integrations are disabled.</div></div>
 <div class="stats">
-  <x-stat :value="$c['robita_events_unlock']" label="Unlocks today" icon="check" tone="green"/>
-  <x-stat :value="$c['robita_events_alarm']" label="Alarms today" icon="bell" :tone="$c['robita_events_alarm'] ? 'red' : 'slate'"/>
-  <x-stat :value="$c['robita_low_battery']" label="Low battery" icon="alert" :tone="$c['robita_low_battery'] ? 'amber' : 'green'"/>
-  <x-stat :value="$c['robita_devices_online']" label="Online devices" icon="lock" tone="blue"/>
+  <x-stat :value="$c['robita_events_unlock']" label="Unlock events today" icon="check" tone="green"/>
+  <x-stat :value="$c['robita_events_alarm']" label="Security alerts today" icon="bell" :tone="$c['robita_events_alarm'] ? 'red' : 'slate'"/>
+  <x-stat :value="$c['robita_low_battery']" label="Reported low battery" icon="alert" :tone="$c['robita_low_battery'] ? 'amber' : 'green'"/>
+  <x-stat :value="$c['robita_devices_demo']" label="Demo lock records" icon="lock" tone="blue"/>
 </div>
 
 <div class="card flush">
@@ -63,10 +64,10 @@
           <td class="small muted">{{ ucfirst($event->method ?? '—') }}</td>
           <td>{{ $event->user_name ?? '—' }}</td>
           <td class="small muted mono">{{ $event->card_no ?? $event->card_serial ?? '—' }}</td>
-          <td class="small muted">{{ ucfirst($event->source) }}</td>
+          <td class="small muted">{{ $event->source === 'demo' ? 'Demo simulation' : 'Webhook / bridge event' }}</td>
         </tr>
       @empty
-        <tr><td colspan="8"><x-empty icon="clock" text="No events logged yet. Events are received via webhook or polling from Robita devices."/></td></tr>
+        <tr><td colspan="8"><x-empty icon="clock" text="No demo or normalized events have been recorded yet."/></td></tr>
       @endforelse
       </tbody>
     </table>

@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\BanquetEvent;
 use App\Models\Company;
+use App\Models\MarketingEvent;
 use App\Models\RateContract;
 use App\Models\RoomBlock;
 use App\Models\SalesActivity;
 use App\Models\SalesContact;
 use App\Models\SalesOpportunity;
+use App\Models\User;
+use App\Services\MarketingPlanService as MP;
 use App\Services\SalesService as SS;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -49,8 +52,27 @@ class SalesController extends Controller
         $decided = SalesOpportunity::whereIn('stage', ['won', 'lost'])->whereDate('closed_on', '>=', $t->copy()->subDays(90)->toDateString())->when($owner, fn ($q) => $q->where('owner_id', $owner))->get();
         $prod = SS::production($t->copy()->startOfYear(), $t->copy());
         $top = Company::whereIn('id', $prod->keys())->get()->keyBy('id');
+        $marketingEvents = MarketingEvent::whereYear('start_date', $t->year)->whereIn('status', ['planned', 'confirmed', 'done', 'cancelled'])->get();
+        $marketingRoi = MP::roi($marketingEvents);
+        $marketingBudgetRows = MP::budgetVsActual($t->year);
+        $marketingSummary = [
+            'budget' => array_sum(array_column($marketingBudgetRows, 'budget_total')),
+            'spent' => array_sum(array_column($marketingBudgetRows, 'actual_total')),
+            'committed' => array_sum(array_column($marketingBudgetRows, 'committed_total')),
+            'leads' => (int) $marketingEvents->where('status', 'done')->sum('leads'),
+            'attributed' => (float) $marketingRoi->sum('won_value'),
+            'events' => $marketingEvents->where('status', '!=', 'cancelled')->count(),
+        ];
+        $upcomingMarketing = MarketingEvent::with('owner')->whereIn('status', ['planned', 'confirmed'])
+            ->whereDate('end_date', '>=', $t->toDateString())->whereDate('start_date', '<=', $t->copy()->addDays(30)->toDateString())
+            ->orderBy('start_date')->limit(5)->get();
+        $owners = (can_do('sales.marketing') || can_do('sales.manage'))
+            ? User::where('hotel_id', hotel()->id)->where('is_active', true)->orderBy('name')->get()
+                ->filter(fn ($u) => ((! $u->is_super_admin && ! $u->is_group_admin) || $u->id === auth()->id()) && ($u->hasPermission('sales.marketing') || $u->hasPermission('sales.manage')))->values()
+            : collect();
 
         return view('sales.index', $this->formData() + [
+            'owners' => $owners, 'marketingSummary' => $marketingSummary, 'upcomingMarketing' => $upcomingMarketing, 'marketingYear' => $t->year,
             'owner' => $owner, 'pipe' => SS::pipeline($owner), 'alerts' => SS::alerts($owner), 'cfg' => SS::cfg(),
             'wonMonth' => (clone $won)->whereDate('closed_on', '>=', $t->copy()->startOfMonth()->toDateString())->get(),
             'wonYear' => (clone $won)->whereDate('closed_on', '>=', $t->copy()->startOfYear()->toDateString())->get(),

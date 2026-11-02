@@ -1,110 +1,142 @@
 @extends('layouts.app')
 @section('title', $contract->exists ? 'Edit contract '.$contract->code : 'New rate contract')
 @section('crumbs') <a href="{{ route('contracts.index') }}">Rate Contracts</a> / {{ $contract->exists ? $contract->code : 'New' }} @endsection
+@section('actions')
+<a class="btn btn-icon rcf-action" href="{{ route('contracts.index') }}" aria-label="Back to Rate Contracts" title="Rate Contracts"><x-icon name="chev" class="rcf-chevron-left"/></a>
+@endsection
+@push('head')
+<style>
+.rcf-page{max-width:1420px;margin:0 auto;min-width:0}.rcf-action{min-width:37px;min-height:37px;justify-content:center}.rcf-chevron-left{transform:rotate(180deg)}.rcf-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 .9rem;padding:1rem 1.2rem;border-radius:16px;background:linear-gradient(118deg,#103a23,#176239 68%,#247849);color:#f5fff7;box-shadow:0 10px 26px rgba(16,58,35,.12)}.rcf-hero-copy{min-width:0}.rcf-kicker{display:flex;align-items:center;gap:.4rem;color:#c7efd0;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.rcf-kicker svg{width:15px;height:15px}.rcf-hero h2{margin:.22rem 0 0;font-size:1.19rem;line-height:1.25}.rcf-hero p{margin:.25rem 0 0;color:#e0f2e5;font-size:.78rem}.rcf-state{flex:none;padding:.35rem .6rem;border:1px solid #ffffff35;border-radius:999px;background:#ffffff15;font-size:.67rem;font-weight:800;white-space:nowrap}
+.rcf-alert{margin-bottom:.8rem}.rcf-error-summary{margin:0 0 .8rem;padding:.7rem .85rem;border:1px solid #efb7b7;border-radius:10px;background:#fff1f1;color:#842222;font-size:.77rem}.rcf-error-summary ul{margin:.35rem 0 0;padding-left:1.15rem}.rcf-layout{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(270px,.72fr);gap:.9rem;align-items:start}.rcf-main{display:grid;gap:.85rem;min-width:0}.rcf-side{position:sticky;top:1rem;display:grid;gap:.8rem;min-width:0}.rcf-card{min-width:0;overflow:hidden}.rcf-card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem}.rcf-card-head h3{margin:0}.rcf-card-head p{margin:.18rem 0 0}.rcf-section-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:9px;background:#eaf5ed;color:#176239}.rcf-section-icon svg{width:16px;height:16px}.rcf-help{margin:.2rem 0 0;color:var(--c-text-2);font-size:.69rem;line-height:1.45}.rcf-error{display:block;margin-top:.16rem;color:var(--c-red);font-size:.65rem;line-height:1.3}.rcf-table-scroll{max-width:100%;overflow:auto;overscroll-behavior-x:contain;scrollbar-gutter:stable}.rcf-table-scroll:focus-visible{outline:2px solid var(--c-primary);outline-offset:-2px}.rcf-table{width:100%;min-width:790px;border-collapse:separate;border-spacing:0}.rcf-table th,.rcf-table td{padding:.45rem .4rem;vertical-align:top;border-bottom:1px solid var(--c-border)}.rcf-table thead th{position:sticky;top:0;z-index:1;background:var(--c-bg);color:var(--c-text-2);font-size:.63rem;font-weight:750;white-space:nowrap}.rcf-table tbody tr:last-child td{border-bottom:0}.rcf-table input,.rcf-table select{width:100%;min-width:78px;min-height:35px;padding:.35rem .42rem;font:inherit;font-size:.71rem}.rcf-table input[type=number]{min-width:82px;text-align:right;font-variant-numeric:tabular-nums}.rcf-table input[type=date]{min-width:130px}.rcf-table select{min-width:145px}.rcf-table .rcf-name-cell{min-width:155px}.rcf-table .rcf-season-cell{min-width:115px}.rcf-table .rcf-action-cell{width:42px;min-width:42px;text-align:center}.rcf-table .rcf-action-cell .btn{min-width:32px;min-height:32px;padding:.3rem;justify-content:center}.rcf-public-rate{display:block;min-height:.85rem;margin-top:.1rem;font-size:.61rem}.rcf-table caption{padding:.45rem;text-align:left;color:var(--c-text-2);font-size:.65rem}.rcf-table-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin-top:.55rem}.rcf-table-actions .btn{min-height:32px}.rcf-counter{padding:.28rem .45rem;border-radius:7px;background:var(--c-bg);color:var(--c-text-2);font-size:.64rem}.rcf-mode-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin:0 0 .75rem}.rcf-mode-option{display:flex;align-items:flex-start;gap:.5rem;min-width:0;padding:.68rem .72rem;border:1px solid var(--c-border);border-radius:10px;background:var(--c-surface);cursor:pointer}.rcf-mode-option:has(input:checked){border-color:#63a576;background:#f0f8f1;box-shadow:inset 0 0 0 1px #63a576}.rcf-mode-option input{flex:none;margin:.1rem 0 0;accent-color:#176239}.rcf-mode-option strong{display:block;font-size:.75rem}.rcf-mode-option small{display:block;margin-top:.12rem;color:var(--c-text-2);font-size:.65rem;line-height:1.35}.rcf-discount-box{max-width:620px}.rcf-term-toggle{display:flex;align-items:flex-start;gap:.55rem;margin:0 0 .8rem;padding:.7rem .75rem;border:1px solid var(--c-border);border-radius:10px;background:var(--c-bg)}.rcf-term-toggle input{flex:none;margin:.16rem 0 0}.rcf-term-toggle strong{display:block;font-size:.76rem}.rcf-term-toggle small{display:block;margin-top:.16rem;color:var(--c-text-2);font-size:.66rem;line-height:1.4}.rcf-save-foot{padding:.65rem .8rem}.rcf-save-foot .btn{min-height:40px}.rcf-approval{padding:.75rem .8rem;border:1px solid #d7e8da;border-radius:10px;background:#f3faf4;color:#245b34;font-size:.7rem;line-height:1.5}.rcf-approval strong{display:block;margin-bottom:.15rem}.rcf-approval svg{width:15px;height:15px;margin-right:.2rem;vertical-align:middle}.rcf-intro-steps{display:flex;gap:.35rem;flex-wrap:wrap;margin:0 0 .85rem}.rcf-intro-steps a{display:inline-flex;align-items:center;gap:.28rem;padding:.31rem .48rem;border:1px solid var(--c-border);border-radius:999px;background:var(--c-surface);color:var(--c-text-2);font-size:.64rem;font-weight:700;text-decoration:none}.rcf-intro-steps a:hover{border-color:#74ad82;color:#176239}.rcf-intro-steps a:focus-visible{outline:2px solid var(--c-primary);outline-offset:2px}.rcf-span-all{grid-column:1/-1}.rcf-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+body.dark .rcf-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d5433);box-shadow:none}body.dark .rcf-section-icon{background:#183225;color:#a9e1b7}body.dark .rcf-mode-option:has(input:checked){background:#183225;border-color:#45915b}body.dark .rcf-approval{background:#173324;border-color:#315f3d;color:#c3ebcc}body.dark .rcf-error-summary{background:#3a2224;border-color:#714246;color:#ffc3c3}body.dark .rcf-table thead th{background:var(--c-bg)}
+@media(max-width:1000px){.rcf-layout{grid-template-columns:minmax(0,1fr)}.rcf-side{position:static;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.rcf-side .rcf-save-card{grid-column:1/-1}}
+@media(max-width:640px){.rcf-hero{align-items:flex-start;flex-direction:column;padding:.9rem}.rcf-side{grid-template-columns:1fr}.rcf-side .rcf-save-card{grid-column:auto}.rcf-mode-picker{grid-template-columns:1fr}.rcf-intro-steps{gap:.3rem}.rcf-intro-steps a{font-size:.61rem}.rcf-table-scroll{margin:0 -.25rem}.rcf-table{min-width:760px}}
+@media(prefers-reduced-motion:reduce){.rcf-page *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+@endpush
 @section('content')
 @php
-  $rates = old('rates', $contract->exists ? $contract->rates->map(fn ($r) => ['room_type_id' => $r->room_type_id, 'season_name' => $r->season_name, 'season_from' => $r->season_from?->toDateString(), 'season_to' => $r->season_to?->toDateString(), 'rate' => $r->rate, 'double_rate' => $r->double_rate, 'extra_adult_rate' => $r->extra_adult_rate])->all() : []);
-  $blackouts = old('blackouts', $contract->exists ? $contract->blackouts->map(fn ($b) => ['date_from' => $b->date_from->toDateString(), 'date_to' => $b->date_to->toDateString(), 'reason' => $b->reason])->all() : []);
-  $allots = old('allotments', $contract->exists ? $contract->allotments->map(fn ($a) => ['room_type_id' => $a->room_type_id, 'date_from' => $a->date_from->toDateString(), 'date_to' => $a->date_to->toDateString(), 'rooms' => $a->rooms, 'release_days' => $a->release_days])->all() : []);
+  $isEdit = $contract->exists;
+  $rates = old('rates', $isEdit ? $contract->rates->map(fn ($r) => ['room_type_id' => $r->room_type_id, 'season_name' => $r->season_name, 'season_from' => $r->season_from?->toDateString(), 'season_to' => $r->season_to?->toDateString(), 'rate' => $r->rate, 'double_rate' => $r->double_rate, 'extra_adult_rate' => $r->extra_adult_rate])->all() : []);
+  $blackouts = old('blackouts', $isEdit ? $contract->blackouts->map(fn ($b) => ['date_from' => $b->date_from->toDateString(), 'date_to' => $b->date_to->toDateString(), 'reason' => $b->reason])->all() : []);
+  $allots = old('allotments', $isEdit ? $contract->allotments->map(fn ($a) => ['room_type_id' => $a->room_type_id, 'date_from' => $a->date_from->toDateString(), 'date_to' => $a->date_to->toDateString(), 'rooms' => $a->rooms, 'release_days' => $a->release_days])->all() : []);
   $typeOpts = fn ($sel) => '<option value="">Room type…</option>'.$types->map(fn ($t) => '<option value="'.$t->id.'" data-public="'.$t->base_rate.'" '.((string) $sel === (string) $t->id ? 'selected' : '').'>'.e($t->name).'</option>')->implode('');
 @endphp
-@if($contract->exists && $contract->status === 'suspended')<div class="alert alert-warn"><x-icon name="alert"/><div>This contract is <b>suspended</b>. After saving your changes it must be re-activated by an approver.</div></div>@endif
-<form method="post" action="{{ $contract->exists ? route('contracts.update', $contract) : route('contracts.store') }}" id="contractForm">@csrf @if($contract->exists) @method('PUT') @endif
-<div class="grid g-2-1">
-  <div>
-    <div class="card"><div class="card-head"><h3>Agreement</h3></div><div class="card-body form-grid">
-      <x-field name="company_id" label="Company / agent" type="select" :options="$companies" :value="old('company_id', $contract->company_id)" required class="span-2"/>
-      <x-field name="code" label="Contract code" :value="old('code', $contract->code)" placeholder="e.g. INFY-2027" required style="text-transform:uppercase"/>
-      <x-field name="name" label="Title" :value="old('name', $contract->name)" placeholder="e.g. Infosys corporate rates FY 2026-27" required class="span-2"/>
-      <x-field name="valid_from" label="Valid from" type="date" :value="old('valid_from', $contract->valid_from?->toDateString())" required/>
-      <x-field name="valid_to" label="Valid to" type="date" :value="old('valid_to', $contract->valid_to?->toDateString())" required/>
-      <x-field name="meal_plan" label="Meal plan" type="select" :options="\App\Models\RateContract::MEAL_PLANS" :value="old('meal_plan', $contract->meal_plan)" required/>
-      <x-field name="inclusions" label="Inclusions" :value="old('inclusions', $contract->inclusions)" placeholder="e.g. Wi-Fi, airport pick-up, laundry 2 pcs/day" class="span-all"/>
-    </div></div>
+<div class="rcf-page">
+  <section class="rcf-hero" aria-label="Rate contract form overview"><div class="rcf-hero-copy"><span class="rcf-kicker"><x-icon name="building"/> Corporate &amp; travel-agent pricing</span><h2>{{ $isEdit ? 'Review contract terms and negotiated rates' : 'Set up a negotiated rate agreement' }}</h2><p>{{ $isEdit ? 'Update the draft or suspended contract. Changes to an active agreement require the existing suspend-and-approve process.' : 'Define dates, room rates, allotments and booking access; new contracts are saved as drafts until approved.' }}</p></div><span class="rcf-state">{{ $isEdit ? ($contract->status === 'suspended' ? 'Suspended · edit' : 'Draft · edit') : 'New · draft on save' }}</span></section>
+  <nav class="rcf-intro-steps" aria-label="Contract form sections"><a href="#rcfAgreement"><x-icon name="book"/> Agreement</a><a href="#rcfPricing"><x-icon name="money"/> Pricing</a><a href="#rcfAllotments"><x-icon name="bed"/> Allotments</a><a href="#rcfBlackouts"><x-icon name="calendar"/> Blackouts</a><a href="#rcfTerms"><x-icon name="tool"/> Terms &amp; approval</a></nav>
+  @if($errors->any())<div class="rcf-error-summary" role="alert"><strong>Review the highlighted contract details before saving.</strong><ul>@foreach($errors->all() as $message)<li>{{ $message }}</li>@endforeach</ul></div>@endif
+  @if($isEdit && $contract->status === 'suspended')<div class="alert alert-warn rcf-alert" role="status"><x-icon name="alert"/><div>This contract is <b>suspended</b>. Saving changes will not reactivate it; it must be approved again.</div></div>@endif
 
-    <div class="card"><div class="card-head"><h3>Pricing</h3></div><div class="card-body">
-      <div class="flex gap-2 wrap mb-1">
-        <label class="check"><input type="radio" name="pricing" value="net" @checked(old('pricing', $contract->pricing) === 'net')> <b>Net rates</b> – fixed price per room type (seasons optional)</label>
-        <label class="check"><input type="radio" name="pricing" value="discount" @checked(old('pricing', $contract->pricing) === 'discount')> <b>% off public rate</b> – follows the daily BAR / seasons</label>
+  <form method="post" action="{{ $isEdit ? route('contracts.update', $contract) : route('contracts.store') }}" id="contractForm">@csrf @if($isEdit) @method('PUT') @endif
+    <div class="rcf-layout">
+      <div class="rcf-main">
+        <section class="card rcf-card" id="rcfAgreement" aria-labelledby="rcfAgreementTitle"><div class="card-head rcf-card-head"><div><h3 id="rcfAgreementTitle">Agreement details</h3><p class="rcf-help">Identify the account, contract period and included meal plan or services.</p></div><span class="rcf-section-icon"><x-icon name="book"/></span></div><div class="card-body form-grid">
+          <x-field name="company_id" label="Company / agent" type="select" :options="$companies" :value="old('company_id', $contract->company_id)" required class="span-2"/>
+          <x-field name="code" label="Contract code" :value="old('code', $contract->code)" placeholder="e.g. INFY-2027" required style="text-transform:uppercase" hint="Letters, numbers, hyphens and underscores."/>
+          <x-field name="name" label="Title" :value="old('name', $contract->name)" placeholder="e.g. Infosys corporate rates FY 2026-27" required class="span-2"/>
+          <x-field name="valid_from" label="Valid from" type="date" :value="old('valid_from', $contract->valid_from?->toDateString())" required/>
+          <x-field name="valid_to" label="Valid to" type="date" :value="old('valid_to', $contract->valid_to?->toDateString())" required/>
+          <x-field name="meal_plan" label="Meal plan" type="select" :options="\App\Models\RateContract::MEAL_PLANS" :value="old('meal_plan', $contract->meal_plan)" required/>
+          <x-field name="inclusions" label="Inclusions" :value="old('inclusions', $contract->inclusions)" placeholder="e.g. Wi-Fi, airport pick-up, laundry 2 pcs/day" class="span-all"/>
+        </div></section>
+
+        <section class="card rcf-card" id="rcfPricing" aria-labelledby="rcfPricingTitle"><div class="card-head rcf-card-head"><div><h3 id="rcfPricingTitle">Contract pricing</h3><p class="rcf-help">Choose fixed net rates, or a percentage discount that follows the public daily rate.</p></div><span class="rcf-section-icon"><x-icon name="money"/></span></div><div class="card-body">
+          <fieldset class="rcf-mode-picker"><legend class="rcf-sr-only">Pricing method</legend>
+            <label class="rcf-mode-option"><input type="radio" name="pricing" value="net" @checked(old('pricing', $contract->pricing) === 'net')><span><strong>Net rates</strong><small>Set a fixed per-night price by room type; add seasonal lines when needed.</small></span></label>
+            <label class="rcf-mode-option"><input type="radio" name="pricing" value="discount" @checked(old('pricing', $contract->pricing) === 'discount')><span><strong>Discount off public rate</strong><small>Follows the daily BAR and seasonal prices for the stay.</small></span></label>
+          </fieldset>
+          <div class="rcf-discount-box"><x-field name="discount_pct" label="Discount off public rate (%)" type="number" step="0.01" min="0" max="90" :value="old('discount_pct', $contract->discount_pct ?: '')" hint="Required for discount contracts. On net contracts, used when a room type has no matching net-rate line."/></div>
+          <div id="rateBox" class="mt-1">
+            @error('rates')<div class="rcf-error-summary" role="alert">{{ $message }}</div>@enderror
+            <div class="rcf-table-scroll" role="region" aria-label="Scrollable contract rate lines" tabindex="0"><table class="table rcf-table" id="rateTable"><caption>One all-period rate per room type; optional date-bounded seasonal rates take precedence on covered nights.</caption><thead><tr><th scope="col" class="rcf-name-cell">Room type</th><th scope="col" class="rcf-season-cell">Season label</th><th scope="col">Season from</th><th scope="col">Season to</th><th scope="col" class="num">Single / night</th><th scope="col" class="num">Double / night</th><th scope="col" class="num">Extra adult</th><th scope="col" class="rcf-action-cell"><span class="rcf-sr-only">Actions</span></th></tr></thead><tbody>
+              @foreach($rates as $i => $r)
+                <tr><td class="rcf-name-cell"><select name="rates[{{ $i }}][room_type_id]" data-k="room_type_id" aria-label="Room type for rate line {{ $loop->iteration }}">{!! $typeOpts($r['room_type_id'] ?? '') !!}</select><span class="tiny muted rcf-public-rate pub" aria-live="polite"></span>@error('rates.'.$i.'.room_type_id')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td class="rcf-season-cell"><input name="rates[{{ $i }}][season_name]" value="{{ $r['season_name'] ?? '' }}" placeholder="All period" aria-label="Season label for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.season_name')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td><input type="date" name="rates[{{ $i }}][season_from]" value="{{ $r['season_from'] ?? '' }}" aria-label="Season start date for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.season_from')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td><input type="date" name="rates[{{ $i }}][season_to]" value="{{ $r['season_to'] ?? '' }}" aria-label="Season end date for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.season_to')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td><input type="number" min="1" max="10000000" step="0.01" name="rates[{{ $i }}][rate]" value="{{ $r['rate'] ?? '' }}" aria-label="Single-occupancy nightly rate for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.rate')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td><input type="number" min="1" max="10000000" step="0.01" name="rates[{{ $i }}][double_rate]" value="{{ $r['double_rate'] ?? '' }}" aria-label="Double-occupancy nightly rate for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.double_rate')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td><input type="number" min="0" max="10000000" step="0.01" name="rates[{{ $i }}][extra_adult_rate]" value="{{ $r['extra_adult_rate'] ?? '' }}" aria-label="Extra adult rate for rate line {{ $loop->iteration }}">@error('rates.'.$i.'.extra_adult_rate')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                  <td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove rate line {{ $loop->iteration }}" title="Remove rate line"><x-icon name="trash"/></button></td></tr>
+              @endforeach
+            </tbody></table></div>
+            <div class="rcf-table-actions"><button type="button" class="btn btn-sm" data-add="rate" id="addRate"><x-icon name="plus"/> Add rate line</button><span class="rcf-counter">Season lines override the all-period line on covered nights</span><span class="rcf-counter">Double rate applies from 2 adults</span></div>
+          </div>
+        </div></section>
+
+        <section class="card rcf-card" id="rcfAllotments" aria-labelledby="rcfAllotmentsTitle"><div class="card-head rcf-card-head"><div><h3 id="rcfAllotmentsTitle">Room allotments</h3><p class="rcf-help">Reserve rooms for this account; remaining rooms are released back to general sale before arrival.</p></div><span class="rcf-section-icon"><x-icon name="bed"/></span></div><div class="card-body">
+          @error('allotments')<div class="rcf-error-summary" role="alert">{{ $message }}</div>@enderror
+          <div class="rcf-table-scroll" role="region" aria-label="Scrollable contract room allotments" tabindex="0"><table class="table rcf-table" id="allotTable"><caption>Allotment dates must fall within the contract validity and cannot exceed active room inventory.</caption><thead><tr><th scope="col">Room type</th><th scope="col">From</th><th scope="col">To</th><th scope="col" class="num">Rooms / night</th><th scope="col" class="num">Release days</th><th scope="col" class="rcf-action-cell"><span class="rcf-sr-only">Actions</span></th></tr></thead><tbody>
+            @foreach($allots as $i => $a)
+              <tr><td><select name="allotments[{{ $i }}][room_type_id]" aria-label="Room type for allotment {{ $loop->iteration }}">{!! $typeOpts($a['room_type_id'] ?? '') !!}</select>@error('allotments.'.$i.'.room_type_id')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input type="date" name="allotments[{{ $i }}][date_from]" value="{{ $a['date_from'] ?? '' }}" aria-label="Start date for allotment {{ $loop->iteration }}">@error('allotments.'.$i.'.date_from')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input type="date" name="allotments[{{ $i }}][date_to]" value="{{ $a['date_to'] ?? '' }}" aria-label="End date for allotment {{ $loop->iteration }}">@error('allotments.'.$i.'.date_to')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input type="number" min="1" max="500" name="allotments[{{ $i }}][rooms]" value="{{ $a['rooms'] ?? '' }}" aria-label="Rooms per night in allotment {{ $loop->iteration }}">@error('allotments.'.$i.'.rooms')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input type="number" min="0" max="90" name="allotments[{{ $i }}][release_days]" value="{{ $a['release_days'] ?? 7 }}" aria-label="Release days before arrival for allotment {{ $loop->iteration }}">@error('allotments.'.$i.'.release_days')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove allotment {{ $loop->iteration }}" title="Remove allotment"><x-icon name="trash"/></button></td></tr>
+            @endforeach
+          </tbody></table></div>
+          <div class="rcf-table-actions"><button type="button" class="btn btn-sm" data-add="allot" id="addAllot"><x-icon name="plus"/> Add allotment</button><span class="rcf-counter">Unsold rooms return at the configured release date</span></div>
+        </div></section>
+
+        <section class="card rcf-card" id="rcfBlackouts" aria-labelledby="rcfBlackoutsTitle"><div class="card-head rcf-card-head"><div><h3 id="rcfBlackoutsTitle">Blackout dates</h3><p class="rcf-help">Contract rates do not apply on blackout dates; the public rate is charged instead.</p></div><span class="rcf-section-icon"><x-icon name="calendar"/></span></div><div class="card-body">
+          @error('blackouts')<div class="rcf-error-summary" role="alert">{{ $message }}</div>@enderror
+          <div class="rcf-table-scroll" role="region" aria-label="Scrollable contract blackout periods" tabindex="0"><table class="table rcf-table" id="blackTable"><caption>Use inclusive start and end dates. A reason is optional and visible on the contract record.</caption><thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">Reason</th><th scope="col" class="rcf-action-cell"><span class="rcf-sr-only">Actions</span></th></tr></thead><tbody>
+            @foreach($blackouts as $i => $b)
+              <tr><td><input type="date" name="blackouts[{{ $i }}][date_from]" value="{{ $b['date_from'] ?? '' }}" aria-label="Blackout start date {{ $loop->iteration }}">@error('blackouts.'.$i.'.date_from')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input type="date" name="blackouts[{{ $i }}][date_to]" value="{{ $b['date_to'] ?? '' }}" aria-label="Blackout end date {{ $loop->iteration }}">@error('blackouts.'.$i.'.date_to')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td><input name="blackouts[{{ $i }}][reason]" value="{{ $b['reason'] ?? '' }}" placeholder="e.g. Christmas / New Year" aria-label="Reason for blackout {{ $loop->iteration }}">@error('blackouts.'.$i.'.reason')<span class="rcf-error">{{ $message }}</span>@enderror</td>
+                <td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove blackout {{ $loop->iteration }}" title="Remove blackout"><x-icon name="trash"/></button></td></tr>
+            @endforeach
+          </tbody></table></div>
+          <div class="rcf-table-actions"><button type="button" class="btn btn-sm" data-add="black" id="addBlack"><x-icon name="plus"/> Add blackout</button><span class="rcf-counter">Public prices remain in effect during a blackout</span></div>
+        </div></section>
       </div>
-      <div class="form-grid"><x-field name="discount_pct" label="Discount % (net contracts: applies to room types without a net line)" type="number" step="0.01" min="0" max="90" :value="old('discount_pct', $contract->discount_pct ?: '')" class="span-2"/></div>
-      <div id="rateBox" class="mt-1">
-        <table class="table" id="rateTable"><thead><tr><th>Room type</th><th>Season (optional)</th><th>From</th><th>To</th><th class="num">Single</th><th class="num">Double</th><th class="num">Extra adult</th><th></th></tr></thead><tbody>
-        @foreach($rates as $i => $r)
-          <tr><td><select name="rates[{{ $i }}][room_type_id]" data-k="room_type_id">{!! $typeOpts($r['room_type_id'] ?? '') !!}</select><div class="tiny muted pub"></div></td>
-            <td><input name="rates[{{ $i }}][season_name]" value="{{ $r['season_name'] ?? '' }}" placeholder="All period" style="width:110px"></td>
-            <td><input type="date" name="rates[{{ $i }}][season_from]" value="{{ $r['season_from'] ?? '' }}"></td><td><input type="date" name="rates[{{ $i }}][season_to]" value="{{ $r['season_to'] ?? '' }}"></td>
-            <td><input type="number" step="0.01" name="rates[{{ $i }}][rate]" value="{{ $r['rate'] ?? '' }}" style="width:95px" class="num"></td>
-            <td><input type="number" step="0.01" name="rates[{{ $i }}][double_rate]" value="{{ $r['double_rate'] ?? '' }}" style="width:95px" class="num"></td>
-            <td><input type="number" step="0.01" name="rates[{{ $i }}][extra_adult_rate]" value="{{ $r['extra_adult_rate'] ?? '' }}" style="width:85px" class="num"></td>
-            <td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr>
-        @endforeach
-        </tbody></table>
-        <button type="button" class="btn btn-sm" data-add="rate" id="addRate"><x-icon name="plus"/> Rate line</button>
-        <span class="tiny muted">A season line beats the all-period line on the nights it covers. Double applies from 2 adults.</span>
-      </div>
-    </div></div>
 
-    <div class="card"><div class="card-head"><h3>Allotments</h3><span class="tiny muted">Rooms held for this account – unsold rooms return to general sale N days before the night</span></div><div class="card-body">
-      <table class="table" id="allotTable"><thead><tr><th>Room type</th><th>From</th><th>To</th><th class="num">Rooms / night</th><th class="num">Release (days before)</th><th></th></tr></thead><tbody>
-      @foreach($allots as $i => $a)
-        <tr><td><select name="allotments[{{ $i }}][room_type_id]">{!! $typeOpts($a['room_type_id'] ?? '') !!}</select></td>
-          <td><input type="date" name="allotments[{{ $i }}][date_from]" value="{{ $a['date_from'] ?? '' }}"></td><td><input type="date" name="allotments[{{ $i }}][date_to]" value="{{ $a['date_to'] ?? '' }}"></td>
-          <td><input type="number" min="1" name="allotments[{{ $i }}][rooms]" value="{{ $a['rooms'] ?? '' }}" style="width:80px" class="num"></td>
-          <td><input type="number" min="0" name="allotments[{{ $i }}][release_days]" value="{{ $a['release_days'] ?? 7 }}" style="width:80px" class="num"></td>
-          <td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr>
-      @endforeach
-      </tbody></table>
-      <button type="button" class="btn btn-sm" data-add="allot" id="addAllot"><x-icon name="plus"/> Allotment</button>
-    </div></div>
-
-    <div class="card"><div class="card-head"><h3>Blackout dates</h3><span class="tiny muted">Contract prices do not apply – the public rate is charged</span></div><div class="card-body">
-      <table class="table" id="blackTable"><thead><tr><th>From</th><th>To</th><th>Reason</th><th></th></tr></thead><tbody>
-      @foreach($blackouts as $i => $b)
-        <tr><td><input type="date" name="blackouts[{{ $i }}][date_from]" value="{{ $b['date_from'] ?? '' }}"></td><td><input type="date" name="blackouts[{{ $i }}][date_to]" value="{{ $b['date_to'] ?? '' }}"></td>
-          <td><input name="blackouts[{{ $i }}][reason]" value="{{ $b['reason'] ?? '' }}" placeholder="e.g. Christmas / New Year"></td>
-          <td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr>
-      @endforeach
-      </tbody></table>
-      <button type="button" class="btn btn-sm" data-add="black" id="addBlack"><x-icon name="plus"/> Blackout</button>
-    </div></div>
-  </div>
-
-  <div>
-    <div class="card"><div class="card-head"><h3>Terms</h3></div><div class="card-body">
-      <label class="check mb-1"><input type="hidden" name="lra" value="0"><input type="checkbox" name="lra" value="1" @checked(old('lra', $contract->lra))> <b>Last-room availability</b><br><span class="tiny muted">Contract rate available whenever a room is free – ignores stop-sell and minimum stay</span></label>
-      <x-field name="cancel_days" label="Free cancellation until (days before arrival)" type="number" min="0" max="60" :value="old('cancel_days', $contract->cancel_days)" required/><div class="mt-1"></div>
-      <x-field name="commission_pct" label="Commission % (agents; blank = company default)" type="number" step="0.01" min="0" max="50" :value="old('commission_pct', $contract->commission_pct)"/><div class="mt-1"></div>
-      <x-field name="room_night_target" label="Room-night target (for the period)" type="number" min="0" :value="old('room_night_target', $contract->room_night_target)"/><div class="mt-1"></div>
-      <x-field name="access_code" label="Booking-engine corporate code" :value="old('access_code', $contract->access_code)" placeholder="e.g. INFY26" hint="Guests enter this on the website to get the contract rate" style="text-transform:uppercase"/><div class="mt-1"></div>
-      <x-field name="notes" label="Internal notes" type="textarea" rows="4" :value="old('notes', $contract->notes)"/>
+      <aside class="rcf-side" id="rcfTerms">
+        <section class="card rcf-card" aria-labelledby="rcfTermsTitle"><div class="card-head rcf-card-head"><div><h3 id="rcfTermsTitle">Commercial terms</h3><p class="rcf-help">Availability, cancellation, commission and booking access.</p></div><span class="rcf-section-icon"><x-icon name="tool"/></span></div><div class="card-body">
+          <label class="rcf-term-toggle"><input type="hidden" name="lra" value="0"><input type="checkbox" name="lra" value="1" @checked(old('lra', $contract->lra))><span><strong>Last-room availability</strong><small>Contract rates remain available when a room is free, even when the date is stop-sell or has a minimum stay.</small></span></label>
+          <x-field name="cancel_days" label="Free cancellation until (days before arrival)" type="number" min="0" max="60" :value="old('cancel_days', $contract->cancel_days)" required/>
+          <x-field name="commission_pct" label="Commission % (agents; blank = company default)" type="number" step="0.01" min="0" max="50" :value="old('commission_pct', $contract->commission_pct)"/>
+          <x-field name="room_night_target" label="Room-night target for the period" type="number" min="0" max="100000" :value="old('room_night_target', $contract->room_night_target)"/>
+          <x-field name="access_code" label="Booking-engine corporate code" :value="old('access_code', $contract->access_code)" placeholder="e.g. INFY26" hint="Guests enter this code on the booking website." style="text-transform:uppercase"/>
+          <x-field name="notes" label="Internal notes" type="textarea" rows="4" :value="old('notes', $contract->notes)"/>
+        </div><div class="card-foot rcf-save-foot"><button class="btn btn-primary btn-block" id="saveContract" type="submit"><x-icon name="check"/> {{ $isEdit ? 'Save changes' : 'Save draft' }}</button></div></section>
+        <div class="rcf-approval" role="note"><strong><x-icon name="lock"/> Approval before activation</strong>New and amended contracts are saved as drafts. An approver other than the drafter activates them; only then do rates, allotments and the access code take effect.</div>
+      </aside>
     </div>
-    <div class="card-foot"><button class="btn btn-primary btn-block" id="saveContract"><x-icon name="check"/> {{ $contract->exists ? 'Save changes' : 'Save draft' }}</button></div></div>
-    <div class="card"><div class="card-body small muted">New and amended contracts are saved as <b>drafts</b>. An approver (Front Office Manager / Administrator) other than the person who drafted it activates it; only then do its rates, allotments and access code take effect.</div></div>
-  </div>
+  </form>
 </div>
-</form>
-<template id="tpl-rate"><tr><td><select name="rates[#][room_type_id]" data-k="room_type_id">{!! $typeOpts('') !!}</select><div class="tiny muted pub"></div></td><td><input name="rates[#][season_name]" placeholder="All period" style="width:110px"></td><td><input type="date" name="rates[#][season_from]"></td><td><input type="date" name="rates[#][season_to]"></td><td><input type="number" step="0.01" name="rates[#][rate]" style="width:95px" class="num"></td><td><input type="number" step="0.01" name="rates[#][double_rate]" style="width:95px" class="num"></td><td><input type="number" step="0.01" name="rates[#][extra_adult_rate]" style="width:85px" class="num"></td><td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr></template>
-<template id="tpl-allot"><tr><td><select name="allotments[#][room_type_id]">{!! $typeOpts('') !!}</select></td><td><input type="date" name="allotments[#][date_from]"></td><td><input type="date" name="allotments[#][date_to]"></td><td><input type="number" min="1" name="allotments[#][rooms]" style="width:80px" class="num"></td><td><input type="number" min="0" name="allotments[#][release_days]" value="7" style="width:80px" class="num"></td><td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr></template>
-<template id="tpl-black"><tr><td><input type="date" name="blackouts[#][date_from]"></td><td><input type="date" name="blackouts[#][date_to]"></td><td><input name="blackouts[#][reason]" placeholder="e.g. Christmas / New Year"></td><td><button type="button" class="btn btn-ghost btn-icon" data-del><x-icon name="trash"/></button></td></tr></template>
+<template id="tpl-rate"><tr><td class="rcf-name-cell"><select name="rates[#][room_type_id]" data-k="room_type_id" aria-label="Room type for this rate line">{!! $typeOpts('') !!}</select><span class="tiny muted rcf-public-rate pub" aria-live="polite"></span></td><td class="rcf-season-cell"><input name="rates[#][season_name]" placeholder="All period" aria-label="Season label for this rate line"></td><td><input type="date" name="rates[#][season_from]" aria-label="Season start date for this rate line"></td><td><input type="date" name="rates[#][season_to]" aria-label="Season end date for this rate line"></td><td><input type="number" min="1" max="10000000" step="0.01" name="rates[#][rate]" aria-label="Single-occupancy nightly rate for this line"></td><td><input type="number" min="1" max="10000000" step="0.01" name="rates[#][double_rate]" aria-label="Double-occupancy nightly rate for this line"></td><td><input type="number" min="0" max="10000000" step="0.01" name="rates[#][extra_adult_rate]" aria-label="Extra adult rate for this line"></td><td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove rate line" title="Remove rate line"><x-icon name="trash"/></button></td></tr></template>
+<template id="tpl-allot"><tr><td><select name="allotments[#][room_type_id]" aria-label="Room type for this allotment">{!! $typeOpts('') !!}</select></td><td><input type="date" name="allotments[#][date_from]" aria-label="Allotment start date"></td><td><input type="date" name="allotments[#][date_to]" aria-label="Allotment end date"></td><td><input type="number" min="1" max="500" name="allotments[#][rooms]" aria-label="Rooms per night in allotment"></td><td><input type="number" min="0" max="90" name="allotments[#][release_days]" value="7" aria-label="Release days before arrival"></td><td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove allotment" title="Remove allotment"><x-icon name="trash"/></button></td></tr></template>
+<template id="tpl-black"><tr><td><input type="date" name="blackouts[#][date_from]" aria-label="Blackout start date"></td><td><input type="date" name="blackouts[#][date_to]" aria-label="Blackout end date"></td><td><input name="blackouts[#][reason]" placeholder="e.g. Christmas / New Year" aria-label="Reason for blackout"></td><td class="rcf-action-cell"><button type="button" class="btn btn-ghost btn-icon" data-del aria-label="Remove blackout" title="Remove blackout"><x-icon name="trash"/></button></td></tr></template>
 @endsection
-@push('scripts')<script>
+@push('scripts')
+<script>
 document.addEventListener('DOMContentLoaded', () => {
   const tables = {rate: 'rateTable', allot: 'allotTable', black: 'blackTable'};
   let seq = 1000;
+  Object.values(tables).forEach(id => document.querySelectorAll(`#${id} [name]`).forEach(el => {
+    const match = el.name.match(/\[(\d+)\]/);
+    if (match) seq = Math.max(seq, Number(match[1]) + 1);
+  }));
   const pub = tr => { const s = tr.querySelector('[data-k=room_type_id]'), p = tr.querySelector('.pub'); if (s && p) p.textContent = s.selectedOptions[0]?.dataset.public ? 'Public ' + Number(s.selectedOptions[0].dataset.public).toLocaleString('en-US') : ''; };
   document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.add, html = document.getElementById('tpl-' + k).innerHTML.replaceAll('[#]', '[' + (seq++) + ']');
-    const tb = document.querySelector('#' + tables[k] + ' tbody'); tb.insertAdjacentHTML('beforeend', html); pub(tb.lastElementChild);
-    if (k === 'allot' || k === 'rate') { const vf = document.getElementById('f_valid_from').value, vt = document.getElementById('f_valid_to').value, r = tb.lastElementChild;
-      if (k === 'allot') { r.querySelector('[name$="[date_from]"]').value = vf; r.querySelector('[name$="[date_to]"]').value = vt; } }
+    const tb = document.querySelector('#' + tables[k] + ' tbody'); tb.insertAdjacentHTML('beforeend', html); const row = tb.lastElementChild; pub(row);
+    if (k === 'allot' || k === 'rate') { const vf = document.getElementById('f_valid_from').value, vt = document.getElementById('f_valid_to').value;
+      if (k === 'allot') { row.querySelector('[name$="[date_from]"]').value = vf; row.querySelector('[name$="[date_to]"]').value = vt; } }
+    row.querySelector('select,input')?.focus();
   }));
-  document.getElementById('contractForm').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if (d) d.closest('tr').remove(); });
+  document.getElementById('contractForm').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if (d) { const k = d.closest('table')?.id; d.closest('tr').remove(); document.getElementById(k === 'rateTable' ? 'addRate' : k === 'allotTable' ? 'addAllot' : 'addBlack')?.focus(); } });
   document.getElementById('contractForm').addEventListener('change', e => { if (e.target.matches('[data-k=room_type_id]')) pub(e.target.closest('tr')); });
   document.querySelectorAll('#rateTable tbody tr').forEach(pub);
   const sync = () => { const net = document.querySelector('[name=pricing]:checked')?.value !== 'discount';
-    document.getElementById('rateBox').style.display = net ? '' : 'none';
-    if (net && !document.querySelector('#rateTable tbody tr')) document.getElementById('addRate').click(); };
+    document.getElementById('rateBox').hidden = !net;
+    if (net && !document.querySelector('#rateTable tbody tr')) document.getElementById('addRate').click();
+  };
   document.querySelectorAll('[name=pricing]').forEach(r => r.addEventListener('change', sync)); sync();
 });
-</script>@endpush
+</script>
+@endpush

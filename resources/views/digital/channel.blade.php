@@ -9,6 +9,7 @@
   @if($w && $c->kind() === 'listing')<button class="btn btn-primary" data-modal="auditModal" id="auditBtn"><x-icon name="check"/> Audit listing</button>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-slate"><span class="dm-dot" style="background:{{ $c->colour() }}"></span> {{ $c->platformLabel() }}</span><span class="badge badge-{{ $c->is_active ? 'green' : 'slate' }}">{{ $c->is_active ? 'Active' : 'Inactive' }}</span>@if($c->handle)<span class="badge badge-slate">{{ $c->handle }}</span>@endif</div>
 <div class="g-2-1">
 <div>

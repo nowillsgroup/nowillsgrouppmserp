@@ -51,7 +51,13 @@ four non-sensitive columns; it does not import supplier bank details, account
 numbers, bank statements, opening balances, live ID maps, or GL entries. The
 operational mapping and opening-statement cutover remain separate work.
 
-Available from **Administration → Data Migration** (permission
+The Administration → **Import & Export Data** hub also exposes a conservative set of adapters for selected config-driven master records (such as floors, room types, rate plans, tax setup, non-system chart accounts, menu catalogue items/variants, stores, item categories, outlets, menu categories and restaurant tables, departments, currencies, vehicles, spa and banquet setup). These adapters use only declared editable fields and configured natural keys; they do not turn arbitrary master tables into import targets. System chart-of-accounts entries remain provisioned and cannot be imported; non-system accounts have a dedicated adapter gated by `gl.manage`, with system keys excluded and typed confirmation. Menu-item transfer covers catalogue fields and side-size variants only; photos, recipe cards, modifier groups and allergen declarations remain on their module workflows. New menu items are created unavailable and must be fully configured in the menu module before staff enable them. Masters without a configured natural key remain on their existing module workflows. Tax transfer requires both `masters.manage` and `gl.manage`; tax, rate-plan, custom-account and menu-item batches require a clean dry-run, show submitted values (and changes to existing values), and require typed confirmation before apply. Module-specific permissions are enforced in addition to `settings.manage`.
+
+Configured master templates include `external_id` plus safe editable fields. For relation fields, use an existing record id **from the target property**; `owned:` validation rejects references from another property. The related master records must be imported or created first. Rate plans use `room_type_id + code` as their natural match key; verify every rate and meal plan in the dry-run before applying. POS menu categories match by `outlet_id + name`, and restaurant tables by `outlet_id + table_no`. Tax rows use statutory component/authority plus application scope and slab bounds as their natural key; the adapter rejects mismatched GRA/GTA authorities, and reviewers must verify every rate and slab before applying. Configured master exports contain only those approved fields and may be re-imported into the same property; they omit login associations, bank details, media and system-managed fields. The hub also offers a full property-scoped SQL export, which is a backup/restore artifact—not an import format.
+
+The `banquet_enquiries` adapter is limited to enquiry-stage business intake. It forces imported events to `enquiry`, imports proposed functions/extras as estimates only, and cannot import a status, venue hold, deposit/payment, folio, bill, cancellation fee or ledger posting. It only exports unheld, unbilled enquiries with no folio. A mapped event may be refreshed only while it remains an enquiry and has no linked organiser/BEO, visitor, online-payment or sales activity, actual attendance, or locked guarantee; later booking, confirmation, deposit and billing actions remain in the Banquet module. Imports require both `settings.manage` and `banquet.manage`, a clean dry-run and typed confirmation. Function venue/package/service and company references use **target-property ids**; the exported `LOCAL-HOTEL-…-EVENT-…` external id round-trips only inside its original property and is deliberately rejected in cross-property imports. Use a stable source event id when migrating between properties.
+
+Available from **Administration → Import & Export Data** (permission
 `settings.manage`) or from the command line:
 
 ```bash
@@ -68,7 +74,11 @@ php artisan pms:import paid_supplier_history /path/paid_supplier_history.csv --h
 php artisan pms:import paid_supplier_history /path/paid_supplier_history.csv --hotel=1 --source="Paid supplier history archive" # archive-only apply
 php artisan pms:import bank_account_mappings /path/bank_account_mappings.csv --hotel=1 --dry-run --source="Treasury mapping preflight"
 php artisan pms:import inventory_allergens /path/inventory_allergens.csv --hotel=1 --dry-run --source="Ingredient allergen source review"
+php artisan pms:import menu_items /path/menu_items.csv --hotel=1 --dry-run --source="Menu catalogue review"
+php artisan pms:import banquet_enquiries /path/banquet_enquiries.csv --hotel=1 --dry-run --source="Banquet enquiry review"
 ```
+
+Banquet enquiry applies are intentionally unavailable through the CLI; use the authorized Administration hub after reviewing a clean dry-run and entering the confirmation phrase.
 
 `opening_ap` and `opening_ar` apply open-item records to their respective AP/AR
 subledgers only; neither creates historical GL journals. `opening_gl`,
@@ -90,7 +100,10 @@ balance or GL record.
 ## Import order
 
 Datasets reference each other through **external ids** (the legacy system's own
-keys), so import in this order:
+keys) or, for selected configured masters, through target-property record ids.
+Import any referenced master records first: floors/room types before rooms,
+stores and item categories before inventory/opening stock, and outlets before
+POS setup masters. Then follow this cutover order:
 
 1. **companies** — corporate accounts, agencies, OTAs
 2. **guests** — guest profiles (may reference a company's `external_id`)
@@ -107,10 +120,14 @@ keys), so import in this order:
 13. **reservations** — bookings/stays (reference guests and companies)
 14. **bank_account_mappings** — optional read-only bank/MoMo/clearing mapping preflight against existing Nowills Treasury accounts; no maps/statements/balances are written
 15. **paid_supplier_history** — immutable paid-bill/payment/credit/allocation archive only; no operational AP or GL rows are written
+16. **menu_items** — optional catalogue-only items and side-size variants; first import outlets, menu categories, and any KOT printers; new items remain unavailable until completed in the menu module
+17. **banquet_enquiries** — optional, non-binding enquiries only; first configure the target property's banquet halls, packages and services, and import/create any referenced companies
 
 Each upload creates a batch (`MIG-00001` …) that is **dry-run validated on
 upload**. Supported datasets can be applied from the batch page (or with
-`pms:import` without `--dry-run`). `opening_ap` and `opening_ar` apply open
+`pms:import` without `--dry-run`), except `banquet_enquiries`, which is web-only
+so module permissions, clean dry-run and typed confirmation are required.
+`opening_ap` and `opening_ar` apply open
 subledger items without historical GL journals. `opening_gl` and
 `inventory_allergens` are preflight-only; their Apply actions are intentionally
 disabled. `historical_stock` and `paid_supplier_history` Apply store immutable
@@ -131,6 +148,33 @@ balances.
   that look like account/card numbers are rejected before the source file is
   retained. Use non-sensitive source IDs; do not include bank name, branch,
   account number, SWIFT/IBAN, credentials, balances or statement lines.
+- `masters__{slug}` adapters require every downloaded template column and accept
+  no undocumented columns; duplicate columns/unique values are rejected. `*_id` relation values
+  must be ids in the selected property, and select fields require their stored
+  value/key. Login associations, bank details, media, system chart-account keys
+  and posted transactions are not imported by these adapters.
+- `menu_items` requires every template column. `menu_category_id`, `outlet_id` and
+  `kot_printer_id` are target-property ids. `variants_json` is a JSON list of
+  `{name,rate,cost}` objects (up to 30); blank preserves variants on an existing
+  item and `[]` removes them. Photos, recipes, modifier groups and allergens are
+  not part of this transfer. New items must be unavailable on import; enable them
+  only after completing setup in the menu module. Apply requires a clean dry-run
+  and the typed phrase `APPLY MENU ITEMS`.
+- `banquet_enquiries` requires every template column and rejects undocumented
+  headers. `functions_json` is a JSON list of 1–30 proposed functions, each with
+  target-property `banquet_hall_id`, date, time, setup, expected pax, optional
+  package/rate/note and up to 40 service/extra lines. Related company, hall,
+  package and service ids must belong to this property. The adapter exports only
+  unheld enquiries with no folio; local export ids cannot be used in a different
+  property. Imported function rates are estimates only. Status is forced to
+  `enquiry`; import cannot create venue holds, confirm bookings, receive deposits,
+  open folios, bill events or post to GL. A mapped event with linked organiser,
+  BEO, visitor, online-payment or sales activity, actual attendance or a locked
+  guarantee is blocked from CSV overwrite. Apply is web-only and requires the
+  typed phrase `IMPORT BANQUET ENQUIRIES` after a clean dry-run.
+- `masters__account-heads` transfers custom accounts only. System accounts and
+  `system_key` values are excluded and protected from CSV updates; apply requires
+  GL permission, a clean dry-run and `APPLY CHART OF ACCOUNTS`.
 - **Every row must have a stable `external_id`** from the legacy system. For
   applied datasets it is the idempotency key: re-importing updates changed rows
   and skips unchanged ones; reservations are never duplicated. In
@@ -142,8 +186,8 @@ balances.
   few other common shapes. Numbers may carry thousands separators or a
   currency symbol.
 - Max 5,000 rows per file — split larger exports and import them in batches.
-- Templates with example rows: **Data Migration → templates**; static source
-  samples are in `docs/examples/migration/`.
+- Templates: **Administration → Import & Export Data → Module templates**; static source
+  samples for the legacy datasets are in `docs/examples/migration/`.
 
 ## Dataset columns (required in bold)
 
@@ -206,14 +250,28 @@ below; historical movements and stocktake history are not imported. The
 `inventory_allergens` dataset validates source ingredient declarations only; it
 does not update the live allergen matrix or verify source evidence.
 
+### menu_items
+**external_id**, **name**, **menu_category_id**, **price**, **tax_rate**,
+**food_type** (`veg`/`non_veg`/`egg`/`beverage`), code, outlet_id,
+kot_printer_id, description, is_available, variants_json.
+
+Matching: external id map → unique exact item code → menu-category + outlet +
+name → create. `variants_json` is a JSON array of `{name,rate,cost}` values,
+with at most 30 distinct variant names. Blank `variants_json` preserves variants
+on an existing item; `[]` explicitly removes them. The importer never changes
+images, recipes, modifier groups or allergen declarations. New rows must be
+unavailable, so complete those module workflows and enable the item from the
+menu screen before it can be sold. Pricing changes require a clean dry-run and
+typed confirmation; past POS orders are unchanged.
+
 ### opening_stock
 **external_id**, **item_external_id**, **store_name**, **opening_date**,
 **quantity**, **unit_cost**.
 
 Matching: `item_external_id` must already be mapped by an applied
 `inventory_items` batch; `store_name` must identify exactly one existing store
-in this property. There is no store importer, so create/verify stores before this
-step. Every row in one file must use the same opening date; split separate
+in this property. Create/verify stores (or import them with the permitted
+`masters__stores` adapter) before this step. Every row in one file must use the same opening date; split separate
 cutover dates into separate files. The date must be on or before the closed-ledger
 cutoff (the calendar day before the business date), not after the current business
 date. New rows and changed values must also be dated after the GL lock date. An

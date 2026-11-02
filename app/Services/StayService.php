@@ -17,14 +17,11 @@ use RuntimeException;
 
 class StayService
 {
-    /** What the existing check-in screen still requires. Does not write. */
-    public static function checkInReady(ReservationRoom $stay): string
+    /** Structured missing fields for the existing check-in form; this is read-only. */
+    public static function missingCheckInRequirements(ReservationRoom $stay): array
     {
-        if ($stay->status === 'checked_in') {
-            return 'Checked in.';
-        }
         if ($stay->status !== 'reserved') {
-            return ucwords(str_replace('_', ' ', (string) $stay->status)).'.';
+            return [];
         }
         $stay->loadMissing(['reservation.guest', 'room']);
         $guest = $stay->reservation?->guest;
@@ -38,6 +35,20 @@ class StayService
         if (! $stay->room_id) {
             $needs[] = 'a room';
         }
+
+        return $needs;
+    }
+
+    /** What the existing check-in screen still requires. Does not write. */
+    public static function checkInReady(ReservationRoom $stay): string
+    {
+        if ($stay->status === 'checked_in') {
+            return 'Checked in.';
+        }
+        if ($stay->status !== 'reserved') {
+            return ucwords(str_replace('_', ' ', (string) $stay->status)).'.';
+        }
+        $needs = self::missingCheckInRequirements($stay);
         if ($needs) {
             return 'Needs '.implode(', ', $needs).'. Check-in still uses the existing screen.';
         }
@@ -232,9 +243,9 @@ class StayService
     }
 
     /** What checkout would do. Does not post a night, close a folio, or change the room. */
-    public static function quoteCheckout(ReservationRoom $stay): string
+    public static function quoteCheckout(ReservationRoom $stay, ?array $fig = null, ?array $holds = null): string
     {
-        $fig = self::quoteCheckoutFigures($stay);
+        $fig ??= self::quoteCheckoutFigures($stay);
         $roomNo = $stay->room?->room_no ?? 'unassigned';
         $parts = ["Checkout would mark room {$roomNo} vacant and dirty."];
         if ($fig['missing'] > 0) {
@@ -252,7 +263,7 @@ class StayService
         } else {
             $parts[] = 'Current balance is '.money($fig['balance']).'. Balance to settle would be '.money($fig['due']).'. The folio must be zero before checkout can close it.';
         }
-        $holds = self::checkoutHolds($stay);
+        $holds ??= self::checkoutHolds($stay);
         if ($holds['pos']['count']) {
             $parts[] = $holds['pos']['count'].' unsettled POS order(s) would block checkout.';
         }

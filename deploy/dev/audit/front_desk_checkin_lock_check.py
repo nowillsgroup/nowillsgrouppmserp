@@ -49,7 +49,7 @@ class FrontDeskCheckInLockTest(unittest.TestCase):
 
     def test_tape_chart_assignments_use_serialized_stay_services(self):
         start = CONTROLLER.index("public function tapeDrop(")
-        end = CONTROLLER.index("protected function stayList(", start)
+        end = CONTROLLER.index("public function arrivals(", start)
         body = CONTROLLER[start:end]
         self.assertIn("StayService::moveRoom($stay", body)
         self.assertIn("StayService::placeStay($stay", body)

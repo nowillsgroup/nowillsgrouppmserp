@@ -7,6 +7,7 @@
   @if($c->website)<a class="btn" href="{{ $c->website }}" target="_blank" rel="noopener"><x-icon name="globe"/> Website</a>@endif
 @endsection
 @section('content')
+@include('bd._workspace-nav')
 <div class="flex gap-1 wrap mb-1">@if(! $c->is_active)<span class="badge badge-slate">Inactive</span>@endif @if($c->stars)<span class="badge badge-amber">{{ str_repeat('★', $c->stars) }}</span>@endif @if($c->positioning)<span class="badge badge-blue">{{ $P::POSITIONING[$c->positioning] }}</span>@endif</div>
 <div class="g-2-1">
   <div class="card flush" id="compRates"><div class="card-head"><h3><x-icon name="chart"/> Recent shopped rates</h3></div><div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Stay date</th><th>Where</th><th class="num">Their rate</th><th class="num">Ours</th><th class="num">Difference</th><th>Shopped</th></tr></thead><tbody>

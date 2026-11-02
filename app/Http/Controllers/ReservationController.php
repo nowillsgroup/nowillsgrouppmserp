@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\BusinessSource;
+use App\Models\EmailLog;
 use App\Models\Company;
 use App\Models\Folio;
 use App\Models\Guest;
+use App\Models\MessageLog;
+use App\Models\OnlinePayment;
 use App\Models\PaymentMode;
 use App\Models\RatePlan;
 use App\Models\Reservation;
@@ -19,6 +23,7 @@ use App\Services\ReservationAmendmentService;
 use App\Services\CancellationService;
 use App\Services\FolioService;
 use App\Services\ShiftService;
+use App\Support\BookingConfirmationPdf;
 use App\Support\Numbering;
 use App\Models\RateContract;
 use App\Services\ContractService;
@@ -68,7 +73,7 @@ class ReservationController extends Controller
     {
         return [
             'guest_id' => 'nullable|integer',
-            'guest.title' => 'nullable|string|max:10',
+            'guest.title' => 'nullable|string|max:30',
             'guest.first_name' => 'required|string|max:80',
             'guest.last_name' => 'nullable|string|max:80',
             'guest.phone' => 'required|string|max:30',
@@ -283,9 +288,66 @@ class ReservationController extends Controller
         $advances = $reservation->folios->flatMap->transactions->where('is_void', false)->whereIn('type', ['payment']);
         $pending = $reservation->rooms->where('status', 'reserved');
         $noShowPending = $pending->filter(fn ($stay) => $stay->arrival_date->lte(bdate()))->values();
+        $onlinePayments = can_do('payments.view')
+            ? OnlinePayment::where('reservation_id', $reservation->id)->latest('id')->get()
+            : collect();
+        $stayIds = $reservation->rooms->modelKeys();
+        $paymentIds = $onlinePayments->modelKeys();
+        $activityLogs = ActivityLog::with('user')
+            ->where(function ($q) use ($reservation, $stayIds, $paymentIds) {
+                $q->where(fn ($subject) => $subject->where('subject_type', 'Reservation')->where('subject_id', $reservation->id));
+                if ($stayIds) {
+                    $q->orWhere(fn ($subject) => $subject->where('subject_type', 'ReservationRoom')->whereIn('subject_id', $stayIds));
+                }
+                if ($paymentIds) {
+                    $q->orWhere(fn ($subject) => $subject->where('subject_type', 'OnlinePayment')->whereIn('subject_id', $paymentIds));
+                }
+            })
+            ->where(fn ($q) => $q->where('module', '!=', 'messages')->orWhere('action', '!=', 'send'))
+            ->orderByDesc('created_at')->orderByDesc('id')->limit(50)->get();
+        $activityItems = $activityLogs->map(fn ($log) => (object) [
+            'module' => $log->module,
+            'action' => $log->action,
+            'description' => $log->description,
+            'created_at' => $log->created_at,
+            'actor' => $log->user?->name ?? 'System',
+            'tone' => 'info',
+        ]);
+        if (can_do('logs.view')) {
+            $relatedFilter = function ($q) use ($reservation, $stayIds) {
+                $q->where(fn ($related) => $related->where('related_type', 'Reservation')->where('related_id', $reservation->id));
+                if ($stayIds) {
+                    $q->orWhere(fn ($related) => $related->where('related_type', 'ReservationRoom')->whereIn('related_id', $stayIds));
+                }
+            };
+            $emailLogs = EmailLog::with('user')->where($relatedFilter)->latest('id')->limit(50)->get();
+            $messageLogs = MessageLog::with('user')->where($relatedFilter)->latest('id')->limit(50)->get();
+            foreach ($emailLogs as $log) {
+                $activityItems->push((object) [
+                    'module' => 'Communication',
+                    'action' => 'E-mail '.ucfirst($log->status),
+                    'description' => ucwords(str_replace('_', ' ', $log->template)).' e-mail',
+                    'created_at' => $log->created_at,
+                    'actor' => $log->user?->name ?? 'System',
+                    'tone' => $log->status === 'failed' ? 'bad' : 'ok',
+                ]);
+            }
+            foreach ($messageLogs as $log) {
+                $activityItems->push((object) [
+                    'module' => 'Communication',
+                    'action' => ($log->channel === 'whatsapp' ? 'WhatsApp' : 'SMS').' '.ucfirst($log->status),
+                    'description' => ucwords(str_replace('_', ' ', $log->template)).' message',
+                    'created_at' => $log->created_at,
+                    'actor' => $log->user?->name ?? 'System',
+                    'tone' => $log->status === 'failed' ? 'bad' : 'ok',
+                ]);
+            }
+        }
+        $activityItems = $activityItems->sortByDesc(fn ($item) => $item->created_at->getTimestamp())->take(50)->values();
 
         return view('reservations.show', [
-            'onlinePayments' => \App\Models\OnlinePayment::where('reservation_id', $reservation->id)->latest('id')->get(),
+            'onlinePayments' => $onlinePayments,
+            'activityLogs' => $activityItems,
             'trips' => \App\Models\TransportTrip::with('vehicle', 'driver')->where('reservation_id', $reservation->id)->orderBy('scheduled_at')->get(),
             'formCs' => \App\Models\FormCRecord::with('stay.room')->where('reservation_id', $reservation->id)->orderBy('id')->get(), // v3.4
             'deskMessages' => \App\Models\GuestMessage::whereIn('reservation_room_id', $reservation->rooms->pluck('id'))->latest('id')->limit(10)->get(), // v3.5
@@ -638,6 +700,23 @@ class ReservationController extends Controller
         $reservation->load('guest', 'rooms.roomType', 'rooms.room', 'rooms.ratePlan', 'source', 'company', 'folios.transactions');
 
         return view('reservations.print', ['r' => $reservation]);
+    }
+
+    public function downloadConfirmationPdf(Reservation $reservation, BookingConfirmationPdf $pdf)
+    {
+        $reservation->load('guest', 'rooms.roomType', 'rooms.room', 'rooms.ratePlan', 'company', 'folios.transactions');
+        $property = hotel();
+        abort_unless($property, 404);
+
+        $content = $pdf->render($reservation, $property);
+        $safeNumber = preg_replace('/[^A-Za-z0-9._-]/', '-', (string) $reservation->reservation_no) ?: (string) $reservation->id;
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Booking-Confirmation-'.$safeNumber.'.pdf"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function availability(Request $request)

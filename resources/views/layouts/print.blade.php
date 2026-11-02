@@ -2,13 +2,13 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@yield('title') · {{ $currentHotel->name ?? '' }}</title>
 <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
-<style>body{background:#eef1f6}</style>
+<style>body{background:#eef1f6}.print-head>div{min-width:0}.print-head .small{overflow-wrap:anywhere}</style>
 @stack('head')
 <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head>
 <body>
 <div class="print-bar no-print">
-  <a class="btn" href="{{ url()->previous() }}">← Back</a>
+  <a class="btn" href="{{ $__env->yieldContent('backurl', url()->previous()) }}">← Back</a>
   <button class="btn btn-primary" onclick="window.print()">Print</button>
 </div>
 <div class="no-print">@include('partials.flash')</div>
@@ -18,6 +18,7 @@
     <div>@if($currentHotel->logo_path)<img src="{{ asset($currentHotel->logo_path) }}" alt="" style="max-height:54px;margin-bottom:.3rem;display:block">@endif<h2>{{ $currentHotel->name }}</h2>
       <div class="small text-2">{{ $currentHotel->address }}{{ $currentHotel->city ? ', '.$currentHotel->city : '' }}{{ $currentHotel->state ? ', '.$currentHotel->state : '' }} {{ $currentHotel->pincode }}</div>
       <div class="small text-2">Ph: {{ $currentHotel->phone }} · {{ $currentHotel->email }}</div>
+      @if($currentHotel->website)<div class="small text-2">Website: {{ $currentHotel->website }}</div>@endif
       @if($currentHotel->tax_number)<div class="small"><b>TIN:</b> {{ $currentHotel->tax_number }}</div>@endif
     </div>
     <div class="right"><h2 style="color:#166534">@yield('doctitle')</h2>@yield('docmeta')</div>

@@ -9,7 +9,7 @@
 <div class="auth auth-login">
   <section class="auth-art auth-login-art" aria-label="Nowills hospitality suite">
     <div class="auth-art-head">
-      <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite"></div>
+      <div class="brand" style="padding:0;border:0;height:auto"><img class="brand-logo-auth" src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-gold.webp') }}" alt="Nowills PMS — Cloud Hospitality Suite"></div>
       <span class="auth-live"><i></i> Built for hospitality</span>
     </div>
 
@@ -32,7 +32,7 @@
         <span class="auth-orbit-node" style="--orbit-index:7"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="chart"/></span><span class="auth-orbit-label">Reports</span></span></span>
         <span class="auth-orbit-node" style="--orbit-index:8"><span class="auth-orbit-counter"><span class="auth-orbit-bubble"><x-icon name="users"/></span><span class="auth-orbit-label">Guests</span></span></span>
       </div>
-      <div class="auth-orbit-center"><img src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt=""><span>NOWILLS PMS</span></div>
+      <div class="auth-orbit-center"><img src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-mark.webp') }}" alt=""><span>NOWILLS PMS</span></div>
     </div>
 
     <div class="auth-slider" data-auth-slider aria-roledescription="carousel" aria-label="Hospitality spaces">

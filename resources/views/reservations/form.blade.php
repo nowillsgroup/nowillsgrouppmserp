@@ -57,6 +57,8 @@
             <div class="mt-1"></div>
             <x-field name="advance_mode" label="Mode" type="select" :options="$paymentModes" data-payment-mode/>
             <div class="mt-1"></div>
+            <x-payment-momo-fields mode-name="advance_mode"/>
+            <div class="mt-1"></div>
             <x-field name="advance_ref" label="Reference / Txn ID"/>
             <x-cheque-fields/>
           </div>

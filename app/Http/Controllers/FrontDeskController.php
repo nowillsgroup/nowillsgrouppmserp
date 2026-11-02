@@ -14,6 +14,7 @@ use App\Models\Room;
 use App\Models\RoomType;
 use App\Services\ActivityLogger;
 use App\Services\AvailabilityService;
+use App\Services\CreditService;
 use App\Services\FolioService;
 use App\Services\StayService;
 use App\Support\Numbering;
@@ -26,47 +27,115 @@ class FrontDeskController extends Controller
 {
     public function rooms(Request $request)
     {
-        $d = bdate()->toDateString();
-        $rooms = Room::with(['roomType', 'floor', 'currentStay.reservation.guest'])->where('is_active', true)
-            ->when($request->type, fn ($q, $t) => $q->where('room_type_id', $t))
-            ->orderBy('room_no')->get();
-        $arrivingToday = ReservationRoom::with('reservation.guest')->where('status', 'reserved')->whereDate('arrival_date', $d)->whereNotNull('room_id')->get()->keyBy('room_id');
+        $filters = $request->validate([
+            'type' => ['nullable', 'integer', 'min:1'],
+            'room_status' => ['nullable', 'in:vacant,occupied,reserved,due_out,out_of_order,out_of_service'],
+            'hk_status' => ['nullable', 'in:clean,dirty,inspected,touch_up'],
+            // Accept the original combined filter URL while presenting distinct,
+            // clearly labeled room-state and housekeeping controls in the view.
+            'status' => ['nullable', 'in:vacant,occupied,reserved,due_out,out_of_order,out_of_service,clean,dirty,inspected,touch_up'],
+        ]);
+        $today = bdate();
+        $todayString = $today->toDateString();
+        $canViewFolio = can_do('folio.view');
+        $canViewHousekeeping = can_do('housekeeping.view') || can_do('housekeeping.manage') || can_do('housekeeping.attendant');
+        $roomStatus = $filters['room_status'] ?? null;
+        $housekeepingStatus = $filters['hk_status'] ?? null;
+        $legacyStatus = $filters['status'] ?? null;
+        if (! $roomStatus && in_array($legacyStatus, ['vacant', 'occupied', 'reserved', 'due_out', 'out_of_order', 'out_of_service'], true)) {
+            $roomStatus = $legacyStatus;
+        } elseif (! $housekeepingStatus && in_array($legacyStatus, ['clean', 'dirty', 'inspected', 'touch_up'], true)) {
+            $housekeepingStatus = $legacyStatus;
+        }
+        if (! $canViewHousekeeping) {
+            $housekeepingStatus = null;
+        }
 
-        foreach ($rooms as $room) {
+        $relations = ['roomType', 'floor', 'currentStay.reservation.guest'];
+        if ($canViewFolio) {
+            $relations[] = 'currentStay.folio';
+        }
+        $allRooms = Room::with($relations)->where('is_active', true)
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('room_type_id', $type))
+            ->orderBy('room_no')->get();
+        $arrivingToday = ReservationRoom::with('reservation.guest')->where('status', 'reserved')
+            ->whereDate('arrival_date', $todayString)->whereNotNull('room_id')->get()->keyBy('room_id');
+
+        foreach ($allRooms as $room) {
             $room->view_status = $room->status;
-            if ($room->status === 'occupied' && $room->currentStay && $room->currentStay->departure_date->lte(bdate())) {
+            if ($room->status === 'occupied' && $room->currentStay && $room->currentStay->departure_date->lte($today)) {
                 $room->view_status = 'due_out';
             } elseif ($room->status === 'vacant' && isset($arrivingToday[$room->id])) {
                 $room->view_status = 'reserved';
                 $room->arrival = $arrivingToday[$room->id];
             }
         }
-        if ($request->status) {
-            $rooms = $rooms->filter(fn ($r) => $r->view_status === $request->status || $r->hk_status === $request->status);
-        }
+
+        $counts = $allRooms->countBy('view_status');
+        $hk = $canViewHousekeeping ? $allRooms->countBy('hk_status') : collect();
+        $rooms = $allRooms
+            ->when($roomStatus, fn ($collection) => $collection->filter(fn ($room) => $room->view_status === $roomStatus))
+            ->when($housekeepingStatus, fn ($collection) => $collection->filter(fn ($room) => $room->hk_status === $housekeepingStatus));
 
         return view('frontdesk.rooms', [
-            'floors' => $rooms->groupBy(fn ($r) => $r->floor?->name ?? 'Unassigned'),
-            'counts' => $rooms->countBy('view_status'),
-            'hk' => $rooms->countBy('hk_status'),
-            'types' => RoomType::pluck('name', 'id'),
-            'paymentModes' => PaymentMode::where('is_active', true)->pluck('name', 'id'),
+            'floors' => $rooms->groupBy(fn ($room) => $room->floor?->name ?? 'Unassigned'),
+            'counts' => $counts,
+            'hk' => $hk,
+            'types' => RoomType::where('is_active', true)->orderBy('name')->pluck('name', 'id'),
+            'totalRooms' => $allRooms->count(),
+            'visibleRooms' => $rooms->count(),
+            'roomStatusFilter' => $roomStatus,
+            'housekeepingStatusFilter' => $housekeepingStatus,
+            'canViewHousekeeping' => $canViewHousekeeping,
+            'canViewFolio' => $canViewFolio,
+            'today' => $today,
         ]);
     }
 
     public function tapeChart(Request $request)
     {
-        $from = Carbon::parse($request->input('from', bdate()->copy()->subDays(2)->toDateString()));
-        $days = min(31, max(7, (int) $request->input('days', 14)));
+        $filters = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'days' => ['nullable', 'integer', 'between:7,31'],
+        ]);
+        $from = Carbon::parse($filters['from'] ?? bdate()->copy()->subDays(2)->toDateString());
+        $days = (int) ($filters['days'] ?? 14);
         $to = $from->copy()->addDays($days);
+        $today = bdate();
+        $canDrag = can_do('frontdesk.roommove') || can_do('reservations.edit');
+        $canMoveInHouse = can_do('frontdesk.roommove');
+        $canViewReservation = can_do('reservations.view');
+        $canViewHousekeeping = can_do('housekeeping.view') || can_do('housekeeping.manage') || can_do('housekeeping.attendant');
         $rooms = Room::with('roomType')->where('is_active', true)->orderBy('room_type_id')->orderBy('room_no')->get();
-        $stays = ReservationRoom::with('reservation.guest')->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
-            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $from->toDateString())->get();
+        $stays = ReservationRoom::with(['reservation.guest', 'roomType'])
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+            ->whereDate('arrival_date', '<', $to->toDateString())
+            ->whereDate('departure_date', '>', $from->toDateString())
+            ->orderBy('arrival_date')->orderBy('room_id')->orderBy('id')->get();
+        $unassigned = $stays->whereNull('room_id')->where('status', 'reserved')->sortBy('arrival_date')->values();
 
         return view('frontdesk.tapechart', [
-            'from' => $from, 'days' => $days, 'rooms' => $rooms->groupBy(fn ($r) => $r->roomType->name),
+            'from' => $from,
+            'to' => $to,
+            'days' => $days,
+            'today' => $today,
+            'rooms' => $rooms->groupBy(fn ($room) => $room->roomType?->name ?? 'Unassigned room type'),
             'byRoom' => $stays->whereNotNull('room_id')->groupBy('room_id'),
-            'unassigned' => $stays->whereNull('room_id')->where('status', 'reserved'),
+            'unassigned' => $unassigned,
+            'canDrag' => $canDrag,
+            'canMoveInHouse' => $canMoveInHouse,
+            'canViewReservation' => $canViewReservation,
+            'canViewHousekeeping' => $canViewHousekeeping,
+            'summary' => [
+                'rooms' => $rooms->count(),
+                'stays' => $stays->count(),
+                'arrivals' => $stays->filter(fn ($stay) => $stay->status === 'reserved'
+                    && $stay->arrival_date->gte($from) && $stay->arrival_date->lt($to))->count(),
+                'inHouse' => $stays->where('status', 'checked_in')->count(),
+                'departures' => $stays->filter(fn ($stay) => $stay->status === 'checked_in'
+                    && $stay->departure_date->gte($from) && $stay->departure_date->lt($to))->count(),
+                'unassigned' => $unassigned->count(),
+            ],
         ]);
     }
 
@@ -113,28 +182,104 @@ class FrontDeskController extends Controller
         return back()->with('success', $msg);
     }
 
-    protected function stayList(string $view, $query, string $title)
-    {
-        return view('frontdesk.list', ['stays' => $query->with(['reservation.guest', 'reservation.company', 'room', 'roomType', 'folio'])->get(), 'mode' => $view, 'title' => $title]);
-    }
-
     public function arrivals(Request $request)
     {
-        $d = $request->input('date', bdate()->toDateString());
+        $filters = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'overdue' => ['nullable', 'boolean'],
+        ]);
+        $date = Carbon::parse($filters['date'] ?? bdate()->toDateString());
+        $dateString = $date->toDateString();
+        $includeOverdue = $request->boolean('overdue');
 
-        return $this->stayList('arrivals', ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', '<=', $d)->whereDate('arrival_date', '>=', Carbon::parse($d)->subDays($request->boolean('overdue') ? 30 : 0))->orderBy('arrival_date'), 'Arrivals');
+        $stays = ReservationRoom::with([
+            'reservation.guest', 'reservation.company', 'reservation.businessSource', 'room', 'roomType',
+        ])
+            ->where('status', 'reserved')
+            ->whereDate('arrival_date', '<=', $dateString)
+            ->whereDate('arrival_date', '>=', $date->copy()->subDays($includeOverdue ? 30 : 0)->toDateString())
+            ->orderBy('arrival_date')
+            ->orderBy('room_id')
+            ->orderBy('id')
+            ->get();
+
+        return view('frontdesk.list', [
+            'stays' => $stays,
+            'mode' => 'arrivals',
+            'title' => 'Arrivals',
+            'arrivalDate' => $date,
+            'includeOverdue' => $includeOverdue,
+            'arrivalSummary' => [
+                'pending' => $stays->count(),
+                'guests' => $stays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
+                'prechecked' => $stays->filter(fn ($stay) => (bool) $stay->reservation?->prechecked_in_at)->count(),
+                'unassigned' => $stays->whereNull('room_id')->count(),
+            ],
+        ]);
     }
 
     public function inHouse()
     {
-        return $this->stayList('inhouse', ReservationRoom::where('status', 'checked_in')->orderBy('room_id'), 'In-House Guests');
+        $canViewFolio = can_do('folio.view');
+        $relations = ['reservation.guest', 'reservation.company', 'reservation.businessSource', 'room', 'roomType'];
+        if ($canViewFolio) {
+            $relations['folio'] = fn ($relation) => $relation->withListBalance();
+        }
+
+        $stays = ReservationRoom::with($relations)
+            ->where('status', 'checked_in')
+            ->orderBy('room_id')
+            ->orderBy('departure_date')
+            ->orderBy('id')
+            ->get();
+        $today = bdate();
+
+        return view('frontdesk.list', [
+            'stays' => $stays,
+            'mode' => 'inhouse',
+            'title' => 'In-House Guests',
+            'inHouseDate' => $today,
+            'canViewFolio' => $canViewFolio,
+            'inHouseSummary' => [
+                'stays' => $stays->count(),
+                'guests' => $stays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
+                'dueToday' => $stays->filter(fn ($stay) => $stay->departure_date->isSameDay($today))->count(),
+                'pastDue' => $stays->filter(fn ($stay) => $stay->departure_date->lt($today))->count(),
+            ],
+        ]);
     }
 
     public function departures(Request $request)
     {
-        $d = $request->input('date', bdate()->toDateString());
+        $filters = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']]);
+        $date = Carbon::parse($filters['date'] ?? bdate()->toDateString());
+        $canViewFolio = can_do('folio.view');
+        $relations = ['reservation.guest', 'reservation.company', 'reservation.businessSource', 'room', 'roomType'];
+        if ($canViewFolio) {
+            $relations['folio'] = fn ($relation) => $relation->withListBalance();
+        }
 
-        return $this->stayList('departures', ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->orderBy('departure_date'), 'Departures');
+        $stays = ReservationRoom::with($relations)
+            ->where('status', 'checked_in')
+            ->whereDate('departure_date', '<=', $date->toDateString())
+            ->orderBy('departure_date')
+            ->orderBy('room_id')
+            ->orderBy('id')
+            ->get();
+
+        return view('frontdesk.list', [
+            'stays' => $stays,
+            'mode' => 'departures',
+            'title' => 'Departures',
+            'departureDate' => $date,
+            'canViewFolio' => $canViewFolio,
+            'departureSummary' => [
+                'due' => $stays->count(),
+                'guests' => $stays->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
+                'overdue' => $stays->filter(fn ($stay) => $stay->departure_date->lt($date))->count(),
+                'balance' => $canViewFolio ? round($stays->sum(fn ($stay) => max(0, (float) ($stay->folio?->listing_balance ?? 0))), 2) : null,
+            ],
+        ]);
     }
 
     /** Normalize the initial deposit in either legacy single-tender form or split rows. */
@@ -180,6 +325,9 @@ class FrontDeskController extends Controller
     // ---------------- Walk-in ----------------
     public function walkIn(Request $request)
     {
+        $activeCompanies = Company::where('is_active', true)->orderBy('name')->get(['id', 'name', 'direct_billing']);
+        $companyBilling = $activeCompanies->mapWithKeys(fn (Company $company) => [$company->id => (bool) $company->direct_billing]);
+
         return view('frontdesk.walkin', [
             'guest' => new Guest,
             'fullGuest' => true,
@@ -187,17 +335,60 @@ class FrontDeskController extends Controller
             'ratePlans' => RatePlan::where('is_active', true)->get(),
             'rooms' => AvailabilityService::freeRooms(bdate(), bdate()->addDay())->where('status', 'vacant'),
             'sources' => BusinessSource::where('is_active', true)->pluck('name', 'id'),
-            'companies' => Company::where('is_active', true)->pluck('name', 'id'),
+            'companies' => $activeCompanies->pluck('name', 'id'),
+            'companyBilling' => $companyBilling,
             'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
             'walkInSource' => BusinessSource::where('type', 'walk_in')->value('id'),
             'preRoom' => $request->integer('room_id'),
         ]);
     }
 
+    public function storeWalkInCompany(Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(can_do('frontdesk.checkin') && can_do('credit.manage'), 403);
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255', 'type' => 'required|in:corporate,travel_agent',
+            'contact_person' => 'nullable|string|max:255', 'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:150', 'address' => 'nullable|string|max:255', 'city' => 'nullable|string|max:80',
+            'credit_limit' => 'required|numeric|min:0|max:999999999999.99', 'credit_days' => 'required|integer|min:0|max:365',
+        ]);
+        $data['name'] = trim($data['name']);
+        if (Company::whereRaw('LOWER(name) = ?', [mb_strtolower($data['name'])])->exists()) {
+            throw ValidationException::withMessages(['name' => 'A company with this name already exists. Select it from Company / account instead.']);
+        }
+
+        $company = DB::transaction(function () use ($data): Company {
+            $company = Company::create([
+                'name' => $data['name'], 'type' => $data['type'], 'contact_person' => $data['contact_person'] ?? null,
+                'phone' => $data['phone'] ?? null, 'email' => $data['email'] ?? null, 'address' => $data['address'] ?? null,
+                'city' => $data['city'] ?? null, 'credit_limit' => 0, 'credit_days' => 30,
+                'direct_billing' => false, 'credit_status' => 'open', 'is_active' => true, 'tier' => 'standard', 'sales_status' => 'active',
+            ]);
+            CreditService::setTerms(
+                $company,
+                (float) $data['credit_limit'],
+                (int) $data['credit_days'],
+                true,
+                'Initial City Ledger setup from Walk-in check-in'
+            );
+            $company->refresh();
+            ActivityLogger::log('credit', 'city_ledger_create', "City-ledger company {$company->name} created from Walk-in check-in", $company);
+
+            return $company;
+        });
+
+        return response()->json(['company' => [
+            'id' => $company->id, 'name' => $company->name, 'direct_billing' => (bool) $company->direct_billing,
+            'credit_limit' => (float) $company->credit_limit, 'credit_days' => (int) $company->credit_days,
+        ]], 201);
+    }
+
     public function storeWalkIn(Request $request)
     {
         $data = $request->validate([
-            'guest.title' => 'nullable|string|max:10', 'guest.first_name' => 'required|string|max:80', 'guest.last_name' => 'nullable|string|max:80',
+            'guest.title' => 'nullable|string|max:30', 'guest.custom_title' => 'required_if:guest.title,__other__|nullable|string|max:30|not_in:__other__',
+            'guest.first_name' => 'required|string|max:80', 'guest.last_name' => 'nullable|string|max:80',
             'guest.phone' => 'required|string|max:30', 'guest.email' => 'nullable|email', 'guest.nationality' => 'nullable|string|max:60',
             'guest.city' => 'nullable|string|max:80', 'guest.id_type' => 'required|string|max:30', 'guest.id_number' => 'required|string|max:60',
             'guest.gender' => 'nullable|string|max:10', 'guest.dob' => 'nullable|date', 'guest.address' => 'nullable|string|max:255',
@@ -215,6 +406,13 @@ class FrontDeskController extends Controller
             'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
             'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ]);
+        if (($data['guest']['title'] ?? null) === '__other__') {
+            $data['guest']['title'] = trim((string) $data['guest']['custom_title']);
+        }
+        unset($data['guest']['custom_title']);
+        if (! empty($data['guest_id']) && ! can_do('reservations.view')) {
+            throw ValidationException::withMessages(['guest_id' => 'Existing guest profile lookup requires reservation-view access.']);
+        }
         $advanceLines = $this->advancePaymentLines($data);
         $room = Room::findOrFail($data['room_id']);
         $arr = bdate();
@@ -258,7 +456,20 @@ class FrontDeskController extends Controller
             return $stay;
         });
 
-        return redirect()->route('reservations.show', $stay->reservation_id)->with('success', "Walk-in checked in to room {$room->room_no}.");
+        return $this->checkInSuccessRedirect($stay->reservation_id, "Walk-in checked in to room {$room->room_no}.");
+    }
+
+    /** Send check-in staff to a page their role can actually open after success. */
+    protected function checkInSuccessRedirect(int $reservationId, string $message)
+    {
+        if (can_do('reservations.view')) {
+            return redirect()->route('reservations.show', $reservationId)->with('success', $message);
+        }
+        if (can_do('frontdesk.view')) {
+            return redirect()->route('frontdesk.inhouse')->with('success', $message);
+        }
+
+        return redirect()->to(\App\Http\Controllers\Auth\LoginController::home(auth()->user()))->with('success', $message);
     }
 
     // ---------------- Check-in ----------------
@@ -268,14 +479,18 @@ class FrontDeskController extends Controller
         $stay->load('reservation.guest', 'roomType', 'room', 'ratePlan');
         $free = AvailabilityService::freeRooms(bdate(), $stay->departure_date->max(bdate()->addDay()), null, $stay->id)->where('status', 'vacant');
 
-        // v4.1: offers the desk can suggest while the guest registers (the presentation counts towards conversion)
-        $upOffers = can_do('upsell.sell') ? \App\Services\UpsellService::offersFor($stay, 'desk') : collect();
+        // v4.1: only read or present desk offers to staff authorized to sell them.
+        $canSellUpsell = can_do('upsell.sell');
+        $upOffers = $canSellUpsell ? \App\Services\UpsellService::offersFor($stay, 'desk') : collect();
+        $upOrders = $canSellUpsell
+            ? \App\Models\UpsellOrder::with('offer')->where('reservation_room_id', $stay->id)->orderByDesc('id')->get()
+            : collect();
         if ($upOffers->isNotEmpty()) {
             \App\Services\UpsellService::present($stay->reservation, 'desk', $upOffers->map(fn ($x) => $x['offer']->id));
         }
 
         return view('frontdesk.checkin', [
-            'upOffers' => $upOffers, 'upOrders' => \App\Models\UpsellOrder::with('offer')->where('reservation_room_id', $stay->id)->orderByDesc('id')->get(),
+            'upOffers' => $upOffers, 'upOrders' => $upOrders,
             'stay' => $stay, 'guest' => $stay->reservation->guest, 'fullGuest' => true,
             'rooms' => $free->sort(function ($a, $b) use ($stay) {
                 $aType = $a->room_type_id === $stay->room_type_id ? 0 : 1;
@@ -292,7 +507,7 @@ class FrontDeskController extends Controller
     {
         $data = $request->validate([
             'room_id' => 'required|integer|owned:rooms',
-            'guest.title' => 'nullable|string|max:10', 'guest.first_name' => 'required|string|max:80', 'guest.last_name' => 'nullable|string|max:80',
+            'guest.title' => 'nullable|string|max:30', 'guest.first_name' => 'required|string|max:80', 'guest.last_name' => 'nullable|string|max:80',
             'guest.phone' => 'required|string|max:30', 'guest.email' => 'nullable|email', 'guest.nationality' => 'nullable|string|max:60',
             'guest.city' => 'nullable|string|max:80', 'guest.id_type' => 'required|string|max:30', 'guest.id_number' => 'required|string|max:60',
             'guest.gender' => 'nullable|string|max:10', 'guest.dob' => 'nullable|date', 'guest.address' => 'nullable|string|max:255',
@@ -324,7 +539,7 @@ class FrontDeskController extends Controller
             }
         });
 
-        return redirect()->route('reservations.show', $stay->reservation_id)->with('success', 'Guest checked in successfully.');
+        return $this->checkInSuccessRedirect($stay->reservation_id, 'Guest checked in successfully.');
     }
 
     // ---------------- Check-out ----------------
@@ -334,13 +549,18 @@ class FrontDeskController extends Controller
         $stay->load('reservation.guest', 'reservation.company', 'room', 'roomType');
         $folio = FolioService::openForStay($stay);
         $stay->setRelation('folio', $folio);
+        $canViewFolio = can_do('folio.view');
         $checkoutFigures = StayService::quoteCheckoutFigures($stay);
+        $checkoutHolds = StayService::checkoutHolds($stay);
 
         return view('frontdesk.checkout', [
             'stay' => $stay, 'folio' => $folio, 'totals' => $folio->totals(),
-            'checkoutQuote' => StayService::quoteCheckout($stay),
+            'checkoutFigures' => $checkoutFigures,
+            'checkoutHolds' => $checkoutHolds,
+            'checkoutQuote' => StayService::quoteCheckout($stay, $checkoutFigures, $checkoutHolds),
             'checkoutDue' => $checkoutFigures['due'],
-            'transactions' => $folio->transactions()->with('paymentMode')->orderBy('id')->get(),
+            'canViewFolio' => $canViewFolio,
+            'transactions' => $canViewFolio ? $folio->transactions()->with('paymentMode')->orderBy('id')->get() : collect(),
             'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
             'companies' => Company::where('is_active', true)->pluck('name', 'id'),
             'openPos' => \App\Models\PosOrder::with('outlet')->where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->get(),
@@ -490,7 +710,23 @@ class FrontDeskController extends Controller
             StayService::checkOut($stay->fresh(), false);
         });
 
-        return redirect()->route('folios.invoice', $stay->fresh()->folio)->with('success', 'Checked out. Invoice generated.');
+        return $this->checkOutSuccessRedirect($stay->fresh(), 'Checked out successfully.');
+    }
+
+    /** Route successful check-outs to a screen the staff member is authorized to open. */
+    protected function checkOutSuccessRedirect(ReservationRoom $stay, string $message)
+    {
+        if (can_do('folio.view')) {
+            return redirect()->route('folios.invoice', $stay->folio)->with('success', 'Checked out. Invoice generated.');
+        }
+        if (can_do('reservations.view')) {
+            return redirect()->route('reservations.show', $stay->reservation_id)->with('success', $message);
+        }
+        if (can_do('frontdesk.view')) {
+            return redirect()->route('frontdesk.departures')->with('success', $message);
+        }
+
+        return redirect()->to(\App\Http\Controllers\Auth\LoginController::home(auth()->user()))->with('success', $message);
     }
 
     /** Post every outstanding outlet bill, laundry order and transport trip onto the folio. */
@@ -521,10 +757,18 @@ class FrontDeskController extends Controller
     {
         abort_unless($stay->status === 'checked_in', 404);
         $stay->load('room.roomType', 'reservation.guest', 'moves.fromRoom', 'moves.toRoom', 'moves.user');
+        $businessDate = bdate();
+        $moveUntil = $stay->departure_date->gt($businessDate) ? $stay->departure_date : $businessDate->copy()->addDay();
+        $rooms = AvailabilityService::freeRooms($businessDate, $moveUntil, null, $stay->id)
+            ->where('status', 'vacant')->values();
 
         return view('frontdesk.move', [
             'stay' => $stay,
-            'rooms' => AvailabilityService::freeRooms(bdate(), $stay->departure_date, null, $stay->id)->where('status', 'vacant'),
+            'rooms' => $rooms,
+            'businessDate' => $businessDate,
+            'moveUntil' => $moveUntil,
+            'stayNights' => max(1, (int) $stay->arrival_date->diffInDays($stay->departure_date)),
+            'canViewReservation' => can_do('reservations.view'),
         ]);
     }
 
@@ -532,38 +776,70 @@ class FrontDeskController extends Controller
     {
         $data = $request->validate(['to_room_id' => 'required|integer|owned:rooms', 'new_rate' => 'nullable|numeric|min:0', 'reason' => 'required|string|max:255']);
         abort_unless($stay->status === 'checked_in', 422);
-        StayService::moveRoom($stay, (int) $data['to_room_id'], isset($data['new_rate']) ? (float) $data['new_rate'] : null, $data['reason']);
+        try {
+            StayService::moveRoom($stay, (int) $data['to_room_id'], isset($data['new_rate']) ? (float) $data['new_rate'] : null, $data['reason']);
+        } catch (\RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
-        return redirect()->route('reservations.show', $stay->reservation_id)->with('success', 'Room moved successfully.');
+        return $this->roomMoveSuccessRedirect($stay->fresh(), 'Room moved successfully.');
+    }
+
+    /** Redirect room-move staff to a destination their role can open. */
+    protected function roomMoveSuccessRedirect(ReservationRoom $stay, string $message)
+    {
+        if (can_do('reservations.view')) {
+            return redirect()->route('reservations.show', $stay->reservation_id)->with('success', $message);
+        }
+        if (can_do('frontdesk.view')) {
+            return redirect()->route('frontdesk.inhouse')->with('success', $message);
+        }
+
+        return redirect()->to(\App\Http\Controllers\Auth\LoginController::home(auth()->user()))->with('success', $message);
     }
 
     public function amend(Request $request, ReservationRoom $stay)
     {
         $data = $request->validate(['departure_date' => 'required|date|after:'.bdate()->toDateString(), 'rate' => 'nullable|numeric|min:0']);
         abort_unless($stay->status === 'checked_in', 422);
-        $conflict = AvailabilityService::blockingStays($stay->departure_date->min(Carbon::parse($data['departure_date'])), Carbon::parse($data['departure_date']))
-            ->where('room_id', $stay->room_id)->where('id', '!=', $stay->id)->exists();
-        if ($conflict) {
-            return back()->with('error', 'Room is booked by another reservation in the extended period. Move the guest or the other booking first.');
+
+        $newDeparture = Carbon::parse($data['departure_date'])->toDateString();
+        $oldDeparture = $stay->departure_date->toDateString();
+        $oldRate = (float) $stay->rate;
+        $newRate = array_key_exists('rate', $data) && $data['rate'] !== null ? (float) $data['rate'] : $oldRate;
+        $dateChanged = $newDeparture !== $oldDeparture;
+        $rateChanged = abs($newRate - $oldRate) > 0.005;
+        $quote = null;
+
+        if ($dateChanged) {
+            try {
+                $quote = StayService::changeDates($stay, $stay->arrival_date, $newDeparture);
+            } catch (\RuntimeException $e) {
+                return back()->withInput()->with('error', $e->getMessage());
+            }
         }
-        $old = $stay->departure_date->format('d M');
-        $stay->update(['departure_date' => $data['departure_date'], 'rate' => $data['rate'] ?? $stay->rate]);
-        $res = $stay->reservation;
-        $res->update(['departure_date' => $res->rooms()->max('departure_date')]);
-        ActivityLogger::log('frontdesk', 'amend', "Amended stay {$res->reservation_no}: departure {$old} → ".Carbon::parse($data['departure_date'])->format('d M'), $stay);
-        try {
-            \App\Services\KeyCardService::onExtend($stay->fresh()); // v3.7: key cards re-validated to the new departure
-            \App\Services\RobitaService::onExtend($stay->fresh());  // v7.57: so is the door credential
-        } catch (\Throwable $e) {
-            report($e);
+        if ($rateChanged) {
+            $stay->fresh()->update(['rate' => $newRate]);
+            ActivityLogger::log('frontdesk', 'amend_rate', "Amended nightly rate for {$stay->reservation->reservation_no}: ".money($oldRate).' → '.money($newRate), $stay->fresh());
+        }
+        if (! $dateChanged && ! $rateChanged) {
+            return back()->with('warning', 'No stay changes were submitted.');
         }
 
-        return back()->with('success', 'Stay amended.');
+        $message = 'Stay amended.';
+        if ($quote && ! $rateChanged) {
+            $sign = $quote['delta_nights'] > 0 ? '+' : '';
+            $message .= ' Expected room-charge change: '.$sign.$quote['delta_nights'].' night(s), '.money($quote['delta_room']).' plus tax '.money($quote['delta_tax']).'. Night audit posts the room charges; no folio line was posted here.';
+        } elseif ($rateChanged) {
+            $message .= ' The nightly rate is now '.money($newRate).'; night audit applies room charges, and this action did not post a folio line.';
+        }
+
+        return back()->with('success', $message);
     }
 
     public function grc(ReservationRoom $stay)
     {
-        $stay->load('reservation.guest', 'reservation.company', 'reservation.source', 'room', 'roomType', 'ratePlan');
+        $stay->load('reservation.guest.documents', 'reservation.company', 'reservation.source', 'room', 'roomType', 'ratePlan');
 
         return view('frontdesk.grc', ['stay' => $stay, 'g' => $stay->reservation->guest]);
     }

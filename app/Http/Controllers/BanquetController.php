@@ -69,13 +69,30 @@ class BanquetController extends Controller
 
     public function diary(Request $request)
     {
-        $days = in_array((int) $request->input('days'), [7, 14, 31], true) ? (int) $request->input('days') : 14;
-        $from = Carbon::parse($request->input('start', bdate()->toDateString()))->startOfDay();
+        $requestedDays = $request->query('days');
+        $daysValue = is_scalar($requestedDays) ? filter_var($requestedDays, FILTER_VALIDATE_INT) : false;
+        $days = in_array($daysValue, [7, 14, 31], true) ? $daysValue : 14;
+        $requestedStart = $request->query('start');
+        $startValue = is_scalar($requestedStart) ? (string) $requestedStart : '';
+        $validStart = preg_match('/^\d{4}-\d{2}-\d{2}$/D', $startValue)
+            && checkdate((int) substr($startValue, 5, 2), (int) substr($startValue, 8, 2), (int) substr($startValue, 0, 4));
+        $from = $validStart ? Carbon::createFromFormat('!Y-m-d', $startValue) : bdate()->copy();
+        $from->startOfDay();
         $to = $from->copy()->addDays($days - 1);
-        $halls = BanquetHall::where('is_active', true)->orderBy('sort')->orderBy('name')->get();
+        $allHalls = BanquetHall::where('is_active', true)->orderBy('sort')->orderBy('name')->get();
+        $requestedHall = $request->query('hall');
+        $requestedHallId = is_scalar($requestedHall) ? filter_var($requestedHall, FILTER_VALIDATE_INT) : false;
+        $selectedHall = $requestedHallId !== false ? $allHalls->firstWhere('id', (int) $requestedHallId)?->id : null;
+        $halls = $selectedHall ? $allHalls->where('id', $selectedHall)->values() : $allHalls;
+        $withEnquiries = $request->input('enquiries', '1') === '1';
+        $cells = Sales::diary($from, $to, $withEnquiries);
+        if ($selectedHall) {
+            $prefix = $selectedHall.'|';
+            $cells = $cells->filter(fn ($items, $key) => str_starts_with((string) $key, $prefix));
+        }
 
-        return view('banquet.diary', ['from' => $from, 'to' => $to, 'days' => $days, 'halls' => $halls,
-            'cells' => Sales::diary($from, $to, $request->input('enquiries', '1') === '1'), 'withEnquiries' => $request->input('enquiries', '1') === '1']);
+        return view('banquet.diary', ['from' => $from, 'to' => $to, 'days' => $days, 'halls' => $halls, 'allHalls' => $allHalls,
+            'selectedHall' => $selectedHall, 'cells' => $cells, 'withEnquiries' => $withEnquiries]);
     }
 
     protected function formData(BanquetEvent $e, array $functions): array

@@ -3,80 +3,98 @@
 @section('crumbs') <a href="{{ route('contracts.index') }}">Rate Contracts</a> / {{ $c->code }} @endsection
 @php $st = $c->state(); @endphp
 @section('actions')
-<a class="btn" href="{{ route('contracts.letter', $c) }}" id="letterBtn"><x-icon name="print"/> Agreement letter</a>
-@if(can_do('contracts.manage') && $c->isEditable())<a class="btn" href="{{ route('contracts.edit', $c) }}" id="editContract"><x-icon name="edit"/> Edit</a>@endif
-@if(can_do('contracts.manage') && in_array($st, ['active', 'expired', 'upcoming']))<button class="btn" data-modal="renewModal" id="renewBtn"><x-icon name="refresh"/> Renew</button>@endif
-@if(can_do('contracts.approve') && $c->status === 'active')<button class="btn btn-danger" data-modal="suspendModal" id="suspendBtn"><x-icon name="x"/> Suspend</button>@endif
+<a class="btn btn-icon cshow-action" href="{{ route('contracts.letter', $c) }}" id="letterBtn" aria-label="View agreement letter for {{ $c->code }}" title="Agreement letter"><x-icon name="print"/></a>
+@if(can_do('contracts.manage') && $c->isEditable())<a class="btn btn-icon cshow-action" href="{{ route('contracts.edit', $c) }}" id="editContract" aria-label="Edit contract {{ $c->code }}" title="Edit contract"><x-icon name="edit"/></a>@endif
+@if(can_do('contracts.manage') && in_array($st, ['active', 'expired', 'upcoming']))<button type="button" class="btn btn-icon cshow-action" data-modal="renewModal" id="renewBtn" aria-label="Draft renewal for {{ $c->code }}" title="Renew contract"><x-icon name="refresh"/></button>@endif
+@if(can_do('contracts.approve') && $c->status === 'active')<button type="button" class="btn btn-danger btn-icon cshow-action" data-modal="suspendModal" id="suspendBtn" aria-label="Suspend contract {{ $c->code }}" title="Suspend contract"><x-icon name="x"/></button>@endif
 @if(can_do('contracts.approve') && in_array($c->status, ['draft', 'suspended']) && $st !== 'expired')
-  <form method="post" action="{{ route('contracts.activate', $c) }}" class="inline" data-confirm="Approve and activate {{ $c->code }}? Its rates and allotments take effect immediately.">@csrf<button class="btn btn-primary" id="activateBtn"><x-icon name="check"/> Approve &amp; activate</button></form>
+  <form method="post" action="{{ route('contracts.activate', $c) }}" class="inline" data-confirm="Approve and activate {{ $c->code }}? Its rates and allotments take effect immediately.">@csrf<button type="submit" class="btn btn-primary btn-icon cshow-action" id="activateBtn" aria-label="Approve and activate {{ $c->code }}" title="Approve and activate"><x-icon name="check"/></button></form>
 @endif
 @if(can_do('contracts.manage') && $c->status === 'draft' && $prod['bookings'] === 0)
-  <form method="post" action="{{ route('contracts.destroy', $c) }}" class="inline" data-confirm="Delete draft {{ $c->code }}?">@csrf @method('DELETE')<button class="btn btn-ghost btn-icon" title="Delete draft"><x-icon name="trash"/></button></form>
+  <form method="post" action="{{ route('contracts.destroy', $c) }}" class="inline" data-confirm="Delete draft {{ $c->code }}?">@csrf @method('DELETE')<button type="submit" class="btn btn-ghost btn-icon cshow-action" title="Delete draft" aria-label="Delete draft contract {{ $c->code }}"><x-icon name="trash"/></button></form>
 @endif
 @endsection
+@push('head')
+<style>
+.cshow-page{max-width:1450px;margin:0 auto;min-width:0}.cshow-action{width:37px;height:37px;justify-content:center}.cshow-hero{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 .9rem;padding:1rem 1.2rem;border-radius:16px;background:linear-gradient(118deg,#103a23,#176239 68%,#247849);color:#f5fff7;box-shadow:0 10px 26px rgba(16,58,35,.12)}.cshow-hero-copy{min-width:0}.cshow-kicker{display:flex;align-items:center;gap:.4rem;color:#c7efd0;font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.cshow-kicker svg{width:15px;height:15px}.cshow-hero h2{margin:.22rem 0 0;font-size:1.2rem;line-height:1.25}.cshow-hero p{margin:.25rem 0 0;color:#e0f2e5;font-size:.77rem}.cshow-state{flex:none;padding:.35rem .6rem;border:1px solid #ffffff35;border-radius:999px;background:#ffffff15;font-size:.68rem;font-weight:800;white-space:nowrap}.cshow-alert{display:flex;align-items:flex-start;gap:.55rem;margin:0 0 .8rem;padding:.72rem .85rem;border:1px solid;border-radius:10px;font-size:.76rem;line-height:1.45}.cshow-alert svg{width:17px;height:17px;flex:none;margin-top:.02rem}.cshow-alert p{margin:0}.cshow-alert.warn{border-color:#f0d38f;background:#fff8e8;color:#74490b}.cshow-alert.danger{border-color:#efc0bd;background:#fff1f0;color:#812d27}.cshow-alert a{font-weight:750;text-decoration:underline;text-underline-offset:2px}
+.cshow-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.65rem;margin-bottom:.85rem}.cshow-stats .stat{min-width:0;min-height:88px;border:1px solid var(--c-border);border-radius:12px;background:var(--c-surface);box-shadow:var(--shadow-sm)}.cshow-stats .stat .v{font-size:1.03rem;font-variant-numeric:tabular-nums}.cshow-stats .stat .l{font-size:.64rem;font-weight:750}.cshow-stats .stat .tiny{font-size:.62rem;line-height:1.35}.cshow-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.72fr);gap:.85rem;align-items:start}.cshow-main{display:grid;gap:.8rem;min-width:0}.cshow-side{position:sticky;top:1rem;min-width:0}.cshow-card{min-width:0;overflow:hidden}.cshow-card-head{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.cshow-card-head h3{margin:0}.cshow-card-head p{margin:.15rem 0 0;color:var(--c-text-2);font-size:.68rem}.cshow-basis{max-width:52%;padding:.3rem .48rem;border:1px solid var(--c-border);border-radius:8px;background:var(--c-bg);color:var(--c-text-2);font-size:.66rem;text-align:right}.cshow-table-scroll{max-width:100%;overflow:auto;overscroll-behavior-x:contain;scrollbar-gutter:stable}.cshow-table-scroll:focus-visible{outline:2px solid var(--c-primary);outline-offset:-2px}.cshow-rates{width:100%;min-width:740px;font-variant-numeric:tabular-nums}.cshow-rates th,.cshow-rates td{padding:.48rem .42rem;vertical-align:middle}.cshow-rates thead th{position:sticky;top:0;z-index:1;background:var(--c-bg);font-size:.64rem;white-space:nowrap}.cshow-room-name{font-weight:750}.cshow-season{min-width:165px;color:var(--c-text-2);font-size:.67rem}.cshow-rate{font-weight:800;white-space:nowrap}.cshow-comp{color:var(--c-text-2);white-space:nowrap}.cshow-diff{display:inline-flex;padding:.21rem .35rem;border-radius:6px;font-size:.62rem;font-weight:750;white-space:nowrap}.cshow-diff.below{background:#edf8ef;color:#176239}.cshow-diff.above{background:#fff5e6;color:#84500b}.cshow-diff.equal{background:var(--c-bg);color:var(--c-text-2)}.cshow-blackouts{display:grid;gap:.35rem;margin:.5rem 0 0;padding:0;list-style:none}.cshow-blackouts li{display:flex;justify-content:space-between;gap:.5rem;padding:.45rem .55rem;border:1px solid var(--c-border);border-radius:8px;background:var(--c-bg);font-size:.68rem}.cshow-blackouts li span:last-child{color:var(--c-text-2);text-align:right}.cshow-allotment-scroll{max-width:100%;overflow:auto;overscroll-behavior-x:contain;scrollbar-gutter:stable}.cshow-allotment{width:max-content;min-width:100%;font-size:.67rem}.cshow-allotment th,.cshow-allotment td{min-width:43px;padding:.28rem .3rem;text-align:center;white-space:nowrap}.cshow-allotment thead th{position:sticky;top:0;z-index:2;background:var(--c-bg)}.cshow-allotment th:first-child,.cshow-allotment td:first-child{position:sticky;left:0;z-index:1;min-width:150px;background:var(--c-surface);text-align:left}.cshow-allotment thead th:first-child{z-index:3}.cshow-allotment .cshow-allot-name{font-weight:750}.cshow-allotment .cshow-allot-meta{display:block;margin-top:.08rem;color:var(--c-text-2);font-size:.59rem}.cshow-usage{width:100%;min-width:640px;margin-top:.75rem;font-size:.7rem;font-variant-numeric:tabular-nums}.cshow-usage th,.cshow-usage td{padding:.4rem .35rem}.cshow-usage thead th{background:var(--c-bg);font-size:.63rem}.cshow-bookings{width:100%;min-width:760px;font-size:.7rem}.cshow-bookings th,.cshow-bookings td{padding:.45rem .4rem;vertical-align:middle}.cshow-bookings thead th{position:sticky;top:0;z-index:1;background:var(--c-bg);font-size:.63rem;white-space:nowrap}.cshow-kv{display:grid;grid-template-columns:minmax(100px,.75fr) minmax(0,1.25fr);gap:.45rem .65rem;margin:0}.cshow-kv dt{color:var(--c-text-2);font-size:.68rem}.cshow-kv dd{min-width:0;margin:0;font-size:.7rem;font-weight:650;overflow-wrap:anywhere}.cshow-notes{margin-top:.75rem;padding:.65rem .75rem;border:1px solid var(--c-border);border-radius:9px;background:var(--c-bg);font-size:.7rem;white-space:pre-line}.cshow-grid-legend{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;color:var(--c-text-2);font-size:.62rem}.cshow-grid-legend i{display:inline-block;flex:none;width:10px;height:10px;border:1px solid var(--c-border);border-radius:3px}.cshow-grid-legend .released{background:#e2e8f0}.cshow-grid-legend .full{background:#dcfce7}.cshow-grid-legend .picked{background:#dbeafe}.cshow-grid-legend .open{background:var(--c-surface)}.cshow-allotment td.released{background:#e2e8f0;color:#334155}.cshow-allotment td.full{background:#dcfce7;color:#176239}.cshow-allotment td.picked{background:#dbeafe;color:#1e40af}.cshow-allotment td.open{background:var(--c-surface);color:var(--c-text)}.cshow-nav{display:flex;gap:.35rem;flex-wrap:wrap;margin:0 0 .8rem}.cshow-nav a{display:inline-flex;align-items:center;gap:.28rem;padding:.32rem .5rem;border:1px solid var(--c-border);border-radius:999px;background:var(--c-surface);color:var(--c-text-2);font-size:.64rem;font-weight:700;text-decoration:none}.cshow-nav a:hover{border-color:#74ad82;color:#176239}.cshow-nav a:focus-visible{outline:2px solid var(--c-primary);outline-offset:2px}.cshow-nav svg{width:13px;height:13px}.cshow-discount{display:flex;align-items:center;gap:.7rem;padding:.75rem;border:1px solid #cfe3d3;border-radius:10px;background:#f3faf4}.cshow-discount>span{flex:none;color:#176239;font-size:1.35rem;font-weight:850}.cshow-discount p{margin:0;color:var(--c-text-2);font-size:.73rem}.cshow-blackout-block{margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--c-border)}.cshow-subhead{display:flex;align-items:center;justify-content:space-between;gap:.5rem}.cshow-subhead h4{margin:0;font-size:.82rem}.cshow-inline-note{color:var(--c-text-2);font-size:.63rem}.cshow-day{display:block;margin-top:.06rem;color:var(--c-text-2);font-size:.58rem}.cshow-term-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:9px;background:#eaf5ed;color:#176239}.cshow-term-icon svg{width:16px;height:16px}.cshow-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.cshow-modal .modal-box{max-height:90vh;overflow:auto}.cshow-modal .modal-head{position:sticky;top:0;z-index:2;background:var(--c-surface)}.cshow-modal .modal-foot{position:sticky;bottom:0;z-index:2;background:var(--c-surface)}.cshow-modal .modal-head button{width:34px;height:34px;justify-content:center}
+body.dark .cshow-discount{background:#173324;border-color:#315f3d}body.dark .cshow-discount>span{color:#a9e1b7}body.dark .cshow-term-icon{background:#183225;color:#a9e1b7}body.dark .cshow-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d5433);box-shadow:none}body.dark .cshow-alert.warn{background:#332914;border-color:#695321;color:#f2d895}body.dark .cshow-alert.danger{background:#3a2224;border-color:#714246;color:#ffc3c3}body.dark .cshow-diff.below{background:#183225;color:#a9e1b7}body.dark .cshow-diff.above{background:#332914;color:#f2d895}body.dark .cshow-allotment th:first-child,body.dark .cshow-allotment td:first-child{background:var(--c-surface)}body.dark .cshow-grid-legend .released,body.dark .cshow-allotment td.released{background:#334155;color:#e2e8f0}body.dark .cshow-grid-legend .full,body.dark .cshow-allotment td.full{background:#183225;color:#a9e1b7}body.dark .cshow-grid-legend .picked,body.dark .cshow-allotment td.picked{background:#1e3a5f;color:#bfdbfe}
+@media(max-width:1150px){.cshow-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.cshow-layout{grid-template-columns:minmax(0,1fr)}.cshow-side{position:static}}
+@media(max-width:650px){.cshow-hero{align-items:flex-start;flex-direction:column;padding:.9rem}.cshow-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.cshow-stats .stat{min-height:78px;padding:.6rem}.cshow-stats .stat .v{font-size:.93rem}.cshow-card-head{align-items:flex-start;flex-direction:column}.cshow-basis{max-width:100%;text-align:left}.cshow-kv{grid-template-columns:minmax(88px,.7fr) minmax(0,1.3fr)}.cshow-blackouts li{align-items:flex-start;flex-direction:column}.cshow-blackouts li span:last-child{text-align:left}}
+@media(max-width:390px){.cshow-stats{grid-template-columns:1fr}.cshow-stats .stat{min-height:72px}.cshow-action{width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){.cshow-page *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+@endpush
 @section('content')
-@if($c->status === 'draft')<div class="alert alert-warn" id="draftNote"><x-icon name="clock"/><div><b>Draft – awaiting approval.</b> Drafted by {{ $c->creator?->name ?? '—' }}. Bookings get public rates until an approver activates it.</div></div>
-@elseif($c->status === 'suspended')<div class="alert alert-error"><x-icon name="alert"/><div><b>Suspended.</b> New bookings get public rates; existing bookings keep their price.</div></div>
-@elseif($st === 'active' && $c->daysToExpiry() <= (int) setting('contract_expiry_alert_days', '60'))<div class="alert alert-warn" id="expiryNote"><x-icon name="clock"/><div>This contract ends in <b>{{ $c->daysToExpiry() }} day(s)</b> ({{ $c->valid_to->format('d M Y') }}).@if($renewals->isEmpty()) Draft the renewal now to avoid a gap.@else Renewal: @foreach($renewals as $r)<a href="{{ route('contracts.show', $r) }}">{{ $r->code }}</a> ({{ $r->status }}) @endforeach @endif</div></div>@endif
-<div class="stats req5">
-  <x-stat label="Bookings" :value="$prod['bookings']" icon="calendar" tone="blue" :sub="$prod['cancelled'].' cancelled'"/>
-  <x-stat label="Room nights" :value="number_format($prod['nights'])" icon="moon" tone="purple" :sub="number_format($prod['stayed']).' stayed so far'"/>
-  <x-stat label="Target" :value="$prod['target'] ? $prod['target_pct'].'%' : '—'" icon="trend" :tone="$prod['target'] && $prod['target_pct'] < $prod['pace_pct'] * .8 ? 'amber' : 'green'" :sub="$prod['target'] ? 'of '.number_format($prod['target']).' RN · '.$prod['pace_pct'].'% of period elapsed' : 'no target set'"/>
-  <x-stat label="Room revenue" :value="money($prod['revenue'])" icon="money" tone="green" sub="booked, before tax"/>
-  <x-stat label="ADR" :value="money($prod['adr'])" icon="chart" tone="slate" sub="average contract rate"/>
-</div>
-<div class="grid g-2-1">
-  <div>
-    <div class="card"><div class="card-head"><h3>Rates</h3><span class="small">{{ $c->basisLabel() }}</span></div><div class="card-body table-wrap">
-      @if($c->pricing === 'net' && $c->rates->isNotEmpty())
-      <table class="table" id="rateList"><thead><tr><th>Room type</th><th>Season</th><th class="num">Single</th><th class="num">Double</th><th class="num">Extra adult</th><th class="num">Public</th><th class="num">Saving</th></tr></thead><tbody>
-      @foreach($c->rates->sortBy(fn ($r) => [$r->roomType?->base_rate, $r->season_from?->toDateString() ?? '']) as $r) @php $pub = (float) ($publicRates[$r->room_type_id] ?? 0); @endphp
-        <tr><td>{{ $r->roomType?->name }}</td><td class="small">{{ $r->season_from ? ($r->season_name ?: 'Season').' · '.$r->season_from->format('d M').' – '.$r->season_to->format('d M Y') : 'All period' }}</td>
-          <td class="num bold">{{ money($r->rate) }}</td><td class="num">{{ $r->double_rate ? money($r->double_rate) : '—' }}</td><td class="num">{{ $r->extra_adult_rate !== null ? money($r->extra_adult_rate) : '—' }}</td>
-          <td class="num muted">{{ money($pub) }}</td><td class="num">{{ $pub > 0 ? round((1 - $r->rate / $pub) * 100).'%' : '—' }}</td></tr>
-      @endforeach
-      </tbody></table>
-      @if($c->discount_pct > 0)<p class="small muted mt-1">Room types without a net line: {{ rtrim(rtrim((string) $c->discount_pct, '0'), '.') }}% off the public rate.</p>@endif
-      @elseif($c->pricing === 'discount')<p><b>{{ rtrim(rtrim((string) $c->discount_pct, '0'), '.') }}% off</b> the public rate of the night (best available rate incl. seasons), all room types.</p>
-      @else<x-empty text="No rate lines yet." icon="money"/>@endif
-      @if($c->blackouts->isNotEmpty())<h4 class="mt-2">Blackout dates <span class="tiny muted">public rate applies</span></h4><ul class="list" id="blackList">@foreach($c->blackouts as $b)<li><span>{{ $b->date_from->format('d M Y') }} – {{ $b->date_to->format('d M Y') }}</span><span class="muted">{{ $b->reason }}</span></li>@endforeach</ul>@endif
-    </div></div>
+<div class="cshow-page">
+  <section class="cshow-hero" aria-label="Rate contract overview"><div class="cshow-hero-copy"><span class="cshow-kicker"><x-icon name="building"/> Corporate &amp; travel-agent rates · {{ $c->code }}</span><h2>{{ $c->name }}</h2><p>{{ $c->basisLabel() }} · Valid {{ $c->valid_from->format('d M Y') }} to {{ $c->valid_to->format('d M Y') }} · {{ $c->company->name }}</p></div><span class="cshow-state">{{ ucwords(str_replace('_', ' ', $st)) }}</span></section>
 
-    <div class="card"><div class="card-head"><h3>Allotment – next 30 days</h3><span class="tiny muted">left / allotted per night · <span style="background:#e2e8f0;padding:0 .3rem;border-radius:3px">grey</span> = released to general sale</span></div><div class="card-body table-wrap">
-      @if($c->allotments->isEmpty())<x-empty text="No allotment – bookings take rooms from general availability." icon="bed"/>
-      @else
-      <table class="table" id="allotGrid" style="font-size:.72rem"><thead><tr><th>Room type</th>@for($i = 0; $i < 30; $i++) @php $d = $gridFrom->copy()->addDays($i); @endphp<th class="center" style="padding:.2rem;{{ $d->isWeekend() ? 'background:#f8fafc' : '' }}">{{ $d->format('d') }}<div class="muted">{{ $d->format('D')[0] }}</div></th>@endfor</tr></thead><tbody>
-      @foreach($c->allotments as $a)
-        <tr><td class="nowrap">{{ $a->roomType?->name }}<div class="tiny muted">{{ $a->rooms }}/night · release {{ $a->release_days }}d</div></td>
-        @foreach($grid[$a->id] ?? [] as $date => $cell)
-          @if(! $cell)<td></td>
-          @else @php $bg = $cell['released'] ? '#e2e8f0' : ($cell['left'] === 0 ? '#dcfce7' : ($cell['picked'] ? '#dbeafe' : '#fff')); @endphp
-            <td class="center" style="padding:.2rem;background:{{ $bg }}" title="{{ $date }}: {{ $cell['picked'] }} picked up of {{ $cell['allotted'] }}{{ $cell['released'] ? ' (released)' : '' }}">{{ $cell['left'] }}<span class="muted">/{{ $cell['allotted'] }}</span></td>
-          @endif
-        @endforeach</tr>
-      @endforeach
-      </tbody></table>
-      <table class="table mt-1" id="allotUsage"><thead><tr><th>Allotment</th><th>Period</th><th class="num">Allotted RN</th><th class="num">Picked up</th><th class="num">Released unsold</th><th class="num">Utilisation</th></tr></thead><tbody>
-      @foreach($c->allotments as $a) @php $u = $usage[$a->id]; @endphp
-        <tr><td>{{ $a->roomType?->name }} × {{ $a->rooms }}</td><td class="small">{{ $a->date_from->format('d M Y') }} – {{ $a->date_to->format('d M Y') }}</td><td class="num">{{ number_format($u['allotted']) }}</td><td class="num">{{ number_format($u['picked']) }}</td><td class="num">{{ number_format($u['released']) }}</td><td class="num bold">{{ $u['pct'] }}%</td></tr>
-      @endforeach
-      </tbody></table>
-      @endif
-    </div></div>
+  @if($c->status === 'draft')<div class="cshow-alert warn" id="draftNote" role="status"><x-icon name="clock"/><p><b>Draft · awaiting approval.</b> Drafted by {{ $c->creator?->name ?? '—' }}. New bookings continue to receive public rates until an approver activates this contract.</p></div>
+  @elseif($c->status === 'suspended')<div class="cshow-alert danger" role="status"><x-icon name="alert"/><p><b>Suspended.</b> New bookings receive public rates; existing bookings retain their contracted price.</p></div>
+  @elseif($st === 'active' && $c->daysToExpiry() <= (int) setting('contract_expiry_alert_days', '60'))<div class="cshow-alert warn" id="expiryNote" role="status"><x-icon name="clock"/><p>This contract ends in <b>{{ $c->daysToExpiry() }} day(s)</b> ({{ $c->valid_to->format('d M Y') }}). @if($renewals->isEmpty())Draft a renewal now to avoid a gap.@else Renewal: @foreach($renewals as $r)<a href="{{ route('contracts.show', $r) }}">{{ $r->code }}</a> ({{ $r->status }}) @endforeach @endif</p></div>@endif
 
-    <div class="card flush"><div class="card-head"><h3>Bookings on this contract</h3><span class="tiny muted">latest 25</span></div><div class="card-body table-wrap"><table class="table" id="contractBookings">
-      <thead><tr><th>Reservation</th><th>Guest</th><th>Stay</th><th>Rooms</th><th class="num">Rate</th><th>Status</th></tr></thead><tbody>
-      @forelse($bookings as $b)
-        <tr><td>@if(can_do('reservations.view'))<a href="{{ route('reservations.show', $b) }}">{{ $b->reservation_no }}</a>@else{{ $b->reservation_no }}@endif</td><td>{{ $b->guest?->full_name }}</td>
-          <td class="small nowrap">{{ $b->arrival_date->format('d M') }} – {{ $b->departure_date->format('d M Y') }}</td>
-          <td class="small">{{ $b->rooms->where('status', '!=', 'cancelled')->groupBy(fn ($s) => $s->roomType?->name)->map->count()->map(fn ($n, $t) => "$n × $t")->implode(', ') }}</td>
-          <td class="num">{{ money($b->rooms->where('status', '!=', 'cancelled')->avg('rate') ?? 0) }}</td><td>{!! status_badge($b->status) !!}</td></tr>
-      @empty<tr><td colspan="6"><x-empty text="No bookings yet." icon="calendar"/></td></tr>@endforelse
-      </tbody></table></div></div>
+  <div class="cshow-stats" role="group" aria-label="Contract production summary">
+    <x-stat label="Bookings" :value="$prod['bookings']" icon="calendar" tone="blue" :sub="$prod['cancelled'].' cancelled'"/>
+    <x-stat label="Room nights" :value="number_format($prod['nights'])" icon="moon" tone="purple" :sub="number_format($prod['stayed']).' stayed so far'"/>
+    <x-stat label="Target" :value="$prod['target'] ? $prod['target_pct'].'%' : '—'" icon="trend" :tone="$prod['target'] && $prod['target_pct'] < $prod['pace_pct'] * .8 ? 'amber' : 'green'" :sub="$prod['target'] ? 'of '.number_format($prod['target']).' RN · '.$prod['pace_pct'].'% of period elapsed' : 'no target set'"/>
+    <x-stat label="Room revenue" :value="money($prod['revenue'])" icon="money" tone="green" sub="booked, before tax"/>
+    <x-stat label="ADR" :value="money($prod['adr'])" icon="chart" tone="slate" sub="average contract rate"/>
   </div>
 
-  <div>
-    <div class="card"><div class="card-head"><h3>{{ $c->name }}</h3>{!! status_badge($st) !!}</div><div class="card-body"><dl class="kv">
+  <nav class="cshow-nav" aria-label="Contract detail sections"><a href="#cshowRates"><x-icon name="money"/> Rates</a><a href="#cshowAllotments"><x-icon name="bed"/> Allotments</a><a href="#cshowBookings"><x-icon name="calendar"/> Bookings</a><a href="#cshowTerms"><x-icon name="tool"/> Terms</a></nav>
+
+  <div class="cshow-layout">
+    <div class="cshow-main">
+      <section class="card cshow-card" id="cshowRates" aria-labelledby="cshowRatesTitle"><div class="card-head cshow-card-head"><div><h3 id="cshowRatesTitle">Negotiated rates</h3><p>Per-room rate lines and season overrides for this contract.</p></div><span class="cshow-basis">{{ $c->basisLabel() }}</span></div><div class="card-body">
+        @if($c->pricing === 'net' && $c->rates->isNotEmpty())
+          <div class="cshow-table-scroll" role="region" aria-label="Scrollable negotiated rate lines" tabindex="0"><table class="table cshow-rates" id="rateList"><caption class="cshow-sr-only">Negotiated contract prices compared to each room type’s base public rate.</caption><thead><tr><th scope="col">Room type</th><th scope="col">Rate period</th><th scope="col" class="num">Single</th><th scope="col" class="num">Double</th><th scope="col" class="num">Extra adult</th><th scope="col" class="num">Base BAR</th><th scope="col">Vs base BAR</th></tr></thead><tbody>
+            @foreach($c->rates->sortBy(fn ($r) => [$r->roomType?->base_rate, $r->season_from?->toDateString() ?? '']) as $r)
+              @php $pub = (float) ($publicRates[$r->room_type_id] ?? 0); $diffPct = $pub > 0 ? (int) round(($r->rate / $pub - 1) * 100) : null; @endphp
+              <tr><td class="cshow-room-name">{{ $r->roomType?->name ?? 'Unknown room type' }}</td><td class="cshow-season">{{ $r->season_from ? ($r->season_name ?: 'Season').' · '.$r->season_from->format('d M').' – '.$r->season_to->format('d M Y') : 'All period' }}</td>
+                <td class="num cshow-rate">{{ money($r->rate) }}</td><td class="num">{{ $r->double_rate ? money($r->double_rate) : '—' }}</td><td class="num">{{ $r->extra_adult_rate !== null ? money($r->extra_adult_rate) : '—' }}</td>
+                <td class="num cshow-comp">{{ money($pub) }}</td><td>@if($diffPct === null)<span class="muted">—</span>@elseif($diffPct < 0)<span class="cshow-diff below">{{ abs($diffPct) }}% below base</span>@elseif($diffPct > 0)<span class="cshow-diff above">{{ $diffPct }}% above base</span>@else<span class="cshow-diff equal">At base</span>@endif</td></tr>
+            @endforeach
+          </tbody></table></div>
+          @if($c->discount_pct > 0)<p class="small muted mt-1">Room types without a net rate line receive {{ rtrim(rtrim((string) $c->discount_pct, '0'), '.') }}% off the public rate.</p>@endif
+        @elseif($c->pricing === 'discount')<div class="cshow-discount"><span>{{ rtrim(rtrim((string) $c->discount_pct, '0'), '.') }}%</span><p>off the public rate for all room types. The public rate follows the best available daily rate, including seasonal pricing.</p></div>
+        @else<x-empty text="No rate lines yet." icon="money"/>@endif
+        @if($c->blackouts->isNotEmpty())<div class="cshow-blackout-block"><div class="cshow-subhead"><h4>Blackout dates</h4><span class="cshow-inline-note">Public rate applies</span></div><ul class="cshow-blackouts" id="blackList">@foreach($c->blackouts as $b)<li><span><time datetime="{{ $b->date_from->toDateString() }}">{{ $b->date_from->format('d M Y') }}</time> – <time datetime="{{ $b->date_to->toDateString() }}">{{ $b->date_to->format('d M Y') }}</time></span><span>{{ $b->reason ?: 'No reason specified' }}</span></li>@endforeach</ul></div>@endif
+      </div></section>
+
+      <section class="card cshow-card" id="cshowAllotments" aria-labelledby="cshowAllotmentsTitle"><div class="card-head cshow-card-head"><div><h3 id="cshowAllotmentsTitle">Room allotments</h3><p>Remaining / held rooms over the next 30 nights.</p></div><div class="cshow-grid-legend" role="group" aria-label="Allotment grid legend"><span><i class="open" aria-hidden="true"></i>Remaining</span><span><i class="picked" aria-hidden="true"></i>Partly picked up</span><span><i class="full" aria-hidden="true"></i>Fully picked up</span><span><i class="released" aria-hidden="true"></i>Released</span></div></div><div class="card-body">
+        @if($c->allotments->isEmpty())<x-empty text="No allotment. Contract bookings use general room availability." icon="bed"/>
+        @else
+          <div class="cshow-allotment-scroll" role="region" aria-label="Scrollable 30-night room allotment grid" tabindex="0"><table class="table cshow-allotment" id="allotGrid"><caption class="cshow-sr-only">Allotment availability by room type and night; hover a cell for picked-up and released details.</caption><thead><tr><th scope="col">Room type / allotment</th>@for($i = 0; $i < 30; $i++) @php $d = $gridFrom->copy()->addDays($i); @endphp<th scope="col" aria-label="{{ $d->format('l, d F Y') }}">{{ $d->format('d') }}<span class="cshow-day">{{ $d->format('D')[0] }}</span></th>@endfor</tr></thead><tbody>
+            @foreach($c->allotments as $a)
+              <tr><th scope="row"><span class="cshow-allot-name">{{ $a->roomType?->name ?? 'Unknown room type' }}</span><span class="cshow-allot-meta">{{ $a->rooms }} / night · release {{ $a->release_days }}d</span></th>
+                @foreach($grid[$a->id] ?? [] as $date => $cell)
+                  @if(! $cell)<td aria-label="No allotment on {{ $date }}"></td>
+                  @else @php $cellClass = $cell['released'] ? 'released' : ($cell['left'] === 0 ? 'full' : ($cell['picked'] ? 'picked' : 'open')); $cellName = $cell['left'].' rooms left of '.$cell['allotted'].' allotted; '.$cell['picked'].' picked up'.($cell['released'] ? '; unsold rooms released' : ''); @endphp
+                    <td class="center {{ $cellClass }}" title="{{ $date }}: {{ $cellName }}" aria-label="{{ $date }}: {{ $cellName }}">{{ $cell['left'] }}<span class="muted">/{{ $cell['allotted'] }}</span></td>
+                  @endif
+                @endforeach</tr>
+            @endforeach
+          </tbody></table></div>
+          <div class="cshow-table-scroll"><table class="table cshow-usage" id="allotUsage"><caption class="cshow-sr-only">Room-night usage across each allotment period.</caption><thead><tr><th scope="col">Allotment</th><th scope="col">Period</th><th scope="col" class="num">Allotted RN</th><th scope="col" class="num">Picked up</th><th scope="col" class="num">Released unsold</th><th scope="col" class="num">Utilisation</th></tr></thead><tbody>
+            @foreach($c->allotments as $a) @php $u = $usage[$a->id]; @endphp
+              <tr><td>{{ $a->roomType?->name ?? 'Unknown room type' }} × {{ $a->rooms }}</td><td class="small">{{ $a->date_from->format('d M Y') }} – {{ $a->date_to->format('d M Y') }}</td><td class="num">{{ number_format($u['allotted']) }}</td><td class="num">{{ number_format($u['picked']) }}</td><td class="num">{{ number_format($u['released']) }}</td><td class="num bold">{{ $u['pct'] }}%</td></tr>
+            @endforeach
+          </tbody></table></div>
+        @endif
+      </div></section>
+
+      <section class="card cshow-card flush" id="cshowBookings" aria-labelledby="cshowBookingsTitle"><div class="card-head cshow-card-head"><div><h3 id="cshowBookingsTitle">Bookings on this contract</h3><p>Latest 25 reservations linked to this agreement.</p></div></div><div class="cshow-table-scroll" role="region" aria-label="Scrollable contract bookings" tabindex="0"><table class="table cshow-bookings" id="contractBookings"><caption class="cshow-sr-only">The latest 25 reservations linked to this contract.</caption>
+        <thead><tr><th scope="col">Reservation</th><th scope="col">Guest</th><th scope="col">Stay</th><th scope="col">Rooms</th><th scope="col" class="num">Rate</th><th scope="col">Status</th></tr></thead><tbody>
+        @forelse($bookings as $b)
+          <tr><td>@if(can_do('reservations.view'))<a href="{{ route('reservations.show', $b) }}">{{ $b->reservation_no }}</a>@else{{ $b->reservation_no }}@endif</td><td>{{ $b->guest?->full_name ?? '—' }}</td>
+            <td class="small nowrap"><time datetime="{{ $b->arrival_date->toDateString() }}">{{ $b->arrival_date->format('d M') }}</time> – <time datetime="{{ $b->departure_date->toDateString() }}">{{ $b->departure_date->format('d M Y') }}</time></td>
+            <td class="small">{{ $b->rooms->where('status', '!=', 'cancelled')->groupBy(fn ($s) => $s->roomType?->name)->map->count()->map(fn ($n, $t) => "$n × $t")->implode(', ') }}</td>
+            <td class="num">{{ money($b->rooms->where('status', '!=', 'cancelled')->avg('rate') ?? 0) }}</td><td>{!! status_badge($b->status) !!}</td></tr>
+        @empty<tr><td colspan="6"><x-empty text="No bookings yet." icon="calendar"/></td></tr>@endforelse
+        </tbody></table></div></section>
+    </div>
+
+    <aside class="cshow-side" id="cshowTerms"><section class="card cshow-card" aria-labelledby="cshowTermsTitle"><div class="card-head cshow-card-head"><div><h3 id="cshowTermsTitle">Contract terms</h3><p>Operational and commercial details.</p></div><span class="cshow-term-icon" aria-hidden="true"><x-icon name="tool"/></span></div><div class="card-body"><dl class="cshow-kv">
       <dt>Company</dt><dd>@if(can_do('credit.view'))<a href="{{ route('credit.show', $c->company) }}">{{ $c->company->name }}</a>@else{{ $c->company->name }}@endif</dd>
       <dt>Validity</dt><dd>{{ $c->valid_from->format('d M Y') }} – {{ $c->valid_to->format('d M Y') }}</dd>
       <dt>Meal plan</dt><dd>{{ \App\Models\RateContract::MEAL_PLANS[$c->meal_plan] ?? $c->meal_plan }}</dd>
@@ -88,25 +106,23 @@
       <dt>Drafted by</dt><dd>{{ $c->creator?->name ?? '—' }}</dd>
       <dt>Approved</dt><dd>{{ $c->approver ? $c->approver->name.' · '.$c->approved_at?->format('d M Y') : '—' }}</dd>
       @if($c->renewedFrom)<dt>Renewal of</dt><dd><a href="{{ route('contracts.show', $c->renewedFrom) }}">{{ $c->renewedFrom->code }}</a></dd>@endif
-    </dl>
-    @if($c->notes)<div class="small mt-1" style="white-space:pre-line;background:#f8fafc;border-radius:8px;padding:.5rem .7rem">{{ $c->notes }}</div>@endif
-    </div></div>
+    </dl>@if($c->notes)<div class="cshow-notes"><b>Internal notes</b><br>{{ $c->notes }}</div>@endif</div></section></aside>
   </div>
 </div>
 
-<div class="modal" id="suspendModal"><div class="modal-box"><form method="post" action="{{ route('contracts.suspend', $c) }}">@csrf
-  <div class="modal-head"><h3>Suspend {{ $c->code }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal cshow-modal" id="suspendModal"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="suspendTitle" tabindex="-1"><form method="post" action="{{ route('contracts.suspend', $c) }}">@csrf
+  <div class="modal-head"><h3 id="suspendTitle">Suspend {{ $c->code }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close suspend dialog" title="Close"><x-icon name="x"/></button></div>
   <div class="modal-body"><p class="small">New bookings will get public rates and the allotment is freed. Existing bookings keep their price.</p><x-field name="reason" label="Reason" required placeholder="e.g. Rates under renegotiation"/></div>
-  <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Suspend</button></div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Keep active</button><button type="submit" class="btn btn-danger">Suspend contract</button></div>
 </form></div></div>
-<div class="modal" id="renewModal"><div class="modal-box"><form method="post" action="{{ route('contracts.renew', $c) }}">@csrf
-  <div class="modal-head"><h3>Renew {{ $c->code }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal cshow-modal" id="renewModal"><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="renewTitle" tabindex="-1"><form method="post" action="{{ route('contracts.renew', $c) }}">@csrf
+  <div class="modal-head"><h3 id="renewTitle">Draft renewal · {{ $c->code }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close renewal dialog" title="Close"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <p class="small span-all">Creates a <b>draft</b> for the following period (from {{ $c->valid_to->copy()->addDay()->format('d M Y') }}) with the same terms, seasons, blackouts and allotments shifted forward, and net rates raised by the uplift.</p>
     @php $nextCode = preg_match('/\d{2,4}(?!.*\d)/', $c->code) ? preg_replace_callback('/(\d{2,4})(?!.*\d)/', fn ($m) => str_pad((string) ((int) $m[1] + 1), strlen($m[1]), '0', STR_PAD_LEFT), $c->code) : $c->code.'-R'; @endphp
     <x-field name="code" label="New contract code" :value="$nextCode" required/>
     <x-field name="uplift" label="Rate uplift %" type="number" step="0.5" min="-50" max="100" value="5" required/>
   </div>
-  <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Draft renewal</button></div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Cancel renewal</button><button type="submit" class="btn btn-primary">Create draft renewal</button></div>
 </form></div></div>
 @endsection

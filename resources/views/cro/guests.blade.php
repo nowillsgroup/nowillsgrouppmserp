@@ -2,12 +2,13 @@
 @section('title', 'Guest Lookup')
 @section('crumbs') Central Reservations / Guest Lookup @endsection
 @section('content')
+@include('cro._nav')
 <div class="card" id="lookupCard"><div class="card-body">
-  <form method="get" class="flex gap-1 wrap" style="align-items:center" id="lookupForm"><input name="q" value="{{ $term }}" placeholder="Name, phone, e-mail or reservation no." style="min-width:22rem" autofocus aria-label="Search"><button class="btn btn-primary"><x-icon name="search"/> Look up</button>
+  <form method="get" class="flex gap-1 wrap" style="align-items:center" id="lookupForm"><input name="q" value="{{ $term }}" placeholder="Name, phone, e-mail or reservation no." style="min-width:min(22rem,100%)" autofocus aria-label="Search"><button class="btn btn-primary"><x-icon name="search"/> Look up</button>
     <span class="tiny muted">Searching {{ $hotels->count() > 1 ? 'all '.$hotels->count().' hotels of the group: '.$hotels->pluck('name')->implode(', ') : $hotels->first()?->name }}. Erased (privacy) profiles are never shown.</span></form>
 </div></div>
 @if(mb_strlen($term) >= 3)
-<div class="card flush"><div class="card-body table-wrap"><table class="table table-compact" id="lookupTable"><thead><tr><th>Guest</th><th>Hotel</th><th>Contact</th><th class="num">Stays</th><th class="num">Nights</th><th class="num">Revenue</th><th>Last stay</th><th>Upcoming</th><th></th></tr></thead><tbody>
+<div class="card flush"><div class="card-body table-wrap"><table class="table table-compact" id="lookupTable"><caption class="sr-only">Guest profiles matching the lookup, with stays, revenue and upcoming reservations.</caption><thead><tr><th scope="col">Guest</th><th scope="col">Hotel</th><th scope="col">Contact</th><th scope="col" class="num">Stays</th><th scope="col" class="num">Nights</th><th scope="col" class="num">Revenue</th><th scope="col">Last stay</th><th scope="col">Upcoming</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead><tbody>
   @forelse($rows as $x)@php $g = $x['guest']; @endphp<tr data-guest="{{ $g->id }}" data-hotel="{{ $x['hotel']->code }}">
     <td><b>{{ $g->full_name }}</b>@if($g->is_vip) <span class="badge badge-purple">VIP</span>@endif @if($g->is_blacklisted)<span class="badge badge-red">Blacklisted</span>@endif<div class="tiny muted">{{ $g->nationality }}{{ $g->preferences ? ' · '.\Illuminate\Support\Str::limit($g->preferences, 60) : '' }}</div></td>
     <td class="small">{{ $x['hotel']->name }}</td>

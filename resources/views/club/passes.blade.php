@@ -39,8 +39,8 @@
     <div data-settle="pay" class="span-2">
       <div id="clubDayPassSingleTender" class="form-grid">
         <div class="field"><label for="dp_mode">Mode</label><select name="payment_mode_id" id="dp_mode" required>@foreach($modes as $pm)<option value="{{ $pm->id }}">{{ $pm->name }}</option>@endforeach</select></div>
-        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
-        <div class="field span-2"><label for="dp_ref">Reference</label><input name="reference" id="dp_ref" maxlength="80"></div>
+        <x-payment-momo-fields mode-name="payment_mode_id"/>
+        <div class="field span-2"><label for="dp_ref">Reference / transaction ID</label><input name="reference" id="dp_ref" maxlength="80"></div>
       </div>
       <x-payment-split-tender widget-id="clubDayPassSplitTender" single-id="clubDayPassSingleTender" :modes="$splitModes" label="payment" :show-cheque="false"/>
     </div>

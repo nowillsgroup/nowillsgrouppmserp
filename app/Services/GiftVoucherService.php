@@ -20,14 +20,14 @@ use RuntimeException;
 /**
  * v3.8 gift vouchers & stored-value cards (a closed-system prepaid instrument – spendable only at this hotel).
  *
- *  sale / reload      Dr cash · card · UPI (payment mode)   Cr 2120 Gift vouchers outstanding
+ *  sale / reload      Dr cash · card · mobile money (payment mode) Cr 2120 Gift vouchers outstanding
  *  promotional issue  Dr 6150 Promotional vouchers          Cr 2120
  *  redemption         paid with the "Gift Voucher" payment mode on a folio or POS bill → Dr 2120 Cr guest ledger / sales
  *  expiry (breakage)  Dr 2120   Cr 4087 Voucher breakage income (promotional vouchers: Cr 6150 – the cost never arose)
  *  cancel & refund    Dr 2120   Cr the refund payment mode (promotional: Cr 6150)
  *
- * VAT: a voucher is a prepaid instrument, not a supply – no tax on the sale or on breakage;
- * tax is charged on the room / food bill that the voucher pays for.
+ * Tax: these entries book sales to the voucher liability and apply the tax configured on the folio / POS bill at redemption.
+ * Voucher tax treatment can depend on local law and voucher terms; confirm the hotel's treatment with Finance before live use.
  */
 class GiftVoucherService
 {
@@ -214,7 +214,7 @@ class GiftVoucherService
             'guest_id' => ! empty($d['guest_id']) ? (int) $d['guest_id'] : null];
     }
 
-    /** sell a voucher for money (cash / card / UPI / bank) */
+    /** sell a voucher for money (cash / card / mobile money / bank transfer) */
     public static function sell(array $d): GiftVoucher
     {
         self::assertEnabled();
@@ -222,7 +222,7 @@ class GiftVoucherService
         $amount = self::amountFor($type, $d['amount'] ?? 0);
         $mode = PaymentMode::find((int) ($d['payment_mode_id'] ?? 0));
         if (! $mode || in_array($mode->type, ['gift_voucher', 'city_ledger', 'forex'], true)) {
-            throw new RuntimeException('Choose how the voucher was paid for (cash, card, UPI or bank).');
+            throw new RuntimeException('Choose how the voucher was paid for (cash, card, mobile money or bank transfer).');
         }
         $contact = self::contact($d);
         if (! $contact['purchaser_name']) {
@@ -258,7 +258,7 @@ class GiftVoucherService
         $amount = self::amountFor($type, $d['amount'] ?? 0);
         $campaign = mb_substr(trim((string) ($d['campaign'] ?? '')), 0, 60);
         if (mb_strlen($campaign) < 3) {
-            throw new RuntimeException('Name the campaign or reason (e.g. “Diwali 2026”, “Service recovery – room 204”).');
+            throw new RuntimeException('Name the campaign or reason (e.g. “Year-end 2026”, “Service recovery – room 204”).');
         }
         $recipients = array_values(array_filter($recipients, fn ($r) => trim((string) ($r[0] ?? '')) !== '' || trim((string) ($r[1] ?? '')) !== ''));
         foreach ($recipients as $i => $r) {
@@ -322,7 +322,14 @@ class GiftVoucherService
         ShiftService::assertOpen();
 
         return DB::transaction(function () use ($v, $amount, $mode, $ref) {
-            $v = GiftVoucher::lockForUpdate()->findOrFail($v->id);
+            $v = GiftVoucher::with('type')->lockForUpdate()->findOrFail($v->id);
+            if (! in_array($v->status, ['active', 'redeemed'], true) || $v->isExpired()) {
+                throw new RuntimeException("{$v->code} is {$v->statusLabel()}".($v->isExpired() ? ' / expired' : '').' – it cannot be reloaded.');
+            }
+            $max = $v->type->max_value > 0 ? min($v->type->max_value, self::cfg()['max']) : self::cfg()['max'];
+            if ($v->balance + $amount > $max + 0.004) {
+                throw new RuntimeException('A card can hold at most '.money($max).' – the balance is '.money($v->balance).'.');
+            }
             $newExpiry = bdate()->copy()->addMonthsNoOverflow($v->type->validity_months ?: self::cfg()['validity']);
             $v->update(['balance' => round($v->balance + $amount, 2), 'status' => 'active', 'expires_on' => $newExpiry->max($v->expires_on)->toDateString(), 'reminded_at' => null]);
             $t = self::txn($v, 'reload', $amount, ['payment_mode_id' => $mode->id, 'reference' => $ref ? mb_substr($ref, 0, 80) : null]);

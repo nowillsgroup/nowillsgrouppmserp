@@ -7,6 +7,8 @@
 @endsection
 @section('content')
 @php $c = $counts; @endphp
+@include('desk._workspace-nav')
+@if(request()->integer('session'))<div class="alert alert-info"><x-icon name="book"/><div>Showing entries linked to shift session <b>#{{ request()->integer('session') }}</b>. <a href="{{ route('desk.logbook', ['tab' => $tab]) }}">Clear session filter</a></div></div>@endif
 @if($c['log_urgent'] || $c['log_follow_ups'])
 <div class="alert alert-warn" id="logAlerts"><x-icon name="alert"/><div class="flex" style="gap:.9rem;flex-wrap:wrap">
   @if($c['log_urgent'])<a href="{{ route('desk.logbook', ['tab' => 'open']) }}" class="text-red"><b>{{ $c['log_urgent'] }}</b> urgent item(s) still open</a>@endif
@@ -21,14 +23,15 @@
   <x-stat label="Wake-ups next 12 h" :value="$c['wakeups_next12']" icon="bell" tone="blue" :sub="$c['messages'].' messages · '.$c['parcels'].' parcels waiting'"/>
 </div>
 
-<div class="card flush">
+<div class="card flush" id="deskLogbook">
   <div class="card-head"><div class="tabs" style="margin:0;border:0">
-    @foreach(\App\Http\Controllers\FrontDeskOpsController::LOG_TABS as $k => $l)<a href="{{ route('desk.logbook', array_filter(['tab' => $k, 'department' => request('department'), 'category' => request('category'), 'q' => request('q')])) }}" class="{{ $tab === $k ? 'active' : '' }}" data-tab="{{ $k }}">{{ $l }}@if($k === 'unread' && $c['log_unread']) <span class="badge badge-amber">{{ $c['log_unread'] }}</span>@elseif($k === 'open' && $c['log_open']) <span class="badge badge-{{ $c['log_urgent'] ? 'red' : 'blue' }}">{{ $c['log_open'] }}</span>@endif</a>@endforeach
+    @foreach(\App\Http\Controllers\FrontDeskOpsController::LOG_TABS as $k => $l)<a href="{{ route('desk.logbook', array_filter(['tab' => $k, 'session' => request('session'), 'department' => request('department'), 'category' => request('category'), 'q' => request('q')])) }}" class="{{ $tab === $k ? 'active' : '' }}" data-tab="{{ $k }}">{{ $l }}@if($k === 'unread' && $c['log_unread']) <span class="badge badge-amber">{{ $c['log_unread'] }}</span>@elseif($k === 'open' && $c['log_open']) <span class="badge badge-{{ $c['log_urgent'] ? 'red' : 'blue' }}">{{ $c['log_open'] }}</span>@endif</a>@endforeach
   </div>
   @if($entries->count())<form method="post" action="{{ route('desk.logbook.ack') }}" id="ackForm">@csrf @foreach($entries as $e)@unless($e->readBy(auth()->id()))<input type="hidden" name="ids[]" value="{{ $e->id }}">@endunless @endforeach<button class="btn btn-sm" id="ackBtn"><x-icon name="check"/> Mark these as read</button></form>@endif
   </div>
   <form method="get" class="filters" style="display:flex;gap:.5rem;flex-wrap:wrap;padding:.7rem 1rem;border-bottom:1px solid var(--c-border)">
     <input type="hidden" name="tab" value="{{ $tab }}">
+    @if(request()->integer('session'))<input type="hidden" name="session" value="{{ request()->integer('session') }}">@endif
     <input class="input" name="q" value="{{ request('q') }}" placeholder="Search title / text" style="max-width:14rem">
     <select class="input" name="department" style="max-width:12rem"><option value="">All departments</option>@foreach(\App\Models\LogEntry::DEPARTMENTS as $k => $l)<option value="{{ $k }}" @selected(request('department') === $k)>{{ $l }}</option>@endforeach</select>
     <select class="input" name="category" style="max-width:11rem"><option value="">All categories</option>@foreach(\App\Models\LogEntry::CATEGORIES as $k => $l)<option value="{{ $k }}" @selected(request('category') === $k)>{{ $l[0] }}</option>@endforeach</select>
@@ -55,6 +58,7 @@
           @if($e->stay?->room) · Room {{ $e->stay->room->room_no }}@elseif($e->room) · Room {{ $e->room->room_no }}@endif
           @if($e->guest) · {{ $e->guest->full_name }}@endif
           @if($e->comments_count) · 💬 {{ $e->comments_count }}@endif
+          @if($e->shift_session_id) · <a href="{{ route('desk.shift') }}">Session #{{ $e->shift_session_id }}</a>@endif
           · read by {{ $e->reads->count() }}</div>
       </div>
     </div>

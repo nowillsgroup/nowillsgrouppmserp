@@ -128,14 +128,15 @@ class TaxService
      * Proportional to the component rates; the rounding remainder goes to VAT so the parts always add up exactly.
      * $rate (the combined rate stored on the line) is used to pick the components that applied: if it no longer matches
      * the current setup (e.g. a component was switched off later) the statutory defaults whose sum matches are used.
+     * Pass $amount when tariff slabs apply so the matching component rates can be selected.
      */
-    public static function breakdown(float $tax, ?string $category = null, ?float $rate = null): array
+    public static function breakdown(float $tax, ?string $category = null, ?float $rate = null, ?float $amount = null): array
     {
         $out = array_fill_keys(array_keys(self::COMPONENTS), 0.0);
         if (abs($tax) < 0.005) {
             return $out;
         }
-        $rates = self::componentRates($category);
+        $rates = self::componentRates($category, $amount);
         $sum = array_sum($rates);
         if ($rate !== null && $rate > 0 && abs($sum - $rate) > 0.01) {
             $std = array_map(fn ($c) => $c[2], self::COMPONENTS);

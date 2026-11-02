@@ -8,14 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * v7.55 – a Robita smart door lock device registered in the PMS.
  *
- * Each device has a cloud device ID and serial, is mapped to a room (or common area),
- * reports its lock state, battery, and signal, and pushes access events.
+ * A local demo lock record or a device record reported by an external bridge.
+ * The Robita cloud protocol is not installed; demo status never implies hardware connectivity.
  */
 class RobitaDevice extends Model
 {
     use BelongsToHotel;
 
-    public const STATUSES = ['provisioning', 'online', 'offline', 'decommissioned'];
+    public const STATUSES = ['demo', 'provisioning', 'online', 'offline', 'decommissioned'];
     public const DEVICE_TYPES = ['door_lock', 'common_area', 'gate'];
     public const LOCK_STATES = ['locked', 'unlocked', 'unknown'];
     public const SIGNALS = ['excellent', 'good', 'fair', 'poor'];

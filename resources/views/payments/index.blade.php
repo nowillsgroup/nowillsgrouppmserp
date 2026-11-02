@@ -16,19 +16,20 @@
   <x-stat label="Refunded this month" :value="money($stats['refunds'])" icon="swap" tone="slate" href="?status=refunded"/>
   <x-stat label="Awaiting payout" :value="money($stats['clearing'])" icon="wallet" tone="purple" sub="1050 gateway clearing" :href="can_do('payments.settle') ? route('payments.payouts') : null"/>
 </div>
-<div class="tabs">@foreach(['' => 'All', 'pending' => 'Awaiting payment', 'paid' => 'Paid', 'review' => 'Needs review', 'refunded' => 'Refunded', 'expired' => 'Expired', 'cancelled' => 'Cancelled'] as $k => $v)<a href="?{{ http_build_query(array_merge(request()->except('page', 'status'), ['status' => $k])) }}" class="{{ $status === $k ? 'active' : '' }}">{{ $v }}</a>@endforeach</div>
-<form class="filters mb-1 flex gap-1 items-center" method="get"><input type="hidden" name="status" value="{{ $status }}"><input name="q" class="input input-sm" style="max-width:320px" value="{{ request('q') }}" placeholder="Link no., guest, reservation, transaction id"><button class="btn btn-sm"><x-icon name="search"/> Search</button></form>
+<div class="tabs">@foreach(['' => 'All', 'pending' => 'Awaiting payment', 'paid' => 'Paid', 'review' => 'Needs review', 'refunded' => 'Refunded', 'expired' => 'Expired', 'cancelled' => 'Cancelled'] as $k => $v)<a href="?{{ http_build_query(array_merge(request()->except('page', 'status'), ['status' => $k])) }}" class="{{ $status === $k ? 'active' : '' }}" @if($status === $k) aria-current="page" @endif>{{ $v }}</a>@endforeach</div>
+<form class="filters mb-1 flex gap-1 items-center" method="get"><input type="hidden" name="status" value="{{ $status }}"><label class="sr-only" for="paymentSearch">Search online payments</label><input id="paymentSearch" name="q" class="input input-sm" style="max-width:320px" value="{{ request('q') }}" placeholder="Link no., guest, reservation, transaction id"><button class="btn btn-sm"><x-icon name="search"/> Search</button></form>
 <div class="card flush"><div class="card-body table-wrap"><table class="table" id="olpTable">
-<thead><tr><th>Link</th><th>Created</th><th>Guest</th><th>For</th><th>Gateway</th><th class="num">Amount</th><th>Status</th><th>Paid</th></tr></thead><tbody>
+<caption class="sr-only">Online payment link register</caption>
+<thead><tr><th scope="col">Link</th><th scope="col">Created</th><th scope="col">Guest</th><th scope="col">For</th><th scope="col">Gateway</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col">Paid</th></tr></thead><tbody>
 @forelse($list as $p)@php $st = $p->displayStatus(); @endphp
 <tr><td><a class="bold" href="{{ route('payments.show', $p) }}">{{ $p->pay_no }}</a><div class="tiny muted">{{ \App\Models\OnlinePayment::PURPOSES[$p->purpose] ?? ['city_ledger' => 'City ledger settlement', 'banquet' => 'Event payment'][$p->purpose] ?? $p->purpose }}</div></td>
-<td class="small">{{ $p->created_at->format('d M, H:i') }}<div class="tiny muted">{{ $p->creator?->name ?? 'Guest / online' }}</div></td>
+<td class="small"><time datetime="{{ $p->created_at->toIso8601String() }}">{{ $p->created_at->format('d M Y, H:i') }}</time><div class="tiny muted">{{ $p->creator?->name ?? 'Guest / online' }}</div></td>
 <td>{{ $p->payer_name }}<div class="tiny muted">{{ $p->payer_email ?: $p->payer_phone }}</div></td>
 <td class="small">@if($p->company_id && $p->company)<a href="{{ route('accounts.company', $p->company_id) }}">{{ $p->company->name }}</a><div class="tiny muted">City ledger</div> @endif @if($p->reservation)<a href="{{ route('reservations.show', $p->reservation) }}">{{ $p->reservation->reservation_no }}</a>@endif @if($p->folio)<div class="tiny muted">Folio {{ $p->folio->folio_no }}</div>@endif</td>
 <td class="small">{{ ucfirst($p->provider) }}@if($p->channel)<div class="tiny muted">{{ str_replace('_', ' ', $p->channel) }}</div>@endif</td>
 <td class="num bold">{{ money($p->amount) }}@if((float) $p->refunded_amount > 0)<div class="tiny text-red">−{{ money($p->refunded_amount) }} refunded</div>@endif</td>
-<td><span class="badge badge-{{ ['paid' => 'green', 'part_refunded' => 'amber', 'refunded' => 'slate', 'pending' => 'blue', 'review' => 'red', 'expired' => 'slate', 'cancelled' => 'red'][$st] ?? 'slate' }}">{{ $p->statusLabel() }}</span>@if($st === 'pending' && $p->expires_at)<div class="tiny muted">until {{ $p->expires_at->format('d M H:i') }}</div>@endif</td>
-<td class="small">{{ $p->paid_at?->format('d M, H:i') ?? '—' }}</td></tr>
+<td><span class="badge badge-{{ ['paid' => 'green', 'part_refunded' => 'amber', 'refunded' => 'slate', 'pending' => 'blue', 'review' => 'red', 'expired' => 'slate', 'cancelled' => 'red'][$st] ?? 'slate' }}">{{ $p->statusLabel() }}</span>@if($st === 'pending' && $p->expires_at)<div class="tiny muted">until <time datetime="{{ $p->expires_at->toIso8601String() }}">{{ $p->expires_at->format('d M Y H:i') }}</time></div>@endif</td>
+<td class="small">@if($p->paid_at)<time datetime="{{ $p->paid_at->toIso8601String() }}">{{ $p->paid_at->format('d M Y, H:i') }}</time>@else—@endif</td></tr>
 @empty<tr><td colspan="8"><x-empty text="No online payments yet. Create a payment link from a reservation or a folio." icon="link"/></td></tr>@endforelse
 </tbody></table></div></div>
 {{ $list->links() }}

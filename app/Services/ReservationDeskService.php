@@ -32,7 +32,7 @@ use RuntimeException;
  */
 class ReservationDeskService
 {
-    public const VIEWS = ['dashboard', 'timeline', 'board', 'list', 'arrivals', 'departures', 'inhouse', 'unassigned', 'waitlist', 'groups'];
+    public const VIEWS = ['dashboard', 'timeline', 'board', 'list', 'arrivals', 'departures', 'inhouse', 'unassigned', 'waitlist', 'groups', 'noshow', 'cancelled'];
 
     public static function defaultQuery(): ?string
     {
@@ -67,9 +67,9 @@ class ReservationDeskService
     {
         $scalarDefaults = [
             'date' => bdate()->toDateString(), 'days' => 14, 'group' => 'type', 'view' => '', 'tab' => '', 'q' => '',
-            'status' => '', 'source' => '', 'type' => '', 'channel' => '', 'company' => '', 'arrival_on' => '', 'departure_on' => '', 'from' => '', 'to' => '',
+            'status' => '', 'source' => '', 'type' => '', 'channel' => '', 'company' => '', 'arrival_on' => '', 'departure_on' => '', 'cancelled_on' => '', 'from' => '', 'to' => '',
             'sort' => 'arrival', 'per_page' => 25, 'page' => 1, 'room_type' => '', 'amenity' => '', 'hk' => '', 'floor' => '',
-            'focus' => '', 'vip' => '',
+            'focus' => '', 'vip' => '', 'waitlist_status' => '', 'waitlist_focus' => '', 'group_status' => '', 'group_focus' => '', 'noshow_focus' => '', 'cancelled_focus' => '',
         ];
         foreach ($scalarDefaults as $key => $fallback) {
             $value = $request->input($key);
@@ -95,7 +95,7 @@ class ReservationDeskService
         }
         $dateString = self::validDateString($request->input('date')) ?? bdate()->toDateString();
         $request->merge(['date' => $dateString]);
-        foreach (['arrival_on', 'departure_on', 'from', 'to'] as $dateFilter) {
+        foreach (['arrival_on', 'departure_on', 'cancelled_on', 'from', 'to'] as $dateFilter) {
             $rawDate = $request->input($dateFilter);
             if ($rawDate !== null) {
                 $request->merge([$dateFilter => self::validDateString($rawDate) ?? '']);
@@ -106,7 +106,11 @@ class ReservationDeskService
         $to = $date->copy()->addDays($days);
         $view = $request->input('view');
         if (! in_array($view, self::VIEWS, true)) {
-            $view = $request->hasAny(['status', 'q', 'arrival_on', 'departure_on', 'from', 'to', 'source', 'type', 'sort', 'channel', 'per_page']) ? 'list' : 'dashboard';
+            $view = $request->hasAny(['status', 'q', 'arrival_on', 'departure_on', 'cancelled_on', 'from', 'to', 'source', 'type', 'sort', 'channel', 'per_page']) ? 'list' : 'dashboard';
+        }
+        if (in_array($view, ['noshow', 'cancelled'], true)) {
+            $days = min(31, max(1, (int) $request->input('days', 14)));
+            $to = $date->copy()->addDays($days);
         }
         if ($view === 'list') {
             $legacyTab = $request->input('tab');
@@ -119,6 +123,135 @@ class ReservationDeskService
             $request->query->remove('tab');
         }
         $group = in_array($request->input('group'), ['floor', 'hk', 'status', 'type'], true) ? $request->input('group') : 'type';
+
+        if ($view === 'cancelled') {
+            $windowEnd = $to->toDateString();
+            $windowStart = $date->toDateString();
+            $baseCancelled = Reservation::where('status', 'cancelled')
+                ->whereNotNull('cancelled_at')
+                ->whereDate('cancelled_at', '>=', $windowStart)
+                ->whereDate('cancelled_at', '<', $windowEnd);
+            $cancelledSummary = [
+                'total' => (clone $baseCancelled)->count(),
+                'groups' => (clone $baseCancelled)->where('booking_type', 'group')->count(),
+                'individuals' => (clone $baseCancelled)->where('booking_type', '!=', 'group')->count(),
+                'room_stays' => ReservationRoom::where('status', 'cancelled')->whereHas('reservation', fn ($query) => $query
+                    ->where('status', 'cancelled')->whereNotNull('cancelled_at')
+                    ->whereDate('cancelled_at', '>=', $windowStart)->whereDate('cancelled_at', '<', $windowEnd))->count(),
+            ];
+            $cancelledFocus = (string) $request->input('cancelled_focus');
+            if (! in_array($cancelledFocus, ['groups', 'individuals'], true)) {
+                $request->query->remove('cancelled_focus');
+                $request->request->remove('cancelled_focus');
+                $cancelledFocus = '';
+            }
+            $cancelledSearch = mb_substr(trim((string) $request->input('q')), 0, 160);
+            $canSearchCancelledContact = can_do('guests.view');
+            $cancelledQuery = Reservation::with(['guest', 'source', 'otaChannel', 'company', 'rooms.room', 'rooms.roomType'])
+                ->where('status', 'cancelled')->whereNotNull('cancelled_at')
+                ->whereDate('cancelled_at', '>=', $windowStart)->whereDate('cancelled_at', '<', $windowEnd)
+                ->when($cancelledFocus === 'groups', fn ($query) => $query->where('booking_type', 'group'))
+                ->when($cancelledFocus === 'individuals', fn ($query) => $query->where('booking_type', '!=', 'group'));
+            if ($cancelledSearch !== '') {
+                $cancelledQuery->where(function ($query) use ($cancelledSearch, $canSearchCancelledContact) {
+                    $query->where('reservation_no', 'like', "%{$cancelledSearch}%")
+                        ->orWhere('group_name', 'like', "%{$cancelledSearch}%")
+                        ->orWhere('ota_reference', 'like', "%{$cancelledSearch}%")
+                        ->orWhereHas('company', fn ($company) => $company->where('name', 'like', "%{$cancelledSearch}%"))
+                        ->orWhereHas('source', fn ($source) => $source->where('name', 'like', "%{$cancelledSearch}%"))
+                        ->orWhereHas('rooms.roomType', fn ($type) => $type->where('name', 'like', "%{$cancelledSearch}%"))
+                        ->orWhereHas('rooms.room', fn ($room) => $room->where('room_no', 'like', "%{$cancelledSearch}%"))
+                        ->orWhereHas('guest', function ($guest) use ($cancelledSearch, $canSearchCancelledContact) {
+                            $guest->whereNull('privacy_status')->where(function ($person) use ($cancelledSearch, $canSearchCancelledContact) {
+                                $person->where('first_name', 'like', "%{$cancelledSearch}%")
+                                    ->orWhere('last_name', 'like', "%{$cancelledSearch}%");
+                                if ($canSearchCancelledContact) {
+                                    $person->orWhere('phone', 'like', "%{$cancelledSearch}%")
+                                        ->orWhere('email', 'like', "%{$cancelledSearch}%");
+                                }
+                            });
+                        });
+                });
+            }
+            $pageSize = self::listPageSize($request);
+            $cancelledQuery->orderBy('cancelled_at')->orderBy('id');
+            $cancelledReservations = $cancelledQuery->paginate($pageSize)->withQueryString();
+            if ($cancelledReservations->currentPage() > $cancelledReservations->lastPage()) {
+                $request->merge(['page' => $cancelledReservations->lastPage()]);
+                $cancelledReservations = $cancelledQuery->paginate($pageSize)->withQueryString();
+            }
+
+            return [
+                'view' => $view, 'date' => $date, 'days' => $days, 'to' => $to, 'group' => $group,
+                'tabs' => self::tabs($date, $days), 'cancelledReservations' => $cancelledReservations,
+                'cancelledSummary' => $cancelledSummary, 'cancelledFocus' => $cancelledFocus,
+                'saved' => ReservationDeskView::where('user_id', auth()->id())->orderBy('name')->get(),
+            ];
+        }
+
+        if ($view === 'noshow') {
+            $windowEnd = $to->toDateString();
+            $windowStart = $date->toDateString();
+            $baseNoShows = Reservation::where('status', 'no_show')
+                ->whereDate('arrival_date', '>=', $windowStart)
+                ->whereDate('arrival_date', '<', $windowEnd);
+            $noShowSummary = [
+                'total' => (clone $baseNoShows)->count(),
+                'groups' => (clone $baseNoShows)->where('booking_type', 'group')->count(),
+                'individuals' => (clone $baseNoShows)->where('booking_type', '!=', 'group')->count(),
+                'room_stays' => ReservationRoom::where('status', 'no_show')->whereHas('reservation', fn ($query) => $query
+                    ->where('status', 'no_show')->whereDate('arrival_date', '>=', $windowStart)->whereDate('arrival_date', '<', $windowEnd))->count(),
+            ];
+            $noShowFocus = (string) $request->input('noshow_focus');
+            if (! in_array($noShowFocus, ['groups', 'individuals'], true)) {
+                $request->query->remove('noshow_focus');
+                $request->request->remove('noshow_focus');
+                $noShowFocus = '';
+            }
+            $noShowSearch = mb_substr(trim((string) $request->input('q')), 0, 160);
+            $canSearchNoShowContact = can_do('guests.view');
+            $noShowQuery = Reservation::with(['guest', 'source', 'otaChannel', 'company', 'rooms.room', 'rooms.roomType'])
+                ->where('status', 'no_show')
+                ->whereDate('arrival_date', '>=', $windowStart)
+                ->whereDate('arrival_date', '<', $windowEnd)
+                ->when($noShowFocus === 'groups', fn ($query) => $query->where('booking_type', 'group'))
+                ->when($noShowFocus === 'individuals', fn ($query) => $query->where('booking_type', '!=', 'group'));
+            if ($noShowSearch !== '') {
+                $noShowQuery->where(function ($query) use ($noShowSearch, $canSearchNoShowContact) {
+                    $query->where('reservation_no', 'like', "%{$noShowSearch}%")
+                        ->orWhere('group_name', 'like', "%{$noShowSearch}%")
+                        ->orWhere('ota_reference', 'like', "%{$noShowSearch}%")
+                        ->orWhereHas('company', fn ($company) => $company->where('name', 'like', "%{$noShowSearch}%"))
+                        ->orWhereHas('source', fn ($source) => $source->where('name', 'like', "%{$noShowSearch}%"))
+                        ->orWhereHas('rooms.roomType', fn ($type) => $type->where('name', 'like', "%{$noShowSearch}%"))
+                        ->orWhereHas('rooms.room', fn ($room) => $room->where('room_no', 'like', "%{$noShowSearch}%"))
+                        ->orWhereHas('guest', function ($guest) use ($noShowSearch, $canSearchNoShowContact) {
+                            $guest->whereNull('privacy_status')->where(function ($person) use ($noShowSearch, $canSearchNoShowContact) {
+                                $person->where('first_name', 'like', "%{$noShowSearch}%")
+                                    ->orWhere('last_name', 'like', "%{$noShowSearch}%");
+                                if ($canSearchNoShowContact) {
+                                    $person->orWhere('phone', 'like', "%{$noShowSearch}%")
+                                        ->orWhere('email', 'like', "%{$noShowSearch}%");
+                                }
+                            });
+                        });
+                });
+            }
+            $pageSize = self::listPageSize($request);
+            $noShowQuery->orderBy('arrival_date')->orderBy('id');
+            $noShowReservations = $noShowQuery->paginate($pageSize)->withQueryString();
+            if ($noShowReservations->currentPage() > $noShowReservations->lastPage()) {
+                $request->merge(['page' => $noShowReservations->lastPage()]);
+                $noShowReservations = $noShowQuery->paginate($pageSize)->withQueryString();
+            }
+
+            return [
+                'view' => $view, 'date' => $date, 'days' => $days, 'to' => $to, 'group' => $group,
+                'tabs' => self::tabs($date, $days), 'noShowReservations' => $noShowReservations,
+                'noShowSummary' => $noShowSummary, 'noShowFocus' => $noShowFocus,
+                'saved' => ReservationDeskView::where('user_id', auth()->id())->orderBy('name')->get(),
+            ];
+        }
 
         if ($view === 'list') {
             $pageSize = self::listPageSize($request);
@@ -158,8 +291,21 @@ class ReservationDeskService
             $rooms = $rooms->where('floor_id', (int) $request->floor)->values();
         }
         $focus = (string) $request->input('focus');
+        if ($view === 'inhouse' && ! in_array($focus, ['due_today', 'overdue', 'stayovers', 'vip', 'unassigned', 'balance'], true)) {
+            $request->query->remove('focus');
+            $request->request->remove('focus');
+            $focus = '';
+        }
+        if ($view === 'unassigned' && ! in_array($focus, ['arriving_today', 'past_arrival', 'next_7_days', 'groups'], true)) {
+            $request->query->remove('focus');
+            $request->request->remove('focus');
+            $focus = '';
+        }
         if ($focus === 'available') {
-            $freeIds = AvailabilityService::reservationRooms($date, $date->copy()->addDay())->pluck('id');
+            $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
+            $freeIds = $historical
+                ? AvailabilityService::historicalReservationRooms($date)->pluck('id')
+                : AvailabilityService::reservationRooms($date, $date->copy()->addDay())->pluck('id');
             $rooms = $rooms->whereIn('id', $freeIds)->values();
         } elseif ($focus === 'occupied') {
             $rooms = $rooms->where('status', 'occupied')->values();
@@ -184,7 +330,7 @@ class ReservationDeskService
         $stays = ReservationRoom::with(['reservation.guest', 'reservation.source', 'reservation.company', 'room', 'roomType'])
             ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
             ->whereDate('arrival_date', '<', $to->toDateString())
-            ->whereDate('departure_date', '>', $date->toDateString())
+            ->whereDate('departure_date', $view === 'board' ? '>=' : '>', $date->toDateString())
             ->get();
         $stays = self::filterStays($stays, $request, $date);
 
@@ -194,31 +340,331 @@ class ReservationDeskService
             ->get();
 
         $day = $date->toDateString();
+        $dateStatuses = self::deskDateStatuses($date);
         $arrivals = ReservationRoom::with(['reservation.guest', 'reservation.source', 'room', 'roomType', 'folio'])
-            ->whereDate('arrival_date', $day)->whereIn('status', ['reserved', 'checked_in'])->orderBy('id')->get();
+            ->whereDate('arrival_date', $day)->whereIn('status', $dateStatuses['arrivals'])->get()
+            ->sort(function ($a, $b) {
+                // Keep guests who still need service at the top; within that queue,
+                // show the earliest stated ETA first and arrivals without an ETA last.
+                $pendingOrder = ($a->status === 'reserved' ? 0 : 1) <=> ($b->status === 'reserved' ? 0 : 1);
+                if ($pendingOrder !== 0) {
+                    return $pendingOrder;
+                }
+                $etaA = $a->reservation?->eta ? substr((string) $a->reservation->eta, 0, 5) : '99:99';
+                $etaB = $b->reservation?->eta ? substr((string) $b->reservation->eta, 0, 5) : '99:99';
+
+                return ($etaA <=> $etaB) ?: ($a->id <=> $b->id);
+            })->values();
+        $guestDetailsIds = $arrivals->filter(function ($stay) {
+            if ($stay->status !== 'reserved') {
+                return false;
+            }
+            $needs = StayService::missingCheckInRequirements($stay);
+
+            return in_array('ID', $needs, true) || in_array('phone', $needs, true);
+        })->pluck('id');
+        $now = now();
+        $lateEtaIds = $date->isSameDay(bdate())
+            ? $arrivals->filter(fn ($stay) => $stay->status === 'reserved'
+                && self::etaHasPassed($date, $stay->reservation?->eta, $now))->pluck('id')
+            : collect();
+        $arrivalSummary = [
+            'total' => $arrivals->count(),
+            'due_in' => $arrivals->where('status', 'reserved')->count(),
+            'processed' => $arrivals->whereIn('status', ['checked_in', 'checked_out'])->count(),
+            'unassigned' => $arrivals->where('status', 'reserved')->whereNull('room_id')->count(),
+            'guest_details' => $guestDetailsIds->count(),
+            'late_eta' => $lateEtaIds->count(),
+            'walkins' => $arrivals->filter(fn ($s) => $s->reservation?->source?->type === 'walk_in')->count(),
+        ];
+        $arrivals = self::filterStays($arrivals, $request, $date);
         if ($request->input('due') === 'in') {
             $arrivals = $arrivals->where('status', 'reserved')->values();
         }
         if ($focus === 'walkin') {
             $arrivals = $arrivals->filter(fn ($s) => $s->reservation?->source?->type === 'walk_in')->values();
+        } elseif ($focus === 'unassigned') {
+            $arrivals = $arrivals->where('status', 'reserved')->whereNull('room_id')->values();
+        } elseif ($focus === 'guest_details') {
+            $arrivals = $arrivals->whereIn('id', $guestDetailsIds)->values();
+        } elseif ($focus === 'late_eta') {
+            $arrivals = $arrivals->whereIn('id', $lateEtaIds)->values();
         }
-        $departures = ReservationRoom::with(['reservation.guest', 'room', 'roomType', 'folio'])
-            ->whereDate('departure_date', $day)->whereIn('status', ['checked_in', 'checked_out'])->orderBy('id')->get();
-        $inhouse = ReservationRoom::with(['reservation.guest', 'reservation.company', 'room', 'roomType', 'folio'])
-            ->where('status', 'checked_in')->orderBy('room_id')->get();
-        $unassigned = ReservationRoom::with(['reservation.guest', 'roomType'])
+        $departureRelations = ['reservation.guest', 'reservation.source', 'room', 'roomType'];
+        if (can_do('folio.view')) {
+            $departureRelations[] = 'folio';
+        }
+        $departures = ReservationRoom::with($departureRelations)
+            ->whereDate('departure_date', $day)->whereIn('status', $dateStatuses['departures'])->get()
+            ->sort(function ($a, $b) {
+                $priority = ['checked_in' => 0, 'reserved' => 1, 'checked_out' => 2];
+                $statusOrder = ($priority[$a->status] ?? 3) <=> ($priority[$b->status] ?? 3);
+
+                return $statusOrder ?: ($a->id <=> $b->id);
+            })->values();
+        $departureSummary = [
+            'total' => $departures->count(),
+            'still_in_house' => $departures->where('status', 'checked_in')->count(),
+            'checked_out' => $departures->where('status', 'checked_out')->count(),
+            'not_yet_arrived' => $departures->where('status', 'reserved')->count(),
+        ];
+        $departures = self::filterStays($departures, $request, $date);
+        if ($request->input('tab') === 'dueout') {
+            $departures = $departures->where('status', 'checked_in')->values();
+        }
+        if ($focus === 'still_in_house') {
+            $departures = $departures->where('status', 'checked_in')->values();
+        } elseif ($focus === 'checked_out') {
+            $departures = $departures->where('status', 'checked_out')->values();
+        } elseif ($focus === 'not_yet_arrived') {
+            $departures = $departures->where('status', 'reserved')->values();
+        }
+        $canViewInhouseFolios = $view === 'inhouse' && can_do('folio.view');
+        $inhouseRelations = ['reservation.guest', 'reservation.company', 'reservation.source', 'room', 'roomType'];
+        if ($canViewInhouseFolios) {
+            $inhouseRelations[] = 'folio';
+        }
+        $businessDay = bdate()->toDateString();
+        $inhouse = ReservationRoom::with($inhouseRelations)->where('status', 'checked_in')->get()
+            ->sort(function ($a, $b) use ($businessDay) {
+                $priority = static function ($stay) use ($businessDay): int {
+                    $departure = $stay->departure_date->toDateString();
+
+                    return $departure < $businessDay ? 0 : ($departure === $businessDay ? 1 : 2);
+                };
+                $statusOrder = $priority($a) <=> $priority($b);
+                if ($statusOrder !== 0) {
+                    return $statusOrder;
+                }
+                $dateOrder = $a->departure_date->toDateString() <=> $b->departure_date->toDateString();
+                if ($dateOrder !== 0) {
+                    return $dateOrder;
+                }
+                $roomOrder = strnatcasecmp((string) ($a->room?->room_no ?? ''), (string) ($b->room?->room_no ?? ''));
+
+                return $roomOrder ?: ($a->id <=> $b->id);
+            })->values();
+        $inhouseMoneyFlags = $canViewInhouseFolios ? self::moneyFlags($inhouse) : [];
+        $inhouseSummary = [
+            'total' => $inhouse->count(),
+            'guests' => (int) $inhouse->sum(fn ($stay) => (int) $stay->adults + (int) $stay->children),
+            'due_today' => $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() === $businessDay)->count(),
+            'overdue' => $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() < $businessDay)->count(),
+            'stayovers' => $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() > $businessDay)->count(),
+            'vip' => $inhouse->filter(fn ($stay) => (bool) $stay->reservation?->guest?->is_vip)->count(),
+            'unassigned' => $inhouse->whereNull('room_id')->count(),
+            'balance_review' => $canViewInhouseFolios
+                ? collect($inhouseMoneyFlags)->filter(fn ($flags) => abs($flags['balance'] ?? 0) > 0.009)->count()
+                : null,
+        ];
+        $inhouseSearch = mb_strtolower(trim((string) $request->input('q', '')));
+        if ($inhouseSearch !== '') {
+            $canSearchGuestPhone = can_do('guests.view');
+            $inhouse = $inhouse->filter(function ($stay) use ($inhouseSearch, $canSearchGuestPhone) {
+                $reservation = $stay->reservation;
+                $guest = $reservation?->guest;
+                $fields = [
+                    $reservation?->reservation_no,
+                    $reservation?->group_name,
+                    $reservation?->company?->name,
+                    $reservation?->source?->name,
+                    $guest?->full_name,
+                    $stay->room?->room_no,
+                    $canSearchGuestPhone ? $guest?->phone : null,
+                ];
+
+                return str_contains(mb_strtolower(implode(' ', array_filter($fields))), $inhouseSearch);
+            })->values();
+        }
+        if ($focus === 'due_today') {
+            $inhouse = $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() === $businessDay)->values();
+        } elseif ($focus === 'overdue') {
+            $inhouse = $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() < $businessDay)->values();
+        } elseif ($focus === 'stayovers') {
+            $inhouse = $inhouse->filter(fn ($stay) => $stay->departure_date->toDateString() > $businessDay)->values();
+        } elseif ($focus === 'vip') {
+            $inhouse = $inhouse->filter(fn ($stay) => (bool) $stay->reservation?->guest?->is_vip)->values();
+        } elseif ($focus === 'unassigned') {
+            $inhouse = $inhouse->whereNull('room_id')->values();
+        } elseif ($focus === 'balance') {
+            $inhouse = $canViewInhouseFolios
+                ? $inhouse->filter(fn ($stay) => abs($inhouseMoneyFlags[$stay->id]['balance'] ?? 0) > 0.009)->values()
+                : collect();
+        }
+        $unassignedRelations = ['reservation.guest', 'roomType'];
+        if ($view === 'unassigned') {
+            $unassignedRelations[] = 'reservation.source';
+            $unassignedRelations[] = 'reservation.company';
+        }
+        $unassigned = ReservationRoom::with($unassignedRelations)
             ->where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $day)
-            ->orderBy('arrival_date')->get();
-        $groups = Reservation::with(['guest', 'rooms.room', 'rooms.roomType', 'block.lines.roomType'])
-            ->where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])
-            ->whereDate('arrival_date', '<', $to->toDateString())->whereDate('departure_date', '>', $date->toDateString())
-            ->orderBy('arrival_date')->get();
+            ->orderBy('arrival_date')->orderBy('id')->get();
+        $unassignedSummary = [
+            'total' => $unassigned->count(),
+            'arriving_today' => $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() === $day)->count(),
+            'past_arrival' => $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() < $day)->count(),
+            'next_7_days' => $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() > $day
+                && $stay->arrival_date->toDateString() <= $date->copy()->addDays(7)->toDateString())->count(),
+            'groups' => $unassigned->filter(fn ($stay) => $stay->reservation?->booking_type === 'group')->count(),
+        ];
+        if ($view === 'unassigned' && $request->filled('q')) {
+            $unassignedSearch = mb_strtolower(trim((string) $request->input('q')));
+            $canSearchUnassignedPhone = can_do('guests.view');
+            $unassigned = $unassigned->filter(function ($stay) use ($unassignedSearch, $canSearchUnassignedPhone) {
+                $reservation = $stay->reservation;
+                $guest = $reservation?->guest;
+                $fields = [
+                    $reservation?->reservation_no,
+                    $reservation?->group_name,
+                    $reservation?->company?->name,
+                    $reservation?->source?->name,
+                    $guest?->full_name,
+                    $stay->roomType?->name,
+                    $stay->roomType?->code,
+                    $canSearchUnassignedPhone ? $guest?->phone : null,
+                ];
+
+                return str_contains(mb_strtolower(implode(' ', array_filter($fields))), $unassignedSearch);
+            })->values();
+        }
+        if ($view === 'unassigned') {
+            if ($focus === 'arriving_today') {
+                $unassigned = $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() === $day)->values();
+            } elseif ($focus === 'past_arrival') {
+                $unassigned = $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() < $day)->values();
+            } elseif ($focus === 'next_7_days') {
+                $rangeEnd = $date->copy()->addDays(7)->toDateString();
+                $unassigned = $unassigned->filter(fn ($stay) => $stay->arrival_date->toDateString() > $day
+                    && $stay->arrival_date->toDateString() <= $rangeEnd)->values();
+            } elseif ($focus === 'groups') {
+                $unassigned = $unassigned->filter(fn ($stay) => $stay->reservation?->booking_type === 'group')->values();
+            }
+        }
+        $waitlist = ReservationWaitlist::with(['guest', 'roomType', 'reservation'])
+            ->orderByDesc('priority')->orderBy('arrival_date')->orderBy('id')->get();
+        $waitlistSummary = [
+            'total' => $waitlist->count(),
+            'waiting' => $waitlist->where('status', 'waiting')->count(),
+            'converted' => $waitlist->where('status', 'converted')->count(),
+            'cancelled' => $waitlist->where('status', 'cancelled')->count(),
+            'needs_type' => $waitlist->filter(fn ($entry) => $entry->status === 'waiting' && ! $entry->room_type_id)->count(),
+            'next_7_days' => $waitlist->filter(fn ($entry) => $entry->status === 'waiting'
+                && $entry->arrival_date->toDateString() > $day
+                && $entry->arrival_date->toDateString() <= $date->copy()->addDays(7)->toDateString())->count(),
+        ];
+        $waitlistStatus = (string) $request->input('waitlist_status');
+        if (! in_array($waitlistStatus, ['waiting', 'converted', 'cancelled'], true)) {
+            $request->query->remove('waitlist_status');
+            $request->request->remove('waitlist_status');
+            $waitlistStatus = '';
+        }
+        $waitlistFocus = (string) $request->input('waitlist_focus');
+        if (! in_array($waitlistFocus, ['next_7_days', 'needs_type'], true)) {
+            $request->query->remove('waitlist_focus');
+            $request->request->remove('waitlist_focus');
+            $waitlistFocus = '';
+        }
+        if ($view === 'waitlist' && $request->filled('q')) {
+            $waitlistSearch = mb_strtolower(trim((string) $request->input('q')));
+            $canSearchWaitlistContact = can_do('guests.view');
+            $waitlist = $waitlist->filter(function ($entry) use ($waitlistSearch, $canSearchWaitlistContact) {
+                $fields = [
+                    $entry->contact_name,
+                    $entry->roomType?->name,
+                    $entry->reservation?->reservation_no,
+                    $canSearchWaitlistContact ? $entry->notes : null,
+                    $canSearchWaitlistContact ? $entry->phone : null,
+                    $canSearchWaitlistContact ? $entry->email : null,
+                ];
+
+                return str_contains(mb_strtolower(implode(' ', array_filter($fields))), $waitlistSearch);
+            })->values();
+        }
+        if ($view === 'waitlist') {
+            if ($waitlistStatus !== '') {
+                $waitlist = $waitlist->where('status', $waitlistStatus)->values();
+            }
+            if ($waitlistFocus === 'next_7_days') {
+                $rangeEnd = $date->copy()->addDays(7)->toDateString();
+                $waitlist = $waitlist->filter(fn ($entry) => $entry->status === 'waiting'
+                    && $entry->arrival_date->toDateString() > $day
+                    && $entry->arrival_date->toDateString() <= $rangeEnd)->values();
+            } elseif ($waitlistFocus === 'needs_type') {
+                $waitlist = $waitlist->filter(fn ($entry) => $entry->status === 'waiting' && ! $entry->room_type_id)->values();
+            }
+        }
+        $groupRows = in_array($view, ['dashboard', 'groups'], true)
+            ? self::groupReservationsInWindow($date, $days)
+                ->with(['guest', 'company', 'rooms.room', 'rooms.roomType', 'block.lines.roomType'])
+                ->orderBy('arrival_date')->orderBy('id')->get()
+            : collect();
+        $groupSummary = [
+            'total' => $groupRows->count(),
+            'tentative' => $groupRows->where('status', 'tentative')->count(),
+            'confirmed' => $groupRows->where('status', 'confirmed')->count(),
+            'in_house' => $groupRows->where('status', 'checked_in')->count(),
+            'completed' => $groupRows->where('status', 'checked_out')->count(),
+            'room_stays' => $groupRows->sum(fn ($reservation) => $reservation->rooms->where('status', '!=', 'cancelled')->count()),
+            'with_block' => $groupRows->filter(fn ($reservation) => $reservation->block !== null)->count(),
+            'without_block' => $groupRows->filter(fn ($reservation) => $reservation->block === null)->count(),
+        ];
+        $groupStatus = (string) $request->input('group_status');
+        if (! in_array($groupStatus, ['tentative', 'confirmed', 'checked_in', 'checked_out'], true)) {
+            $request->query->remove('group_status');
+            $request->request->remove('group_status');
+            $groupStatus = '';
+        }
+        $groupFocus = (string) $request->input('group_focus');
+        if (! in_array($groupFocus, ['with_block', 'without_block'], true)) {
+            $request->query->remove('group_focus');
+            $request->request->remove('group_focus');
+            $groupFocus = '';
+        }
+        $groups = $groupRows;
+        if ($view === 'groups' && $request->filled('q')) {
+            $groupSearch = mb_strtolower(trim((string) $request->input('q')));
+            $canSearchGroupPhone = can_do('guests.view');
+            $groups = $groups->filter(function ($reservation) use ($groupSearch, $canSearchGroupPhone) {
+                $roomTypes = $reservation->rooms->pluck('roomType.name')->filter()->all();
+                $blockRoomTypes = $reservation->block?->lines->pluck('roomType.name')->filter()->all() ?? [];
+                $fields = [
+                    $reservation->reservation_no,
+                    $reservation->group_name,
+                    $reservation->guest?->full_name,
+                    $reservation->company?->name,
+                    $reservation->block?->block_no,
+                    $reservation->block?->name,
+                    ...$roomTypes,
+                    ...$blockRoomTypes,
+                    $canSearchGroupPhone ? $reservation->guest?->phone : null,
+                ];
+
+                return str_contains(mb_strtolower(implode(' ', array_filter($fields))), $groupSearch);
+            })->values();
+        }
+        if ($view === 'groups') {
+            if ($groupStatus !== '') {
+                $groups = $groups->where('status', $groupStatus)->values();
+            }
+            if ($groupFocus === 'with_block') {
+                $groups = $groups->filter(fn ($reservation) => $reservation->block !== null)->values();
+            } elseif ($groupFocus === 'without_block') {
+                $groups = $groups->filter(fn ($reservation) => $reservation->block === null)->values();
+            }
+        }
 
         if ($focus === 'blocked') {
-            $rooms = $rooms->whereIn('id', RoomOutage::covering($date, $date->copy()->addDay())->pluck('room_id'))->values();
+            $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
+            $blockedIds = $historical
+                ? AvailabilityService::historicalOutageRoomIds($date)
+                : RoomOutage::covering($date, $date->copy()->addDay())->pluck('room_id');
+            $rooms = $rooms->whereIn('id', $blockedIds)->values();
         }
         if ($focus === 'reserved') {
-            $stays = $stays->where('status', 'reserved')->values();
+            $stays = $stays->filter(fn ($stay) => $stay->status === 'reserved'
+                && $stay->arrival_date->toDateString() <= $day
+                && $stay->departure_date->toDateString() > $day
+                && in_array($stay->status, $dateStatuses['covering'], true))->values();
         }
         $flags = self::moneyFlags($stays);
         if ($focus === 'balance') {
@@ -258,20 +704,20 @@ class ReservationDeskService
             'loose' => $stays->whereNull('room_id')->where('status', 'reserved'),
             'outages' => $outages->whereIn('room_id', $roomIds)->groupBy('room_id'),
             'kpis' => self::kpis($date),
-            'tabs' => self::tabs($date),
-            'arrivals' => $arrivals, 'departures' => $departures, 'inhouse' => $inhouse,
+            'tabs' => self::tabs($date, $days),
+            'arrivals' => $arrivals, 'arrivalSummary' => $arrivalSummary, 'lateEtaIds' => $lateEtaIds, 'departures' => $departures, 'departureSummary' => $departureSummary, 'inhouse' => $inhouse, 'inhouseSummary' => $inhouseSummary, 'inhouseMoneyFlags' => $canViewInhouseFolios ? $inhouseMoneyFlags : [],
             'pipeline' => $view === 'dashboard' ? self::pipeline($date, 14) : null,
             'vipArrivals' => $view === 'dashboard' ? self::vipArrivals($date) : null,
             'onTheBooks' => $view === 'dashboard' ? self::onTheBooks($date) : null,
-            'lateArrivals' => $view === 'dashboard' ? self::lateArrivals($date) : null,
+            'lateArrivals' => $view === 'dashboard' && $date->isSameDay(bdate()) ? self::lateArrivals($date) : collect(),
             'sourceMix' => $view === 'dashboard' ? self::sourceMix($date) : null,
             'walkInArrivals' => $view === 'dashboard' ? self::walkInArrivals($date) : null,
             'compStays' => $view === 'dashboard' ? self::compStays($date) : null,
             'roomTypePipeline' => $view === 'dashboard' ? self::roomTypePipeline($date) : null,
             'groupArrivals' => $view === 'dashboard' ? self::groupArrivals($date) : null,
             'noShows' => $view === 'dashboard' ? self::noShows($date) : null,
-            'unassigned' => $unassigned, 'groups' => $groups,
-            'waitlist' => ReservationWaitlist::with(['guest', 'roomType', 'reservation'])->orderByDesc('priority')->orderBy('arrival_date')->get(),
+            'unassigned' => $unassigned, 'unassignedSummary' => $unassignedSummary, 'groups' => $groups, 'groupSummary' => $groupSummary,
+            'waitlist' => $waitlist, 'waitlistSummary' => $waitlistSummary,
             'reservations' => $view === 'list' ? self::listQuery($request)->paginate(self::listPageSize($request))->withQueryString() : null,
             'counts' => $view === 'list' ? self::listStatusCounts($request) : Reservation::select('status', DB::raw('count(*) c'))->groupBy('status')->pluck('c', 'status'),
             'sources' => BusinessSource::orderBy('name')->pluck('name', 'id'),
@@ -340,6 +786,7 @@ class ReservationDeskService
         $companyId = self::validPositiveId($request->input('company'));
         $arrivalOn = self::validDateString($request->input('arrival_on'));
         $departureOn = self::validDateString($request->input('departure_on'));
+        $cancelledOn = self::validDateString($request->input('cancelled_on'));
         $from = self::validDateString($request->input('from'));
         $to = self::validDateString($request->input('to'));
         $registerView = $request->input('view') === 'list';
@@ -359,13 +806,14 @@ class ReservationDeskService
             ->when($sourceId, fn ($w) => $w->where('business_source_id', $sourceId))
             ->when($arrivalOn, fn ($w) => $w->whereDate('arrival_date', $arrivalOn))
             ->when($departureOn, fn ($w) => $w->whereDate('departure_date', $departureOn))
+            ->when($cancelledOn, fn ($w) => $w->whereDate('cancelled_at', $cancelledOn))
             ->when($from, fn ($w) => $w->whereDate('arrival_date', '>=', $from))
             ->when($to, fn ($w) => $w->whereDate('arrival_date', '<=', $to))
             ->when($type, fn ($w) => $w->where('booking_type', $type))
             ->when($channelId, fn ($w) => $w->where('ota_channel_id', $channelId))
             ->when($tab === 'arrivals', fn ($w) => $w->whereDate('arrival_date', $date)->whereIn('status', ['tentative', 'confirmed', 'checked_in']))
             ->when($tab === 'inhouse', fn ($w) => $w->where('status', 'checked_in'))
-            ->when($tab === 'stayover', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', '>', $date))
+            ->when($tab === 'stayover', fn ($w) => $w->where('status', 'checked_in')->whereDate('arrival_date', '<=', $date)->whereDate('departure_date', '>', $date))
             ->when($tab === 'dueout', fn ($w) => $w->where('status', 'checked_in')->whereDate('departure_date', $date))
             ->when($tab === 'departures', fn ($w) => $w->whereDate('departure_date', $date)->whereIn('status', ['checked_in', 'checked_out']))
             ->when($tab === 'unassigned', fn ($w) => $w->whereHas('rooms', fn ($r) => $r->whereNull('room_id')->where('status', 'reserved')))
@@ -394,7 +842,7 @@ class ReservationDeskService
         return $q;
     }
 
-    /** N-day outlook: arrivals, departures, expected rooms, occupancy, expected room revenue. Read-only. */
+    /** Selected-date N-day outlook: arrivals, departures, expected rooms, occupancy, and room revenue. Read-only. */
     public static function pipeline(Carbon $date, int $days = 7): array
     {
         $roomRows = Room::where('is_active', true)->get(['id', 'status']);
@@ -403,15 +851,16 @@ class ReservationDeskService
         for ($i = 0; $i < $days; $i++) {
             $d = $date->copy()->addDays($i);
             $ds = $d->toDateString();
-            $covering = ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
+            $dateStatuses = self::deskDateStatuses($d);
+            $covering = ReservationRoom::whereIn('status', $dateStatuses['covering'])
                 ->whereDate('arrival_date', '<=', $ds)->whereDate('departure_date', '>', $ds);
             $rooms = (clone $covering)->count();
             $out[] = [
                 'date' => $d,
-                'arrivals' => ReservationRoom::whereDate('arrival_date', $ds)->whereIn('status', ['reserved', 'checked_in'])->count(),
-                'departures' => ReservationRoom::whereDate('departure_date', $ds)->whereIn('status', ['checked_in', 'checked_out'])->count(),
+                'arrivals' => ReservationRoom::whereDate('arrival_date', $ds)->whereIn('status', $dateStatuses['arrivals'])->count(),
+                'departures' => ReservationRoom::whereDate('departure_date', $ds)->whereIn('status', $dateStatuses['departures'])->count(),
                 'rooms' => $rooms,
-                'occ' => ($sellableByDay[$ds] ?? 0) ? round($rooms / $sellableByDay[$ds] * 100, 1) : 0,
+                'occ' => ($sellableByDay[$ds] ?? 0) ? round($rooms / $sellableByDay[$ds] * 100, 1) : null,
                 'revenue' => (float) (clone $covering)->sum('rate'),
             ];
         }
@@ -419,41 +868,113 @@ class ReservationDeskService
         return $out;
     }
 
-    /** Expected room revenue (pre-tax) on the books for the next 14 and 30 days. Read-only. */
+    /** Expected room revenue (pre-tax), summed per occupied night in each 14- and 30-day window. Read-only. */
     public static function onTheBooks(Carbon $date): array
     {
-        $sum = fn (int $days) => (float) ReservationRoom::whereIn('status', ['reserved', 'checked_in'])
-            ->whereDate('arrival_date', '<', $date->copy()->addDays($days)->toDateString())
-            ->whereDate('departure_date', '>', $date->toDateString())
-            ->sum('rate');
+        $start = $date->copy()->startOfDay();
+        $sum = function (int $days) use ($start): float {
+            $end = $start->copy()->addDays($days);
+            $businessDate = bdate()->copy()->startOfDay();
+            $stays = ReservationRoom::whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+                ->whereDate('arrival_date', '<', $end->toDateString())
+                ->whereDate('departure_date', '>', $start->toDateString())
+                ->get(['arrival_date', 'departure_date', 'rate', 'status']);
 
-        return ['days14' => $sum(14), 'days30' => $sum(30)];
+            return (float) $stays->sum(fn ($stay) => self::roomRevenueInWindow($stay, $start, $end, $businessDate));
+        };
+
+        return ['days14' => round($sum(14), 2), 'days30' => round($sum(30), 2)];
+    }
+
+    /** Count stay nights supported by its current status on either side of the business date. */
+    private static function roomNightsInWindow(ReservationRoom $stay, Carbon $start, Carbon $end, Carbon $businessDate): int
+    {
+        $from = $stay->arrival_date->greaterThan($start) ? $stay->arrival_date->copy() : $start->copy();
+        $to = $stay->departure_date->lessThan($end) ? $stay->departure_date->copy() : $end->copy();
+        if (! $from->lt($to)) {
+            return 0;
+        }
+
+        $nights = 0;
+        if (in_array($stay->status, ['checked_in', 'checked_out'], true)) {
+            $historicalEnd = $to->lessThan($businessDate) ? $to : $businessDate;
+            if ($from->lt($historicalEnd)) {
+                $nights += (int) $from->diffInDays($historicalEnd);
+            }
+        }
+        if (in_array($stay->status, ['reserved', 'checked_in'], true)) {
+            $futureStart = $from->greaterThan($businessDate) ? $from : $businessDate;
+            if ($futureStart->lt($to)) {
+                $nights += (int) $futureStart->diffInDays($to);
+            }
+        }
+
+        return max(0, $nights);
+    }
+
+    /** Room rates are nightly, so revenue is the rate multiplied by eligible overlapping nights. */
+    private static function roomRevenueInWindow(ReservationRoom $stay, Carbon $start, Carbon $end, Carbon $businessDate): float
+    {
+        return (float) $stay->rate * self::roomNightsInWindow($stay, $start, $end, $businessDate);
     }
 
     /** Arrivals whose ETA has passed but who have not checked in. Read-only. */
     public static function lateArrivals(Carbon $date)
     {
+        $now = now();
+
         return ReservationRoom::with(['reservation.guest', 'room'])
             ->whereDate('arrival_date', $date->toDateString())
             ->where('status', 'reserved')
             ->get()
-            ->filter(fn ($s) => filled($s->reservation?->eta) && substr((string) $s->reservation->eta, 0, 5) < now()->format('H:i'))
+            ->filter(fn ($stay) => self::etaHasPassed(
+                $date,
+                $stay->reservation?->eta,
+                $now,
+            ))
             ->sortBy(fn ($s) => (string) $s->reservation->eta)
             ->values();
     }
 
-    /** Booking sources for stays covering the next $days days. Read-only. */
+    /** Compare an ETA on its actual arrival date with the current instant. */
+    public static function etaHasPassed(Carbon $arrivalDate, ?string $eta, Carbon $now): bool
+    {
+        if (! filled($eta)) {
+            return false;
+        }
+        $time = substr($eta, 0, 5);
+        if (! preg_match('/^\\d{2}:\\d{2}$/', $time)) {
+            return false;
+        }
+
+        try {
+            $etaAt = $arrivalDate->copy()->startOfDay()->setTimeFromTimeString($time);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $etaAt->lt($now);
+    }
+
+    /** Booking sources and nightly revenue for stays covering the selected $days-day window. Read-only. */
     public static function sourceMix(Carbon $date, int $days = 14)
     {
-        $end = $date->copy()->addDays($days)->toDateString();
+        $start = $date->copy()->startOfDay();
+        $end = $start->copy()->addDays($days);
+        $businessDate = bdate()->copy()->startOfDay();
 
         return ReservationRoom::with('reservation.source')
-            ->whereIn('status', ['reserved', 'checked_in'])
-            ->whereDate('arrival_date', '<', $end)
-            ->whereDate('departure_date', '>', $date->toDateString())
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+            ->whereDate('arrival_date', '<', $end->toDateString())
+            ->whereDate('departure_date', '>', $start->toDateString())
             ->get()
+            ->filter(fn ($stay) => self::roomNightsInWindow($stay, $start, $end, $businessDate) > 0)
             ->groupBy(fn ($s) => $s->reservation?->source?->name ?? 'No source')
-            ->map(fn ($g, $name) => ['source' => $name, 'rooms' => $g->count(), 'revenue' => (float) $g->sum('rate')])
+            ->map(fn ($g, $name) => [
+                'source' => $name,
+                'rooms' => $g->count(),
+                'revenue' => (float) $g->sum(fn ($stay) => self::roomRevenueInWindow($stay, $start, $end, $businessDate)),
+            ])
             ->sortByDesc('revenue')
             ->values();
     }
@@ -461,9 +982,11 @@ class ReservationDeskService
     /** Walk-in arrivals for the given date. Read-only. */
     public static function walkInArrivals(Carbon $date)
     {
+        $dateStatuses = self::deskDateStatuses($date);
+
         return ReservationRoom::with(['reservation.guest', 'room'])
             ->whereDate('arrival_date', $date->toDateString())
-            ->whereIn('status', ['reserved', 'checked_in'])
+            ->whereIn('status', $dateStatuses['arrivals'])
             ->whereHas('reservation.source', fn ($s) => $s->where('type', 'walk_in'))
             ->orderBy('id')
             ->get();
@@ -473,9 +996,10 @@ class ReservationDeskService
     public static function compStays(Carbon $date)
     {
         $d = $date->toDateString();
+        $dateStatuses = self::deskDateStatuses($date);
 
         return ReservationRoom::with(['reservation.guest', 'room'])
-            ->whereIn('status', ['reserved', 'checked_in'])
+            ->whereIn('status', $dateStatuses['covering'])
             ->whereDate('arrival_date', '<=', $d)
             ->whereDate('departure_date', '>', $d)
             ->get()
@@ -483,43 +1007,73 @@ class ReservationDeskService
             ->values();
     }
 
-    /** Rooms expected per room type: tonight and bookings covering the next $days days, plus expected revenue. Read-only. */
+    /** Rooms expected by room type on the desk date and across the following $days window. Read-only. */
     public static function roomTypePipeline(Carbon $date, int $days = 14)
     {
-        $tonight = $date->toDateString();
-        $end = $date->copy()->addDays($days)->toDateString();
+        $deskDate = $date->copy()->startOfDay();
+        $deskDay = $deskDate->toDateString();
+        $end = $deskDate->copy()->addDays($days);
+        $businessDate = bdate()->copy()->startOfDay();
         $window = ReservationRoom::with('roomType')
-            ->whereIn('status', ['reserved', 'checked_in'])
-            ->whereDate('arrival_date', '<', $end)
-            ->whereDate('departure_date', '>', $tonight)
-            ->get();
-        $tonightIds = $window
-            ->filter(fn ($s) => $s->arrival_date->toDateString() <= $tonight && $s->departure_date->toDateString() > $tonight)
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
+            ->whereDate('arrival_date', '<', $end->toDateString())
+            ->whereDate('departure_date', '>', $deskDay)
+            ->get()
+            ->filter(fn ($stay) => self::roomNightsInWindow($stay, $deskDate, $end, $businessDate) > 0);
+        $deskEnd = $deskDate->copy()->addDay();
+        $deskDateIds = $window
+            ->filter(fn ($stay) => self::roomNightsInWindow($stay, $deskDate, $deskEnd, $businessDate) > 0)
             ->pluck('id');
 
         return $window
             ->groupBy(fn ($s) => $s->roomType?->name ?? 'No type')
-            ->map(function ($g, $name) use ($tonightIds) {
+            ->map(function ($g, $name) use ($deskDateIds, $deskDate, $end, $businessDate) {
                 return [
                     'type' => $name,
-                    'tonight' => $g->whereIn('id', $tonightIds)->count(),
+                    'desk_date' => $g->whereIn('id', $deskDateIds)->count(),
                     'bookings' => $g->count(),
-                    'revenue' => (float) $g->sum('rate'),
+                    'revenue' => (float) $g->sum(fn ($stay) => self::roomRevenueInWindow($stay, $deskDate, $end, $businessDate)),
                 ];
             })
             ->sortByDesc('revenue')
             ->values();
     }
 
-    /** Group bookings arriving within the next $days days. Read-only. */
+    /** Active group reservations overlapping a desk window, with historical rows allowed only before the business date. */
+    private static function groupReservationsInWindow(Carbon $date, int $days = 14)
+    {
+        $deskDate = $date->copy()->startOfDay();
+        $end = $deskDate->copy()->addDays($days)->toDateString();
+        $start = $deskDate->toDateString();
+        $businessDate = bdate()->copy()->startOfDay();
+        $statuses = $deskDate->lt($businessDate)
+            ? ['checked_in', 'checked_out']
+            : ['tentative', 'confirmed', 'checked_in'];
+
+        return Reservation::where('booking_type', 'group')
+            ->whereIn('status', $statuses)
+            ->whereDate('arrival_date', '<', $end)
+            ->whereDate('departure_date', '>', $start);
+    }
+
+    /** Group bookings arriving within the selected $days-day window. Read-only. */
     public static function groupArrivals(Carbon $date, int $days = 7)
     {
+        $businessDate = bdate()->copy()->startOfDay();
+
         return Reservation::with(['guest', 'rooms.room'])
             ->where('booking_type', 'group')
-            ->whereIn('status', ['tentative', 'confirmed'])
+            ->whereIn('status', ['tentative', 'confirmed', 'checked_in', 'checked_out'])
             ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->orderBy('arrival_date')->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(function ($group) use ($businessDate) {
+                $historical = $group->arrival_date->copy()->startOfDay()->lt($businessDate);
+                $statuses = $historical ? ['checked_in', 'checked_out'] : ['tentative', 'confirmed', 'checked_in'];
+
+                return in_array($group->status, $statuses, true);
+            })
+            ->values();
     }
 
     /** Reservations marked no-show for the given arrival date. Read-only. */
@@ -532,30 +1086,64 @@ class ReservationDeskService
             ->get();
     }
 
-    /** VIP stays arriving within the next $days days. Read-only. */
+    /** VIP stays arriving within the selected $days-day window. Read-only. */
     public static function vipArrivals(Carbon $date, int $days = 7)
     {
+        $businessDate = bdate()->copy()->startOfDay();
+
         return ReservationRoom::with(['reservation.guest', 'room'])
-            ->whereIn('status', ['reserved', 'checked_in'])
+            ->whereIn('status', ['reserved', 'checked_in', 'checked_out'])
             ->whereDate('arrival_date', '>=', $date->toDateString())->whereDate('arrival_date', '<=', $date->copy()->addDays($days - 1)->toDateString())
             ->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))
-            ->orderBy('arrival_date')->orderBy('id')->get();
+            ->orderBy('arrival_date')->orderBy('id')->get()
+            ->filter(function ($stay) use ($businessDate) {
+                $historical = $stay->arrival_date->copy()->startOfDay()->lt($businessDate);
+                $statuses = $historical ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+
+                return in_array($stay->status, $statuses, true);
+            })
+            ->values();
+    }
+
+    private static function deskDateStatuses(Carbon $date): array
+    {
+        $selectedDate = $date->copy()->startOfDay();
+        $businessDate = bdate()->copy()->startOfDay();
+        $historical = $selectedDate->lt($businessDate);
+        $current = $selectedDate->isSameDay($businessDate);
+        $covering = $historical ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+
+        return [
+            'covering' => $covering,
+            'arrivals' => $covering,
+            'departures' => $historical || $current ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'],
+            'due_out' => $historical ? ['checked_in', 'checked_out'] : ($current ? ['checked_in'] : ['reserved', 'checked_in']),
+            'due_in' => $historical ? [] : ['reserved'],
+            'reservation_covering' => $historical ? ['checked_in', 'checked_out'] : ['tentative', 'confirmed', 'checked_in'],
+            'reservation_arrivals' => $historical ? ['checked_in', 'checked_out'] : ['tentative', 'confirmed', 'checked_in'],
+        ];
     }
 
     public static function kpis(Carbon $date): array
     {
         $d = $date->toDateString();
-        $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
-        $coveringStatuses = $historical ? ['checked_in', 'checked_out'] : ['reserved', 'checked_in'];
+        $dateStatuses = self::deskDateStatuses($date);
+        $coveringStatuses = $dateStatuses['covering'];
         $covering = ReservationRoom::whereIn('status', $coveringStatuses)->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d);
         $sold = (clone $covering)->count();
         $onBooks = (float) (clone $covering)->sum('rate');
         $roomRows = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
         $sellable = AvailabilityService::sellableRoomCounts($date, 1, $roomRows)[$d] ?? 0;
+        $historical = $date->copy()->startOfDay()->lt(bdate()->copy()->startOfDay());
+        $available = $historical
+            ? AvailabilityService::historicalReservationRooms($date)->count()
+            : AvailabilityService::reservationRooms($d, $date->copy()->addDay()->toDateString())->count();
         $posted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->sum(DB::raw('amount + tax_amount'));
         $roomPosted = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'charge')->where('category', 'room')->sum(DB::raw('amount + tax_amount'));
         $deposits = (float) FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', 'advance')->sum('amount');
-        $openIds = Folio::where('status', 'open')->pluck('id');
+        $openIds = Folio::where('status', 'open')
+            ->where(fn ($query) => $query->whereNotNull('reservation_id')->orWhereNotNull('reservation_room_id'))
+            ->pluck('id');
         $outstanding = 0.0;
         if ($openIds->isNotEmpty()) {
             $outstanding = (float) (FolioTransaction::whereIn('folio_id', $openIds)->where('is_void', false)
@@ -564,18 +1152,18 @@ class ReservationDeskService
         }
 
         return [
-            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
+            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', $dateStatuses['arrivals'])->count(),
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
-            'due_out' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
-            'available' => AvailabilityService::reservationRooms($d, $date->copy()->addDay()->toDateString())->count(),
+            'due_out' => ReservationRoom::whereDate('departure_date', $d)->whereIn('status', $dateStatuses['due_out'])->count(),
+            'available' => $available,
             'occupancy' => $sellable ? round($sold / $sellable * 100, 1) : null,
             'adr' => $sold ? round($onBooks / $sold, 2) : null,
             'on_books' => round($onBooks, 2),
             'posted' => round($posted, 2),
             'outstanding' => round($outstanding, 2),
             'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $d)->count(),
-            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->count(),
-            'groups' => Reservation::where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
+            'vip' => ReservationRoom::whereIn('status', $dateStatuses['covering'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->count(),
+            'groups' => Reservation::where('booking_type', 'group')->whereIn('status', $dateStatuses['reservation_covering'])->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
             'sellable' => $sellable,
             'sold' => $sold,
             'total' => $roomRows->count(),
@@ -588,10 +1176,12 @@ class ReservationDeskService
             'maintenance' => MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->whereNotNull('room_id')->distinct()->count('room_id'),
             'ooo' => $roomRows->where('status', 'out_of_order')->count(),
             'oos' => $roomRows->where('status', 'out_of_service')->count(),
-            'blocked' => RoomOutage::covering($d, $date->copy()->addDay())->distinct('room_id')->count('room_id'),
-            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '>', $d)->count(),
-            'due_in' => ReservationRoom::whereDate('arrival_date', $d)->where('status', 'reserved')->count(),
-            'walkins' => Reservation::whereDate('arrival_date', $d)->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->whereHas('source', fn ($s) => $s->where('type', 'walk_in'))->count(),
+            'blocked' => $historical
+                ? AvailabilityService::historicalOutageRoomIds($date)->count()
+                : RoomOutage::covering($d, $date->copy()->addDay())->distinct('room_id')->count('room_id'),
+            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
+            'due_in' => $dateStatuses['due_in'] === [] ? 0 : ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', $dateStatuses['due_in'])->count(),
+            'walkins' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', $dateStatuses['arrivals'])->whereHas('reservation.source', fn ($s) => $s->where('type', 'walk_in'))->count(),
             'noshow' => Reservation::where('status', 'no_show')->whereDate('arrival_date', $d)->count(),
             'cancelled' => Reservation::where('status', 'cancelled')->whereDate('cancelled_at', $d)->count(),
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
@@ -601,22 +1191,23 @@ class ReservationDeskService
         ];
     }
 
-    public static function tabs(Carbon $date): array
+    public static function tabs(Carbon $date, int $days = 14): array
     {
         $d = $date->toDateString();
+        $dateStatuses = self::deskDateStatuses($date);
 
         return [
-            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in'])->count(),
+            'arrivals' => ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', $dateStatuses['arrivals'])->count(),
             'inhouse' => ReservationRoom::where('status', 'checked_in')->count(),
-            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '>', $d)->count(),
-            'dueout' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', $d)->count(),
-            'departures' => ReservationRoom::whereDate('departure_date', $d)->whereIn('status', ['checked_in', 'checked_out'])->count(),
+            'stayover' => ReservationRoom::where('status', 'checked_in')->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
+            'dueout' => ReservationRoom::whereDate('departure_date', $d)->where('status', 'checked_in')->count(),
+            'departures' => ReservationRoom::whereDate('departure_date', $d)->whereIn('status', $dateStatuses['departures'])->count(),
             'unassigned' => ReservationRoom::where('status', 'reserved')->whereNull('room_id')->whereDate('departure_date', '>', $d)->count(),
-            'vip' => ReservationRoom::whereIn('status', ['reserved', 'checked_in'])->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->whereDate('departure_date', '>', $d)->count(),
-            'groups' => Reservation::where('booking_type', 'group')->whereIn('status', ['tentative', 'confirmed', 'checked_in'])->count(),
+            'vip' => ReservationRoom::whereIn('status', $dateStatuses['covering'])->whereHas('reservation.guest', fn ($g) => $g->where('is_vip', true))->whereDate('arrival_date', '<=', $d)->whereDate('departure_date', '>', $d)->count(),
+            'groups' => self::groupReservationsInWindow($date, $days)->count(),
             'waitlist' => ReservationWaitlist::where('status', 'waiting')->count(),
             'cancelled' => Reservation::where('status', 'cancelled')->count(),
-            'duein' => ReservationRoom::whereDate('arrival_date', $d)->where('status', 'reserved')->count(),
+            'duein' => $dateStatuses['due_in'] === [] ? 0 : ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', $dateStatuses['due_in'])->count(),
             'noshow' => Reservation::where('status', 'no_show')->count(),
         ];
     }
@@ -627,7 +1218,7 @@ class ReservationDeskService
         if (str_contains($purpose, 'house use')) {
             return 'House use';
         }
-        if ((float) $stay->rate === 0.0 && in_array($stay->status, ['reserved', 'checked_in'], true)) {
+        if ((float) $stay->rate === 0.0 && in_array($stay->status, ['reserved', 'checked_in', 'checked_out'], true)) {
             return 'Complimentary';
         }
         if ($stay->status === 'checked_out') {
@@ -663,7 +1254,7 @@ class ReservationDeskService
             return [];
         }
         $sums = FolioTransaction::whereIn('folio_id', $folios->pluck('id'))->where('is_void', false)
-            ->selectRaw("folio_id, coalesce(sum(case type when 'payment' then amount when 'refund' then -amount else 0 end), 0) as paid, coalesce(sum(case type when 'charge' then amount + tax_amount when 'discount' then -amount when 'allowance' then -amount when 'payment' then -amount when 'refund' then amount else 0 end), 0) as bal")
+            ->selectRaw("folio_id, coalesce(sum(case type when 'payment' then amount when 'refund' then -amount else 0 end), 0) as paid, coalesce(sum(case type when 'charge' then amount + tax_amount when 'opening_balance' then amount when 'discount' then -amount when 'allowance' then -amount when 'payment' then -amount when 'refund' then amount else 0 end), 0) as bal")
             ->groupBy('folio_id')->get()->keyBy('folio_id');
         $out = [];
         foreach ($stays as $stay) {
@@ -747,9 +1338,10 @@ class ReservationDeskService
     {
         [$room, $starts, $ends] = self::blockWindow($roomId, $from, $to);
         $label = RoomOutage::REASONS[$reason] ?? $reason;
+        $lastBlockedNight = $ends->copy()->subDay();
         $ooo = $starts->lte(bdate()) && $ends->gt(bdate()) && $room->status === 'vacant';
 
-        return "Block room {$room->room_no} from {$starts->format('d M')} to {$ends->format('d M')} ({$label}). "
+        return "Block room {$room->room_no} from {$starts->format('d M Y')} through {$lastBlockedNight->format('d M Y')}; it returns on {$ends->format('d M Y')} ({$label}). "
             .($ooo ? 'The block covers today and the room is vacant, so confirming would mark it out of order.' : 'Room status would not change.')
             .' Nothing is saved until you confirm. A block does not post a charge.';
     }
@@ -769,7 +1361,7 @@ class ReservationDeskService
             if ($setsOutOfOrder) {
                 $room->update(['status' => 'out_of_order', 'notes' => trim(($notes ?: 'Blocked from the reservation desk').' · until '.$ends->format('d M'))]);
             }
-            ActivityLogger::log('reservations', 'block', "Blocked room {$room->room_no} {$starts->format('d M')}–{$ends->format('d M')} ({$reason})", $room);
+            ActivityLogger::log('reservations', 'block', "Blocked room {$room->room_no} {$starts->format('d M')}–{$ends->copy()->subDay()->format('d M')} (returns {$ends->format('d M')}, {$reason})", $room);
 
             return $outage;
         });
@@ -972,8 +1564,9 @@ class ReservationDeskService
     {
         $tab = $request->input('tab');
         $day = $date->toDateString();
+        $dateStatuses = self::deskDateStatuses($date);
 
-        return $stays->filter(function ($s) use ($request, $tab, $day) {
+        return $stays->filter(function ($s) use ($request, $tab, $day, $dateStatuses) {
             $res = $s->reservation;
             if ($request->filled('status') && $res?->status !== $request->status) {
                 return false;
@@ -990,21 +1583,26 @@ class ReservationDeskService
             if ($request->filled('q')) {
                 $q = mb_strtolower(trim((string) $request->q));
                 $blob = mb_strtolower(implode(' ', array_filter([
-                    $res?->reservation_no, $res?->group_name, $res?->ota_reference, $res?->guest?->full_name, $res?->guest?->phone, $s->room?->room_no,
+                    $res?->reservation_no, $res?->group_name, $res?->ota_reference, $res?->guest?->full_name,
+                    can_do('guests.view') ? $res?->guest?->phone : null,
+                    $s->room?->room_no,
                 ])));
                 if (! str_contains($blob, $q)) {
                     return false;
                 }
             }
             return match ($tab) {
-                'arrivals' => $s->arrival_date->toDateString() === $day && in_array($s->status, ['reserved', 'checked_in'], true),
+                'arrivals' => $s->arrival_date->toDateString() === $day && in_array($s->status, $dateStatuses['arrivals'], true),
                 'inhouse' => $s->status === 'checked_in',
-                'stayover' => $s->status === 'checked_in' && $s->departure_date->toDateString() > $day,
+                'stayover' => $s->status === 'checked_in' && $s->arrival_date->toDateString() <= $day && $s->departure_date->toDateString() > $day,
                 'dueout' => $s->status === 'checked_in' && $s->departure_date->toDateString() === $day,
-                'departures' => $s->departure_date->toDateString() === $day,
+                'departures' => $s->departure_date->toDateString() === $day && in_array($s->status, $dateStatuses['departures'], true),
                 'duein' => $s->arrival_date->toDateString() === $day && $s->status === 'reserved',
                 'unassigned' => $s->room_id === null && $s->status === 'reserved',
-                'vip' => (bool) $res?->guest?->is_vip,
+                'vip' => (bool) $res?->guest?->is_vip
+                    && $s->arrival_date->toDateString() <= $day
+                    && $s->departure_date->toDateString() > $day
+                    && in_array($s->status, $dateStatuses['covering'], true),
                 'groups' => $res?->booking_type === 'group',
                 'cancelled' => $res?->status === 'cancelled',
                 default => true,

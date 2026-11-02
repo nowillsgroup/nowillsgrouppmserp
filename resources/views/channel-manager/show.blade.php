@@ -5,31 +5,34 @@
 @section('actions')
 @if($manage)
   @if($c->is_active)
-  <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline">@csrf<button class="btn" id="pushBtn"><x-icon name="refresh"/> Push changes</button></form>
-  <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline" data-confirm="Send the full {{ $c->push_days }}-day availability, rates and restrictions to {{ $c->name }}?">@csrf<input type="hidden" name="full" value="1"><button class="btn" id="fullSyncBtn"><x-icon name="download"/> Full sync</button></form>
-  <form method="post" action="{{ route('cm.connections.test', $c) }}" class="inline">@csrf<button class="btn" id="testConnBtn"><x-icon name="globe"/> Test connection</button></form>
-  @if(can_do('channels.manage') && $c->provider !== 'simulator')<form method="post" action="{{ route('cm.connections.pull', $c) }}" class="inline">@csrf<button class="btn" id="pullBtn"><x-icon name="download"/> Pull bookings</button></form>@endif
+  <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline">@csrf<button type="submit" class="btn btn-icon cm-action" id="pushBtn" aria-label="Push pending changes for {{ $c->name }}" title="Push pending changes"><x-icon name="refresh"/></button></form>
+  <form method="post" action="{{ route('cm.connections.push', $c) }}" class="inline" data-confirm="Send the full {{ $c->push_days }}-day availability, rates and restrictions to {{ $c->name }}?">@csrf<input type="hidden" name="full" value="1"><button type="submit" class="btn btn-icon cm-action" id="fullSyncBtn" aria-label="Send full {{ $c->push_days }}-day sync for {{ $c->name }}" title="Full sync"><x-icon name="download"/></button></form>
+  <form method="post" action="{{ route('cm.connections.test', $c) }}" class="inline">@csrf<button type="submit" class="btn btn-icon cm-action" id="testConnBtn" aria-label="Test connection to {{ $c->name }}" title="Test connection"><x-icon name="globe"/></button></form>
+  @if(can_do('channels.manage') && $c->provider !== 'simulator')<form method="post" action="{{ route('cm.connections.pull', $c) }}" class="inline">@csrf<button type="submit" class="btn btn-icon cm-action" id="pullBtn" aria-label="Pull bookings from {{ $c->name }}" title="Pull bookings"><x-icon name="download"/></button></form>@endif
   @endif
-  <a class="btn" href="{{ route('cm.connections.edit', $c) }}" id="editConn"><x-icon name="edit"/> Edit</a>
-  @if(! $c->reservations()->exists())<form method="post" action="{{ route('cm.connections.destroy', $c) }}" class="inline" data-confirm="Delete connection {{ $c->name }} with its mappings and logs?">@csrf @method('DELETE')<button class="btn btn-ghost btn-icon" title="Delete"><x-icon name="trash"/></button></form>@endif
+  <a class="btn btn-icon cm-action" href="{{ route('cm.connections.edit', $c) }}" id="editConn" aria-label="Edit {{ $c->name }} connection" title="Edit connection"><x-icon name="edit"/></a>
+  @if(! $c->reservations()->exists())<form method="post" action="{{ route('cm.connections.destroy', $c) }}" class="inline" data-confirm="Delete connection {{ $c->name }} with its mappings and logs?">@csrf @method('DELETE')<button type="submit" class="btn btn-ghost btn-icon cm-action" title="Delete connection" aria-label="Delete {{ $c->name }} connection"><x-icon name="trash"/></button></form>@endif
 @endif
 @endsection
 @section('content')
-@if(! $c->is_active)<div class="alert alert-warn"><x-icon name="clock"/><div><b>Paused.</b> No pushes; inbound bookings are refused with HTTP 423 so the channel retries later.</div></div>
+<div class="cm-page">
+@include('channel-manager._nav')
+<header class="cm-hero"><div class="cm-hero-copy"><div class="cm-kicker"><x-icon name="globe"/> Channel connection · {{ $c->code }}</div><h2>{{ $c->name }}</h2><p>{{ \App\Models\ChannelConnection::providerOptions()[$c->provider] ?? $c->provider }} · {{ $c->isSimulator() ? 'Sandbox adapter' : 'External channel adapter' }} · {{ $c->push_days }}-day inventory horizon</p></div><span class="cm-hero-mark" aria-hidden="true"><x-icon name="{{ $c->is_active ? 'globe' : 'clock' }}"/></span></header>
+@if(! $c->is_active)<div class="alert alert-warn" role="status"><x-icon name="clock"/><div><b>Paused.</b> No pushes; inbound bookings are refused with HTTP 423 so the channel retries later.</div></div>
 @elseif($c->last_push_ok === false)<div class="alert alert-error" id="failNote"><x-icon name="alert"/><div><b>Sync failing</b> ({{ $c->fail_count }} attempt(s)): {{ $c->last_push_status }}.@if($c->next_retry_at) Next automatic retry {{ $c->next_retry_at->diffForHumans() }}.@endif</div></div>@endif
 @if($c->roomMaps->isEmpty())<div class="alert alert-warn" id="mapNote"><x-icon name="alert"/><div><b>Nothing mapped yet.</b> Map at least one room type below – unmapped rooms are not offered on the channel and bookings for them land in the inbox.</div></div>@endif
-<div class="stats req5">
+<div class="cm-stat-grid" role="group" aria-label="{{ $c->name }} connection summary">
   <x-stat label="Status" :value="['ok' => 'Connected', 'failing' => 'Failing', 'paused' => 'Paused', 'pending' => 'Awaiting sync'][$c->health()]" icon="globe" :tone="['ok' => 'green', 'failing' => 'red', 'paused' => 'slate', 'pending' => 'blue'][$c->health()]" :sub="$c->last_push_at ? 'last push '.$c->last_push_at->diffForHumans() : 'never pushed'"/>
   <x-stat label="Pending changes" :value="$c->full_sync_due ? 'Full' : $pending" icon="refresh" tone="blue" :sub="$c->full_sync_due ? 'full refresh queued' : 'room-nights to push'"/>
   <x-stat label="Bookings (30 d)" :value="$stats['bookings']" icon="calendar" tone="purple" :sub="number_format($stats['nights']).' RN · '.$stats['cancelled'].' cancelled'"/>
   <x-stat label="Revenue (30 d)" :value="money($stats['revenue'])" icon="money" tone="green" sub="gross booking value"/>
   <x-stat label="Commission (30 d)" :value="money($stats['commission'])" icon="wallet" tone="slate" :sub="rtrim(rtrim((string) $c->commission_pct, '0'), '.').'% contract rate'"/>
 </div>
-<div class="grid g-2-1">
-  <div>
-    <div class="card"><div class="card-head"><h3>What the channel gets – next 7 nights</h3><a class="small" href="{{ route('cm.parity', ['connection' => $c->id]) }}">Parity view →</a></div><div class="card-body table-wrap">
+<div class="cm-detail-grid">
+  <div class="cm-main-stack">
+    <div class="card"><div class="card-head"><div><h3>What the channel gets · next 7 nights</h3><span class="tiny muted">Availability, restrictions and mapped nightly prices.</span></div><a class="small" href="{{ route('cm.parity', ['connection' => $c->id]) }}">Parity view →</a></div><div class="card-body table-wrap" role="region" aria-label="Scrollable seven-night channel availability and rates" tabindex="0">
       @if(empty($preview))<x-empty text="Map room types to see the ARI preview." icon="bed"/>@else
-      <table class="table" id="ariPreview" style="font-size:.78rem"><thead><tr><th>Room</th>@foreach(reset($preview) as $date => $v)<th class="center">{{ \Illuminate\Support\Carbon::parse($date)->format('D d') }}</th>@endforeach</tr></thead><tbody>
+      <table class="table cm-ari-table" id="ariPreview"><caption class="cm-sr-only">Availability, restrictions and mapped rates the channel will receive for the next seven nights.</caption><thead><tr><th scope="col">Room / rate code</th>@foreach(reset($preview) as $date => $v)<th scope="col" class="center" aria-label="{{ \Illuminate\Support\Carbon::parse($date)->format('l, d F Y') }}">{{ \Illuminate\Support\Carbon::parse($date)->format('D d') }}</th>@endforeach</tr></thead><tbody>
       @foreach($preview as $typeId => $byDate) @php $first = reset($byDate); @endphp
         <tr><td class="nowrap"><code>{{ $first['code'] }}</code> <span class="tiny muted">{{ $types->firstWhere('id', $typeId)?->name }}</span></td>@foreach($byDate as $v)<td class="center" style="{{ $v['stop_sell'] ? 'color:#b91c1c' : '' }}"><b>{{ $v['stop_sell'] ? 'closed' : $v['available'].' left' }}</b>@if($v['min_stay'] > 1)<div class="tiny muted">min {{ $v['min_stay'] }}</div>@endif @if($v['cta'])<div class="tiny" style="color:#b45309">CTA</div>@endif</td>@endforeach</tr>
         @foreach($first['rates'] as $code => $x)<tr><td class="small" style="padding-left:1.2rem"><code>{{ $code }}</code></td>@foreach($byDate as $v)<td class="center small">{{ number_format($v['rates'][$code], $v['rates'][$code] == (int) $v['rates'][$code] ? 0 : 2) }}</td>@endforeach</tr>@endforeach
@@ -37,9 +40,9 @@
       </tbody></table>@endif
     </div></div>
 
-    <div class="card" id="mapping"><div class="card-head"><h3>Room &amp; rate mapping</h3><span class="tiny muted">codes exactly as set up in the channel's extranet</span></div><div class="card-body table-wrap">
+    <div class="card cm-section-anchor" id="mapping"><div class="card-head"><div><h3>Room &amp; rate mapping</h3><span class="tiny muted">Use the exact codes configured in the channel extranet.</span></div><span class="badge {{ $c->roomMaps->where('is_active', true)->count() ? 'badge-green' : 'badge-amber' }}">{{ $c->roomMaps->where('is_active', true)->count() }} active maps</span></div><div class="card-body table-wrap" role="region" aria-label="Scrollable room and rate mapping table" tabindex="0">
       @if($manage)<form method="post" action="{{ route('cm.connections.mapping', $c) }}" id="mappingForm">@csrf @endif
-      <table class="table" id="mapTable"><thead><tr><th>PMS room type</th><th>Channel room code</th><th class="num">Max to sell</th><th>Active</th><th>Rate plans → channel rate codes</th></tr></thead><tbody>
+      <table class="table cm-map-table" id="mapTable"><caption class="cm-sr-only">Map each PMS room type and rate plan to codes used by {{ $c->name }}.</caption><thead><tr><th scope="col">PMS room type</th><th scope="col">Channel room code</th><th scope="col" class="num">Max to sell</th><th scope="col">Active</th><th scope="col">Rate plans → channel rate codes</th></tr></thead><tbody>
       @foreach($types as $t) @php $rm = $c->roomMaps->firstWhere('room_type_id', $t->id); $rates = $c->rateMaps->where('room_type_id', $t->id); @endphp
         <tr><td><b>{{ $t->name }}</b><div class="tiny muted">{{ $t->code }} · BAR {{ money($t->base_rate) }}</div></td>
           <td><input name="rooms[{{ $t->id }}][code]" value="{{ old("rooms.$t->id.code", $rm?->channel_room_code) }}" placeholder="not mapped" style="width:120px;text-transform:uppercase" @disabled(! $manage)></td>
@@ -59,7 +62,7 @@
     </div></div>
 
     <div class="card" id="restrictions"><div class="card-head"><h3>Channel restrictions</h3><span class="tiny muted">apply to this channel only – on top of the rate calendar</span></div><div class="card-body">
-      <table class="table" id="restrTable"><thead><tr><th>Dates</th><th>Room</th><th>Restriction</th><th>Reason</th><th>By</th><th></th></tr></thead><tbody>
+      <table class="table cm-restr-table" id="restrTable"><caption class="cm-sr-only">Channel-specific inventory restrictions currently in effect or scheduled.</caption><thead><tr><th scope="col">Dates</th><th scope="col">Room</th><th scope="col">Restriction</th><th scope="col">Reason</th><th scope="col">By</th><th scope="col"><span class="cm-sr-only">Action</span></th></tr></thead><tbody>
       @forelse($restrictions as $r)
         <tr><td class="small nowrap">{{ $r->date_from->format('d M') }} – {{ $r->date_to->format('d M Y') }}</td><td class="small">{{ $r->roomType?->name ?? 'All mapped rooms' }}</td><td><b class="small">{{ $r->summary() }}</b></td>
           <td class="small muted">{{ $r->reason }}</td><td class="small">{{ $r->creator?->name ?? '—' }}</td>
@@ -67,7 +70,7 @@
       @empty<tr><td colspan="6" class="muted small">No channel-specific restrictions.</td></tr>@endforelse
       </tbody></table>
       @if($manage)
-      <form method="post" action="{{ route('cm.connections.restrict', $c) }}" class="form-grid mt-1" id="restrForm" style="background:#f8fafc;padding:.7rem;border-radius:8px">@csrf
+      <form method="post" action="{{ route('cm.connections.restrict', $c) }}" class="form-grid mt-1 cm-provider-card" id="restrForm">@csrf
         <x-field name="room_type_id" label="Room type" type="select" :options="$types->whereIn('id', $c->roomMaps->pluck('room_type_id'))->pluck('name', 'id')" placeholder="All mapped rooms"/>
         <x-field name="date_from" label="From" type="date" :value="bdate()->toDateString()" required/>
         <x-field name="date_to" label="To (inclusive)" type="date" :value="bdate()->copy()->addDays(2)->toDateString()" required/>
@@ -80,16 +83,16 @@
       </form>@endif
     </div></div>
 
-    <div class="card flush"><div class="card-head"><h3>Recent messages</h3><a class="small" href="{{ route('cm.inbox', ['connection' => $c->id, 'tab' => 'all']) }}">All →</a></div><div class="card-body table-wrap"><table class="table" id="connMsgs">
-      <thead><tr><th>Received</th><th>Ref</th><th>Event</th><th>Guest</th><th class="num">Amount</th><th>Result</th><th>Reservation</th></tr></thead><tbody>
+    <div class="card flush"><div class="card-head"><h3>Recent messages</h3><a class="small" href="{{ route('cm.inbox', ['connection' => $c->id, 'tab' => 'all']) }}">All messages →</a></div><div class="card-body table-wrap" role="region" aria-label="Recent messages from {{ $c->name }}" tabindex="0"><table class="table cm-inbox-table" id="connMsgs"><caption class="cm-sr-only">Latest inbound booking messages received from {{ $c->name }}.</caption>
+      <thead><tr><th scope="col">Received</th><th scope="col">Ref</th><th scope="col">Event</th><th scope="col">Guest</th><th scope="col" class="num">Amount</th><th scope="col">Result</th><th scope="col">Reservation</th></tr></thead><tbody>
       @forelse($messages as $m)<tr><td class="small nowrap"><a href="{{ route('cm.message', $m) }}">{{ $m->created_at->format('d M H:i') }}</a></td><td class="small">{{ $m->channel_ref }}</td><td><span class="badge badge-slate">{{ $m->event }}</span></td><td>{{ $m->guestName() }}</td>
-        <td class="num">{{ $m->amount !== null ? money($m->amount) : '—' }}</td><td>{!! $m->statusBadge() !!}</td><td>@if($m->reservation)<a href="{{ route('reservations.show', $m->reservation) }}">{{ $m->reservation->reservation_no }}</a>@endif</td></tr>
+        <td class="num">{{ $m->amount !== null ? money($m->amount) : '—' }}</td><td>{!! $m->statusBadge() !!}</td><td>@if($m->reservation)@if(can_do('reservations.view'))<a href="{{ route('reservations.show', $m->reservation) }}">{{ $m->reservation->reservation_no }}</a>@else{{ $m->reservation->reservation_no }}@endif @else<span class="muted">—</span>@endif</td></tr>
       @empty<tr><td colspan="7"><x-empty text="No messages from this channel yet." icon="mail"/></td></tr>@endforelse
       </tbody></table></div></div>
   </div>
 
-  <div>
-    <div class="card"><div class="card-head"><h3>{{ $c->name }}</h3>@include('channel-manager._health', ['conn' => $c])</div><div class="card-body"><dl class="kv">
+  <aside class="cm-side-stack">
+    <div class="card"><div class="card-head"><h3>{{ $c->name }}</h3>@include('channel-manager._health', ['conn' => $c])</div><div class="card-body"><dl class="cm-summary">
       <dt>Code</dt><dd><code>{{ $c->code }}</code></dd>
       <dt>Type</dt><dd>{{ \App\Models\ChannelConnection::providerOptions()[$c->provider] ?? $c->provider }}</dd>
       <dt>Hotel ID</dt><dd>{{ $c->property_code ?: '—' }}</dd>
@@ -107,10 +110,10 @@
     @if($manage)
     <div class="card" id="integration"><div class="card-head"><h3>Integration</h3><span class="tiny muted">Nowills Channel API v1</span></div><div class="card-body small">
       <p class="muted">Give these to the channel / hub. Every message is signed: <code>X-Nowills-Timestamp</code> (unix seconds) and <code>X-Nowills-Signature: sha256=HMAC_SHA256(secret, timestamp + "." + body)</code>.</p>
-      <label class="tiny bold">Reservations webhook (POST)</label><input readonly value="{{ $c->webhookUrl() }}" id="webhookUrl" onclick="this.select()" style="width:100%;font-size:.72rem">
-      <label class="tiny bold mt-1">Availability pull (GET ?from=&amp;days=)</label><input readonly value="{{ $c->ariUrl() }}" onclick="this.select()" style="width:100%;font-size:.72rem">
-      <label class="tiny bold mt-1">Shared secret</label>
-      <div class="flex gap-1"><input readonly type="password" value="{{ $c->secret }}" id="secretBox" style="flex:1;font-size:.72rem"><button type="button" class="btn btn-sm" onclick="const s=document.getElementById('secretBox'); s.type = s.type === 'password' ? 'text' : 'password'"><x-icon name="eye"/></button></div>
+      <label class="tiny bold" for="webhookUrl">Reservations webhook (POST)</label><input readonly value="{{ $c->webhookUrl() }}" id="webhookUrl" class="cm-integration-field" onclick="this.select()">
+      <label class="tiny bold mt-1" for="ariUrl">Availability pull (GET ?from=&amp;days=)</label><input readonly value="{{ $c->ariUrl() }}" id="ariUrl" class="cm-integration-field" onclick="this.select()">
+      <label class="tiny bold mt-1" for="secretBox">Shared secret</label>
+      <div class="flex gap-1"><input readonly type="password" value="{{ $c->secret }}" id="secretBox" class="cm-integration-field" style="flex:1"><button type="button" class="btn btn-icon cm-action" onclick="const s=document.getElementById('secretBox'), shown=s.type==='password'; s.type=shown?'text':'password'; this.setAttribute('aria-pressed', shown?'true':'false'); this.setAttribute('aria-label', shown?'Hide shared secret':'Reveal shared secret'); this.title=shown?'Hide shared secret':'Reveal shared secret'" aria-label="Reveal shared secret" aria-pressed="false" title="Reveal shared secret"><x-icon name="eye"/></button></div>
       <form method="post" action="{{ route('cm.connections.rotate', $c) }}" class="mt-1" data-confirm="Generate a new secret? The channel must be updated immediately – messages signed with the old secret will be refused.">@csrf<button class="btn btn-sm" id="rotateBtn"><x-icon name="key"/> Rotate secret</button></form>
     </div></div>
     @endif
@@ -136,7 +139,7 @@
       </form>
       @if($simBookings->isNotEmpty())
       <h4 class="mt-2">Open test bookings</h4>
-      <ul class="list" id="simList">@foreach($simBookings as $b)<li><span class="small"><a href="{{ route('reservations.show', $b) }}">{{ $b->reservation_no }}</a> · <code>{{ $b->ota_reference }}</code> · {{ $b->guest?->full_name }}</span>
+      <ul class="list" id="simList">@foreach($simBookings as $b)<li><span class="small">@if(can_do('reservations.view'))<a href="{{ route('reservations.show', $b) }}">{{ $b->reservation_no }}</a>@else{{ $b->reservation_no }}@endif · <code>{{ $b->ota_reference }}</code> · {{ $b->guest?->full_name }}</span>
         <form method="post" action="{{ route('cm.connections.simulate', $c) }}" class="inline" data-confirm="Send a cancellation for {{ $b->ota_reference }} from {{ $c->name }}?">@csrf<input type="hidden" name="event" value="cancel"><input type="hidden" name="booking_id" value="{{ $b->ota_reference }}"><button class="btn btn-sm">Cancel via OTA</button></form></li>@endforeach</ul>
       @endif
     </div></div>
@@ -145,7 +148,8 @@
     <div class="card"><div class="card-head"><h3>Recent pushes</h3><a class="small" href="{{ route('cm.pushes', ['connection' => $c->id]) }}">Log →</a></div><div class="card-body">
       <ul class="list" id="connPushes">@forelse($pushes as $p)<li><span class="small">{{ $p->created_at->format('d M H:i') }} <span class="muted">{{ $p->kind }} · {{ $p->room_days }} RN</span></span>{!! $p->status === 'ok' ? '<span class="badge badge-green">ok</span>' : '<span class="badge badge-red" title="'.e($p->error).'">failed</span>' !!}</li>@empty<li class="muted small">No pushes yet.</li>@endforelse</ul>
     </div></div>
-  </div>
+  </aside>
+</div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {

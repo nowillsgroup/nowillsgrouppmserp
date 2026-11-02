@@ -66,7 +66,7 @@ return [
         'CRM & Marketing' => ['crm.view' => 'View marketing dashboard, campaigns, segments, automations & promo codes', 'crm.manage' => 'Create & edit segments, campaign drafts, automations & promo codes',
             'crm.send' => 'Send / schedule campaigns, switch automations on & change marketing settings'],
         'Housekeeping' => ['housekeeping.view' => 'View housekeeping', 'housekeeping.manage' => 'Update room status & tasks, inspect rooms', 'housekeeping.attendant' => 'My rooms – attendant mobile screen', 'maintenance.manage' => 'Maintenance tickets', 'lostfound.manage' => 'Lost & found – log, match loss reports, return & dispose of ordinary items', 'lostfound.release' => 'Release or dispose of valuable lost & found items (ID check / witness)'],
-        'Front Desk Operations' => ['logbook.view' => 'Read the shift log book & acknowledge the hand-over', 'logbook.write' => 'Write log book entries, comment and resolve follow-ups',
+        'Front Desk Operations' => ['logbook.view' => 'View front-office shift sessions, read the shift log book & acknowledge hand-overs', 'logbook.write' => 'Start / close a front-office shift, hand over to a colleague, write log-book entries, comment and resolve follow-ups',
             'logbook.manage' => 'Pin / resolve any log entry; front desk operations settings', 'desk.messages' => 'Take, notify & deliver guest messages and parcels',
             'desk.wakeup' => 'Book, make & cancel wake-up calls', 'desk.traces' => 'Create & complete traces'],
         'Laundry & Linen' => [
@@ -88,7 +88,7 @@ return [
             'assets.view' => 'View the asset register, depreciation & asset tags', 'assets.manage' => 'Add, edit, move & dispose of assets; asset categories',
             'assets.depreciation' => 'Run & reverse monthly depreciation',
         ],
-        'POS' => ['pos.view' => 'View POS', 'pos.order' => 'Take orders / KOT', 'pos.settle' => 'Bill & settle', 'pos.refund' => 'Refund settled POS payments', 'pos.void' => 'Void orders / items', 'pos.kitchen' => 'Kitchen display (KDS) – bump tickets', 'pos.printers' => 'Set up KOT printers, station routing and reprints'],
+        'POS' => ['pos.view' => 'View POS', 'pos.order' => 'Take orders / KOT', 'pos.shift_view_all' => 'View Food & Beverage shift reports for all service staff', 'pos.settle' => 'Bill & settle', 'pos.refund' => 'Refund settled POS payments', 'pos.void' => 'Void orders / items', 'pos.kitchen' => 'Kitchen display (KDS) – bump tickets', 'pos.printers' => 'Set up KOT printers, station routing and reprints'],
         'Restaurant Reservations' => ['tables.view' => 'View table reservations, the floor plan & waitlist', 'tables.book' => 'Take / change / cancel table bookings, seat parties, manage the waitlist',
             'tables.manage' => 'Reservation settings, service periods, floor-plan layout & blocking tables'],
         'Transport Desk' => ['transport.view' => 'View the dispatch board, trips, fleet, papers & tariffs', 'transport.book' => 'Book, change, assign, complete & cancel guest transfers',
@@ -231,6 +231,7 @@ return [
         // DASHBOARD: Dashboard & Operations
         ['label' => 'Dashboard & Operations', 'icon' => 'grid', 'section' => 'DASHBOARD', 'children' => [
             ['label' => 'Dashboard', 'icon' => 'grid', 'route' => 'dashboard', 'perm' => 'dashboard.view'],
+            ['label' => 'My Shift', 'icon' => 'clock', 'route' => 'my-shift', 'perm' => 'logbook.view,folio.shift,pos.order,pos.shift_view_all'],
             ['label' => 'Group Dashboard', 'icon' => 'layers', 'route' => 'group.dashboard', 'perm' => 'group.dashboard'],
             ['label' => 'Night Audit', 'icon' => 'moon', 'route' => 'nightaudit.index', 'perm' => 'nightaudit.run'],
             ['label' => 'Reports', 'icon' => 'chart', 'children' => [ // v5.4
@@ -254,6 +255,7 @@ return [
                 ['label' => 'Desktop Sync', 'route' => 'offline.desktop.workspace', 'perm' => 'offline.desktop.view'], // v7.39
             ]],
             ['label' => 'Desk Operations', 'icon' => 'book', 'children' => [
+                ['label' => 'My Shift', 'route' => 'desk.shift', 'perm' => 'logbook.view'],
                 ['label' => 'Shift Log Book', 'route' => 'desk.logbook', 'perm' => 'logbook.view', 'badge' => 'desk_log'],
                 ['label' => 'Shift Hand-over', 'route' => 'desk.handover', 'perm' => 'logbook.view'],
                 ['label' => 'Wake-up Calls', 'route' => 'desk.wakeups', 'perm' => 'desk.wakeup', 'badge' => 'desk_wakeups'],
@@ -345,7 +347,7 @@ return [
                 ['label' => 'Promo Codes', 'route' => 'crm.promos.index', 'perm' => 'crm.view'],
             ]],
             ['label' => 'Sales & Marketing', 'icon' => 'trend', 'children' => [ // v6.1 sales & marketing
-                ['label' => 'Sales Dashboard', 'route' => 'sales.index', 'perm' => 'sales.view', 'badge' => 'sales_attention'],
+                ['label' => 'Overview', 'route' => 'sales.index', 'perm' => 'sales.view', 'badge' => 'sales_attention'],
                 ['label' => 'Accounts', 'route' => 'sales.accounts', 'perm' => 'sales.view'],
                 ['label' => 'Opportunities', 'route' => 'sales.opportunities', 'perm' => 'sales.view'],
                 ['label' => 'Sales Diary', 'route' => 'sales.activities', 'perm' => 'sales.view'],
@@ -483,6 +485,7 @@ return [
         // OPERATIONS: Food & Beverage
         ['label' => 'Food & Beverage', 'icon' => 'cup', 'section' => 'OPERATIONS', 'children' => [
             ['label' => 'POS / Restaurant', 'icon' => 'cup', 'children' => [
+                ['label' => 'Food & Beverage Service Shift', 'route' => 'department-shifts.index', 'perm' => 'pos.order,pos.shift_view_all'],
                 ['label' => 'POS Terminal', 'route' => 'pos.index', 'perm' => 'pos.view'],
                 ['label' => 'Orders & Bills', 'route' => 'pos.orders', 'perm' => 'pos.view'],
                 ['label' => 'Floor Plan & Waitlist', 'route' => 'tb.floor', 'perm' => 'tables.view', 'badge' => 'tables_attention'],
@@ -736,7 +739,7 @@ return [
                 ['label' => 'SMS / WhatsApp Log', 'route' => 'messages.index', 'perm' => 'logs.view'],
                 ['label' => 'API & Webhooks', 'route' => 'developers.index', 'perm' => 'api.view', 'badge' => 'api_attention'],
                 ['label' => 'Database Backup', 'route' => 'settings.backup', 'perm' => 'settings.manage'],
-                ['label' => 'Data Migration', 'route' => 'migration.index', 'perm' => 'settings.manage'],
+                ['label' => 'Import & Export Data', 'route' => 'migration.index', 'perm' => 'settings.manage'],
             ]],
         ]],
     ],

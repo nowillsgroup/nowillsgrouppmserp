@@ -40,6 +40,26 @@ class GuestPortalService
         return setting('portal_enabled', '1') === '1';
     }
 
+    /** A private portal URL is only issued for an active in-house stay. */
+    public static function portalUrl(ReservationRoom $stay): ?string
+    {
+        return self::enabled() && $stay->portalState() === 'inhouse' ? $stay->portalUrl() : null;
+    }
+
+    /** The in-stay portal URL and a self-contained QR image for guest-facing screens. */
+    public static function portalQrData(ReservationRoom $stay): ?array
+    {
+        $url = self::portalUrl($stay);
+        if (! $url) {
+            return null;
+        }
+        $options = new \chillerlan\QRCode\QROptions(['outputType' => \chillerlan\QRCode\Output\QROutputInterface::MARKUP_SVG, 'outputBase64' => false,
+            'svgAddXmlHeader' => false, 'eccLevel' => \chillerlan\QRCode\Common\EccLevel::M, 'addQuietzone' => true]);
+        $svg = (new \chillerlan\QRCode\QRCode($options))->render($url);
+
+        return ['url' => $url, 'qr' => base64_encode($svg)];
+    }
+
     /** Items the guest can pick for a category (amenities are configurable). */
     public static function items(string $category): array
     {

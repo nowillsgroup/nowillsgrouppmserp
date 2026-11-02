@@ -5,14 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToHotel;
 use Illuminate\Database\Eloquent\Model;
 
-/** v7.55 – a credential (card, password, fingerprint) issued to a Robita device for a guest. */
+/** Local card credential record for a guest stay; hardware synchronization is not implemented. */
 class RobitaCredential extends Model
 {
     use BelongsToHotel;
 
     public const TYPES = ['card', 'password', 'fingerprint'];
     public const STATUSES = ['active', 'expired', 'cancelled'];
-    public const SYNC_STATES = ['ok', 'pending', 'failed']; // v7.57: did the cloud acknowledge it?
+    public const SYNC_STATES = ['ok', 'pending', 'failed', 'simulated', 'unverified'];
 
     protected $guarded = ['id', 'hotel_id'];
 
@@ -41,10 +41,10 @@ class RobitaCredential extends Model
         return $this->belongsTo(KeyCard::class, 'key_card_id');
     }
 
-    /** The cloud has not confirmed this credential yet (or it failed). */
+    /** True only when a real adapter has pending work or reported a failure. */
     public function needsSync(): bool
     {
-        return in_array($this->sync_state, ['pending', 'failed'], true);
+        return in_array($this->sync_state, ['pending', 'failed', 'unverified'], true);
     }
 
     public function isActive(): bool

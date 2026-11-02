@@ -9,13 +9,15 @@
 @section('content')
 @php $c = $counts; @endphp
 
+<div class="alert alert-warning" style="margin-bottom:.8rem"><x-icon name="alert"/><div><b>Demo mode — no hardware connected.</b> Door states and guest credentials below are local PMS simulations only. No undocumented Robita cloud calls, polling, or physical lock commands are made.</div></div>
+
 <div class="stats">
-  <x-stat :value="$c['robita_devices_online']" label="Online devices" icon="lock" tone="blue" :sub="$c['robita_devices_total'].' registered'" :href="route('robita.devices')"/>
-  <x-stat :value="$c['robita_devices_total']" label="Total devices" icon="building" tone="slate" :sub="$c['robita_devices_offline'].' offline'" :href="route('robita.devices')"/>
-  <x-stat :value="$c['robita_credentials_active']" label="Active credentials" icon="key" tone="green" sub="cards issued to devices"/>
-  <x-stat :value="$c['robita_events_unlock']" label="Unlocks today" icon="check" tone="teal" :sub="$c['robita_events_alarm'].' alarms'" :href="route('robita.events')"/>
-  <x-stat :value="$c['robita_low_battery']" label="Low battery" icon="alert" :tone="$c['robita_low_battery'] ? 'red' : 'green'" sub="needs replacement" :href="route('robita.devices')"/>
-  <x-stat :value="$c['robita_events_alarm']" label="Alarms today" icon="bell" :tone="$c['robita_events_alarm'] ? 'red' : 'slate'" sub="tamper / forced entry" :href="route('robita.events', ['alarm' => '1'])"/>
+  <x-stat :value="$c['robita_devices_total']" label="Registered lock records" icon="lock" tone="blue" :sub="$c['robita_devices_demo'].' demo records'" :href="route('robita.devices')"/>
+  <x-stat :value="$c['robita_devices_locked']" label="Locally marked locked" icon="check" tone="slate" sub="not a hardware reading" :href="route('robita.devices')"/>
+  <x-stat :value="$c['robita_credentials_active']" label="Active local credentials" icon="key" tone="green" sub="not sent to locks"/>
+  <x-stat :value="$c['robita_events_unlock']" label="Unlock events today" icon="check" tone="teal" sub="demo / normalized intake" :href="route('robita.events')"/>
+  <x-stat :value="$c['robita_low_battery']" label="Reported low battery" icon="alert" :tone="$c['robita_low_battery'] ? 'red' : 'green'" sub="normalized event data" :href="route('robita.devices')"/>
+  <x-stat :value="$c['robita_events_alarm']" label="Security alerts today" icon="bell" :tone="$c['robita_events_alarm'] ? 'red' : 'slate'" sub="demo / normalized events" :href="route('robita.events', ['alarm' => '1'])"/>
 </div>
 
 <div class="grid g-2">
@@ -23,25 +25,23 @@
     <div class="card-head">
       <h3><x-icon name="lock" size="sm"/> Door Lock Devices</h3>
       <div class="flex" style="gap:.4rem">
-        <button class="btn btn-sm btn-primary" data-modal="registerDevice" id="registerDeviceBtn"><x-icon name="plus" size="sm"/> Register Device</button>
+        <button class="btn btn-sm btn-primary" data-modal="registerDevice" id="registerDeviceBtn"><x-icon name="plus" size="sm"/> Add Demo Lock</button>
         <a class="btn btn-sm" href="{{ route('robita.devices') }}">Manage all</a>
       </div>
     </div>
     <div class="card-body table-wrap">
       <table class="table table-compact">
-        <thead><tr><th>Device</th><th>Room</th><th>State</th><th>Battery</th><th>Signal</th><th>Last seen</th><th></th></tr></thead>
+        <thead><tr><th>Lock record</th><th>Room</th><th>Local state</th><th>Battery</th><th>Signal</th><th>Last local event</th><th></th></tr></thead>
         <tbody>
         @forelse($devices->take(8) as $device)
           <tr>
             <td><b>{{ $device->name }}</b><div class="small muted">{{ $device->serial }} · {{ $device->model }}</div></td>
             <td>{{ $device->room?->room_no ?? ($device->location ?? '—') }}</td>
             <td>
-              @if($device->status === 'decommissioned')
-                <span class="badge badge-slate">Off</span>
-              @elseif($device->isOnline())
-                <span class="badge badge-{{ $device->isLocked() ? 'green' : 'amber' }}">{{ $device->isLocked() ? 'Locked' : 'Unlocked' }}</span>
+              @if($device->status === 'demo')
+                <span class="badge badge-blue">Demo · {{ $device->lock_state ?: 'unknown' }}</span>
               @else
-                <span class="badge badge-red">Offline</span>
+                <span class="badge badge-amber">Legacy status · not verified</span>
               @endif
             </td>
             <td>
@@ -55,11 +55,11 @@
             </td>
             <td class="small muted">{{ $device->last_seen_at ? $device->last_seen_at->diffForHumans() : '—' }}</td>
             <td class="text-right">
-              @if($device->isOnline())<a class="btn btn-sm" href="{{ route('robita.devices') }}">Control</a>@endif
+              @if($device->status !== 'decommissioned')<a class="btn btn-sm" href="{{ route('robita.devices') }}">Demo</a>@endif
             </td>
           </tr>
         @empty
-          <tr><td colspan="7"><x-empty icon="lock" text="No devices registered yet. Click Register Device to add a Robita lock."/></td></tr>
+          <tr><td colspan="7"><x-empty icon="lock" text="No local demo lock records yet. Add a demo record to test the guest lifecycle."/></td></tr>
         @endforelse
         </tbody>
       </table>
@@ -73,7 +73,7 @@
     </div>
     <div class="card-body table-wrap">
       <table class="table table-compact">
-        <thead><tr><th>Time</th><th>Device</th><th>Type</th><th>Method</th><th>User</th></tr></thead>
+        <thead><tr><th>Time</th><th>Device</th><th>Event</th><th>Method</th><th>User</th><th>Source</th></tr></thead>
         <tbody>
         @forelse($lastEvents as $event)
           <tr>
@@ -87,9 +87,10 @@
             </td>
             <td class="small muted">{{ ucfirst($event->method ?? '—') }}</td>
             <td>{{ $event->user_name ?? '—' }}</td>
+            <td class="small muted">{{ $event->source === 'demo' ? 'Demo' : 'Webhook / bridge' }}</td>
           </tr>
         @empty
-          <tr><td colspan="5"><x-empty icon="clock" text="No events received yet."/></td></tr>
+          <tr><td colspan="6"><x-empty icon="clock" text="No demo or normalized events recorded yet."/></td></tr>
         @endforelse
         </tbody>
       </table>
@@ -98,17 +99,13 @@
 </div>
 
 <div class="card">
-  <div class="card-head"><h3><x-icon name="link" size="sm"/> Cloud Connection</h3><a class="btn btn-sm" href="{{ route('robita.settings') }}">Configure</a></div>
+  <div class="card-head"><h3><x-icon name="link" size="sm"/> Hardware Integration Status</h3><a class="btn btn-sm" href="{{ route('robita.settings') }}">Settings</a></div>
   <div class="card-body">
-    @if($cfg['robita_cloud_url'] === '')
-      <div class="alert alert-info"><x-icon name="alert"/><div><b>Demo mode.</b> Set a Robita cloud URL in Settings to enable live device communication. Commands are acknowledged locally without cloud calls.</div></div>
-    @else
-      <div class="alert alert-success"><x-icon name="check"/><div><b>Cloud connected.</b> {{ $cfg['robita_cloud_url'] }}</div></div>
-    @endif
+    <div class="alert alert-warning"><x-icon name="alert"/><div><b>Not connected.</b> Vendor API commands and hardware polling are disabled until Robita supplies protocol documentation and a device passes hardware acceptance. All lock actions here are simulations.</div></div>
     <dl class="kv" style="margin-top:.6rem">
-      <dt>Webhook URL</dt><dd class="mono" style="font-size:.75rem">{{ url('/api/robita/'.$cfg['robita_webhook_token']) }}</dd>
-      <dt>Poll interval</dt><dd>{{ $cfg['robita_poll_minutes'] ? $cfg['robita_poll_minutes'].' min' : 'Webhook only' }}</dd>
-      <dt>Default model</dt><dd>{{ $cfg['robita_default_model'] }}</dd>
+      <dt>Normalized-event endpoint</dt><dd class="mono" style="font-size:.75rem">{{ url('/api/robita/events') }}</dd>
+      <dt>Default model label</dt><dd>{{ $cfg['robita_default_model'] }} (display only)</dd>
+      <dt>Guest lifecycle</dt><dd>Local check-in, checkout, room-move, extension and expiry records</dd>
     </dl>
   </div>
 </div>
@@ -116,8 +113,9 @@
 <div class="modal" id="registerDevice">
   <div class="modal-box" style="max-width:720px">
     <form method="post" action="{{ route('robita.devices.store') }}">@csrf
-      <div class="modal-head"><h3>Register Robita Device</h3><button type="button" class="btn btn-sm" data-close><x-icon name="x"/></button></div>
+      <div class="modal-head"><h3>Add Demo Lock Record</h3><button type="button" class="btn btn-sm" data-close><x-icon name="x"/></button></div>
       <div class="modal-body">
+        <div class="alert alert-info"><x-icon name="alert"/><div>This creates a local PMS test record only. It does not register, connect to, or control a physical lock.</div></div>
         <div class="form-grid">
           <div><label>Serial Number</label><input class="input" name="serial" required placeholder="e.g. RBT-S1-001234"></div>
           <div><label>Device Name</label><input class="input" name="name" required placeholder="e.g. Room 101 door"></div>
@@ -146,7 +144,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary"><x-icon name="lock"/> Register Device</button>
+        <button type="submit" class="btn btn-primary"><x-icon name="plus"/> Add Demo Record</button>
       </div>
     </form>
   </div>

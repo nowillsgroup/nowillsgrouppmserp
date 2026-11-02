@@ -8,6 +8,7 @@
   @if(can_do('logbook.write') && $e->status === 'resolved')<form method="post" action="{{ route('desk.logbook.reopen', $e) }}" style="display:inline">@csrf<button class="btn" id="reopenBtn"><x-icon name="refresh"/> Re-open</button></form>@endif
 @endsection
 @section('content')
+@include('desk._workspace-nav')
 <div class="grid-2" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:1rem;align-items:start">
 <div>
   <div class="card"><div class="card-head"><h3 id="entryTitle">{{ $e->title }}</h3>
@@ -39,6 +40,7 @@
       @if($e->stay)<dt>Stay</dt><dd>Room {{ $e->stay->room?->room_no ?? '—' }} · <a href="{{ route('reservations.show', $e->stay->reservation_id) }}">{{ $e->stay->reservation?->reservation_no }}</a></dd>@endif
       @if($e->room && ! $e->stay)<dt>Room</dt><dd>{{ $e->room->room_no }}</dd>@endif
       @if($e->guest)<dt>Guest</dt><dd><a href="{{ route('guests.show', $e->guest) }}">{{ $e->guest->full_name }}</a></dd>@endif
+      @if($e->shiftSession)<dt>Shift session</dt><dd><a href="{{ route('desk.shift') }}">Session #{{ $e->shiftSession->id }}</a> · {{ $e->shiftSession->statusLabel() }}</dd>@endif
       <dt>Business date</dt><dd>{{ $e->business_date->format('d M Y') }}</dd>
       @if($e->follow_up_at)<dt>Follow up</dt><dd class="{{ $e->followUpDue() ? 'text-red' : '' }}">{{ $e->follow_up_at->format('d M H:i') }}</dd>@endif
       @if($e->pinned)<dt>Pinned</dt><dd>{{ $e->pinned_until ? 'until '.$e->pinned_until->format('d M') : 'until unpinned' }}</dd>@endif

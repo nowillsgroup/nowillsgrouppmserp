@@ -1,0 +1,20 @@
+@extends('layouts.app')
+@section('title', 'Service Shift Report #'.$session->id)
+@section('crumbs') Operations / My Shift / Food &amp; Beverage / Report #{{ $session->id }} @endsection
+@section('actions')<a class="btn" href="{{ route('department-shifts.index', ['date' => $session->business_date->toDateString()]) }}"><x-icon name="chev"/> Back to shift reports</a>@endsection
+@section('content')
+<div class="alert {{ $session->status === 'closed' ? 'alert-success' : 'alert-info' }}"><x-icon name="check"/><div><b>{{ $session->status === 'closed' ? 'Close-out snapshot' : 'Provisional live report' }}</b> · This report belongs to {{ $session->user?->name ?? 'a former staff member' }}. POS order value belongs to the service shift; payment reconciliation remains on the cashier shift.</div></div>
+<div class="grid g-4">
+  <div class="card"><div class="card-head"><h3>Shift details</h3><span class="badge badge-{{ $session->status === 'open' ? 'green' : 'slate' }}">{{ $session->statusLabel() }}</span></div><div class="card-body"><dl class="detail-grid">
+    <dt>Staff member</dt><dd>{{ $session->user?->name ?? 'Former staff member' }}</dd><dt>Department</dt><dd>Food &amp; Beverage Service</dd><dt>Shift</dt><dd>{{ ucfirst($session->shift) }}</dd><dt>Business date</dt><dd>{{ $session->business_date->format('D, d M Y') }}</dd><dt>Opened</dt><dd>{{ $session->opened_at->format('d M Y H:i') }}</dd><dt>Closed</dt><dd>{{ $session->closed_at?->format('d M Y H:i') ?? 'Still open' }}</dd>
+  </dl>@if($session->opening_note)<p class="small mt-1"><b>Opening note:</b> {{ $session->opening_note }}</p>@endif @if($session->closing_note)<p class="small mt-1"><b>Closing note:</b> {{ $session->closing_note }}</p>@endif</div></div>
+  <div class="card"><div class="card-head"><h3>{{ $session->status === 'closed' ? 'Saved shift close-out' : 'Live shift totals' }}</h3></div><div class="card-body"><ul class="list">
+    <li><span>Orders handled</span><b>{{ $summary['orders'] }}</b></li><li><span>Covers</span><b>{{ $summary['covers'] }}</b></li><li><span>Order value, excluding voids</span><b>{{ money($summary['order_value']) }}</b></li><li><span>Settled POS sales</span><b>{{ money($summary['settled_sales']) }}</b></li><li><span>Room-posted orders</span><b>{{ money($summary['room_posts']) }}</b></li><li><span>Voided orders</span><b>{{ $summary['void_orders'] }}</b></li><li><span>Open / billed orders at close</span><b>{{ $summary['open_orders'] }}</b></li>
+  </ul></div></div>
+</div>
+<section class="card flush mt-2"><div class="card-head"><div><h2>Orders linked to this shift</h2><div class="small muted">Orders were linked when this staff member opened them during the service session.</div></div></div><div class="card-body table-wrap"><table class="table"><thead><tr><th>Order</th><th>Outlet / table</th><th>Guest / service</th><th>Opened</th><th>Covers</th><th>Status</th><th class="num">Value</th><th></th></tr></thead><tbody>
+  @forelse($session->posOrders as $order)
+    <tr><td>{{ $order->order_no }}</td><td>{{ $order->outlet?->name ?? '—' }}<div class="small muted">{{ $order->table ? 'Table '.$order->table->table_no : ucfirst(str_replace('_', ' ', $order->order_type)) }}</div></td><td>{{ $order->customer_name ?: '—' }}</td><td>{{ $order->created_at?->format('H:i') }}</td><td>{{ $order->covers }}</td><td>{{ ucfirst(str_replace('_', ' ', $order->status)) }}</td><td class="num">{{ money($order->total) }}</td><td>@if(can_do('pos.view'))<a class="btn btn-sm" href="{{ route('pos.terminal', $order) }}">View</a>@else<span class="muted">—</span>@endif</td></tr>
+  @empty<tr><td colspan="8" class="muted">No POS orders were opened during this service shift.</td></tr>@endforelse
+</tbody></table></div></section>
+@endsection

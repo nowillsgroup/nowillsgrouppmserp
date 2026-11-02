@@ -47,6 +47,11 @@ class MenuItem extends Model
         return $this->belongsToMany(MenuModifierGroup::class, 'menu_item_modifier_groups')->withPivot('sort_order')->orderBy('menu_item_modifier_groups.sort_order');
     }
 
+    public function variants()
+    {
+        return $this->hasMany(MenuItemVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /** v6.8 standard recipe card header */
     public function card()
     {

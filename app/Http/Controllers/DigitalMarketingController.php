@@ -205,14 +205,16 @@ class DigitalMarketingController extends Controller
             ->orderByDesc('is_active')->orderByDesc('last_click_at')->orderByDesc('id')->get();
         $b = Reservation::whereIn('dm_link_id', $links->pluck('id')->all() ?: [0])->where('status', '!=', 'cancelled')->selectRaw('dm_link_id, count(*) n')->groupBy('dm_link_id')->pluck('n', 'dm_link_id');
 
+        $clicks30 = DmLinkClick::whereIn('link_id', $links->pluck('id')->all() ?: [0])->where('clicked_at', '>=', now()->subDays(30))->count();
+
         return view('digital.links', ['links' => $links, 'bookings' => $b, 'q' => $q, 'campaignList' => DmCampaign::where('status', '!=', 'ended')->orderBy('name')->get(),
-            'clicks30' => DmLinkClick::where('clicked_at', '>=', now()->subDays(30))->count()]);
+            'clicks30' => $clicks30]);
     }
 
     public function link(DmLink $dmlink)
     {
         return view('digital.link', ['l' => $dmlink->load('campaign', 'creator'), 's' => DM::linkStats($dmlink), 'qr' => $this->qrSvg($dmlink->shortUrl()),
-            'recent' => $dmlink->clickLog()->orderByDesc('clicked_at')->limit(15)->get(), 'res' => $dmlink->reservations()->with('guest')->latest('id')->limit(15)->get(),
+            'recent' => $dmlink->clickLog()->orderByDesc('clicked_at')->limit(15)->get(), 'res' => $dmlink->reservations()->where('status', '!=', 'cancelled')->with('guest')->latest('id')->limit(15)->get(),
             'campaignList' => DmCampaign::where('status', '!=', 'ended')->orWhere('id', $dmlink->campaign_id)->orderBy('name')->get()]);
     }
 

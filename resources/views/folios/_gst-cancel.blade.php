@@ -1,5 +1,5 @@
 <div class="modal" id="gstCancelModal"><div class="modal-box"><form method="post" action="{{ route('gst.cancel', $folio) }}">@csrf
-  <div class="modal-head"><h3>Cancel {{ $folio->isCreditNote() ? 'credit note' : 'invoice' }} {{ $folio->invoice_no }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Cancel {{ $folio->isCreditNote() ? 'credit note' : 'invoice' }} {{ $folio->invoice_no }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body">
     <p class="small">@if($folio->isCreditNote())The credit note's lines and settlement are voided.@else The folio re-opens with its charges and payments; when it is settled again it gets a <b>new</b> invoice number.@endif
       The number {{ $folio->invoice_no }} is kept in the cancelled-documents register and never reused. Only documents not yet stamped by GRA E-VAT can be cancelled.</p>

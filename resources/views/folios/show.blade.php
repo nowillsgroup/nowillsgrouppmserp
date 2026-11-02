@@ -6,14 +6,14 @@
   @if($folio->status === 'open')
     @if(can_do('folio.post'))<button class="btn btn-primary" data-modal="chargeModal"><x-icon name="plus"/> Post Charge</button>@endif
     @if(can_do('folio.payment'))<button class="btn btn-success" data-modal="payModal"><x-icon name="money"/> Payment</button>@endif
-    @if(can_do('payments.request') && $totals['balance'] > 0)<button class="btn" data-modal="payLinkModal"><x-icon name="link"/> Payment link</button>
+    @if(can_do('payments.request') && $totals['balance'] > 0)<button type="button" class="btn" data-modal="payLinkModal" aria-haspopup="dialog" aria-controls="payLinkModal"><x-icon name="link"/> Payment link</button>
   <button class="btn" data-modal="momoModal"><x-icon name="wallet"/> Request MoMo</button>@endif
     @if(can_do('folio.discount'))<button class="btn" data-modal="discModal">Discount</button>@endif
     @if(can_do('folio.payment') && $totals['balance'] > 0)<button class="btn" data-modal="transferModal"><x-icon name="building"/> City Ledger</button>@endif
-    @if(can_do('folio.payment') && !($folio->stay && $folio->stay->status === 'checked_in'))<form method="post" action="{{ route('folios.close', $folio) }}" data-confirm="Settle and close this folio?">@csrf<button class="btn btn-warning">Settle & Close</button></form>@endif
+    @if(can_do('folio.payment') && !($folio->stay && $folio->stay->status === 'checked_in') && abs((float) $totals['balance']) <= 0.009)<form method="post" action="{{ route('folios.close', $folio) }}" data-confirm="Close this zero-balance folio?">@csrf<button class="btn btn-warning">Close Folio</button></form>@endif
     @if($folio->stay && $folio->stay->status === 'checked_in' && can_do('frontdesk.checkout'))<a class="btn btn-warning" href="{{ route('frontdesk.checkout', $folio->stay) }}"><x-icon name="logout"/> Check-out</a>@endif
   @else
-    @if($folio->invoice_no && $folio->status !== 'cancelled')<a class="btn btn-primary" href="{{ route('folios.invoice', $folio) }}" target="_blank"><x-icon name="print"/> {{ $folio->isCreditNote() ? 'Credit note' : 'Invoice' }} {{ $folio->invoice_no }}</a>@endif
+    @if($folio->invoice_no && $folio->status !== 'cancelled')<a class="btn btn-primary" href="{{ route('folios.invoice', $folio) }}" target="_blank" rel="noopener"><x-icon name="print"/> {{ $folio->isCreditNote() ? 'Credit note' : 'Invoice' }} {{ $folio->invoice_no }}</a>@endif
     @if($folio->status === 'closed' && can_do('folio.credit_note') && ! $folio->isCreditNote())<a class="btn" href="{{ route('gst.credit_note.create', $folio) }}" id="creditNoteBtn"><x-icon name="swap"/> Issue credit note</a>@endif
     @if($folio->status === 'closed' && can_do('folio.void') && ! \App\Services\GstService::reopenBlocker($folio))<form method="post" action="{{ route('folios.reopen', $folio) }}" data-confirm="Re-open this closed folio? This is logged.">@csrf<button class="btn">Re-open</button></form>@endif
     @if($folio->status === 'closed' && $folio->invoice_no && can_do('gst.manage') && ! \App\Services\GstService::cancelBlocker($folio))<button class="btn btn-danger" data-modal="gstCancelModal" id="gstCancelBtn"><x-icon name="x"/> Cancel {{ $folio->isCreditNote() ? 'note' : 'invoice' }}</button>@endif
@@ -21,27 +21,33 @@
   <button class="btn" data-modal="mailModal" title="E-mail {{ $folio->invoice_no ? 'invoice' : 'statement' }} to guest"><x-icon name="mail"/> E-mail</button>
 @endsection
 @section('content')
-@php $openingTx = $transactions->first(fn ($t) => $t->isOpening()); @endphp
+@php
+  $openingTx = $transactions->first(fn ($t) => $t->isOpening());
+  $linkedReservation = $folio->reservation ?? $folio->stay?->reservation;
+  $folioGuest = $folio->guest ?? $folio->stay?->guest ?? $linkedReservation?->guest;
+  $folioCompany = $folio->company ?? $linkedReservation?->company;
+@endphp
 @if($openingTx)
 <div class="alert alert-info mb-1"><x-icon name="info"/><div><b>Opening receivable as at {{ $openingTx->opening_date?->format('d M Y') }}.</b> The source outstanding balance and reference are retained; historical revenue, tax, payment/refund and GL activity were not replayed. The opening trial balance establishes the receivable control once. This row cannot be voided or moved.</div></div>
 @endif
 <div class="stats">
   <x-stat label="Charges (incl. tax)" :value="money($totals['charges'])" icon="receipt" tone="blue"/>
   @if(abs((float) $totals['opening']) > 0.004)<x-stat label="Opening balance" :value="money($totals['opening'])" icon="book" tone="amber"/>@endif
-  <x-stat label="Discounts" :value="money($totals['discount'])" icon="star" tone="purple"/>
-  <x-stat label="Payments" :value="money($totals['payments'] - $totals['refunds'])" icon="wallet" tone="green"/>
+  <x-stat label="Discounts and allowances" :value="money($totals['discount'])" icon="star" tone="purple"/>
+  <x-stat label="Net payments" :value="money($totals['payments'] - $totals['refunds'])" sub="Payments received less refunds" icon="wallet" tone="green"/>
   <x-stat label="Balance" :value="money($totals['balance'])" icon="money" :tone="$totals['balance'] > 0 ? 'red' : 'teal'"/>
 </div>
 <div class="grid g-3-1">
   <div class="card flush"><div class="card-head"><h3>Transactions</h3><span class="flex gap-1 items-center"><span class="small muted">{{ $transactions->where('is_void', false)->count() }} active</span>
     @if($folio->status === 'open' && can_do('folio.split'))<button type="button" class="btn btn-sm" id="moveBtn" data-modal="moveModal" disabled>Split / move selected (<span id="txN">0</span>)</button>@endif</span></div>
     <div class="card-body table-wrap"><table class="table">
-      <thead><tr>@if($folio->status === 'open' && can_do('folio.split'))<th style="width:28px"><input type="checkbox" title="Select all" onclick="document.querySelectorAll('.txsel').forEach(c => c.checked = this.checked); txCount()"></th>@endif<th>Date</th><th>Description</th><th>Category</th><th class="num">Amount</th><th class="num">Tax</th><th class="num">Debit</th><th class="num">Credit</th><th>By</th><th></th></tr></thead><tbody>
+      <caption class="sr-only">Transactions on folio {{ $folio->folio_no }}</caption>
+      <thead><tr>@if($folio->status === 'open' && can_do('folio.split'))<th scope="col" style="width:28px"><input type="checkbox" aria-label="Select all transactions" onclick="document.querySelectorAll('.txsel').forEach(c => c.checked = this.checked); txCount()"></th>@endif<th scope="col">Business date</th><th scope="col">Description</th><th scope="col">Category</th><th scope="col" class="num">Amount (excl. tax)</th><th scope="col" class="num">Tax</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th><th scope="col">Posted by</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>
       @forelse($transactions as $t)
         <tr class="{{ $t->is_void ? 'void' : '' }}">
-          @if($folio->status === 'open' && can_do('folio.split'))<td>@if(! $t->is_void && ! $t->isOpening())<input type="checkbox" class="txsel" name="tx[]" value="{{ $t->id }}" form="moveForm" onchange="txCount()">@endif</td>@endif
-          <td class="nowrap">{{ $t->business_date->format('d M') }}</td>
-          <td>{{ $t->description }} @if($t->reference)<span class="tiny muted">#{{ $t->reference }}</span>@endif @if($t->isOpening())<span class="badge badge-amber">opening · {{ $t->opening_date?->format('d M Y') }}</span>@endif @if($t->paymentMode)<span class="badge badge-slate">{{ $t->paymentMode->name }}</span>@endif @if($t->company)<span class="badge badge-blue">{{ $t->company->name }}</span>@endif
+          @if($folio->status === 'open' && can_do('folio.split'))<td>@if(! $t->is_void && ! $t->isOpening() && $t->source_type !== 'pos_complimentary')<input type="checkbox" class="txsel" name="tx[]" value="{{ $t->id }}" form="moveForm" aria-label="Select {{ $t->description }} transaction dated {{ $t->business_date->format('d M Y') }}" onchange="txCount()">@endif</td>@endif
+          <td class="nowrap"><time datetime="{{ $t->business_date->toDateString() }}">{{ $t->business_date->format('d M Y') }}</time>@if($t->created_at)<div class="tiny muted"><time datetime="{{ $t->created_at->toIso8601String() }}">Posted {{ $t->created_at->format('d M Y') }} · {{ $t->created_at->format('H:i') }}</time></div>@endif</td>
+          <td>{{ $t->description }} @if($t->source_type === 'pos_complimentary')<span class="badge badge-slate">Informational · no charge</span>@endif @if($t->reference)<span class="tiny muted">#{{ $t->reference }}</span>@endif @if($t->isOpening())<span class="badge badge-amber">opening · {{ $t->opening_date?->format('d M Y') }}</span>@endif @if($t->paymentMode)<span class="badge badge-slate">{{ $t->paymentMode->name }}</span>@endif @if($t->company)<span class="badge badge-blue">{{ $t->company->name }}</span>@endif
             @if($t->due_date)<div class="tiny muted">Source due {{ $t->due_date->format('d M Y') }}</div>@endif
             @if($t->cheque_number)<div class="tiny muted">Cheque {{ $t->cheque_number }} · {{ $t->cheque_bank_name ?: 'Bank not recorded' }}{{ $t->cheque_bank_branch ? ' · '.$t->cheque_bank_branch : '' }}</div>@endif
             @if($t->is_void)<div class="tiny text-red">Void: {{ $t->void_reason }}</div>@endif</td>
@@ -50,21 +56,22 @@
           <td class="num">{{ $t->type === 'charge' && $t->tax_amount > 0 ? money($t->tax_amount, false).' ('.(float)$t->tax_rate.'%)' : '' }}</td>
           <td class="num">{{ in_array($t->type, ['charge','refund']) || $t->isOpening() ? money($t->total, false) : '' }}</td>
           <td class="num">{{ in_array($t->type, ['payment','discount','allowance']) ? money($t->amount, false) : '' }}</td>
-          <td class="tiny muted">{{ $t->poster?->username ?? ($t->source_type === 'online_payment' ? 'online' : 'migration') }}</td>
-          <td>@if(!$t->is_void && ! $t->isOpening() && $folio->status === 'open' && can_do('folio.void') && ! in_array($t->source_type, ['online_payment', 'online_refund']))<button class="btn btn-sm btn-ghost" data-modal="voidModal" data-action="{{ route('folios.void', $t) }}" title="Void"><x-icon name="x" size="sm"/></button>@endif</td>
+          <td class="tiny muted">{{ $t->poster?->name ?? $t->poster?->username ?? ($t->source_type === 'online_payment' ? 'online' : 'migration') }}</td>
+          <td>@if(!$t->is_void && ! $t->isOpening() && $folio->status === 'open' && can_do('folio.void') && ! in_array($t->source_type, ['online_payment', 'online_refund', 'pos_complimentary']))<button class="btn btn-sm btn-ghost" data-modal="voidModal" data-action="{{ route('folios.void', $t) }}" title="Void transaction" aria-label="Void transaction: {{ $t->description }}"><x-icon name="x" size="sm"/></button>@endif</td>
         </tr>
-      @empty <tr><td colspan="9"><x-empty text="No transactions yet." icon="receipt"/></td></tr> @endforelse
+      @empty <tr><td colspan="{{ $folio->status === 'open' && can_do('folio.split') ? 10 : 9 }}"><x-empty text="No transactions yet." icon="receipt"/></td></tr> @endforelse
       </tbody>
       <tfoot><tr><td colspan="{{ $folio->status === 'open' && can_do('folio.split') ? 6 : 5 }}" class="right">Totals</td><td class="num">{{ money($totals['charges'] + $totals['opening'] + $totals['refunds'], false) }}</td><td class="num">{{ money($totals['payments'] + $totals['discount'], false) }}</td><td colspan="2"></td></tr></tfoot>
     </table></div></div>
   <div>
     <div class="card"><div class="card-head"><h3>Folio Details</h3></div><div class="card-body"><dl class="kv">
-      <dt>Guest</dt><dd>@if($folio->guest)<a href="{{ route('guests.show', $folio->guest) }}">{{ $folio->guest->full_name }}</a>@endif</dd>
+      <dt>Guest</dt><dd>@if($folioGuest)<a href="{{ route('guests.show', $folioGuest) }}">{{ $folioGuest->full_name }}</a>@else<span class="muted">—</span>@endif</dd>
       <dt>Type</dt><dd>{{ ucwords(str_replace('_',' ',$folio->type)) }}</dd>
-      @if($folio->stay)<dt>Room</dt><dd>{{ $folio->stay->room?->room_no }} ({{ $folio->stay->roomType->name }})</dd><dt>Stay</dt><dd>{{ $folio->stay->arrival_date->format('d M') }} → {{ $folio->stay->departure_date->format('d M') }}</dd><dt>Rate</dt><dd>{{ money($folio->stay->rate) }}</dd>@endif
-      @if($folio->reservation)<dt>Reservation</dt><dd><a href="{{ route('reservations.show', $folio->reservation) }}">{{ $folio->reservation->reservation_no }}</a></dd>@endif
-      <dt>Bill to</dt><dd>{{ $folio->company?->name ?? 'Guest' }}</dd>
-      @if($folio->invoice_no)<dt>Invoice</dt><dd>{{ $folio->invoice_no }}</dd><dt>Closed</dt><dd>{{ $folio->closed_at?->format('d M Y H:i') }}</dd>@endif
+      @if($folio->stay)<dt>Room</dt><dd>{{ $folio->stay->room?->room_no }} ({{ $folio->stay->roomType->name }})</dd><dt>Stay</dt><dd><time datetime="{{ $folio->stay->arrival_date->toDateString() }}">{{ $folio->stay->arrival_date->format('d M Y') }}</time> → <time datetime="{{ $folio->stay->departure_date->toDateString() }}">{{ $folio->stay->departure_date->format('d M Y') }}</time></dd><dt>Rate</dt><dd>{{ money($folio->stay->rate) }}</dd>@endif
+      @if($linkedReservation)<dt>Reservation</dt><dd><a href="{{ route('reservations.show', $linkedReservation) }}">{{ $linkedReservation->reservation_no }}</a></dd>@endif
+      <dt>Bill to</dt><dd>{{ $folioCompany?->name ?? 'Guest' }}</dd>
+      @if($folio->invoice_no)<dt>Invoice</dt><dd>{{ $folio->invoice_no }}</dd>@endif
+      @if($folio->closed_at)<dt>Closed</dt><dd><time datetime="{{ $folio->closed_at->toIso8601String() }}">{{ $folio->closed_at->format('d M Y H:i') }}</time></dd>@endif
     </dl></div></div>
     @if($folio->invoice_no && \App\Services\GstService::isGhana())@include('folios._gst')@endif
     @if($folio->stay && $folio->stay->status === 'checked_in' && (can_do('keys.view') || can_do('calls.view')))@include('interfaces._stay', ['stay' => $folio->stay])@endif
@@ -77,8 +84,8 @@
       @forelse($fixedCharges as $c)
         <div class="flex items-center gap-1" style="padding:6px 0;border-bottom:1px solid var(--c-border)">
           <div style="flex:1"><b class="{{ $c->is_active ? '' : 'muted' }}">{{ $c->description }}</b> <span class="badge {{ $c->frequency === 'daily' ? 'badge-blue' : 'badge-slate' }}">{{ $c->frequency === 'daily' ? 'per night' : 'once' }}</span> @unless($c->is_active)<span class="badge badge-slate">stopped</span>@endunless
-            <div class="tiny muted">{{ money($c->amount) }}{{ $c->apply_tax ? ' + tax' : '' }} · from {{ $c->start_date->format('d M') }}{{ $c->end_date ? ' to '.$c->end_date->format('d M') : '' }} · posted {{ $c->times_posted }}×@if($c->is_active && $folio->stay->status !== 'checked_out') · still to post ≈ {{ money(\App\Services\FixedChargeService::projected($c, $folio->stay)) }}@endif</div></div>
-          @if($c->is_active && can_do('folio.post'))<form method="post" action="{{ route('folios.fixed.destroy', $c) }}" data-confirm="Stop this fixed charge?">@csrf @method('DELETE')<button class="btn btn-sm btn-ghost" title="Stop"><x-icon name="x" size="sm"/></button></form>@endif
+            <div class="tiny muted">{{ money($c->amount) }}{{ $c->apply_tax ? ' + tax' : '' }} · from {{ $c->start_date->format('d M Y') }}{{ $c->end_date ? ' to '.$c->end_date->format('d M Y') : '' }} · posted {{ $c->times_posted }}×@if($c->is_active && $folio->stay->status !== 'checked_out') · still to post ≈ {{ money(\App\Services\FixedChargeService::projected($c, $folio->stay)) }}@endif</div></div>
+          @if($c->is_active && can_do('folio.post'))<form method="post" action="{{ route('folios.fixed.destroy', $c) }}" data-confirm="Stop this fixed charge?">@csrf @method('DELETE')<button class="btn btn-sm btn-ghost" title="Stop fixed charge" aria-label="Stop fixed charge: {{ $c->description }}"><x-icon name="x" size="sm"/></button></form>@endif
         </div>
       @empty<p class="small muted">No fixed charges. Add breakfast, parking, an extra bed or a one-off pickup here. They post automatically with the room tariff every night.</p>@endforelse
       </div></div>
@@ -103,8 +110,9 @@
   </div>
 </div>
 
+@if($folio->status === 'open' && can_do('folio.post'))
 <div class="modal" id="chargeModal"><div class="modal-box"><form method="post" action="{{ route('folios.charge', $folio) }}">@csrf
-  <div class="modal-head"><h3>Post charge</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Post charge</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <x-field name="category" label="Category" type="select" :options="$categories" required :placeholder="false"/>
     <x-field name="description" label="Description" required placeholder="e.g. Laundry 3 shirts"/>
@@ -114,19 +122,23 @@
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Post</button></div>
 </form></div></div>
+@endif
 
+@if($folio->status === 'open' && can_do('folio.payment'))
 <div class="modal" id="payModal"><div class="modal-box"><form method="post" action="{{ route('folios.payment', $folio) }}">@csrf
-  <div class="modal-head"><h3>Payment / Refund</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Payment / Refund</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body">
     <div class="form-grid">
-      <x-field name="type" label="Type" type="select" :options="['payment'=>'Receive payment','refund'=>'Refund to guest']" :placeholder="false"/>
+      <x-field name="type" label="Type" type="select" :options="['payment'=>'Receive payment','refund'=>'Refund to guest']" :placeholder="false" data-folio-payment-type/>
     </div>
     <div id="folioSinglePayment" class="form-grid mt-1">
-      <x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="$totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
+      <x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" :value="old('type', 'payment') === 'payment' && $totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
       <x-field name="payment_mode_id" label="Mode" type="select" :options="$paymentModes" required data-payment-mode/>
-      <x-field name="reference" label="Reference / Txn ID" hint="Gift Voucher payments: enter the voucher code (GV-XXXX-XXXX)"/>
+      <x-payment-momo-fields/>
+      <x-field name="reference" label="Reference / transaction ID" hint="Gift Voucher payments: enter the voucher code (GV-XXXX-XXXX)"/>
       <x-cheque-fields/>
     </div>
+    <p class="small text-amber mt-1" data-folio-refund-hint @if(old('type', 'payment') !== 'refund') hidden @endif>Refunds increase the folio balance. Enter only the approved refund amount.</p>
     <div id="folioSplitPayment" class="mt-1" hidden>
       <p class="small muted">Current folio balance: <b>{{ money($totals['balance']) }}</b>. Enter one amount per tender; total allocated: <b id="folioAllocationTotal">0.00</b>. Partial payments are allowed, and the folio remains open until its balance is zero. Gift vouchers must be used on their own.</p>
       <div id="folioPaymentAllocations"></div>
@@ -136,24 +148,27 @@
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Save</button></div>
 </form></div></div>
+@endif
 
+@if($folio->status === 'open' && can_do('payments.request') && $totals['balance'] > 0)
 <div class="modal" id="momoModal"><div class="modal-box"><form method="post" action="{{ route('payments.collect') }}">@csrf
-  <div class="modal-head"><h3>Request MoMo payment</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Request MoMo payment</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <input type="hidden" name="folio_id" value="{{ $folio->id }}">
     <x-field name="amount" label="Amount" type="number" step="0.01" min="1" :value="$totals['balance'] > 0 ? number_format($totals['balance'],2,'.','') : ''" required/>
     <x-field name="network" label="Network" type="select" :options="['MTN'=>'MTN MoMo','Telecel'=>'Telecel Cash','AirtelTigo'=>'AirtelTigo Money']" :placeholder="false" required/>
-    <x-field name="phone" label="Guest phone" value="{{ $folio->guest?->phone }}" required placeholder="0244 123 456" hint="The payment prompt is sent to this number"/>
+    <x-field name="phone" label="Guest phone" :value="$folioGuest?->phone" required placeholder="0244 123 456" hint="The payment prompt is sent to this number"/>
     <x-field name="description" label="Note" value="MoMo settlement {{ $folio->folio_no }}" class="span-2"/>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-success"><x-icon name="wallet"/> Send prompt</button></div>
 </form></div></div>
+@endif
 
 @if($folio->status === 'open' && can_do('folio.split'))
 <div class="modal" id="moveModal"><div class="modal-box"><form method="post" action="{{ route('folios.move', $folio) }}" id="moveForm">@csrf
-  <div class="modal-head"><h3>Split / route folio lines</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Split / route folio lines</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
-    <div class="field span-all"><label>Move selected lines to <span class="req">*</span></label><select name="target" required>
+    <div class="field span-all"><label for="moveTarget">Move selected lines to <span class="req">*</span></label><select id="moveTarget" name="target" required>
       <option value="new">➕ New split folio (same guest &amp; stay)</option>
       @foreach($targets as $f)<option value="{{ $f->id }}">{{ $f->folio_no }} · {{ $f->guest?->full_name ?? ucwords(str_replace('_',' ',$f->type)) }}{{ $f->stay?->room ? ' · Room '.$f->stay->room->room_no : '' }}</option>@endforeach
     </select><span class="hint">e.g. route extras to the guest's own bill while room charges stay on the company folio</span></div>
@@ -162,10 +177,10 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary">Move lines</button></div>
 </form></div></div>
 @endif
-@if($folio->stay && $folio->status === 'open')
+@if($folio->stay && $folio->status === 'open' && in_array($folio->stay->status, ['reserved', 'checked_in']))
 @if(can_do('packages.sell') && $folio->stay)
 <div class="modal" id="pkgModal"><div class="modal-box"><form method="post" action="{{ route('packages.addon', $folio) }}">@csrf
-  <div class="modal-head"><h3>Add package</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Add package</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <div class="field span-all"><label for="pkgSel">Package <span class="req">*</span></label><select name="package_id" id="pkgSel" required><option value="">—</option>@foreach(\App\Models\Package::where('is_active', true)->where('is_sellable', true)->orderBy('sort')->orderBy('name')->get() as $sp) @php [$sq, $sa] = $sp->quote((int) $folio->stay->adults, (int) $folio->stay->children); @endphp<option value="{{ $sp->id }}">{{ $sp->name }} – {{ money($sa) }}{{ in_array($sp->rhythm, ['once','arrival','departure']) ? ' once' : ' / night' }}{{ $sp->calc === 'per_room' ? '' : ' ('.$sq.' pax)' }}</option>@endforeach</select></div>
     <x-field name="start_date" label="From (night of)" type="date" :value="$folio->stay->arrival_date->max(bdate())->min($folio->stay->departure_date->copy()->subDay())->toDateString()" required/>
@@ -174,10 +189,11 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary">Add package</button></div>
 </form></div></div>
 @endif
+@if(can_do('folio.post'))
 <div class="modal" id="fixedModal"><div class="modal-box"><form method="post" action="{{ route('folios.fixed.store', $folio) }}">@csrf
-  <div class="modal-head"><h3>Add fixed charge</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Add fixed charge</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
-    <div class="field span-all"><label>Description <span class="req">*</span></label><input name="description" list="fixedPresets" required maxlength="120" placeholder="Breakfast (2 pax)">
+    <div class="field span-all"><label for="fixedChargeDescription">Description <span class="req">*</span></label><input id="fixedChargeDescription" name="description" list="fixedPresets" required maxlength="120" placeholder="Breakfast (2 pax)">
       <datalist id="fixedPresets"><option>Breakfast</option><option>Parking</option><option>Extra bed</option><option>Airport pickup</option><option>Late check-out</option><option>Laundry package</option><option>Wi-Fi premium</option></datalist></div>
     <x-field name="category" label="Category" type="select" :options="config('pms.charge_categories')" value="misc" required/>
     <x-field name="amount" label="Amount" type="number" step="0.01" min="0.01" required/>
@@ -189,13 +205,15 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary">Add</button></div>
 </form></div></div>
 @endif
+@endif
 <div class="modal" id="mailModal"><div class="modal-box"><form method="post" action="{{ route('folios.email', $folio) }}">@csrf
-  <div class="modal-head"><h3>E-mail {{ $folio->invoice_no ? 'invoice '.$folio->invoice_no : 'folio statement' }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-  <div class="modal-body"><x-field name="to" label="Send to" type="email" :value="$folio->guest?->email ?? $folio->company?->email" required/></div>
+  <div class="modal-head"><h3>E-mail {{ $folio->invoice_no ? 'invoice '.$folio->invoice_no : 'folio statement' }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
+  <div class="modal-body"><x-field name="to" label="Send to" type="email" :value="$folioGuest?->email ?? $folioCompany?->email" required/></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary"><x-icon name="mail"/> Send</button></div>
 </form></div></div>
+@if($folio->status === 'open' && can_do('folio.discount'))
 <div class="modal" id="discModal"><div class="modal-box"><form method="post" action="{{ route('folios.discount', $folio) }}">@csrf
-  <div class="modal-head"><h3>Discount / Allowance</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Discount / Allowance</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <x-field name="mode" label="Mode" type="select" :options="['amount'=>'Flat amount','percent'=>'% of charges']" :placeholder="false"/>
     <x-field name="value" label="Value" type="number" step="0.01" min="0.01" required/>
@@ -203,21 +221,26 @@
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Apply</button></div>
 </form></div></div>
+@endif
 
+@if($folio->status === 'open' && can_do('folio.payment') && $totals['balance'] > 0)
 <div class="modal" id="transferModal"><div class="modal-box"><form method="post" action="{{ route('folios.transfer', $folio) }}">@csrf
-  <div class="modal-head"><h3>Transfer balance to City Ledger</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
-  <div class="modal-body"><p>Balance of <b>{{ money($totals['balance']) }}</b> will be billed to the company account.</p>@include('credit._picker', ['companies' => $companies, 'value' => $folio->company_id ?? $folio->reservation?->company_id, 'amount' => max(0, $totals['balance']), 'required' => true])</div>
+  <div class="modal-head"><h3>Transfer balance to City Ledger</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
+  <div class="modal-body"><p>Balance of <b>{{ money($totals['balance']) }}</b> will be billed to the company account.</p>@include('credit._picker', ['companies' => $companies, 'value' => $folioCompany?->id, 'amount' => max(0, $totals['balance']), 'required' => true])</div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Transfer</button></div>
 </form></div></div>
+@endif
 
+@if($folio->status === 'open' && can_do('folio.void'))
 <div class="modal" id="voidModal"><div class="modal-box"><form method="post" action="">@csrf
-  <div class="modal-head"><h3>Void transaction</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-head"><h3>Void transaction</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body"><x-field name="reason" label="Reason" required/></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Void</button></div>
 </form></div></div>
+@endif
 @if($folio->status === 'closed' && $folio->invoice_no && can_do('gst.manage'))@include('folios._gst-cancel')@endif
 @if($folio->status === 'open' && can_do('payments.request') && $totals['balance'] > 0)
-@include('payments._request-modal', ['payRes' => null, 'payFolio' => $folio, 'paySuggest' => (float) $totals['balance'], 'payGuest' => $folio->guest])
+@include('payments._request-modal', ['payRes' => null, 'payFolio' => $folio, 'paySuggest' => (float) $totals['balance'], 'payGuest' => $folioGuest])
 @endif
 @endsection
 @push('scripts')
@@ -231,6 +254,14 @@ function txCount(){ const n = document.querySelectorAll('.txsel:checked').length
   const rows = document.getElementById('folioPaymentAllocations');
   const allocationTotal = document.getElementById('folioAllocationTotal');
   if (!form || !toggle || !single || !split || !rows) return;
+  const paymentType = form.querySelector('[data-folio-payment-type]');
+  const paymentAmount = form.querySelector('[name="amount"]');
+  const refundHint = form.querySelector('[data-folio-refund-hint]');
+  paymentType?.addEventListener('change', () => {
+    const isRefund = paymentType.value === 'refund';
+    if (isRefund && paymentAmount) paymentAmount.value = '';
+    if (refundHint) refundHint.hidden = !isRefund;
+  });
   const modes = @json($paymentModes);
   const oldLines = @js(old('payments', []));
   const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -241,16 +272,16 @@ function txCount(){ const n = document.querySelectorAll('.txsel:checked').length
     const i = sequence++;
     const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
     rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-folio-payment-row style="border:1px solid var(--c-border);padding:.65rem;border-radius:var(--radius)">
-      <div class="field"><label>Payment method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
-      <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
-      <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
-      <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
-      <div class="field span-all"><label>Reference / transaction ID</label><input name="payments[${i}][reference]" maxlength="80" placeholder="Receipt, card authorisation, or voucher code"></div>
-      <details class="span-all"><summary class="tiny bold">Cheque details (if applicable)</summary><div class="form-grid mt-1">
-        <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
-        <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
-        <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
-      </div></details>
+      <div class="field"><label for="folioPaymentMode${i}">Payment method</label><select id="folioPaymentMode${i}" name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+      <div class="field"><label for="folioPaymentAmount${i}">Amount</label><input id="folioPaymentAmount${i}" name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+      <div class="field" data-folio-momo-field hidden><label for="folioPaymentNetwork${i}">MoMo network</label><select id="folioPaymentNetwork${i}" name="payments[${i}][momo_network]" disabled><option value="">Select network</option><option value="MTN">MTN MoMo</option><option value="Telecel">Telecel Cash</option><option value="AirtelTigo">AT Money</option></select></div>
+      <div class="field" data-folio-momo-field hidden><label for="folioPaymentPhone${i}">MoMo number</label><input id="folioPaymentPhone${i}" name="payments[${i}][momo_phone]" type="tel" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="024 123 4567" disabled></div>
+      <div class="field span-all"><label for="folioPaymentReference${i}">Reference / transaction ID</label><input id="folioPaymentReference${i}" name="payments[${i}][reference]" maxlength="80" placeholder="Receipt, card authorisation, or voucher code"></div>
+      <div class="form-grid mt-1 span-all" data-cheque-fields hidden><div class="field span-all"><strong class="tiny">Cheque details</strong></div>
+        <div class="field"><label for="folioChequeBank${i}">Bank name</label><input id="folioChequeBank${i}" name="payments[${i}][cheque_bank_name]" maxlength="100" disabled></div>
+        <div class="field"><label for="folioChequeNumber${i}">Cheque number</label><input id="folioChequeNumber${i}" name="payments[${i}][cheque_number]" maxlength="20" disabled></div>
+        <div class="field"><label for="folioChequeBranch${i}">Bank branch</label><input id="folioChequeBranch${i}" name="payments[${i}][cheque_bank_branch]" maxlength="100" disabled></div>
+      </div>
       <button type="button" class="btn btn-sm btn-ghost" data-remove-folio-payment>Remove this tender</button>
     </div>`);
     const row = rows.lastElementChild;
@@ -259,25 +290,39 @@ function txCount(){ const n = document.querySelectorAll('.txsel:checked').length
       if (field && line[key] !== undefined && line[key] !== null) field.value = String(line[key]);
     }
     syncChequeRows();
+    syncMomoRows();
     updateTotal();
   };
   const syncChequeRows = () => rows.querySelectorAll('[data-folio-payment-row]').forEach(row => {
     const mode = row.querySelector('select[name$="[payment_mode_id]"]');
     const required = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
-    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; });
+    const details = row.querySelector('[data-cheque-fields]');
+    if (details) details.hidden = !required;
+    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; input.disabled = !required; });
+  });
+  const syncMomoRows = () => rows.querySelectorAll('[data-folio-payment-row]').forEach(row => {
+    const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+    const label = (mode?.selectedOptions?.[0]?.textContent || '').trim().toLowerCase();
+    const momo = label.includes('momo') || label.includes('mobile money');
+    row.querySelectorAll('[data-folio-momo-field]').forEach(field => {
+      field.hidden = !momo;
+      const control = field.querySelector('select,input');
+      if (control) { control.required = momo; control.disabled = !momo; }
+    });
   });
   const updateTotal = () => {
     const total = [...rows.querySelectorAll('input[name$="[amount]"]')].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
     if (allocationTotal) allocationTotal.textContent = total.toFixed(2);
   };
   rows.addEventListener('input', updateTotal);
-  rows.addEventListener('change', event => { updateTotal();
-    if (event.target.matches('select[name$="[payment_mode_id]"]')) syncChequeRows();
+  rows.addEventListener('change', event => {
+    updateTotal();
+    if (event.target.matches('select[name$="[payment_mode_id]"]')) { syncChequeRows(); syncMomoRows(); }
   });
   const setSplit = enabled => {
     single.hidden = enabled;
     split.hidden = !enabled;
-    single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+    single.querySelectorAll('input,select').forEach(input => { input.disabled = (enabled && !input.matches('[data-folio-payment-type]')) || !!input.closest('[data-cheque-fields]')?.hidden || !!input.closest('[data-momo-fields]')?.hidden; });
     toggle.textContent = enabled ? 'Use one payment method' : 'Split across payment methods';
     if (enabled && rows.children.length === 0) {
       if (!restoredOldLines && Array.isArray(oldLines) && oldLines.length) {
@@ -301,6 +346,10 @@ function txCount(){ const n = document.querySelectorAll('.txsel:checked').length
     if (!split.hidden && rows.querySelectorAll('[data-folio-payment-row]').length < 2) {
       event.preventDefault();
       alert('Add at least two payment methods, or switch back to a single payment.');
+      return;
+    }
+    if (paymentType?.value === 'refund' && !window.confirm('Record this refund? It will increase the folio balance.')) {
+      event.preventDefault();
     }
   });
 })();

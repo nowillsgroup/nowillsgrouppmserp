@@ -19,30 +19,77 @@ class GuestRequestController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status', 'open');
+        $allowedStatuses = array_merge(['open', 'working', 'overdue', 'today', 'all'], array_keys(GuestRequest::STATUSES));
+        $status = is_string($status) && in_array($status, $allowedStatuses, true) ? $status : 'open';
+        $search = $request->query('q');
+        $search = is_string($search) ? mb_substr(trim($search), 0, 100) : '';
+        $category = $request->query('category');
+        $category = is_string($category) && array_key_exists($category, GuestRequest::CATEGORIES) ? $category : '';
+        $room = $request->query('room');
+        $room = is_string($room) ? mb_substr(trim($room), 0, 20) : '';
+        $sla = max(1, (int) setting('portal_sla_minutes', 15));
+        $searchWords = preg_split('/\\s+/', $search) ?: [];
+        $nameWords = array_values(array_filter($searchWords, static fn ($word) => ! in_array(mb_strtolower(rtrim($word, '.,')), ['mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'rev', 'hon'], true)));
+        $searchWords = $nameWords ?: $searchWords;
+        $matchGuestName = static function ($guest) use ($searchWords): void {
+            $guest->where(function ($name) use ($searchWords): void {
+                if (count($searchWords) === 1) {
+                    $like = '%'.$searchWords[0].'%';
+                    $name->where('first_name', 'like', $like)->orWhere('last_name', 'like', $like);
+
+                    return;
+                }
+
+                $first = $searchWords[0];
+                $last = $searchWords[array_key_last($searchWords)];
+                $name->where(fn ($pair) => $pair->where('first_name', 'like', '%'.$first.'%')->where('last_name', 'like', '%'.$last.'%'))
+                    ->orWhere(fn ($pair) => $pair->where('first_name', 'like', '%'.$last.'%')->where('last_name', 'like', '%'.$first.'%'));
+            });
+        };
         $q = GuestRequest::with('stay.guest', 'stay.reservation.guest', 'room', 'assignee', 'handler')
+            ->when($search !== '', function ($query) use ($search, $matchGuestName) {
+                $like = '%'.$search.'%';
+                $query->where(function ($matches) use ($like, $matchGuestName) {
+                    $matches->where('request_no', 'like', $like)
+                        ->orWhere('item', 'like', $like)
+                        ->orWhere('notes', 'like', $like)
+                        ->orWhereHas('room', fn ($room) => $room->where('room_no', 'like', $like))
+                        ->orWhereHas('stay.guest', $matchGuestName)
+                        ->orWhereHas('stay.reservation.guest', $matchGuestName);
+                });
+            })
             ->when($status === 'open', fn ($w) => $w->whereIn('status', GuestRequest::OPEN))
+            ->when($status === 'working', fn ($w) => $w->whereIn('status', ['acknowledged', 'in_progress']))
+            ->when($status === 'overdue', fn ($w) => $w->where('status', 'new')->where('created_at', '<=', now()->subMinutes($sla)))
             ->when(array_key_exists($status, GuestRequest::STATUSES), fn ($w) => $w->where('status', $status))
             ->when($status === 'today', fn ($w) => $w->whereDate('created_at', today()))
-            ->when($request->filled('category'), fn ($w) => $w->where('category', $request->query('category')))
-            ->when($request->filled('room'), fn ($w) => $w->whereHas('room', fn ($r) => $r->where('room_no', 'like', '%'.$request->query('room').'%')))
+            ->when($category !== '', fn ($w) => $w->where('category', $category))
+            ->when($room !== '', fn ($w) => $w->whereHas('room', fn ($r) => $r->where('room_no', 'like', '%'.$room.'%')))
             ->when($request->filled('mine'), fn ($w) => $w->where('assigned_to', auth()->id()));
         $q = $status === 'open'
             ? $q->orderByRaw("FIELD(status,'new','acknowledged','in_progress')")->orderByRaw("FIELD(priority,'high','normal')")->orderBy('created_at')
             : $q->latest('id');
         $requests = $q->paginate(30)->withQueryString();
 
-        $open = GuestRequest::whereIn('status', GuestRequest::OPEN)->get(['id', 'status', 'created_at', 'acknowledged_at']);
+        $queueCounts = GuestRequest::query()->selectRaw('status, COUNT(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
+        $overdue = GuestRequest::where('status', 'new')->where('created_at', '<=', now()->subMinutes($sla))->count();
         $todayDone = GuestRequest::whereDate('completed_at', today())->where('status', 'done')->get(['created_at', 'acknowledged_at', 'completed_at', 'rating']);
         $stats = [
-            'new' => $open->where('status', 'new')->count(), 'overdue' => $open->filter->isOverdue()->count(),
-            'working' => $open->whereIn('status', ['acknowledged', 'in_progress'])->count(), 'done' => $todayDone->count(),
+            'new' => (int) $queueCounts->get('new', 0), 'overdue' => $overdue,
+            'working' => (int) $queueCounts->get('acknowledged', 0) + (int) $queueCounts->get('in_progress', 0), 'done' => $todayDone->count(),
             'avg_response' => $todayDone->filter(fn ($r) => $r->acknowledged_at)->avg(fn ($r) => $r->created_at->diffInMinutes($r->acknowledged_at)),
             'rating' => $todayDone->whereNotNull('rating')->avg('rating'),
         ];
-        $stays = ReservationRoom::with('room', 'guest', 'reservation.guest')->where('status', 'checked_in')->get()->sortBy(fn ($s) => $s->room?->room_no)->values();
-        $staff = User::where('hotel_id', Tenant::id())->where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $todayCount = GuestRequest::whereDate('created_at', today())->count();
+        $manage = can_do('requests.manage');
+        $stays = $manage
+            ? ReservationRoom::with('room', 'guest', 'reservation.guest')->where('status', 'checked_in')->get()->sortBy(fn ($s) => $s->room?->room_no)->values()
+            : collect();
+        $staff = $manage
+            ? User::where('hotel_id', Tenant::id())->where('is_active', true)->orderBy('name')->pluck('name', 'id')
+            : collect();
 
-        return view('requests.index', compact('requests', 'stats', 'status', 'stays', 'staff'));
+        return view('requests.index', compact('requests', 'stats', 'status', 'search', 'category', 'room', 'queueCounts', 'todayCount', 'stays', 'staff'));
     }
 
     /** Lightweight counter for the queue page auto-refresh. */

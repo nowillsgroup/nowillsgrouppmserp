@@ -37,39 +37,68 @@ class DashboardController extends Controller
         $sellable = $sellableRooms->count();
         $occupied = $sellableRooms->where('status', 'occupied')->count();
         $unavailable = $unavailableIds->count();
-        $arrivals = ReservationRoom::with('reservation.guest', 'roomType', 'room')->where('status', 'reserved')->whereDate('arrival_date', $d)->get();
-        $departures = ReservationRoom::with('reservation.guest', 'room')->where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->get();
-        // Keep dashboard movement counts on the same hotel business date as its room board.
-        $checkedInToday = ReservationRoom::where('status', 'checked_in')->whereDate('checked_in_at', $d)->count();
+        $arrivalsQuery = ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $d);
+        $arrivalCounts = ReservationRoom::whereDate('arrival_date', $d)->whereIn('status', ['reserved', 'checked_in', 'checked_out', 'no_show'])
+            ->select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status');
+        $arrivalsCount = (int) ($arrivalCounts['reserved'] ?? 0);
+        $arrivalsCheckedIn = (int) ($arrivalCounts['checked_in'] ?? 0) + (int) ($arrivalCounts['checked_out'] ?? 0);
+        $arrivalsExpected = $arrivalCounts->sum();
+        $arrivals = can_do('frontdesk.view')
+            ? $arrivalsQuery->with('reservation.guest', 'roomType', 'room')->orderBy('id')->limit(7)->get()
+            : collect();
+        $departuresQuery = ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d);
+        $departuresCount = (clone $departuresQuery)->count();
+        $departures = can_do('frontdesk.view')
+            ? $departuresQuery->with('reservation.guest', 'room')->orderBy('departure_date')->orderBy('id')->limit(7)->get()
+            : collect();
+        // Arrival progress is grouped by due date; checked-out guests count as checked in, while no-shows remain in the expected denominator.
 
-        $tx = FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->get();
-        $posToday = PosOrder::whereDate('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')->get();
-        $roomRevenue = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount');
-        $otherRevenue = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount') + $posToday->sum(fn ($o) => $o->total - $o->tax);
-        $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount') + $posToday->sum('total');
+        $canSeeFinance = can_do('folio.view') || can_do('reports.view') || can_do('revenue.view') || can_do('income_audit.view');
+        // Aggregate ledger rows in SQL, and skip finance reads entirely for restricted dashboard users.
+        $roomRevenue = $otherRevenue = $collections = 0.0;
+        if ($canSeeFinance) {
+            $tx = FolioTransaction::whereDate('business_date', $d)->where('is_void', false)
+                ->select('type', 'category', DB::raw('SUM(amount) as amount_sum'))->groupBy('type', 'category')->get();
+            $posToday = PosOrder::whereDate('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')
+                ->selectRaw('COALESCE(SUM(total - tax), 0) as net_total, COALESCE(SUM(total), 0) as gross_total')->first();
+            $roomRevenue = $tx->where('type', 'charge')->whereIn('category', ['room', 'extra_bed'])->sum('amount_sum');
+            $otherRevenue = $tx->where('type', 'charge')->whereNotIn('category', ['room', 'extra_bed'])->sum('amount_sum') + (float) ($posToday->net_total ?? 0);
+            $collections = $tx->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount_sum') + (float) ($posToday->gross_total ?? 0);
+        }
 
-        $audits = NightAudit::orderByDesc('business_date')->take(14)->get()->reverse()->values();
-        $sourceMix = Reservation::query()->join('business_sources', 'business_sources.id', '=', 'reservations.business_source_id')
-            ->where('reservations.created_at', '>=', now()->subDays(30))->whereNotIn('reservations.status', ['cancelled'])
-            ->select('business_sources.name', DB::raw('count(*) as c'))->groupBy('business_sources.name')->orderByDesc('c')->get();
+        $auditQuery = NightAudit::query()->select('business_date', 'occupancy_pct');
+        if ($canSeeFinance) {
+            $auditQuery->addSelect('room_revenue', 'other_revenue');
+        }
+        $audits = $auditQuery->orderByDesc('business_date')->take(14)->get()->reverse()->values();
+        $sourceMix = can_do('reservations.view')
+            ? Reservation::query()->join('business_sources', 'business_sources.id', '=', 'reservations.business_source_id')
+                ->where('reservations.created_at', '>=', now()->subDays(30))->whereNotIn('reservations.status', ['cancelled'])
+                ->select('business_sources.name', DB::raw('count(*) as c'))->groupBy('business_sources.name')->orderByDesc('c')->get()
+            : collect();
 
         $inHouseGuests = ReservationRoom::where('status', 'checked_in')->sum(DB::raw('adults + children'));
 
         return view('dashboard', [
             'total' => $total, 'sellable' => $sellable, 'occupied' => $occupied, 'vacant' => $sellableRooms->where('status', 'vacant')->count(), 'unavailable' => $unavailable,
-            'dirty' => $rooms->where('hk_status', 'dirty')->count(), 'arrivals' => $arrivals, 'departures' => $departures,
-            'checkedInToday' => $checkedInToday, 'inHouseGuests' => $inHouseGuests,
-            'occPct' => $sellable ? round($occupied * 100 / $sellable, 1) : 0,
+            'dirty' => $rooms->where('hk_status', 'dirty')->count(), 'arrivals' => $arrivals, 'arrivalsCount' => $arrivalsCount,
+            'departures' => $departures, 'departuresCount' => $departuresCount,
+            'arrivalsCheckedIn' => $arrivalsCheckedIn, 'arrivalsExpected' => $arrivalsExpected, 'inHouseGuests' => $inHouseGuests,
+            'occPct' => $sellable ? round($occupied * 100 / $sellable, 1) : 0, 'canSeeFinance' => $canSeeFinance,
             'roomRevenue' => $roomRevenue, 'otherRevenue' => $otherRevenue, 'collections' => $collections,
             'adr' => $occupied ? $roomRevenue / max(1, $occupied) : 0,
             'audits' => $audits, 'sourceMix' => $sourceMix,
-            'events' => BanquetEvent::with('functions.hall', 'functions.items')->whereDate('end_date', '>=', $d)->whereIn('status', ['definite', 'tentative'])->orderBy('event_date')->take(5)->get(),
-            'openTickets' => MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->count(),
-            'openPos' => PosOrder::whereIn('status', ['open', 'billed'])->count(),
-            'lowStock' => InventoryItem::where('is_active', true)->withSum('movements as stock_qty', 'qty')->get()
-                ->filter(fn ($i) => (float) ($i->stock_qty ?? 0) <= (float) $i->reorder_level)->take(6),
-            'activity' => ActivityLog::with('user')->latest('created_at')->take(8)->get(),
-            'newBookings' => Reservation::whereDate('created_at', $d)->count(),
+            'events' => can_do('banquet.view')
+                ? BanquetEvent::with('functions.hall', 'functions.items')->whereDate('end_date', '>=', $d)->whereIn('status', ['definite', 'tentative'])->orderBy('event_date')->take(5)->get()
+                : collect(),
+            'openTickets' => can_do('maintenance.manage') ? MaintenanceRequest::whereIn('status', ['open', 'in_progress'])->count() : 0,
+            'openPos' => can_do('pos.view') ? PosOrder::whereIn('status', ['open', 'billed'])->count() : 0,
+            'lowStock' => can_do('inventory.view')
+                ? InventoryItem::where('is_active', true)->withSum('movements as stock_qty', 'qty')->get()
+                    ->filter(fn ($i) => (float) ($i->stock_qty ?? 0) <= (float) $i->reorder_level)->take(6)
+                : collect(),
+            'activity' => can_do('logs.view') ? ActivityLog::with('user')->latest('created_at')->take(8)->get() : collect(),
+            'newBookings' => can_do('reservations.view') ? Reservation::whereDate('created_at', $d)->count() : 0,
         ]);
     }
 

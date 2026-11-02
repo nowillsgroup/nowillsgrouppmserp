@@ -12,6 +12,7 @@
   @if($w && in_array($i->status, ['hosted', 'delivered'], true))<button class="btn" data-modal="resultsModal" id="infResultsBtn"><x-icon name="chart"/> Results</button>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $i->isOverdue() ? 'red' : $i->statusTone() }}" id="infStatus" data-status="{{ $i->status }}">{{ $i->isOverdue() ? 'Hosted – content overdue' : $i->statusLabel() }}</span><span class="badge badge-slate">{{ \App\Models\DmChannel::PLATFORMS[$i->platform][0] ?? $i->platform }} {{ $i->handle }}</span>@if($i->rating)<span class="badge badge-amber">{{ str_repeat('★', $i->rating) }}</span>@endif</div>
 @if($i->status === 'cancelled')<div class="alert alert-error">Cancelled: {{ $i->cancel_reason }}</div>@endif
 <div class="stats" id="infStats">

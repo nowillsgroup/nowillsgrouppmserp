@@ -8,6 +8,7 @@
 @endsection
 @section('content')
 @php $c = $counts; $cats = collect(\App\Models\LostFoundItem::CATEGORIES)->map(fn ($x) => $x[0])->all(); @endphp
+@include('desk._workspace-nav')
 @if($c['lf_due'])<div class="alert alert-warn" id="lfDue"><x-icon name="alert"/><div><a href="{{ route('lostfound.index', ['tab' => 'due']) }}"><b>{{ $c['lf_due'] }}</b> item(s) are past their retention date</a> and may now be donated, destroyed or handed over (valuables need a witness).</div></div>@endif
 <div class="stats">
   <x-stat label="In store" :value="$c['lf_stored']" icon="box" tone="blue" :sub="\App\Models\LostFoundItem::where('status', 'stored')->where('valuable', true)->count().' valuables in the safe'"/>
