@@ -89,7 +89,10 @@ find_php() {
 
 PHP="$(find_php || true)"
 if [ -z "$PHP" ]; then
-    log "WARNING: no PHP 8.3+ CLI found — skipping artisan steps (set PHP_BIN=...)"
+    if [ -f "$APP_ROOT/.env" ] && [ -f "$APP_ROOT/storage/framework/installed.lock" ]; then
+        fail "no PHP 8.3+ CLI found — cannot apply migrations to this installed app (set PHP_BIN=...)"
+    fi
+    log "WARNING: no PHP 8.3+ CLI found — artisan steps are unavailable (set PHP_BIN=...)"
 else
     log "PHP CLI: $PHP ($("$PHP" -r 'echo PHP_VERSION;' 2>/dev/null))"
 fi
@@ -157,7 +160,7 @@ if [ -n "$PHP" ] && [ -f "$APP_ROOT/.env" ] && [ -f "$APP_ROOT/storage/framework
         if "$PHP" "$APP_ROOT/artisan" migrate --force --no-interaction >>"$LOG" 2>&1; then
             log "migrations OK"
         else
-            log "WARNING: migrations reported a problem — see the lines above in deploy.log"
+            fail "artisan migrate failed — deployment is incomplete; see $LOG and fix the migration error before serving traffic"
         fi
     fi
 
