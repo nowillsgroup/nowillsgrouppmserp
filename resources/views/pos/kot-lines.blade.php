@@ -1,8 +1,29 @@
-<table style="width:100%;font-size:13px">
+<table class="kot-items">
+  <thead><tr><th scope="col" class="kot-item-qty-heading" aria-label="Quantity" title="Quantity">Qty</th><th scope="col" class="kot-item-name-heading">Item</th></tr></thead>
+  <tbody>
 @foreach($items as $l)
+  @php
+    $lineOptions = collect($l->modifiers ?? []);
+    $sideDishes = $lineOptions->where('type', 'side_dish');
+    $addOns = $lineOptions->reject(fn ($m) => ($m['type'] ?? null) === 'side_dish');
+  @endphp
   <tr>
-    <td style="width:40px"><b>{{ (float) $l->qty }}</b></td>
-    <td>@if($l->kitchen_status === 'held')<b>HOLD</b> @endif<b>{{ $l->item_name }}</b>@if($l->is_open) <b>SPECIAL</b>@if($l->food_type) <span class="tiny">{{ ['veg' => 'Veg', 'non_veg' => 'Non-veg', 'egg' => 'Egg', 'beverage' => 'Drink'][$l->food_type] ?? '' }}</span>@endif @if($l->kitchen_station) <span class="tiny">{{ $l->kitchen_station }}</span>@endif @endif @if($l->is_complimentary) <b>COMP</b>@endif @if($l->modifiers)<br><span class="tiny">Options: {{ collect($l->modifiers)->pluck('name')->implode(', ') }}</span>@endif @if($l->notes)<br><i>{{ $l->notes }}</i>@endif @if($l->allergy_flag && ! $l->is_cancelled)<br><b>!! {{ $l->allergy_flag }}</b>@endif</td>
+    <td class="kot-item-qty"><b>{{ (float) $l->qty }}</b></td>
+    <td class="kot-item-body">
+      <div class="kot-item-heading">
+        @if($l->kitchen_status === 'held')<b class="kot-item-hold">HOLD</b>@endif
+        <b class="kot-item-name">{{ $l->item_name }}</b>
+        @if($l->is_complimentary)<b class="kot-item-tag">COMP</b>@endif
+      </div>
+      @if($l->is_open)
+        <div class="kot-item-meta"><b class="kot-item-tag">SPECIAL</b>@if($l->food_type) · {{ ['veg' => 'Veg', 'non_veg' => 'Non-veg', 'egg' => 'Egg', 'beverage' => 'Drink'][$l->food_type] ?? '' }}@endif @if($l->kitchen_station) · {{ $l->kitchen_station }}@endif</div>
+      @endif
+      @if($sideDishes->isNotEmpty())<div class="kot-item-detail"><b>Side dishes:</b> {{ $sideDishes->pluck('name')->implode(', ') }}</div>@endif
+      @if($addOns->isNotEmpty())<div class="kot-item-detail"><b>Options:</b> {{ $addOns->pluck('name')->implode(', ') }}</div>@endif
+      @if($l->notes)<div class="kot-item-note">{{ $l->notes }}</div>@endif
+      @if($l->allergy_flag && ! $l->is_cancelled)<div class="kot-item-allergy">!! {{ $l->allergy_flag }}</div>@endif
+    </td>
   </tr>
 @endforeach
+  </tbody>
 </table>

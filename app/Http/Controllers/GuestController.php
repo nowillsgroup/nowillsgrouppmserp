@@ -25,7 +25,7 @@ class GuestController extends Controller
     protected function rules(): array
     {
         return [
-            'title' => 'nullable|string|max:10', 'first_name' => 'required|string|max:80', 'last_name' => 'nullable|string|max:80',
+            'title' => 'nullable|string|max:30', 'first_name' => 'required|string|max:80', 'last_name' => 'nullable|string|max:80',
             'gender' => 'nullable|string|max:10', 'dob' => 'nullable|date|before:today', 'anniversary' => 'nullable|date',
             'phone' => 'nullable|string|max:30', 'email' => 'nullable|email|max:150', 'nationality' => 'nullable|string|max:60',
             'id_type' => 'nullable|string|max:30', 'id_number' => 'nullable|string|max:60', 'passport_no' => 'nullable|string|max:40',

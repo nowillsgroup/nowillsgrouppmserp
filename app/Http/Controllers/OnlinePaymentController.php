@@ -22,7 +22,11 @@ class OnlinePaymentController extends Controller
     public function index(Request $request)
     {
         $q = OnlinePayment::with('reservation', 'folio', 'creator')->latest('id');
-        $status = $request->input('status', '');
+        $rawStatus = $request->query('status');
+        $status = is_string($rawStatus) && in_array($rawStatus, ['', 'pending', 'paid', 'review', 'refunded', 'expired', 'cancelled'], true) ? $rawStatus : '';
+        $rawSearch = $request->query('q');
+        $search = is_string($rawSearch) ? mb_substr(trim($rawSearch), 0, 160) : '';
+        $request->merge(['status' => $status, 'q' => $search]);
         match ($status) {
             '' => null,
             'expired' => $q->where(fn ($w) => $w->where('status', 'expired')->orWhere(fn ($x) => $x->where('status', 'pending')->where('expires_at', '<', now()))),
@@ -30,18 +34,19 @@ class OnlinePaymentController extends Controller
             'refunded' => $q->where('refunded_amount', '>', 0),
             default => $q->where('status', $status),
         };
-        if ($s = trim((string) $request->input('q'))) {
-            $q->where(fn ($w) => $w->where('pay_no', 'like', "%{$s}%")->orWhere('payer_name', 'like', "%{$s}%")->orWhere('provider_payment_id', 'like', "%{$s}%")
-                ->orWhereHas('reservation', fn ($r) => $r->where('reservation_no', 'like', "%{$s}%")));
+        if ($search !== '') {
+            $q->where(fn ($w) => $w->where('pay_no', 'like', "%{$search}%")->orWhere('payer_name', 'like', "%{$search}%")->orWhere('provider_payment_id', 'like', "%{$search}%")
+                ->orWhereHas('reservation', fn ($r) => $r->where('reservation_no', 'like', "%{$search}%")));
         }
         $today = now()->startOfDay();
         $paid = fn () => OnlinePayment::whereIn('status', ['paid']);
+        $pending = fn () => OnlinePayment::where('status', 'pending')->where(fn ($w) => $w->whereNull('expires_at')->orWhere('expires_at', '>=', now()));
         $stats = [
             'today' => (float) $paid()->where('paid_at', '>=', $today)->sum('amount_received'),
             'today_n' => $paid()->where('paid_at', '>=', $today)->count(),
             'month' => (float) $paid()->where('paid_at', '>=', now()->startOfMonth())->sum('amount_received'),
-            'pending' => (float) OnlinePayment::where('status', 'pending')->where('expires_at', '>=', now())->sum('amount'),
-            'pending_n' => OnlinePayment::where('status', 'pending')->where('expires_at', '>=', now())->count(),
+            'pending' => (float) $pending()->sum('amount'),
+            'pending_n' => $pending()->count(),
             'review_n' => OnlinePayment::where('status', 'review')->count(),
             'refunds' => (float) \App\Models\OnlineRefund::where('created_at', '>=', now()->startOfMonth())->sum('amount'),
             'clearing' => Svc::clearingBalance(),

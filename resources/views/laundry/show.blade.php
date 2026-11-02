@@ -68,8 +68,8 @@
     @else
       <div id="laundrySingleTender-{{ $o->id }}" class="form-grid">
         <div class="field"><label>Paid by</label><select name="payment_mode_id" class="input" required data-payment-mode>@foreach($modes as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select></div>
-        <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
-        <div class="field span-all"><label>Reference</label><input name="reference" class="input" maxlength="80" placeholder="optional"></div>
+        <x-payment-momo-fields mode-name="payment_mode_id"/>
+        <div class="field span-all"><label>Reference / transaction ID</label><input name="reference" class="input" maxlength="80" placeholder="optional"></div>
         <x-cheque-fields class="span-all"/>
       </div>
       <x-payment-split-tender widget-id="laundrySplitTender-{{ $o->id }}" single-id="laundrySingleTender-{{ $o->id }}" :modes="$modes" label="payment"/>

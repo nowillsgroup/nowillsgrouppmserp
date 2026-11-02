@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FrontDeskShiftSession;
 use App\Models\GuestMessage;
 use App\Models\LogEntry;
 use App\Models\ReservationRoom;
@@ -9,6 +10,7 @@ use App\Models\Room;
 use App\Models\Trace;
 use App\Models\WakeupCall;
 use App\Services\FrontDeskOpsService;
+use App\Services\FrontDeskShiftSessionService;
 use App\Services\GuestMessageService;
 use App\Services\LogBookService;
 use App\Services\TraceService;
@@ -27,6 +29,58 @@ class FrontDeskOpsController extends Controller
         return back()->withInput()->with('error', $e->getMessage());
     }
 
+    // ───────────────────────── front-office shift session ─────────────────────────
+
+    public function shiftSession(Request $request)
+    {
+        $data = $request->validate(['date' => 'nullable|date']);
+        $shift = FrontDeskOpsService::currentShift();
+
+        return view('desk.shift-session', FrontDeskShiftSessionService::workspace((int) $request->user()->id, $data['date'] ?? null) + [
+            'shift' => $shift,
+            'shiftLabel' => LogEntry::SHIFTS[$shift] ?? ucfirst($shift),
+        ]);
+    }
+
+    public function startShiftSession(Request $request)
+    {
+        $data = $request->validate(['start_note' => 'nullable|string|max:1000']);
+        try {
+            FrontDeskShiftSessionService::start($request->user(), $data['start_note'] ?? null);
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
+        }
+
+        return redirect()->route('desk.shift')->with('success', 'Your front-office shift session is open.');
+    }
+
+    public function closeShiftSession(Request $request, FrontDeskShiftSession $session)
+    {
+        $data = $request->validate([
+            'incoming_user_id' => 'required|integer',
+            'handover_note' => 'required|string|max:4000',
+        ]);
+        try {
+            FrontDeskShiftSessionService::closeAndHandOver($session, $request->user(), (int) $data['incoming_user_id'], $data['handover_note']);
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
+        }
+
+        return redirect()->route('desk.shift')->with('success', 'Your shift is closed. The hand-over is waiting for the incoming staff member to acknowledge it.');
+    }
+
+    public function acceptShiftHandover(Request $request, FrontDeskShiftSession $session)
+    {
+        $request->validate(['confirm_receipt' => 'required|accepted']);
+        try {
+            FrontDeskShiftSessionService::acceptHandover($session, $request->user());
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
+        }
+
+        return redirect()->route('desk.shift')->with('success', 'Hand-over acknowledged.');
+    }
+
     // ───────────────────────── log book ─────────────────────────
 
     public function logbook(Request $request)
@@ -40,10 +94,11 @@ class FrontDeskOpsController extends Controller
             'all' => LogEntry::query(),
             default => LogEntry::whereDate('business_date', bdate()->toDateString()),
         };
-        $q->with('author', 'reads', 'stay.room', 'room', 'guest')->withCount('comments')
+        $q->with('author', 'reads', 'stay.room', 'room', 'guest', 'shiftSession')->withCount('comments')
             ->when($request->query('department'), fn ($q, $d) => $q->where('department', $d))
             ->when($request->query('category'), fn ($q, $c) => $q->where('category', $c))
             ->when($request->query('date'), fn ($q, $d) => $q->whereDate('business_date', $d))
+            ->when($request->integer('session'), fn ($q, $id) => $q->where('shift_session_id', $id))
             ->when(trim((string) $request->query('q')), fn ($q, $t) => $q->where(fn ($w) => $w->where('title', 'like', "%{$t}%")->orWhere('body', 'like', "%{$t}%")));
         $entries = $tab === 'open'
             ? $q->orderByRaw("FIELD(priority,'urgent','high','normal')")->orderByRaw('follow_up_at IS NULL')->orderBy('follow_up_at')->orderByDesc('id')->paginate(40)->withQueryString()
@@ -75,7 +130,7 @@ class FrontDeskOpsController extends Controller
 
     public function showEntry(LogEntry $logentry)
     {
-        $logentry->load('author', 'resolver', 'reads.user', 'comments.user', 'stay.room', 'stay.reservation', 'room', 'guest');
+        $logentry->load('author', 'resolver', 'reads.user', 'comments.user', 'stay.room', 'stay.reservation', 'room', 'guest', 'shiftSession');
         LogBookService::markRead(collect([$logentry]), (int) auth()->id());
 
         return view('desk.entry', ['e' => $logentry]);

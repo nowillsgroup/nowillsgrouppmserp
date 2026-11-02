@@ -27,8 +27,8 @@
 <div class="app">
   <aside class="sidebar" id="primary-sidebar">
     <div class="brand">
-      <img class="brand-logo-full" src="{{ asset('images/brand/nowills-pms-logo-white.png') }}?v=2" alt="Nowills PMS — Cloud Hospitality Suite">
-      <img class="brand-logo-mark" src="{{ asset('images/brand/nowills-pms-mark-white.png') }}?v=2" alt="Nowills PMS">
+      <img class="brand-logo-full" src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-gold.webp') }}" alt="Nowills PMS — Cloud Hospitality Suite">
+      <img class="brand-logo-mark" src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-mark.webp') }}" alt="Nowills PMS">
       <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
     </div>
     <div class="nav-search">
@@ -175,14 +175,16 @@
       </div>
     </header>
 
-    <main class="content">
-      <div class="page-head">
-        <div>
-          @hasSection('crumbs')<div class="crumbs">@yield('crumbs')</div>@endif
-          <h1>@yield('title', 'Dashboard')</h1>
+    <main class="content{{ request()->routeIs('pos.terminal') ? ' pos-terminal-page' : '' }}">
+      @unless($__env->hasSection('hidePageHead'))
+        <div class="page-head">
+          <div>
+            @hasSection('crumbs')<div class="crumbs">@yield('crumbs')</div>@endif
+            <h1>@yield('title', 'Dashboard')</h1>
+          </div>
+          <div class="actions">@yield('actions')</div>
         </div>
-        <div class="actions">@yield('actions')</div>
-      </div>
+      @endunless
       @include('partials.flash')
       @yield('content')
     </main>

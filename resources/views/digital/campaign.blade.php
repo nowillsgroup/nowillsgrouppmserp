@@ -9,6 +9,7 @@
   @endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $c->statusTone() }}" id="campaignStatus" data-status="{{ $c->status }}">{{ $c->statusLabel() }}</span><span class="badge badge-slate">{{ $C::OBJECTIVES[$c->objective] }}</span><span class="badge badge-slate">utm_campaign={{ $c->utm_campaign }}</span>@if($c->promo)<span class="badge badge-purple">promo {{ $c->promo->code }}</span>@endif</div>
 <div class="stats" id="campaignStats">
   <x-stat label="Spend" :value="money_short($s['spend'])" icon="wallet" :tone="$s['pacing'] > 100 ? 'red' : 'amber'" :sub="$s['pacing'] !== null ? $s['pacing'].'% of '.money_short($c->budget) : 'no budget'"/>

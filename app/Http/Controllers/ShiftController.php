@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CashierShift;
 use App\Models\FolioTransaction;
 use App\Models\PosOrder;
+use App\Models\PosPayment;
 use App\Models\User;
 use App\Services\ShiftService;
 use Illuminate\Http\Request;
@@ -20,12 +21,18 @@ class ShiftController extends Controller
     {
         $all = can_do('folio.shift_all');
         $current = ShiftService::current();
+        $summary = $current ? ShiftService::summary($current) : null;
         $history = CashierShift::with('user')->when(! $all, fn ($q) => $q->where('user_id', auth()->id()))
             ->when($all && $request->filled('user'), fn ($q) => $q->where('user_id', $request->integer('user')))
             ->latest('opened_at')->paginate(20)->withQueryString();
+        $history->getCollection()->each(function (CashierShift $shift) use ($current, $summary) {
+            $shift->cash_balance_expected = $shift->status === 'open'
+                ? (($current && (int) $current->id === (int) $shift->id) ? $summary['expected_cash'] : ShiftService::summary($shift)['expected_cash'])
+                : ($shift->expected_cash ?? ShiftService::summary($shift)['expected_cash']);
+        });
 
         return view('shifts.index', [
-            'current' => $current, 'summary' => $current ? ShiftService::summary($current) : null, 'history' => $history, 'all' => $all,
+            'current' => $current, 'summary' => $summary, 'history' => $history, 'all' => $all,
             'movements' => $current ? $current->movements()->with('user')->latest('id')->limit(20)->get() : collect(),
             'openShifts' => $all ? CashierShift::with('user')->where('status', 'open')->where('user_id', '!=', auth()->id())->get() : collect(),
             'users' => $all ? User::where('hotel_id', hotel()->id)->orderBy('name')->pluck('name', 'id') : collect(),
@@ -79,10 +86,16 @@ class ShiftController extends Controller
         $folioTransactions = FolioTransaction::with('paymentMode', 'folio.guest')->where('posted_by', $shift->user_id)
             ->whereBetween('created_at', [$from, $to])->where('is_void', false)->whereIn('type', ['payment', 'refund'])
             ->latest('created_at')->get();
+        $posPayments = PosPayment::with('order', 'paymentMode')->where('received_by', $shift->user_id)
+            ->whereBetween('received_at', [$from, $to])->whereIn('kind', ['payment', 'refund'])
+            ->orderBy('received_at')->orderBy('id')->get();
+        $ledgerOrderIds = $posPayments->pluck('pos_order_id')->unique();
         $posSettlements = PosOrder::with('paymentMode')->where('settled_by', $shift->user_id)->whereBetween('settled_at', [$from, $to])
-            ->where('status', 'settled')->where('settlement', 'payment')->latest('settled_at')->get();
+            ->where('status', 'settled')->where('settlement', 'payment')
+            ->when($ledgerOrderIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $ledgerOrderIds))
+            ->latest('settled_at')->get();
 
         return view('shifts.show', ['shift' => $shift->load('user', 'closedBy', 'movements.user'), 'summary' => ShiftService::summary($shift),
-            'folioTransactions' => $folioTransactions, 'posSettlements' => $posSettlements]);
+            'folioTransactions' => $folioTransactions, 'posPayments' => $posPayments, 'posSettlements' => $posSettlements]);
     }
 }

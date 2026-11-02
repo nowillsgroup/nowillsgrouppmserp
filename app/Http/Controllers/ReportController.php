@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ShiftService;
 use App\Models\ActivityLog;
 use App\Models\BanquetEvent;
 use App\Models\Folio;
@@ -299,8 +300,9 @@ class ReportController extends Controller
         'function_forecast' => ['Banquet & Events', 'Function Forecast (Kitchen & Ops)', 'Upcoming tentative and definite functions with covers, menu and set-up – for purchasing and staffing', 'range', 'banquet.view'],
         'organiser_attendees' => ['Banquet & Events', 'Organiser Attendee Register', 'Every banquet event attendee with tag and contact', 'none', 'banquet.view'],
         'venue_utilisation' => ['Banquet & Events', 'Venue Utilisation', 'Per venue: functions, days and hours booked, occupancy of a 16-hour day, covers and revenue', 'range', 'banquet.view'],
-        'cashier_movements' => ['Billing', 'Cashier Movement Register', 'Every cashier movement: kind, amount, shift, user', 'range', 'frontoffice.view'],
-        'cashier_shifts' => ['Billing', 'Cashier Shift Register', 'Cashier shift summary: opening, cash in, POS, cash out, tip, closing balance and variance', 'range', 'frontoffice.view'],
+        'cashier_movements' => ['Billing', 'Cashier Movement Register', 'Cash in and cash out by cashier, shift, time, reason and reference', 'range', 'folio.shift_all'],
+        'cashier_shifts' => ['Billing', 'Cashier Shift Register', 'Individual cashier close-outs with collections by payment mode, expected cash, counted cash and variance', 'range', 'folio.shift_all'],
+        'cashier_day_summary' => ['Billing', 'Daily Cashier Shift Roll-up', 'Department/day totals across cashier shifts, collections, drawer expectations and reconciled variances', 'range', 'folio.shift_all'],
         'collection' => ['Billing', 'Collection Report', 'Payments by mode and cashier', 'range'],
         'credit_logs' => ['Billing', 'Credit Log Register', 'Every credit issued to a guest folio', 'range', 'frontoffice.view'],
         'invoices' => ['Billing', 'Invoice Register', 'Closed folios / invoices', 'range'],
@@ -6124,16 +6126,69 @@ class ReportController extends Controller
 
     protected function r_cashier_shifts($from, $to): array
     {
-        $rows = CashierShift::with('cashier')->whereBetween('started_at', [$from, $to])->get()->map(fn ($r) => [
-            'shift' => $r->shift_label, 'cashier' => optional($r->cashier)->name, 'hotel' => $r->hotel_id,
-            'started' => $r->started_at, 'ended' => $r->ended_at, 'period' => $r->period,
-            'opening' => $r->opening_balance, 'cash_in' => $r->cash_in, 'cash_out' => $r->cash_out,
-            'cheque_in' => $r->cheque_in, 'card_in' => $r->card_in, 'total_sales' => $r->total_sales,
-            'total_refunds' => $r->total_refunds, 'expected' => $r->expected_cash,
-            'actual' => $r->actual_cash, 'surplus' => $r->surplus, 'shortage' => $r->shortage,
-            'closed' => $r->closed, 'status' => $r->status,
-        ]);
-        return ['cols' => ['shift' => 'Shift', 'cashier' => 'Cashier', 'started' => 'Started', 'ended' => 'Ended', 'opening' => 'Opening', 'cash_in' => 'Cash In', 'cash_out' => 'Cash Out', 'card_in' => 'Card In', 'total_sales' => 'Total Sales', 'total_refunds' => 'Refunds', 'expected' => 'Expected', 'actual' => 'Actual', 'surplus' => 'Surplus', 'shortage' => 'Shortage', 'status' => 'Status'], 'rows' => $rows, 'money' => ['opening', 'cash_in', 'cash_out', 'cheque_in', 'card_in', 'total_sales', 'total_refunds', 'expected', 'actual', 'surplus', 'shortage'], 'sum' => ['total_sales', 'total_refunds', 'surplus', 'shortage'], 'note' => 'Daily cashier shift register with expected vs actual cash reconciliation.'];
+        $rows = CashierShift::with('user')->whereDate('business_date', '>=', Carbon::parse($from)->toDateString())->whereDate('business_date', '<=', Carbon::parse($to)->toDateString())->orderBy('business_date')->orderBy('opened_at')->get()->map(function ($shift) {
+            $summary = ShiftService::summary($shift);
+            $modes = collect($summary['modes'] ?? []);
+            $variance = $shift->variance !== null ? (float) $shift->variance : null;
+
+            return [
+                '_cashier_id' => (int) $shift->user_id, 'cashier' => $shift->user?->name ?? 'Former staff member', 'business_date' => $shift->business_date,
+                'opened' => $shift->opened_at, 'closed' => $shift->closed_at,
+                'opening_float' => (float) $shift->opening_float,
+                'cash_received' => (float) ($summary['cash_in'] ?? 0), 'cash_out' => (float) ($summary['cash_out'] ?? 0),
+                'non_cash_received' => $modes->filter(fn ($mode) => empty($mode['is_cash']))->sum(fn ($mode) => (float) ($mode['in'] ?? 0)),
+                'total_collections' => (float) ($summary['total_in'] ?? 0), 'refunds_and_out' => (float) ($summary['total_out'] ?? 0),
+                'expected_cash' => $shift->expected_cash !== null ? (float) $shift->expected_cash : (float) ($summary['expected_cash'] ?? 0),
+                'counted_cash' => $shift->counted_cash !== null ? (float) $shift->counted_cash : null,
+                'variance' => $variance, 'surplus' => $variance === null ? null : max(0, $variance),
+                'shortage' => $variance === null ? null : max(0, -$variance), 'status' => $shift->status,
+                'close_notes' => $shift->notes,
+            ];
+        });
+
+        return ['cols' => ['cashier' => 'Cashier', 'business_date' => 'Business date', 'opened' => 'Opened', 'closed' => 'Closed',
+            'opening_float' => 'Opening float', 'cash_received' => 'Cash in', 'cash_out' => 'Cash out',
+            'non_cash_received' => 'Non-cash received', 'total_collections' => 'Total inflows', 'refunds_and_out' => 'Total outflows',
+            'expected_cash' => 'Expected cash', 'counted_cash' => 'Counted cash', 'variance' => 'Variance', 'surplus' => 'Surplus', 'shortage' => 'Shortage', 'status' => 'Status'],
+            'rows' => $rows, 'money' => ['opening_float', 'cash_received', 'cash_out', 'non_cash_received', 'total_collections', 'refunds_and_out', 'expected_cash', 'counted_cash', 'variance', 'surplus', 'shortage'],
+            'sum' => ['total_collections', 'refunds_and_out', 'surplus', 'shortage'],
+            'note' => 'Cashier close-outs by business date. Closed totals use the saved shift snapshot; open shifts are provisional.'];
+    }
+
+    /** Department-level cashier reconciliation, grouped to one business-date row. */
+    protected function r_cashier_day_summary($from, $to): array
+    {
+        $register = $this->r_cashier_shifts($from, $to)['rows'];
+        $rows = $register->groupBy(fn ($row) => Carbon::parse($row['business_date'])->toDateString())->map(function ($shifts, $date) {
+            $closed = $shifts->where('status', 'closed');
+
+            return [
+                'business_date' => Carbon::parse($date),
+                'cashiers' => $shifts->pluck('_cashier_id')->filter()->unique()->count(),
+                'shifts' => $shifts->count(),
+                'closed_shifts' => $closed->count(),
+                'open_shifts' => $shifts->where('status', 'open')->count(),
+                'cash_received' => round((float) $shifts->sum('cash_received'), 2),
+                'cash_out' => round((float) $shifts->sum('cash_out'), 2),
+                'non_cash_received' => round((float) $shifts->sum('non_cash_received'), 2),
+                'total_collections' => round((float) $shifts->sum('total_collections'), 2),
+                'expected_cash' => round((float) $shifts->sum('expected_cash'), 2),
+                'counted_cash' => round((float) $closed->sum('counted_cash'), 2),
+                'variance' => round((float) $closed->sum('variance'), 2),
+                'surplus' => round((float) $closed->sum('surplus'), 2),
+                'shortage' => round((float) $closed->sum('shortage'), 2),
+            ];
+        })->sortKeys()->values();
+
+        return [
+            'cols' => ['business_date' => 'Business date', 'cashiers' => 'Cashiers', 'shifts' => 'Shifts', 'closed_shifts' => 'Closed', 'open_shifts' => 'Open',
+                'cash_received' => 'Cash in', 'cash_out' => 'Cash out', 'non_cash_received' => 'Non-cash received',
+                'total_collections' => 'Total inflows', 'expected_cash' => 'Expected cash', 'counted_cash' => 'Counted cash',
+                'variance' => 'Net variance', 'surplus' => 'Surplus', 'shortage' => 'Shortage'],
+            'rows' => $rows, 'money' => ['cash_received', 'cash_out', 'non_cash_received', 'total_collections', 'expected_cash', 'counted_cash', 'variance', 'surplus', 'shortage'],
+            'sum' => ['shifts', 'closed_shifts', 'open_shifts', 'cash_received', 'cash_out', 'non_cash_received', 'total_collections', 'expected_cash', 'counted_cash', 'variance', 'surplus', 'shortage'],
+            'note' => 'One row per business date. Open shifts are provisional; counted cash and variance include closed cashier shifts only. A cashier with multiple sessions on the same date is counted once in Cashiers.',
+        ];
     }
 
 
@@ -6525,13 +6580,17 @@ class ReportController extends Controller
 
     protected function r_cashier_movements($from, $to): array
     {
-        $rows = CashierMovement::with('cashier.shift')->whereBetween('moved_at', [$from, $to])->get()->map(fn ($r) => [
-            'cashier' => optional($r->cashier)->name, 'shift' => optional($r->shift)->shift_label,
-            'moved' => $r->moved_at, 'type' => $r->movement_type, 'amount' => $r->amount,
-            'from_drawer' => $r->from_drawer_id, 'to_drawer' => $r->to_drawer_id,
-            'reason' => $r->reason, 'status' => $r->status, 'user' => $r->user_id,
+        $rows = CashierMovement::with(['user', 'shift.user'])->whereBetween('created_at', [Carbon::parse($from)->startOfDay(), Carbon::parse($to)->endOfDay()])->orderBy('created_at')->get()->map(fn ($movement) => [
+            'cashier' => $movement->shift?->user?->name ?? 'Former staff member', 'shift' => '#'.$movement->cashier_shift_id,
+            'business_date' => $movement->business_date, 'moved' => $movement->created_at,
+            'type' => $movement->kindLabel(), 'amount' => (float) $movement->amount,
+            'reason' => $movement->reason, 'reference' => $movement->reference,
+            'entered_by' => $movement->user?->name ?? 'Former staff member',
         ]);
-        return ['cols' => ['cashier' => 'Cashier', 'shift' => 'Shift', 'moved' => 'Moved At', 'type' => 'Type', 'amount' => 'Amount', 'reason' => 'Reason', 'status' => 'Status'], 'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Cash drawer movement register.'];
+
+        return ['cols' => ['cashier' => 'Cashier', 'shift' => 'Shift', 'business_date' => 'Business date', 'moved' => 'Recorded at',
+            'type' => 'Type', 'amount' => 'Amount', 'reason' => 'Reason', 'reference' => 'Reference', 'entered_by' => 'Recorded by'],
+            'rows' => $rows, 'money' => ['amount'], 'sum' => ['amount'], 'note' => 'Auditable cashier drawer cash-in / cash-out movements.'];
     }
 
     protected function r_credit_logs($from, $to): array

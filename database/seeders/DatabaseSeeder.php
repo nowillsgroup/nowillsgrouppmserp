@@ -8627,8 +8627,8 @@ class DatabaseSeeder extends Seeder
         };
         $crew = $ini(['name' => 'Airline crew accommodation – Africa World Airlines', 'category' => 'new_segment', 'target_market' => 'Airline crews', 'partner_id' => $awa->id,
             'description' => "AWA rotates 20–25 crew through Accra daily and was unhappy with its airport hotel. A year-round crew contract fills weekday low-demand STD rooms at a floor rate and brings passenger referrals.\nRisks: displacement of higher-rated business on peak nights – mitigated by the 24-hour allotment release.",
-            'investment' => 60000, 'annual_revenue' => 540000, 'annual_cost' => 150000, 'horizon_years' => 3, 'launch_date' => $B->copy()->subMonths(4)->startOfMonth()->toDateString()],
-            'live', ['submitted_at' => $B->copy()->subMonths(6), 'decided_by' => $admin->id, 'decided_at' => $B->copy()->subMonths(6)->addDays(2), 'live_date' => $B->copy()->subMonths(4)->startOfMonth()->toDateString()],
+            'investment' => 60000, 'annual_revenue' => 540000, 'annual_cost' => 150000, 'horizon_years' => 3, 'launch_date' => $B->copy()->startOfMonth()->subMonthsNoOverflow(4)->toDateString()],
+            'live', ['submitted_at' => $B->copy()->subMonthsNoOverflow(6), 'decided_by' => $admin->id, 'decided_at' => $B->copy()->subMonthsNoOverflow(6)->addDays(2), 'live_date' => $B->copy()->startOfMonth()->subMonthsNoOverflow(4)->toDateString()],
             [['Crew rate & allotment agreed', -190, true], ['Blackout-curtain & late-checkout crew floor ready', -170, true], ['Transfers with the transport desk', -160, true]]);
         foreach ([[4, 41200, 11800, 'Ramp-up month'], [3, 46800, 12400, null], [2, 44100, 12100, 'Two rotations cancelled (aircraft AOG)'], [1, 49300, 12900, 'Extra Lagos frequency']] as [$k, $rev, $cost, $note]) {
             $BD::saveResult($crew, ['month' => $B->copy()->startOfMonth()->subMonthsNoOverflow($k)->format('Y-m'), 'revenue' => $rev, 'cost' => $cost, 'note' => $note], $ak);

@@ -6,6 +6,7 @@
   @if($canWrite)<button class="btn btn-primary" data-modal="postModalNew" id="newPostBtn"><x-icon name="plus"/> New post</button>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 @if($queue->count() && (can_do('digital.approve') || can_do('digital.manage')))
 <div class="card flush mb-1" id="approvalQueue"><div class="card-head"><h3><x-icon name="check"/> Awaiting approval ({{ $queue->count() }})</h3></div>
 <div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Post</th><th>Slot</th><th>Author</th><th></th></tr></thead><tbody>
@@ -15,12 +16,12 @@
 
 <div class="card flush" id="calCard"><div class="card-head"><h3><x-icon name="calendar"/> {{ $month->format('F Y') }}</h3>
   <div class="flex gap-05"><form method="get" class="flex gap-05"><input type="hidden" name="month" value="{{ $month->format('Y-m') }}"><select name="status" aria-label="Status" onchange="this.form.submit()"><option value="">All statuses</option>@foreach($P::STATUSES as $k => [$l])<option value="{{ $k }}" @selected($status === $k)>{{ $l }}</option>@endforeach</select></form>
-  <a class="btn btn-sm" href="?month={{ $month->copy()->subMonthNoOverflow()->format('Y-m') }}&status={{ $status }}" id="calPrev">←</a><a class="btn btn-sm" href="?month={{ bdate()->format('Y-m') }}">Today</a><a class="btn btn-sm" href="?month={{ $month->copy()->addMonthNoOverflow()->format('Y-m') }}&status={{ $status }}" id="calNext">→</a></div></div>
-<div class="card-body pad"><div class="mk-cal" id="dmCal">@foreach(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $d)<div class="mk-head">{{ $d }}</div>@endforeach
-  @foreach($days as $d)<div class="mk-day {{ $d['in'] ? '' : 'out' }} {{ $d['date']->isSameDay(bdate()) ? 'today' : '' }}" data-date="{{ $d['date']->toDateString() }}"><div class="tiny muted">{{ $d['date']->day }}</div>
+  <a class="btn btn-sm" href="{{ route('digital.calendar', ['month' => $month->copy()->subMonthNoOverflow()->format('Y-m'), 'status' => $status]) }}" id="calPrev" aria-label="Previous month" title="Previous month">←</a><a class="btn btn-sm" href="{{ route('digital.calendar', ['month' => bdate()->format('Y-m'), 'status' => $status]) }}" aria-label="Current month" title="Current month">Today</a><a class="btn btn-sm" href="{{ route('digital.calendar', ['month' => $month->copy()->addMonthNoOverflow()->format('Y-m'), 'status' => $status]) }}" id="calNext" aria-label="Next month" title="Next month">→</a></div></div>
+<div class="card-body pad"><div class="mk-cal-scroll"><div class="mk-cal" id="dmCal" role="region" aria-label="Content calendar for {{ $month->format('F Y') }}">@foreach(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $d)<div class="mk-head">{{ $d }}</div>@endforeach
+  @foreach($days as $d)<div class="mk-day {{ $d['in'] ? '' : 'out' }} {{ $d['date']->isSameDay(bdate()) ? 'today' : '' }}" data-date="{{ $d['date']->toDateString() }}" role="group" aria-label="{{ $d['date']->format('l, d F Y') }}"><div class="tiny muted">{{ $d['date']->day }}</div>
     @foreach($d['posts'] as $p)<a class="mk-ev ps-{{ $p->isMissed() ? 'missed' : $p->status }}" href="{{ route('digital.post', $p) }}" title="{{ $p->scheduled_at->format('H:i') }} {{ $p->title }} ({{ $p->isMissed() ? 'missed' : $p->statusLabel() }})">{{ $p->scheduled_at->format('H:i') }} {{ $p->title }}</a>@endforeach</div>@endforeach
-</div>
-<div class="flex gap-1 wrap mt-1 tiny">@foreach(['draft', 'review', 'approved', 'rejected', 'published'] as $s)<span><span class="mk-ev ps-{{ $s }}" style="display:inline-block">{{ $P::STATUSES[$s][0] }}</span></span>@endforeach<span><span class="mk-ev ps-missed" style="display:inline-block">Missed slot</span></span></div>
+</div></div>
+<div class="flex gap-1 wrap mt-1 tiny" role="group" aria-label="Post status legend">@foreach(['draft', 'review', 'approved', 'rejected', 'published'] as $s)<span><span class="mk-ev ps-{{ $s }}" style="display:inline-block">{{ $P::STATUSES[$s][0] }}</span></span>@endforeach<span><span class="mk-ev ps-missed" style="display:inline-block">Missed slot</span></span></div>
 </div></div>
 
 <div class="card flush mt-1" id="postList"><div class="card-head"><h3><x-icon name="layers"/> Posts in {{ $month->format('F') }}</h3></div>

@@ -2,8 +2,8 @@
 <title>Test checkout · {{ $p->pay_no }}</title><link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 <style>body{background:#eef2f7;min-height:100vh;display:grid;place-items:center;padding:1rem}.gw{background:#fff;border-radius:16px;max-width:430px;width:100%;box-shadow:0 20px 50px rgba(15,23,42,.15);overflow:hidden}
 .gw-head{background:#10271c;color:#fff;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center}.gw-head small{opacity:.7}.gw-body{padding:1.2rem}
-.gw-amt{font-size:1.9rem;font-weight:800;margin:.2rem 0 1rem}.tabs3{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:1rem}.tabs3 label{border:1px solid var(--c-border);border-radius:10px;padding:.55rem;text-align:center;font-size:.85rem;cursor:pointer}
-.tabs3 input{display:none}.tabs3 label:has(input:checked){border-color:#166534;background:#f0fdf4;color:#166534;font-weight:700}.fake{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:.8rem;font-family:ui-monospace,monospace;font-size:.9rem;color:#334155;margin-bottom:1rem}
+.gw-amt{font-size:1.9rem;font-weight:800;margin:.2rem 0 1rem}.tabs3{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:0 0 1rem;border:0;padding:0;min-width:0}.tabs3 label{border:1px solid var(--c-border);border-radius:10px;padding:.55rem;text-align:center;font-size:.85rem;cursor:pointer}
+.tabs3 input{position:absolute;width:1px;height:1px;margin:0;opacity:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%)}.tabs3 label:focus-within{outline:3px solid #166534;outline-offset:2px}.tabs3 label:has(input:checked){border-color:#166534;background:#f0fdf4;color:#166534;font-weight:700}.fake{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:.8rem;font-family:ui-monospace,monospace;font-size:.9rem;color:#334155;margin-bottom:1rem}
 .test-ribbon{background:#fef3c7;color:#92400e;text-align:center;font-size:.78rem;font-weight:700;padding:.35rem;letter-spacing:.04em}</style><link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v={{ filemtime(public_path('favicon.svg')) }}">
 </head>
 <body>@include('partials.icons')
@@ -12,11 +12,12 @@
   <div class="gw-head"><div><b>{{ $hotel->name }}</b><br><small>{{ $p->pay_no }} · {{ $p->description }}</small></div><x-icon name="lock"/></div>
   <form class="gw-body" method="post" action="{{ route('pay.demo.submit', $p->token) }}">@csrf<input type="hidden" name="ref" value="{{ $ref }}">
     <div class="tiny muted">AMOUNT DUE</div><div class="gw-amt">{{ $p->currency }} {{ number_format((float) $p->amount, 2) }}</div>
-    <div class="tabs3">
+    <fieldset class="tabs3">
+      <legend class="sr-only">Payment method</legend>
       <label><input type="radio" name="channel" value="card" checked> Card</label>
       <label><input type="radio" name="channel" value="mobile_money"> Mobile money</label>
       <label><input type="radio" name="channel" value="upi"> UPI</label>
-    </div>
+    </fieldset>
     <div class="fake">4242 4242 4242 4242 · 12/30 · 123<br><span class="tiny muted">Test details – nothing to type.</span></div>
     <button class="btn btn-primary btn-block" name="result" value="success" id="demoPay">Pay {{ $p->currency }} {{ number_format((float) $p->amount, 2) }}</button>
     <div class="flex gap-1 mt-1"><button class="btn btn-block" name="result" value="declined" id="demoDecline">Simulate decline</button><button class="btn btn-block" name="result" value="insufficient">Insufficient funds</button></div>

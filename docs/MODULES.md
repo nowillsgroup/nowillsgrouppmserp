@@ -196,4 +196,4 @@ counts, names, order, section keys, permission keys and every URI the prose name
 - **Masters** — 8 pages
   - Room Types · Rooms · Floors · Rate Plans · Taxes · Business Sources · Payment Modes · Item Categories
 - **Administration** — 11 pages
-  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Data Migration
+  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Import & Export Data

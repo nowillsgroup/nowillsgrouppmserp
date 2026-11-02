@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToHotel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class Folio extends Model
 {
@@ -18,9 +20,9 @@ class Folio extends Model
         return $this->transactions()->where('is_void', false);
     }
 
-    public function totals(): array
+    public function totals(?Collection $transactions = null): array
     {
-        $tx = $this->activeTransactions()->get();
+        $tx = ($transactions ?? $this->transactions()->get())->where('is_void', false);
         $charges = $tx->where('type', 'charge')->sum(fn ($t) => $t->amount + $t->tax_amount);
         $tax = $tx->where('type', 'charge')->sum('tax_amount');
         $discount = $tx->whereIn('type', ['discount', 'allowance'])->sum('amount');
@@ -35,6 +37,20 @@ class Folio extends Model
     public function balance(): float
     {
         return $this->totals()['balance'];
+    }
+
+    /** Add the active ledger balance to a folio list without hydrating each line per row. */
+    public function scopeWithListBalance(Builder $query): Builder
+    {
+        $balances = FolioTransaction::query()
+            ->where('is_void', false)
+            ->select('folio_id')
+            ->selectRaw("ROUND(SUM(CASE WHEN type = 'charge' THEN amount + tax_amount WHEN type = 'opening_balance' THEN amount WHEN type IN ('discount', 'allowance', 'payment') THEN -amount WHEN type = 'refund' THEN amount ELSE 0 END), 2) as listing_balance")
+            ->groupBy('folio_id');
+
+        return $query->leftJoinSub($balances, 'folio_balance_totals', fn ($join) => $join->on('folios.id', '=', 'folio_balance_totals.folio_id'))
+            ->select('folios.*')
+            ->selectRaw('COALESCE(folio_balance_totals.listing_balance, 0) as listing_balance');
     }
 
     protected function casts(): array
@@ -63,6 +79,11 @@ class Folio extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function closedBy()
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 
     public function transactions()

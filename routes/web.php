@@ -61,8 +61,8 @@ Route::post('/api/pbx/{token}', [Controllers\InterfaceController::class, 'push']
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('pbx.api.push');
-// v7.55 Robita smart door lock event webhook – stateless, per-hotel 40-character token (Robita Locks > Settings)
-Route::post('/api/robita/{token}', [Controllers\RobitaController::class, 'webhook'])->where('token', '[A-Za-z0-9]{40}')->middleware('throttle:120,1')
+// Robita normalized-event intake – stateless, bearer token is sent in Authorization (never in the URL).
+Route::post('/api/robita/events', [Controllers\RobitaController::class, 'webhook'])->middleware('throttle:120,1')
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('robita.api.webhook');
@@ -172,6 +172,7 @@ Route::prefix('tv')->name('tv.')->controller(Controllers\TvController::class)
             Route::middleware('throttle:tv')->group(function () {
                 Route::get('/', 'app')->name('app');
                 Route::get('/state', 'state')->name('state');
+                Route::get('/portal-qr', 'portalQr')->name('portal-qr');
                 Route::get('/data/{section}', 'data')->where('section', 'channels|movies|dining|services|pages|explore|messages')->name('data');
             });
             Route::middleware('throttle:tv-write')->group(function () {
@@ -684,6 +685,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/batches/{lbatch}/close', 'close')->middleware('perm:laundry.linen')->whereNumber('lbatch')->name('close');
         Route::post('/batches/{lbatch}/bill', 'bill')->middleware('perm:ap.manage')->whereNumber('lbatch')->name('bill');
     });
+    Route::get('/my-shift', [Controllers\MyShiftController::class, 'index'])->middleware('perm:logbook.view,folio.shift,pos.order,pos.shift_view_all')->name('my-shift');
+    Route::prefix('service-shifts')->name('department-shifts.')->middleware('perm:pos.order,pos.shift_view_all')->controller(Controllers\DepartmentShiftController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'start')->middleware('perm:pos.order')->name('start');
+        Route::get('/{session}', 'show')->whereNumber('session')->name('show');
+        Route::post('/{session}/close', 'close')->whereNumber('session')->middleware('perm:pos.order')->name('close');
+    });
     Route::prefix('shifts')->name('shifts.')->middleware('perm:folio.shift')->controller(Controllers\ShiftController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'open')->name('open');
@@ -716,6 +724,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::middleware('perm:frontdesk.checkin')->group(function () {
             Route::get('/walk-in', 'walkIn')->name('walkin');
             Route::post('/walk-in', 'storeWalkIn')->name('walkin.store');
+            Route::post('/walk-in/company', 'storeWalkInCompany')->middleware('perm:credit.manage')->name('walkin.company.store');
             Route::get('/stay/{stay}/check-in', 'checkInForm')->name('checkin');
             Route::post('/stay/{stay}/check-in', 'checkIn')->name('checkin.store');
         });
@@ -728,8 +737,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::get('/stay/{stay}/move', 'moveForm')->name('move');
             Route::post('/stay/{stay}/move', 'move')->name('move.store');
             Route::post('/stay/{stay}/amend', 'amend')->name('amend');
-            Route::post('/tape-chart/drop', 'tapeDrop')->name('tapechart.drop');
         });
+        // The desk also exposes safe placement to reservation editors; in-house
+        // room changes still pass through StayService's audited move workflow.
+        Route::post('/tape-chart/drop', 'tapeDrop')->middleware('perm:frontdesk.roommove,reservations.edit')->name('tapechart.drop');
     });
 
     // ---- Guest requests queue & guest portal links (v1.7)
@@ -774,7 +785,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/stays/{stay}/place-check', [Controllers\ReservationDeskController::class, 'placeCheck'])->middleware('perm:reservations.view')->name('place.check');
         Route::post('/stays/{stay}/split/preview', [Controllers\ReservationDeskController::class, 'previewSplit'])->middleware('perm:reservations.view')->name('split.preview');
         Route::post('/stays/{stay}/split', [Controllers\ReservationDeskController::class, 'split'])->middleware('perm:reservations.edit')->name('split');
-        Route::post('/stays/{stay}/place', [Controllers\ReservationDeskController::class, 'place'])->middleware('perm:reservations.edit')->name('place');
+        Route::post('/stays/{stay}/place', [Controllers\ReservationDeskController::class, 'place'])->middleware('perm:reservations.edit,frontdesk.roommove')->name('place');
         Route::post('/outages/preview', [Controllers\ReservationDeskController::class, 'previewOutage'])->middleware('perm:reservations.view')->name('outages.preview');
         Route::post('/outages', [Controllers\ReservationDeskController::class, 'storeOutage'])->middleware('perm:reservations.edit')->name('outages.store');
         Route::post('/outages/{outage}/release', [Controllers\ReservationDeskController::class, 'releaseOutage'])->middleware('perm:reservations.edit')->name('outages.release');
@@ -790,6 +801,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/', 'store')->middleware('perm:reservations.create')->name('store');
         Route::get('/{reservation}', 'show')->middleware('perm:reservations.view')->name('show');
         Route::get('/{reservation}/print', 'print')->middleware('perm:reservations.view')->name('print');
+        Route::get('/{reservation}/pdf', 'downloadConfirmationPdf')->middleware('perm:reservations.view')->name('pdf');
         Route::get('/{reservation}/edit', 'edit')->middleware('perm:reservations.edit')->name('edit');
         Route::put('/{reservation}', 'update')->middleware('perm:reservations.edit')->name('update');
         Route::post('/{reservation}/cancel', 'cancel')->middleware('perm:reservations.cancel')->name('cancel');
@@ -807,6 +819,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('folios')->name('folios.')->controller(Controllers\FolioController::class)->group(function () {
         Route::get('/', 'index')->middleware('perm:folio.view')->name('index');
         Route::get('/invoices', 'invoices')->middleware('perm:folio.view')->name('invoices');
+        Route::get('/transactions', 'transactions')->middleware('perm:folio.view')->name('transactions');
         Route::get('/non-resident', 'walkIn')->middleware('perm:folio.post')->name('walkin');
         Route::post('/non-resident', 'storeWalkIn')->middleware('perm:folio.post')->name('walkin.store');
         Route::get('/{folio}', 'show')->middleware('perm:folio.view')->name('show');
@@ -981,6 +994,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     // ---- v3.5 front desk operations: log book, hand-over, wake-up calls, messages & parcels, traces
     Route::prefix('desk')->name('desk.')->controller(Controllers\FrontDeskOpsController::class)->group(function () {
         Route::middleware('perm:logbook.view')->group(function () {
+            Route::get('/shift', 'shiftSession')->name('shift');
+            Route::post('/shift/{session}/accept', 'acceptShiftHandover')->whereNumber('session')->name('shift.accept');
             Route::get('/logbook', 'logbook')->name('logbook');
             Route::get('/logbook/{logentry}', 'showEntry')->whereNumber('logentry')->name('logbook.show');
             Route::post('/logbook/acknowledge', 'acknowledge')->name('logbook.ack');
@@ -988,6 +1003,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::get('/handover/print', 'handoverPrint')->name('handover.print');
         });
         Route::middleware('perm:logbook.write')->group(function () {
+            Route::post('/shift/start', 'startShiftSession')->name('shift.start');
+            Route::post('/shift/{session}/close', 'closeShiftSession')->whereNumber('session')->name('shift.close');
             Route::post('/logbook', 'storeEntry')->name('logbook.store');
             Route::post('/logbook/{logentry}/comment', 'comment')->whereNumber('logentry')->name('logbook.comment');
             Route::post('/logbook/{logentry}/resolve', 'resolve')->whereNumber('logentry')->name('logbook.resolve');
@@ -1109,6 +1126,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/robita/credentials/{credential}/cancel', 'cancelCredential')->whereNumber('credential')->name('credentials.cancel');
         Route::get('/robita/settings', 'settings')->name('settings');
         Route::post('/robita/settings', 'settings')->name('settings.store');
+        Route::post('/robita/settings/forget-legacy-cloud', 'forgetLegacyCloudConfig')->name('settings.forget_legacy_cloud');
         Route::post('/robita/tokens', 'regenerateTokens')->name('tokens');
         Route::post('/robita/poll', 'poll')->name('poll');
     });
@@ -1345,10 +1363,14 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     // ---- POS
     Route::prefix('pos')->name('pos.')->controller(Controllers\PosController::class)->group(function () {
         Route::get('/', 'index')->middleware('perm:pos.view')->name('index');
+        Route::get('/live-orders', 'liveOrders')->middleware('perm:pos.view')->name('live-orders');
+        Route::get('/live-orders/feed', 'liveOrdersFeed')->middleware('perm:pos.view')->name('live-feed');
         Route::get('/guests', 'guestSearch')->middleware('perm:pos.order')->name('guests');
+        Route::get('/unsettled-invoices', 'unsettledInvoices')->middleware('perm:pos.settle')->name('unsettled');
         Route::get('/orders', 'orders')->middleware('perm:pos.view')->name('orders');
         Route::post('/orders', 'open')->middleware('perm:pos.order')->name('open');
         Route::get('/orders/{order}', 'terminal')->middleware('perm:pos.view')->name('terminal');
+        Route::post('/orders/{order}/claim', 'claim')->middleware('perm:pos.order')->name('claim');
         Route::post('/orders/{order}/kot', 'kot')->middleware('perm:pos.order')->name('kot');
         Route::post('/orders/{order}/fire', 'fireHeld')->middleware('perm:pos.order')->name('fire');
         Route::post('/orders/{order}/items/{line}/cancel', 'cancelItem')->middleware('perm:pos.void')->name('item.cancel');
@@ -2675,13 +2697,14 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     });
 
     Route::get('/reports', [Controllers\ReportController::class, 'index'])->middleware('perm:reports.view')->name('reports.index');
-    Route::get('/reports/{report}', [Controllers\ReportController::class, 'show'])->middleware('perm:reports.view')->name('reports.show');
+    Route::get('/reports/{report}', [Controllers\ReportController::class, 'show'])->middleware('perm:reports.view,folio.shift_all')->name('reports.show');
 
     // ---- Generic masters (config-driven CRUD)
     Route::prefix('masters/{master}')->name('masters.')->controller(Controllers\MasterController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
+        Route::patch('/{id}/availability', 'toggleAvailability')->name('availability');
         Route::get('/{id}/edit', 'edit')->name('edit');
         Route::put('/{id}', 'update')->name('update');
         Route::delete('/{id}', 'destroy')->name('destroy');
@@ -2703,6 +2726,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
             Route::get('/template/{dataset}', 'template')->name('template');
+            Route::get('/export/{dataset}', 'export')->name('export');
             Route::get('/{batch}', 'show')->whereNumber('batch')->name('show');
             Route::post('/{batch}/validate', 'validate')->whereNumber('batch')->name('validate');
             Route::post('/{batch}/apply', 'apply')->whereNumber('batch')->name('apply');

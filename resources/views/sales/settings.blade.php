@@ -1,8 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Sales Settings')
-@section('crumbs') Sales / Settings @endsection
+@section('crumbs') Sales & Marketing / Settings @endsection
 @php $O = \App\Models\SalesOpportunity::class; @endphp
 @section('content')
+@include('sales._workspace-nav')
 <div class="card" style="max-width:44rem"><div class="card-body"><form method="post" action="{{ route('sales.settings.save') }}" class="form-grid" id="salesSettings">@csrf
   <h3 class="span-all">Default win probability by stage (%)</h3>
   @foreach($O::OPEN as $s)<div class="field"><label>{{ $O::STAGES[$s][0] }}</label><input type="number" name="prob_{{ $s }}" min="1" max="99" required value="{{ $cfg['prob_'.$s] }}"></div>@endforeach

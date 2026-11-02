@@ -1,0 +1,6 @@
+.buildResult/
+dist/
+*.wgt
+*.keystore
+*.p12
+*.pfx

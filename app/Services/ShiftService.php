@@ -39,14 +39,19 @@ class ShiftService
     public static function assertOpen(): void
     {
         if (self::required() && auth()->check() && ! self::current()) {
-            throw new RuntimeException('Open your cashier shift (Finance › Cashiering) before receiving payments.');
+            throw new RuntimeException('Open your cashier shift from My Shift → Cashiering before receiving payments.');
         }
     }
 
     public static function open(float $float, ?string $notes = null): CashierShift
     {
         return DB::transaction(function () use ($float, $notes) {
-            if (CashierShift::where('user_id', auth()->id())->where('status', 'open')->lockForUpdate()->exists()) {
+            $userId = auth()->id();
+            if (! $userId) {
+                throw new RuntimeException('Sign in as a cashier before opening a shift.');
+            }
+            User::whereKey($userId)->lockForUpdate()->firstOrFail();
+            if (CashierShift::where('user_id', $userId)->where('status', 'open')->lockForUpdate()->exists()) {
                 throw new RuntimeException('You already have an open shift.');
             }
             $s = CashierShift::create(['user_id' => auth()->id(), 'business_date' => bdate(), 'opened_at' => now(), 'opening_float' => round($float, 2), 'notes' => $notes]);
@@ -120,7 +125,7 @@ class ShiftService
         $modes = PaymentMode::withoutGlobalScopes()->where('hotel_id', $shift->hotel_id)->get()->keyBy('id');
         $rows = [];
         $add = function ($modeId, float $in, float $out) use (&$rows, $modes) {
-            $m = $modes[$modeId] ?? null;
+            $m = $modeId !== null ? ($modes[$modeId] ?? null) : null;
             $k = $m?->name ?? ($modeId === null ? 'Cash drawer' : 'Other');
             $rows[$k] ??= ['in' => 0.0, 'out' => 0.0, 'net' => 0.0, 'is_cash' => $m?->type === 'cash' || $modeId === null, 'count' => 0];
             $rows[$k]['in'] += $in;

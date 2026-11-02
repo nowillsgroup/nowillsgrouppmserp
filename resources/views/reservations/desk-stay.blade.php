@@ -4,8 +4,11 @@
   $nights = $stay->arrival_date->diffInDays($stay->departure_date);
   $tax = \App\Services\TaxService::roomTax((float) $stay->rate);
   $expected = round($nights * ((float) $stay->rate + $tax['amount']), 2);
+  $canViewGuest = can_do('guests.view');
+  $canViewFolio = can_do('folio.view');
+  $canSeeHousekeeping = can_do('housekeeping.view') || can_do('housekeeping.manage') || can_do('housekeeping.attendant');
   $folio = $stay->folio;
-  $balance = $folio ? $folio->balance() : null;
+  $balance = $canViewFolio && $folio ? $folio->balance() : null;
 @endphp
 @php
   $photoDoc = \App\Models\GuestDocument::where('guest_id', $guest->id)->where('type', 'photo')->latest('id')->first();
@@ -20,7 +23,7 @@
     <div>
       <div class="tiny muted">{{ $res->reservation_no }} · {{ ucwords(str_replace('_', ' ', $stay->status)) }}</div>
       <h2 style="margin:0">{{ $guest->full_name }}@if($guest->is_vip) <span class="badge badge-purple">VIP</span>@endif</h2>
-      <div class="small text-2">{{ $guest->phone ?: 'No phone on file' }}{{ $guest->email ? ' · '.$guest->email : '' }}</div>
+      @if($canViewGuest)<div class="small text-2">{{ $guest->phone ?: 'No phone on file' }}{{ $guest->email ? ' · '.$guest->email : '' }}</div>@endif
       @if($res->company)<div class="small">Company: {{ $res->company->name }}</div>@endif
     </div>
     <div class="right">
@@ -33,24 +36,28 @@
     <div><div class="tiny muted">Arrival</div><div>{{ $stay->arrival_date->format('D, d M Y') }}</div></div>
     <div><div class="tiny muted">Departure</div><div>{{ $stay->departure_date->format('D, d M Y') }}</div></div>
     <div><div class="tiny muted">Nights · pax</div><div>{{ $nights }} · {{ $stay->adults }}/{{ $stay->children }}</div></div>
-    <div><div class="tiny muted">Rate / night</div><div>{{ money($stay->rate) }}</div></div>
-    <div><div class="tiny muted">Expected room + tax</div><div>{{ money($expected) }}</div><div class="tiny muted">Not a folio balance</div></div>
-    <div><div class="tiny muted">Folio balance</div><div>{{ $balance === null ? 'No folio yet' : money($balance) }}</div></div>
-    @php $lastPay = $folio ? $folio->transactions()->where('is_void', false)->where('type', 'payment')->latest('id')->first() : null; @endphp
-    <div><div class="tiny muted">Last payment</div><div>{{ $lastPay ? money($lastPay->amount).($lastPay->reference ? ' · '.$lastPay->reference : '') : 'No payment on file' }}@if($lastPay) · <a href="{{ route('folios.receipt', $lastPay) }}" target="_blank">Print receipt</a>@endif</div></div>
+    @if($canViewFolio)
+      <div><div class="tiny muted">Rate / night</div><div>{{ money($stay->rate) }}</div></div>
+      <div><div class="tiny muted">Expected room + tax</div><div>{{ money($expected) }}</div><div class="tiny muted">Not a folio balance</div></div>
+      <div><div class="tiny muted">Folio balance</div><div>{{ $balance === null ? 'No folio yet' : money($balance) }}</div></div>
+      @php $lastPay = $folio ? $folio->transactions()->where('is_void', false)->where('type', 'payment')->latest('id')->first() : null; @endphp
+      <div><div class="tiny muted">Last payment</div><div>{{ $lastPay ? money($lastPay->amount).($lastPay->reference ? ' · '.$lastPay->reference : '') : 'No payment on file' }}@if($lastPay) · <a href="{{ route('folios.receipt', $lastPay) }}" target="_blank" rel="noopener">Print receipt</a>@endif</div></div>
+    @endif
   </div>
-  @if($res->special_request)<p class="small" style="margin-top:.7rem"><b>Request:</b> {{ $res->special_request }}</p>@endif
+  @if($canViewGuest && $res->special_request)<p class="small" style="margin-top:.7rem"><b>Request:</b> {{ $res->special_request }}</p>@endif
   <p class="small muted">Source: {{ $res->source?->name ?? 'Direct' }}{{ $res->ota_reference ? ' · '.$res->ota_reference : '' }}{{ $res->booking_type === 'group' ? ' · Group '.($res->group_name ?: '') : '' }}{{ $stay->ratePlan ? ' · '.$stay->ratePlan->name : '' }}</p>
-  <p class="small">Loyalty points on file: {{ (int) $guest->loyalty_points }}@if($res->company) · {{ $res->company->name }} credit {{ $res->company->credit_status }}@endif</p>
-  @if($res->company && $res->company->credit_status === 'hold')
+  @if($canViewGuest)<p class="small">Loyalty points on file: {{ (int) $guest->loyalty_points }}</p>@endif
+  @if($canViewFolio && $res->company)<p class="small">{{ $res->company->name }} credit {{ $res->company->credit_status }}</p>@endif
+  @if($canViewFolio && $res->company && $res->company->credit_status === 'hold')
     <p class="small">This company is on credit hold. City ledger is not offered from this desk. Cash, card and Mobile Money still post to the folio.</p>
   @endif
   @php
     $idOnFile = filled($guest->id_type) && filled($guest->id_number);
     $openTickets = $stay->room_id ? \App\Models\MaintenanceRequest::where('room_id', $stay->room_id)->whereIn('status', ['open', 'in_progress'])->count() : 0;
   @endphp
-  <p class="small">@if($idOnFile)ID on file: {{ str_replace('_', ' ', $guest->id_type) }}@else No ID on file. Check-in requires an ID type and number.@endif
-    @if($stay->room) · Room {{ $stay->room->room_no }} housekeeping {{ str_replace('_', ' ', $stay->room->hk_status) }}@if(in_array($stay->room->hk_status, ['dirty', 'touch_up'], true)). Check-in does not clean the room.@endif
+  <p class="small">
+    @if($canViewGuest)@if($idOnFile)ID on file: {{ str_replace('_', ' ', $guest->id_type) }}@else No ID on file. Check-in requires an ID type and number.@endif @endif
+    @if($stay->room)@if($canSeeHousekeeping) · Room {{ $stay->room->room_no }} housekeeping {{ str_replace('_', ' ', $stay->room->hk_status) }}@if(in_array($stay->room->hk_status, ['dirty', 'touch_up'], true)). Check-in does not clean the room.@endif @endif
     @else · No room assigned.
     @endif
     @if($openTickets) · {{ $openTickets }} open maintenance ticket(s) on this room.@endif
@@ -60,9 +67,9 @@
     <a class="btn btn-sm" href="{{ route('reservations.show', $res) }}">Open reservation</a>
     <a class="btn btn-sm" href="{{ route('reservations.print', $res) }}" target="_blank">Print reservation</a>
     <a class="btn btn-sm" href="{{ route('frontdesk.grc', $stay) }}" target="_blank">Registration card</a>
-    @if($folio)
+    @if($canViewFolio && $folio)
       <a class="btn btn-sm" href="{{ route('folios.show', $folio) }}">Open folio</a>
-      <a class="btn btn-sm" href="{{ route('folios.invoice', $folio) }}" target="_blank">Invoice / receipt</a>
+      <a class="btn btn-sm" href="{{ route('folios.invoice', $folio) }}" target="_blank" rel="noopener">Invoice / receipt</a>
     @endif
     @if($stay->status === 'reserved' && $stay->room_id && can_do('frontdesk.checkin'))
       <a class="btn btn-sm btn-primary" href="{{ route('frontdesk.checkin', $stay) }}">Check in</a>
@@ -88,11 +95,11 @@
   @endforelse
   @if(can_do('logs.view'))<p class="tiny"><a href="{{ route('logs.index', ['q' => $res->reservation_no]) }}">Open the audit log</a></p>@endif
 
-  @if(can_do('reservations.edit') && in_array($stay->status, ['reserved', 'checked_in'], true))
+  @if((can_do('frontdesk.roommove') || ($stay->status === 'reserved' && can_do('reservations.edit'))) && in_array($stay->status, ['reserved', 'checked_in'], true))
   <form method="post" action="{{ route('reservations.place', $stay) }}" class="desk-form">
     @csrf
-    <h3>Assign, move, upgrade</h3>
-    <p class="tiny muted">The server checks availability, out-of-order rooms and dated blocks. A drag on the timeline uses the same tape-chart check.</p>
+    <h3 id="stay-room-assignment" tabindex="-1">Assign, move, upgrade</h3>
+    <p class="tiny muted" data-room-check-note role="status" aria-live="polite" aria-atomic="true">The server checks availability, out-of-order rooms and dated blocks. A drag on the timeline uses the same tape-chart check.</p>
     @if($free->isEmpty())
       <p class="small">No other room is free for these dates.</p>
     @else
@@ -100,7 +107,7 @@
         <select name="room_id" required aria-label="Room">
           @foreach($free as $r)<option value="{{ $r->id }}">{{ $r->room_no }} · {{ $r->roomType->name }} · {{ $r->hk_status }}</option>@endforeach
         </select>
-        <input name="rate" type="number" min="0" step="0.01" placeholder="New rate (optional)" aria-label="New rate" style="width:9rem">
+        @if(can_do('reservations.edit'))<input name="rate" type="number" min="0" step="0.01" placeholder="New rate (optional)" aria-label="New rate" style="width:9rem">@endif
         <button class="btn btn-sm" type="button" data-room-check="{{ route('reservations.place.check', $stay) }}">Check room</button>
         <button class="btn btn-primary btn-sm">Confirm room</button>
       </div>
@@ -115,7 +122,7 @@
       <button class="btn btn-sm" type="button" data-quote>Preview impact</button>
       <button class="btn btn-sm btn-primary">Confirm dates</button>
     </div>
-    <p class="quote tiny muted">Preview checks availability and shows the room and tax change before anything is saved. Night audit posts the charge. Posted nights are not reversed here.</p>
+    <p class="quote tiny muted" role="status" aria-live="polite" aria-atomic="true">Preview checks availability and shows the room and tax change before anything is saved. Night audit posts the charge. Posted nights are not reversed here.</p>
   </form>
   <form method="post" action="{{ route('reservations.split', $stay) }}" class="desk-form" data-preview="{{ route('reservations.split.preview', $stay) }}">
     @csrf
@@ -132,7 +139,7 @@
         <button class="btn btn-sm" type="button" data-quote>Preview split</button>
         <button class="btn btn-sm">Confirm split</button>
       </div>
-      <p class="quote tiny muted">Preview shows both parts and the expected room and tax. Nothing is saved until you confirm.</p>
+      <p class="quote tiny muted" role="status" aria-live="polite" aria-atomic="true">Preview shows both parts and the expected room and tax. Nothing is saved until you confirm.</p>
     @endif
   </form>
   @endif
@@ -147,9 +154,8 @@
       <select name="payment_mode_id" required aria-label="Payment mode" data-payment-mode>
         @foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
       </select>
-      <input name="momo_network" placeholder="MoMo network" aria-label="Mobile Money network" style="width:7rem">
-      <input name="momo_phone" placeholder="Mobile Money phone" aria-label="Mobile Money phone" style="width:8rem">
-      <input name="reference" placeholder="Transaction ID" aria-label="Transaction reference" style="width:8rem">
+      <x-payment-momo-fields class="form-grid mt-1 span-all"/>
+      <input name="reference" placeholder="Reference / transaction ID" aria-label="Transaction reference" style="width:10rem">
       <x-cheque-fields class="span-all"/>
     </div>
     <div class="mt-1"><button class="btn btn-sm" type="button" id="deskSplitToggle">Split {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button></div>
@@ -162,7 +168,7 @@
       <button class="btn btn-sm" type="button" data-quote>Preview {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button>
       <button class="btn btn-sm btn-primary">Confirm {{ $folio && $folio->status === 'open' ? 'payment' : 'advance' }}</button>
     </div>
-    <p class="quote tiny muted">Preview shows where the money would sit. Nothing is posted until you confirm. A receipt prints only after the payment is on the folio.</p>
+    <p class="quote tiny muted" role="status" aria-live="polite" aria-atomic="true">Preview shows where the money would sit. Nothing is posted until you confirm. A receipt prints only after the payment is on the folio.</p>
   </form>
   @endif
   @if($folio && $folio->status === 'open' && can_do('folio.post'))
@@ -179,7 +185,7 @@
       <button class="btn btn-sm" type="button" data-quote>Preview charge</button>
       <button class="btn btn-sm">Confirm charge</button>
     </div>
-    <p class="quote tiny muted">Preview shows the tax from the hotel’s tax setup. Nothing is posted until you confirm.</p>
+    <p class="quote tiny muted" role="status" aria-live="polite" aria-atomic="true">Preview shows the tax from the hotel’s tax setup. Nothing is posted until you confirm.</p>
   </form>
   @endif
   @if(can_do('keys.view') || can_do('keys.issue'))
@@ -216,7 +222,7 @@
       <button class="btn btn-sm" type="button" data-quote>Preview checkout</button>
       <a class="btn btn-sm btn-primary" href="{{ route('frontdesk.checkout', $stay) }}">Open checkout</a>
     </div>
-    <p class="quote tiny muted">Preview reads the folio, unsettled orders and key cards. It does not post a night or check the guest out. The existing checkout settles the bill and marks the room vacant and dirty.</p>
+    <p class="quote tiny muted" role="status" aria-live="polite" aria-atomic="true">Preview reads the folio, unsettled orders and key cards. It does not post a night or check the guest out. The existing checkout settles the bill and marks the room vacant and dirty.</p>
   </form>
   @endif
   @if(can_do('reservations.view') && $guest->email)
@@ -253,7 +259,19 @@
     const syncCheque = () => rows.querySelectorAll('[data-desk-payment-row]').forEach(row => {
       const mode = row.querySelector('select[name$="[payment_mode_id]"]');
       const required = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
-      row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; });
+      const details = row.querySelector('[data-cheque-fields]');
+      if (details) details.hidden = !required;
+      row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = required; input.disabled = !required; });
+    });
+    const syncMomo = () => rows.querySelectorAll('[data-desk-payment-row]').forEach(row => {
+      const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+      const label = (mode?.selectedOptions?.[0]?.textContent || '').trim().toLowerCase();
+      const momo = label.includes('momo') || label.includes('mobile money');
+      row.querySelectorAll('[data-desk-momo-field]').forEach(field => {
+        field.hidden = !momo;
+        const control = field.querySelector('select,input');
+        if (control) { control.required = momo; control.disabled = !momo; }
+      });
     });
     const addRow = (line = {}) => {
       if (!line || typeof line !== 'object') line = {};
@@ -262,14 +280,14 @@
       rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-desk-payment-row style="border:1px solid var(--c-border);padding:.55rem;border-radius:var(--radius)">
         <div class="field"><label>Method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
         <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
-        <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
-        <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
+        <div class="field" data-desk-momo-field hidden><label for="deskMomoNetwork${i}">MoMo Network</label><select id="deskMomoNetwork${i}" name="payments[${i}][momo_network]" disabled><option value="">Select network</option><option value="MTN">MTN MoMo</option><option value="Telecel">Telecel Cash</option><option value="AirtelTigo">AT Money</option></select></div>
+        <div class="field" data-desk-momo-field hidden><label for="deskMomoPhone${i}">MoMo number</label><input id="deskMomoPhone${i}" name="payments[${i}][momo_phone]" type="tel" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="024 123 4567" disabled></div>
         <div class="field span-all"><label>Reference / transaction ID</label><input name="payments[${i}][reference]" maxlength="80"></div>
-        <details class="span-all"><summary class="tiny bold">Cheque details</summary><div class="form-grid mt-1">
-          <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
-          <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
-          <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
-        </div></details>
+        <div class="form-grid mt-1 span-all" data-cheque-fields hidden><div class="field span-all"><strong class="tiny">Cheque details</strong></div>
+          <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100" disabled></div>
+          <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20" disabled></div>
+          <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100" disabled></div>
+        </div>
         <button class="btn btn-sm btn-ghost" type="button" data-remove-desk-payment>Remove tender</button>
       </div>`);
       const row = rows.lastElementChild;
@@ -277,11 +295,11 @@
         const field = row.querySelector(`[name="payments[${i}][${key}]"]`);
         if (field && line[key] !== undefined && line[key] !== null) field.value = String(line[key]);
       }
-      syncCheque(); updateTotal();
+      syncCheque(); syncMomo(); updateTotal();
     };
     const setSplit = enabled => {
       single.hidden = enabled; split.hidden = !enabled;
-      single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+      single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled || !!input.closest('[data-cheque-fields]')?.hidden || !!input.closest('[data-momo-fields]')?.hidden; });
       toggle.textContent = enabled ? 'Use one payment method' : 'Split payment';
       if (enabled && !rows.children.length) {
         if (!restored && Array.isArray(oldLines) && oldLines.length) { oldLines.slice(0,10).forEach(addRow); restored = true; }
@@ -293,7 +311,7 @@
     toggle.addEventListener('click', () => setSplit(split.hidden));
     document.getElementById('deskAddPaymentAllocation')?.addEventListener('click', () => addRow());
     rows.addEventListener('input', updateTotal);
-    rows.addEventListener('change', event => { updateTotal(); if (event.target.matches('select[name$="[payment_mode_id]"]')) syncCheque(); });
+    rows.addEventListener('change', event => { updateTotal(); if (event.target.matches('select[name$="[payment_mode_id]"]')) { syncCheque(); syncMomo(); } });
     rows.addEventListener('click', event => { if (event.target.closest('[data-remove-desk-payment]')) { event.target.closest('[data-desk-payment-row]')?.remove(); updateTotal(); } });
     if (Array.isArray(oldLines) && oldLines.length) setSplit(true);
   }

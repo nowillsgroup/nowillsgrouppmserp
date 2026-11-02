@@ -7,6 +7,7 @@
 @endsection
 @section('content')
 @php $c = $counts; @endphp
+@include('desk._workspace-nav')
 @if(session('slip'))<div class="alert alert-info" id="slipHint"><x-icon name="print"/><div><a href="{{ route('desk.messages.slip', session('slip')) }}" target="_blank" id="slipLink">Print the message slip</a> to put in the guest's key box or slide under the door.</div></div>@endif
 @if($c['departed_parcels'] || $c['messages_old'])
 <div class="alert alert-warn" id="msgAlerts"><x-icon name="alert"/><div class="flex" style="gap:.9rem;flex-wrap:wrap">

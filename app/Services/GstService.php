@@ -274,8 +274,9 @@ class GstService
     /** Buyer details frozen onto the document when the invoice is issued (B2B when the buyer has a valid TIN). */
     public static function snapshot(Folio $f): array
     {
-        $c = $f->company;
-        $g = $f->guest;
+        $reservation = $f->reservation ?? $f->stay?->reservation;
+        $c = $f->company ?? $reservation?->company;
+        $g = $f->guest ?? $f->stay?->guest ?? $reservation?->guest;
         $tin = null;
         $name = null;
         $addr = null;
@@ -737,7 +738,7 @@ class GstService
     public static function backfill(): int
     {
         $n = 0;
-        Folio::whereNotNull('invoice_no')->whereNull('invoice_date')->with('company', 'guest')->chunkById(200, function ($fs) use (&$n) {
+        Folio::whereNotNull('invoice_no')->whereNull('invoice_date')->with(['company', 'guest', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company'])->chunkById(200, function ($fs) use (&$n) {
             foreach ($fs as $f) {
                 $date = $f->closed_at?->toDateString() ?? $f->activeTransactions()->max('business_date') ?? $f->updated_at->toDateString();
                 $f->forceFill(['invoice_date' => $date] + self::snapshot($f))->save();

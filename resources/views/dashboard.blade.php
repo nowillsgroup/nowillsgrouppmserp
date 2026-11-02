@@ -9,7 +9,7 @@
   </div>
 @endsection
 @push('head')
-<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v5">
+<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v8">
 @endpush
 @section('content')
 <div class="dashboard-page">
@@ -18,6 +18,11 @@
       <span class="dash-eyebrow">PROPERTY OPERATIONS</span>
       <h2>Welcome back, {{ auth()->user()->name }}</h2>
       <p>Here is today’s operating picture for {{ $currentHotel->name }}.</p>
+      <nav class="dash-welcome-actions" aria-label="Property actions">
+        @if(can_do('reservations.view'))<a class="btn btn-sm btn-primary" href="{{ route('reservations.index', ['view' => 'dashboard']) }}"><x-icon name="calendar" size="sm"/> Reservation desk</a>@endif
+        @if(can_do('frontdesk.view'))<a class="btn btn-sm btn-soft" href="{{ route('frontdesk.arrivals') }}"><x-icon name="login" size="sm"/> Arrivals</a>@endif
+        @if(can_do('frontdesk.checkin'))<a class="btn btn-sm btn-soft" href="{{ route('frontdesk.walkin') }}"><x-icon name="users" size="sm"/> Walk-in</a>@endif
+      </nav>
     </div>
     <div class="dash-business-date"><span>Business date</span><strong>{{ bdate()->format('l, d M Y') }}</strong></div>
   </section>
@@ -27,24 +32,26 @@
       <span class="dash-section-note">Live property snapshot</span>
     </div>
 <div class="stats dash-stats dash-stats-rooms">
-  <x-stat label="Occupancy ({{ $occupied }}/{{ $sellable }} sellable rooms)" :value="$occPct.'%'" icon="bed" tone="blue" :href="can_do('frontdesk.view') ? route('frontdesk.rooms') : null"/>
-  <x-stat label="Arrivals Today" :value="$arrivals->count().' / '.($arrivals->count() + $checkedInToday)" icon="login" tone="green" :href="can_do('frontdesk.view') ? route('frontdesk.arrivals') : null"/>
-  <x-stat label="Departures Pending" :value="$departures->count()" icon="logout" tone="amber" :href="can_do('frontdesk.view') ? route('frontdesk.departures') : null"/>
-  <x-stat label="In-House Guests" :value="$inHouseGuests" icon="users" tone="purple" :href="can_do('frontdesk.view') ? route('frontdesk.inhouse') : null"/>
+  <x-stat label="Occupancy" :value="$occPct.'%'" :sub="$occupied.' occupied · '.$sellable.' sellable rooms'" icon="bed" tone="blue" :href="can_do('frontdesk.view') ? route('frontdesk.rooms') : null"/>
+  <x-stat label="Arrivals checked in" :value="$arrivalsCheckedIn.' / '.$arrivalsExpected" sub="Checked in / due today (includes no-shows)" icon="login" tone="green" :href="can_do('frontdesk.view') ? route('frontdesk.arrivals') : null"/>
+  <x-stat label="Departures pending" :value="$departuresCount" sub="Due today or earlier" icon="logout" tone="amber" :href="can_do('frontdesk.view') ? route('frontdesk.departures') : null"/>
+  <x-stat label="In-house guests" :value="$inHouseGuests" sub="Currently staying" icon="users" tone="purple" :href="can_do('frontdesk.view') ? route('frontdesk.inhouse') : null"/>
 </div>
   </section>
+  @if($canSeeFinance)
   <section class="dash-section dash-finance-section" aria-labelledby="dashRevenueHeading">
     <div class="dash-section-heading">
       <div><span class="dash-section-kicker">TODAY’S PERFORMANCE</span><h2 id="dashRevenueHeading">Revenue snapshot</h2><p>Daily revenue and collection measures for the current business date.</p></div>
       <span class="dash-section-note">Amounts in property currency</span>
     </div>
 <div class="stats dash-stats dash-stats-finance">
-  <x-stat label="Room Revenue (today)" :value="money($roomRevenue)" icon="money" tone="blue"/>
-  <x-stat label="Other Revenue (today)" :value="money($otherRevenue)" icon="cup" tone="teal"/>
-  <x-stat label="Collections (today)" :value="money($collections)" icon="wallet" tone="green"/>
-  <x-stat label="ADR (today)" :value="money($adr)" icon="chart" tone="purple"/>
+  <x-stat label="Room revenue" :value="money($roomRevenue)" sub="Posted room and extra-bed charges" icon="money" tone="blue"/>
+  <x-stat label="Other revenue" :value="money($otherRevenue)" sub="Other folio charges + settled POS" icon="cup" tone="teal"/>
+  <x-stat label="Collections" :value="money($collections)" sub="Payments + settled POS" icon="wallet" tone="green"/>
+  <x-stat label="Room revenue / occupied room" :value="money($adr)" sub="Posted room revenue ÷ rooms occupied now" icon="chart" tone="purple"/>
 </div>
   </section>
+  @endif
 
 {{-- v5.4 KPI alert events + pinned report views --}}
 @php $kpiEv = can_do('reports.alerts') ? \App\Services\KpiService::openEvents() : collect(); $pinned = can_do('reports.view') ? \App\Services\ReportScheduleService::viewsFor(auth()->user())->where('user_id', auth()->id())->where('is_pinned', true) : collect(); @endphp
@@ -67,102 +74,16 @@
 </div>
 @endif
 
-<div class="grid g-2-1 dash-main-grid">
-  <div class="dash-main-column">
-    <div class="card dash-chart-card">
-      <div class="card-head dash-chart-head">
-        <div><h3>Daily revenue &amp; occupancy</h3><p class="dash-card-subtitle">Last 14 audit days · hover, tap or focus a bar to see revenue and occupancy.</p></div>
-        @if(can_do('nightaudit.run'))<a class="btn btn-sm btn-ghost" href="{{ route('nightaudit.index') }}">Details</a>@elseif(can_do('reports.view'))<a class="btn btn-sm btn-ghost" href="{{ route('reports.show', 'revenue') }}">Details</a>@endif
-      </div>
-      <div class="card-body">
-        @php $max = max(1, $audits->max(fn($a) => $a->room_revenue + $a->other_revenue)); @endphp
-        @if($audits->isEmpty())<x-empty text="Run night audit to build history." icon="chart"/>@else
-        <div class="bar-chart">
-          @foreach($audits as $a)
-            @php $v = $a->room_revenue + $a->other_revenue; @endphp
-            <div class="col"><div class="b" role="img" tabindex="0" aria-label="{{ $a->business_date->format('d M Y') }}: {{ money($v) }} revenue, {{ $a->occupancy_pct }}% occupancy" title="{{ money($v) }} revenue · {{ $a->occupancy_pct }}% occupied" style="height: {{ max(2, $v / $max * 100) }}%" data-v="{{ money($v) }} · {{ $a->occupancy_pct }}%"></div><small>{{ $a->business_date->format('d/m') }}</small></div>
-          @endforeach
-        </div>
-        @endif
-      </div>
-    </div>
-
-    <div class="grid g-2 dash-stay-grid">
-      <div class="card">
-        <div class="card-head"><h3>Expected Arrivals</h3><a href="{{ route('frontdesk.arrivals') }}" class="small">View all</a></div>
-        <div class="card-body" style="padding-top:.3rem">
-          <ul class="list">
-            @forelse($arrivals->take(6) as $s)
-              <li><div><b>{{ $s->reservation->guest->full_name }}</b><div class="tiny muted">{{ $s->reservation->reservation_no }} · {{ $s->room?->room_no ?? 'Unassigned' }} · {{ \App\Services\StayService::checkInReady($s) }}</div></div>
-                @if(can_do('frontdesk.checkin'))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}">Check-in</a>@endif</li>
-            @empty <li class="muted">No pending arrivals.</li> @endforelse
-          </ul>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Due Departures</h3><a href="{{ route('frontdesk.departures') }}" class="small">View all</a></div>
-        <div class="card-body" style="padding-top:.3rem">
-          <ul class="list">
-            @forelse($departures->take(6) as $s)
-              <li><div><b>{{ $s->room?->room_no }} · {{ $s->reservation->guest->full_name }}</b><div class="tiny muted">{{ $s->reservation->reservation_no }} · @php $due = \App\Services\StayService::quoteCheckoutFigures($s)['due']; @endphp {{ $due === null ? 'No folio' : 'To settle '.money($due).' · not posted' }}</div></div>
-                @if(can_do('frontdesk.checkout'))<a class="btn btn-sm btn-warning" href="{{ route('frontdesk.checkout', $s) }}">Check-out</a>@endif</li>
-            @empty <li class="muted">No pending departures.</li> @endforelse
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="card dash-activity-card">
-      <div class="card-head"><h3>Recent Activity</h3>@if(can_do('logs.view'))<a href="{{ route('logs.index') }}" class="small">Activity log</a>@endif</div>
-      <div class="card-body" style="padding-top:.3rem"><ul class="list">
-        @forelse($activity as $a)<li><div><span class="badge badge-slate">{{ $a->module }}</span> {{ $a->description }}</div><span class="tiny muted nowrap">{{ $a->user?->name }} · {{ $a->created_at->diffForHumans() }}</span></li>
-        @empty <li class="muted">No activity yet.</li> @endforelse
-      </ul></div>
-    </div>
-  </div>
-
-  <aside class="dash-sidebar">
-    <div class="card dash-room-card">
-      <div class="card-head"><h3>Room Status</h3>@if(can_do('frontdesk.view'))<a class="small" href="{{ route('frontdesk.rooms') }}">View rooms</a>@endif</div>
-      <div class="card-body flex gap-2 items-center">
-        @php $pO = $total ? $occupied/$total*100 : 0; $pV = $total ? $vacant/$total*100 : 0; @endphp
-        <div class="donut" role="img" aria-label="{{ $occPct }}% occupancy of sellable rooms: {{ $occupied }} occupied, {{ $vacant }} vacant, {{ $unavailable }} unavailable (outages or leases), {{ $dirty }} dirty" style="background: conic-gradient(#dc2626 0 {{ $pO }}%, #16a34a {{ $pO }}% {{ $pO+$pV }}%, #94a3b8 {{ $pO+$pV }}% 100%)"><div><div><b style="font-size:1.4rem">{{ $occPct }}%</b><div class="tiny muted">occupied</div></div></div></div>
-        <ul class="list" style="flex:1">
-          <li><span><span class="badge badge-red">Occupied</span></span><b>{{ $occupied }}</b></li>
-          <li><span><span class="badge badge-green">Vacant</span></span><b>{{ $vacant }}</b></li>
-          <li><span><span class="badge badge-slate">Unavailable</span></span><b>{{ $unavailable }}</b></li>
-          <li><span><span class="badge badge-amber">Dirty</span></span><b>{{ $dirty }}</b></li>
-        </ul>
-      </div>
-    </div>
-    @if(can_do('frontdesk.view') || can_do('pos.view') || can_do('housekeeping.view') || can_do('nightaudit.run') || can_do('reports.view'))
-    <div class="card dash-shortcuts-card">
-      <div class="card-head"><h3>Shortcuts</h3></div>
-      <div class="card-body quick">
-        @if(can_do('frontdesk.view'))
-          <a href="{{ route('frontdesk.rooms') }}"><x-icon name="grid"/>Room View</a>
-          <a href="{{ route('frontdesk.tapechart') }}"><x-icon name="calendar"/>Tape Chart</a>
-        @endif
-        @if(can_do('pos.view'))<a href="{{ route('pos.index') }}"><x-icon name="cup"/>POS</a>@endif
-        @if(can_do('housekeeping.view'))<a href="{{ route('housekeeping.index') }}"><x-icon name="broom"/>Housekeeping</a>@endif
-        @if(can_do('nightaudit.run'))<a href="{{ route('nightaudit.index') }}"><x-icon name="moon"/>Night Audit</a>@endif
-        @if(can_do('reports.view'))<a href="{{ route('reports.index') }}"><x-icon name="chart"/>Reports</a>@endif
-      </div>
-    </div>
-    @endif
-  </aside>
-</div>
-
 <section class="dash-section dash-attention-section" aria-labelledby="dashAttentionHeading">
   <div class="card dash-attention-card" id="dashAttention">
     <div class="card-head">
-      <div><h3 id="dashAttentionHeading">Action centre</h3><p class="dash-card-subtitle">Operational alerts and follow-ups, grouped in one place.</p></div>
+      <div><h3 id="dashAttentionHeading">Action centre</h3><p class="dash-card-subtitle">Only actions from areas you can access are shown. A blank list means none are currently flagged.</p></div>
       <span class="dash-snapshot-label">Across departments</span>
     </div>
       <div class="card-body" style="padding-top:.3rem"><ul class="list dash-alert-list">
-        <li><span><x-icon name="tool" size="sm"/> Open maintenance tickets</span><a href="{{ route('maintenance.index') }}"><b>{{ $openTickets }}</b></a></li>
-        <li><span><x-icon name="cup" size="sm"/> Running POS orders</span><a href="{{ route('pos.orders') }}"><b>{{ $openPos }}</b></a></li>
-        <li><span><x-icon name="calendar" size="sm"/> New bookings today</span><b>{{ $newBookings }}</b></li>
+        @if(can_do('maintenance.manage'))<li><span><x-icon name="tool" size="sm"/> Open maintenance tickets</span><a href="{{ route('maintenance.index') }}"><b>{{ $openTickets }}</b></a></li>@endif
+        @if(can_do('pos.view'))<li><span><x-icon name="cup" size="sm"/> Running POS orders</span><a href="{{ route('pos.orders') }}"><b>{{ $openPos }}</b></a></li>@endif
+        @if(can_do('reservations.view'))<li><span><x-icon name="calendar" size="sm"/> New bookings today</span><b>{{ $newBookings }}</b></li>@endif
         @if(can_do('contracts.view')) @php $ka = \App\Services\ContractService::alerts(); @endphp
           @if($ka['expiring'])<li id="dashContractsExpiring"><span class="text-amber"><x-icon name="book" size="sm"/> Rate contracts expiring soon</span><a href="{{ route('contracts.index', ['tab' => 'expiring']) }}"><b>{{ $ka['expiring'] }}</b></a></li>@endif
           @if($ka['drafts'] && can_do('contracts.approve'))<li><span><x-icon name="book" size="sm"/> Contracts awaiting approval</span><a href="{{ route('contracts.index', ['tab' => 'draft']) }}"><b>{{ $ka['drafts'] }}</b></a></li>@endif
@@ -248,11 +169,132 @@
           @if(can_do('logbook.view') && ($dk['log_unread'] || $dk['log_urgent']))<li id="dashLogbook"><span class="{{ $dk['log_urgent'] ? 'text-red' : '' }}"><x-icon name="book" size="sm"/> Log book: unread by you / urgent open</span><a href="{{ route('desk.handover') }}"><b>{{ $dk['log_unread'] }} / {{ $dk['log_urgent'] }}</b></a></li>@endif
           @if(can_do('lostfound.manage') && ($dk['lf_due'] || $dk['lf_reports']))<li id="dashLostFound"><span><x-icon name="box" size="sm"/> Lost &amp; found: loss reports open / items past retention</span><a href="{{ route('lostfound.index', ['tab' => $dk['lf_reports'] ? 'reports' : 'due']) }}"><b>{{ $dk['lf_reports'] }} / {{ $dk['lf_due'] }}</b></a></li>@endif
         @endif
-        @foreach($lowStock as $i)<li><span class="text-red"><x-icon name="alert" size="sm"/> Low stock: {{ $i->name }}</span><b>{{ rtrim(rtrim(number_format((float) ($i->stock_qty ?? 0), 2), '0'), '.') }} {{ $i->unit }}</b></li>@endforeach
+        @if(can_do('inventory.view'))
+          @foreach($lowStock as $i)<li><span class="text-red"><x-icon name="alert" size="sm"/> Low stock: {{ $i->name }}</span><b>{{ rtrim(rtrim(number_format((float) ($i->stock_qty ?? 0), 2), '0'), '.') }} {{ $i->unit }}</b></li>@endforeach
+        @endif
       </ul></div>
   </div>
 </section>
 
+<div class="grid g-2-1 dash-main-grid">
+  <div class="dash-main-column">
+    <div class="card dash-chart-card">
+      <div class="card-head dash-chart-head">
+        <div><h3>{{ $canSeeFinance ? 'Revenue & occupancy trend' : 'Occupancy trend' }}</h3><p class="dash-card-subtitle">Last 14 completed audit days · focus or hover a bar to inspect the daily value.</p></div>
+        @if($canSeeFinance && can_do('nightaudit.run'))<a class="btn btn-sm btn-ghost" href="{{ route('nightaudit.index') }}">Night audit</a>@elseif($canSeeFinance && can_do('reports.view'))<a class="btn btn-sm btn-ghost" href="{{ route('reports.show', 'revenue') }}">Revenue report</a>@endif
+      </div>
+      <div class="card-body">
+        @if($audits->isEmpty())
+          <x-empty text="No completed audit days are available for this trend yet." icon="chart"/>
+        @else
+          <div class="dash-chart-grid">
+            @if($canSeeFinance)
+            @php $maxRevenue = max(1, $audits->max(fn($a) => $a->room_revenue + $a->other_revenue)); @endphp
+            <section class="dash-chart-panel" aria-labelledby="dashRevenueTrendHeading">
+              <div class="dash-chart-panel-heading"><h4 id="dashRevenueTrendHeading">Daily revenue</h4><span>Room + other revenue</span></div>
+              <div class="bar-chart dash-history-chart" role="group" aria-label="Daily revenue for the last 14 completed audit days">
+                @foreach($audits as $a)
+                  @php $v = $a->room_revenue + $a->other_revenue; @endphp
+                  <div class="col"><div class="b dash-revenue-bar" role="img" tabindex="0" aria-label="{{ $a->business_date->format('d M Y') }}: {{ money($v) }} revenue" title="{{ money($v) }} revenue" style="height: {{ max(2, $v / $maxRevenue * 100) }}%" data-v="{{ money($v) }}"></div><small>{{ $a->business_date->format('d/m') }}</small></div>
+                @endforeach
+              </div>
+            </section>
+            @endif
+            <section class="dash-chart-panel" aria-labelledby="dashOccupancyTrendHeading">
+              <div class="dash-chart-panel-heading"><h4 id="dashOccupancyTrendHeading">Daily occupancy</h4><span>Sellable rooms occupied</span></div>
+              <div class="bar-chart dash-history-chart" role="group" aria-label="Daily occupancy for the last 14 completed audit days">
+                @foreach($audits as $a)
+                  <div class="col"><div class="b dash-occupancy-bar" role="img" tabindex="0" aria-label="{{ $a->business_date->format('d M Y') }}: {{ $a->occupancy_pct }}% occupancy" title="{{ $a->occupancy_pct }}% occupancy" style="height: {{ max(2, min(100, (float) $a->occupancy_pct)) }}%" data-v="{{ $a->occupancy_pct }}%"></div><small>{{ $a->business_date->format('d/m') }}</small></div>
+                @endforeach
+              </div>
+            </section>
+          </div>
+        @endif
+      </div>
+    </div>
+
+    @if(can_do('frontdesk.view'))
+    <div class="grid g-2 dash-stay-grid">
+      <div class="card">
+        <div class="card-head"><h3>Expected arrivals <span class="badge badge-blue">{{ $arrivalsCount }}</span></h3><a href="{{ route('frontdesk.arrivals') }}" class="small">View all</a></div>
+        <div class="card-body" style="padding-top:.3rem">
+          <ul class="list">
+            @forelse($arrivals->take(6) as $s)
+              <li><div><b>{{ $s->reservation->guest->full_name }}</b><div class="tiny muted">{{ $s->reservation->reservation_no }} · {{ $s->room?->room_no ?? 'Unassigned' }} · {{ \App\Services\StayService::checkInReady($s) }}</div></div>
+                @if(can_do('frontdesk.checkin'))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}">Check-in</a>@endif</li>
+            @empty <li class="muted">No pending arrivals.</li> @endforelse
+            @if($arrivalsCount > 6)
+              <li class="muted small">+ {{ $arrivalsCount - 6 }} more pending arrivals</li>
+            @endif
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Due departures <span class="badge badge-amber">{{ $departuresCount }}</span></h3><a href="{{ route('frontdesk.departures') }}" class="small">View all</a></div>
+        <div class="card-body" style="padding-top:.3rem">
+          <ul class="list">
+            @forelse($departures->take(6) as $s)
+              <li><div><b>{{ $s->room?->room_no }} · {{ $s->reservation->guest->full_name }}</b><div class="tiny muted">{{ $s->reservation->reservation_no }}@if(can_do('folio.view')) · @php $due = \App\Services\StayService::quoteCheckoutFigures($s)['due']; @endphp {{ $due === null ? 'No folio' : 'To settle '.money($due).' · not posted' }}@else · Folio balance restricted @endif</div></div>
+                @if(can_do('frontdesk.checkout'))<a class="btn btn-sm btn-warning" href="{{ route('frontdesk.checkout', $s) }}">Check-out</a>@endif</li>
+            @empty <li class="muted">No pending departures.</li> @endforelse
+            @if($departuresCount > 6)
+              <li class="muted small">+ {{ $departuresCount - 6 }} more due departures</li>
+            @endif
+          </ul>
+        </div>
+      </div>
+    </div>
+    @endif
+
+    @if(can_do('logs.view'))
+    <div class="card dash-activity-card">
+      <div class="card-head"><h3>Recent Activity</h3><a href="{{ route('logs.index') }}" class="small">Activity log</a></div>
+      <div class="card-body" style="padding-top:.3rem"><ul class="list">
+        @forelse($activity as $a)<li><div><span class="badge badge-slate">{{ $a->module }}</span> {{ $a->description }}</div><span class="tiny muted nowrap">{{ $a->user?->name }} · {{ $a->created_at->diffForHumans() }}</span></li>
+        @empty <li class="muted">No activity yet.</li> @endforelse
+      </ul></div>
+    </div>
+    @endif
+  </div>
+
+  <aside class="dash-sidebar">
+    <div class="card dash-room-card">
+      <div class="card-head"><div><h3>Room Status</h3><p class="tiny muted" style="margin:0">Occupancy rate excludes unavailable rooms</p></div>@if(can_do('frontdesk.view'))<a class="small" href="{{ route('frontdesk.rooms') }}">View rooms</a>@endif</div>
+      <div class="card-body flex gap-2 items-center">
+        @php $pO = $total ? $occupied/$total*100 : 0; $pV = $total ? $vacant/$total*100 : 0; @endphp
+        <div class="donut" role="img" aria-label="{{ $occPct }}% occupancy of sellable rooms: {{ $occupied }} occupied, {{ $vacant }} vacant, {{ $unavailable }} unavailable because of room restrictions, outages or leases, and {{ $dirty }} rooms marked dirty for housekeeping; dirty rooms may also be occupied or vacant" style="background: conic-gradient(#dc2626 0 {{ $pO }}%, #16a34a {{ $pO }}% {{ $pO+$pV }}%, #94a3b8 {{ $pO+$pV }}% 100%)"><div><div><b style="font-size:1.4rem">{{ $occPct }}%</b><div class="tiny muted">occupied</div></div></div></div>
+        <div style="flex:1;min-width:0">
+          <ul class="list">
+            <li><span><span class="badge badge-red">Occupied</span></span><b>{{ $occupied }}</b></li>
+            <li><span><span class="badge badge-green">Vacant</span></span><b>{{ $vacant }}</b></li>
+            <li><span><span class="badge badge-slate">Unavailable</span></span><b>{{ $unavailable }}</b></li>
+            <li><span><span class="badge badge-amber">Dirty</span></span><b>{{ $dirty }}</b></li>
+          </ul>
+          <p class="tiny muted" style="margin:.35rem 0 0">Dirty is a housekeeping count; these rooms may also be occupied or vacant.</p>
+        </div>
+      </div>
+    </div>
+    @if(can_do('frontdesk.view') || can_do('pos.view') || can_do('housekeeping.view') || can_do('nightaudit.run') || can_do('reports.view'))
+    <div class="card dash-shortcuts-card">
+      <div class="card-head"><h3>Shortcuts</h3></div>
+      <div class="card-body quick">
+        @if(can_do('frontdesk.view'))
+          <a href="{{ route('frontdesk.rooms') }}"><x-icon name="grid"/>Room View</a>
+          <a href="{{ route('frontdesk.tapechart') }}"><x-icon name="calendar"/>Tape Chart</a>
+        @endif
+        @if(can_do('pos.view'))<a href="{{ route('pos.index') }}"><x-icon name="cup"/>POS</a>@endif
+        @if(can_do('housekeeping.view'))<a href="{{ route('housekeeping.index') }}"><x-icon name="broom"/>Housekeeping</a>@endif
+        @if(can_do('nightaudit.run'))<a href="{{ route('nightaudit.index') }}"><x-icon name="moon"/>Night Audit</a>@endif
+        @if(can_do('reports.view'))<a href="{{ route('reports.index') }}"><x-icon name="chart"/>Reports</a>@endif
+      </div>
+    </div>
+    @endif
+  </aside>
+</div>
+
+
+
+@if(can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('reservations.view') || can_do('banquet.view'))
 <section class="dash-section dash-module-section" aria-labelledby="dashModulesHeading">
   <div class="dash-section-heading"><div><span class="dash-section-kicker">MORE PROPERTY SIGNALS</span><h2 id="dashModulesHeading">Department snapshots</h2><p>Finance, guest services, facilities and upcoming events.</p></div></div>
   <div class="dash-module-grid">
@@ -337,23 +379,28 @@
       </ul></div>
     </div>
     @endif
+    @if(can_do('reservations.view'))
     <div class="card">
-      <div class="card-head"><h3>Business Source Mix (30 days)</h3></div>
+      <div class="card-head"><h3>Reservation source mix</h3><span class="small muted">Bookings created · last 30 days</span></div>
       <div class="card-body">
         @php $smax = max(1, $sourceMix->sum('c')); @endphp
         @forelse($sourceMix as $s)
           <div class="mb-1"><div class="flex justify-between small"><span>{{ $s->name }}</span><b>{{ $s->c }}</b></div><div class="progress"><span style="width: {{ $s->c / $smax * 100 }}%"></span></div></div>
-        @empty <div class="muted">No data</div> @endforelse
+        @empty <div class="muted">No reservations created in the last 30 days.</div> @endforelse
       </div>
     </div>
+    @endif
+    @if(can_do('banquet.view'))
     <div class="card">
-      <div class="card-head"><h3>Upcoming Banquets</h3>@if(can_do('banquet.view'))<a class="small" href="{{ route('banquet.diary') }}">Diary</a>@endif</div>
+      <div class="card-head"><h3>Upcoming banquets</h3><a class="small" href="{{ route('banquet.diary') }}">Diary</a></div>
       <div class="card-body" style="padding-top:.3rem"><ul class="list">
         @forelse($events as $e)<li><div><a href="{{ route('banquet.show', $e) }}"><b>{{ $e->title }}</b></a><div class="tiny muted">{{ $e->event_date->format('d M') }} · {{ $e->functions->pluck('hall.name')->unique()->join(', ') }} · {{ $e->pax() }} pax</div></div>{!! $e->statusBadge() !!}</li>
         @empty <li class="muted">No events.</li> @endforelse
       </ul></div>
     </div>
+    @endif
   </div>
 </section>
+@endif
 </div>
 @endsection

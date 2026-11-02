@@ -2,14 +2,14 @@
 @section('title', 'Gift Vouchers')
 @section('crumbs') Gift Vouchers / {{ \App\Http\Controllers\GiftVoucherController::TABS[$tab] }} @endsection
 @section('actions')
-  @if(can_do('reports.view') || can_do('vouchers.view'))<a class="btn" href="{{ route('reports.show', 'voucher_liability') }}"><x-icon name="chart"/> Liability report</a>@endif
+  @if(can_do('vouchers.view') && (can_do('reports.view') || can_do('folio.shift_all')))<a class="btn" href="{{ route('reports.show', 'voucher_liability') }}"><x-icon name="chart"/> Liability report</a>@endif
   @if(can_do('vouchers.manage'))<button class="btn" data-modal="promoModal" id="promoBtn"><x-icon name="star"/> Promotional vouchers</button>@endif
   @if(can_do('vouchers.sell'))<a class="btn btn-primary" href="{{ route('vouchers.index', ['tab' => 'sell']) }}" id="sellBtn"><x-icon name="plus"/> Sell voucher</a>@endif
 @endsection
 @section('content')
-@php $s = $snap; $fullCode = can_do('vouchers.sell') || can_do('vouchers.manage'); @endphp
+@php $s = $snap; $fullCode = can_do('vouchers.sell') || can_do('vouchers.manage'); $hasFilters = request()->filled('q') || request()->filled('status') || request()->filled('type') || request()->filled('source'); @endphp
 @if(! $cfg['enabled'])<div class="alert alert-info"><x-icon name="alert"/><div>Gift vouchers are switched off – nothing can be sold or redeemed until they are switched on under Settings.</div></div>@endif
-@if($s['expiring'])<div class="alert alert-warn" id="expiringAlert"><x-icon name="clock"/><div><a href="{{ route('vouchers.index', ['status' => 'expiring']) }}"><b>{{ $s['expiring'] }}</b> voucher(s) worth {{ money($s['expiring_value']) }}</a> expire within {{ $s['expiring_days'] }} days – holders are e-mailed a reminder automatically.</div></div>@endif
+@if($s['expiring'])<div class="alert alert-warn" id="expiringAlert"><x-icon name="clock"/><div><a href="{{ route('vouchers.index', ['status' => 'expiring']) }}"><b>{{ $s['expiring'] }}</b> voucher(s) worth {{ money($s['expiring_value']) }}</a> expire within {{ $s['expiring_days'] }} days – @if($cfg['reminder_days']) the scheduled job attempts reminders when a holder e-mail is on file.@else expiry reminders are disabled in Settings.@endif</div></div>@endif
 <div class="stats">
   <x-stat label="Outstanding liability" :value="money($s['outstanding'])" icon="wallet" tone="purple" :sub="$s['live'].' vouchers with a balance'"/>
   <x-stat label="Sold today" :value="money($s['sold_today'])" icon="money" tone="green" sub="sales & reloads"/>
@@ -18,26 +18,32 @@
 </div>
 
 <div class="card flush">
-  <div class="card-head"><div class="tabs" style="margin:0;border:0">
+  <div class="card-head"><nav class="tabs" style="margin:0;border:0" aria-label="Gift voucher workspace">
     @foreach(\App\Http\Controllers\GiftVoucherController::TABS as $k => $l)
       @if(can_do(['list' => 'vouchers.view', 'sell' => 'vouchers.sell', 'lookup' => 'vouchers.view', 'campaigns' => 'vouchers.view', 'types' => 'vouchers.manage', 'settings' => 'vouchers.manage'][$k]))
-      <a href="{{ route('vouchers.index', ['tab' => $k]) }}" class="{{ $tab === $k ? 'active' : '' }}" data-tab="{{ $k }}">{{ $l }}</a>
+      <a href="{{ route('vouchers.index', ['tab' => $k]) }}" class="{{ $tab === $k ? 'active' : '' }}" data-tab="{{ $k }}" @if($tab === $k) aria-current="page" @endif>{{ $l }}</a>
       @endif
     @endforeach
-  </div></div>
+  </nav></div>
 
 @if($tab === 'list')
   <div class="card-body" style="padding-bottom:.4rem">
     <form method="get" class="flex" style="gap:.5rem;flex-wrap:wrap" id="gvFilter">
-      <input class="input" name="q" value="{{ request('q') }}" placeholder="Code, name, e-mail, phone or campaign" style="max-width:280px">
-      <select name="status"><option value="">All statuses</option><option value="expiring" @selected(request('status') === 'expiring')>Expiring soon</option>@foreach(\App\Models\GiftVoucher::STATUSES as $k => [$l]) <option value="{{ $k }}" @selected(request('status') === $k)>{{ $l }}</option>@endforeach</select>
-      <select name="type"><option value="">All types</option>@foreach($types as $t)<option value="{{ $t->id }}" @selected(request('type') == $t->id)>{{ $t->name }}</option>@endforeach</select>
-      <select name="source"><option value="">Sold & promotional</option>@foreach(\App\Models\GiftVoucher::SOURCES as $k => $l)<option value="{{ $k }}" @selected(request('source') === $k)>{{ $l }}</option>@endforeach</select>
+      <label class="sr-only" for="gvQuery">Search voucher code, purchaser or recipient name, e-mail, phone, or campaign</label>
+      <input class="input" type="search" id="gvQuery" name="q" value="{{ request('q') }}" maxlength="120" placeholder="Code, name, e-mail, phone or campaign" style="max-width:280px">
+      <label class="sr-only" for="gvStatus">Filter by voucher status</label>
+      <select name="status" id="gvStatus"><option value="">All statuses</option><option value="expiring" @selected(request('status') === 'expiring')>Expiring soon</option>@foreach(\App\Models\GiftVoucher::STATUSES as $k => [$l]) <option value="{{ $k }}" @selected(request('status') === $k)>{{ $l }}</option>@endforeach</select>
+      <label class="sr-only" for="gvType">Filter by voucher type</label>
+      <select name="type" id="gvType"><option value="">All types</option>@foreach($types as $t)<option value="{{ $t->id }}" @selected(request('type') == $t->id)>{{ $t->name }}</option>@endforeach</select>
+      <label class="sr-only" for="gvSource">Filter by voucher source</label>
+      <select name="source" id="gvSource"><option value="">Sold & promotional</option>@foreach(\App\Models\GiftVoucher::SOURCES as $k => $l)<option value="{{ $k }}" @selected(request('source') === $k)>{{ $l }}</option>@endforeach</select>
       <button class="btn"><x-icon name="search"/> Filter</button>
+      @if($hasFilters)<a class="btn btn-ghost" href="{{ route('vouchers.index') }}" id="clearVoucherFilters">Clear filters</a>@endif
     </form>
   </div>
   <div class="table-wrap"><table class="table" id="gvTable">
-    <thead><tr><th>Code</th><th>Type</th><th>Holder</th><th>Issued</th><th>Expires</th><th class="right">Value</th><th class="right">Balance</th><th>Status</th></tr></thead>
+    <caption class="sr-only">Issued gift vouchers, holder, validity, face value, outstanding balance and status.</caption>
+    <thead><tr><th scope="col">Code</th><th scope="col">Type</th><th scope="col">Holder</th><th scope="col">Issued</th><th scope="col">Expires</th><th scope="col" class="right">Value</th><th scope="col" class="right">Balance</th><th scope="col">Status</th></tr></thead>
     <tbody>
     @forelse($vouchers as $v)
       <tr>
@@ -51,7 +57,13 @@
         <td><span class="badge badge-{{ $v->statusTone() }}">{{ $v->statusLabel() }}</span></td>
       </tr>
     @empty
-      <tr><td colspan="8" class="center muted">No vouchers match.</td></tr>
+      <tr><td colspan="8" class="center muted">
+        @if($hasFilters)
+          No vouchers match these filters. <a href="{{ route('vouchers.index') }}">Clear filters</a>.
+        @else
+          No vouchers have been issued yet.@if(can_do('vouchers.sell')) <a href="{{ route('vouchers.index', ['tab' => 'sell']) }}">Sell the first voucher</a>.@endif
+        @endif
+      </td></tr>
     @endforelse
     </tbody>
   </table></div>
@@ -67,12 +79,12 @@
             <div class="field span-2"><label for="f_gift_voucher_type_id">Voucher type <span class="req">*</span></label>
               <select name="gift_voucher_type_id" id="f_gift_voucher_type_id" required>
                 <option value="">— Select —</option>
-                @foreach($types->where('is_active', true) as $t)<option value="{{ $t->id }}" data-face="{{ $t->face_value }}" @selected(old('gift_voucher_type_id') == $t->id)>{{ $t->name }} · {{ $t->valueLabel() }} · {{ $t->usesLabel() }}</option>@endforeach
+                @foreach($types->where('is_active', true) as $t)<option value="{{ $t->id }}" data-face="{{ $t->face_value ?? '' }}" data-min="{{ max((float) $cfg['min'], (float) $t->min_value) }}" data-max="{{ $t->max_value > 0 ? min((float) $cfg['max'], (float) $t->max_value) : $cfg['max'] }}" @selected(old('gift_voucher_type_id') == $t->id)>{{ $t->name }} · {{ $t->valueLabel() }} · {{ $t->usesLabel() }}</option>@endforeach
               </select></div>
-            <x-field name="amount" label="Amount (open-amount vouchers)" type="number" step="0.01" min="0" :hint="'Between '.money($cfg['min']).' and '.money($cfg['max']).'; ignored for fixed-value vouchers'"/>
-            <x-field name="expires_on" label="Valid until" type="date" :hint="'Default: '.$cfg['validity'].' months (or the type’s validity)'"/>
+            <x-field name="amount" label="Amount (open-amount vouchers)" type="number" step="0.01" :min="max(0.01, $cfg['min'])" :max="$cfg['max']" :hint="'Open-amount types only; fixed-value types use their listed face value. Selected type and system limits apply.'"/>
+            <x-field name="expires_on" label="Valid until" type="date" :min="bdate()->toDateString()" :max="bdate()->copy()->addYears(5)->toDateString()" :hint="'Default: '.$cfg['validity'].' months (or the type’s validity); custom dates are limited to 5 years ahead'"/>
             <x-field name="payment_mode_id" label="Paid by" type="select" :options="$modes" required/>
-            <x-field name="payment_ref" label="Payment reference" placeholder="card slip / UPI ref"/>
+            <x-field name="payment_ref" label="Payment reference" placeholder="card slip / payment reference"/>
           </div>
         </div>
         <div>
@@ -89,10 +101,32 @@
         </div>
       </div>
       <div class="flex" style="justify-content:space-between;align-items:center;margin-top:.8rem">
-        <span class="small muted">A voucher is a prepaid instrument, not a supply – no VAT on the sale; tax is charged on the bill it pays for.</span>
+        <span class="small muted">Voucher sales post to Gift Vouchers Outstanding. Tax treatment depends on local rules and voucher terms; confirm with Finance. Tax on redemption follows the configured folio or POS bill.</span>
         <button class="btn btn-success" id="sellSubmit"><x-icon name="check"/> Sell voucher</button>
       </div>
     </form>
+    <script>
+      (() => {
+        const typeSelect = document.getElementById('f_gift_voucher_type_id');
+        const amount = document.getElementById('f_amount');
+        const amountField = amount?.closest('.field');
+        if (!typeSelect || !amount || !amountField) return;
+        const syncAmountField = () => {
+          const option = typeSelect.selectedOptions[0];
+          const fixed = Number(option?.dataset.face || 0) > 0;
+          amountField.hidden = fixed;
+          amount.disabled = fixed;
+          if (fixed) {
+            amount.value = '';
+            return;
+          }
+          amount.min = Math.max(0.01, Number(option?.dataset.min || {{ max(0.01, $cfg['min']) }})).toFixed(2);
+          amount.max = Number(option?.dataset.max || {{ $cfg['max'] }}).toFixed(2);
+        };
+        typeSelect.addEventListener('change', syncAmountField);
+        syncAmountField();
+      })();
+    </script>
   </div>
 
 @elseif($tab === 'lookup')
@@ -107,7 +141,8 @@
 
 @elseif($tab === 'campaigns')
   <div class="table-wrap"><table class="table" id="campaignTable">
-    <thead><tr><th>Campaign / reason</th><th class="right">Vouchers</th><th class="right">Value issued</th><th class="right">Fully used</th><th class="right">Outstanding</th><th>Issued</th><th>Expires</th></tr></thead>
+    <caption class="sr-only">Promotional voucher campaigns with issue count, face value, redeemed count, remaining liability, and date range.</caption>
+    <thead><tr><th scope="col">Campaign / reason</th><th scope="col" class="right">Vouchers</th><th scope="col" class="right">Value issued</th><th scope="col" class="right">Fully redeemed</th><th scope="col" class="right">Outstanding</th><th scope="col">First issued</th><th scope="col">Latest expiry</th></tr></thead>
     <tbody>
     @forelse($campaigns as $c)
       <tr><td><a href="{{ route('vouchers.index', ['q' => $c->campaign, 'source' => 'promo']) }}"><b>{{ $c->campaign }}</b></a></td><td class="right">{{ $c->n }}</td><td class="right">{{ money($c->issued) }}</td>
@@ -127,7 +162,7 @@
         <div class="flex" style="justify-content:space-between"><b>{{ $t->name }}</b><span class="badge badge-{{ $t->is_active ? 'green' : 'slate' }}">{{ $t->is_active ? 'Active' : 'Inactive' }}</span></div>
         <div class="small muted">{{ \App\Models\GiftVoucherType::KINDS[$t->kind] ?? $t->kind }} · {{ $t->valueLabel() }} · {{ $t->validity_months }} months · {{ $t->usesLabel() }} · {{ $t->vouchers_count }} issued</div>
         @if($t->terms)<div class="small" style="margin-top:.3rem">{{ $t->terms }}</div>@endif
-        <details style="margin-top:.5rem"><summary class="small">Edit</summary>@include('vouchers._type_form', ['t' => $t])</details>
+        <details style="margin-top:.5rem"><summary class="small">Edit {{ $t->name }}</summary>@include('vouchers._type_form', ['t' => $t])</details>
       </div></div>
     @endforeach
     </div>
@@ -146,7 +181,7 @@
         <x-field name="max" label="Largest balance on one voucher" type="number" step="0.01" min="1" :value="$cfg['max']" required/>
         <x-field name="terms" label="Terms printed on every voucher" type="textarea" rows="3" class="span-2" :value="$cfg['terms']"/>
       </div>
-      <div class="flex" style="justify-content:space-between;margin-top:.8rem"><span class="small muted">Expiry & reminders run in the night audit and daily at 06:30 (pms:vouchers).</span><button class="btn btn-primary">Save settings</button></div>
+      <div class="flex" style="justify-content:space-between;margin-top:.8rem"><span class="small muted">Expiry is processed during night audit. Reminder checks are scheduled daily at 06:30 (pms:vouchers); delivery requires a holder e-mail and configured mail service.</span><button class="btn btn-primary">Save settings</button></div>
     </form>
     <form method="post" action="{{ route('vouchers.run') }}" style="margin-top:1rem" data-confirm="Expire overdue vouchers and send reminders now?">@csrf<button class="btn" id="runNow"><x-icon name="refresh"/> Run expiry & reminders now</button></form>
   </div>
@@ -154,18 +189,38 @@
 </div>
 
 @if(can_do('vouchers.manage'))
-<div class="modal" id="promoModal"><div class="modal-box" style="max-width:640px"><form method="post" action="{{ route('vouchers.promo') }}">@csrf
+<div class="modal @if(old('_voucher_form') === 'promo')show @endif" id="promoModal"><div class="modal-box" style="max-width:640px"><form method="post" action="{{ route('vouchers.promo') }}">@csrf<input type="hidden" name="_voucher_form" value="promo">
   <div class="modal-head"><h3>Promotional / complimentary vouchers</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
-    <x-field name="campaign" label="Campaign or reason" required placeholder="Diwali 2026 · Service recovery – room 204" class="span-2"/>
-    <x-field name="gift_voucher_type_id" label="Voucher type" type="select" :options="$types->where('is_active', true)->pluck('name', 'id')" required/>
-    <x-field name="amount" label="Value each (open-amount types)" type="number" step="0.01" min="0"/>
+    <x-field name="campaign" label="Campaign or reason" required placeholder="Year-end 2026 · Service recovery – room 204" class="span-2"/>
+    <div class="field"><label for="promo_voucher_type">Voucher type <span class="req">*</span></label><select name="gift_voucher_type_id" id="promo_voucher_type" required><option value="">— Select —</option>@foreach($types->where('is_active', true) as $t)<option value="{{ $t->id }}" data-face="{{ $t->face_value ?? '' }}" data-min="{{ max((float) $cfg['min'], (float) $t->min_value) }}" data-max="{{ $t->max_value > 0 ? min((float) $cfg['max'], (float) $t->max_value) : $cfg['max'] }}" @selected(old('gift_voucher_type_id') == $t->id)>{{ $t->name }} · {{ $t->valueLabel() }} · {{ $t->usesLabel() }}</option>@endforeach</select>@error('gift_voucher_type_id')<span class="err">{{ $message }}</span>@enderror</div>
+    <x-field name="amount" id="promo_amount" label="Value each (open-amount types)" type="number" step="0.01" :min="max(0.01, $cfg['min'])" :max="$cfg['max']" hint="Open-amount types only; fixed-value types use their listed face value."/>
     <x-field name="count" label="How many (without a recipient list)" type="number" min="1" max="500" value="1"/>
-    <x-field name="expires_on" label="Valid until" type="date"/>
+    <x-field name="expires_on" label="Valid until" type="date" :min="bdate()->toDateString()" :max="bdate()->copy()->addYears(5)->toDateString()" hint="Default validity follows the voucher type; custom dates are limited to 5 years ahead."/>
     <x-field name="recipients" label="Recipients – one per line: Name, e-mail (each gets a voucher by e-mail)" type="textarea" rows="4" class="span-2" placeholder="Asha Rao, asha@example.com"/>
     <x-field name="message" label="Message" type="textarea" rows="2" class="span-2" maxlength="300"/>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-success">Issue vouchers</button></div>
-</form></div></div>
+</form>
+<script>
+  (() => {
+    const typeSelect = document.getElementById('promo_voucher_type');
+    const amount = document.getElementById('promo_amount');
+    const amountField = amount?.closest('.field');
+    if (!typeSelect || !amount || !amountField) return;
+    const syncAmountField = () => {
+      const option = typeSelect.selectedOptions[0];
+      const fixed = Number(option?.dataset.face || 0) > 0;
+      amountField.hidden = fixed;
+      amount.disabled = fixed;
+      if (fixed) { amount.value = ''; return; }
+      amount.min = Math.max(0.01, Number(option?.dataset.min || {{ max(0.01, $cfg['min']) }})).toFixed(2);
+      amount.max = Number(option?.dataset.max || {{ $cfg['max'] }}).toFixed(2);
+    };
+    typeSelect.addEventListener('change', syncAmountField);
+    syncAmountField();
+  })();
+</script>
+</div></div>
 @endif
 @endsection

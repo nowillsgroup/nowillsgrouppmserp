@@ -16,7 +16,7 @@ use Illuminate\Console\Command;
 class DataImport extends Command
 {
     protected $signature = 'pms:import
-        {dataset : One of: companies, guests, employees, rooms, suppliers, inventory_items, opening_stock, opening_ap, opening_ar, opening_gl, historical_stock, inventory_allergens, reservations, paid_supplier_history, bank_account_mappings}
+        {dataset : A registered migration dataset (including selected masters__{slug} adapters, menu_items and banquet_enquiries)}
         {file : Path to the CSV export}
         {--hotel= : Hotel (property) id to import into}
         {--source= : Label of the legacy system / export date}
@@ -39,12 +39,17 @@ class DataImport extends Command
             return self::FAILURE;
         }
         Tenant::set($hotel);
-        if (! isset(MigrationService::DATASETS[$dataset])) {
-            $this->error('Unknown dataset. Choose: '.implode(', ', array_keys(MigrationService::DATASETS)));
+        if (! in_array($dataset, MigrationService::datasetKeys(), true)) {
+            $this->error('Unknown dataset. Choose: '.implode(', ', MigrationService::datasetKeys()));
 
             return self::FAILURE;
         }
         $importer = MigrationService::importer($dataset);
+        if ($dataset === 'banquet_enquiries' && ! $this->option('dry-run')) {
+            $this->error('Banquet enquiry apply is available only from Administration → Import & Export Data after a clean dry-run and typed confirmation, where Banquet permissions are enforced.');
+
+            return self::FAILURE;
+        }
         if (! $this->option('dry-run') && ! $importer->supportsApply()) {
             $message = match ($dataset) {
                 'opening_gl' => 'Opening GL is preflight-only. Re-run with --dry-run; posting remains disabled pending AP-policy approval, subledger sign-off and duplicate-posting controls.',

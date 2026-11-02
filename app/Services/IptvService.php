@@ -596,7 +596,7 @@ class IptvService
             'mode' => 'room', 'lang' => $lang, 't' => TvLang::strings($lang),
             'guest' => ['name' => self::guestName($stay), 'room' => $stay->room?->room_no, 'departure' => $stay->departure_date->format('d M Y'),
                 'departing_today' => $stay->departure_date->toDateString() <= bdate()->toDateString()],
-            'welcome' => $w + ['show' => $c['welcome'] && ! $s->welcomed_at],
+            'welcome' => $w + ['enabled' => (bool) $c['welcome'], 'show' => $c['welcome'] && ! $s->welcomed_at],
             'wifi' => ['name' => (string) setting('portal_wifi_name', ''), 'password' => (string) setting('portal_wifi_password', '')],
             'messages' => $msgs, 'unread' => collect($msgs)->where('read', false)->count(), 'desk_messages' => $desk,
             'features' => self::features(), 'pin' => ['purchase' => $c['pin_purchase'], 'bill' => $c['pin_bill']], 'rentals' => $rentals,

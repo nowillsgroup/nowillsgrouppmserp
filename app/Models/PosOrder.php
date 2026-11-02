@@ -85,6 +85,16 @@ class PosOrder extends Model
         return $this->belongsTo(ReservationRoom::class, 'reservation_room_id');
     }
 
+    public function compPostCompany()
+    {
+        return $this->belongsTo(Company::class, 'comp_post_company_id');
+    }
+
+    public function compPostStay()
+    {
+        return $this->belongsTo(ReservationRoom::class, 'comp_post_reservation_room_id');
+    }
+
     public function items()
     {
         return $this->hasMany(PosOrderItem::class);
@@ -142,6 +152,11 @@ class PosOrder extends Model
     public function settledBy()
     {
         return $this->belongsTo(User::class, 'settled_by');
+    }
+
+    public function departmentShiftSession()
+    {
+        return $this->belongsTo(DepartmentShiftSession::class, 'department_shift_session_id');
     }
 
     public function deliveryDriver()

@@ -5,6 +5,7 @@
   <button class="btn btn-primary" data-modal="traceModal" id="newTraceBtn"><x-icon name="plus"/> New trace</button>
 @endsection
 @section('content')
+@include('desk._workspace-nav')
 <div class="card"><div class="card-body"><form method="get" class="flex" style="gap:.5rem;flex-wrap:wrap;align-items:center">
   <input class="input" type="date" name="date" value="{{ $date->toDateString() }}" style="max-width:10rem">
   <select class="input" name="department" style="max-width:12rem"><option value="">All departments</option>@foreach(\App\Services\TraceService::DEPARTMENTS as $k => $l)<option value="{{ $k }}" @selected($dept === $k)>{{ $l }}</option>@endforeach</select>

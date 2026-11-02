@@ -10,7 +10,7 @@
     <div class="field"><label>Starts</label><input type="date" name="start_date" required value="{{ $e?->start_date?->toDateString() ?? bdate()->copy()->addDays(14)->toDateString() }}"></div>
     <div class="field"><label>Ends</label><input type="date" name="end_date" value="{{ $e?->end_date?->toDateString() }}"></div>
     <div class="field"><label>Location</label><input name="location" maxlength="150" value="{{ $e?->location }}" placeholder="Accra International Conference Centre"></div>
-    <div class="field"><label>Budget (GH₵)</label><input type="number" name="budget" min="0" step="0.01" value="{{ $e?->budget ?? 0 }}"></div>
+    <div class="field"><label>Budget ({{ hotel()->currency_symbol ?? 'GH₵' }})</label><input type="number" name="budget" min="0" step="0.01" value="{{ $e?->budget ?? 0 }}"></div>
     <div class="field"><label>Target leads</label><input type="number" name="target_leads" min="0" value="{{ $e?->target_leads ?? 0 }}"></div>
     <div class="field span-all"><label>Objectives</label><textarea name="objectives" rows="3" placeholder="Meet 30 buyers, sign 5 agency contracts…">{{ $e?->objectives }}</textarea></div>
   </div></div>

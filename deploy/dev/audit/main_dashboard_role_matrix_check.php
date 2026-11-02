@@ -1,0 +1,89 @@
+<?php
+
+// Render the actual Dashboard route for every active demo user granted
+// dashboard.view, checking finance/reservation gates against each role.
+// Run with: deploy/dev/bin/php artisan tinker --execute="require 'deploy/dev/audit/main_dashboard_role_matrix_check.php';"
+
+use App\Models\Hotel;
+use App\Models\NightAudit;
+use App\Models\ReservationRoom;
+use App\Models\User;
+use App\Support\Tenant;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+Tenant::set(Hotel::findOrFail(1));
+$guard = Auth::guard();
+$originalUser = $guard->user();
+$kernel = app(Illuminate\Contracts\Http\Kernel::class);
+$users = User::query()->where('hotel_id', 1)->where('is_active', true)->get()
+    ->filter(fn (User $user) => $user->hasPermission('dashboard.view'))->values();
+$auditBarsExpected = min(14, NightAudit::count());
+$arrivalCounts = ReservationRoom::whereDate('arrival_date', bdate()->toDateString())
+    ->whereIn('status', ['reserved', 'checked_in', 'checked_out', 'no_show'])
+    ->select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status');
+$arrivalsCheckedIn = (int) ($arrivalCounts['checked_in'] ?? 0) + (int) ($arrivalCounts['checked_out'] ?? 0);
+$arrivalsExpected = $arrivalCounts->sum();
+$arrivalProgressHtml = '<div class="v">'.$arrivalsCheckedIn.' / '.$arrivalsExpected.'</div>';
+$financialQueries = [];
+DB::listen(function (QueryExecuted $query) use (&$financialQueries): void {
+    $sql = strtolower($query->sql);
+    $bindings = array_map(fn ($binding) => strtolower((string) $binding), $query->bindings);
+    if (str_contains($sql, 'folio_transactions') || (str_contains($sql, 'pos_orders') && in_array('settled', $bindings, true))) {
+        $financialQueries[] = $query->sql;
+    }
+});
+
+if ($users->isEmpty()) {
+    throw new RuntimeException('No active demo users have dashboard.view.');
+}
+
+$checksRun = 0;
+try {
+    foreach ($users as $user) {
+        $guard->setUser($user);
+        $canSeeFinance = $user->hasPermission('folio.view') || $user->hasPermission('reports.view')
+            || $user->hasPermission('revenue.view') || $user->hasPermission('income_audit.view');
+        $canSeeReservations = $user->hasPermission('reservations.view');
+        $canSeeDepartmentSnapshots = collect(['budget.view', 'calls.view', 'keys.view', 'vouchers.view', 'security.view', 'utilities.view', 'compliance.view', 'reservations.view', 'banquet.view'])
+            ->contains(fn (string $permission) => $user->hasPermission($permission));
+        $financeQueryCountBefore = count($financialQueries);
+
+        $request = Request::create('/Dashboard', 'GET');
+        $response = $kernel->handle($request);
+        $html = (string) $response->getContent();
+        $revenueBars = substr_count($html, 'class="b dash-revenue-bar"');
+        $occupancyBars = substr_count($html, 'class="b dash-occupancy-bar"');
+        $checks = [
+            'dashboard returns HTTP 200' => $response->getStatusCode() === 200,
+            'finance snapshot matches view permission' => str_contains($html, 'Revenue snapshot') === $canSeeFinance,
+            'revenue samples match finance permission' => $revenueBars === ($canSeeFinance ? $auditBarsExpected : 0),
+            'occupancy samples remain visible' => $occupancyBars === $auditBarsExpected,
+            'new-bookings aggregate matches reservation permission' => str_contains($html, 'New bookings today') === $canSeeReservations,
+            'arrival progress matches its due-date status cohort' => str_contains($html, $arrivalProgressHtml),
+            'room status explains unavailable rooms and overlapping dirty counts' => str_contains($html, 'unavailable because of room restrictions, outages or leases') && str_contains($html, 'Dirty is a housekeeping count; these rooms may also be occupied or vacant.'),
+            'action centre explains permission-filtered empty state' => str_contains($html, 'Only actions from areas you can access are shown. A blank list means none are currently flagged.'),
+            'department snapshot section matches module permissions' => str_contains($html, 'id="dashModulesHeading"') === $canSeeDepartmentSnapshots,
+            'restricted finance queries are skipped' => $canSeeFinance || count($financialQueries) === $financeQueryCountBefore,
+        ];
+
+        foreach ($checks as $label => $passed) {
+            ++$checksRun;
+            echo ($passed ? 'PASS ' : 'FAIL ').$user->role->name.": {$label}".PHP_EOL;
+            if (! $passed) {
+                throw new RuntimeException("Dashboard role-matrix check failed for {$user->role->name}: {$label}");
+            }
+        }
+        $kernel->terminate($request, $response);
+    }
+} finally {
+    if ($originalUser) {
+        $guard->setUser($originalUser);
+    } else {
+        $guard->forgetUser();
+    }
+}
+
+echo 'Checked '.$users->count().' active roles with '.$checksRun.' assertions.'.PHP_EOL;

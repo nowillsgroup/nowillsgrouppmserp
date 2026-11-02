@@ -12,6 +12,7 @@
 @endsection
 @section('content')
 @php $cats = collect(\App\Models\LostFoundItem::CATEGORIES)->map(fn ($x) => $x[0])->all(); @endphp
+@include('desk._workspace-nav')
 @if($i->isStored() && $i->stay?->status === 'checked_in')
 <div class="alert alert-info" id="ownerInHouse"><x-icon name="user"/><div>The probable owner <b>{{ $i->guest?->full_name }}</b> is still in-house in room <b>{{ $i->stay->room?->room_no }}</b> – contact the guest and return the item before check-out.</div></div>
 @endif

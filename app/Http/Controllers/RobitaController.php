@@ -7,15 +7,18 @@ use App\Models\RobitaEvent;
 use App\Models\RobitaCredential;
 use App\Models\ReservationRoom;
 use App\Models\KeyCard;
+use App\Models\Hotel;
 use App\Services\RobitaService;
 use App\Services\InterfaceService;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 
 /**
- * v7.55 – Robita smart door lock management: device registry, door control,
- * credential issuance, event log, and cloud settings.
+ * Local Robita demo management: device records, guest-journey credentials,
+ * normalized-event intake, and explicit hardware-integration limits.
  */
 class RobitaController extends Controller
 {
@@ -80,7 +83,7 @@ class RobitaController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('robita.devices')->with('success', "Robita device {$device->name} ({$device->serial}) registered.");
+        return redirect()->route('robita.devices')->with('success', "Demo lock record {$device->name} ({$device->serial}) added. No hardware was contacted.");
     }
 
     public function update(Request $request, RobitaDevice $device)
@@ -102,31 +105,52 @@ class RobitaController extends Controller
     public function toggleLock(RobitaDevice $device)
     {
         $newState = $device->isLocked() ? 'unlocked' : 'locked';
-        RobitaService::setLockState($device, $newState);
+        try {
+            RobitaService::setLockState($device, $newState);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', "Door {$device->name} set to {$newState}.");
+        return back()->with('success', "Demo state for {$device->name} set to {$newState}. No hardware was actuated.");
     }
 
     public function forceLock(RobitaDevice $device)
     {
-        RobitaService::setLockState($device, 'locked');
+        try {
+            RobitaService::setLockState($device, 'locked');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', "Door {$device->name} force-locked.");
+        return back()->with('success', "Demo state for {$device->name} set to locked. No hardware was actuated.");
     }
 
     public function forceUnlock(RobitaDevice $device)
     {
-        RobitaService::setLockState($device, 'unlocked');
+        try {
+            RobitaService::setLockState($device, 'unlocked');
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', "Door {$device->name} force-unlocked.");
+        return back()->with('success', "Demo state for {$device->name} set to unlocked. No hardware was actuated.");
     }
 
     public function toggleStatus(RobitaDevice $device)
     {
-        $newStatus = $device->status === 'decommissioned' ? 'online' : 'decommissioned';
-        $device->update(['status' => $newStatus]);
+        $newStatus = $device->status === 'decommissioned' ? 'demo' : 'decommissioned';
+        DB::transaction(function () use ($device, $newStatus): void {
+            $device->update(['status' => $newStatus]);
+            if ($newStatus === 'decommissioned') {
+                foreach ($device->activeCredentials()->get() as $credential) {
+                    RobitaService::cancelCredential($credential, 'demo record decommissioned');
+                }
+            }
+        });
 
-        return back()->with('success', "Device {$device->name} set to {$newStatus}.");
+        return back()->with('success', $newStatus === 'demo'
+            ? "{$device->name} is active as a local demo record; no hardware is connected."
+            : "{$device->name} demo record decommissioned and local credentials cancelled.");
     }
 
     public function events(Request $request)
@@ -168,10 +192,9 @@ class RobitaController extends Controller
 
         $stay = ReservationRoom::findOrFail($data['stay_id']);
         if ($stay->status !== 'checked_in' || ! $stay->room_id) {
-            return back()->with('error', 'Only checked-in guests with a room can receive a door credential.');
+            return back()->with('error', 'Only checked-in guests with a room can have a local demo credential record.');
         }
 
-        $c = RobitaService::cfg();
         $icfg = InterfaceService::cfg();
         $areas = array_values(array_intersect($data['areas'] ?? $icfg['default_areas'] ?? [], $icfg['areas'] ?? []));
 
@@ -185,14 +208,14 @@ class RobitaController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', "Credential issued: {$credential->credential_name} – valid until {$credential->valid_until->format('d M H:i')}.");
+        return back()->with('success', "Demo credential record created for {$credential->credential_name} – local expiry {$credential->valid_until->format('d M H:i')}. Not sent to a lock.");
     }
 
     public function cancelCredential(RobitaCredential $credential)
     {
         RobitaService::cancelCredential($credential);
 
-        return back()->with('success', 'Credential cancelled.');
+        return back()->with('success', 'Local credential record cancelled. No hardware command was sent.');
     }
 
     public function settings(Request $request)
@@ -200,14 +223,14 @@ class RobitaController extends Controller
         RobitaService::ensureDefaults();
 
         if ($request->isMethod('post')) {
+            if ($request->filled('robita_cloud_url') || $request->filled('robita_access_token')) {
+                return back()->withInput()->with('error', 'Vendor cloud commands are disabled pending protocol documentation and hardware acceptance. No request was sent.');
+            }
             $data = $request->validate([
-                'robita_cloud_url' => 'nullable|string|max:190',
-                'robita_access_token' => 'nullable|string|max:128',
-                'robita_auto_register' => 'nullable|boolean',
-                'robita_poll_minutes' => 'nullable|integer|min:0|max:60',
-                'robita_webhook_token' => 'nullable|string|max:128',
                 'robita_default_model' => 'nullable|string|max:40',
                 'robita_battery_alert' => 'nullable|integer|min:0|max:100',
+                'robita_auto_issue' => 'nullable|boolean',
+                'robita_auto_revoke' => 'nullable|boolean',
             ]);
             try {
                 RobitaService::saveSettings($data);
@@ -223,43 +246,100 @@ class RobitaController extends Controller
         ]);
     }
 
+    public function forgetLegacyCloudConfig()
+    {
+        try {
+            RobitaService::clearLegacyCloudConfig();
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Ignored legacy Robita URL and access token removed. No vendor request was sent.');
+    }
+
     public function regenerateTokens()
     {
-        $tokens = RobitaService::regenerateTokens();
+        RobitaService::regenerateTokens();
 
-        return back()->with('success', 'Access token and webhook token regenerated. Update the Robita cloud configuration.');
+        return back()->with('success', 'Normalized-event webhook token regenerated. Any previous webhook URL is now invalid.');
     }
 
     public function poll()
     {
-        $n = RobitaService::pollDevices();
+        RobitaService::pollDevices();
 
-        return back()->with('success', "{$n} device(s) polled for latest status.");
+        return back()->with('warning', 'Hardware polling is disabled in demo mode. No vendor request was sent.');
     }
 
-    /** Webhook: Robita cloud pushes events to this endpoint. */
-    public function webhook(Request $request, string $token)
+    /** Receive only the canonical normalized-event schema from a trusted local bridge. */
+    public function webhook(Request $request)
     {
-        $row = \App\Models\Setting::withoutGlobalScope('hotel')->where('key', 'robita_webhook_token')->where('value', $token)->first();
-        if (! $row || ! hash_equals((string) $row->value, $token)) {
-            return response()->json(['ok' => false, 'error' => 'Unknown token'], 401);
+        $token = (string) $request->bearerToken();
+        if (! preg_match('/^[A-Za-z0-9]{40}$/D', $token)) {
+            return response()->json(['ok' => false, 'error' => 'Unauthorized'], 401);
         }
+        $row = \App\Models\Setting::withoutGlobalScope('hotel')
+            ->where('key', 'robita_webhook_token')
+            ->get()
+            ->first(fn ($setting) => hash_equals((string) $setting->value, $token));
+        if (! $row) {
+            return response()->json(['ok' => false, 'error' => 'Unauthorized'], 401);
+        }
+        $hotel = Hotel::find($row->hotel_id);
+        if (! $hotel || ! $hotel->is_active) {
+            return response()->json(['ok' => false, 'error' => 'Unknown tenant'], 404);
+        }
+        Tenant::set($hotel);
 
-        Tenant::set(\App\Models\Hotel::find($row->hotel_id));
-
+        if (strlen((string) $request->getContent()) > 8192) {
+            return response()->json(['ok' => false, 'error' => 'Payload too large'], 413);
+        }
         $payload = $request->json()->all();
-        $deviceSerial = $payload['serial'] ?? $payload['device_serial'] ?? null;
-        if (! $deviceSerial) {
-            return response()->json(['ok' => false, 'error' => 'Missing device serial'], 422);
+        $validator = Validator::make($payload, [
+            'serial' => 'nullable|string|max:64|required_without:device_serial',
+            'device_serial' => 'nullable|string|max:64|required_without:serial',
+            'event_id' => ['required', 'string', 'max:128', 'regex:/\A[A-Za-z0-9_.:-]+\z/'],
+            'type' => 'required|string|in:'.implode(',', array_keys(RobitaEvent::TYPES)),
+            'method' => 'nullable|string|in:'.implode(',', RobitaEvent::METHODS),
+            'event_at' => 'nullable|date',
+            'card_serial' => 'nullable|string|max:64',
+            'user_name' => 'nullable|string|max:80',
+            'user_id' => 'nullable|string|max:64',
+            'battery_pct' => 'nullable|integer|min:0|max:100',
+            'signal' => 'nullable|string|in:'.implode(',', RobitaDevice::SIGNALS),
+            'lock_state' => 'nullable|string|in:'.implode(',', RobitaDevice::LOCK_STATES),
+            'alarm_type' => 'nullable|string|max:40',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['ok' => false, 'error' => 'Invalid normalized event', 'fields' => $validator->errors()], 422);
         }
-
-        $device = RobitaDevice::where('serial', strtoupper($deviceSerial))->first();
-        if (! $device) {
+        $data = $validator->validated();
+        if (isset($data['serial'], $data['device_serial'])
+            && RobitaService::normalizeSerial((string) $data['serial']) !== RobitaService::normalizeSerial((string) $data['device_serial'])) {
+            return response()->json(['ok' => false, 'error' => 'Conflicting device serial fields'], 422);
+        }
+        $serial = RobitaService::normalizeSerial((string) ($data['serial'] ?? $data['device_serial'] ?? ''));
+        if ($serial === '') {
+            return response()->json(['ok' => false, 'error' => 'Invalid device serial'], 422);
+        }
+        $device = RobitaDevice::where('serial', $serial)->first();
+        if (! $device || (int) $device->hotel_id !== (int) $hotel->id) {
             return response()->json(['ok' => false, 'error' => 'Unknown device'], 404);
         }
+        unset($data['serial'], $data['device_serial']);
+        $data['source'] = 'webhook';
 
-        RobitaService::receiveEvent($device, $payload);
+        try {
+            $event = RobitaService::receiveEvent($device, $data);
+        } catch (RuntimeException $e) {
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            report($e);
 
-        return response()->json(['ok' => true]);
+            return response()->json(['ok' => false, 'error' => 'Event could not be recorded'], 500);
+        }
+
+        return response()->json(['ok' => true, 'duplicate' => ! $event->wasRecentlyCreated]);
     }
+
 }

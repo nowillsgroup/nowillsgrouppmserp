@@ -6,6 +6,7 @@ use App\Models\Hotel;
 use App\Models\ReservationRoom;
 use App\Models\TvDevice;
 use App\Models\TvMovie;
+use App\Services\GuestPortalService;
 use App\Services\IptvService as IS;
 use App\Support\Tenant;
 use App\Support\TvLang;
@@ -124,13 +125,46 @@ class TvController extends Controller
     {
         $d = $this->device($token);
         $c = IS::cfg();
+        $boot = $this->stateWithPortal($d, true);
+        if (request()->query('launch') === 'welcome' && ! empty($c['welcome']) && ($boot['mode'] ?? null) === 'room' && isset($boot['welcome'])) {
+            $boot['welcome']['show'] = true;
+        }
 
-        return $this->csp(response()->view('tv.app', ['token' => $token, 'device' => $d, 'hotel' => hotel(), 'boot' => IS::state($d), 'langs' => TvLang::LANGS, 'cfg' => $c]));
+        return $this->csp(response()->view('tv.app', ['token' => $token, 'device' => $d, 'hotel' => hotel(), 'boot' => $boot, 'langs' => TvLang::LANGS, 'cfg' => $c]));
     }
 
     public function state(string $token)
     {
-        return $this->json(IS::state($this->device($token)));
+        return $this->json($this->stateWithPortal($this->device($token)));
+    }
+
+    /** Add the current in-house guest's portal QR only to room-TV payloads. */
+    protected function stateWithPortal(TvDevice $device, bool $includeQr = false): array
+    {
+        $state = IS::state($device);
+        if (($state['mode'] ?? null) === 'room' && ($stay = IS::stayFor($device)) && ($url = GuestPortalService::portalUrl($stay))) {
+            $state['portal'] = ['url' => $url];
+            if ($includeQr && ($portal = GuestPortalService::portalQrData($stay))) {
+                $state['portal'] = $portal;
+            }
+        }
+
+        return $state;
+    }
+
+    public function portalQr(string $token)
+    {
+        $device = $this->device($token);
+
+        return $this->run(function () use ($device) {
+            $stay = IS::stayFor($device);
+            $portal = $stay ? GuestPortalService::portalQrData($stay) : null;
+            if (! $portal) {
+                throw new RuntimeException('The guest portal is not available for this stay.');
+            }
+
+            return $portal;
+        });
     }
 
     public function data(string $token, string $section)

@@ -33,6 +33,11 @@ class LogEntry extends Model
         return $this->belongsTo(ReservationRoom::class, 'reservation_room_id');
     }
 
+    public function shiftSession()
+    {
+        return $this->belongsTo(FrontDeskShiftSession::class, 'shift_session_id');
+    }
+
     public function room()
     {
         return $this->belongsTo(Room::class);

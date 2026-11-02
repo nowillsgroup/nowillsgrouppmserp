@@ -3,7 +3,8 @@
 /**
  * v7.57 – proves the Robita hooks fire from the *real* stay operations
  * (StayService::changeDates / moveRoom / checkOut), not just from the service
- * methods in isolation. Runs in a transaction and rolls back.
+ * methods in isolation. These are local demo records, never hardware commands.
+ * Runs in a transaction and rolls back.
  */
 use App\Models\Hotel;
 use App\Models\KeyCard;
@@ -55,7 +56,7 @@ if (! $cred) {
     return;
 }
 
-// 1. extending through the real amend path moves the door credential
+// 1. extension through the real amend path updates the local credential record
 $before = $cred->fresh()->valid_until->copy();
 try {
     StayService::changeDates($stay->fresh(), $stay->arrival_date->toDateString(), $stay->departure_date->copy()->addDays(3)->toDateString());
@@ -65,7 +66,7 @@ try {
     $check('StayService::changeDates moves the credential expiry', false, $e->getMessage());
 }
 
-// 2. room move through the real path cancels the old door and provisions the new one
+// 2. room move through the real path reconciles the local demo records
 $to = \App\Models\Room::where('hotel_id', Tenant::id())->where('id', '!=', $stay->room_id)->where('is_active', true)
     ->where('status', 'vacant')->orderBy('id')->first();
 if ($to) {
@@ -74,15 +75,15 @@ if ($to) {
         StayService::moveRoom($stay->fresh(), $to->id, null, 'wiring check');
         $oldActive = RobitaCredential::where('reservation_room_id', $stay->id)->where('status', 'active')->where('robita_device_id', $device->id)->exists();
         $newActive = RobitaCredential::where('reservation_room_id', $stay->id)->where('status', 'active')->where('robita_device_id', $device2->id)->exists();
-        $check('StayService::moveRoom cancels the old door', ! $oldActive);
-        $check('StayService::moveRoom provisions the new door', $newActive);
+        $check('StayService::moveRoom cancels the old room record', ! $oldActive);
+        $check('StayService::moveRoom creates the new room local record', $newActive);
     } catch (\Throwable $e) {
         $check('StayService::moveRoom cancels the old door', false, $e->getMessage());
-        $check('StayService::moveRoom provisions the new door', false);
+        $check('StayService::moveRoom creates the new room local record', false);
     }
 }
 
-// 3. checking out through the real path revokes the credential (the security fix)
+// 3. checking out through the real path cancels the local credential record
 try {
     StayService::postPendingNights($stay->fresh(), bdate());
     $folio = $stay->fresh()->folio()->first();
@@ -91,9 +92,9 @@ try {
     }
     StayService::checkOut($stay->fresh(), true);
     $active = RobitaCredential::where('reservation_room_id', $stay->id)->where('status', 'active')->count();
-    $check('StayService::checkOut revokes the door credential', $active === 0, "still active {$active}");
+    $check('StayService::checkOut cancels the local credential', $active === 0, "still active {$active}");
 } catch (\Throwable $e) {
-    $check('StayService::checkOut revokes the door credential', false, $e->getMessage());
+    $check('StayService::checkOut cancels the local credential', false, $e->getMessage());
 }
 
 // 4. the switches actually switch it off
@@ -109,7 +110,7 @@ if ($stay2 && $stay2->id !== $stay->id) {
     ]);
     $check('auto-issue off → nothing is provisioned', RobitaService::onCheckIn($stay2->fresh()) === null);
     $manual = RobitaService::issueCredential($d3, $stay2->fresh(), $c3);
-    $check('a manual credential still works', (bool) $manual);
+    $check('manual local credential creation works', (bool) $manual);
     $check('auto-revoke off → check-out leaves it alone', RobitaService::onCheckOut($stay2->fresh()) === 0 && $manual->fresh()->status === 'active');
 }
 

@@ -70,8 +70,8 @@
           <div id="pkDirectTender-{{ $s->id }}" data-parking-direct-tender @if($s->kind === 'guest' && $s->stay?->status === 'checked_in') hidden @endif>
             <div id="pkSingleTender-{{ $s->id }}" class="form-grid">
               <div class="field"><label>Payment mode</label><select name="payment_mode_id" data-payment-mode><option value="">—</option>@foreach($modes as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach</select></div>
-              <x-field name="momo_network" label="MoMo network"/><x-field name="momo_phone" label="MoMo phone"/>
-              <div class="field span-all"><label>Reference</label><input name="reference" maxlength="80" placeholder="MoMo / card ref"></div>
+              <x-payment-momo-fields mode-name="payment_mode_id"/>
+              <div class="field span-all"><label>Reference / transaction ID</label><input name="reference" maxlength="80" placeholder="MoMo / card ref"></div>
               <x-cheque-fields class="span-all"/>
             </div>
             <x-payment-split-tender widget-id="pkSplitTender-{{ $s->id }}" single-id="pkSingleTender-{{ $s->id }}" :modes="$splitModes" label="payment"/>

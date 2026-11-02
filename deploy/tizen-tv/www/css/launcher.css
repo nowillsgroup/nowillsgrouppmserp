@@ -1,0 +1,26 @@
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;background:#0e1c1a;color:#fff;font-family:Arial,Helvetica,sans-serif}
+body{min-height:100%;background:radial-gradient(ellipse at 78% 12%,#28413b 0,transparent 38%),linear-gradient(145deg,#152622,#0b1414 68%,#091110)}
+.shell{min-height:100%;display:flex;flex-direction:column;padding:4.8vh 6vw 3vh}
+.brand{display:flex;align-items:center;gap:1rem;min-height:4rem}
+.brand-mark{width:3.5rem;height:3.5rem;object-fit:contain}
+.brand div{display:flex;flex-direction:column;gap:.25rem}
+.brand strong{font-family:Georgia,'Times New Roman',serif;font-size:1.4rem;font-weight:500;letter-spacing:.12em;color:#f8f2e6}
+.brand span,.eyebrow{font-size:.82rem;font-weight:700;letter-spacing:.22em;color:#ead4a0}
+.panel{width:min(52rem,100%);margin:auto 0;padding:2.6rem 0}
+.eyebrow{margin:0 0 1rem;text-transform:uppercase}
+h1{margin:0 0 1.2rem;font-family:Georgia,'Times New Roman',serif;font-size:clamp(2.7rem,5.2vw,4.8rem);font-weight:400;line-height:1.08;color:#fff8e9}
+.help{max-width:46rem;margin:0 0 2rem;color:rgba(255,255,255,.78);font-size:1.3rem;line-height:1.55}
+form{display:grid;grid-template-columns:1fr;gap:.65rem;max-width:42rem}
+label{margin-top:.55rem;color:#ead4a0;font-size:1.05rem;font-weight:700;letter-spacing:.06em}
+input{width:100%;min-height:3.8rem;padding:.8rem 1rem;border:2px solid rgba(234,212,160,.42);border-radius:.55rem;background:rgba(0,0,0,.3);color:#fff;font-size:1.25rem;outline:none}
+input:focus{border-color:#ead4a0;box-shadow:0 0 0 .2rem rgba(234,212,160,.18)}
+.field-help{margin:.1rem 0 .55rem;color:rgba(255,255,255,.62);font-size:.95rem}
+button{min-height:3.8rem;border:1px solid #ead4a0;border-radius:999px;padding:.75rem 1.6rem;font-size:1.15rem;font-weight:700;cursor:pointer}
+button:focus{outline:3px solid #fff;outline-offset:3px}
+.primary{margin-top:.5rem;background:#ead4a0;color:#17201e}
+.secondary{background:rgba(255,255,255,.06);color:#ead4a0}
+.notice{min-height:1.5rem;margin:1rem 0 0;color:#ffe2b8;font-size:1rem}
+footer{padding-top:1rem;border-top:1px solid rgba(234,212,160,.18);color:rgba(255,255,255,.5);font-size:.82rem;letter-spacing:.1em;text-transform:uppercase}
+[hidden]{display:none!important}
+@media(max-width:900px){.shell{padding:4vh 5vw 2.5vh}.panel{padding:1.5rem 0}.brand-mark{width:2.8rem;height:2.8rem}.brand strong{font-size:1.15rem}h1{font-size:3rem}.help{font-size:1.1rem}}

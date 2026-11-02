@@ -28,7 +28,7 @@ class TvLang
         'en' => [
             'welcome' => 'Welcome', 'vacant' => 'Welcome to', 'continue' => 'Continue', 'home' => 'Home', 'tv' => 'Live TV', 'movies' => 'Movies', 'dining' => 'In-room dining',
             'services' => 'Services', 'messages' => 'Messages', 'bill' => 'My bill', 'checkout' => 'Express check-out', 'info' => 'Hotel guide', 'explore' => 'Explore Ghana',
-            'feedback' => 'Rate your stay', 'language' => 'Language', 'room' => 'Room', 'departure' => 'Departure', 'wifi' => 'Wi-Fi', 'password' => 'Password',
+            'feedback' => 'Rate your stay', 'language' => 'Language', 'room' => 'Room', 'departure' => 'Departure', 'wifi' => 'Wi-Fi', 'password' => 'Password', 'guest_portal' => 'Guest portal', 'scan_portal' => 'Scan to use guest services on your phone',
             'back' => 'Back', 'ok' => 'OK', 'cancel' => 'Cancel', 'order' => 'Place order', 'add' => 'Add', 'cart' => 'Your order', 'total' => 'Total', 'send' => 'Send',
             'rent' => 'Rent', 'watch' => 'Watch', 'enter_pin' => 'Enter your 4-digit TV PIN (on your key-card wallet)', 'charged' => 'Charged to your room',
             'incl_tax' => 'incl. VAT & levies', 'now' => 'Now', 'next' => 'Next', 'no_messages' => 'No messages.', 'sent' => 'Sent – thank you. We are on it.',
@@ -41,7 +41,7 @@ class TvLang
         'fr' => [
             'welcome' => 'Bienvenue', 'vacant' => 'Bienvenue à', 'continue' => 'Continuer', 'home' => 'Accueil', 'tv' => 'TV en direct', 'movies' => 'Films', 'dining' => 'Service en chambre',
             'services' => 'Services', 'messages' => 'Messages', 'bill' => 'Ma facture', 'checkout' => 'Départ express', 'info' => "Guide de l'hôtel", 'explore' => 'Découvrir le Ghana',
-            'feedback' => 'Notez votre séjour', 'language' => 'Langue', 'room' => 'Chambre', 'departure' => 'Départ', 'wifi' => 'Wi-Fi', 'password' => 'Mot de passe',
+            'feedback' => 'Notez votre séjour', 'language' => 'Langue', 'room' => 'Chambre', 'departure' => 'Départ', 'wifi' => 'Wi-Fi', 'password' => 'Mot de passe', 'guest_portal' => 'Portail client', 'scan_portal' => 'Scannez pour utiliser les services sur votre téléphone',
             'back' => 'Retour', 'ok' => 'OK', 'cancel' => 'Annuler', 'order' => 'Commander', 'add' => 'Ajouter', 'cart' => 'Votre commande', 'total' => 'Total', 'send' => 'Envoyer',
             'rent' => 'Louer', 'watch' => 'Regarder', 'enter_pin' => 'Saisissez votre code TV à 4 chiffres (sur la pochette de la carte-clé)', 'charged' => 'Facturé sur votre chambre',
             'incl_tax' => 'TVA et taxes incluses', 'now' => 'En ce moment', 'next' => 'Ensuite', 'no_messages' => 'Aucun message.', 'sent' => "Envoyé – merci. Nous nous en occupons.",
@@ -54,7 +54,7 @@ class TvLang
         'es' => [
             'welcome' => 'Bienvenido', 'vacant' => 'Bienvenido a', 'continue' => 'Continuar', 'home' => 'Inicio', 'tv' => 'TV en directo', 'movies' => 'Películas', 'dining' => 'Servicio a la habitación',
             'services' => 'Servicios', 'messages' => 'Mensajes', 'bill' => 'Mi cuenta', 'checkout' => 'Salida exprés', 'info' => 'Guía del hotel', 'explore' => 'Descubra Ghana',
-            'feedback' => 'Valore su estancia', 'language' => 'Idioma', 'room' => 'Habitación', 'departure' => 'Salida', 'wifi' => 'Wi-Fi', 'password' => 'Contraseña',
+            'feedback' => 'Valore su estancia', 'language' => 'Idioma', 'room' => 'Habitación', 'departure' => 'Salida', 'wifi' => 'Wi-Fi', 'password' => 'Contraseña', 'guest_portal' => 'Portal del huésped', 'scan_portal' => 'Escanee para usar los servicios en su teléfono',
             'back' => 'Volver', 'ok' => 'Aceptar', 'cancel' => 'Cancelar', 'order' => 'Hacer pedido', 'add' => 'Añadir', 'cart' => 'Su pedido', 'total' => 'Total', 'send' => 'Enviar',
             'rent' => 'Alquilar', 'watch' => 'Ver', 'enter_pin' => 'Introduzca su PIN de TV de 4 dígitos (en el sobre de la tarjeta)', 'charged' => 'Cargado a su habitación',
             'incl_tax' => 'IVA e impuestos incluidos', 'now' => 'Ahora', 'next' => 'Después', 'no_messages' => 'No hay mensajes.', 'sent' => 'Enviado – gracias. Nos ocupamos.',
@@ -67,7 +67,7 @@ class TvLang
         'pt' => [
             'welcome' => 'Bem-vindo', 'vacant' => 'Bem-vindo ao', 'continue' => 'Continuar', 'home' => 'Início', 'tv' => 'TV ao vivo', 'movies' => 'Filmes', 'dining' => 'Serviço de quarto',
             'services' => 'Serviços', 'messages' => 'Mensagens', 'bill' => 'A minha conta', 'checkout' => 'Check-out expresso', 'info' => 'Guia do hotel', 'explore' => 'Descubra o Gana',
-            'feedback' => 'Avalie a sua estadia', 'language' => 'Idioma', 'room' => 'Quarto', 'departure' => 'Partida', 'wifi' => 'Wi-Fi', 'password' => 'Palavra-passe',
+            'feedback' => 'Avalie a sua estadia', 'language' => 'Idioma', 'room' => 'Quarto', 'departure' => 'Partida', 'wifi' => 'Wi-Fi', 'password' => 'Palavra-passe', 'guest_portal' => 'Portal do hóspede', 'scan_portal' => 'Leia o código para usar os serviços no telemóvel',
             'back' => 'Voltar', 'ok' => 'OK', 'cancel' => 'Cancelar', 'order' => 'Encomendar', 'add' => 'Adicionar', 'cart' => 'O seu pedido', 'total' => 'Total', 'send' => 'Enviar',
             'rent' => 'Alugar', 'watch' => 'Ver', 'enter_pin' => 'Introduza o seu PIN de TV de 4 dígitos (na capa do cartão)', 'charged' => 'Debitado no seu quarto',
             'incl_tax' => 'IVA e taxas incluídos', 'now' => 'Agora', 'next' => 'A seguir', 'no_messages' => 'Sem mensagens.', 'sent' => 'Enviado – obrigado. Estamos a tratar.',
@@ -80,7 +80,7 @@ class TvLang
         'de' => [
             'welcome' => 'Willkommen', 'vacant' => 'Willkommen im', 'continue' => 'Weiter', 'home' => 'Start', 'tv' => 'Live-TV', 'movies' => 'Filme', 'dining' => 'Zimmerservice',
             'services' => 'Services', 'messages' => 'Nachrichten', 'bill' => 'Meine Rechnung', 'checkout' => 'Express-Check-out', 'info' => 'Hotelinformationen', 'explore' => 'Ghana entdecken',
-            'feedback' => 'Aufenthalt bewerten', 'language' => 'Sprache', 'room' => 'Zimmer', 'departure' => 'Abreise', 'wifi' => 'WLAN', 'password' => 'Passwort',
+            'feedback' => 'Aufenthalt bewerten', 'language' => 'Sprache', 'room' => 'Zimmer', 'departure' => 'Abreise', 'wifi' => 'WLAN', 'password' => 'Passwort', 'guest_portal' => 'Gästeportal', 'scan_portal' => 'Scannen Sie für die Services auf Ihrem Smartphone',
             'back' => 'Zurück', 'ok' => 'OK', 'cancel' => 'Abbrechen', 'order' => 'Bestellen', 'add' => 'Hinzufügen', 'cart' => 'Ihre Bestellung', 'total' => 'Summe', 'send' => 'Senden',
             'rent' => 'Leihen', 'watch' => 'Ansehen', 'enter_pin' => 'Geben Sie Ihre 4-stellige TV-PIN ein (auf der Schlüsselkartenhülle)', 'charged' => 'Wird auf Ihr Zimmer gebucht',
             'incl_tax' => 'inkl. MwSt. und Abgaben', 'now' => 'Jetzt', 'next' => 'Danach', 'no_messages' => 'Keine Nachrichten.', 'sent' => 'Gesendet – danke. Wir kümmern uns darum.',
@@ -93,7 +93,7 @@ class TvLang
         'zh' => [
             'welcome' => '欢迎', 'vacant' => '欢迎光临', 'continue' => '继续', 'home' => '主页', 'tv' => '电视直播', 'movies' => '电影', 'dining' => '客房送餐',
             'services' => '客房服务', 'messages' => '消息', 'bill' => '我的账单', 'checkout' => '快速退房', 'info' => '酒店指南', 'explore' => '探索加纳',
-            'feedback' => '评价您的入住', 'language' => '语言', 'room' => '房间', 'departure' => '离店', 'wifi' => '无线网络', 'password' => '密码',
+            'feedback' => '评价您的入住', 'language' => '语言', 'room' => '房间', 'departure' => '离店', 'wifi' => '无线网络', 'password' => '密码', 'guest_portal' => '宾客服务门户', 'scan_portal' => '扫码即可在手机上使用服务',
             'back' => '返回', 'ok' => '确定', 'cancel' => '取消', 'order' => '下单', 'add' => '添加', 'cart' => '您的订单', 'total' => '合计', 'send' => '发送',
             'rent' => '租看', 'watch' => '观看', 'enter_pin' => '请输入4位电视密码（见房卡套）', 'charged' => '计入您的房账',
             'incl_tax' => '含增值税及附加税', 'now' => '正在播出', 'next' => '稍后', 'no_messages' => '暂无消息。', 'sent' => '已发送，谢谢。我们马上处理。',

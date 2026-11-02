@@ -7,6 +7,7 @@
 @endsection
 @section('content')
 @php $c = $counts; @endphp
+@include('desk._workspace-nav')
 @if($c['wakeups_late'])
 <div class="alert alert-error" id="wakeLate"><x-icon name="alert"/><div><b>{{ $c['wakeups_late'] }}</b> wake-up call(s) are more than {{ $cfg['wakeup_grace'] }} minutes late – call now. The duty manager has been alerted through the log book.</div></div>
 @endif

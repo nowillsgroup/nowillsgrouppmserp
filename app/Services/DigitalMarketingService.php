@@ -718,6 +718,9 @@ class DigitalMarketingService
         self::need(empty($d['reservation_id']) || $res, 'Choose a reservation of this hotel.');
         $link = ! empty($d['link_id']) ? DmLink::find($d['link_id']) : null;
         self::need(empty($d['link_id']) || $link, 'Choose a tracked link of this hotel.');
+        if ($link && $link->id !== $i?->link_id) {
+            self::need(! DmInfluencer::where('link_id', $link->id)->where('id', '!=', $i?->id ?? 0)->exists(), 'Use a dedicated tracked link for each creator so bookings and ROI are not attributed twice.');
+        }
         $data = ['name' => $name, 'platform' => $platform, 'handle' => $handle, 'followers' => self::int($d['followers'] ?? 0, 'Followers'), 'niche' => mb_substr(trim((string) ($d['niche'] ?? '')), 0, 60) ?: null,
             'email' => $email ?: null, 'phone' => mb_substr(trim((string) ($d['phone'] ?? '')), 0, 30) ?: null, 'stay_from' => $from, 'stay_to' => $to, 'due_date' => $due,
             'reservation_id' => $res?->id, 'link_id' => $link?->id, 'deliverables' => trim((string) ($d['deliverables'] ?? '')) ?: null,

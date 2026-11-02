@@ -11,6 +11,7 @@
   @if(! in_array($p->status, ['published', 'cancelled'], true) && ($canEdit || $DM::canApprove($me) || $DM::canManage($me)))<form method="post" action="{{ route('digital.post.cancel', $p) }}" data-confirm="Cancel this post?">@csrf<button class="btn btn-danger" id="cancelPostBtn">Cancel post</button></form>@endif
 @endsection
 @section('content')
+@include('digital._workspace-nav')
 <div class="flex gap-1 wrap mb-1"><span class="badge badge-{{ $p->isMissed() ? 'red' : $p->statusTone() }}" id="postStatus" data-status="{{ $p->status }}">{{ $p->isMissed() ? 'Approved – slot missed' : $p->statusLabel() }}</span>
   @foreach($chs as $c)<span class="badge badge-slate"><span class="dm-dot" style="background:{{ $c->colour() }}"></span> {{ $c->name }}</span>@endforeach
   @if($p->pillar)<span class="badge badge-purple">{{ $P::PILLARS[$p->pillar] ?? $p->pillar }}</span>@endif</div>

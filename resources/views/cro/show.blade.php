@@ -8,13 +8,14 @@
   @if($canBook && $e->status === 'lost' && $e->departure_date->gt(bdate()))<form method="post" action="{{ route('cro.enquiry.reopen', $e) }}" style="display:inline" data-confirm="Reopen this enquiry for follow-up?">@csrf<button class="btn" id="reopenBtn"><x-icon name="refresh"/> Reopen</button></form>@endif
 @endsection
 @section('content')
+@include('cro._nav')
 <div class="g-2-1">
   <div>
     <div class="card" id="enqCard"><div class="card-head"><h3><x-icon name="phone"/> {{ $e->caller_name }}</h3><span><span class="badge badge-{{ $e->statusTone() }}" id="enqStatus">{{ $e->statusLabel() }}</span>@if($e->loss_type) <span class="badge badge-{{ $E::LOSS_TYPES[$e->loss_type][1] }}">{{ $E::LOSS_TYPES[$e->loss_type][0] }}</span>@endif</span></div>
       <div class="card-body"><div class="kv-grid">
         <div><span>Channel</span>{{ $e->channelLabel() }}</div>
         <div><span>Phone / e-mail</span>{{ collect([$e->phone, $e->email])->filter()->implode(' · ') ?: '—' }}</div>
-        <div><span>Stay</span>{{ $e->arrival_date->format('D d M Y') }} → {{ $e->departure_date->format('D d M') }} ({{ $e->nights() }} n)</div>
+        <div><span>Stay</span>{{ $e->arrival_date->format('D d M Y') }} → {{ $e->departure_date->format($e->arrival_date->year === $e->departure_date->year ? 'D d M' : 'D d M Y') }} ({{ $e->nights() }} n)</div>
         <div><span>Party</span>{{ $e->rooms }} room(s) · {{ $e->adults }} adult(s){{ $e->children ? ' · '.$e->children.' child(ren)' : '' }}</div>
         <div><span>Room type asked</span>{{ $e->roomType?->name ?? 'Any' }}</div>
         <div><span>Quoted</span>{{ $e->quoted_rate !== null ? money($e->quoted_rate).' / night' : '—' }}@if($e->quoted_total !== null)<span class="tiny muted">{{ money($e->quoted_total) }} for the stay · {{ $e->roomNights() }} room nights</span>@endif</div>
@@ -29,10 +30,10 @@
   </div>
   <div>
     <div class="card" id="contactsCard"><div class="card-head"><h3><x-icon name="message"/> Contacts</h3></div><div class="card-body">
-      @if($canBook)<form method="post" action="{{ route('cro.enquiry.contact', $e) }}" class="form-grid one" id="contactForm">@csrf
-        <div class="field"><select name="type" aria-label="Type">@foreach($E::CONTACT_TYPES as $k => $l)<option value="{{ $k }}" @selected($k === 'call_out')>{{ $l }}</option>@endforeach</select></div>
-        <div class="field"><textarea name="note" rows="2" required maxlength="500" placeholder="What was said / agreed"></textarea></div>
-        @if($e->status === 'open')<div class="field"><label>Next follow-up</label><input type="datetime-local" name="follow_up_at" value="{{ now()->addDay()->format('Y-m-d\TH:i') }}"></div>@endif
+      @if($canBook)<form method="post" action="{{ route('cro.enquiry.contact', $e) }}" class="form-grid one" id="contactForm" aria-label="Record guest contact">@csrf
+        <div class="field"><label class="sr-only" for="croContactType">Contact type</label><select id="croContactType" name="type" aria-label="Contact type">@foreach($E::CONTACT_TYPES as $k => $l)<option value="{{ $k }}" @selected($k === 'call_out')>{{ $l }}</option>@endforeach</select></div>
+        <div class="field"><label class="sr-only" for="croContactNote">Contact note</label><textarea id="croContactNote" name="note" rows="2" required maxlength="500" placeholder="What was said / agreed" aria-label="Contact note"></textarea></div>
+        @if($e->status === 'open')<div class="field"><label for="croContactFollowUp">Next follow-up</label><input id="croContactFollowUp" type="datetime-local" name="follow_up_at" value="{{ now()->addDay()->format('Y-m-d\TH:i') }}"></div>@endif
         <div><button class="btn btn-sm btn-primary">Add contact</button></div>
       </form>@endif
       <ul class="timeline mt-1" id="contactList">
@@ -43,12 +44,12 @@
   </div>
 </div>
 @if($canBook && $e->status === 'open')
-<div class="modal" id="croLostModal"><div class="modal-box"><form method="post" action="{{ route('cro.enquiry.lost', $e) }}">@csrf
-  <div class="modal-head"><h3>Close {{ $e->number }} as lost</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal" id="croLostModal" role="dialog" aria-modal="true" aria-labelledby="croLostTitle" tabindex="-1"><div class="modal-box"><form method="post" action="{{ route('cro.enquiry.lost', $e) }}">@csrf
+  <div class="modal-head"><h3 id="croLostTitle">Close {{ $e->number }} as lost</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close lost enquiry form" title="Close"><x-icon name="x"/></button></div>
   <div class="modal-body"><div class="form-grid one">
-    <div class="field"><label>Reason</label><select name="loss_reason" required><option value="">—</option><optgroup label="Denial – we could not offer">@foreach($E::DENIALS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</optgroup><optgroup label="Regret – the guest declined">@foreach($E::REGRETS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</optgroup></select></div>
-    <div class="field"><label>Booked with (if "Booked another hotel")</label><select name="competitor_id"><option value="">—</option>@foreach($competitors as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
-    <div class="field"><label>Note</label><input name="loss_note" maxlength="255"></div>
+    <div class="field"><label for="croLostReason">Reason</label><select id="croLostReason" name="loss_reason" required><option value="">—</option><optgroup label="Denial – we could not offer">@foreach($E::DENIALS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</optgroup><optgroup label="Regret – the guest declined">@foreach($E::REGRETS as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</optgroup></select></div>
+    <div class="field"><label for="croLostCompetitor">Booked with (if "Booked another hotel")</label><select id="croLostCompetitor" name="competitor_id"><option value="">—</option>@foreach($competitors as $c)<option value="{{ $c->id }}">{{ $c->name }}</option>@endforeach</select></div>
+    <div class="field"><label for="croLostNote">Note</label><input id="croLostNote" name="loss_note" maxlength="255"></div>
   </div></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Close as lost</button></div>
 </form></div></div>

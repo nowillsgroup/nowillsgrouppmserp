@@ -6,6 +6,10 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 VIEW = (ROOT / "resources/views/reservations/index.blade.php").read_text()
+FOLIO_INDEX = (ROOT / "resources/views/folios/index.blade.php").read_text()
+FOLIO_TRANSACTIONS = (ROOT / "resources/views/folios/transactions.blade.php").read_text()
+FOLIO_CONTROLLER = (ROOT / "app/Http/Controllers/FolioController.php").read_text()
+ROUTES = (ROOT / "routes/web.php").read_text()
 SERVICE = (ROOT / "app/Services/ReservationDeskService.php").read_text()
 DESK_CONTROLLER = (ROOT / "app/Http/Controllers/ReservationDeskController.php").read_text()
 PMS_CONFIG = (ROOT / "config/pms.php").read_text()
@@ -32,7 +36,7 @@ class ReservationListPolishTest(unittest.TestCase):
         self.assertIn('class="reservation-list-module"', VIEW)
 
     def test_list_hides_room_dashboard_controls_that_do_not_apply(self):
-        guard = "@if($view !== 'list')"
+        guard = "@if($view !== 'list' && $view !== 'noshow' && $view !== 'cancelled')"
         self.assertIn(guard, VIEW)
         self.assertIn('<section class="kpi-strip {{ $view === \'dashboard\' ? \'dashboard-kpi-strip\' : \'\' }}"', VIEW)
         self.assertIn('<nav class="desk-nav"', VIEW)
@@ -47,7 +51,7 @@ class ReservationListPolishTest(unittest.TestCase):
         self.assertIn("Company::orderBy('name')->get(['id', 'name', 'is_active'])", list_path)
         self.assertIn("$company->name.($company->is_active ? '' : ' (inactive)')", list_path)
         self.assertIn("self::syncAmenities();", SERVICE[inventory_load - 80:inventory_load])
-        self.assertRegex(VIEW, r"@if\(\$view !== 'list'\)\s+@php\s+\$credit")
+        self.assertRegex(VIEW, r"@if\(\$view !== 'list' && \$view !== 'noshow' && \$view !== 'cancelled'\)\s+@php\s+\$credit")
         self.assertIn("if (desk && desk.dataset.view !== 'list')", VIEW)
 
     def test_search_and_filters_remain_server_submitted_and_accessible(self):
@@ -56,13 +60,15 @@ class ReservationListPolishTest(unittest.TestCase):
         list_markup = VIEW[start:end]
         for needle in (
             'id="reservationListFilter"', 'type="search" name="q"',
-            'data-clear-reservation-search', 'placeholder="Guest, email, reservation, room, phone, company or OTA reference"', 'name="arrival_on"', 'name="departure_on"', 'name="from"',
+            'data-clear-reservation-search', 'placeholder="Guest, email, reservation, room, phone, company or OTA reference"', 'name="arrival_on"', 'name="departure_on"', 'name="cancelled_on"', 'name="from"',
             'name="to"', 'name="source"', 'name="type"', 'name="channel"', 'name="company"',
             'name="sort"', 'name="per_page"', 'aria-label="Search reservations"',
             'role="status" aria-live="polite" aria-atomic="true"',
         ):
             with self.subTest(needle=needle):
                 self.assertIn(needle, list_markup)
+        self.assertIn("@if($currentStatus === 'cancelled')<label", list_markup)
+        self.assertIn('name="cancelled_on" value="{{ $cancelledOnValue }}"', list_markup)
         self.assertNotIn('name="date"', list_markup)
 
     def test_guest_phone_is_a_safe_click_to_call_link_when_well_formed(self):
@@ -184,10 +190,54 @@ class ReservationListPolishTest(unittest.TestCase):
         self.assertIn("$companyId = self::validPositiveId($request->input('company'))", SERVICE)
         self.assertIn("$arrivalOn = self::validDateString($request->input('arrival_on'))", SERVICE)
         self.assertIn("$departureOn = self::validDateString($request->input('departure_on'))", SERVICE)
+        self.assertIn("$cancelledOn = self::validDateString($request->input('cancelled_on'))", SERVICE)
         self.assertIn("->when($arrivalOn, fn ($w) => $w->whereDate('arrival_date', $arrivalOn))", SERVICE)
         self.assertIn("->when($departureOn, fn ($w) => $w->whereDate('departure_date', $departureOn))", SERVICE)
-        self.assertIn("'departure_on' => ''", SERVICE)
-        self.assertIn("'departure_on', 'from'", SERVICE)
+        self.assertIn("->when($cancelledOn, fn ($w) => $w->whereDate('cancelled_at', $cancelledOn))", SERVICE)
+        self.assertIn("'cancelled_on' => ''", SERVICE)
+        self.assertIn("'cancelled_on', 'from'", SERVICE)
+
+    def test_reservation_desk_folio_scope_excludes_unlinked_non_reservation_folios(self):
+        self.assertIn("$request->input('scope') === 'reservation_desk'", FOLIO_CONTROLLER)
+        self.assertIn("whereNotNull('reservation_id')->orWhereNotNull('reservation_room_id')", FOLIO_CONTROLLER)
+        self.assertIn('name="scope" value="reservation_desk"', FOLIO_INDEX)
+        self.assertIn("route('folios.transactions', ['date' => bdate()->toDateString()])", FOLIO_INDEX)
+        self.assertIn('Reservation-linked folios only; banquet and non-reservation folios are excluded.', FOLIO_INDEX)
+
+    def test_reservation_folio_register_search_covers_visible_reservation_and_company_fields(self):
+        self.assertIn("$rawStatus = $request->query('status', 'open')", FOLIO_CONTROLLER)
+        self.assertIn("in_array($rawStatus, ['open', 'closed', 'all'], true)", FOLIO_CONTROLLER)
+        self.assertIn("$request->merge(['status' => $status])", FOLIO_CONTROLLER)
+        self.assertIn("$rawSearch = $request->query('q')", FOLIO_CONTROLLER)
+        self.assertIn("mb_substr(trim($rawSearch), 0, 160)", FOLIO_CONTROLLER)
+        self.assertIn("$request->merge(['q' => $search])", FOLIO_CONTROLLER)
+        self.assertIn("->orWhereHas('company'", FOLIO_CONTROLLER)
+        self.assertIn("->orWhereHas('reservation', $reservationMatch)", FOLIO_CONTROLLER)
+        self.assertIn("->orWhereHas('stay.reservation', $reservationMatch)", FOLIO_CONTROLLER)
+        self.assertIn('placeholder="Folio, invoice or reservation no, guest or company…"', FOLIO_INDEX)
+        self.assertIn('$linkedReservation = $f->reservation ?? $f->stay?->reservation;', FOLIO_INDEX)
+        self.assertIn('{{ $linkedReservation->reservation_no }}', FOLIO_INDEX)
+
+    def test_date_filtered_folio_transaction_register_supports_dashboard_revenue_drilldowns(self):
+        self.assertIn("Route::get('/transactions', 'transactions')->middleware('perm:folio.view')->name('transactions')", ROUTES)
+        self.assertIn('public function transactions(Request $request)', FOLIO_CONTROLLER)
+        self.assertIn("whereDate('business_date', $date)->where('is_void', false)", FOLIO_CONTROLLER)
+        self.assertIn("'advance' => 'Advance payment'", FOLIO_CONTROLLER)
+        self.assertIn("['charge', 'discount', 'allowance', 'payment', 'refund', 'opening_balance']", FOLIO_CONTROLLER)
+        self.assertIn('>All entry types</option>', FOLIO_TRANSACTIONS)
+        for transaction_type in ('charge', 'discount', 'allowance', 'payment', 'refund', 'opening_balance'):
+            with self.subTest(transaction_type=transaction_type):
+                self.assertIn(f'<option value="{transaction_type}"', FOLIO_TRANSACTIONS)
+        self.assertIn('name="date"', FOLIO_TRANSACTIONS)
+        self.assertIn('name="type"', FOLIO_TRANSACTIONS)
+        self.assertIn('name="category"', FOLIO_TRANSACTIONS)
+        self.assertIn('Folio entries ·', FOLIO_TRANSACTIONS)
+        self.assertIn('Matching entries ·', FOLIO_TRANSACTIONS)
+        self.assertIn('totals match the selected filters', FOLIO_TRANSACTIONS)
+        self.assertIn('<th scope="col">Posted at</th>', FOLIO_TRANSACTIONS)
+        self.assertIn('<time datetime="{{ $transaction->created_at->toIso8601String() }}">', FOLIO_TRANSACTIONS)
+        self.assertIn('colspan="11"', FOLIO_TRANSACTIONS)
+        self.assertIn('Filtered total', FOLIO_TRANSACTIONS)
 
     def test_keyboard_focus_is_visible_across_list_controls(self):
         self.assertIn('.reservation-status-tab:focus-visible', VIEW)
@@ -221,6 +271,7 @@ class ReservationListPolishTest(unittest.TestCase):
         for key, value, label in (
             ('from', 'fromValue', 'Arrival from'), ('to', 'toValue', 'Arrival to'),
             ('arrival_on', 'arrivalOnValue', 'Arrival on'), ('departure_on', 'departureOnValue', 'Departure on'),
+            ('cancelled_on', 'cancelledOnValue', 'Cancelled on'),
         ):
             with self.subTest(filter=key):
                 self.assertIn(f"['{key}', '{label}:", VIEW)

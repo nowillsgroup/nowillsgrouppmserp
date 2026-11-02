@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#10201e">
+  <title>Nowills PMS IPTV</title>
+  <link rel="stylesheet" href="css/launcher.css">
+</head>
+<body>
+  <main class="shell" id="app">
+    <header class="brand">
+      <img src="../icon.png" alt="" class="brand-mark">
+      <div><strong>NOWILLS PMS</strong><span>HOTEL IPTV</span></div>
+    </header>
+    <section class="panel" aria-label="Nowills PMS TV connection">
+      <div id="startup" hidden>
+        <p class="eyebrow">CONNECTED TV</p>
+        <h1 id="screen-title-starting">Starting guest welcome…</h1>
+        <p class="help">Connecting to your hotel’s Nowills PMS TV portal. Press OK on the button below during startup to change the server or hotel.</p>
+        <button type="button" class="secondary" id="change-settings">Change server or hotel</button>
+      </div>
+      <div id="configure">
+        <p class="eyebrow">SAMSUNG TIZEN · HOTEL TV</p>
+        <h1 id="screen-title-config">Connect this TV</h1>
+        <p class="help">Enter your Nowills PMS server and hotel code. The TV will then show a pairing code for hotel staff.</p>
+        <form id="connection-form" autocomplete="off">
+          <label for="server">Nowills PMS server</label>
+          <input id="server" name="server" type="text" inputmode="url" value="https://pms.nowills.com" maxlength="180" autocomplete="url" spellcheck="false">
+          <label for="hotel-code">Hotel code</label>
+          <input id="hotel-code" name="hotel-code" type="text" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-describedby="code-help">
+          <p id="code-help" class="field-help">Find the hotel code in IPTV settings in Nowills PMS.</p>
+          <button type="submit" class="primary">Continue to pairing</button>
+        </form>
+        <p class="notice" id="notice" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <footer>Secure connection required · Nowills PMS</footer>
+  </main>
+  <script src="js/launcher.js"></script>
+</body>
+</html>

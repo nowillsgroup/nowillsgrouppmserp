@@ -23,8 +23,9 @@ class BlockController extends Controller
             ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('name', 'like', "%$t%")->orWhere('block_no', 'like', "%$t%")))
             ->orderBy('arrival_date')->paginate(25)->withQueryString();
         $blocks->getCollection()->each(fn ($b) => $b->pickup_pct = BlockService::pickupPct($b));
+        $statusCounts = RoomBlock::query()->selectRaw('status, COUNT(*) as aggregate')->groupBy('status')->pluck('aggregate', 'status');
 
-        return view('blocks.index', compact('blocks'));
+        return view('blocks.index', compact('blocks', 'statusCounts'));
     }
 
     protected function formData(?RoomBlock $block = null): array

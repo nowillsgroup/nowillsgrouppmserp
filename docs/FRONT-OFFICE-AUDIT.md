@@ -1,16 +1,26 @@
 # Front Office & Guest Services — completeness audit
 
-**Latest revalidation:** 26 Oct 2026 · **Branch:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.77.0
+## Robita safety revalidation (1 Nov 2026)
 
-**Current result:** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed Front Office gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes direct physical-lock, credential and device-management operations.
+**Confirmed defects found and corrected:** the earlier Robita service contained assumed vendor REST endpoints without protocol documentation; the dashboard treated a saved URL as “Cloud connected”; local state changes could be presented as physical device state; and the webhook accepted largely unvalidated vendor-shaped payloads with its bearer secret in the URL. These were real correctness/security defects, not audit false positives.
+
+**Corrections:** outbound cloud calls and polling are removed/disabled; new records are explicitly demo-only; credentials show “not sent to lock”; legacy `ok` delivery values are reclassified as unverified; the dashboard and event log distinguish demo from bridge/webhook records; webhook authentication uses an `Authorization` bearer header, a fixed URL, per-hotel lookup, payload size/field allow-lists, tenant/device checks, and event-ID idempotency. Check-in, checkout, room move, extension and expiry continue to update local records only. See [Robita local/demo and hardware-acceptance notes](ROBITA-LOCK-INTEGRATION.md).
+
+**Verification:** `robita_journey_check.php` **17/17**, `robita_wiring_check.php` **9/9**, and `robita_safety_check.php` **19/19** passed in transaction-rolled-back local audits. PHP lint and `git diff --check` also pass. **No hardware acceptance was performed.**
+
+**False positives / expected scope limits (not defects):** no Robita vendor protocol or hardware acceptance was provided, so a certified live integration remains blocked. The generic TCP adapter remains template-based; it is not a certified Salto, Onity, Dormakaba, Assa Abloy, or Robita adapter. This work does not claim physical lock operation or production deployment.
+
+**Historical revalidation:** 26 Oct 2026 · **Branch at that time:** `arena/fb5ac1ac-nowillsgrouppmserp` · **App version:** 7.77.0
+
+**Historical result (26 Oct 2026):** all **65/65** Front Office & Guest Services menu pages returned HTTP 200 with a valid single-document HTML structure. The menu has **0 undeclared permissions** and **0 missing badge keys**. Two confirmed Front Office gaps are fixed: the built-in Front Office Manager lacked `robita.manage`, leaving the Robita menu inaccessible; and an invalid IPTV status value produced a misleading “TV awaiting pairing” message. The Robita grant is now included in the role upgrade path; the IPTV status and pairing validations now return distinct, actionable messages. The current role probe shows Front Office Manager **33/33** page permissions and Receptionist **22/33**. The lock-management permission remains withheld from Receptionists because it includes device-record and guest-credential management; the current Robita module is demo-only and does not actuate physical locks.
 
 Two adjacent date-boundary defects were also fixed. The guest-voucher `liabilityAt()` helper omitted timestamp-shaped same-day values from SQLite as-of totals; it now uses `whereDate` (the helper has no current application call site, so this was a latent calculation bug). The date-specific `/api/v1/reports/daily` lookup returned a false 404 for stored timestamp-shaped NightAudit rows; it now queries by date and returns the existing report.
 
 A separate sweep requested **471 unique, parameter-free GET paths** from the full route table: 460 returned clean 200 responses; 11 did not, and source inspection confirmed all 11 are expected test-context outcomes (nine API endpoints require bearer credentials, `/group-dashboard` requires `group.dashboard`, and `/reservations/api/rates` requires `room_type_id`). The broad route sweep itself uncovered no additional runtime defect. The four models with no rows in the disposable demo database are user/property data or optional configuration—not evidence of unfinished code.
 
-**Verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; gift-voucher date boundary 1/1; night-audit API date lookup 1/1; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
+**Historical verification:** `navigation_permissions.php` 100/100; Robita guest-journey 17/17; Robita stay-wiring 9/9; IPTV volume policy 2/2; IPTV status-validation 3/3; gift-voucher date boundary 1/1; night-audit API date lookup 1/1; lock-driver checks 10/10; PABX-driver checks 7/7. Historical end-to-end write-flow evidence from 13 Oct is retained below; it is not a claim that vendor hardware, live payment providers, or vendor-specific OTA integrations have been accepted in production.
 
-## Current revalidation (26 Oct 2026)
+## Historical revalidation details (26 Oct 2026)
 
 | Check | Result |
 |---|---|

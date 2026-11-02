@@ -30,8 +30,13 @@ class PayController extends Controller
     protected function page(OnlinePayment $p, array $data = [])
     {
         $r = $p->reservation;
+        $refunds = $p->refunds;
+        $refundTotals = [
+            'processedRefundAmount' => (float) $refunds->where('status', 'processed')->sum('amount'),
+            'pendingRefundAmount' => (float) $refunds->where('status', 'pending')->sum('amount'),
+        ];
 
-        return response()->view('pay.show', $data + ['p' => $p, 'hotel' => hotel(), 'r' => $r, 'test' => $p->provider === 'demo',
+        return response()->view('pay.show', $data + $refundTotals + ['p' => $p, 'hotel' => hotel(), 'r' => $r, 'test' => $p->provider === 'demo',
             'bookingDone' => $p->purpose === 'booking' && $r && $p->status === 'paid' ? route('booking.done', [hotel()->code, $r->reservation_no]) : null])
             ->header('Referrer-Policy', 'no-referrer')->header('X-Robots-Tag', 'noindex, nofollow')->header('Cache-Control', 'no-store, private');
     }

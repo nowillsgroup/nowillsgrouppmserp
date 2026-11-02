@@ -39,7 +39,7 @@
 <div class="card-foot flex gap-1" style="flex-wrap:wrap">
   @if(can_do('gst.manage') && $einv && ! $folio->hasActiveIrn())<form method="post" action="{{ route('gst.generate', $folio) }}">@csrf<button class="btn btn-sm btn-primary" id="genIrn"><x-icon name="qr" size="sm"/> {{ $folio->irn_status === 'failed' ? 'Retry E-VAT' : 'Submit to E-VAT' }}</button></form>@endif
   @if(can_do('gst.manage') && ! $folio->hasActiveIrn() && ! $isCn)<form method="post" action="{{ route('gst.buyer', $folio) }}">@csrf<button class="btn btn-sm" title="Re-read the TIN / address from the company or guest profile"><x-icon name="refresh" size="sm"/> Refresh buyer</button></form>@endif
-  @if(can_do('gst.view'))<a class="btn btn-sm btn-ghost" href="{{ route('gst.payload', $folio) }}" target="_blank" title="GRA E-VAT request JSON">JSON</a>@endif
+  @if(can_do('gst.view'))<a class="btn btn-sm btn-ghost" href="{{ route('gst.payload', $folio) }}" target="_blank" rel="noopener" aria-label="View GRA E-VAT request JSON for invoice {{ $folio->invoice_no }}" title="GRA E-VAT request JSON">JSON</a>@endif
 </div>
 @endif
 </div>

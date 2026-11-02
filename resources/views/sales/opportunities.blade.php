@@ -1,13 +1,18 @@
 @extends('layouts.app')
 @section('title', 'Opportunities')
-@section('crumbs') Sales / Opportunities @endsection
-@php $O = \App\Models\SalesOpportunity::class; $seller = can_do('sales.edit') || can_do('sales.manage'); @endphp
+@section('crumbs') Sales & Marketing / Opportunities @endsection
+@php
+  $O = \App\Models\SalesOpportunity::class; $seller = can_do('sales.edit') || can_do('sales.manage');
+  $clearParams = array_filter(['view' => $list ? 'list' : null, 'owner' => request('owner')], fn ($v) => $v !== null && $v !== '');
+  $hasOppFilter = request()->filled('q') || request()->filled('type') || request()->filled('stage') || request()->filled('from') || request()->filled('to');
+@endphp
 @section('actions')
   <a class="btn" href="?{{ http_build_query(array_merge(request()->except('view', 'page'), $list ? [] : ['view' => 'list'])) }}" id="viewToggle"><x-icon name="{{ $list ? 'grid' : 'layers' }}"/> {{ $list ? 'Board' : 'List' }}</a>
   <a class="btn" href="{{ route('reports.show', ['report' => 'sales_pipeline']) }}"><x-icon name="download"/> Report</a>
   @if($seller)<button class="btn btn-primary" data-modal="oppModalNew" id="newOppBtn"><x-icon name="plus"/> New opportunity</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
 @include('sales._owner_toggle')
 <div class="card"><div class="card-body"><form method="get" class="flex gap-1 wrap" style="align-items:center" id="oppFilter">
   @if($list)<input type="hidden" name="view" value="list">@endif @if(request('owner'))<input type="hidden" name="owner" value="{{ request('owner') }}">@endif
@@ -15,7 +20,7 @@
   <select name="type" aria-label="Type"><option value="">Any type</option>@foreach($O::TYPES as $k => $l)<option value="{{ $k }}" @selected(request('type') === $k)>{{ $l }}</option>@endforeach</select>
   @if($list)<select name="stage" aria-label="Stage"><option value="">Any stage</option><option value="open" @selected(request('stage') === 'open')>All open</option>@foreach($O::STAGES as $k => [$l])<option value="{{ $k }}" @selected(request('stage') === $k)>{{ $l }}</option>@endforeach</select>
   <label class="small">Closing <input type="date" name="from" value="{{ request('from') }}"></label><label class="small">to <input type="date" name="to" value="{{ request('to') }}"></label>@endif
-  <button class="btn">Filter</button>
+  <button class="btn">Filter</button>@if($hasOppFilter)<a class="btn btn-ghost" href="{{ route('sales.opportunities', $clearParams) }}">Clear filters</a>@endif
 </form></div></div>
 @if($list)
 <div class="card flush mt-1"><div class="card-body table-wrap"><table class="table table-compact" id="oppList">
@@ -28,8 +33,8 @@
 </table></div></div>
 {{ $opps->links() }}
 @else
-<div class="sa-board mt-1" id="oppBoard">@foreach(array_merge($O::OPEN, ['won', 'lost']) as $s)@php $col = $opps->get($s, collect()); @endphp
-  <div class="sa-lane" data-lane="{{ $s }}"><div class="sa-lane-head"><span class="badge badge-{{ $O::STAGES[$s][1] }}">{{ $O::STAGES[$s][0] }}</span><span class="tiny muted">{{ $col->count() }} · {{ money($col->sum(fn ($o) => $o->total())) }}</span></div>
+<div class="sa-board mt-1" id="oppBoard" role="region" aria-label="Opportunity pipeline by stage">@foreach(array_merge($O::OPEN, ['won', 'lost']) as $s)@php $col = $opps->get($s, collect()); @endphp
+  <div class="sa-lane" data-lane="{{ $s }}" role="group" aria-label="{{ $O::STAGES[$s][0] }} stage, {{ $col->count() }} opportunities"><div class="sa-lane-head"><span class="badge badge-{{ $O::STAGES[$s][1] }}">{{ $O::STAGES[$s][0] }}</span><span class="tiny muted">{{ $col->count() }} · {{ money($col->sum(fn ($o) => $o->total())) }}</span></div>
     @if(in_array($s, ['won', 'lost']))<div class="tiny muted sa-lane-sub">last 60 days</div>@else<div class="tiny muted sa-lane-sub">{{ $cfg['prob_'.$s] }}% · weighted {{ money($pipe[$s]['weighted']) }}</div>@endif
     @forelse($col as $o)
     <a class="sa-card" href="{{ route('sales.opportunity', $o) }}" data-opp="{{ $o->number }}"><div class="between"><b class="small">{{ $o->number }}</b><span class="tiny {{ $o->isOpen() && $o->expected_close->lt(bdate()->copy()->startOfDay()) ? 'text-red bold' : 'muted' }}">{{ ($o->closed_on ?? $o->expected_close)->format('d M') }}</span></div>

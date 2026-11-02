@@ -61,12 +61,12 @@ class KitchenController extends Controller
                 'print' => route('pos.printkot', [$o->id, $lines->first()->kot_no]).($stationPrinter ? '?printer='.$stationPrinter : ''),
                 'items' => $lines->map(fn ($l) => ['id' => $l->id, 'name' => $l->item_name, 'qty' => (float) $l->qty, 'notes' => $l->notes,
                     'status' => $l->kitchen_status, 'cancelled' => $l->is_cancelled, 'comp' => (bool) $l->is_complimentary, 'open' => (bool) $l->is_open, 'hold' => $l->kitchen_status === 'held', 'station' => $this->stationOf($l),
-                    'printer' => $l->kotPrinter?->name, 'flag' => $l->allergy_flag, 'modifiers' => collect($l->modifiers ?? [])->pluck('name')->values()])->values(),
+                    'printer' => $l->kotPrinter?->name, 'flag' => $l->allergy_flag, 'modifiers' => collect($l->modifiers ?? [])->pluck('name')->values()->all()])->values()->all(),
             ];
         })->reject(fn ($t) => $t['status'] === 'cancelled' && $t['minutes'] > 15)
             ->sortBy(fn ($t) => [$t['status'] === 'served' ? 1 : 0, -$t['minutes']])->values();
 
-        return response()->json(['tickets' => $tickets, 'counts' => $tickets->countBy('status'), 'at' => now()->format('H:i:s')]);
+        return response()->json(['tickets' => $tickets->all(), 'counts' => $tickets->countBy('status')->all(), 'at' => now()->format('H:i:s')]);
     }
 
     protected function stationOf(PosOrderItem $i): string
@@ -90,14 +90,21 @@ class KitchenController extends Controller
         abort_if($items->isEmpty(), 404);
         $undo = $request->boolean('undo');
         $back = array_flip(self::FLOW);
-        // bumping a ticket moves every item to the next status of its slowest item
+        $progress = ['new' => 0, 'preparing' => 1, 'ready' => 2, 'served' => 3];
+        // Advance lagging ticket lines to the slowest line's next state without moving ready lines backwards.
         $target = null;
-        if (empty($data['item_id'])) {
+        if (empty($data['item_id']) && ! $undo) {
             $slowest = collect(['new', 'preparing', 'ready', 'served'])->first(fn ($s) => $items->contains('kitchen_status', $s));
-            $target = $undo ? ($back[$slowest] ?? null) : (self::FLOW[$slowest] ?? null);
+            $target = self::FLOW[$slowest] ?? null;
         }
         foreach ($items as $i) {
-            $next = $target ?? ($undo ? ($back[$i->kitchen_status] ?? null) : (self::FLOW[$i->kitchen_status] ?? null));
+            if (! empty($data['item_id'])) {
+                $next = $undo ? ($back[$i->kitchen_status] ?? null) : (self::FLOW[$i->kitchen_status] ?? null);
+            } elseif ($undo) {
+                $next = $back[$i->kitchen_status] ?? null;
+            } else {
+                $next = $target && (($progress[$i->kitchen_status] ?? PHP_INT_MAX) < $progress[$target]) ? $target : null;
+            }
             if (! $next || $next === $i->kitchen_status) {
                 continue;
             }
@@ -105,7 +112,7 @@ class KitchenController extends Controller
                 'served_at' => $next === 'served' ? now() : null])->save();
         }
         if (! empty($data['order_id'])) {
-            ActivityLogger::log('pos', 'kds_bump', "KOT #{$data['kot']} → ".($target ?? 'next'), PosOrder::find($data['order_id']));
+            ActivityLogger::log('pos', 'kds_bump', "KOT #{$data['kot']} → ".($undo ? 'undo' : ($target ?? 'next')), PosOrder::find($data['order_id']));
         }
 
         return $request->expectsJson() ? response()->json(['ok' => true]) : back();
@@ -135,7 +142,7 @@ class KitchenController extends Controller
             'where' => $j->order ? (new \App\Services\KotPrintService)->whereText($j->order) : '',
         ];
 
-        return response()->json(['waiting' => $waiting->map($row)->values(), 'recent' => $recent->map($row)->values(), 'at' => now()->format('H:i:s')]);
+        return response()->json(['waiting' => $waiting->map($row)->values()->all(), 'recent' => $recent->map($row)->values()->all(), 'at' => now()->format('H:i:s')]);
     }
 
     public function stationClaim(Request $request)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\KotPrintJob;
 use App\Models\KotPrinter;
+use App\Models\Company;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Driver;
@@ -16,8 +17,10 @@ use App\Models\PosPayment;
 use App\Models\PosTable;
 use App\Models\ReservationRoom;
 use App\Services\ActivityLogger;
+use App\Services\DepartmentShiftService;
 use App\Services\FolioService;
 use App\Services\KotPrintService;
+use App\Services\PosMenuVariantService;
 use App\Services\PosModifierService;
 use App\Services\TaxService;
 use App\Support\Numbering;
@@ -92,7 +95,9 @@ class PosController extends Controller
             abort_unless($stay->status === 'checked_in', 422, 'Room is not in-house.');
             $data['customer_name'] ??= $stay->reservation->guest->full_name;
         }
+        $data['steward'] = filled($data['steward'] ?? null) ? trim($data['steward']) : (auth()->user()?->name ?: null);
         $order = PosOrder::create($data + ['order_no' => Numbering::next('pos_order'), 'business_date' => bdate(), 'status' => 'open', 'user_id' => auth()->id(), 'covers' => $data['covers'] ?? 1,
+            'department_shift_session_id' => DepartmentShiftService::activeForUser((int) auth()->id())?->id,
             'delivery_status' => ($data['order_type'] ?? null) === 'delivery' ? 'pending' : 'not_applicable', 'delivery_fee' => $data['delivery_fee'] ?? 0]);
 
         return redirect()->route('pos.terminal', $order);
@@ -102,7 +107,7 @@ class PosController extends Controller
     {
         $order->load('outlet', 'table', 'stay.room', 'items', 'paymentMode', 'payments.paymentMode', 'deliveryDriver', 'folio');
         $cats = MenuCategory::where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->orderBy('sort_order')->get();
-        $items = MenuItem::with('category')->with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->with('modifiers')])
+        $items = MenuItem::with(['category', 'variants'])->with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->with('modifiers')])
             ->where('is_available', true)->whereIn('menu_category_id', $cats->pluck('id'))
             ->where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->orderBy('name')->get();
         $kotPrint = app(KotPrintService::class);
@@ -132,6 +137,7 @@ class PosController extends Controller
             'kotPrinters' => $kotPrinters, 'printerMap' => $printerMap, 'printerNames' => KotPrinter::orderBy('name')->pluck('name', 'id'),
             'flashJobs' => $flashJobs, 'autoPrintUrl' => $autoPrintUrl,
             'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
+            'complimentaryCompanies' => Company::where('is_active', true)->orderBy('name')->pluck('name', 'id'),
             'inHouse' => ReservationRoom::with('room', 'reservation.guest')->where('status', 'checked_in')->get(),
             'freeTables' => PosTable::where('outlet_id', $order->outlet_id)->where('is_active', true)->whereDoesntHave('openOrder')->orderBy('id')->get(),
             'otherOrders' => PosOrder::with('table')->where('outlet_id', $order->outlet_id)->whereIn('status', ['open', 'billed'])->whereKeyNot($order->id)->latest()->get(),
@@ -159,6 +165,10 @@ class PosController extends Controller
             $kot = (int) Numbering::next('kot');
             $order->items()->whereIn('id', $pending->pluck('id'))->update(['is_pending' => false, 'kot_no' => $kot]);
             $order->user_id ??= auth()->id();
+            if (blank($order->steward)) {
+                $order->steward = auth()->user()?->name;
+            }
+            $order->department_shift_session_id ??= DepartmentShiftService::activeForUser((int) auth()->id())?->id;
             $order->save();
             $order->recalculate();
             ActivityLogger::log('pos', 'qr_accept', "Accepted {$pending->count()} guest QR item(s) on {$order->order_no} as KOT #{$kot}", $order);
@@ -226,7 +236,7 @@ class PosController extends Controller
     {
         $this->assertEditable($order);
         $data = $request->validate([
-            'items' => 'nullable|array|max:40', 'items.*.id' => 'required|integer|owned:menu_items', 'items.*.qty' => 'required|numeric|min:0.5|max:999', 'items.*.notes' => 'nullable|string|max:120', 'items.*.modifiers' => 'nullable|array|max:20', 'items.*.modifiers.*' => 'integer|owned:menu_modifiers', 'items.*.allergy_ack' => 'nullable|boolean', 'items.*.hold' => 'nullable|boolean',
+            'items' => 'nullable|array|max:40', 'items.*.id' => 'required|integer|owned:menu_items', 'items.*.qty' => 'required|numeric|min:0.5|max:999', 'items.*.notes' => 'nullable|string|max:120', 'items.*.modifiers' => 'nullable|array|max:20', 'items.*.modifiers.*' => 'integer|owned:menu_modifiers', 'items.*.variants' => 'nullable|array|max:30', 'items.*.variants.*' => 'integer|owned:menu_item_variants', 'items.*.allergy_ack' => 'nullable|boolean', 'items.*.hold' => 'nullable|boolean',
             'open' => 'nullable|array|max:12', 'open.*.name' => 'required|string|max:80', 'open.*.price' => 'required|numeric|min:0|max:100000', 'open.*.qty' => 'required|numeric|min:0.5|max:99', 'open.*.notes' => 'nullable|string|max:200', 'open.*.station' => 'required|string|max:40', 'open.*.food_type' => 'required|in:veg,non_veg,egg,beverage', 'open.*.allergy_ack' => 'nullable|boolean', 'open.*.hold' => 'nullable|boolean',
             'print_to' => 'nullable|in:auto,selected,combined', 'printers' => 'nullable|array|max:12', 'printers.*' => 'integer', 'force_printers' => 'nullable|boolean',
         ]);
@@ -264,7 +274,7 @@ class PosController extends Controller
         $modifierSnapshots = [];
         $modifierAmounts = [];
         foreach ($menuLines as $k => $line) {
-            $m = MenuItem::with(['recipes.inventoryItem', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->with('modifiers')])->findOrFail($line['id']);
+            $m = MenuItem::with(['recipes.inventoryItem', 'variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $order->outlet_id))->with('modifiers')])->findOrFail($line['id']);
             if (! $m->is_available || ($m->outlet_id && (int) $m->outlet_id !== (int) $order->outlet_id)) {
                 throw ValidationException::withMessages(["items.{$k}.id" => "{$m->name} is not available at this outlet."]);
             }
@@ -273,6 +283,9 @@ class PosController extends Controller
                 throw ValidationException::withMessages(['items' => "{$m->name}: {$flags[$k]} – the guest declared this allergy. Check with the chef, then confirm the item to send it."]);
             }
             [$modifierSnapshots[$k], $modifierAmounts[$k]] = PosModifierService::snapshot($m, $line['modifiers'] ?? [], $k);
+            [$sideDishSnapshots, $sideDishAmount] = PosMenuVariantService::snapshot($m, $line['variants'] ?? [], $k);
+            $modifierSnapshots[$k] = array_merge($modifierSnapshots[$k], $sideDishSnapshots);
+            $modifierAmounts[$k] = round($modifierAmounts[$k] + $sideDishAmount, 2);
         }
         $openFlags = [];
         if ($guest) {
@@ -472,20 +485,24 @@ class PosController extends Controller
     }
 
     /** Steward marks a ready (or any) kitchen item as served. */
-    public function served(PosOrder $order, PosOrderItem $line)
+    public function served(Request $request, PosOrder $order, PosOrderItem $line)
     {
         abort_unless($line->pos_order_id === $order->id && ! $line->is_cancelled, 404);
         $this->assertEditable($order);
         abort_if($line->is_pending, 422, 'Pending guest items must be accepted before they can be served.');
         $line->forceFill(['kitchen_status' => 'served', 'served_at' => now(), 'ready_at' => $line->ready_at ?? now()])->save();
 
-        return back();
+        return $request->expectsJson() ? response()->json(['ok' => true, 'item_id' => $line->id, 'status' => 'served']) : back();
     }
 
     public function bill(Request $request, PosOrder $order)
     {
         $this->assertEditable($order);
-        $data = $request->validate(['discount' => 'nullable|numeric|min:0', 'discount_type' => 'nullable|in:amount,percent', 'member_code' => 'nullable|string|max:40']);
+        $data = $request->validate([
+            'discount' => 'nullable|numeric|min:0', 'discount_type' => 'nullable|in:amount,percent', 'member_code' => 'nullable|string|max:40',
+            'return_to' => 'nullable|in:unsettled', 'return_outlet' => 'nullable|integer|owned:outlets',
+            'return_waiter' => 'nullable|string|max:60', 'return_q' => 'nullable|string|max:120', 'return_stage' => 'nullable|in:open,billed',
+        ]);
         $this->assertNoPending($order);
         abort_if($order->items()->where('is_cancelled', false)->where('is_pending', false)->count() === 0, 422, 'No items on order.');
         $disc = (float) ($data['discount'] ?? 0);
@@ -519,12 +536,25 @@ class PosController extends Controller
             $this->assertPaidAmountFits($order);
         });
 
-        return redirect()->route('pos.terminal', $order)->with('success', "Bill {$order->bill_no} generated.".$memberNote);
+        $message = "Bill {$order->bill_no} generated.".$memberNote;
+        if (($data['return_to'] ?? null) === 'unsettled') {
+            $returnFilters = array_filter([
+                'outlet' => $data['return_outlet'] ?? null,
+                'waiter' => $data['return_waiter'] ?? null,
+                'q' => $data['return_q'] ?? null,
+                'stage' => ($data['return_stage'] ?? null) === 'open' ? 'billed' : ($data['return_stage'] ?? null),
+            ], fn ($value) => $value !== null && $value !== '');
+
+            return redirect()->to(route('pos.unsettled', $returnFilters, false))->with('success', $message);
+        }
+
+        return redirect()->route('pos.terminal', $order)->with('success', $message);
     }
 
     public function settle(Request $request, PosOrder $order)
     {
         $this->assertEditable($order);
+        abort_unless(! $request->boolean('print_bill') || can_do('pos.view'), 403);
         $this->assertNoPending($order);
         if ($request->input('settlement') === 'payment') {
             try {
@@ -538,7 +568,20 @@ class PosController extends Controller
         }
         $data = $request->validate([
             'settlement' => 'required|in:payment,room_post,complimentary',
+            'print_bill' => 'nullable|boolean',
+            'return_to' => 'nullable|in:unsettled',
+            'return_order' => 'nullable|integer|owned:pos_orders',
+            'return_outlet' => 'nullable|integer|owned:outlets',
+            'return_waiter' => 'nullable|string|max:60',
+            'return_q' => 'nullable|string|max:120',
+            'return_stage' => 'nullable|in:open,billed',
             'comp_reason' => 'nullable|required_if:settlement,complimentary|string|min:3|max:120',
+            'comp_department' => 'nullable|required_if:settlement,complimentary|string|min:2|max:100',
+            'comp_manager_name' => 'nullable|required_if:settlement,complimentary|string|min:2|max:120',
+            'comp_receiver_name' => 'nullable|required_if:settlement,complimentary|string|min:2|max:120',
+            'comp_post_to' => 'nullable|required_if:settlement,complimentary|in:city_ledger,guest_folio',
+            'comp_post_company_id' => 'nullable|required_if:comp_post_to,city_ledger|integer|owned:companies',
+            'comp_post_reservation_room_id' => 'nullable|required_if:comp_post_to,guest_folio|integer|owned:reservation_rooms',
             'payment_mode_id' => 'nullable|integer|owned:payment_modes',
             'reservation_room_id' => 'nullable|required_if:settlement,room_post|integer|owned:reservation_rooms',
             'amount' => 'nullable|numeric|min:0.01',
@@ -576,7 +619,14 @@ class PosController extends Controller
             $this->assertNoPending($order);
             $order->bill_no ??= Numbering::next('pos_bill');
             $order->recalculate();
-            $order->comp_reason = $data['settlement'] === 'complimentary' ? $data['comp_reason'] : null;
+            $isComplimentary = $data['settlement'] === 'complimentary';
+            $order->comp_reason = $isComplimentary ? trim($data['comp_reason']) : null;
+            $order->comp_department = $isComplimentary ? trim($data['comp_department']) : null;
+            $order->comp_manager_name = $isComplimentary ? trim($data['comp_manager_name']) : null;
+            $order->comp_receiver_name = $isComplimentary ? trim($data['comp_receiver_name']) : null;
+            $order->comp_post_to = $isComplimentary ? $data['comp_post_to'] : null;
+            $order->comp_post_company_id = $isComplimentary && $data['comp_post_to'] === 'city_ledger' ? $data['comp_post_company_id'] : null;
+            $order->comp_post_reservation_room_id = $isComplimentary && $data['comp_post_to'] === 'guest_folio' ? $data['comp_post_reservation_room_id'] : null;
             $order->settlement = $data['settlement'];
             if ($data['settlement'] === 'payment') {
                 $usingAllocations = ! empty($data['allocations']);
@@ -675,6 +725,30 @@ class PosController extends Controller
                 $order->settled_at = now();
                 $order->settled_by = auth()->id();
                 \App\Services\RecipeService::consume($order);
+                $memo = mb_substr('Complimentary from hotel — POS '.$order->order_no.' — Receiver: '.$order->comp_receiver_name, 0, 255);
+                if ($data['comp_post_to'] === 'city_ledger') {
+                    $company = Company::whereKey($data['comp_post_company_id'])->where('is_active', true)->first();
+                    if (! $company) {
+                        throw ValidationException::withMessages(['comp_post_company_id' => 'Choose an active City Ledger company.']);
+                    }
+                    $folio = FolioService::openStandalone(['company_id' => $company->id, 'type' => 'walk_in']);
+                    $folio->transactions()->create([
+                        'hotel_id' => $folio->hotel_id, 'business_date' => $order->business_date?->toDateString() ?? bdate()->toDateString(),
+                        'type' => 'charge', 'category' => 'city_ledger', 'description' => $memo, 'amount' => 0, 'tax_amount' => 0, 'tax_rate' => 0,
+                        'company_id' => $company->id, 'reference' => $order->order_no,
+                        'source_type' => 'pos_complimentary', 'source_id' => $order->id, 'posted_by' => auth()->id(),
+                    ]);
+                } else {
+                    $stay = ReservationRoom::whereKey($data['comp_post_reservation_room_id'])->lockForUpdate()->first();
+                    if (! $stay || $stay->status !== 'checked_in') {
+                        throw ValidationException::withMessages(['comp_post_reservation_room_id' => 'Choose a room with a current in-house guest folio.']);
+                    }
+                    $folio = FolioService::openForStay($stay);
+                    FolioService::charge($folio, 'fnb', $memo, 0, false, [
+                        'source_type' => 'pos_complimentary', 'source_id' => $order->id, 'reference' => $order->order_no,
+                    ]);
+                }
+                $order->folio_id = $folio->id;
             }
             $order->save();
             $label = $result['status'] === 'partial' ? 'Part payment' : 'Settled';
@@ -692,12 +766,26 @@ class PosController extends Controller
             default => '',
         };
         $message = $result['status'] === 'partial'
-            ? 'Part payment of '.money($result['amount']).' recorded. Balance due: '.money($order->balanceDue()).'.'
+            ? 'Part payment of '.money($result['amount']).' recorded. Balance due: '.money($order->balanceDue()).'.'.($request->boolean('print_bill') ? ' Bill was not printed because a balance remains.' : '')
             : 'Bill '.$order->bill_no.' settled.'.($result['change'] > 0 ? ' Change: '.money($result['change']).'.' : '').$ev;
 
-        $redirect = $result['status'] === 'partial'
-            ? redirect()->route('pos.terminal', $order)
-            : redirect()->route('pos.index', ['outlet' => $order->outlet_id]);
+        if ($request->boolean('print_bill') && $result['status'] === 'settled') {
+            return redirect()->to(route('pos.print', $order, false).'?autoprint=1')->with($order->evat_status === 'failed' ? 'warning' : 'success', $message);
+        }
+
+        if (($data['return_to'] ?? null) === 'unsettled') {
+            $returnFilters = array_filter([
+                'outlet' => $data['return_outlet'] ?? null,
+                'waiter' => $data['return_waiter'] ?? null,
+                'q' => $data['return_q'] ?? null,
+                'stage' => $data['return_stage'] ?? null,
+            ], fn ($value) => $value !== null && $value !== '');
+            $redirect = redirect()->to(route('pos.unsettled', $returnFilters, false));
+        } else {
+            $redirect = $result['status'] === 'partial'
+                ? redirect()->route('pos.terminal', $order)
+                : redirect()->route('pos.index', ['outlet' => $order->outlet_id]);
+        }
 
         return $redirect->with($order->evat_status === 'failed' ? 'warning' : 'success', $message);
     }
@@ -792,12 +880,75 @@ class PosController extends Controller
         return redirect()->route('pos.index', ['outlet' => $order->outlet_id])->with('success', 'Order voided.');
     }
 
+    /** Cashier worklist for all open checks and billed POS invoices, across all business dates. */
+    public function unsettledInvoices(Request $request)
+    {
+        $filters = $request->validate([
+            'outlet' => 'nullable|integer|owned:outlets',
+            'waiter' => 'nullable|string|max:60',
+            'q' => 'nullable|string|max:120',
+            'stage' => 'nullable|in:open,billed',
+        ]);
+        // Local Live Orders preview fixtures are intentionally excluded from the cashier invoice worklist.
+        $query = PosOrder::query()->whereIn('status', ['open', 'billed'])
+            ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+            ->when(! empty($filters['outlet']), fn ($q) => $q->where('outlet_id', $filters['outlet']))
+            ->when(! empty($filters['waiter']), function ($q) use ($filters) {
+                if ($filters['waiter'] === '__unassigned') {
+                    $q->where(fn ($unassigned) => $unassigned->whereNull('steward')->orWhere('steward', ''));
+                } else {
+                    $q->where('steward', $filters['waiter']);
+                }
+            })
+            ->when(! empty($filters['stage']), fn ($q) => $q->where('status', $filters['stage']))
+            ->when(! empty($filters['q']), function ($q) use ($filters) {
+                $like = '%'.trim($filters['q']).'%';
+                $q->where(fn ($match) => $match->where('order_no', 'like', $like)
+                    ->orWhere('bill_no', 'like', $like)->orWhere('customer_name', 'like', $like)
+                    ->orWhere('customer_phone', 'like', $like)->orWhere('steward', 'like', $like));
+            });
+
+        $netPaidSql = "(SELECT COALESCE(SUM(CASE WHEN pos_payments.kind = 'payment' THEN pos_payments.amount WHEN pos_payments.kind = 'refund' THEN -pos_payments.amount ELSE 0 END), 0) FROM pos_payments WHERE pos_payments.pos_order_id = pos_orders.id AND pos_payments.hotel_id = pos_orders.hotel_id)";
+        $balanceSql = "CASE WHEN (pos_orders.total - {$netPaidSql}) > 0 THEN (pos_orders.total - {$netPaidSql}) ELSE 0 END";
+        $summary = (clone $query)->reorder()->selectRaw(
+            "COUNT(*) as invoice_count, COALESCE(SUM({$balanceSql}), 0) as balance_due, " .
+            "SUM(CASE WHEN pos_orders.status = 'open' THEN 1 ELSE 0 END) as open_count, " .
+            "SUM(CASE WHEN pos_orders.status = 'billed' THEN 1 ELSE 0 END) as billed_count, " .
+            "COUNT(DISTINCT NULLIF(TRIM(pos_orders.steward), '')) as waiter_count"
+        )->first();
+        $waiterSummary = (clone $query)->reorder()->selectRaw(
+            "COALESCE(NULLIF(TRIM(pos_orders.steward), ''), 'Unassigned') as waiter, " .
+            "COUNT(*) as invoice_count, COALESCE(SUM({$balanceSql}), 0) as balance_due"
+        )->groupBy('pos_orders.steward')->orderByDesc('balance_due')->orderBy('waiter')->get();
+        $orders = (clone $query)
+            ->with('outlet', 'table', 'stay.room')
+            ->withCount([
+                'items as pending_items_count' => fn ($q) => $q->where('is_pending', true)->where('is_cancelled', false),
+                'items as accepted_items_count' => fn ($q) => $q->where('is_pending', false)->where('is_cancelled', false),
+            ])
+            ->withSum(['payments as paid_amount' => fn ($q) => $q->where('kind', 'payment')], 'amount')
+            ->withSum(['payments as refunded_amount' => fn ($q) => $q->where('kind', 'refund')], 'amount')
+            ->oldest('created_at')->oldest('id')->paginate(40)->withQueryString();
+        $outlets = Outlet::orderBy('name')->pluck('name', 'id');
+        $waiters = PosOrder::whereIn('status', ['open', 'billed'])
+            ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+            ->whereNotNull('steward')->where('steward', '<>', '')
+            ->distinct()->orderBy('steward')->pluck('steward');
+        $paymentModes = PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->orderBy('name')->pluck('name', 'id');
+
+        return view('pos.unsettled-invoices', [
+            'orders' => $orders, 'summary' => $summary, 'waiters' => $waiters, 'waiterSummary' => $waiterSummary, 'outlets' => $outlets,
+            'paymentModes' => $paymentModes, 'evatEnabled' => \App\Services\PosEvatService::enabled(),
+            'filters' => $filters + ['stage' => ''],
+        ]);
+    }
+
     public function orders(Request $request)
     {
         $from = $request->input('from', bdate()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
         $search = trim((string) $request->input('q', ''));
-        $orders = PosOrder::with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')
+        $ordersQuery = PosOrder::query()
             ->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
@@ -812,15 +963,146 @@ class PosController extends Controller
             ->when($request->outlet, fn ($q, $o) => $q->where('outlet_id', $o))
             ->when($request->status, function ($q, $status) {
                 $status === 'unsettled' ? $q->whereIn('status', ['open', 'billed']) : $q->where('status', $status);
-            })
-            ->latest()->get();
+            });
 
-        return view('pos.orders', ['orders' => $orders, 'from' => $from, 'to' => $to, 'q' => $search, 'outlets' => Outlet::pluck('name', 'id')]);
+        $summary = (clone $ordersQuery)->selectRaw(
+            'COUNT(CASE WHEN status = ? THEN 1 END) as settled_count,
+             COALESCE(SUM(CASE WHEN status = ? THEN total - tax ELSE 0 END), 0) as sales_ex_tax,
+             COALESCE(SUM(CASE WHEN status = ? THEN tax ELSE 0 END), 0) as tax_total,
+             COALESCE(SUM(CASE WHEN settlement = ? THEN total ELSE 0 END), 0) as room_post_total',
+            ['settled', 'settled', 'settled', 'room_post']
+        )->first();
+        $orders = $ordersQuery->with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')
+            ->latest()->paginate(50)->withQueryString();
+
+        return view('pos.orders', ['orders' => $orders, 'summary' => $summary, 'from' => $from, 'to' => $to, 'q' => $search, 'outlets' => Outlet::pluck('name', 'id')]);
+    }
+
+    public function liveOrders(Request $request)
+    {
+        $outlets = Outlet::where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $selectedOutlet = $request->integer('outlet') ?: '';
+        $defaultScope = auth()->user()?->hasPermission('pos.settle') ? 'all' : 'mine';
+        $scope = $request->query('scope', $defaultScope);
+        if (! in_array($scope, ['mine', 'all'], true)) {
+            $scope = $defaultScope;
+        }
+
+        return view('pos.live-orders', [
+            'outlets' => $outlets, 'selectedOutlet' => $selectedOutlet, 'scope' => $scope,
+            'canServe' => auth()->user()?->hasPermission('pos.order') ?? false,
+            'feedUrl' => route('pos.live-feed', [], false), 'currencySymbol' => hotel()?->currency_symbol ?? 'GH₵',
+        ]);
+    }
+
+    /** Live waiter-facing order feed; ready item transitions are announced by the browser. */
+    public function liveOrdersFeed(Request $request)
+    {
+        $filters = $request->validate([
+            'outlet' => 'nullable|integer|owned:outlets',
+            'scope' => 'nullable|in:mine,all',
+        ]);
+        $scope = $filters['scope'] ?? 'mine';
+        $user = auth()->user();
+        $nameParts = preg_split('/\\s+/', trim((string) ($user?->name ?? '')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $identities = collect([$user?->name, $user?->username, $nameParts[0] ?? null])->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn ($value) => mb_strtolower(trim($value)))->unique()->values();
+        $mine = function ($query) use ($user, $identities) {
+            $query->where(function ($w) use ($user, $identities) {
+                if ($identities->isNotEmpty()) {
+                    foreach ($identities as $index => $identity) {
+                        $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                        $w->{$method}("LOWER(TRIM(COALESCE(steward, ''))) = ?", [$identity]);
+                    }
+                }
+                if ($user) {
+                    $w->orWhere(function ($unassigned) use ($user, $identities) {
+                        $unassigned->where('user_id', $user->id);
+                        if ($identities->isNotEmpty()) {
+                            $unassigned->where(fn ($blank) => $blank->whereNull('steward')->orWhereRaw("TRIM(COALESCE(steward, '')) = ''"));
+                        }
+                    });
+                }
+            });
+        };
+        $base = PosOrder::whereIn('status', ['open', 'billed'])
+            ->when(! empty($filters['outlet']), fn ($q) => $q->where('outlet_id', $filters['outlet']));
+        $totalCount = (clone $base)->count();
+        $myCount = (clone $base)->where($mine)->count();
+        $readyCount = PosOrderItem::where('is_cancelled', false)->where('is_pending', false)->where('kitchen_status', 'ready')
+            ->whereHas('order', fn ($q) => $q->whereIn('status', ['open', 'billed'])
+                ->when(! empty($filters['outlet']), fn ($w) => $w->where('outlet_id', $filters['outlet'])))->distinct('pos_order_id')->count('pos_order_id');
+        $ordersQuery = clone $base;
+        if ($scope === 'mine') {
+            $ordersQuery->where($mine);
+        }
+        $orders = $ordersQuery->with([
+            'outlet', 'table', 'stay.room',
+            'items' => fn ($q) => $q->where('is_cancelled', false)->orderBy('id'),
+        ])->latest('created_at')->limit(150)->get();
+        $itemsByOrder = $orders->mapWithKeys(fn ($order) => [$order->id => $order->items]);
+        $rows = $orders->map(function ($order) use ($itemsByOrder) {
+            $items = $itemsByOrder[$order->id];
+            $ready = $items->where('is_pending', false)->where('kitchen_status', 'ready');
+            $accepted = $items->where('is_pending', false);
+            $where = $order->table?->table_no ? 'Table '.$order->table->table_no
+                : ($order->stay?->room?->room_no ? 'Room '.$order->stay->room->room_no : ucwords(str_replace('_', ' ', $order->order_type)));
+
+            return [
+                'id' => $order->id, 'order_no' => $order->order_no, 'status' => $order->status,
+                'where' => $where, 'guest' => $order->customer_name ?: 'Walk-in guest', 'waiter' => $order->steward ?: 'Unassigned',
+                'outlet' => $order->outlet?->name ?? 'Outlet', 'covers' => (int) ($order->covers ?: 1), 'order_type' => $order->order_type,
+                'created_at' => $order->created_at?->toIso8601String(), 'time' => $order->created_at?->format('H:i'),
+                'minutes' => $order->created_at ? (int) $order->created_at->diffInMinutes(now()) : 0,
+                'total' => (float) $order->total, 'ready_count' => $ready->count(), 'active_count' => $accepted->count(),
+                'pending_count' => $items->where('is_pending', true)->count(),
+                'all_ready' => $accepted->isNotEmpty() && $accepted->every(fn ($item) => in_array($item->kitchen_status, ['ready', 'served'], true)),
+                'url' => route('pos.terminal', $order, false), 'can_claim' => blank($order->steward) && (auth()->user()?->hasPermission('pos.order') ?? false),
+                'claim_url' => route('pos.claim', $order, false),
+                'items' => $items->map(fn ($item) => [
+                    'id' => $item->id, 'name' => $item->item_name, 'qty' => (float) $item->qty,
+                    'status' => $item->is_pending ? 'pending' : $item->kitchen_status,
+                    'ready_at' => $item->ready_at?->toIso8601String() ?? ($item->kitchen_status === 'ready' ? $item->updated_at?->toIso8601String() : null),
+                    'notes' => $item->notes, 'modifiers' => collect($item->modifiers ?? [])->pluck('name')->values()->all(),
+                    'serve_url' => route('pos.item.served', [$order, $item], false),
+                ])->values()->all(),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'orders' => $rows, 'scope' => $scope, 'my_count' => $myCount, 'total_count' => $totalCount,
+            'ready_count' => $readyCount, 'can_serve' => auth()->user()?->hasPermission('pos.order') ?? false,
+            'at' => now()->format('H:i:s'),
+        ]);
+    }
+
+    /** Claim an unassigned live check so it appears in the waiter’s My orders view. */
+    public function claim(Request $request, PosOrder $order)
+    {
+        $user = auth()->user();
+        $waiter = mb_substr(trim((string) ($user?->name ?: $user?->username)), 0, 60);
+        if ($waiter === '') {
+            throw ValidationException::withMessages(['order' => 'Your staff profile needs a name before you can claim an order.']);
+        }
+        DB::transaction(function () use ($order, $waiter) {
+            $locked = PosOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $this->assertEditable($locked);
+            if (filled($locked->steward)) {
+                throw ValidationException::withMessages(['order' => 'This order is already assigned to '.$locked->steward.'.']);
+            }
+            $locked->steward = $waiter;
+            $locked->save();
+            ActivityLogger::log('pos', 'claim', "{$waiter} claimed {$locked->order_no}", $locked);
+        });
+
+        return $request->expectsJson()
+            ? response()->json(['ok' => true, 'order_id' => $order->id, 'waiter' => $waiter])
+            : back()->with('success', "{$order->order_no} is now assigned to you.");
     }
 
     public function printBill(PosOrder $order)
     {
-        $order->load('outlet', 'table', 'items', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user');
+        $order->load('outlet', 'table', 'items', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user', 'compPostCompany', 'compPostStay.room', 'compPostStay.reservation.guest');
 
         return view('pos.bill', compact('order'));
     }

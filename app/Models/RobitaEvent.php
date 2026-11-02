@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToHotel;
 use Illuminate\Database\Eloquent\Model;
 
-/** v7.55 – an access event pushed from a Robita device (unlock, lock, alarm, etc.). */
+/** A local demo event or a normalized event received from a trusted bridge. */
 class RobitaEvent extends Model
 {
     use BelongsToHotel;

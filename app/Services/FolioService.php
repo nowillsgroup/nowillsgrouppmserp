@@ -156,6 +156,9 @@ class FolioService
     public static function void(FolioTransaction $tx, string $reason): void
     {
         self::assertOpen($tx->folio);
+        if ($tx->source_type === 'pos_complimentary') {
+            throw new RuntimeException('Complimentary information records are read-only and cannot be voided.');
+        }
         if ($tx->isOpening()) {
             throw new RuntimeException('Opening receivable balances are cutover records and cannot be voided as historical transactions. Correct an unused row in a new opening_ar batch before the opening TB is posted; otherwise use an approved live settlement or adjustment.');
         }

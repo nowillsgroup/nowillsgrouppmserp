@@ -156,7 +156,7 @@ return new class extends Migration
             $t->id();
             $t->foreignId('hotel_id')->constrained()->cascadeOnDelete();
             $t->foreignId('company_id')->nullable()->constrained()->nullOnDelete();
-            $t->string('title', 10)->nullable();
+            $t->string('title', 30)->nullable();
             $t->string('first_name', 80);
             $t->string('last_name', 80)->nullable();
             $t->string('gender', 10)->nullable();

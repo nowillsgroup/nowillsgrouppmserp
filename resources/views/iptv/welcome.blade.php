@@ -3,25 +3,31 @@
 @section('crumbs') IPTV &amp; Guest Welcome / Welcome Screens @endsection
 @push('head')
 <style>
-.tv-prev-luxury{aspect-ratio:16/9;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(8rem,.65fr);grid-template-rows:auto 1fr auto;gap:0 4%;padding:5% 6%;border:1px solid rgba(231,210,168,.35);border-radius:14px;background-color:#142321;background-image:linear-gradient(90deg,rgba(5,14,16,.76),rgba(6,15,17,.46) 61%,rgba(4,12,13,.12)),linear-gradient(0deg,rgba(4,10,11,.5),transparent 44%),var(--tv-preview-photo);background-position:center;background-size:cover;color:#fff}
+.tv-prev-luxury{aspect-ratio:16/9;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(8rem,.65fr);grid-template-rows:auto 1fr auto auto;gap:0 4%;padding:4% 6%;border:1px solid rgba(231,210,168,.35);border-radius:14px;background-color:#142321;background-image:linear-gradient(90deg,rgba(5,14,16,.76),rgba(6,15,17,.46) 61%,rgba(4,12,13,.12)),linear-gradient(0deg,rgba(4,10,11,.5),transparent 44%),var(--tv-preview-photo);background-position:center;background-size:cover;color:#fff}
 .tv-prev-luxury-brand{grid-column:1/-1;display:flex;align-items:center;gap:.6rem;min-width:0}
-.tv-prev-luxury-mark{display:grid;place-items:center;width:1.8rem;height:1.8rem;border:1px solid #ead4a0;border-radius:50%;color:#ead4a0;font-family:Georgia,serif}
+.tv-prev-luxury-mark{display:grid;place-items:center;width:1.8rem;height:1.8rem;flex:none;border:1px solid #ead4a0;border-radius:50%;color:#ead4a0;font-family:Georgia,serif}
+.tv-prev-luxury-logo{display:block;max-width:1.25rem;max-height:1.25rem;object-fit:contain}
 .tv-prev-luxury-brand-copy{display:flex;flex-direction:column;gap:.1rem;min-width:0}
 .tv-prev-luxury-brand-copy small,.tv-prev-luxury-kicker,.tv-prev-luxury-stay>small{color:#ead4a0;font-size:.58rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
 .tv-prev-luxury-brand-copy b{overflow:hidden;color:#fff;font-size:.78rem;letter-spacing:.03em;text-overflow:ellipsis;white-space:nowrap}
 .tv-prev-luxury-copy{grid-column:1;grid-row:2;align-self:center;max-width:100%;padding:.4rem 0}
 .tv-prev-luxury-copy h2{max-width:100%;margin:.45rem 0;font-family:Georgia,"Times New Roman",serif;font-size:1.55rem;font-weight:400;line-height:1.12;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+.tv-prev-luxury-greeting{margin:-.1rem 0 .3rem;color:#ead4a0;font-family:Georgia,"Times New Roman",serif;font-size:.86rem;line-height:1.2}
 .tv-prev-luxury-copy p{max-width:100%;margin:0;color:rgba(255,255,255,.87);font-size:.67rem;line-height:1.4}
 .tv-prev-luxury-rule{display:block;width:1.5rem;height:2px;margin:.4rem 0;background:#ead4a0}
-.tv-prev-luxury-cta{display:inline-flex;gap:.55rem;align-items:center;margin-top:.55rem;padding:.3rem .75rem;border:1px solid #ead4a0;border-radius:999px;background:#ead4a0;color:#15201e;font-size:.64rem;font-weight:800}
+.tv-prev-luxury-tiles{grid-column:1/-1;grid-row:3;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.28rem;margin-top:.25rem}
+.tv-prev-luxury-tile{display:flex;align-items:center;justify-content:center;gap:.22rem;min-width:0;padding:.2rem .12rem;border:1px solid rgba(239,220,180,.35);border-radius:5px;background:rgba(12,25,24,.78);color:#fff;font-size:.48rem;font-weight:700;text-align:center}
+.tv-prev-luxury-icon{display:block;flex:none;width:1rem;height:1rem;color:#ead4a0;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
 .tv-prev-luxury-stay{grid-column:2;grid-row:2;align-self:end;padding:.55rem .7rem;border:1px solid rgba(239,220,180,.35);border-radius:10px;background:rgba(12,25,24,.72)}
 .tv-prev-luxury-stay>small{display:block;margin-bottom:.35rem}
 .tv-prev-luxury-stay div{display:flex;flex-direction:column;gap:.1rem;margin-top:.25rem}
 .tv-prev-luxury-stay div small{color:rgba(255,255,255,.62);font-size:.52rem;letter-spacing:.1em;text-transform:uppercase}
 .tv-prev-luxury-stay div b{color:#fff;font-size:.68rem;font-weight:700}
-.tv-prev-luxury-footer{grid-column:1/-1;grid-row:3;display:flex;align-items:center;justify-content:space-between;margin-top:.4rem;color:rgba(255,255,255,.72);font-size:.52rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.tv-prev-luxury-portal{display:flex;align-items:center;gap:.45rem;margin-top:.35rem;padding-top:.35rem;border-top:1px solid rgba(255,255,255,.16);color:#fff;font-size:.48rem;font-weight:700;line-height:1.2}
+.tv-prev-luxury-portal img{width:2.4rem;height:2.4rem;padding:.12rem;border-radius:3px;background:#fff}
+.tv-prev-luxury-footer{grid-column:1/-1;grid-row:4;display:flex;align-items:center;justify-content:space-between;margin-top:.4rem;color:rgba(255,255,255,.72);font-size:.52rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
 .tv-prev-luxury-footer span:last-child{color:#ead4a0}
-@media(max-width:800px){.tv-prev-luxury{grid-template-columns:minmax(0,1fr) minmax(7rem,.6fr);gap:0 2%}.tv-prev-luxury-copy h2{font-size:1.3rem}}
+@media(max-width:800px){.tv-prev-luxury{grid-template-columns:minmax(0,1fr) minmax(7rem,.6fr);gap:0 2%}.tv-prev-luxury-copy h2{font-size:1.3rem}.tv-prev-luxury-tile{font-size:.4rem}.tv-prev-luxury-icon{width:.85rem;height:.85rem;padding:.12rem}}
 </style>
 @endpush
 @php $u = auth()->user(); $canMg = \App\Services\IptvService::canManage($u); $T = \App\Models\TvWelcomeTemplate::class; $L = \App\Support\TvLang::LANGS; @endphp
@@ -50,15 +56,21 @@
         <button class="btn btn-sm">Preview</button></form>
       @php
         $pvStay = $preview['stay'] ?? null;
+        $pvGuest = $pvStay?->guest ?? $pvStay?->reservation?->guest;
+        $pvGuestName = $pvGuest ? trim($pvGuest->first_name.' '.$pvGuest->last_name) : null;
         $pvTheme = $preview['theme'] ?? 'gold';
         $pvHeadline = $preview['headline'] ?? 'Akwaaba, Guest!';
         $pvBody = $preview['body'] ?? ('We are delighted to welcome you to '.hotel()->name.'. Relax, unwind, and make yourself at home.');
         $welcomeImageUrl = parse_url(asset($welcomeImage), PHP_URL_PATH) ?: '/'.ltrim($welcomeImage, '/');
+        $hotelLogoUrl = hotel()->logo_path ? asset(hotel()->logo_path) : null;
       @endphp
+      <div class="tv-preview-icon-defs">@include('tv._icons')</div>
       <div class="tv-prev-luxury tv-th-{{ $pvTheme }}" id="tvPreview" style="--tv-preview-photo:url('{{ $welcomeImageUrl }}')">
-        <div class="tv-prev-luxury-brand"><span class="tv-prev-luxury-mark">✦</span><span class="tv-prev-luxury-brand-copy"><small>WELCOME TO</small><b>{{ hotel()->name }}</b></span></div>
-        <div class="tv-prev-luxury-copy"><span class="tv-prev-luxury-kicker">A WARM WELCOME</span><span class="tv-prev-luxury-rule"></span><h2>{{ $pvHeadline }}</h2><p>{!! nl2br(e($pvBody)) !!}</p><span class="tv-prev-luxury-cta">Continue <b>›</b></span></div>
-        <div class="tv-prev-luxury-stay"><small>YOUR STAY</small><div><small>ROOM</small><b>{{ $pvStay?->room?->room_no ?? '—' }}</b></div><div><small>WE’RE DELIGHTED YOU’RE HERE</small><b>Make yourself at home</b></div></div>
+        <div class="tv-prev-luxury-brand"><span class="tv-prev-luxury-mark">@if($hotelLogoUrl)<img class="tv-prev-luxury-logo" src="{{ $hotelLogoUrl }}" alt="{{ hotel()->name }} logo">@else<span aria-hidden="true">✦</span>@endif</span><span class="tv-prev-luxury-brand-copy"><small>WELCOME TO</small><b>{{ hotel()->name }}</b></span></div>
+        <div class="tv-prev-luxury-copy"><span class="tv-prev-luxury-kicker">AKWAABA / BIENVENUE</span><span class="tv-prev-luxury-rule"></span><h2>{{ $pvHeadline }}</h2>@if($pvGuestName)<div class="tv-prev-luxury-greeting">Welcome, {{ $pvGuestName }}</div>@endif<p>{!! nl2br(e($pvBody)) !!}</p></div>
+        <div class="tv-prev-luxury-stay"><small>YOUR STAY</small><div><small>ROOM</small><b>{{ $pvStay?->room?->room_no ?? '—' }}</b></div><div><small>WE’RE DELIGHTED YOU’RE HERE</small><b>Make yourself at home</b></div>@if(!empty($preview['portal']['qr']))<div class="tv-prev-luxury-portal"><img src="data:image/svg+xml;base64,{{ $preview['portal']['qr'] }}" alt="Guest portal QR code"><span>Scan for your guest portal</span></div>@endif</div>
+        @php $tvPreviewTiles = [['tv', 'Live TV'], ['movies', 'Movies'], ['dining', 'Dining'], ['services', 'Services'], ['messages', 'Messages'], ['bill', 'My bill'], ['info', 'Hotel guide'], ['explore', 'Explore'], ['checkout', 'Check-out'], ['feedback', 'Feedback']]; @endphp
+        <div class="tv-prev-luxury-tiles" aria-label="Hotel services available on the welcome screen">@foreach($tvPreviewTiles as [$icon, $label])@if($features[$icon] ?? false)<span class="tv-prev-luxury-tile"><svg class="tv-prev-luxury-icon" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" aria-hidden="true"><use href="#tv-glyph-{{ $icon }}" xlink:href="#tv-glyph-{{ $icon }}"/></svg>{{ $label }}</span>@endif @endforeach</div>
         <div class="tv-prev-luxury-footer"><span>{{ hotel()->name }} · Guest welcome</span><span>✦ &nbsp; YOUR STAY, REIMAGINED</span></div>
       </div>
       @if($preview)

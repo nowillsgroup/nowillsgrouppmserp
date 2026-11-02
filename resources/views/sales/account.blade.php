@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', $c->name)
-@section('crumbs') <a href="{{ route('sales.accounts') }}">Sales / Accounts</a> / {{ $c->name }} @endsection
+@section('crumbs') <a href="{{ route('sales.accounts') }}">Sales & Marketing / Accounts</a> / {{ $c->name }} @endsection
 @php
   $C = \App\Models\Company::class; $mayEdit = $canEdit; $seller = can_do('sales.edit') || can_do('sales.manage');
   $open = $opps->filter->isOpen(); $maxM = max(1, collect($monthly)->max(fn ($m) => $m['revenue'] + $m['otb_revenue']));
@@ -12,6 +12,7 @@
   @if($mayEdit)<button class="btn" data-modal="accountModal" id="editAccountBtn"><x-icon name="edit"/> Edit</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
 <div class="flex gap-1 wrap mb-1" id="accBadges"><span class="badge badge-{{ $C::TIERS[$c->tier][1] ?? 'slate' }}">{{ $c->tierLabel() }}</span><span class="badge badge-{{ $c->salesStatusColor() }}" data-status="{{ $c->sales_status }}">{{ $c->salesStatusLabel() }}</span><span class="badge badge-slate">{{ $c->typeLabel() }}</span>@if($c->industry)<span class="badge badge-slate">{{ $C::INDUSTRIES[$c->industry] }}</span>@endif @if(! $c->direct_billing)<span class="badge badge-amber">No direct billing</span>@endif @if($c->onHold())<span class="badge badge-red">Credit hold</span>@endif</div>
 <div class="stats" id="accStats">
   <x-stat label="Room nights {{ bdate()->year }} YTD" :value="number_format($ytd['nights'])" icon="bed" tone="blue" :sub="'LY '.number_format($ytd['ly_nights']).($chg($ytd['nights'], $ytd['ly_nights']) !== null ? ' · '.sprintf('%+d', $chg($ytd['nights'], $ytd['ly_nights'])).'%' : '')"/>

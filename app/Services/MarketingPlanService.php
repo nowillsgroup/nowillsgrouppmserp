@@ -310,11 +310,13 @@ class MarketingPlanService
             ->whereDate('start_date', '<=', bdate()->copy()->addMonths(6)->toDateString())->orderByDesc('start_date')->get(['id', 'number', 'name', 'start_date']);
     }
 
-    public static function calendar(Carbon $month): array
+    public static function calendar(Carbon $month, ?string $type = null, ?string $status = null): array
     {
         $start = $month->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
         $end = $month->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
-        $events = MarketingEvent::whereDate('start_date', '<=', $end->toDateString())->whereDate('end_date', '>=', $start->toDateString())->orderBy('start_date')->get();
+        $events = MarketingEvent::whereDate('start_date', '<=', $end->toDateString())->whereDate('end_date', '>=', $start->toDateString())
+            ->when($type, fn ($q) => $q->where('type', $type))->when($status, fn ($q) => $q->where('status', $status))
+            ->orderBy('start_date')->get();
         $days = [];
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
             $ds = $d->toDateString();

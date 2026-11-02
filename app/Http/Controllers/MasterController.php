@@ -7,6 +7,7 @@ use App\Support\Numbering;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 /**
@@ -53,10 +54,42 @@ class MasterController extends Controller
     public function index(Request $request, string $master)
     {
         $def = $this->def($master);
-        $q = $def['model']::query()->with($def['with'] ?? []);
-        if ($term = $request->input('q')) {
+        $term = trim((string) $request->input('q', ''));
+        if ($master === 'menu-items') {
+            $filters = $request->validate([
+                'category' => 'nullable|integer|owned:menu_categories',
+                'outlet' => 'nullable|integer|owned:outlets',
+                'availability' => ['nullable', Rule::in(['available', 'hidden'])],
+            ]);
             $textCols = collect($def['fields'])->filter(fn ($f) => in_array($f[1], ['text', 'email']))->keys();
-            $q->where(fn ($w) => $textCols->each(fn ($c) => $w->orWhere($c, 'like', "%$term%")));
+            $q = \App\Models\MenuItem::query()
+                ->when($term !== '', fn ($builder) => $builder->where(fn ($w) => $textCols->each(fn ($c) => $w->orWhere($c, 'like', '%'.$term.'%'))))
+                ->when(! empty($filters['category']), fn ($builder) => $builder->where('menu_category_id', $filters['category']))
+                ->when(! empty($filters['outlet']), fn ($builder) => $builder->where('outlet_id', $filters['outlet']));
+            $summary = (clone $q)->selectRaw(
+                'COUNT(*) as total_count,
+                 COALESCE(SUM(CASE WHEN is_available = 1 THEN 1 ELSE 0 END), 0) as available_count,
+                 COALESCE(SUM(CASE WHEN is_available = 0 THEN 1 ELSE 0 END), 0) as hidden_count'
+            )->first();
+            if (($filters['availability'] ?? null) === 'available') {
+                $q->where('is_available', true);
+            } elseif (($filters['availability'] ?? null) === 'hidden') {
+                $q->where('is_available', false);
+            }
+            $rows = $q->with($def['with'] ?? [])->withCount('variants')->orderBy($def['order'] ?? 'id')->orderBy('id')->paginate(50)->withQueryString();
+
+            return view('masters.menu-items', [
+                'def' => $def, 'rows' => $rows, 'summary' => $summary, 'q' => $term,
+                'filters' => $filters,
+                'categories' => \App\Models\MenuCategory::orderBy('name')->pluck('name', 'id'),
+                'outlets' => \App\Models\Outlet::where('is_active', true)->orderBy('name')->pluck('name', 'id'),
+            ]);
+        }
+
+        $q = $def['model']::query()->with($def['with'] ?? []);
+        if ($term !== '') {
+            $textCols = collect($def['fields'])->filter(fn ($f) => in_array($f[1], ['text', 'email']))->keys();
+            $q->where(fn ($w) => $textCols->each(fn ($c) => $w->orWhere($c, 'like', '%'.$term.'%')));
         }
         $rows = $q->orderBy($def['order'] ?? 'id')->orderBy('id')->paginate(50)->withQueryString();
 
@@ -78,14 +111,22 @@ class MasterController extends Controller
     {
         $def = $this->def($master);
 
-        return view('masters.form', ['def' => $def, 'row' => new $def['model'](['is_active' => true, 'is_available' => true, 'show_online' => true]), 'options' => $this->options($def)]);
+        $view = $master === 'menu-items' ? 'masters.menu-item-form' : 'masters.form';
+
+        return view($view, ['def' => $def, 'row' => new $def['model'](['is_active' => true, 'is_available' => true, 'show_online' => true]), 'options' => $this->options($def)]);
     }
 
     public function edit(string $master, int $id)
     {
         $def = $this->def($master);
 
-        return view('masters.form', ['def' => $def, 'row' => $def['model']::findOrFail($id), 'options' => $this->options($def)]);
+        $view = $master === 'menu-items' ? 'masters.menu-item-form' : 'masters.form';
+        $row = $def['model']::findOrFail($id);
+        if ($master === 'menu-items') {
+            $row->load('variants');
+        }
+
+        return view($view, ['def' => $def, 'row' => $row, 'options' => $this->options($def)]);
     }
 
     protected function validated(Request $request, array $def, ?int $id = null): array
@@ -121,10 +162,76 @@ class MasterController extends Controller
         return $data;
     }
 
+    protected function validatedMenuItemVariants(Request $request, string $master): ?array
+    {
+        if ($master !== 'menu-items' || ! $request->has('variants_present')) {
+            return null;
+        }
+
+        $variants = $request->input('variants', []);
+        if (is_array($variants)) {
+            $variants = array_values(array_filter($variants, function ($variant) {
+                if (! is_array($variant)) {
+                    return true;
+                }
+
+                foreach (['name', 'rate', 'cost'] as $key) {
+                    $value = $variant[$key] ?? null;
+                    if (($value !== null && ! is_scalar($value)) || (is_scalar($value) && trim((string) $value) !== '')) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }));
+            $variants = array_map(function ($variant) {
+                if (is_array($variant) && array_key_exists('name', $variant)) {
+                    $variant['name'] = trim((string) $variant['name']);
+                }
+
+                return $variant;
+            }, $variants);
+        }
+
+        $data = Validator::make(['variants' => $variants], [
+            'variants' => ['nullable', 'array', 'max:30'],
+            'variants.*' => ['array:name,rate,cost'],
+            'variants.*.name' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
+            'variants.*.rate' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'variants.*.cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+        ], [
+            'variants.*.name.distinct' => 'Each side dish variant must have a unique name.',
+        ], [
+            'variants.*.name' => 'side dish name', 'variants.*.rate' => 'side dish rate', 'variants.*.cost' => 'side dish cost',
+        ])->validate();
+
+        return array_values($data['variants'] ?? []);
+    }
+
+    protected function syncMenuItemVariants($row, array $variants): void
+    {
+        $row->variants()->delete();
+        foreach ($variants as $sort => $variant) {
+            $row->variants()->create([
+                'name' => $variant['name'], 'rate' => round((float) $variant['rate'], 2),
+                'cost' => round((float) $variant['cost'], 2), 'sort_order' => $sort,
+            ]);
+        }
+    }
+
     public function store(Request $request, string $master)
     {
         $def = $this->def($master);
-        $row = $def['model']::create($this->validated($request, $def));
+        $data = $this->validated($request, $def);
+        $variants = $this->validatedMenuItemVariants($request, $master);
+        $row = DB::transaction(function () use ($def, $data, $variants) {
+            $row = $def['model']::create($data);
+            if ($variants !== null) {
+                $this->syncMenuItemVariants($row, $variants);
+            }
+
+            return $row;
+        });
         $this->storeImages($request, $def, $row);
         ActivityLogger::log('masters', 'create', "Created {$def['title']}: ".$this->label($row), $row);
 
@@ -136,17 +243,36 @@ class MasterController extends Controller
         $def = $this->def($master);
         $row = $def['model']::findOrFail($id);
         $data = $this->validated($request, $def, $id);
+        $variants = $this->validatedMenuItemVariants($request, $master);
         if ($row->getAttribute('system_key') && isset($data['type']) && $data['type'] !== $row->type) {
             return back()->withInput()->with('error', 'This is a system account used by automatic postings – its type cannot be changed.');
         }
         if ($row->getAttribute('system_key') && array_key_exists('is_active', $data) && ! $data['is_active']) {
             return back()->withInput()->with('error', 'System accounts cannot be deactivated.');
         }
-        $row->update($data);
+        DB::transaction(function () use ($row, $data, $variants) {
+            $row->update($data);
+            if ($variants !== null) {
+                $this->syncMenuItemVariants($row, $variants);
+            }
+        });
         $this->storeImages($request, $def, $row);
         ActivityLogger::log('masters', 'update', "Updated {$def['title']}: ".$this->label($row), $row);
 
         return redirect()->route('masters.index', $master)->with('success', 'Updated.');
+    }
+
+    public function toggleAvailability(Request $request, string $master, int $id)
+    {
+        abort_unless($master === 'menu-items', 404);
+        $def = $this->def($master);
+        $request->validate(['is_available' => 'required|boolean']);
+        $row = \App\Models\MenuItem::findOrFail($id);
+        $row->is_available = $request->boolean('is_available');
+        $row->save();
+        ActivityLogger::log('masters', 'update', "Updated {$def['title']} availability: ".$this->label($row), $row);
+
+        return back()->with('success', $row->is_available ? "{$row->name} is available on POS." : "{$row->name} is hidden from POS.");
     }
 
     public function destroy(string $master, int $id)

@@ -104,7 +104,7 @@ class KeyCardService
                 $cmd->update(['key_card_id' => $card->id]);
 
                 // v7.55 – push the credential to the room's Robita lock device if one is mapped
-                self::pushToRobita($stay, $room, $card, $areas);
+                self::createRobitaDemoCredential($stay, $room, $card, $areas);
 
                 return $card;
             });
@@ -320,21 +320,19 @@ class KeyCardService
     // ───────────────────────── v7.55 Robita lock integration ─────────────────────────
 
     /**
-     * Push a newly-issued card credential to the room's Robita door-lock device.
-     * Silent no-op if no device is mapped to the room or Robita is disabled.
+     * Maintain a local demo credential record for a mapped room lock.
+     * This hook never sends card data to a vendor or physical lock.
      */
-    private static function pushToRobita(ReservationRoom $stay, \App\Models\Room $room, KeyCard $card, array $areas): void
+    private static function createRobitaDemoCredential(ReservationRoom $stay, \App\Models\Room $room, KeyCard $card, array $areas): void
     {
         try {
-            if (! class_exists(\App\Services\RobitaService::class)) {
+            if (! class_exists(\App\Services\RobitaService::class) || $stay->status !== 'checked_in') {
                 return;
             }
             \App\Services\RobitaService::ensureDefaults();
-            if (\App\Services\RobitaService::cfg()['robita_cloud_url'] === '' && \App\Services\RobitaService::cfg()['robita_default_model'] === '') {
-                return;
-            }
             $device = \App\Models\RobitaDevice::where('hotel_id', $stay->hotel_id ?? \App\Support\Tenant::id())
                 ->where('room_id', $room->id)
+                ->where('device_type', 'door_lock')
                 ->where('status', '!=', 'decommissioned')
                 ->first();
             if (! $device) {

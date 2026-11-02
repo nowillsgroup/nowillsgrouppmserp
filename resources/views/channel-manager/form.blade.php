@@ -2,6 +2,9 @@
 @section('title', $c->exists ? 'Edit '.$c->name : 'New channel connection')
 @section('crumbs') <a href="{{ route('cm.index') }}">Channel Manager</a> / {{ $c->exists ? $c->name : 'New connection' }} @endsection
 @section('content')
+<div class="cm-page">
+@include('channel-manager._nav')
+<header class="cm-hero"><div class="cm-hero-copy"><div class="cm-kicker"><x-icon name="tool"/> Connection configuration</div><h2>{{ $c->exists ? 'Edit '.$c->name : 'Add a channel connection' }}</h2><p>Set the adapter, commercial terms and operational status. You can map room and rate codes after saving.</p></div><span class="cm-hero-mark" aria-hidden="true"><x-icon name="globe"/></span></header>
 <form method="post" action="{{ $c->exists ? route('cm.connections.update', $c) : route('cm.connections.store') }}" id="connForm">@csrf @if($c->exists) @method('PUT') @endif
 <div class="grid g-2-1">
   <div>
@@ -17,7 +20,7 @@
           <x-field name="api_key" label="API key / bearer token" type="password" value="" :placeholder="$c->api_key ? '•••••••• stored – leave blank to keep' : 'optional'" autocomplete="new-password"/>
           <x-field name="api_secret" label="API secret (outbound signing)" type="password" value="" :placeholder="$c->api_secret ? '•••••••• stored – leave blank to keep' : 'only signing adapters need this'" autocomplete="new-password" hint="Not the inbound webhook secret — that one is generated and rotated on the connection page"/>
         </div>
-        <p class="small muted mt-1" id="providerNote"></p>
+        <p class="cm-inline-note mt-1" id="providerNote" aria-live="polite"></p>
       </div>
     </div></div>
     <div class="card"><div class="card-head"><h3>Commercial terms</h3></div><div class="card-body form-grid">
@@ -34,7 +37,7 @@
       <label class="check"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $c->is_active))> <b>Active</b> – push ARI and accept bookings</label>
       <p class="small muted mt-1">Paused connections refuse inbound bookings (HTTP 423, the channel retries) and receive no pushes. Re-activating queues a full refresh.</p>
       <p class="small muted">The inbound webhook URL and the shared HMAC secret are shown on the connection page after saving.</p>
-      <button class="btn btn-primary mt-1" id="saveConn"><x-icon name="check"/> {{ $c->exists ? 'Save' : 'Create connection' }}</button>
+      <button type="submit" class="btn btn-primary mt-1" id="saveConn"><x-icon name="check"/> {{ $c->exists ? 'Save' : 'Create connection' }}</button>
     </div></div>
   </div>
 </div>
@@ -57,4 +60,5 @@ document.addEventListener('DOMContentLoaded', () => {
   p.addEventListener('change', sync); sync();
 });
 </script>
+</div>
 @endsection

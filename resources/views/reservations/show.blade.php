@@ -3,18 +3,40 @@
 @section('crumbs') <a href="{{ route('reservations.index') }}">Reservations</a> / {{ $r->reservation_no }} @endsection
 @section('actions')
   {!! status_badge($r->status) !!}
-  <a class="btn" href="{{ route('reservations.print', $r) }}" target="_blank"><x-icon name="print"/> Confirmation</a>
-  <button class="btn" data-modal="mailModal"><x-icon name="mail"/> E-mail</button>
-  @if(can_do('messages.send'))<button class="btn" data-modal="smsModal"><x-icon name="message"/> SMS / WhatsApp</button>@endif
+  <a class="btn" href="#reservationActivityLog"><x-icon name="clock"/> Activity Log</a>
+  <details class="reservation-confirmation-menu">
+    <summary class="btn"><x-icon name="print"/> Confirmation <x-icon name="chev" class="confirmation-menu-chevron"/></summary>
+    <div class="dropdown" role="group" aria-label="Confirmation actions">
+      <a href="{{ route('reservations.print', $r) }}" target="_blank" rel="noopener"><x-icon name="print"/> Print Booking Confirmation</a>
+      <a href="{{ route('reservations.pdf', $r) }}"><x-icon name="download"/> Download Booking Confirmation PDF</a>
+      @if(can_do('frontdesk.view'))
+        @php
+          $registrationStays = $r->rooms->reject(fn ($stay) => in_array($stay->status, ['cancelled', 'no_show']))->values();
+        @endphp
+        @foreach($registrationStays as $registrationStay)
+          @php
+            $registrationRoom = $registrationStay->room?->room_no ?? $registrationStay->roomType?->name;
+          @endphp
+          <a href="{{ route('frontdesk.grc', $registrationStay) }}" target="_blank" rel="noopener"><x-icon name="book"/> Print Guest Registration Form
+            @if($registrationStays->count() > 1)
+              — {{ $registrationRoom ?: 'Stay '.$registrationStay->id }}
+            @endif
+          </a>
+        @endforeach
+      @endif
+    </div>
+  </details>
+  <button type="button" class="btn" data-modal="mailModal" aria-haspopup="dialog" aria-controls="mailModal"><x-icon name="mail"/> E-mail</button>
+  @if(can_do('messages.send'))<button type="button" class="btn" data-modal="smsModal" aria-haspopup="dialog" aria-controls="smsModal"><x-icon name="message"/> SMS / WhatsApp</button>@endif
   @if(in_array($r->status, ['confirmed','tentative']))
     @if($r->status === 'tentative' && can_do('reservations.edit'))<form method="post" action="{{ route('reservations.confirm', $r) }}">@csrf<button class="btn btn-success"><x-icon name="check"/> Confirm</button></form>@endif
     @if(can_do('reservations.edit'))<a class="btn" href="{{ route('reservations.edit', $r) }}"><x-icon name="edit"/> Edit</a>@endif
   @endif
-  @if(can_do('folio.payment') && !in_array($r->status, ['checked_out','cancelled','no_show']))<button class="btn btn-accent" data-modal="advModal"><x-icon name="money"/> Receive Advance</button>@endif
-  @if(can_do('payments.request') && !in_array($r->status, ['checked_out','cancelled','no_show']))<button class="btn" data-modal="payLinkModal"><x-icon name="link"/> Request payment</button>@endif
+  @if(can_do('folio.payment') && !in_array($r->status, ['checked_out','cancelled','no_show']))<button type="button" class="btn btn-accent" data-modal="advModal" aria-haspopup="dialog" aria-controls="advModal"><x-icon name="money"/> Receive Advance</button>@endif
+  @if(can_do('payments.request') && !in_array($r->status, ['checked_out','cancelled','no_show']))<button type="button" class="btn" data-modal="payLinkModal" aria-haspopup="dialog" aria-controls="payLinkModal"><x-icon name="link"/> Request payment</button>@endif
   @if(can_do('reservations.cancel') && $r->rooms->where('status','reserved')->count())
-    <button class="btn btn-danger" data-modal="cancelModal"><x-icon name="x"/> Cancel</button>
-    @if($r->rooms->where('status','reserved')->contains(fn($s) => $s->arrival_date->lte(bdate())))<button class="btn btn-warning" data-modal="noshowModal">No-Show</button>@endif
+    <button type="button" class="btn btn-danger" data-modal="cancelModal" aria-haspopup="dialog" aria-controls="cancelModal"><x-icon name="x"/> Cancel</button>
+    @if($r->rooms->where('status','reserved')->contains(fn($s) => $s->arrival_date->lte(bdate())))<button type="button" class="btn btn-warning" data-modal="noshowModal" aria-haspopup="dialog" aria-controls="noshowModal">No-Show</button>@endif
   @endif
 @endsection
 @section('content')
@@ -24,11 +46,11 @@
 <div class="grid g-2-1">
   <div>
     <div class="card">
-      <div class="card-head"><h3>Booking Summary</h3><span class="small muted">Created {{ $r->created_at->format('d M Y H:i') }} by {{ $r->creator?->name ?? ($r->channel?->name ?? 'Online') }}</span></div>
+      <div class="card-head"><h3>Booking Summary</h3><span class="small muted">Created <time datetime="{{ $r->created_at->toIso8601String() }}">{{ $r->created_at->format('d M Y H:i') }}</time> by {{ $r->creator?->name ?? ($r->channel?->name ?? 'Online') }}</span></div>
       <div class="card-body grid g-2">
         <dl class="kv">
-          <dt>Arrival</dt><dd>{{ $r->arrival_date->format('D, d M Y') }} {{ $r->eta ? '· ETA '.substr($r->eta,0,5) : '' }}</dd>
-          <dt>Departure</dt><dd>{{ $r->departure_date->format('D, d M Y') }}</dd>
+          <dt>Arrival</dt><dd><time datetime="{{ $r->arrival_date->toDateString() }}">{{ $r->arrival_date->format('D, d M Y') }}</time> {{ $r->eta ? '· ETA '.substr($r->eta,0,5) : '' }}</dd>
+          <dt>Departure</dt><dd><time datetime="{{ $r->departure_date->toDateString() }}">{{ $r->departure_date->format('D, d M Y') }}</time></dd>
           <dt>Nights</dt><dd>{{ $r->nights }}</dd>
           <dt>Pax</dt><dd>{{ $r->adults }} Adults, {{ $r->children }} Children</dd>
           <dt>Booking type</dt><dd>{{ ucfirst($r->booking_type) }} {{ $r->group_name ? '– '.$r->group_name : '' }}</dd>@if($r->room_block_id && $r->block)<dt>Group block</dt><dd><a href="{{ route('blocks.show', $r->block) }}">{{ $r->block->block_no }}</a></dd>@endif
@@ -55,38 +77,39 @@
         @endif
         @if($r->partner_user_id)<div class="span-all alert alert-info mb-0" id="resPartner"><x-icon name="building"/><div><b>Partner portal booking</b> by {{ $r->partnerUser?->name }} ({{ $r->company?->name }}){{ $r->partner_ref ? ' · ref '.$r->partner_ref : '' }}@if(($pq = \App\Models\PartnerRequest::where('reservation_id', $r->id)->where('status', 'pending')->first()) && can_do('partner.view')) · <a href="{{ route('partner-admin.requests') }}#preq-{{ $pq->id }}">{{ $pq->number }} {{ strtolower(\App\Models\PartnerRequest::TYPES[$pq->type]) }} pending</a>@endif</div></div>@endif
         @if($r->special_request)<div class="span-all alert alert-info mb-0"><x-icon name="bell"/><div><b>Special request:</b> {{ $r->special_request }}</div></div>@endif
-        @if($r->cancel_reason)<div class="span-all alert alert-error mb-0"><x-icon name="x"/><div><b>Cancelled:</b> {{ $r->cancel_reason }} ({{ $r->cancelled_at?->format('d M Y H:i') }})</div></div>@endif
+        @if($r->cancel_reason)<div class="span-all alert alert-error mb-0"><x-icon name="x"/><div><b>Cancelled:</b> {{ $r->cancel_reason }} @if($r->cancelled_at)(<time datetime="{{ $r->cancelled_at->toIso8601String() }}">{{ $r->cancelled_at->format('d M Y H:i') }}</time>)@endif</div></div>@endif
         @if($r->cancellation_fee > 0)<div class="span-all alert alert-warn mb-0"><x-icon name="money"/><div><b>Cancellation / no-show fee charged:</b> {{ money($r->cancellation_fee) }}</div></div>@endif
       </div>
     </div>
 
     <div class="card flush">
       <div class="card-head"><h3>Rooms ({{ $r->rooms->count() }})</h3>
-        @if($r->rooms->where('status','reserved')->count() && can_do('reservations.edit'))<button class="btn btn-sm btn-soft" data-modal="assignModal"><x-icon name="key" size="sm"/> Assign rooms</button>@endif
+        @if($r->rooms->where('status','reserved')->count() && can_do('reservations.edit'))<button type="button" class="btn btn-sm btn-soft" data-modal="assignModal" aria-haspopup="dialog" aria-controls="assignModal"><x-icon name="key" size="sm"/> Assign rooms</button>@endif
       </div>
       <div class="card-body table-wrap">
         <table class="table">
-          <thead><tr><th>Room</th><th>Type / Plan</th><th>Stay</th><th>Pax</th><th class="num">Rate</th><th>Status</th><th class="right">Actions</th></tr></thead>
+          <caption class="sr-only">Room and stay details for reservation {{ $r->reservation_no }}</caption>
+          <thead><tr><th scope="col">Room</th><th scope="col">Type / Plan</th><th scope="col">Stay</th><th scope="col">Pax</th><th scope="col" class="num">Rate</th><th scope="col">Status</th><th scope="col" class="right">Actions</th></tr></thead>
           <tbody>
           @foreach($r->rooms as $s)
             <tr>
               <td class="bold">{{ $s->room?->room_no ?? '—' }}</td>
               <td>{{ $s->roomType->name }}<div class="tiny muted">{{ $s->ratePlan?->name ?? 'Rack rate' }}</div></td>
-              <td class="small nowrap">{{ $s->arrival_date->format('d M') }} → {{ $s->departure_date->format('d M') }} ({{ $s->nights }}N)</td>
+              <td class="small nowrap"><time datetime="{{ $s->arrival_date->toDateString() }}">{{ $s->arrival_date->format('d M Y') }}</time> → <time datetime="{{ $s->departure_date->toDateString() }}">{{ $s->departure_date->format('d M Y') }}</time> ({{ $s->nights }}N)</td>
               <td>{{ $s->adults }}/{{ $s->children }}</td>
               <td class="num">{{ money($s->rate) }}@if($s->extra_charge > 0)<div class="tiny muted">+{{ money($s->extra_charge) }} extra</div>@endif</td>
               <td>{!! status_badge($s->status) !!}</td>
               <td class="right nowrap">
                 @if($s->status === 'reserved')
                   @if(can_do('frontdesk.checkin') && $s->arrival_date->lte(bdate()))<a class="btn btn-sm btn-success" href="{{ route('frontdesk.checkin', $s) }}"><x-icon name="login" size="sm"/> Check-in</a>@endif
-                  @if(can_do('reservations.cancel'))<button class="btn btn-sm btn-ghost" data-modal="cancelModal" data-fstay_id="{{ $s->id }}" title="Cancel this room"><x-icon name="x" size="sm"/></button>@endif
+                  @if(can_do('reservations.cancel'))<button type="button" class="btn btn-sm btn-ghost" data-modal="cancelModal" aria-haspopup="dialog" aria-controls="cancelModal" data-fstay_id="{{ $s->id }}" aria-label="Cancel room {{ $s->room?->room_no ?? $s->roomType->name }}" title="Cancel this room"><x-icon name="x" size="sm"/></button>@endif
                 @elseif($s->status === 'checked_in')
                   <a class="btn btn-sm" href="{{ route('folios.show', $s->folio) }}"><x-icon name="receipt" size="sm"/> Folio</a>
                   @if(can_do('frontdesk.checkout'))<a class="btn btn-sm btn-warning" href="{{ route('frontdesk.checkout', $s) }}">Check-out</a>@endif
-                  <a class="btn btn-sm btn-ghost" href="{{ route('frontdesk.grc', $s) }}" target="_blank" title="Registration card"><x-icon name="print" size="sm"/></a>@if(can_do('requests.manage') && in_array($s->status, ['reserved','checked_in','checked_out']))<a class="btn btn-sm btn-ghost" href="{{ route('requests.portal', $s) }}" title="Guest portal link / QR"><x-icon name="qr" size="sm"/></a>@endif @if(can_do('frontdesk.checkin') && !in_array($s->status, ['cancelled','no_show']))<a class="btn btn-sm btn-ghost" href="{{ route('frontdesk.grc.sign', $s) }}" title="e-GRC: guest signature &amp; ID scan"><x-icon name="edit" size="sm"/>@if($s->grc_signed_at)<span class="tiny text-green">✓</span>@endif</a>@endif
+                  <a class="btn btn-sm btn-ghost" href="{{ route('frontdesk.grc', $s) }}" target="_blank" rel="noopener" aria-label="Open registration card for room {{ $s->room?->room_no ?? 'stay' }}" title="Registration card"><x-icon name="print" size="sm"/></a>@if(can_do('requests.manage') && in_array($s->status, ['reserved','checked_in','checked_out']))<a class="btn btn-sm btn-ghost" href="{{ route('requests.portal', $s) }}" title="Guest portal link / QR"><x-icon name="qr" size="sm"/></a>@endif @if(can_do('frontdesk.checkin') && !in_array($s->status, ['cancelled','no_show']))<a class="btn btn-sm btn-ghost" href="{{ route('frontdesk.grc.sign', $s) }}" aria-label="e-GRC: guest signature and ID scan for room {{ $s->room?->room_no ?? 'stay' }}" title="e-GRC: guest signature &amp; ID scan"><x-icon name="edit" size="sm"/>@if($s->grc_signed_at)<span class="tiny text-green">✓</span>@endif</a>@endif
                 @elseif($s->folio)
                   <a class="btn btn-sm" href="{{ route('folios.show', $s->folio) }}"><x-icon name="receipt" size="sm"/> Folio</a>
-                  @if($s->folio->invoice_no)<a class="btn btn-sm btn-ghost" href="{{ route('folios.invoice', $s->folio) }}" target="_blank"><x-icon name="print" size="sm"/></a>@endif
+                  @if($s->folio->invoice_no)<a class="btn btn-sm btn-ghost" href="{{ route('folios.invoice', $s->folio) }}" target="_blank" rel="noopener" aria-label="Print invoice {{ $s->folio->invoice_no }}" title="Print invoice {{ $s->folio->invoice_no }}"><x-icon name="print" size="sm"/></a>@endif
                 @endif
               </td>
             </tr>
@@ -99,8 +122,10 @@
     <div class="card flush">
       <div class="card-head"><h3>Payments & Advances</h3></div>
       <div class="card-body table-wrap">
-        <table class="table"><thead><tr><th>Date</th><th>Folio</th><th>Mode</th><th>Reference</th><th class="num">Amount</th></tr></thead><tbody>
-        @forelse($advances as $a)<tr><td>{{ $a->business_date->format('d M Y') }}</td><td>{{ $a->folio->folio_no }}</td><td>{{ $a->paymentMode?->name ?? 'City Ledger' }}</td><td>{{ $a->reference }}</td><td class="num">{{ money($a->amount) }}</td></tr>
+        <table class="table">
+          <caption class="sr-only">Advance payments recorded for reservation {{ $r->reservation_no }}</caption>
+          <thead><tr><th scope="col">Date</th><th scope="col">Folio</th><th scope="col">Mode</th><th scope="col">Reference</th><th scope="col" class="num">Amount</th></tr></thead><tbody>
+        @forelse($advances as $a)<tr><td><time datetime="{{ $a->business_date->toDateString() }}">{{ $a->business_date->format('d M Y') }}</time></td><td>{{ $a->folio->folio_no }}</td><td>{{ $a->paymentMode?->name ?? 'City Ledger' }}</td><td>{{ $a->reference }}</td><td class="num">{{ money($a->amount) }}</td></tr>
         @empty<tr><td colspan="5" class="muted center">No payments recorded.</td></tr>@endforelse
         </tbody>@if($advances->count())<tfoot><tr><td colspan="4" class="right">Total received</td><td class="num">{{ money($advances->sum('amount')) }}</td></tr></tfoot>@endif</table>
       </div>
@@ -108,8 +133,10 @@
     @if($onlinePayments->count() && can_do('payments.view'))
     <div class="card flush" id="resOnline">
       <div class="card-head"><h3><x-icon name="link"/> Online payment links</h3></div>
-      <div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Link</th><th>Created</th><th>For</th><th>Status</th><th class="num">Amount</th></tr></thead><tbody>
-      @foreach($onlinePayments as $op)<tr><td><a class="bold" href="{{ route('payments.show', $op) }}">{{ $op->pay_no }}</a></td><td class="small">{{ $op->created_at->format('d M H:i') }}</td><td class="small">{{ $op->description }}</td>
+      <div class="card-body table-wrap"><table class="table table-compact">
+        <caption class="sr-only">Online payment links for reservation {{ $r->reservation_no }}</caption>
+        <thead><tr><th scope="col">Link</th><th scope="col">Created</th><th scope="col">For</th><th scope="col">Status</th><th scope="col" class="num">Amount</th></tr></thead><tbody>
+      @foreach($onlinePayments as $op)<tr><td><a class="bold" href="{{ route('payments.show', $op) }}">{{ $op->pay_no }}</a></td><td class="small"><time datetime="{{ $op->created_at->toIso8601String() }}">{{ $op->created_at->format('d M Y H:i') }}</time></td><td class="small">{{ $op->description }}</td>
         <td><span class="badge badge-{{ ['paid' => 'green', 'part_refunded' => 'amber', 'refunded' => 'slate', 'pending' => 'blue', 'review' => 'red', 'expired' => 'slate', 'cancelled' => 'red'][$op->displayStatus()] ?? 'slate' }}">{{ $op->statusLabel() }}</span></td><td class="num">{{ money($op->amount) }}</td></tr>@endforeach
       </tbody></table></div>
     </div>
@@ -134,8 +161,8 @@
     <div class="card"><div class="card-head"><h3><x-icon name="globe"/> Online check-in</h3>@if($r->prechecked_in_at)<span class="badge badge-green">Pre-checked-in</span>@else<span class="badge badge-slate">Not yet</span>@endif</div><div class="card-body">
       @if($r->prechecked_in_at)<p class="small mb-1">Completed by the guest on <b>{{ $r->prechecked_in_at->format('d M Y H:i') }}</b>{{ $r->eta ? ' · ETA '.substr($r->eta,0,5) : '' }}. The ID and e-signature are on file.</p>@endif
       @if($r->onlineCheckinOpen() && can_do('reservations.edit'))
-        <div class="flex gap-1"><input class="input input-sm" readonly value="{{ $r->checkinUrl() }}" onclick="this.select()" style="flex:1;font-size:.72rem">
-          <button type="button" class="btn btn-sm" onclick="navigator.clipboard?.writeText(this.previousElementSibling.value);this.textContent='Copied'">Copy</button></div>
+        <div class="flex gap-1"><label class="sr-only" for="reservationCheckinUrl">Guest online check-in link</label><input id="reservationCheckinUrl" class="input input-sm" readonly value="{{ $r->checkinUrl() }}" onclick="this.select()" style="flex:1;font-size:.72rem">
+          <button type="button" class="btn btn-sm" aria-label="Copy guest online check-in link" onclick="(async () => { const field = document.getElementById('reservationCheckinUrl'); const feedback = document.getElementById('reservationCheckinFeedback'); try { if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable'); await navigator.clipboard.writeText(field.value); this.textContent = 'Copied ✓'; feedback.textContent = 'Online check-in link copied to clipboard.'; } catch (_) { field.focus(); field.select(); feedback.textContent = 'Clipboard unavailable. The link is selected; copy it manually.'; } })()">Copy</button><span id="reservationCheckinFeedback" class="sr-only" role="status" aria-live="polite"></span></div>
         <form method="post" action="{{ route('reservations.checkin-link', $r) }}" class="mt-1">@csrf<button class="btn btn-sm" @disabled(!$r->guest->email)><x-icon name="mail" size="sm"/> E-mail link to guest</button>@unless($r->guest->email)<span class="tiny muted"> (no e-mail on file)</span>@endunless</form>
       @endif
     </div></div>
@@ -227,11 +254,11 @@
       <details class="mb-1" {{ $loop->first ? 'open' : '' }}>
         <summary class="flex justify-between gap-1" style="cursor:pointer">
           <span><b>v{{ $amendment->version }} · {{ $amendment->eventLabel() }}</b> <span class="tiny muted">via {{ str_replace('_', ' ', $amendment->source) }}</span></span>
-          <span class="tiny muted">{{ $amendment->created_at?->format('d M Y H:i') }} · {{ $amendment->user?->name ?? 'System' }}</span>
+          <span class="tiny muted">@if($amendment->created_at)<time datetime="{{ $amendment->created_at->toIso8601String() }}">{{ $amendment->created_at->format('d M Y H:i') }}</time>@endif · {{ $amendment->user?->name ?? 'System' }}</span>
         </summary>
         @if($amendment->reason)<p class="small muted mt-1 mb-1"><b>Reason:</b> {{ $amendment->reason }}</p>@endif
         @if($amendment->changes)
-          <div class="table-wrap"><table class="table table-compact"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>
+          <div class="table-wrap"><table class="table table-compact"><caption class="sr-only">Field changes in reservation history version {{ $amendment->version }}</caption><thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>
             @foreach($amendment->changes as $path => $change)
               @php $beforeValue = $change['before'] ?? null; $afterValue = $change['after'] ?? null; @endphp
               <tr><td>{{ ucwords(str_replace(['.', '_'], [' · ', ' '], $path)) }}</td><td class="muted">{{ is_scalar($beforeValue) ? ($beforeValue ?? '—') : json_encode($beforeValue) }}</td><td>{{ is_scalar($afterValue) ? ($afterValue ?? '—') : json_encode($afterValue) }}</td></tr>
@@ -247,8 +274,30 @@
   </div>
 </div>
 
-<div class="modal" id="cancelModal"><div class="modal-box"><form method="post" action="{{ route('reservations.cancel', $r) }}">@csrf
-  <div class="modal-head"><h3>Cancel reservation</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="card" id="reservationActivityLog">
+  <div class="card-head flex justify-between items-center gap-1 wrap"><h3 id="reservationActivityTitle"><x-icon name="clock"/> Activity Log</h3><span class="flex items-center gap-1"><span class="small muted">{{ $activityLogs->count() }} recent event{{ $activityLogs->count() === 1 ? '' : 's' }} · up to 50 shown</span>@if(can_do('logs.view'))<a class="btn btn-sm" href="{{ route('logs.index', ['from' => $r->created_at->toDateString(), 'to' => now()->toDateString(), 'q' => $r->reservation_no]) }}">View full log</a>@endif</span></div>
+  <div class="card-body">
+    @if($activityLogs->isNotEmpty())
+      <ol class="timeline" aria-labelledby="reservationActivityTitle">
+        @foreach($activityLogs as $activity)
+          <li class="tl-{{ $activity->tone }}">
+            <div class="flex justify-between items-center gap-1 wrap">
+              <span class="small"><span class="badge badge-slate">{{ ucwords(str_replace('_', ' ', $activity->module)) }}</span> <b>{{ ucwords(str_replace('_', ' ', $activity->action)) }}</b></span>
+              <time class="tiny muted" datetime="{{ $activity->created_at->toIso8601String() }}">{{ $activity->created_at->format('d M Y, H:i') }}</time>
+            </div>
+            <div class="small mt-1">{{ $activity->description }}</div>
+            <div class="tiny muted">By {{ $activity->actor }}</div>
+          </li>
+        @endforeach
+      </ol>
+    @else
+      <p class="small muted mb-0">No activity has been recorded for this reservation yet.</p>
+    @endif
+  </div>
+</div>
+
+<div class="modal" id="cancelModal" role="dialog" aria-modal="true" aria-labelledby="reservationCancelTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.cancel', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationCancelTitle">Cancel reservation</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body"><input type="hidden" name="stay_id" value=""><x-field name="reason" label="Cancellation reason" type="textarea" required/>
     <div class="alert {{ $cancelQuote['amount'] > 0 ? 'alert-warn' : 'alert-info' }} small mt-1 mb-1"><x-icon name="money"/><div>
       @if($cancelQuote['amount'] > 0)<b>Cancellation fee: {{ money($cancelQuote['amount']) }}</b> for all pending rooms ({{ $cancelQuote['basis'] }}).
@@ -264,8 +313,8 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-danger">Confirm Cancellation</button></div>
 </form></div></div>
 
-<div class="modal" id="noshowModal"><div class="modal-box"><form method="post" action="{{ route('reservations.noshow', $r) }}">@csrf
-  <div class="modal-head"><h3>Mark as no-show</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal" id="noshowModal" role="dialog" aria-modal="true" aria-labelledby="reservationNoShowTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.noshow', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationNoShowTitle">Mark as no-show</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body"><p>{{ $r->rooms->where('status','reserved')->filter(fn($s) => $s->arrival_date->lte(bdate()))->count() }} pending room(s) due today or earlier will be released as no-show. Future-arrival rooms remain pending.</p>
     <div class="alert {{ $noshowQuote['amount'] > 0 ? 'alert-warn' : 'alert-info' }} small mb-1"><x-icon name="money"/><div>@if($noshowQuote['amount'] > 0)<b>No-show fee: {{ money($noshowQuote['amount']) }}</b> ({{ $noshowQuote['basis'] }})@else{{ $noshowQuote['basis'] }}@endif</div></div>
     @if($noshowQuote['amount'] > 0)
@@ -276,22 +325,22 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-warning">Confirm No-Show</button></div>
 </form></div></div>
 
-<div class="modal" id="advModal"><div class="modal-box"><form method="post" action="{{ route('reservations.advance', $r) }}">@csrf
-  <div class="modal-head"><h3>Receive advance</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal" id="advModal" role="dialog" aria-modal="true" aria-labelledby="reservationAdvanceTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.advance', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationAdvanceTitle">Receive advance</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body">
-    <div id="advanceSingleTender" class="form-grid"><x-field name="amount" label="Amount" type="number" step="0.01" min="1" required/><x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" required data-payment-mode/><x-field name="reference" label="Reference" class="span-all"/><x-cheque-fields/></div>
+    <div id="advanceSingleTender" class="form-grid"><x-field name="amount" label="Amount" type="number" step="0.01" min="1" required/><x-field name="payment_mode_id" label="Payment mode" type="select" :options="$paymentModes" required data-payment-mode/><x-payment-momo-fields/><x-field name="reference" label="Reference / transaction ID" class="span-all"/><x-cheque-fields/></div>
     <div class="mt-1"><button type="button" class="btn btn-sm" id="advanceSplitToggle">Split advance across methods</button></div>
     <div id="advanceSplitTender" class="mt-1" hidden><p class="small muted">Enter one amount per method. Total allocated: <b id="advanceAllocationTotal">0.00</b>.</p><div id="advanceAllocations"></div><button type="button" class="btn btn-sm mt-1" id="advanceAddAllocation">Add payment method</button></div>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Save Payment</button></div>
 </form></div></div>
 
-<div class="modal" id="assignModal"><div class="modal-box"><form method="post" action="{{ route('reservations.assign', $r) }}">@csrf
-  <div class="modal-head"><h3>Assign rooms</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal" id="assignModal" role="dialog" aria-modal="true" aria-labelledby="reservationAssignTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.assign', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationAssignTitle">Assign rooms</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body">
     @foreach($r->rooms->where('status','reserved') as $s)
-      <div class="field mb-1"><label>{{ $s->roomType->name }} ({{ $s->arrival_date->format('d M') }}–{{ $s->departure_date->format('d M') }})</label>
-        <select name="assign[{{ $s->id }}]"><option value="">Unassigned</option>
+      <div class="field mb-1"><label for="assignRoom{{ $s->id }}">{{ $s->roomType->name }} ({{ $s->arrival_date->format('d M Y') }}–{{ $s->departure_date->format('d M Y') }})</label>
+        <select id="assignRoom{{ $s->id }}" name="assign[{{ $s->id }}]"><option value="">Unassigned</option>
           @foreach($freeRooms[$s->id] as $room)<option value="{{ $room->id }}" @selected($s->room_id == $room->id)>{{ $room->room_no }} – {{ $room->roomType->name }}{{ $room->room_type_id != $s->room_type_id ? ' (different type)' : '' }}</option>@endforeach
         </select></div>
     @endforeach
@@ -299,16 +348,16 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Save</button></div>
 </form></div></div>
 @if(can_do('messages.send'))
-@php $smsLogs = \App\Models\MessageLog::where('related_type', 'Reservation')->where('related_id', $r->id)->latest('id')->limit(5)->get(); @endphp
-<div class="modal" id="smsModal"><div class="modal-box"><form method="post" action="{{ route('reservations.message', $r) }}">@csrf
-  <div class="modal-head"><h3>Message the guest</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+@php $smsLogs = can_do('logs.view') ? \App\Models\MessageLog::where('related_type', 'Reservation')->where('related_id', $r->id)->latest('id')->limit(5)->get() : collect(); @endphp
+<div class="modal" id="smsModal" role="dialog" aria-modal="true" aria-labelledby="reservationSmsTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.message', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationSmsTitle">Message the guest</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body form-grid">
     <x-field name="template" label="Message" type="select" :options="['confirmation' => 'Booking confirmation', 'pre_arrival' => 'Pre-arrival + online check-in link', 'thank_you' => 'Thank-you', 'custom' => 'Custom text']" :value="$r->status === 'checked_out' ? 'thank_you' : ($r->onlineCheckinOpen() ? 'pre_arrival' : 'confirmation')" :placeholder="false"/>
     <x-field name="channel" label="Send by" type="select" :options="['sms' => 'SMS', 'whatsapp' => 'WhatsApp']" :value="\App\Services\MessageService::defaultChannel()" :placeholder="false"/>
     <x-field name="to" label="Mobile number" :value="$r->guest?->phone" placeholder="Guest's mobile" class="span-all"/>
     <x-field name="body" label="Custom text (only for “Custom text”)" type="textarea" rows="3" class="span-all" placeholder="Dear {guest}, …"/>
     <div class="span-all tiny text-2">Placeholders: {guest} {hotel} {res_no} {arrival} {departure} {checkin_link} {amount}</div>
-    @if($smsLogs->isNotEmpty())
+    @if(can_do('logs.view') && $smsLogs->isNotEmpty())
     <div class="span-all"><div class="small text-2 mb-1">Recent messages</div>
       @foreach($smsLogs as $m)<div class="tiny" style="padding:.3rem 0;border-top:1px solid var(--c-border)"><span class="badge {{ $m->status === 'sent' ? 'badge-green' : 'badge-red' }}">{{ $m->status }}</span> {{ $m->created_at->format('d M H:i') }} · {{ strtoupper($m->channel) }} · {{ str_replace('_', ' ', $m->template) }} → {{ $m->to }}@if($m->error)<span class="text-red"> – {{ $m->error }}</span>@endif</div>@endforeach
     </div>
@@ -317,8 +366,8 @@
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary"><x-icon name="message"/> Send</button></div>
 </form></div></div>
 @endif
-<div class="modal" id="mailModal"><div class="modal-box"><form method="post" action="{{ route('reservations.email', $r) }}">@csrf
-  <div class="modal-head"><h3>E-mail {{ $r->status === 'cancelled' ? 'cancellation' : 'confirmation' }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+<div class="modal" id="mailModal" role="dialog" aria-modal="true" aria-labelledby="reservationMailTitle"><div class="modal-box"><form method="post" action="{{ route('reservations.email', $r) }}">@csrf
+  <div class="modal-head"><h3 id="reservationMailTitle">E-mail {{ $r->status === 'cancelled' ? 'cancellation' : 'confirmation' }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
   <div class="modal-body"><x-field name="to" label="Send to" type="email" :value="$r->guest?->email" required placeholder="guest@example.com"/><p class="hint mt-1">Every send is recorded in Administration › E-mail Log.</p></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-primary"><x-icon name="mail"/> Send</button></div>
 </form></div></div>
@@ -346,35 +395,47 @@
   const syncCheque = () => rows.querySelectorAll('[data-advance-row]').forEach(row => {
     const mode = row.querySelector('select[name$="[payment_mode_id]"]');
     const cheque = (mode?.selectedOptions?.[0]?.textContent || '').toLowerCase().includes('cheque');
-    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = cheque; });
+    const details = row.querySelector('[data-cheque-fields]');
+    if (details) details.hidden = !cheque;
+    row.querySelectorAll('input[name$="[cheque_bank_name]"],input[name$="[cheque_number]"],input[name$="[cheque_bank_branch]"]').forEach(input => { input.required = cheque; input.disabled = !cheque; });
+  });
+  const syncMomo = () => rows.querySelectorAll('[data-advance-row]').forEach(row => {
+    const mode = row.querySelector('select[name$="[payment_mode_id]"]');
+    const label = (mode?.selectedOptions?.[0]?.textContent || '').trim().toLowerCase();
+    const momo = label.includes('momo') || label.includes('mobile money');
+    row.querySelectorAll('[data-advance-momo-field]').forEach(field => {
+      field.hidden = !momo;
+      const control = field.querySelector('select,input');
+      if (control) { control.required = momo; control.disabled = !momo; }
+    });
   });
   const addRow = (line = {}) => {
     if (!line || typeof line !== 'object') line = {};
     const i = sequence++;
     const options = Object.entries(modes).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
     rows.insertAdjacentHTML('beforeend', `<div class="form-grid mt-1" data-advance-row style="border:1px solid var(--c-border);padding:.6rem;border-radius:var(--radius)">
-      <div class="field"><label>Payment method</label><select name="payments[${i}][payment_mode_id]" required>${options}</select></div>
-      <div class="field"><label>Amount</label><input name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
-      <div class="field"><label>MoMo network</label><input name="payments[${i}][momo_network]" maxlength="20"></div>
-      <div class="field"><label>MoMo phone</label><input name="payments[${i}][momo_phone]" maxlength="30"></div>
-      <div class="field span-all"><label>Reference</label><input name="payments[${i}][reference]" maxlength="80"></div>
-      <details class="span-all"><summary class="tiny bold">Cheque details</summary><div class="form-grid mt-1">
-        <div class="field"><label>Bank name</label><input name="payments[${i}][cheque_bank_name]" maxlength="100"></div>
-        <div class="field"><label>Cheque number</label><input name="payments[${i}][cheque_number]" maxlength="20"></div>
-        <div class="field"><label>Bank branch</label><input name="payments[${i}][cheque_bank_branch]" maxlength="100"></div>
-      </div></details>
-      <button type="button" class="btn btn-sm btn-ghost" data-remove-advance>Remove tender</button>
+      <div class="field"><label for="advancePaymentMethod${i}">Payment method</label><select id="advancePaymentMethod${i}" name="payments[${i}][payment_mode_id]" required>${options}</select></div>
+      <div class="field"><label for="advanceAmount${i}">Amount</label><input id="advanceAmount${i}" name="payments[${i}][amount]" type="number" min="0.01" step="0.01" required></div>
+      <div class="field" data-advance-momo-field hidden><label for="advanceMomoNetwork${i}">MoMo Network</label><select id="advanceMomoNetwork${i}" name="payments[${i}][momo_network]" disabled><option value="">Select network</option><option value="MTN">MTN MoMo</option><option value="Telecel">Telecel Cash</option><option value="AirtelTigo">AT Money</option></select></div>
+      <div class="field" data-advance-momo-field hidden><label for="advanceMomoPhone${i}">MoMo number</label><input id="advanceMomoPhone${i}" name="payments[${i}][momo_phone]" type="tel" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="024 123 4567" disabled></div>
+      <div class="field span-all"><label for="advanceReference${i}">Reference / transaction ID</label><input id="advanceReference${i}" name="payments[${i}][reference]" maxlength="80"></div>
+      <div class="form-grid mt-1 span-all" data-cheque-fields hidden><div class="field span-all"><strong class="tiny">Cheque details</strong></div>
+        <div class="field"><label for="advanceChequeBank${i}">Bank name</label><input id="advanceChequeBank${i}" name="payments[${i}][cheque_bank_name]" maxlength="100" disabled></div>
+        <div class="field"><label for="advanceChequeNumber${i}">Cheque number</label><input id="advanceChequeNumber${i}" name="payments[${i}][cheque_number]" maxlength="20" disabled></div>
+        <div class="field"><label for="advanceChequeBranch${i}">Bank branch</label><input id="advanceChequeBranch${i}" name="payments[${i}][cheque_bank_branch]" maxlength="100" disabled></div>
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" data-remove-advance aria-label="Remove tender ${i + 1}">Remove tender</button>
     </div>`);
     const row = rows.lastElementChild;
     for (const key of ['payment_mode_id','amount','reference','momo_network','momo_phone','cheque_bank_name','cheque_number','cheque_bank_branch']) {
       const input = row.querySelector(`[name="payments[${i}][${key}]"]`);
       if (input && line[key] !== undefined && line[key] !== null) input.value = String(line[key]);
     }
-    syncCheque(); update();
+    syncCheque(); syncMomo(); update();
   };
   const setSplit = enabled => {
     single.hidden = enabled; split.hidden = !enabled;
-    single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled; });
+    single.querySelectorAll('input,select').forEach(input => { input.disabled = enabled || !!input.closest('[data-cheque-fields]')?.hidden || !!input.closest('[data-momo-fields]')?.hidden; });
     toggle.textContent = enabled ? 'Use one payment method' : 'Split advance across methods';
     if (enabled && !rows.children.length) {
       if (!restored && Array.isArray(oldLines) && oldLines.length) { oldLines.slice(0,10).forEach(addRow); restored = true; }
@@ -386,7 +447,7 @@
   toggle.addEventListener('click', () => setSplit(split.hidden));
   document.getElementById('advanceAddAllocation')?.addEventListener('click', () => addRow());
   rows.addEventListener('input', update);
-  rows.addEventListener('change', event => { update(); if (event.target.matches('select[name$="[payment_mode_id]"]')) syncCheque(); });
+  rows.addEventListener('change', event => { update(); if (event.target.matches('select[name$="[payment_mode_id]"]')) { syncCheque(); syncMomo(); } });
   rows.addEventListener('click', event => { if (event.target.closest('[data-remove-advance]')) { event.target.closest('[data-advance-row]')?.remove(); update(); } });
   form.addEventListener('submit', event => {
     if (!split.hidden && rows.querySelectorAll('[data-advance-row]').length < 2) {

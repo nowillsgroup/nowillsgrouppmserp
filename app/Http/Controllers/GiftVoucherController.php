@@ -83,6 +83,9 @@ class GiftVoucherController extends Controller
 
     public function printCard(GiftVoucher $gvoucher)
     {
+        // The printable card contains a redeemable bearer code and public balance URL.
+        abort_unless(can_do('vouchers.sell') || can_do('vouchers.manage'), 403);
+
         return view('vouchers.print', ['v' => $gvoucher->load('type'), 'cfg' => Gv::cfg()]);
     }
 
@@ -98,7 +101,14 @@ class GiftVoucherController extends Controller
             return $this->fail($e);
         }
 
-        return redirect()->route('vouchers.show', $v)->with('success', "Voucher {$v->code} sold – ".money($v->face_value).'.'.($v->emailed_at ? ' E-mailed to '.($v->recipient_email ?: $v->purchaser_email).'.' : ''));
+        $response = redirect()->route('vouchers.show', $v)->with('success', "Voucher {$v->code} sold – ".money($v->face_value).'.'.($v->emailed_at ? ' E-mailed to '.($v->recipient_email ?: $v->purchaser_email).'.' : ''));
+        if (! empty($data['send_email']) && ! $v->emailed_at) {
+            $hasAddress = (bool) ($v->recipient_email ?: $v->purchaser_email);
+            $response->with('warning', $hasAddress ? 'The voucher was sold, but its e-mail could not be sent. Check the E-mails section on the voucher record.'
+                : 'The voucher was sold, but no e-mail address was provided, so no e-mail was sent.');
+        }
+
+        return $response;
     }
 
     public function lookup(Request $request)
@@ -198,9 +208,24 @@ class GiftVoucherController extends Controller
             return $this->fail($e);
         }
         $mailed = $out->whereNotNull('emailed_at')->count();
-
-        return $out->count() === 1 ? redirect()->route('vouchers.show', $out->first())->with('success', 'Promotional voucher '.$out->first()->code.' issued.'.($mailed ? ' E-mailed to the recipient.' : ''))
+        $attempted = $out->whereNotNull('recipient_email')->count();
+        $failed = max(0, $attempted - $mailed);
+        $withoutEmail = $recipients ? $out->count() - $attempted : 0;
+        $response = $out->count() === 1
+            ? redirect()->route('vouchers.show', $out->first())->with('success', 'Promotional voucher '.$out->first()->code.' issued.'.($mailed ? ' E-mailed to the recipient.' : ''))
             : redirect()->route('vouchers.index', ['tab' => 'list', 'q' => $out->first()->campaign])->with('success', $out->count().' promotional vouchers issued for “'.$out->first()->campaign.'”'.($mailed ? " – {$mailed} e-mailed" : '').'.');
+        if ($failed || $withoutEmail) {
+            $parts = [];
+            if ($failed) {
+                $parts[] = "{$failed} e-mail(s) could not be sent; check each voucher's E-mails record";
+            }
+            if ($withoutEmail) {
+                $parts[] = "{$withoutEmail} recipient(s) had no e-mail address, so no message was sent";
+            }
+            $response->with('warning', implode('. ', $parts).'.');
+        }
+
+        return $response;
     }
 
     public function saveType(Request $request, ?GiftVoucherType $gvtype = null)
@@ -258,7 +283,10 @@ class GiftVoucherController extends Controller
         $v->load('type');
         $recent = GiftVoucherTransaction::where('gift_voucher_id', $v->id)->whereIn('type', ['redeem', 'reversal', 'reload', 'expire'])->orderByDesc('id')->limit(8)->get();
 
-        return view('public.voucher', ['hotel' => $hotel, 'v' => $v, 'recent' => $recent, 'cfg' => Gv::cfg(),
-            'qr' => \App\Services\EInvoiceService::qrSvg(route('voucher.public', $v->code))]);
+        return response()->view('public.voucher', ['hotel' => $hotel, 'v' => $v, 'recent' => $recent, 'cfg' => Gv::cfg(),
+            'qr' => \App\Services\EInvoiceService::qrSvg(route('voucher.public', $v->code))])
+            ->header('Referrer-Policy', 'no-referrer')
+            ->header('X-Robots-Tag', 'noindex, nofollow')
+            ->header('Cache-Control', 'no-store, private');
     }
 }

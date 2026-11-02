@@ -21,20 +21,21 @@
 @foreach($shift->movements->sortBy('id') as $movement)<tr><td>{{ $movement->created_at->format('d M H:i') }}</td><td>{{ $movement->kindLabel() }}</td><td>{{ $movement->reason }}</td><td>{{ $movement->reference ?: '—' }}</td><td>{{ $movement->user?->name }}</td><td class="num">{{ $movement->isIn() ? '+' : '−' }}{{ money($movement->amount, false) }}</td></tr>@endforeach
 </tbody></table>
 @endif
-<table class="table table-compact"><thead><tr><th style="text-align:left">Payment mode</th><th class="num">Transactions</th><th class="num">Received</th><th class="num">Refunded</th><th class="num">Net</th></tr></thead><tbody>
+<table class="table table-compact"><thead><tr><th scope="col" style="text-align:left">Payment mode</th><th scope="col" class="num">Transactions</th><th scope="col" class="num">In</th><th scope="col" class="num">Out</th><th scope="col" class="num">Net movement</th></tr></thead><tbody>
 @forelse($summary['modes'] as $name => $m)<tr><td>{{ $name }}</td><td class="num">{{ $m['count'] }}</td><td class="num">{{ number_format($m['in'], 2) }}</td><td class="num">{{ number_format($m['out'], 2) }}</td><td class="num"><b>{{ number_format($m['net'], 2) }}</b></td></tr>
 @empty<tr><td colspan="5">No collections.</td></tr>@endforelse
 </tbody><tfoot><tr><td><b>Total</b></td><td class="num">{{ $summary['count'] }}</td><td class="num"><b>{{ number_format($summary['total_in'], 2) }}</b></td><td class="num">{{ number_format($summary['total_out'], 2) }}</td><td class="num"><b>{{ number_format($summary['total_in'] - $summary['total_out'], 2) }}</b></td></tr></tfoot></table>
 <h3>Collection detail</h3>
 <table class="table table-compact"><thead><tr><th>Time</th><th>Source</th><th>Description</th><th>Payment mode</th><th>Reference</th><th class="num">Amount</th></tr></thead><tbody>
 @foreach($folioTransactions as $t)<tr><td class="small">{{ $t->created_at->format('d M H:i') }}</td><td>Folio <a href="{{ route('folios.show', $t->folio) }}">{{ $t->folio?->folio_no }}</a></td><td>{{ $t->description }}</td><td>{{ $t->paymentMode?->name ?: '—' }}</td><td class="small">{{ $t->reference ?: '—' }}</td><td class="num {{ $t->type === 'refund' ? 'text-red' : 'text-green' }}">{{ $t->type === 'refund' ? '−' : '+' }}{{ money($t->amount, false) }}</td></tr>@endforeach
-@foreach($posSettlements as $order)<tr><td class="small">{{ $order->settled_at->format('d M H:i') }}</td><td>POS <a href="{{ route('pos.terminal', $order) }}">{{ $order->order_no }}</a></td><td>Restaurant bill</td><td>{{ $order->paymentMode?->name ?: '—' }}</td><td class="small">{{ $order->order_no }}</td><td class="num text-green">+{{ money($order->total, false) }}</td></tr>@endforeach
-@if($folioTransactions->isEmpty() && $posSettlements->isEmpty())<tr><td colspan="6" class="muted">No payment detail is recorded.</td></tr>@endif
+@foreach($posPayments as $payment)@php $isRefund = $payment->kind === 'refund'; @endphp<tr><td class="small">{{ $payment->received_at?->format('d M H:i') }}</td><td>POS <a href="{{ route('pos.terminal', $payment->order) }}">{{ $payment->order?->order_no }}</a></td><td>{{ $isRefund ? 'Refund' : 'Payment' }}</td><td>{{ $payment->paymentMode?->name ?: '—' }}</td><td class="small">{{ $payment->reference ?: '—' }}</td><td class="num {{ $isRefund ? 'text-red' : 'text-green' }}">{{ $isRefund ? '−' : '+' }}{{ money($payment->amount, false) }}</td></tr>@endforeach
+@foreach($posSettlements as $order)<tr><td class="small">{{ $order->settled_at->format('d M H:i') }}</td><td>POS <a href="{{ route('pos.terminal', $order) }}">{{ $order->order_no }}</a></td><td>Legacy restaurant settlement</td><td>{{ $order->paymentMode?->name ?: '—' }}</td><td class="small">{{ $order->order_no }}</td><td class="num text-green">+{{ money($order->total, false) }}</td></tr>@endforeach
+@if($folioTransactions->isEmpty() && $posPayments->isEmpty() && $posSettlements->isEmpty())<tr><td colspan="6" class="muted">No payment detail is recorded.</td></tr>@endif
 </tbody></table>
 <table style="width:320px;margin:14px 0 0 auto" class="table table-compact">
   <tr><td>Opening float</td><td class="num">{{ money($shift->opening_float) }}</td></tr>
-  <tr><td>+ Cash received</td><td class="num">{{ money($summary['cash_in']) }}</td></tr>
-  <tr><td>− Cash refunded</td><td class="num">{{ money($summary['cash_out']) }}</td></tr>
+  <tr><td>+ Cash in</td><td class="num">{{ money($summary['cash_in']) }}</td></tr>
+  <tr><td>− Cash out</td><td class="num">{{ money($summary['cash_out']) }}</td></tr>
   <tr><td><b>Expected cash</b></td><td class="num"><b>{{ money($summary['expected_cash']) }}</b></td></tr>
   @if(! empty($summary['forex']))<tr><td>Foreign currency handed over</td><td class="num">{{ collect($summary['forex'])->map(fn ($v, $k) => $k.' '.number_format($v, 2))->implode(' · ') }}</td></tr>@endif
   @if($shift->status === 'closed')

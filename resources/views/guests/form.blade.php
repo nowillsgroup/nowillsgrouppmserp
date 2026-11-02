@@ -2,10 +2,14 @@
 @section('title', $guest->exists ? 'Edit Guest' : 'New Guest')
 @section('crumbs') <a href="{{ route('guests.index') }}">Guests</a> / {{ $guest->exists ? $guest->full_name : 'New' }} @endsection
 @section('content')
+@php
+  $guestTitleOptions = ['Mr' => 'Mr', 'Mrs' => 'Mrs', 'Ms' => 'Ms', 'Dr' => 'Dr'];
+  if ($guest->title && ! array_key_exists($guest->title, $guestTitleOptions)) $guestTitleOptions[$guest->title] = $guest->title;
+@endphp
 <form method="post" action="{{ $guest->exists ? route('guests.update', $guest) : route('guests.store') }}" class="card">@csrf @if($guest->exists) @method('PUT') @endif
 <div class="card-body form-grid">
   <div class="form-section">Personal</div>
-  <x-field name="title" label="Title" type="select" :options="['Mr'=>'Mr','Mrs'=>'Mrs','Ms'=>'Ms','Dr'=>'Dr']" :value="$guest->title"/>
+  <x-field name="title" label="Title" type="select" :options="$guestTitleOptions" :value="$guest->title"/>
   <x-field name="first_name" label="First name" :value="$guest->first_name" required/>
   <x-field name="last_name" label="Last name" :value="$guest->last_name"/>
   <x-field name="gender" label="Gender" type="select" :options="['Male'=>'Male','Female'=>'Female','Other'=>'Other']" :value="$guest->gender"/>

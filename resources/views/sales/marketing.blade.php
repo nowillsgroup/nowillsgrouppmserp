@@ -1,13 +1,20 @@
 @extends('layouts.app')
 @section('title', 'Marketing Calendar')
 @section('crumbs') Sales & Marketing / Marketing calendar @endsection
-@php $M = \App\Models\MarketingEvent::class; $mk = can_do('sales.marketing') || can_do('sales.manage'); @endphp
+@php
+  $M = \App\Models\MarketingEvent::class; $mk = can_do('sales.marketing') || can_do('sales.manage');
+  $calendarContext = request()->only('year', 'type', 'status');
+  $previousMonth = array_merge($calendarContext, ['month' => $month->copy()->subMonthNoOverflow()->format('Y-m')]);
+  $nextMonth = array_merge($calendarContext, ['month' => $month->copy()->addMonthNoOverflow()->format('Y-m')]);
+  $todayMonth = array_merge(request()->only('type', 'status'), ['month' => bdate()->format('Y-m')]);
+@endphp
 @section('actions')
   <a class="btn" href="{{ route('sales.budget', ['year' => $year]) }}"><x-icon name="wallet"/> Budget</a>
   <a class="btn" href="{{ route('reports.show', ['report' => 'marketing_roi']) }}"><x-icon name="download"/> ROI report</a>
   @if($mk)<button class="btn btn-primary" data-modal="meventModalNew" id="newEventBtn"><x-icon name="plus"/> New event</button>@endif
 @endsection
 @section('content')
+@include('sales._workspace-nav')
 <div class="stats" id="mkStats">
   <x-stat label="Budget {{ $year }}" :value="money_short($totals['budget'])" icon="wallet" tone="blue" :sub="$events->where('status', '!=', 'cancelled')->count().' events'"/>
   <x-stat label="Spent" :value="money_short($totals['spent'])" icon="money" tone="amber" sub="closed & cancelled events"/>
@@ -15,11 +22,11 @@
   <x-stat label="Won from events" :value="money_short($totals['won'])" icon="star" tone="green" sub="opportunities attributed to an event"/>
 </div>
 <div class="card flush mt-1" id="calCard"><div class="card-head"><h3><x-icon name="calendar"/> {{ $month->format('F Y') }}</h3>
-  <div class="flex gap-05"><a class="btn btn-sm" href="?month={{ $month->copy()->subMonthNoOverflow()->format('Y-m') }}" id="calPrev">←</a><a class="btn btn-sm" href="?month={{ bdate()->format('Y-m') }}">Today</a><a class="btn btn-sm" href="?month={{ $month->copy()->addMonthNoOverflow()->format('Y-m') }}" id="calNext">→</a></div></div>
-<div class="card-body pad"><div class="mk-cal" id="mkCal">@foreach(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $d)<div class="mk-head">{{ $d }}</div>@endforeach
-  @foreach($days as $d)<div class="mk-day {{ $d['in'] ? '' : 'out' }} {{ $d['date']->isSameDay(bdate()) ? 'today' : '' }}" data-date="{{ $d['date']->toDateString() }}"><div class="tiny muted">{{ $d['date']->day }}</div>
+  <div class="flex gap-05"><a class="btn btn-sm" href="{{ route('sales.marketing', $previousMonth) }}" id="calPrev" aria-label="Previous month" title="Previous month">←</a><a class="btn btn-sm" href="{{ route('sales.marketing', $todayMonth) }}">Today</a><a class="btn btn-sm" href="{{ route('sales.marketing', $nextMonth) }}" id="calNext" aria-label="Next month" title="Next month">→</a></div></div>
+<div class="card-body pad"><div class="mk-legend" role="group" aria-label="Marketing event status legend"><span><i class="mk-legend-dot st-planned"></i> Planned</span><span><i class="mk-legend-dot st-confirmed"></i> Confirmed</span><span><i class="mk-legend-dot st-done"></i> Done</span><span><i class="mk-legend-dot st-cancelled"></i> Cancelled</span></div><div class="mk-cal-scroll"><div class="mk-cal" id="mkCal" role="region" aria-label="Marketing calendar for {{ $month->format('F Y') }}">@foreach(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $d)<div class="mk-head">{{ $d }}</div>@endforeach
+  @foreach($days as $d)<div class="mk-day {{ $d['in'] ? '' : 'out' }} {{ $d['date']->isSameDay(bdate()) ? 'today' : '' }}" data-date="{{ $d['date']->toDateString() }}" role="group" aria-label="{{ $d['date']->format('l, d F Y') }}"><div class="tiny muted">{{ $d['date']->day }}</div>
     @foreach($d['events'] as $e)<a class="mk-ev st-{{ $e->status }}" href="{{ route('sales.mevent', $e) }}" title="{{ $e->number }} {{ $e->name }} ({{ $e->statusLabel() }})">{{ $e->name }}</a>@endforeach</div>@endforeach
-</div></div></div>
+</div></div></div></div>
 
 <div class="card flush mt-1"><div class="card-head"><h3><x-icon name="layers"/> {{ $year }} marketing plan</h3>
   <form method="get" class="flex gap-05"><input type="hidden" name="month" value="{{ $month->format('Y-m') }}"><select name="year" aria-label="Year">@foreach(range(bdate()->year - 2, bdate()->year + 1) as $y)<option @selected($y === $year)>{{ $y }}</option>@endforeach</select>

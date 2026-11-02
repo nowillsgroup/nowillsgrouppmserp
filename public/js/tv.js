@@ -8,7 +8,7 @@
   // ───────────────────────── helpers ─────────────────────────
   function $(id) { return document.getElementById(id); }
   function el(tag, attrs, kids) {
-    var e = document.createElement(tag), k;
+    var e = (tag === 'svg' || tag === 'use') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag), k;
     attrs = attrs || {};
     for (k in attrs) {
       if (!attrs.hasOwnProperty(k) || attrs[k] === null || attrs[k] === undefined || attrs[k] === false) continue;
@@ -16,6 +16,7 @@
       else if (k === 'cls') e.className = attrs[k];
       else if (k === 'on') e.addEventListener('click', attrs[k]);
       else if (k === 'style') e.setAttribute('style', attrs[k]);
+      else if (k === 'xlink:href') e.setAttributeNS('http://www.w3.org/1999/xlink', k, attrs[k]);
       else e.setAttribute(k, attrs[k] === true ? '' : attrs[k]);
     }
     (kids || []).forEach(function (c) { if (c !== null && c !== undefined && c !== false) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
@@ -42,6 +43,11 @@
     x.send(body ? JSON.stringify(body) : null);
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function tvIcon(name, cls) {
+    return el('svg', { cls: cls || 'tv-tile-svg', viewBox: '0 0 24 24', 'xmlns:xlink': 'http://www.w3.org/1999/xlink', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.55', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' }, [
+      el('use', { href: '#tv-glyph-' + name, 'xlink:href': '#tv-glyph-' + name }),
+    ]);
+  }
 
   // ───────────────────────── setup / pairing page ─────────────────────────
   var setup = $('tvSetup');
@@ -59,9 +65,11 @@
     var wait = function (token) {
       req('GET', poll + '/' + token, null, function (s, d) {
         if (d && d.state === 'paired') {
-          try { localStorage.removeItem(key); localStorage.setItem('tvApp', d.url); } catch (e) { /* ignore */ }
+          var appUrl = d.url;
+          if (/[?&]launch=welcome(?:&|$)/.test(location.search || '')) appUrl += '?launch=welcome';
+          try { localStorage.removeItem(key); localStorage.setItem('tvApp', appUrl); } catch (e) { /* ignore */ }
           msg.textContent = 'Paired – starting…';
-          location.replace(d.url);
+          location.replace(appUrl);
         } else if (d && d.state === 'waiting') {
           codeEl.textContent = d.code;
           setTimeout(function () { wait(token); }, 4000);
@@ -85,8 +93,13 @@
   var BASE = root.getAttribute('data-base');
   var S = JSON.parse($('tvBoot').textContent);
   var T = S.t || {};
+  var launchWelcomeOnResume = /[?&]launch=welcome(?:&|$)/.test(location.search || '');
   var stack = [];            // navigation history of screen names
   var screen = null;         // current screen name
+  var welcomeIntegrated = false; // keep the first guest screen integrated with the home dashboard for this stay
+  var welcomeMarked = false;
+  var welcomeMarkPending = false;
+  var portalQrPending = false;
   var modal = null;          // open modal element
   var cache = {};            // section data
   var cart = {};             // dining cart id → {id, name, raw, qty}
@@ -131,7 +144,7 @@
       S.guest ? el('span', { text: (T.room || 'Room') + ' ' + S.guest.room }) : (S.device ? el('span', { text: S.device.place }) : null)]);
     var right = el('div', { cls: 'tv-top-r' });
     if (weather) right.appendChild(el('span', { cls: 'tv-wx', title: weather.label, text: weather.icon + ' ' + weather.temp + '°C' }));
-    if (S.mode === 'room' && S.unread) right.appendChild(el('span', { cls: 'tv-badge', text: '✉ ' + S.unread }));
+    if (S.mode === 'room' && S.unread) right.appendChild(el('span', { cls: 'tv-badge' }, [tvIcon('messages', 'tv-badge-icon'), el('span', { text: String(S.unread) })]));
     right.appendChild(el('span', { cls: 'tv-clock', text: pad(d.getHours()) + ':' + pad(d.getMinutes()) }));
     right.appendChild(el('span', { cls: 'tv-date', text: d.toLocaleDateString(S.lang || 'en', { weekday: 'short', day: 'numeric', month: 'short' }) }));
     top.appendChild(left); top.appendChild(right);
@@ -186,7 +199,7 @@
     else if (k === 39 && !typing) { move('right'); e.preventDefault(); }
     else if (k === 40) { move('down'); e.preventDefault(); }
     else if (k === 27 || k === 10009 || k === 461 || (k === 8 && !typing)) { back(); e.preventDefault(); }
-    else if (k === 36 || k === 10073) { go('home', true); e.preventDefault(); }
+    else if (k === 36 || k === 10073) { welcomeIntegrated = false; go('home', true); e.preventDefault(); }
     else if (k === 13 && document.activeElement && document.activeElement.hasAttribute('data-f') && tag !== 'BUTTON') { document.activeElement.click(); e.preventDefault(); }
     else if (k >= 48 && k <= 57 && !typing && screen === 'tv') {   // number keys: direct channel entry
       numBuf += String(k - 48);
@@ -210,7 +223,7 @@
   function back() {
     if (modal) { closeModal(); return; }
     if (stack.length) { screen = stack.pop(); render(); return; }
-    if (S.mode === 'room' && screen !== 'home') go('home', true);
+    if (S.mode === 'room' && screen !== 'home') { welcomeIntegrated = false; go('home', true); }
   }
   function openModal(node, pref) {
     closeModal();
@@ -246,33 +259,20 @@
     if (!modal) focusFirst('[data-autofocus]');
   }
 
-  var TILES = [['tv', '📺'], ['movies', '🎬'], ['dining', '🍽'], ['services', '🛎'], ['messages', '✉'], ['bill', '🧾'], ['info', '🏨'], ['explore', '🌍'], ['checkout', '🔑'], ['feedback', '★']];
+  var TILES = [['tv', 'tv'], ['movies', 'movies'], ['dining', 'dining'], ['services', 'services'], ['messages', 'messages'], ['bill', 'bill'], ['info', 'info'], ['explore', 'explore'], ['checkout', 'checkout'], ['feedback', 'feedback']];
 
-  function homePreviewModal() {
-    // The guest has already entered the real home screen. Show a full-screen,
-    // non-interactive copy of that rendered screen so the preview matches the
-    // actual home layout, guest details, enabled tiles, and live top bar exactly.
-    var canvas = el('div', { cls: 'tv-home-preview-canvas', 'aria-hidden': 'true' }, [
-      top.cloneNode(true),
-      stage.cloneNode(true),
-      ticker.cloneNode(true),
-    ]);
-    Array.prototype.forEach.call(canvas.querySelectorAll('[data-f],button,a,input,select,textarea'), function (item) {
-      item.removeAttribute('data-f');
-      item.setAttribute('tabindex', '-1');
+  function homeTiles() {
+    var grid = el('div', { cls: 'tv-tiles' });
+    var count = 0;
+    TILES.forEach(function (t) {
+      if (!S.features || !S.features[t[0]]) return;
+      var label = T[t[0]] || t[0];
+      var badge = t[0] === 'messages' && (S.unread || S.desk_messages) ? el('span', { cls: 'tv-tile-badge', text: String((S.unread || 0) + (S.desk_messages || 0)) }) : null;
+      grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', 'data-autofocus': count === 0 ? '1' : null, on: function () { go(t[0]); } },
+        [el('span', { cls: 'tv-tile-i' }, [tvIcon(t[1])]), el('span', { text: label }), badge]));
+      count++;
     });
-
-    var toolbar = el('div', { cls: 'tv-home-preview-toolbar' }, [
-      el('div', { cls: 'tv-home-preview-copy' }, [
-        el('span', { cls: 'tv-home-preview-kicker', text: 'HOME SCREEN PREVIEW' }),
-        el('strong', { text: 'Your full TV home screen' }),
-      ]),
-      btn((T.continue || 'Continue') + ' to home ›', closeModal, 'tv-big tv-primary', { 'data-autofocus': '1' }),
-    ]);
-
-    modal = el('div', { cls: 'tv-modal tv-home-preview-modal' }, [canvas, toolbar]);
-    root.appendChild(modal);
-    focusFirst('[data-autofocus]');
+    return grid;
   }
 
   function welcomeBackdrop() {
@@ -314,14 +314,33 @@
     if (guest.room) details.appendChild(el('div', { cls: 'tv-welcome-stay-detail' }, [el('small', { text: T.room || 'Room' }), el('strong', { text: guest.room })]));
     if (guest.departure) details.appendChild(el('div', { cls: 'tv-welcome-stay-detail' }, [el('small', { text: T.departure || 'Departure' }), el('strong', { text: guest.departure })]));
     if (details.childNodes.length) card.appendChild(details);
+    if ((S.rentals || []).length) {
+      card.appendChild(el('div', { cls: 'tv-welcome-extra' }, [
+        el('small', { text: T.rented || 'Rented' }),
+        el('strong', { text: S.rentals.map(function (r) { return r.title + ' (' + r.left + (T.hours || 'h') + ')'; }).join(', ') }),
+      ]));
+    }
+    if (S.desk_ext) card.appendChild(el('div', { cls: 'tv-welcome-extra' }, [
+      el('small', { text: T.front_desk || 'Front desk' }),
+      el('strong', { text: (T.dial || 'Dial') + ' ' + S.desk_ext }),
+    ]));
     if (S.wifi && S.wifi.name) {
       card.appendChild(el('div', { cls: 'tv-welcome-wifi' }, [
-        el('div', { cls: 'tv-welcome-wifi-label' }, [el('span', { cls: 'tv-welcome-wifi-icon', text: '◔' }), el('span', { text: T.wifi || 'Wi-Fi' })]),
+        el('div', { cls: 'tv-welcome-wifi-label' }, [tvIcon('wifi', 'tv-welcome-wifi-icon'), el('span', { text: T.wifi || 'Wi-Fi' })]),
         el('strong', { cls: 'tv-welcome-wifi-name', text: S.wifi.name }),
         S.wifi.password ? el('span', { cls: 'tv-welcome-wifi-password', text: (T.password || 'Password') + ' · ' + S.wifi.password }) : null,
       ]));
     }
-    return details.childNodes.length || (S.wifi && S.wifi.name) ? card : null;
+    if (S.portal && S.portal.qr) {
+      card.appendChild(el('div', { cls: 'tv-welcome-portal' }, [
+        el('img', { cls: 'tv-welcome-portal-qr', src: 'data:image/svg+xml;base64,' + S.portal.qr, alt: T.guest_portal || 'Guest portal QR code' }),
+        el('div', { cls: 'tv-welcome-portal-copy' }, [
+          el('strong', { text: T.guest_portal || 'Guest portal' }),
+          el('span', { text: T.scan_portal || 'Scan to open on your phone' }),
+        ]),
+      ]));
+    }
+    return details.childNodes.length || (S.wifi && S.wifi.name) || (S.rentals || []).length || S.desk_ext || (S.portal && S.portal.qr) ? card : null;
   }
 
   var SCREENS = {
@@ -339,7 +358,7 @@
         el('p', { cls: 'tv-welcome-kicker', text: city ? welcomeTo + ' ' + city : welcomeTo }),
         el('span', { cls: 'tv-welcome-rule', 'aria-hidden': 'true' }),
         el('h1', { cls: 'tv-welcome-h', text: hotelName }),
-        el('div', { cls: 'tv-welcome-actions' }, [btn('📺 ' + (T.tv || 'Live TV'), function () { go('tv'); }, 'tv-big tv-primary', { 'data-autofocus': '1' })]),
+        el('div', { cls: 'tv-welcome-actions' }, [el('button', { cls: 'tv-btn tv-big tv-primary tv-vacant-cta', 'data-f': '1', tabindex: '0', 'data-autofocus': '1', on: function () { go('tv'); } }, [tvIcon('tv', 'tv-action-icon'), el('span', { text: T.tv || 'Live TV' })])]),
       ]);
       var layout = el('div', { cls: 'tv-welcome-layout tv-welcome-layout-vacant' }, [welcomeBrand(), copy,
         el('div', { cls: 'tv-welcome-footer' }, [el('span', { cls: 'tv-welcome-footer-line' }), el('span', { text: city ? city.toUpperCase() + ' · GHANA' : 'A PLACE TO UNWIND' })])]);
@@ -355,36 +374,40 @@
       var body = el('div', { cls: 'tv-welcome-body' });
       String(w.body || '').split('\n').forEach(function (line) { if (line.trim()) body.appendChild(el('p', { text: line })); });
       var copy = el('div', { cls: 'tv-welcome-main' }, [
-        el('p', { cls: 'tv-welcome-kicker', text: city ? city.toUpperCase() + ' · A WARM WELCOME' : 'A WARM WELCOME' }),
+        el('p', { cls: 'tv-welcome-kicker', text: city ? city.toUpperCase() + ' · AKWAABA / BIENVENUE' : 'AKWAABA / BIENVENUE' }),
         el('span', { cls: 'tv-welcome-rule', 'aria-hidden': 'true' }),
         el('h1', { cls: 'tv-welcome-h', text: w.headline || (T.welcome || 'Welcome') }),
+        S.guest && S.guest.name ? el('p', { cls: 'tv-welcome-guest-greeting', text: (T.welcome || 'Welcome') + ', ' + S.guest.name }) : null,
         body,
       ]);
-      var actions = el('div', { cls: 'tv-welcome-actions' }, [btn((T.continue || 'Continue') + ' ›', function () {
-        api('POST', '/welcome', {}, function () {});
-        S.welcome.show = false;
-        go('home', true);
-        homePreviewModal();
-      }, 'tv-big tv-primary tv-welcome-continue', { 'data-autofocus': '1' }),
-      el('div', { cls: 'tv-welcome-language' }, [el('span', { cls: 'tv-welcome-language-label', text: T.language || 'Language' }), langs])]);
+      if (!welcomeMarked && !welcomeMarkPending) {
+        welcomeMarkPending = true;
+        api('POST', '/welcome', {}, function (err) {
+          welcomeMarkPending = false;
+          if (!err) welcomeMarked = true;
+        });
+      }
+      var actions = el('div', { cls: 'tv-welcome-actions' }, [
+        el('div', { cls: 'tv-welcome-language' }, [el('span', { cls: 'tv-welcome-language-label', text: T.language || 'Language' }), langs]),
+      ]);
+      var quickAccess = el('section', { cls: 'tv-welcome-quick-access', 'aria-label': 'Hotel services' }, [
+        el('div', { cls: 'tv-welcome-quick-heading' }, [
+          el('strong', { text: 'YOUR HOTEL, AT A GLANCE' }),
+          el('span', { text: 'Choose a service to get started' }),
+        ]),
+        homeTiles(),
+      ]);
       var footer = el('div', { cls: 'tv-welcome-footer' }, [
         el('span', { cls: 'tv-welcome-footer-line' }),
         el('span', { text: city ? city.toUpperCase() + ' · GHANA' : 'A PLACE TO UNWIND' }),
       ]);
-      var layout = el('div', { cls: 'tv-welcome-layout' }, [welcomeBrand(), copy, welcomeStayCard(), actions, footer]);
+      var layout = el('div', { cls: 'tv-welcome-layout tv-welcome-layout-integrated' }, [welcomeBrand(), copy, welcomeStayCard(), quickAccess, actions, footer]);
       stage.appendChild(el('section', { cls: 'tv-welcome-screen' }, [welcomeBackdrop(), layout]));
     },
     home: function () {
       if (Date.now() - lastHome > 600000) { logEvent('home'); lastHome = Date.now(); }
       var g = S.guest || {};
-      var grid = el('div', { cls: 'tv-tiles' });
-      TILES.forEach(function (t, i) {
-        if (!S.features || !S.features[t[0]]) return;
-        var label = T[t[0]] || t[0];
-        var badge = t[0] === 'messages' && (S.unread || S.desk_messages) ? el('span', { cls: 'tv-tile-badge', text: String((S.unread || 0) + (S.desk_messages || 0)) }) : null;
-        grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', 'data-autofocus': i === 0 ? '1' : null, on: function () { go(t[0]); } },
-          [el('span', { cls: 'tv-tile-i', text: t[1] }), el('span', { text: label }), badge]));
-      });
+      var grid = homeTiles();
       var side = el('div', { cls: 'tv-home-side' }, [
         el('div', { cls: 'tv-greet' }, [el('small', { text: T.welcome || 'Welcome' }), el('h2', { text: g.name || '' })]),
         el('div', { cls: 'tv-kv' }, [el('span', { text: T.room || 'Room' }), el('b', { text: g.room || '' }), el('span', { text: T.departure || 'Departure' }), el('b', { text: g.departure || '' })]),
@@ -395,7 +418,7 @@
       ]);
       stage.appendChild(el('div', { cls: 'tv-home' }, [side, grid]));
       var live = (S.messages || []).filter(function (m) { return !m.read; });
-      if (live.length) { ticker.textContent = '✉ ' + live.map(function (m) { return m.title; }).join('   •   '); ticker.style.display = ''; }
+      if (live.length) { clear(ticker); ticker.appendChild(tvIcon('messages', 'tv-ticker-icon')); ticker.appendChild(document.createTextNode(' ' + live.map(function (m) { return m.title; }).join('   •   '))); ticker.style.display = ''; }
     },
     tv: function () {
       logEvent('tv');
@@ -458,11 +481,11 @@
         stage.appendChild(header(T.services));
         var grid = el('div', { cls: 'tv-tiles tv-tiles-s' });
         (d.cats || []).forEach(function (c, i) {
-          grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', 'data-autofocus': i === 0 ? '1' : null, on: function () { serviceModal(c); } }, [el('span', { cls: 'tv-tile-i', text: '🛎' }), el('span', { text: c.label })]));
+          grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', 'data-autofocus': i === 0 ? '1' : null, on: function () { serviceModal(c); } }, [el('span', { cls: 'tv-tile-i' }, [tvIcon('services')]), el('span', { text: c.label })]));
         });
-        grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', on: wakeupModal }, [el('span', { cls: 'tv-tile-i', text: '⏰' }), el('span', { text: T.wakeup || 'Wake-up call' })]));
+        grid.appendChild(el('button', { cls: 'tv-tile', 'data-f': '1', tabindex: '0', on: wakeupModal }, [el('span', { cls: 'tv-tile-i' }, [tvIcon('wakeup')]), el('span', { text: T.wakeup || 'Wake-up call' })]));
         var recent = el('div', { cls: 'tv-list' });
-        (d.wakeups || []).forEach(function (w) { recent.appendChild(el('div', { cls: 'tv-li' }, [el('span', { text: '⏰ ' + w.at + (w.daily ? ' · ' + (T.daily || '') : '') })])); });
+        (d.wakeups || []).forEach(function (w) { recent.appendChild(el('div', { cls: 'tv-li' }, [tvIcon('wakeup', 'tv-inline-icon'), el('span', { text: w.at + (w.daily ? ' · ' + (T.daily || '') : '') })])); });
         (d.open || []).forEach(function (r) { recent.appendChild(el('div', { cls: 'tv-li' }, [el('span', { text: r.item }), el('small', { text: r.status + ' · ' + r.at })])); });
         stage.appendChild(el('div', { cls: 'tv-split' }, [grid, recent]));
         focusFirst('[data-autofocus]');
@@ -474,7 +497,7 @@
         clear(stage);
         stage.appendChild(header(T.messages));
         var list = el('div', { cls: 'tv-list' });
-        if (d.desk) list.appendChild(el('div', { cls: 'tv-li tv-li-hi' }, [el('span', { text: '✉ ' + (T.new_msg || 'New message') + ' – ' + (T.front_desk || 'front desk') + (S.desk_ext ? ' (' + (T.dial || '') + ' ' + S.desk_ext + ')' : '') })]));
+        if (d.desk) list.appendChild(el('div', { cls: 'tv-li tv-li-hi' }, [tvIcon('messages', 'tv-inline-icon'), el('span', { text: (T.new_msg || 'New message') + ' – ' + (T.front_desk || 'front desk') + (S.desk_ext ? ' (' + (T.dial || '') + ' ' + S.desk_ext + ')' : '') })]));
         (d.messages || []).forEach(function (m, i) {
           list.appendChild(el('button', { cls: 'tv-li' + (m.read ? '' : ' tv-li-new'), 'data-f': '1', tabindex: '0', 'data-autofocus': i === 0 ? '1' : null, on: function () { msgModal(m); } }, [
             el('span', { text: (m.read ? '' : '● ') + m.title }), el('small', { text: m.at })]));
@@ -496,7 +519,7 @@
           d.lines.forEach(function (l) { t.appendChild(el('div', { cls: 'tv-li' + (l.credit ? ' tv-credit' : '') }, [el('small', { text: l.date || '' }), el('span', { text: l.text }), el('b', { text: l.amount })])); });
           box.appendChild(t);
           box.appendChild(el('div', { cls: 'tv-total' }, [el('span', { text: T.balance || 'Balance' }), el('b', { text: d.balance })]));
-          if (S.features.checkout) box.appendChild(el('div', { cls: 'tv-row' }, [btn('🔑 ' + (T.checkout || 'Express check-out'), function () { go('checkout'); }, 'tv-primary', { 'data-autofocus': '1' })]));
+          if (S.features.checkout) box.appendChild(el('div', { cls: 'tv-row' }, [btn((T.checkout || 'Express check-out'), function () { go('checkout'); }, 'tv-primary', { 'data-autofocus': '1' })]));
           focusFirst('[data-autofocus]');
         });
       };
@@ -717,7 +740,7 @@
       el('div', { cls: 'tv-row' }, [btn(T.book || 'Book', function () {
         api('POST', '/wakeup', { time: pad(h) + ':' + pad(m), daily: daily }, function (err, d) {
           if (err) { toast(err, true); return; }
-          closeModal(); delete cache.services; toast('⏰ ' + d.at); render();
+          closeModal(); delete cache.services; toast((T.wakeup || 'Wake-up call') + ' ' + d.at); render();
         });
       }, 'tv-primary'), btn(T.cancel || 'Cancel', closeModal)])]));
   }
@@ -750,7 +773,7 @@
       var ok = true, res = null;
       if (c.command === 'reload') { api('POST', '/ack/' + c.id, { ok: true }, function () { if (!boot) location.reload(); }); return; }
       if (c.command === 'reset') { cache = {}; cart = {}; stack = []; currentCh = null; if (!boot) setTimeout(function () { refresh(true); }, 50); }
-      else if (c.command === 'message') { openModal(el('div', {}, [el('h2', { text: '✉' }), el('p', { cls: 'tv-lead', text: c.payload.text || '' }), el('div', { cls: 'tv-row' }, [btn(T.ok || 'OK', closeModal, 'tv-primary')])])); }
+      else if (c.command === 'message') { openModal(el('div', {}, [el('h2', {}, [tvIcon('messages', 'tv-heading-icon')]), el('p', { cls: 'tv-lead', text: c.payload.text || '' }), el('div', { cls: 'tv-row' }, [btn(T.ok || 'OK', closeModal, 'tv-primary')])])); }
       else if (c.command === 'volume') { S.volume_max = c.payload.level; res = 'Volume limit ' + c.payload.level; try { if (window.webapis && webapis.avinfo) res += ' (applied)'; } catch (e) { /* ignore */ } }
       else if (c.command === 'power_off') { standby = true; sbEl.style.display = ''; }
       else if (c.command === 'power_on') { standby = false; sbEl.style.display = 'none'; }
@@ -777,36 +800,80 @@
     msgModal(m);
   }
   function apply(d, force) {
-    var prevMode = S.mode, prevLang = S.lang, prevGuest = S.guest && S.guest.name, prevWelcome = S.welcome && S.welcome.show, prevSig = JSON.stringify([S.events, S.messages, S.text]);
+    var prevMode = S.mode, prevLang = S.lang, prevGuest = S.guest && S.guest.name, prevWelcome = S.welcome && S.welcome.show, prevPortal = S.portal, prevSig = JSON.stringify([S.events, S.messages, S.text]);
+    if (d.portal && prevPortal && d.portal.url === prevPortal.url && prevPortal.qr) d.portal.qr = prevPortal.qr;
     S = d; T = d.t || T;
     document.documentElement.lang = S.lang || 'en';
     showEmergency();
     runCommands(d.commands);
     var guestChanged = (S.guest && S.guest.name) !== prevGuest;
+    if (S.mode !== prevMode || guestChanged) {
+      welcomeIntegrated = false;
+      welcomeMarked = false;
+      welcomeMarkPending = false;
+    }
     if (force || S.mode !== prevMode || S.lang !== prevLang || guestChanged || (S.welcome && S.welcome.show && !prevWelcome)) {
       if (S.mode !== prevMode || guestChanged) { cache = {}; cart = {}; }
       startScreen();
     } else if (S.mode === 'signage' && JSON.stringify([S.events, S.messages, S.text]) !== prevSig) render();
     else renderTop();
     popHighPriority();
+    if (screen === 'welcome' && S.portal && S.portal.url && !S.portal.qr) loadPortalQr(S.portal.url);
   }
   function startScreen() {
     stack = [];
-    if (S.mode === 'room') screen = S.welcome && S.welcome.show ? 'welcome' : 'home';
-    else screen = S.mode;   // vacant / signage / off / unregistered
+    if (S.mode === 'room') {
+      if (S.welcome && S.welcome.show) welcomeIntegrated = true;
+      screen = welcomeIntegrated ? 'welcome' : 'home';
+    } else {
+      welcomeIntegrated = false;
+      screen = S.mode;   // vacant / signage / off / unregistered
+    }
     render();
     // Remove the server-rendered welcome only after the interactive TV screen is ready.
     if (preboot && preboot.parentNode) preboot.parentNode.removeChild(preboot);
     preboot = null;
   }
+  function loadPortalQr(url) {
+    if (!url || portalQrPending) return;
+    portalQrPending = true;
+    api('GET', '/portal-qr', null, function (err, d) {
+      portalQrPending = false;
+      if (!err && d && d.url === url && S.portal && S.portal.url === url) {
+        S.portal = d;
+        if (screen === 'welcome') render();
+      }
+    });
+  }
   function refresh(force) {
     api('GET', '/state', null, function (err, d) { if (!err && d) apply(d, force); });
+  }
+  var lastResumeRefresh = 0;
+  function resumeWelcome(force) {
+    if (!launchWelcomeOnResume) return;
+    var nowMs = Date.now();
+    if (!force && nowMs - lastResumeRefresh < 2500) return;
+    lastResumeRefresh = nowMs;
+    api('GET', '/state', null, function (err, d) {
+      if (err || !d) return;
+      if (d.mode === 'room' && d.welcome && d.welcome.enabled) d.welcome.show = true;
+      apply(d, true);
+    });
   }
   function beat() {
     clearTimeout(hbTimer);
     refresh(false);
     hbTimer = setTimeout(beat, Math.max(10, S.heartbeat || 20) * 1000);
   }
+
+  var wasPageHidden = false;
+  document.addEventListener('visibilitychange', function () {
+    var pageHidden = document.hidden === true || document.visibilityState === 'hidden';
+    if (pageHidden) { wasPageHidden = true; return; }
+    if (wasPageHidden) { wasPageHidden = false; resumeWelcome(true); }
+  });
+  window.addEventListener('focus', function () { resumeWelcome(false); });
+  window.addEventListener('pageshow', function () { resumeWelcome(false); });
 
   // boot
   showEmergency();

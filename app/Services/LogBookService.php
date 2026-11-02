@@ -35,8 +35,10 @@ class LogBookService
             throw new RuntimeException('The follow-up time must be in the future.');
         }
 
+        $session = $source === 'manual' ? FrontDeskShiftSessionService::activeForUser((int) auth()->id()) : null;
         $e = LogEntry::create([
-            'business_date' => bdate()->toDateString(), 'shift' => FrontDeskOpsService::currentShift(), 'department' => $dept, 'category' => $cat, 'priority' => $prio,
+            'business_date' => bdate()->toDateString(), 'shift' => $session?->shift ?? FrontDeskOpsService::currentShift(), 'shift_session_id' => $session?->id,
+            'department' => $dept, 'category' => $cat, 'priority' => $prio,
             'title' => mb_substr($title, 0, 150), 'body' => trim((string) ($d['body'] ?? '')) ?: null,
             'reservation_room_id' => $stay?->id, 'room_id' => $d['room_id'] ?? $stay?->room_id, 'guest_id' => $d['guest_id'] ?? $stay?->guest_id,
             'status' => $needsAction ? 'open' : 'note', 'follow_up_at' => $follow,
@@ -148,7 +150,7 @@ class LogBookService
     public static function handover(): array
     {
         $since = FrontDeskOpsService::previousShiftStart();
-        $with = ['author', 'reads.user', 'stay.room', 'room', 'guest', 'comments'];
+        $with = ['author', 'reads.user', 'stay.room', 'room', 'guest', 'comments', 'shiftSession'];
 
         return [
             'since' => $since,

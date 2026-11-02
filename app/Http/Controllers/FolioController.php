@@ -20,26 +20,105 @@ class FolioController extends Controller
 {
     public function index(Request $request)
     {
-        $folios = Folio::with(['guest', 'stay.room', 'reservation', 'company'])
-            ->when($request->input('status', 'open') !== 'all', fn ($q) => $q->where('status', $request->input('status', 'open')))
-            ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('folio_no', 'like', "%$t%")->orWhere('invoice_no', 'like', "%$t%")->orWhereHas('guest', fn ($g) => $g->search($t))))
+        $reservationDeskScope = $request->input('scope') === 'reservation_desk';
+        $rawStatus = $request->query('status', 'open');
+        $status = is_string($rawStatus) && in_array($rawStatus, ['open', 'closed', 'all'], true) ? $rawStatus : 'open';
+        $request->merge(['status' => $status]);
+        $rawSearch = $request->query('q');
+        $search = is_string($rawSearch) ? mb_substr(trim($rawSearch), 0, 160) : '';
+        $request->merge(['q' => $search]);
+        $folios = Folio::withListBalance()->with(['guest', 'stay.room', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company', 'company'])
+            ->when($reservationDeskScope, fn ($q) => $q->where(fn ($w) => $w->whereNotNull('reservation_id')->orWhereNotNull('reservation_room_id')))
+            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
+            ->when($search !== '', fn ($q) => $q->where(function ($w) use ($search) {
+                $pattern = "%{$search}%";
+                $reservationMatch = fn ($reservation) => $reservation->where('reservation_no', 'like', $pattern)
+                    ->orWhere('group_name', 'like', $pattern)
+                    ->orWhereHas('company', fn ($company) => $company->where('name', 'like', $pattern));
+
+                $w->where('folio_no', 'like', $pattern)
+                    ->orWhere('invoice_no', 'like', $pattern)
+                    ->orWhereHas('guest', fn ($guest) => $guest->search($search))
+                    ->orWhereHas('company', fn ($company) => $company->where('name', 'like', $pattern))
+                    ->orWhereHas('reservation', $reservationMatch)
+                    ->orWhereHas('stay.reservation', $reservationMatch);
+            }))
             ->latest()->paginate(25)->withQueryString();
 
-        return view('folios.index', compact('folios'));
+        return view('folios.index', compact('folios', 'reservationDeskScope'));
+    }
+
+    public function transactions(Request $request)
+    {
+        $rawDate = $request->query('date');
+        $date = is_string($rawDate) && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $rawDate)
+            && checkdate((int) substr($rawDate, 5, 2), (int) substr($rawDate, 8, 2), (int) substr($rawDate, 0, 4))
+            ? $rawDate
+            : bdate()->toDateString();
+        $rawType = $request->query('type');
+        $type = is_string($rawType) && in_array($rawType, ['charge', 'discount', 'allowance', 'payment', 'refund', 'opening_balance'], true) ? $rawType : 'all';
+        $categoryOptions = array_merge(config('pms.charge_categories', []), [
+            'advance' => 'Advance payment', 'city_ledger' => 'City ledger', 'settlement' => 'Settlement',
+            'opening_ar' => 'Opening balance', 'opening_balance' => 'Opening balance',
+        ]);
+        $rawCategory = $request->query('category');
+        $category = is_string($rawCategory) && array_key_exists($rawCategory, $categoryOptions) ? $rawCategory : '';
+        $query = FolioTransaction::with(['folio.guest', 'folio.company', 'folio.stay.room', 'folio.stay.guest', 'folio.stay.reservation.guest', 'folio.stay.reservation.company', 'folio.reservation.guest', 'folio.reservation.company', 'paymentMode', 'poster'])
+            ->whereDate('business_date', $date)->where('is_void', false)
+            ->when($type !== 'all', fn ($q) => $q->where('type', $type))
+            ->when($category !== '', fn ($q) => $q->where('category', $category));
+        $summary = (clone $query)->selectRaw("count(*) as entries,
+            coalesce(sum(case type when 'charge' then amount when 'discount' then -amount when 'allowance' then -amount when 'refund' then -amount else amount end), 0) as amount,
+            coalesce(sum(case when type = 'charge' then tax_amount else 0 end), 0) as tax,
+            coalesce(sum(case type when 'charge' then amount + tax_amount when 'discount' then -amount when 'allowance' then -amount when 'refund' then -amount else amount end), 0) as total_posted")
+            ->first();
+        $transactions = $query->orderBy('business_date')->orderBy('id')->paginate(50)->withQueryString();
+        $transactions->getCollection()->transform(function ($transaction) {
+            $transaction->display_amount = match ($transaction->type) {
+                'discount', 'allowance', 'refund' => -(float) $transaction->amount,
+                default => (float) $transaction->amount,
+            };
+            $transaction->display_tax = $transaction->type === 'charge' ? (float) $transaction->tax_amount : 0.0;
+            $transaction->display_total = $transaction->type === 'charge'
+                ? (float) $transaction->amount + (float) $transaction->tax_amount
+                : $transaction->display_amount;
+
+            return $transaction;
+        });
+
+        return view('folios.transactions', compact('transactions', 'summary', 'date', 'type', 'category', 'categoryOptions'));
     }
 
     public function invoices(Request $request)
     {
-        $from = $request->input('from', bdate()->copy()->startOfMonth()->toDateString());
-        $to = $request->input('to', bdate()->toDateString());
-        $folios = Folio::with(['guest', 'company', 'stay.room', 'original:id,invoice_no'])->whereNotNull('invoice_no')
+        $defaultTo = bdate()->toDateString();
+        $defaultFrom = bdate()->copy()->startOfMonth()->toDateString();
+        $validDate = static fn ($value) => is_string($value)
+            && preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value)
+            && checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4));
+        $rawFrom = $request->query('from');
+        $rawTo = $request->query('to');
+        $from = $validDate($rawFrom) ? $rawFrom : $defaultFrom;
+        $to = $validDate($rawTo) ? $rawTo : $defaultTo;
+        if ($from > $to) {
+            $from = $defaultFrom;
+            $to = $defaultTo;
+        }
+        $rawType = $request->query('type');
+        $type = is_string($rawType) && in_array($rawType, ['invoice', 'credit_note'], true) ? $rawType : '';
+        $rawSupply = $request->query('supply');
+        $supply = is_string($rawSupply) && in_array($rawSupply, ['B2B', 'B2C'], true) ? $rawSupply : '';
+        $rawSearch = $request->query('q');
+        $search = is_string($rawSearch) ? mb_substr(trim($rawSearch), 0, 160) : '';
+        $request->merge(['from' => $from, 'to' => $to, 'type' => $type, 'supply' => $supply, 'q' => $search]);
+        $folios = Folio::with(['guest', 'company', 'stay.room', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company', 'original:id,invoice_no'])->whereNotNull('invoice_no')
             // a plain BETWEEN drops the last day: invoice_date is stored as a datetime
             // string, so it is never <= the range's date-only upper bound
             ->whereDate(DB::raw('COALESCE(invoice_date, closed_at)'), '>=', $from)
             ->whereDate(DB::raw('COALESCE(invoice_date, closed_at)'), '<=', $to)
-            ->when($request->type === 'invoice', fn ($q) => $q->where('type', '!=', 'credit_note'))->when($request->type === 'credit_note', fn ($q) => $q->where('type', 'credit_note'))
-            ->when($request->supply, fn ($q, $s) => $q->where('supply_type', $s))
-            ->when($request->q, fn ($q, $t) => $q->where(fn ($w) => $w->where('invoice_no', 'like', "%$t%")->orWhere('buyer_gstin', 'like', "%$t%")->orWhere('buyer_name', 'like', "%$t%")->orWhereHas('guest', fn ($g) => $g->search($t))))
+            ->when($type === 'invoice', fn ($q) => $q->where('type', '!=', 'credit_note'))->when($type === 'credit_note', fn ($q) => $q->where('type', 'credit_note'))
+            ->when($supply !== '', fn ($q) => $q->where('supply_type', $supply))
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('invoice_no', 'like', "%{$search}%")->orWhere('buyer_gstin', 'like', "%{$search}%")->orWhere('buyer_name', 'like', "%{$search}%")->orWhereHas('guest', fn ($g) => $g->search($search))))
             ->latest('closed_at')->paginate(30)->withQueryString();
 
         return view('folios.invoices', compact('folios', 'from', 'to'));
@@ -47,21 +126,28 @@ class FolioController extends Controller
 
     public function show(Folio $folio)
     {
-        $folio->load(['guest', 'company', 'stay.room', 'stay.roomType', 'reservation']);
+        $folio->load(['guest', 'company', 'stay.room', 'stay.roomType', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company']);
+        $transactions = $folio->transactions()->with('paymentMode', 'poster', 'company')->orderBy('business_date')->orderBy('id')->get();
+        $totals = $folio->totals($transactions);
+        $canPost = $folio->status === 'open' && can_do('folio.post');
+        $canPay = $folio->status === 'open' && can_do('folio.payment');
+        $canSplit = $folio->status === 'open' && can_do('folio.split');
 
         return view('folios.show', [
             'folio' => $folio,
-            'transactions' => $folio->transactions()->with('paymentMode', 'poster', 'company')->orderBy('business_date')->orderBy('id')->get(),
-            'totals' => $folio->totals(),
-            'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
-            'companies' => Company::where('is_active', true)->pluck('name', 'id'),
-            'categories' => collect(config('pms.charge_categories'))->except(['room']),
+            'transactions' => $transactions,
+            'totals' => $totals,
+            'paymentModes' => $canPay ? PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id') : collect(),
+            'companies' => $canPay && $totals['balance'] > 0 ? Company::where('is_active', true)->pluck('name', 'id') : collect(),
+            'categories' => $canPost ? collect(config('pms.charge_categories'))->except(['room']) : collect(),
             // other open folios this folio's lines may be split / routed to
             'fixedCharges' => $folio->stay ? $folio->stay->fixedCharges()->latest('id')->get() : collect(),
-            'targets' => Folio::with('guest', 'stay.room')->where('status', 'open')->where('id', '!=', $folio->id)
-                ->where(fn ($q) => $q->when($folio->reservation_id, fn ($w) => $w->orWhere('reservation_id', $folio->reservation_id))
-                    ->when($folio->guest_id, fn ($w) => $w->orWhere('guest_id', $folio->guest_id))
-                    ->orWhereIn('type', ['master']))->orderByDesc('id')->limit(50)->get(),
+            'targets' => $canSplit
+                ? Folio::with('guest', 'stay.room')->where('status', 'open')->where('id', '!=', $folio->id)
+                    ->where(fn ($q) => $q->when($folio->reservation_id, fn ($w) => $w->orWhere('reservation_id', $folio->reservation_id))
+                        ->when($folio->guest_id, fn ($w) => $w->orWhere('guest_id', $folio->guest_id))
+                        ->orWhereIn('type', ['master']))->orderByDesc('id')->limit(50)->get()
+                : collect(),
         ]);
     }
 
@@ -317,14 +403,14 @@ class FolioController extends Controller
     public function receipt(FolioTransaction $tx)
     {
         abort_unless(in_array($tx->type, ['payment', 'refund'], true), 404);
-        $tx->load(['folio.guest', 'folio.stay.room', 'folio.reservation', 'paymentMode', 'poster']);
+        $tx->load(['folio.guest', 'folio.company', 'folio.stay.room', 'folio.stay.guest', 'folio.stay.reservation.guest', 'folio.stay.reservation.company', 'folio.reservation.guest', 'folio.reservation.company', 'paymentMode', 'poster']);
 
         return view('folios.receipt', ['tx' => $tx, 'folio' => $tx->folio]);
     }
 
     public function invoice(Folio $folio)
     {
-        $folio->load('guest', 'company', 'stay.room', 'stay.roomType', 'reservation', 'original');
+        $folio->load('guest', 'company', 'closedBy', 'stay.room', 'stay.roomType', 'stay.ratePlan', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company', 'reservation.rooms.room', 'reservation.rooms.roomType', 'reservation.rooms.ratePlan', 'original');
         $tx = $folio->status === 'cancelled' ? $folio->transactions()->with('paymentMode')->orderBy('business_date')->orderBy('id')->get()
             : $folio->activeTransactions()->with('paymentMode')->orderBy('business_date')->orderBy('id')->get();
 
@@ -383,6 +469,9 @@ class FolioController extends Controller
             }
             if ($lines->contains(fn ($line) => $line->isOpening())) {
                 throw new \RuntimeException('Opening receivable balances cannot be split or moved; correct the unapplied source row in an opening_ar batch before posting the opening trial balance.');
+            }
+            if ($lines->contains(fn ($line) => $line->source_type === 'pos_complimentary')) {
+                throw new \RuntimeException('Complimentary information records are read-only and cannot be moved.');
             }
             $folio->transactions()->whereIn('id', $lines->pluck('id'))->update(['folio_id' => $target->id]);
             $desc = $lines->count().' line(s) ('.money($lines->sum(fn ($t) => $t->type === 'charge' ? $t->amount + $t->tax_amount : 0)).' charges)';
