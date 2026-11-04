@@ -25,6 +25,14 @@ require("route('pos.dashboard'" in NAV and "route('pos.index'" in NAV,
         "workspace navigation keeps Dashboard and the existing terminal")
 require("whereBetween('business_date', $dateRange)" in CONTROLLER and "diffInDays($to) > 30" in CONTROLLER,
         "date-range reporting is bounded to 31 days")
+require("$previousDateRange = [$previousFrom->toDateString(), $previousTo->toDateString()]" in CONTROLLER
+        and "'sales' => $percentChange" in CONTROLLER and "'turnaround' => $percentChange" in CONTROLLER
+        and "$previousCollections" in CONTROLLER and "$previousComplimentaryChecks" in CONTROLLER
+        and "$previousSummary = $summaryQuery($previousOrders)" in CONTROLLER,
+        "KPI percentage changes compare outlet-scoped values with the immediately preceding equal-length period")
+require(all(f"$kpiChanges['{metric}']" in VIEW for metric in ['sales', 'collections', 'orders', 'complimentary', 'turnaround', 'discounts'])
+        and VIEW.count('vs prior period') >= 6 and "is_null($kpiChanges['sales'])" in VIEW,
+        "all six summary cards show signed percentage changes and handle a zero comparison baseline")
 require("$selectedOutlet = $outletId ? $outlets->firstWhere('id', $outletId) : null;" in CONTROLLER
         and "is_string($value) ? $value : ''" in CONTROLLER,
         "outlet and date filters safely resolve against tenant-owned inputs")
