@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => \App\Http\Middleware\SetTenant::class,
             'perm' => \App\Http\Middleware\RequirePermission::class,
+            'waiter.shift' => \App\Http\Middleware\RequireWaiterServiceShift::class,
             'twofactor' => \App\Http\Middleware\RequireTwoFactor::class,
             'api.client' => \App\Http\Middleware\ApiAuthenticate::class,   // v4.0 REST API
             'api.scope' => \App\Http\Middleware\ApiScope::class,

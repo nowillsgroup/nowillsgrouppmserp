@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="{{ asset('css/offline.css') }}?v={{ config('pms.version') }}">
   @stack('head')
 </head>
-<body>
+<body@hasSection('waiterTerminal') class="waiter-pos-fullscreen" @endif>
 @include('partials.icons')
 @php
   $user = auth()->user();

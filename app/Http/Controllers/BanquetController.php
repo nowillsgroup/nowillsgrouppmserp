@@ -25,12 +25,26 @@ class BanquetController extends Controller
 
     public function index(Request $request)
     {
-        $tab = array_key_exists($request->input('show'), self::TABS) ? $request->input('show') : 'upcoming';
+        $requestedTab = $request->query('show');
+        $tab = is_string($requestedTab) && array_key_exists($requestedTab, self::TABS) ? $requestedTab : 'upcoming';
+        $search = $request->query('q');
+        $search = is_string($search) ? mb_substr(trim($search), 0, 150) : '';
+        $requestedType = $request->query('type');
+        $type = is_string($requestedType) && array_key_exists($requestedType, BanquetEvent::TYPES) ? $requestedType : '';
+        $requestedSales = $request->query('sales');
+        $salesFilter = is_scalar($requestedSales) ? filter_var($requestedSales, FILTER_VALIDATE_INT) : false;
+        $salesFilter = $salesFilter !== false && $salesFilter > 0 ? $salesFilter : null;
         $today = bdate()->toDateString();
         $q = BanquetEvent::with('functions.items', 'functions.hall', 'company', 'salesUser')
-            ->when($request->filled('q'), fn ($w) => $w->where(fn ($x) => $x->where('event_no', 'like', '%'.$request->q.'%')->orWhere('title', 'like', '%'.$request->q.'%')->orWhere('contact_name', 'like', '%'.$request->q.'%')))
-            ->when($request->filled('type'), fn ($w) => $w->where('event_type', $request->type))
-            ->when($request->filled('sales'), fn ($w) => $w->where('sales_user_id', $request->sales));
+            ->when($search !== '', fn ($w) => $w->where(fn ($x) => $x
+                ->where('event_no', 'like', '%'.$search.'%')
+                ->orWhere('title', 'like', '%'.$search.'%')
+                ->orWhere('contact_name', 'like', '%'.$search.'%')
+                ->orWhere('contact_phone', 'like', '%'.$search.'%')
+                ->orWhere('contact_email', 'like', '%'.$search.'%')
+                ->orWhereHas('company', fn ($company) => $company->where('name', 'like', '%'.$search.'%'))))
+            ->when($type !== '', fn ($w) => $w->where('event_type', $type))
+            ->when($salesFilter !== null, fn ($w) => $w->where('sales_user_id', $salesFilter));
         match ($tab) {
             'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today)->orderBy('event_date'),
             'tentative' => $q->where('status', 'tentative')->orderBy('option_date'),
@@ -58,7 +72,7 @@ class BanquetController extends Controller
             'to_bill' => BanquetEvent::where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today)->count(),
         ];
 
-        return view('banquet.index', ['events' => $events, 'tab' => $tab, 'stats' => $stats,
+        return view('banquet.index', ['events' => $events, 'tab' => $tab, 'stats' => $stats, 'search' => $search, 'type' => $type, 'salesFilter' => $salesFilter,
             'sales' => User::where('hotel_id', Tenant::id())->whereIn('id', BanquetEvent::whereNotNull('sales_user_id')->distinct()->pluck('sales_user_id'))->pluck('name', 'id')]);
     }
 
@@ -331,7 +345,15 @@ class BanquetController extends Controller
 
     public function sheet(Request $request)
     {
-        $date = Carbon::parse($request->input('date', bdate()->toDateString()));
+        $requestedDate = $request->query('date');
+        $date = bdate();
+        if (is_string($requestedDate) && trim($requestedDate) !== '') {
+            try {
+                $date = Carbon::parse(trim($requestedDate));
+            } catch (\Throwable) {
+                $date = bdate();
+            }
+        }
         $fns = BanquetFunction::with('event.company', 'hall', 'package', 'items.service.department')->whereDate('date', $date->toDateString())
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->orderBy('start_time')->get();
 

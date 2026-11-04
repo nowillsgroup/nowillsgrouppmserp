@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\KotPrintJob;
 use App\Models\KotPrinter;
 use App\Models\Company;
@@ -30,6 +31,262 @@ use Illuminate\Validation\ValidationException;
 
 class PosController extends Controller
 {
+    public function dashboard(Request $request)
+    {
+        $businessDate = bdate()->toDateString();
+        $parseDate = static function ($value, string $fallback): \Illuminate\Support\Carbon {
+            $value = is_string($value) ? $value : '';
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)
+                && checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4))) {
+                return \Illuminate\Support\Carbon::parse($value)->startOfDay();
+            }
+
+            return \Illuminate\Support\Carbon::parse($fallback)->startOfDay();
+        };
+        $to = $parseDate($request->query('to'), $businessDate);
+        $from = $parseDate($request->query('from'), \Illuminate\Support\Carbon::parse($businessDate)->subDays(2)->toDateString());
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy(), $from->copy()];
+        }
+        // Keep daily charts readable and dashboard queries bounded to at most 31 days.
+        if ($from->diffInDays($to) > 30) {
+            $from = $to->copy()->subDays(30);
+        }
+        $fromDate = $from->toDateString();
+        $toDate = $to->toDateString();
+        $dateRange = [$fromDate, $toDate];
+        $periodDays = $from->diffInDays($to) + 1;
+        $previousTo = $from->copy()->subDay()->endOfDay();
+        $previousFrom = $previousTo->copy()->subDays($periodDays - 1)->startOfDay();
+        $previousDateRange = [$previousFrom->toDateString(), $previousTo->toDateString()];
+
+        $outlets = Outlet::orderBy('name')->get();
+        $outletQuery = $request->query('outlet');
+        $outletId = is_string($outletQuery) && preg_match('/^\d+$/', $outletQuery) ? (int) $outletQuery : null;
+        $selectedOutlet = $outletId ? $outlets->firstWhere('id', $outletId) : null;
+        $ordersForRange = fn (array $range) => PosOrder::query()->whereBetween('business_date', $range)
+            ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+            ->when($selectedOutlet, fn ($q) => $q->where('outlet_id', $selectedOutlet->id));
+        $orders = $ordersForRange($dateRange);
+        $previousOrders = $ordersForRange($previousDateRange);
+        $summaryQuery = static fn ($query) => (clone $query)->reorder()->selectRaw(
+            "SUM(CASE WHEN status IN ('open', 'billed', 'settled') THEN 1 ELSE 0 END) as order_count, " .
+            "SUM(CASE WHEN status = 'void' THEN 1 ELSE 0 END) as cancelled_count, " .
+            "COALESCE(SUM(CASE WHEN status = 'settled' THEN total ELSE 0 END), 0) as total_sales, " .
+            "COALESCE(SUM(CASE WHEN status = 'settled' THEN discount ELSE 0 END), 0) as discounts, " .
+            "SUM(CASE WHEN status = 'settled' AND discount > 0 THEN 1 ELSE 0 END) as discounted_invoices"
+        )->first();
+        $summary = $summaryQuery($orders);
+        $previousSummary = $summaryQuery($previousOrders);
+
+        $complimentaryChecksFor = function (array $range) use ($selectedOutlet) {
+            $itemCompOrderIds = PosOrderItem::query()->where('is_complimentary', true)->where('is_cancelled', false)
+                ->whereHas('order', fn ($q) => $q->whereBetween('business_date', $range)->where('status', 'settled')
+                    ->where(fn ($w) => $w->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                    ->when($selectedOutlet, fn ($w) => $w->where('outlet_id', $selectedOutlet->id)))
+                ->selectRaw('pos_order_id as order_id');
+            $complimentaryBillIds = PosOrder::query()->whereBetween('business_date', $range)->where('status', 'settled')
+                ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->when($selectedOutlet, fn ($q) => $q->where('outlet_id', $selectedOutlet->id))
+                ->where('settlement', 'complimentary')->selectRaw('id as order_id');
+
+            return DB::query()->fromSub($complimentaryBillIds->union($itemCompOrderIds), 'complimentary_orders')->count('order_id');
+        };
+        $complimentaryChecks = $complimentaryChecksFor($dateRange);
+        $previousComplimentaryChecks = $complimentaryChecksFor($previousDateRange);
+
+        $trendRows = PosOrder::query()->whereBetween('business_date', $dateRange)->where('status', 'settled')
+            ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+            ->when($selectedOutlet, fn ($q) => $q->where('outlet_id', $selectedOutlet->id))
+            ->reorder()->selectRaw('business_date, outlet_id, SUM(total) as sales')
+            ->groupBy('business_date', 'outlet_id')->get();
+        $trendLookup = $trendRows->keyBy(fn ($row) => \Illuminate\Support\Carbon::parse($row->business_date)->toDateString().'|'.$row->outlet_id);
+        $palette = ['#5377ef', '#27b899', '#f59e0b', '#9b59b6', '#ec5367', '#268bd2', '#16a085', '#e67e22', '#64748b', '#be185d'];
+        $salesOutletIds = $trendRows->pluck('outlet_id')->unique()->values();
+        $chartOutlets = ($selectedOutlet ? collect([$selectedOutlet]) : $outlets->whereIn('id', $salesOutletIds)->values())
+            ->values()->map(fn ($outlet, $index) => ['id' => $outlet->id, 'name' => $outlet->name, 'color' => $palette[$index % count($palette)]]);
+        $dailyTrend = collect();
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $day = $cursor->toDateString();
+            $segments = $chartOutlets->map(function ($outlet) use ($trendLookup, $day) {
+                $row = $trendLookup->get($day.'|'.$outlet['id']);
+
+                return $outlet + ['sales' => (float) ($row->sales ?? 0)];
+            });
+            $dailyTrend->push(['date' => $day, 'label' => $cursor->format('d M'), 'total' => (float) $segments->sum('sales'), 'segments' => $segments]);
+            $cursor->addDay();
+        }
+        $maxDailySales = (float) $dailyTrend->max('total');
+        $dailyTrend = $dailyTrend->map(function ($day) use ($maxDailySales) {
+            $day['segments'] = $day['segments']->map(fn ($segment) => $segment + [
+                'height' => $maxDailySales > 0 ? round($segment['sales'] / $maxDailySales * 100, 2) : 0,
+            ]);
+
+            return $day;
+        });
+        $trendAxis = collect([1, .75, .5, .25, 0])->map(fn ($factor) => number_format($maxDailySales * $factor, 0));
+
+        $typeRows = (clone $orders)->where('status', 'settled')->reorder()
+            ->selectRaw('order_type, COUNT(*) as checks, SUM(total) as sales')->groupBy('order_type')->get()->keyBy('order_type');
+        $typePalette = ['dine_in' => '#f28c28', 'room_service' => '#25bd9a', 'delivery' => '#e9535c', 'takeaway' => '#5377ef'];
+        $typeLabels = ['dine_in' => 'Dine-in', 'room_service' => 'Room service', 'delivery' => 'Delivery', 'takeaway' => 'Take Away'];
+        $typeTotal = (float) $typeRows->sum('sales');
+        $orderTypes = collect($typeLabels)->map(function ($label, $type) use ($typeRows, $typeTotal, $typePalette) {
+            $row = $typeRows->get($type);
+            $sales = (float) ($row->sales ?? 0);
+
+            return ['type' => $type, 'label' => $label, 'sales' => $sales, 'checks' => (int) ($row->checks ?? 0),
+                'percent' => $typeTotal > 0 ? round($sales / $typeTotal * 100, 2) : 0, 'color' => $typePalette[$type]];
+        })->values();
+        $otherTypeRows = $typeRows->except(array_keys($typeLabels));
+        if ($otherTypeRows->isNotEmpty()) {
+            $otherSales = (float) $otherTypeRows->sum('sales');
+            $orderTypes->push(['type' => 'other', 'label' => 'Other', 'sales' => $otherSales,
+                'checks' => (int) $otherTypeRows->sum('checks'),
+                'percent' => $typeTotal > 0 ? round($otherSales / $typeTotal * 100, 2) : 0, 'color' => '#64748b']);
+        }
+        $donutStops = [];
+        $donutOffset = 0.0;
+        foreach ($orderTypes as $type) {
+            if ($type['percent'] > 0) {
+                $donutEnd = min(100, $donutOffset + $type['percent']);
+                $donutStops[] = $type['color'].' '.$donutOffset.'% '.$donutEnd.'%';
+                $donutOffset = $donutEnd;
+            }
+        }
+        $donutStyle = $donutStops ? 'conic-gradient('.implode(', ', $donutStops).')' : 'conic-gradient(#e7ebf0 0 100%)';
+
+        $paymentAggregates = PosPayment::query()->whereBetween('business_date', $dateRange)->whereIn('kind', ['payment', 'refund'])
+            ->whereDoesntHave('paymentMode', fn ($q) => $q->where('type', 'city_ledger'))
+            ->whereHas('order', fn ($q) => $q->whereBetween('business_date', $dateRange)
+                ->where(fn ($w) => $w->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->when($selectedOutlet, fn ($w) => $w->where('outlet_id', $selectedOutlet->id)))
+            ->selectRaw("payment_mode_id, SUM(CASE WHEN kind = 'refund' THEN -amount ELSE amount END) as net_amount, COUNT(DISTINCT pos_order_id) as check_count")
+            ->groupBy('payment_mode_id')->with('paymentMode')->get();
+        $collections = (float) $paymentAggregates->sum('net_amount');
+        $previousCollections = (float) (PosPayment::query()->whereBetween('business_date', $previousDateRange)->whereIn('kind', ['payment', 'refund'])
+            ->whereDoesntHave('paymentMode', fn ($q) => $q->where('type', 'city_ledger'))
+            ->whereHas('order', fn ($q) => $q->whereBetween('business_date', $previousDateRange)
+                ->where(fn ($w) => $w->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->when($selectedOutlet, fn ($w) => $w->where('outlet_id', $selectedOutlet->id)))
+            ->selectRaw("COALESCE(SUM(CASE WHEN kind = 'refund' THEN -amount ELSE amount END), 0) as net_amount")
+            ->first()?->net_amount ?? 0);
+        $paymentMix = $paymentAggregates->map(fn ($payment) => ['id' => $payment->payment_mode_id,
+            'name' => $payment->paymentMode?->name ?: 'Other / legacy', 'amount' => (float) $payment->net_amount,
+            'checks' => (int) $payment->check_count])
+            ->filter(fn ($payment) => $payment['amount'] > 0.005)->sortByDesc('amount')->take(12)->values();
+        $maxPayment = max(1, (float) $paymentMix->max('amount'));
+        $paymentMix = $paymentMix->map(fn ($payment) => $payment + ['width' => max(3, (int) round($payment['amount'] / $maxPayment * 100))]);
+
+        $settledOrderIds = (clone $orders)->where('status', 'settled')->select('id');
+        $itemSalesQuery = DB::table('pos_order_items as poi')->whereIn('poi.pos_order_id', $settledOrderIds)
+            ->where('poi.is_cancelled', false)->where('poi.is_pending', false)->where('poi.is_complimentary', false)->where('poi.amount', '>', 0);
+        $topItems = (clone $itemSalesQuery)->selectRaw('poi.item_name, SUM(poi.qty) as qty, SUM(poi.amount) as sales')
+            ->groupBy('poi.item_name')->orderByDesc('sales')->orderBy('poi.item_name')->limit(5)->get();
+        $topItemNames = $topItems->pluck('item_name');
+        $lowItems = (clone $itemSalesQuery)->when($topItemNames->isNotEmpty(), fn ($q) => $q->whereNotIn('poi.item_name', $topItemNames))
+            ->selectRaw('poi.item_name, SUM(poi.qty) as qty, SUM(poi.amount) as sales')
+            ->groupBy('poi.item_name')->orderBy('sales')->orderBy('poi.item_name')->limit(5)->get();
+
+        $turnaroundForRange = function (array $range) use ($selectedOutlet) {
+            $seconds = 0.0;
+            $count = 0;
+            PosOrderItem::query()->where('is_cancelled', false)->where('is_pending', false)->whereNotNull('created_at')->whereNotNull('served_at')
+                ->whereColumn('served_at', '>=', 'created_at')
+                ->whereHas('order', fn ($q) => $q->whereBetween('business_date', $range)
+                    ->where(fn ($w) => $w->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                    ->when($selectedOutlet, fn ($w) => $w->where('outlet_id', $selectedOutlet->id)))
+                ->select(['id', 'created_at', 'served_at'])->chunkById(1000, function ($items) use (&$seconds, &$count) {
+                    foreach ($items as $item) {
+                        $seconds += $item->created_at->diffInSeconds($item->served_at);
+                        $count++;
+                    }
+                });
+
+            return ['count' => $count, 'minutes' => round($count ? $seconds / $count / 60 : 0, 2)];
+        };
+        $turnaround = $turnaroundForRange($dateRange);
+        $previousTurnaround = $turnaroundForRange($previousDateRange);
+        $turnaroundCount = $turnaround['count'];
+        $turnaroundMinutes = $turnaround['minutes'];
+
+        $rangeOrderIds = (clone $orders)->select('id');
+        $rangePaymentIds = PosPayment::query()->whereBetween('business_date', $dateRange)
+            ->whereHas('order', fn ($q) => $q->whereBetween('business_date', $dateRange)
+                ->where(fn ($w) => $w->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->when($selectedOutlet, fn ($w) => $w->where('outlet_id', $selectedOutlet->id)))->select('id');
+        $controlCounts = ActivityLog::query()->where('module', 'pos')
+            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->whereIn('action', ['void', 'cancel_item', 'comp_item', 'refund'])
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('subject_type', 'PosOrder')->whereIn('subject_id', $rangeOrderIds))
+                ->orWhere(fn ($w) => $w->where('subject_type', 'PosPayment')->whereIn('subject_id', $rangePaymentIds)))
+            ->selectRaw('action, COUNT(*) as events')->groupBy('action')->pluck('events', 'action');
+        $revenueControls = collect([
+            ['action' => 'void', 'label' => 'Bills voided', 'icon' => 'trash', 'search' => 'Voided order'],
+            ['action' => 'cancel_item', 'label' => 'Order items removed', 'icon' => 'x', 'search' => 'Cancelled'],
+            ['action' => 'comp_item', 'label' => 'Complimentary items', 'icon' => 'cup', 'search' => 'Complimentary'],
+            ['action' => 'refund', 'label' => 'Refunds recorded', 'icon' => 'refresh', 'search' => 'Refunded'],
+        ])->map(fn ($control) => $control + ['count' => (int) ($controlCounts->get($control['action']) ?? 0)]);
+
+        $percentChange = static function (float $current, float $previous): ?float {
+            if (abs($previous) < 0.00001) {
+                return abs($current) < 0.00001 ? 0.0 : null;
+            }
+
+            return round(($current - $previous) / abs($previous) * 100, 1);
+        };
+        $kpiChanges = [
+            'sales' => $percentChange((float) ($summary->total_sales ?? 0), (float) ($previousSummary->total_sales ?? 0)),
+            'collections' => $percentChange($collections, $previousCollections),
+            'orders' => $percentChange((float) ($summary->order_count ?? 0), (float) ($previousSummary->order_count ?? 0)),
+            'complimentary' => $percentChange((float) $complimentaryChecks, (float) $previousComplimentaryChecks),
+            'turnaround' => $percentChange((float) $turnaroundMinutes, (float) $previousTurnaround['minutes']),
+            'discounts' => $percentChange((float) ($summary->discounts ?? 0), (float) ($previousSummary->discounts ?? 0)),
+        ];
+
+        // Leakage-watch comparisons use the same-length immediately preceding period.
+        $leakageCountsFor = function ($periodFrom, $periodTo) use ($selectedOutlet) {
+            $periodOrderIds = PosOrder::query()
+                ->where(fn ($q) => $q->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->when($selectedOutlet, fn ($q) => $q->where('outlet_id', $selectedOutlet->id))
+                ->select('id');
+
+            return ActivityLog::query()->where('module', 'pos')
+                ->whereBetween('created_at', [$periodFrom->copy()->startOfDay(), $periodTo->copy()->endOfDay()])
+                ->where('subject_type', 'PosOrder')->whereIn('subject_id', $periodOrderIds)
+                ->whereIn('action', ['cancel_item', 'invoice_reprint', 'void', 'comp_item', 'comp_undo', 'invoice_delete'])
+                ->selectRaw('action, COUNT(*) as events')->groupBy('action')->pluck('events', 'action');
+        };
+        $currentLeakageCounts = $leakageCountsFor($from, $to);
+        $previousLeakageCounts = $leakageCountsFor($previousFrom, $previousTo);
+        $leakageWatch = collect([
+            ['key' => 'items_removed', 'label' => 'Items removed', 'icon' => 'minus', 'actions' => ['cancel_item'], 'search' => 'Cancelled'],
+            ['key' => 'invoices_reprinted', 'label' => 'Invoices re-printed', 'icon' => 'print', 'actions' => ['invoice_reprint'], 'search' => 'Reprinted POS invoice'],
+            ['key' => 'orders_cancelled', 'label' => 'Orders cancelled', 'icon' => 'x', 'actions' => ['void'], 'search' => 'Voided order'],
+            ['key' => 'items_changed', 'label' => 'Items changed', 'icon' => 'edit', 'actions' => ['comp_item', 'comp_undo'], 'search' => null,
+                'title' => 'Item lines changed between complimentary and charged states.'],
+            ['key' => 'invoices_deleted', 'label' => 'Invoices deleted', 'icon' => 'trash', 'actions' => ['invoice_delete'], 'search' => null,
+                'title' => 'POS invoices are retained and cannot be deleted; voids are tracked separately.'],
+        ])->map(function ($metric) use ($currentLeakageCounts, $previousLeakageCounts) {
+            $metric['count'] = collect($metric['actions'])->sum(fn ($action) => (int) ($currentLeakageCounts->get($action) ?? 0));
+            $metric['previous'] = collect($metric['actions'])->sum(fn ($action) => (int) ($previousLeakageCounts->get($action) ?? 0));
+            $metric['increased'] = $metric['count'] > $metric['previous'];
+
+            return $metric;
+        });
+
+        return view('pos.dashboard', [
+            'outlets' => $outlets, 'selectedOutlet' => $selectedOutlet,
+            'from' => $fromDate, 'to' => $toDate, 'rangeDays' => $from->diffInDays($to) + 1,
+            'summary' => $summary, 'collections' => $collections, 'complimentaryChecks' => $complimentaryChecks, 'kpiChanges' => $kpiChanges,
+            'turnaroundMinutes' => $turnaroundMinutes, 'turnaroundItemsCount' => $turnaroundCount, 'paymentMix' => $paymentMix,
+            'dailyTrend' => $dailyTrend, 'chartOutlets' => $chartOutlets, 'trendAxis' => $trendAxis,
+            'orderTypes' => $orderTypes, 'donutStyle' => $donutStyle, 'topItems' => $topItems, 'lowItems' => $lowItems,
+            'revenueControls' => $revenueControls, 'leakageWatch' => $leakageWatch,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $outlets = Outlet::where('is_active', true)->get();
@@ -51,9 +308,12 @@ class PosController extends Controller
         }
 
         $tables = $outlet ? PosTable::with('openOrder.items')->where('outlet_id', $outlet->id)->where('is_active', true)->orderBy('id')->get() : collect();
+        $waiterTerminal = DepartmentShiftService::requiresPersonalShift($request->user())
+            && DepartmentShiftService::activeForUser((int) $request->user()->id) !== null;
 
         return view('pos.index', [
             'outlets' => $outlets, 'outlet' => $outlet, 'pending' => $pending, 'reservedSoon' => $reservedSoon,
+            'waiterTerminal' => $waiterTerminal,
             'tables' => $tables, 'freeTables' => $tables->filter(fn ($table) => ! $table->openOrder),
             'running' => $running,
             'inHouse' => ReservationRoom::with('room', 'reservation.guest')->where('status', 'checked_in')->get(),
@@ -945,6 +1205,18 @@ class PosController extends Controller
 
     public function orders(Request $request)
     {
+        $filters = $request->validate([
+            'payment_mode_id' => 'nullable|integer|owned:payment_modes',
+            'order_type' => 'nullable|in:dine_in,takeaway,room_service,delivery,other',
+            'item_name' => 'nullable|string|max:120',
+            'with_comps' => 'nullable|in:1',
+            'with_served' => 'nullable|in:1',
+        ]);
+        $paymentModeId = $filters['payment_mode_id'] ?? null;
+        $orderType = $filters['order_type'] ?? null;
+        $itemName = $filters['item_name'] ?? null;
+        $withComps = $filters['with_comps'] ?? null;
+        $withServed = $filters['with_served'] ?? null;
         $from = $request->input('from', bdate()->toDateString());
         $to = $request->input('to', bdate()->toDateString());
         $search = trim((string) $request->input('q', ''));
@@ -963,7 +1235,21 @@ class PosController extends Controller
             ->when($request->outlet, fn ($q, $o) => $q->where('outlet_id', $o))
             ->when($request->status, function ($q, $status) {
                 $status === 'unsettled' ? $q->whereIn('status', ['open', 'billed']) : $q->where('status', $status);
-            });
+            })
+            ->when($paymentModeId, fn ($q, $mode) => $q->whereHas('payments', fn ($p) => $p->whereIn('kind', ['payment', 'refund'])->where('payment_mode_id', $mode)))
+            ->when($orderType, fn ($q, $type) => $type === 'other'
+                ? $q->where(fn ($types) => $types->whereNull('order_type')->orWhereNotIn('order_type', ['dine_in', 'takeaway', 'room_service', 'delivery']))
+                : $q->where('order_type', $type))
+            ->when($itemName, fn ($q, $name) => $q->whereHas('items', fn ($items) => $items->where('item_name', $name)
+                ->where('is_cancelled', false)->where('is_pending', false)->where('is_complimentary', false)->where('amount', '>', 0)))
+            ->when($withComps, fn ($q) => $q->where('status', 'settled')
+                ->where(fn ($checks) => $checks->where('settlement', 'complimentary')
+                    ->orWhereHas('items', fn ($items) => $items->where('is_complimentary', true)->where('is_cancelled', false)))
+                ->where(fn ($checks) => $checks->whereNull('customer_name')->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%')))
+            ->when($withServed, fn ($q) => $q->where(fn ($checks) => $checks->whereNull('customer_name')
+                    ->orWhere('customer_name', 'not like', 'DEMO PREVIEW ·%'))
+                ->whereHas('items', fn ($items) => $items->where('is_cancelled', false)->where('is_pending', false)
+                    ->whereNotNull('created_at')->whereNotNull('served_at')->whereColumn('served_at', '>=', 'created_at')));
 
         $summary = (clone $ordersQuery)->selectRaw(
             'COUNT(CASE WHEN status = ? THEN 1 END) as settled_count,
@@ -975,7 +1261,8 @@ class PosController extends Controller
         $orders = $ordersQuery->with('outlet', 'table', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user')
             ->latest()->paginate(50)->withQueryString();
 
-        return view('pos.orders', ['orders' => $orders, 'summary' => $summary, 'from' => $from, 'to' => $to, 'q' => $search, 'outlets' => Outlet::pluck('name', 'id')]);
+        return view('pos.orders', ['orders' => $orders, 'summary' => $summary, 'from' => $from, 'to' => $to, 'q' => $search,
+            'outlets' => Outlet::pluck('name', 'id'), 'paymentModes' => PaymentMode::orderBy('name')->pluck('name', 'id')]);
     }
 
     public function liveOrders(Request $request)
@@ -1102,6 +1389,13 @@ class PosController extends Controller
 
     public function printBill(PosOrder $order)
     {
+        if ($order->bill_no) {
+            $printedBefore = ActivityLog::query()->where('module', 'pos')->where('subject_type', 'PosOrder')
+                ->where('subject_id', $order->getKey())->whereIn('action', ['invoice_print', 'invoice_reprint'])->exists();
+            ActivityLogger::log('pos', $printedBefore ? 'invoice_reprint' : 'invoice_print',
+                ($printedBefore ? 'Reprinted' : 'Printed').' POS invoice '.$order->bill_no, $order,
+                ['bill_no' => $order->bill_no, 'outlet_id' => $order->outlet_id]);
+        }
         $order->load('outlet', 'table', 'items', 'paymentMode', 'payments.paymentMode', 'stay.room', 'user', 'compPostCompany', 'compPostStay.room', 'compPostStay.reservation.guest');
 
         return view('pos.bill', compact('order'));

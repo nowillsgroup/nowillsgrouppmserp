@@ -27,7 +27,11 @@ class DepartmentShiftController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('department-shifts.index')->with('success', 'Your Food & Beverage service shift is open. New POS orders you start will be linked to it.');
+        $message = DepartmentShiftService::requiresPersonalShift($request->user())
+            ? 'Your Food & Beverage service shift is open. The full-page table terminal is ready; tap a free table to start an order. Orders will be linked to your close-out.'
+            : 'Your Food & Beverage service shift is open. POS order entry is unlocked, and new orders will be linked to your close-out.';
+
+        return redirect()->route('pos.index')->with('success', $message);
     }
 
     public function close(Request $request, DepartmentShiftSession $session)

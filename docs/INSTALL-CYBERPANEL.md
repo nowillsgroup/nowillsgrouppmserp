@@ -314,8 +314,7 @@ Now open:
 https://pms.nowills.com/install.php
 ```
 
-Five sections — *Server check*, *Database & site*, *Your first property*, *Administrator account*,
-*Demo data*:
+Four sections — *Server check*, *Database & site*, *Your first property*, *Administrator account*:
 
 | Section | What to enter |
 |---|---|
@@ -323,11 +322,10 @@ Five sections — *Server check*, *Database & site*, *Your first property*, *Adm
 | Database & site | `localhost`, port `3306`, the **full** DB name/user from step 4, and site URL `https://pms.nowills.com` |
 | Property | Hotel ID (what you type at login, e.g. `NOWILLS`), name, currency `GHS`, time zone `Africa/Accra` |
 | Administrator | Your own login. 8+ characters. |
-| Demo data | **Leave OFF for a real property** — it inserts fake guests and published demo passwords |
 
-The installer writes `.env`, generates `APP_KEY`, runs every migration, creates the property and the
-admin, prepares the upload folders and caches config/routes/views. Do not close the tab; it ignores
-timeouts.
+The installer writes `.env`, generates `APP_KEY`, runs every migration, creates only the property and the
+admin you specify, prepares the upload folders and caches config/routes/views. Demo seeding is not available
+in the production installer. Do not close the tab; it ignores timeouts.
 
 Then **remove the installer** — it reports your PHP configuration and folder permissions to anyone
 who loads it:
@@ -471,7 +469,7 @@ all of it applies here.
   VPS**; also take a CyberPanel/Provider snapshot before your first real data lands.
 * **Panel hygiene**: keep 8090 closed to the world once your IP is allow-listed, use SSH keys only,
   and keep CyberPanel updated (`cyberpanel upgrade` or the panel's upgrade button).
-* **No demo data**, and change any password you did not set yourself.
+* **Synthetic records**: the production installer creates only your property and administrator. `DatabaseSeeder` contains development fixtures and refuses to run when `APP_ENV=production`; do not run `php artisan db:seed` on a live site.
 
 ---
 

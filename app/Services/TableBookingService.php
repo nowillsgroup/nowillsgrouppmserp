@@ -569,6 +569,7 @@ class TableBookingService
             }
         }
         $first = $tables->first();
+        $serviceShiftId = DepartmentShiftService::activeForUser((int) auth()->id())?->id;
         $adopt = PosOrder::where('pos_table_id', $first->id)->whereIn('status', ['open', 'billed'])
             ->whereNotIn('id', TableReservation::whereNotNull('pos_order_id')->whereKeyNot($r->id)->whereIn('status', ['seated'])->select('pos_order_id'))->first();
         foreach ($tables as $t) {
@@ -577,14 +578,16 @@ class TableBookingService
             }
         }
 
-        return DB::transaction(function () use ($r, $o, $tables, $first, $adopt, $dur) {
+        return DB::transaction(function () use ($r, $o, $tables, $first, $adopt, $dur, $serviceShiftId) {
             $label = $r->name.($r->stay?->room ? ' (Rm '.$r->stay->room->room_no.')' : '');
             if ($adopt) {
-                $adopt->update(['covers' => max((int) $adopt->covers, (int) $r->party_size), 'customer_name' => $adopt->customer_name ?: $label, 'customer_phone' => $adopt->customer_phone ?: $r->phone]);
+                $adopt->update(['covers' => max((int) $adopt->covers, (int) $r->party_size), 'customer_name' => $adopt->customer_name ?: $label,
+                    'customer_phone' => $adopt->customer_phone ?: $r->phone, 'department_shift_session_id' => $adopt->department_shift_session_id ?: $serviceShiftId]);
                 $order = $adopt;
             } else {
                 $order = PosOrder::create(['order_no' => Numbering::next('pos_order'), 'outlet_id' => $o->id, 'pos_table_id' => $first->id, 'order_type' => 'dine_in',
-                    'covers' => $r->party_size, 'customer_name' => $label, 'customer_phone' => $r->phone, 'business_date' => bdate(), 'status' => 'open', 'user_id' => auth()->id()]);
+                    'covers' => $r->party_size, 'customer_name' => $label, 'customer_phone' => $r->phone, 'business_date' => bdate(), 'status' => 'open',
+                    'user_id' => auth()->id(), 'department_shift_session_id' => $serviceShiftId]);
             }
             $now = now();
             $upd = ['status' => 'seated', 'seated_at' => $now, 'pos_order_id' => $order->id, 'end_at' => $now->copy()->addMinutes($dur), 'duration' => $dur];

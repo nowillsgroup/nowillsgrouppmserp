@@ -35,6 +35,7 @@
       <input type="hidden" name="start" value="{{ $from->toDateString() }}"><input type="hidden" name="days" value="{{ $days }}"><input type="hidden" name="enquiries" value="{{ $withEnquiries ? 1 : 0 }}">
       <button class="btn btn-sm" type="submit">Apply</button></div>
     </form>
+    @if($selectedHall)<a class="btn btn-sm btn-ghost diary-clear-venue" href="{{ $q(['hall' => '']) }}" aria-label="Clear the venue filter and show all venues"><x-icon name="x"/> All venues</a>@endif
     <a class="btn btn-sm diary-enquiry-toggle {{ $withEnquiries ? 'btn-soft' : '' }}" href="{{ $q(['enquiries' => $withEnquiries ? 0 : 1]) }}" aria-label="{{ $withEnquiries ? 'Hide enquiry functions' : 'Include enquiry functions' }}"><span class="diary-toggle-dot" aria-hidden="true"></span>{{ $withEnquiries ? 'Enquiries shown' : 'Include enquiries' }}</a>
   </div>
 </section>
@@ -45,8 +46,11 @@
   $statusCounts = $agendaFunctions->countBy(fn ($f) => $f->event->status);
   $diaryHallsById = $halls->keyBy('id');
   $functionCount = $agendaFunctions->count();
+  $venueFunctionCounts = $agendaFunctions->countBy('banquet_hall_id');
+  $venueDayCounts = $agendaFunctions->groupBy('banquet_hall_id')->map(fn ($items) => $items->pluck('date')->map(fn ($date) => $date->toDateString())->unique()->count());
+  $emptyAgendaDays = max(0, $days - $dayCounts->count());
 @endphp
-<div class="diary-summary" role="status" aria-live="polite">
+<div class="diary-summary diary-summary-panel" role="status" aria-live="polite">
   <div class="diary-summary-total"><b>{{ $functionCount }}</b><span>{{ $functionCount === 1 ? 'function' : 'functions' }}</span></div>
   <span class="diary-summary-context">@if($selectedHall) 1 of {{ $allHalls->count() }} active {{ \Illuminate\Support\Str::plural('venue', $allHalls->count()) }}@else {{ $halls->count() }} active {{ \Illuminate\Support\Str::plural('venue', $halls->count()) }}@endif</span>
   <span class="diary-summary-context">{{ $withEnquiries ? 'Enquiries included' : 'Enquiries hidden' }}</span>
@@ -56,6 +60,18 @@
     @endforeach
   </div>
 </div>
+@if(! $selectedHall && $allHalls->count() > 1)
+  <section class="diary-venue-snapshot" aria-label="Quick venue filters">
+    <div class="diary-venue-snapshot-head"><b>Venue snapshot</b><span>Choose a venue to focus the diary</span></div>
+    <nav class="diary-venue-cards" aria-label="Filter by venue">
+      <a class="diary-venue-card is-active" href="{{ $q(['hall' => '']) }}" aria-current="page"><span class="diary-venue-card-name"><b>All venues</b><small>{{ $allHalls->count() }} active venues</small></span><span class="diary-venue-card-count"><b>{{ $functionCount }}</b> functions</span></a>
+      @foreach($allHalls as $venue)
+        @php $venueCount = $venueFunctionCounts->get($venue->id, 0); $venueDays = $venueDayCounts->get($venue->id, 0); @endphp
+        <a class="diary-venue-card" href="{{ $q(['hall' => $venue->id]) }}"><span class="diary-venue-card-name"><b>{{ $venue->name }}</b><small>Capacity {{ $venue->capacity }}{{ $venue->is_outdoor ? ' · outdoor' : '' }}</small></span><span class="diary-venue-card-count"><b>{{ $venueCount }}</b> {{ \Illuminate\Support\Str::plural('function', $venueCount) }} <small>{{ $venueDays }} {{ \Illuminate\Support\Str::plural('booked day', $venueDays) }}</small></span></a>
+      @endforeach
+    </nav>
+  </section>
+@endif
 @if($halls->isEmpty())
   <div class="alert alert-warn" role="status">No active banquet venues are configured for this property.</div>
 @elseif($functionCount === 0)
@@ -87,10 +103,12 @@
   @endforeach
   </tbody>
 </table></div>
-<div class="diary-agenda" role="region" aria-label="Function diary agenda">
+<div class="diary-mobile-agenda">
+  <div class="diary-agenda-toolbar"><span>Agenda · {{ $days }} days</span>@if($emptyAgendaDays > 0)<button class="btn btn-sm" id="diaryEmptyDaysToggle" type="button" aria-controls="diaryAgendaDays" aria-label="Hide {{ $emptyAgendaDays }} {{ \Illuminate\Support\Str::plural('day', $emptyAgendaDays) }} without functions" data-empty-days="{{ $emptyAgendaDays }}" data-total-days="{{ $days }}" hidden>Hide empty days</button>@endif<span class="sr-only" id="diaryAgendaViewStatus" aria-live="polite"></span></div>
+  <div class="diary-agenda {{ $emptyAgendaDays > 0 ? 'has-empty-days' : '' }}" id="diaryAgendaDays" role="region" aria-label="Function diary agenda">
   @for($d = $from->copy(); $d->lte($to); $d->addDay())
     @php $dayKey = $d->toDateString(); $dayFunctions = $agendaByDay->get($dayKey, collect()); @endphp
-    <section class="diary-agenda-day" aria-labelledby="agendaDay{{ $d->format('Ymd') }}">
+    <section class="diary-agenda-day {{ $dayFunctions->isEmpty() ? 'is-empty' : 'has-functions' }}" aria-labelledby="agendaDay{{ $d->format('Ymd') }}">
       <div class="diary-agenda-day-head">
         <h3 id="agendaDay{{ $d->format('Ymd') }}"><time datetime="{{ $dayKey }}">{{ $d->format('l d M Y') }}</time>@if($d->eq(bdate())) <span class="badge badge-green">Today</span>@endif</h3>
         <span class="diary-agenda-count">{{ $dayFunctions->count() }} {{ $dayFunctions->count() === 1 ? 'function' : 'functions' }}</span>
@@ -102,19 +120,20 @@
         <ul class="diary-agenda-list">
           @foreach($dayFunctions as $f)
             @php $hall = $diaryHallsById->get($f->banquet_hall_id); $eventTitle = $f->event->title ?: $f->event->contact_name; @endphp
-            <li class="diary-agenda-item">
+            <li class="diary-agenda-item diary-agenda-{{ $f->event->status }}">
               <a class="diary-agenda-event" href="{{ route('banquet.show', $f->event) }}" aria-label="{{ $f->event->event_no }}: {{ $eventTitle }}, {{ $f->name }}, {{ $f->timeRange() }}, {{ $hall?->name }}, {{ $f->billablePax() }} guests, {{ $f->event->status }}">
                 <time class="diary-agenda-time" datetime="{{ $dayKey }}T{{ substr($f->start_time, 0, 5) }}">{{ $f->timeRange() }}</time>
                 <span class="diary-agenda-copy"><b>{{ $eventTitle }}</b><small><span class="diary-event-ref">{{ $f->event->event_no }}</span> · {{ $f->name }} · {{ $hall?->name ?? 'Venue' }}</small></span>
                 {!! $f->event->statusBadge() !!}
               </a>
-              <div class="diary-agenda-meta"><span>{{ $f->billablePax() }} guests</span><span>{{ ucwords(str_replace('_', ' ', $f->setup_style)) }}</span></div>
+              <div class="diary-agenda-meta"><span class="diary-agenda-chip"><x-icon name="users" size="sm"/> {{ number_format($f->billablePax()) }} guests</span><span class="diary-agenda-chip">{{ ucwords(str_replace('_', ' ', $f->setup_style)) }} set-up</span></div>
             </li>
           @endforeach
         </ul>
       @endif
     </section>
   @endfor
+  </div>
 </div>
 @endif
 <div class="diary-legend" role="group" aria-label="Diary status legend">
@@ -125,3 +144,26 @@
   <span class="diary-legend-note">Tentative and definite functions hold the venue, with {{ setting('banquet_turnaround_minutes', '60') }} minutes for room turn-around.</span>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(() => {
+  const toggle = document.getElementById('diaryEmptyDaysToggle');
+  const agenda = document.getElementById('diaryAgendaDays');
+  const status = document.getElementById('diaryAgendaViewStatus');
+  if (!toggle || !agenda) return;
+  toggle.hidden = false;
+  toggle.addEventListener('click', () => {
+    const hide = !agenda.classList.contains('is-compact');
+    const emptyDays = Number(toggle.dataset.emptyDays || 0);
+    const totalDays = Number(toggle.dataset.totalDays || 0);
+    agenda.classList.toggle('is-compact', hide);
+    toggle.textContent = hide ? `Show all ${totalDays} ${totalDays === 1 ? 'day' : 'days'}` : 'Hide empty days';
+    toggle.setAttribute('aria-label', hide ? `Show all ${totalDays} ${totalDays === 1 ? 'day' : 'days'}` : `Hide ${emptyDays} ${emptyDays === 1 ? 'day' : 'days'} without functions`);
+    if (status) status.textContent = hide
+      ? `${emptyDays} ${emptyDays === 1 ? 'day' : 'days'} without functions hidden.`
+      : `All ${totalDays} days are shown.`;
+  });
+})();
+</script>
+@endpush

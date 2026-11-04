@@ -30,9 +30,9 @@ if [ ! -x "$BUN" ]; then
   chmod +x "$BUN"
 fi
 
-cd "$DIR/.."
-if [ ! -f vendor/autoload.php ]; then
-  echo "==> vendor/ missing — rebuilding from composer.lock (see deploy/dev/rebuild-vendor.py)"
+cd "$DIR/../.."
+if [ ! -f build/vendor/autoload.php ]; then
+  echo "==> build/vendor/ missing — rebuilding from composer.lock (see deploy/dev/rebuild-vendor.py)"
   python3 "$DIR/rebuild-vendor.py"
 fi
 

@@ -104,7 +104,7 @@ https://your-domain.com/install.php
 
 (In Layout B, `https://your-domain.com/install.php` also works — the `.htaccess` forwards it.)
 
-You get five sections:
+You get four sections:
 
 1. **Server check** — PHP version, extensions, writable folders, `build/vendor` present. The *Install*
    button stays disabled until every required row says **OK**.
@@ -112,14 +112,9 @@ You get five sections:
 3. **Your first property** — the Hotel ID (what you type to log in, e.g. `NOWILLS`), its name, currency
    and time zone.
 4. **Administrator account** — your own login. Pick a real password; 8 characters minimum.
-5. **Demo data** — optional. Tick it for a trial or training install (two properties, ~200 reservations,
-   staff logins). **Leave it off for a real hotel** — it contains fake guests and published demo passwords.
 
 Press **Install Nowills PMS**. It writes `.env`, generates the application key, runs every migration,
 creates your property and administrator, prepares the upload folders and caches the config.
-
-If you ticked demo data this is the slow step — on shared hosting give it a minute or two. The installer
-does not time out the request.
 
 ---
 
@@ -175,7 +170,7 @@ detects this and runs them in the foreground instead. Nothing breaks, a cron run
 - **HTTPS.** cPanel → *SSL/TLS Status* → *Run AutoSSL*. Then set `APP_URL` in `.env` to the `https://`
   address. HSTS is sent automatically once the app sees HTTPS.
 - **Production mode.** The installer already writes `APP_ENV=production` and `APP_DEBUG=false`. Leave them.
-- **Change every demo password** you did not set yourself (or install without demo data).
+- **Synthetic records.** The production installer creates only your property and administrator. `DatabaseSeeder` contains development fixtures and refuses to run when `APP_ENV=production`; do not run `php artisan db:seed` on a live site.
 - **Mail.** `.env` ships with `MAIL_MAILER=log`, so nothing is actually sent — confirmations and
   reminders are written to `storage/logs/`. Put your SMTP credentials in *Email Accounts* and update
   `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` when you are ready.

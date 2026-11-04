@@ -43,6 +43,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'POS Dashboard KPIs now include previous-period percentage changes',
+    detail: 'Total sales, collections, orders, complimentary checks, turnaround time and discounts now show their signed percentage change against the immediately preceding period of the same length, using the selected outlet and excluding UI-only preview rows. A zero prior-period baseline is labeled New rather than showing a misleading percentage; the static preview uses illustrative figures only. The POS dashboard audit and PHP syntax checks pass.',
+    screens: [['POS Dashboard', '/pos/dashboard'], ['POS Dashboard UI preview', '/__preview/pos-dashboard']],
+  },
+  {
     title: 'Kitchen Display refined for reliable live tickets and accessible kitchen actions',
     detail: 'The actual KDS now receives tickets, line items, modifiers and print-station jobs as plain JSON arrays, reports live-feed connectivity, newly arriving ticket announcements/highlights and ticket-action feedback, pauses five-second polling while the browser is hidden, and uses safe persistent filter preferences. Line-item status actions work by keyboard as well as touch; held, cancelled and served items are not presented as actionable controls, and a grouped ticket advance never rolls an already-ahead line back to a slower state. Full-screen state follows the browser fullscreenchange event so Escape restores the normal app shell, and ticket counts, outlet/station filters, sound and print links have clearer accessible names. Responsive lanes use four columns on wide screens, two on tablets and one on phones. Existing feed, bump, station print and kitchen status flows are preserved. The Kitchen Display polish audit passes 5/5 and the live KDS routes return HTTP 200.',
     screens: [['Kitchen Display — live ticket lanes', '/kitchen'], ['KOT print station', '/kitchen/station']],
@@ -850,9 +855,21 @@ const server = Bun.serve({
     // Dev preview entry: skip the marketing landing page and serve the app
     // home DIRECTLY (no redirect — some preview proxies do not follow 302s
     // inside the iframe, which shows up as a blank preview).
-    if (DEV_LOGIN && (url.pathname === '/' || url.pathname === '')) {
+    const previewHome = DEV_HOME_URL.pathname.startsWith('/__preview/');
+    if ((DEV_LOGIN || previewHome) && (url.pathname === '/' || url.pathname === '')) {
       url.pathname = DEV_HOME_URL.pathname;
       if (!url.search) url.search = DEV_HOME_URL.search;
+    }
+
+    // UI-only previews for screens that need a seeded account/database to render.
+    // These files are served only by the development server and never write app data.
+    if (url.pathname === '/__preview/waiter-pos' || url.pathname === '/__preview/pos-dashboard') {
+      const previewFile = url.pathname.endsWith('/pos-dashboard')
+        ? 'pos-dashboard.html'
+        : 'waiter-pos.html';
+      return new Response(Bun.file(join(REPO_ROOT, 'deploy/dev/previews', previewFile)), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
 
     // Development changes index (dev server only — not part of the product).

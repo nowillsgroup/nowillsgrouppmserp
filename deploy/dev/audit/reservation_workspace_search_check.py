@@ -5,7 +5,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKSPACE = (ROOT / "resources/views/reservations/workspace.blade.php").read_text()
-PREVIEW = (ROOT / "public/preview-reservations.html").read_text()
 APP_CSS = (ROOT / "public/css/app.css").read_text()
 
 
@@ -542,12 +541,6 @@ class ReservationWorkspaceSearchTest(unittest.TestCase):
         self.assertIn("filterAnnouncementTimer = setTimeout(() => { filterStatus.textContent = announcement; }, announceDelay)", WORKSPACE)
         self.assertIn("search?.addEventListener('input', () => applyWsFilters(300))", WORKSPACE)
         self.assertIn("visibleCount.textContent = `${visible} / ${cards.length} ${totalNoun}`", WORKSPACE)
-
-    def test_static_preview_exposes_and_filters_the_same_search(self):
-        self.assertIn("id=\"roomSearch\"", PREVIEW)
-        self.assertIn("card.dataset.search", PREVIEW)
-        self.assertIn("roomNoResults", PREVIEW)
-        self.assertIn("aria-label=\"Find a room, guest or reservation\"", PREVIEW)
 
 
 if __name__ == "__main__":

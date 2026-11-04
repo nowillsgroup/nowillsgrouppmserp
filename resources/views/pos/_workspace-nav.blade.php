@@ -3,7 +3,8 @@
   $posNav = [
       ['label' => 'My Shift', 'icon' => 'clock', 'href' => route('my-shift', [], false), 'active' => request()->routeIs('my-shift'), 'show' => can_do('pos.order') || can_do('pos.shift_view_all')],
       ['label' => 'Service Shift Reports', 'icon' => 'users', 'href' => route('department-shifts.index', [], false), 'active' => request()->routeIs('department-shifts.*'), 'show' => can_do('pos.order') || can_do('pos.shift_view_all')],
-      ['label' => 'POS', 'icon' => 'cup', 'href' => route('pos.index', [], false), 'active' => request()->routeIs('pos.index'), 'show' => can_do('pos.view')],
+      ['label' => 'Dashboard', 'icon' => 'chart', 'href' => route('pos.dashboard', [], false), 'active' => request()->routeIs('pos.dashboard'), 'show' => can_do('pos.view')],
+      ['label' => 'POS Terminal', 'icon' => 'cup', 'href' => route('pos.index', [], false), 'active' => request()->routeIs('pos.index'), 'show' => can_do('pos.view')],
       ['label' => 'Live Orders', 'icon' => 'bell', 'href' => route('pos.live-orders', [], false), 'active' => request()->routeIs('pos.live-orders'), 'show' => can_do('pos.view')],
       ['label' => 'Unsettled Invoices', 'icon' => 'receipt', 'href' => route('pos.unsettled', [], false), 'active' => request()->routeIs('pos.unsettled'), 'show' => can_do('pos.settle')],
       ['label' => 'Cash Balance', 'icon' => 'money', 'href' => route('shifts.index', [], false), 'active' => request()->routeIs('shifts.*'), 'show' => can_do('folio.shift')],
