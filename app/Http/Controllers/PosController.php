@@ -241,7 +241,9 @@ class PosController extends Controller
             'collections' => $percentChange($collections, $previousCollections),
             'orders' => $percentChange((float) ($summary->order_count ?? 0), (float) ($previousSummary->order_count ?? 0)),
             'complimentary' => $percentChange((float) $complimentaryChecks, (float) $previousComplimentaryChecks),
-            'turnaround' => $percentChange((float) $turnaroundMinutes, (float) $previousTurnaround['minutes']),
+            'turnaround' => $turnaroundCount > 0 && $previousTurnaround['count'] > 0
+                ? $percentChange((float) $turnaroundMinutes, (float) $previousTurnaround['minutes'])
+                : null,
             'discounts' => $percentChange((float) ($summary->discounts ?? 0), (float) ($previousSummary->discounts ?? 0)),
         ];
 
@@ -279,6 +281,7 @@ class PosController extends Controller
         return view('pos.dashboard', [
             'outlets' => $outlets, 'selectedOutlet' => $selectedOutlet,
             'from' => $fromDate, 'to' => $toDate, 'rangeDays' => $from->diffInDays($to) + 1,
+            'previousFrom' => $previousFrom->toDateString(), 'previousTo' => $previousTo->toDateString(),
             'summary' => $summary, 'collections' => $collections, 'complimentaryChecks' => $complimentaryChecks, 'kpiChanges' => $kpiChanges,
             'turnaroundMinutes' => $turnaroundMinutes, 'turnaroundItemsCount' => $turnaroundCount, 'paymentMix' => $paymentMix,
             'dailyTrend' => $dailyTrend, 'chartOutlets' => $chartOutlets, 'trendAxis' => $trendAxis,

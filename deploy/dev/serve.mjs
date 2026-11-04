@@ -43,6 +43,11 @@ let devCookies = null;
 // this index is always one click away.
 const DEV_CHANGES = [
   {
+    title: 'POS Dashboard KPI comparisons refined for clarity and missing data',
+    detail: 'The six KPI comparisons now use compact directional badges with an exact previous-period date range on hover. Turnaround percentage changes are shown only when both periods have served-item samples; an empty current period says No data instead of implying a false 100% reduction. The six-KPI UI-only preview and dashboard audit have been updated.',
+    screens: [['POS Dashboard', '/pos/dashboard'], ['POS Dashboard UI preview', '/__preview/pos-dashboard']],
+  },
+  {
     title: 'POS Dashboard KPIs now include previous-period percentage changes',
     detail: 'Total sales, collections, orders, complimentary checks, turnaround time and discounts now show their signed percentage change against the immediately preceding period of the same length, using the selected outlet and excluding UI-only preview rows. A zero prior-period baseline is labeled New rather than showing a misleading percentage; the static preview uses illustrative figures only. The POS dashboard audit and PHP syntax checks pass.',
     screens: [['POS Dashboard', '/pos/dashboard'], ['POS Dashboard UI preview', '/__preview/pos-dashboard']],

@@ -398,7 +398,10 @@ table.table { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .pos-dash-stat strong { overflow: hidden; color: var(--c-text); font-size: clamp(.95rem, 1.12vw, 1.2rem); font-weight: 750; letter-spacing: -.03em; line-height: 1.18; text-overflow: ellipsis; white-space: nowrap; }
 .pos-dash-stat strong small { color: var(--c-text-2); font-size: .58rem; font-weight: 650; letter-spacing: 0; }
 .pos-dash-stat > div > small { color: var(--c-muted); font-size: .57rem; line-height: 1.25; }
-.pos-dash-stat > div > .pos-dash-change { color: var(--c-primary); font-size: .6rem; font-weight: 750; white-space: nowrap; }
+.pos-dash-stat > div > .pos-dash-change { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: .18rem; padding: .11rem .34rem; border: 1px solid var(--c-primary-100); border-radius: 999px; background: var(--c-primary-50); color: var(--c-text-2); font-size: .58rem; font-weight: 720; line-height: 1.2; white-space: nowrap; }
+.pos-dash-change-arrow { color: var(--c-primary); font-size: .72rem; font-weight: 900; line-height: 1; }
+.pos-dash-change-context { color: var(--c-muted); font-weight: 600; }
+.pos-dash-stat > div > .pos-dash-change.is-empty { border-color: var(--c-border); background: var(--c-bg); color: var(--c-muted); font-weight: 600; }
 .pos-dash-kpi-link { color: var(--c-muted); text-decoration: underline dotted; text-underline-offset: 2px; }
 .pos-dash-kpi-link:hover, .pos-dash-kpi-link:focus-visible { color: var(--c-primary); }
 .stat-sales .pos-dash-stat-icon { background: #e9efff; color: #5377ef; }

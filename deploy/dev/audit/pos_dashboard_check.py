@@ -8,6 +8,7 @@ CONTROLLER = (ROOT / "app/Http/Controllers/PosController.php").read_text()
 ROUTES = (ROOT / "routes/web.php").read_text()
 NAV = (ROOT / "resources/views/pos/_workspace-nav.blade.php").read_text()
 VIEW = (ROOT / "resources/views/pos/dashboard.blade.php").read_text()
+KPI_CHANGE = (ROOT / "resources/views/pos/_kpi-change.blade.php").read_text()
 CSS = (ROOT / "public/css/app.css").read_text()
 ICONS = (ROOT / "resources/views/partials/icons.blade.php").read_text()
 ACTIVITY_LOG_CONTROLLER = (ROOT / "app/Http/Controllers/ActivityLogController.php").read_text()
@@ -26,13 +27,18 @@ require("route('pos.dashboard'" in NAV and "route('pos.index'" in NAV,
 require("whereBetween('business_date', $dateRange)" in CONTROLLER and "diffInDays($to) > 30" in CONTROLLER,
         "date-range reporting is bounded to 31 days")
 require("$previousDateRange = [$previousFrom->toDateString(), $previousTo->toDateString()]" in CONTROLLER
-        and "'sales' => $percentChange" in CONTROLLER and "'turnaround' => $percentChange" in CONTROLLER
+        and "'sales' => $percentChange" in CONTROLLER and "'turnaround' => $turnaroundCount > 0" in CONTROLLER
         and "$previousCollections" in CONTROLLER and "$previousComplimentaryChecks" in CONTROLLER
         and "$previousSummary = $summaryQuery($previousOrders)" in CONTROLLER,
         "KPI percentage changes compare outlet-scoped values with the immediately preceding equal-length period")
 require(all(f"$kpiChanges['{metric}']" in VIEW for metric in ['sales', 'collections', 'orders', 'complimentary', 'turnaround', 'discounts'])
-        and VIEW.count('vs prior period') >= 6 and "is_null($kpiChanges['sales'])" in VIEW,
-        "all six summary cards show signed percentage changes and handle a zero comparison baseline")
+        and VIEW.count("@include('pos._kpi-change'") == 6 and "number_format($change, 1)" in KPI_CHANGE
+        and "vs prior" in KPI_CHANGE and "aria-hidden=\"true\"" in KPI_CHANGE
+        and "class=\"sr-only\">Compared with {{ $previousPeriodLabel }}" in KPI_CHANGE,
+        "all six summary cards show compact, accessible signed-percentage comparison badges")
+require("$turnaroundCount > 0 && $previousTurnaround['count'] > 0" in CONTROLLER
+        and "'noCurrentData' => $turnaroundItemsCount === 0" in VIEW and "'No data'" in KPI_CHANGE,
+        "turnaround changes are suppressed when either period has no served-item sample")
 require("$selectedOutlet = $outletId ? $outlets->firstWhere('id', $outletId) : null;" in CONTROLLER
         and "is_string($value) ? $value : ''" in CONTROLLER,
         "outlet and date filters safely resolve against tenant-owned inputs")
