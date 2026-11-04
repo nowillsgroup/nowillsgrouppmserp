@@ -3,12 +3,12 @@
 @section('crumbs') Operations / My Shift / Food & Beverage @endsection
 @section('actions')<a class="btn" href="{{ route('my-shift') }}"><x-icon name="clock"/> My Shift</a>@endsection
 @section('content')
-<div class="alert alert-info"><x-icon name="users"/><div>This is a service shift, not a cashier drawer. Each waiter opens and closes under their own login; POS orders they create while it is open are linked to their individual report. Cashiers reconcile payments in Cashiering.</div></div>
+<div class="alert alert-info"><x-icon name="users"/><div>This is a service shift, not a cashier drawer. Each waiter opens and closes under their own login; POS orders they create while it is open are linked to their individual report. Cashiers reconcile payments in Cashiering. @if(\App\Services\DepartmentShiftService::requiresPersonalShift(auth()->user())) Opening your shift unlocks POS order entry; closing it locks the terminal until you open another shift.@endif</div></div>
 <div class="grid g-2">
   <section class="card" aria-labelledby="serviceShiftHeading">
     @if($currentServiceShift)
       @php $liveSummary = \App\Services\DepartmentShiftService::summary($currentServiceShift); @endphp
-      <div class="card-head"><div><h2 id="serviceShiftHeading">Your service shift is open</h2><div class="small muted">{{ ucfirst($currentServiceShift->shift) }} · {{ $currentServiceShift->business_date->format('d M Y') }} · opened {{ $currentServiceShift->opened_at->format('H:i') }} ({{ $currentServiceShift->opened_at->diffForHumans() }})</div></div><span class="badge badge-green">In progress</span></div>
+      <div class="card-head"><div><h2 id="serviceShiftHeading">Your service shift is open</h2><div class="small muted">{{ ucfirst($currentServiceShift->shift) }} · {{ $currentServiceShift->business_date->format('d M Y') }} · opened {{ $currentServiceShift->opened_at->format('H:i') }} ({{ $currentServiceShift->opened_at->diffForHumans() }})</div></div><div class="flex gap-1 items-center"><a class="btn btn-sm btn-primary" href="{{ route('pos.index') }}">Open POS Terminal</a><span class="badge badge-green">In progress</span></div></div>
       <div class="card-body">
         <div class="grid g-4">
           <div><span class="small muted">Orders handled</span><div class="h2">{{ $liveSummary['orders'] }}</div></div>
@@ -19,7 +19,7 @@
         @if($currentServiceShift->opening_note)<p class="small mt-1"><b>Opening note:</b> {{ $currentServiceShift->opening_note }}</p>@endif
       </div>
       @if(can_do('pos.order'))
-        <div class="card-foot"><form method="post" action="{{ route('department-shifts.close', $currentServiceShift) }}" data-confirm="Close your service shift and save this individual close-out report?">@csrf
+        <div class="card-foot"><form method="post" action="{{ route('department-shifts.close', $currentServiceShift) }}" data-confirm="Close your service shift and save this close-out? POS order entry will lock until you open another shift. Any open orders remain open for handover.">@csrf
           <div class="flex gap-1 wrap items-end"><div class="field" style="flex:1;min-width:220px"><label for="closing_note">Closing note <span class="muted">(optional)</span></label><input id="closing_note" name="closing_note" maxlength="1000" placeholder="Guest follow-ups, open tables, service notes…"></div><button class="btn btn-primary"><x-icon name="check"/> Close shift &amp; save report</button></div>
         </form></div>
       @endif

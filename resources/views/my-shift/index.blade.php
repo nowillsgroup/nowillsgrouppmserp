@@ -66,7 +66,7 @@
           <div class="my-shift-state">{{ $canService ? 'No open service shift' : 'Team shift reports' }}</div>
           <div class="my-shift-detail">Each server opens under their own login. Their own POS orders and covers roll into an individual close-out and the department’s day summary.</div>
         @endif
-        <div class="my-shift-cta"><a class="btn btn-primary" href="{{ route('department-shifts.index') }}">{{ $serviceShift ? 'Manage & close service shift' : ($canService ? 'Open service shift' : 'View team shift reports') }} <x-icon name="chev"/></a></div>
+        <div class="my-shift-cta"><a class="btn btn-primary" href="{{ route('department-shifts.index') }}">{{ $serviceShift ? 'Manage & close service shift' : ($canService ? 'Open service shift' : 'View team shift reports') }} <x-icon name="chev"/></a>@if($serviceShift && can_do('pos.view'))<a class="btn btn-accent" href="{{ route('pos.index') }}">Open POS Terminal</a>@endif</div>
       </section>
     @endif
   </div>

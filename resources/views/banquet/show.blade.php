@@ -2,8 +2,9 @@
 @section('title', $e->event_no.' · '.($e->title ?: $e->contact_name))
 @section('crumbs') <a href="{{ route('banquet.index') }}">Banquet</a> / {{ $e->event_no }} @endsection
 @section('actions')
+@php $quoteActionLabel = in_array($e->status, ['definite', 'completed'], true) ? 'Banquet contract' : 'Event proposal'; @endphp
 <span id="evStatus">{!! $e->statusBadge() !!}</span>
-<a class="btn" href="{{ route('banquet.quote', $e) }}" target="_blank" rel="noopener" id="quoteBtn" aria-label="Open proposal for {{ $e->event_no }} in a new tab"><x-icon name="receipt"/> Proposal</a>
+<a class="btn" href="{{ route('banquet.quote', $e) }}" target="_blank" rel="noopener" id="quoteBtn" aria-label="Open {{ strtolower($quoteActionLabel) }} for {{ $e->event_no }} in a new tab"><x-icon name="receipt"/> {{ $quoteActionLabel }}</a>
 <a class="btn" href="{{ route('banquet.print', $e) }}" target="_blank" rel="noopener" id="beoBtn" aria-label="Open function sheet for {{ $e->event_no }} in a new tab"><x-icon name="print"/> BEO</a>
 @if(can_do('banquet.manage'))
   @if($e->isEditable())<a class="btn" href="{{ route('banquet.edit', $e) }}" id="editEvent"><x-icon name="edit"/> Edit</a>@endif

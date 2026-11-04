@@ -887,13 +887,13 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/bookings', 'store')->name('store');
             Route::put('/bookings/{tres}', 'update')->name('update');
             Route::post('/bookings/{tres}/confirm', 'confirm')->name('confirm');
-            Route::post('/bookings/{tres}/seat', 'seat')->name('seat');
+            Route::post('/bookings/{tres}/seat', 'seat')->middleware('waiter.shift')->name('seat');
             Route::post('/bookings/{tres}/cancel', 'cancel')->name('cancel');
             Route::post('/bookings/{tres}/no-show', 'noShow')->name('noshow');
             Route::post('/bookings/{tres}/reinstate', 'reinstate')->name('reinstate');
             Route::post('/bookings/{tres}/resend', 'resend')->name('resend');
             Route::post('/bookings/{tres}/notify', 'notify')->name('notify');
-            Route::post('/walk-in', 'walkIn')->name('walkin');
+            Route::post('/walk-in', 'walkIn')->middleware('waiter.shift')->name('walkin');
             Route::post('/waitlist', 'waitlistStore')->name('waitlist.store');
             Route::post('/tables/{ptable}/clear', 'clear')->name('clear');
         });
@@ -1362,33 +1362,34 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
 
     // ---- POS
     Route::prefix('pos')->name('pos.')->controller(Controllers\PosController::class)->group(function () {
-        Route::get('/', 'index')->middleware('perm:pos.view')->name('index');
+        Route::get('/dashboard', 'dashboard')->middleware('perm:pos.view')->name('dashboard');
+        Route::get('/', 'index')->middleware('perm:pos.view')->middleware('waiter.shift')->name('index');
         Route::get('/live-orders', 'liveOrders')->middleware('perm:pos.view')->name('live-orders');
         Route::get('/live-orders/feed', 'liveOrdersFeed')->middleware('perm:pos.view')->name('live-feed');
-        Route::get('/guests', 'guestSearch')->middleware('perm:pos.order')->name('guests');
+        Route::get('/guests', 'guestSearch')->middleware('perm:pos.order')->middleware('waiter.shift')->name('guests');
         Route::get('/unsettled-invoices', 'unsettledInvoices')->middleware('perm:pos.settle')->name('unsettled');
         Route::get('/orders', 'orders')->middleware('perm:pos.view')->name('orders');
-        Route::post('/orders', 'open')->middleware('perm:pos.order')->name('open');
-        Route::get('/orders/{order}', 'terminal')->middleware('perm:pos.view')->name('terminal');
-        Route::post('/orders/{order}/claim', 'claim')->middleware('perm:pos.order')->name('claim');
-        Route::post('/orders/{order}/kot', 'kot')->middleware('perm:pos.order')->name('kot');
-        Route::post('/orders/{order}/fire', 'fireHeld')->middleware('perm:pos.order')->name('fire');
-        Route::post('/orders/{order}/items/{line}/cancel', 'cancelItem')->middleware('perm:pos.void')->name('item.cancel');
-        Route::post('/orders/{order}/items/{line}/comp', 'compItem')->middleware('perm:pos.settle')->name('item.comp');
-        Route::post('/orders/{order}/allergies', 'allergies')->middleware('perm:pos.order')->name('allergies'); // v5.0
-        Route::post('/orders/{order}/details', 'updateDetails')->middleware('perm:pos.order')->name('details');
-        Route::post('/orders/{order}/move-table', 'moveTable')->middleware('perm:pos.order')->name('move');
-        Route::post('/orders/{order}/merge', 'merge')->middleware('perm:pos.settle')->name('merge');
-        Route::post('/orders/{order}/split', 'split')->middleware('perm:pos.settle')->name('split');
-        Route::post('/orders/{order}/items/{line}/served', 'served')->middleware('perm:pos.order')->name('item.served');
-        Route::post('/orders/{order}/bill', 'bill')->middleware('perm:pos.settle')->name('bill');
-        Route::post('/orders/{order}/settle', 'settle')->middleware('perm:pos.settle')->name('settle');
-        Route::post('/orders/{order}/delivery-status', 'deliveryStatus')->middleware('perm:pos.order')->name('delivery.status');
-        Route::post('/orders/{order}/refund', 'refund')->middleware('perm:pos.refund')->name('refund');
-        Route::post('/orders/{order}/void', 'void')->middleware('perm:pos.void')->name('void');
+        Route::post('/orders', 'open')->middleware('perm:pos.order')->middleware('waiter.shift')->name('open');
+        Route::get('/orders/{order}', 'terminal')->middleware('perm:pos.view')->middleware('waiter.shift')->name('terminal');
+        Route::post('/orders/{order}/claim', 'claim')->middleware('perm:pos.order')->middleware('waiter.shift')->name('claim');
+        Route::post('/orders/{order}/kot', 'kot')->middleware('perm:pos.order')->middleware('waiter.shift')->name('kot');
+        Route::post('/orders/{order}/fire', 'fireHeld')->middleware('perm:pos.order')->middleware('waiter.shift')->name('fire');
+        Route::post('/orders/{order}/items/{line}/cancel', 'cancelItem')->middleware('perm:pos.void')->middleware('waiter.shift')->name('item.cancel');
+        Route::post('/orders/{order}/items/{line}/comp', 'compItem')->middleware('perm:pos.settle')->middleware('waiter.shift')->name('item.comp');
+        Route::post('/orders/{order}/allergies', 'allergies')->middleware('perm:pos.order')->middleware('waiter.shift')->name('allergies'); // v5.0
+        Route::post('/orders/{order}/details', 'updateDetails')->middleware('perm:pos.order')->middleware('waiter.shift')->name('details');
+        Route::post('/orders/{order}/move-table', 'moveTable')->middleware('perm:pos.order')->middleware('waiter.shift')->name('move');
+        Route::post('/orders/{order}/merge', 'merge')->middleware('perm:pos.settle')->middleware('waiter.shift')->name('merge');
+        Route::post('/orders/{order}/split', 'split')->middleware('perm:pos.settle')->middleware('waiter.shift')->name('split');
+        Route::post('/orders/{order}/items/{line}/served', 'served')->middleware('perm:pos.order')->middleware('waiter.shift')->name('item.served');
+        Route::post('/orders/{order}/bill', 'bill')->middleware('perm:pos.settle')->middleware('waiter.shift')->name('bill');
+        Route::post('/orders/{order}/settle', 'settle')->middleware('perm:pos.settle')->middleware('waiter.shift')->name('settle');
+        Route::post('/orders/{order}/delivery-status', 'deliveryStatus')->middleware('perm:pos.order')->middleware('waiter.shift')->name('delivery.status');
+        Route::post('/orders/{order}/refund', 'refund')->middleware('perm:pos.refund')->middleware('waiter.shift')->name('refund');
+        Route::post('/orders/{order}/void', 'void')->middleware('perm:pos.void')->middleware('waiter.shift')->name('void');
         Route::get('/orders/{order}/print', 'printBill')->middleware('perm:pos.view')->name('print');
-        Route::get('/orders/{order}/kot/{kot}', 'printKot')->middleware('perm:pos.view,pos.kitchen')->name('printkot');
-        Route::post('/orders/{order}/kot/{kot}/print', 'reprintKot')->middleware('perm:pos.order,pos.kitchen')->name('printkot.send');
+        Route::get('/orders/{order}/kot/{kot}', 'printKot')->middleware('perm:pos.view,pos.kitchen')->middleware('waiter.shift')->name('printkot');
+        Route::post('/orders/{order}/kot/{kot}/print', 'reprintKot')->middleware('perm:pos.order,pos.kitchen')->middleware('waiter.shift')->name('printkot.send');
         Route::get('/printers', [Controllers\KotPrinterController::class, 'index'])->middleware('perm:pos.printers')->name('printers');
         Route::post('/printers', [Controllers\KotPrinterController::class, 'store'])->middleware('perm:pos.printers')->name('printers.store');
         Route::put('/printers/{printer}', [Controllers\KotPrinterController::class, 'update'])->middleware('perm:pos.printers')->name('printers.update');
@@ -1397,8 +1398,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/printers/{printer}/test', [Controllers\KotPrinterController::class, 'test'])->middleware('perm:pos.printers')->name('printers.test');
         Route::post('/printers/{printer}/test', [Controllers\KotPrinterController::class, 'sendTest'])->middleware('perm:pos.printers')->name('printers.test.send');
         Route::post('/printers/jobs/{job}/retry', [Controllers\KotPrinterController::class, 'retry'])->middleware('perm:pos.printers,pos.kitchen')->name('printers.retry');
-        Route::post('/orders/{order}/accept', 'acceptGuest')->middleware('perm:pos.order')->name('accept');
-        Route::post('/orders/{order}/reject', 'rejectGuest')->middleware('perm:pos.void')->name('reject');
+        Route::post('/orders/{order}/accept', 'acceptGuest')->middleware('perm:pos.order')->middleware('waiter.shift')->name('accept');
+        Route::post('/orders/{order}/reject', 'rejectGuest')->middleware('perm:pos.void')->middleware('waiter.shift')->name('reject');
         Route::get('/qr-codes', 'qrSheet')->middleware('perm:pos.view')->name('qr');
         Route::post('/qr-codes/{table}/regenerate', 'qrRegenerate')->middleware('perm:masters.manage')->name('qr.regenerate');
         Route::get('/modifiers', [Controllers\PosModifierController::class, 'index'])->middleware('perm:masters.manage')->name('modifiers');

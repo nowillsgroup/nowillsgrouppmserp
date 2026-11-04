@@ -88,6 +88,7 @@ return [
             'assets.view' => 'View the asset register, depreciation & asset tags', 'assets.manage' => 'Add, edit, move & dispose of assets; asset categories',
             'assets.depreciation' => 'Run & reverse monthly depreciation',
         ],
+        'Food & Beverage Service' => ['service_shift.waiter_required' => 'Require waiters to open their personal service shift before entering or operating the POS terminal'],
         'POS' => ['pos.view' => 'View POS', 'pos.order' => 'Take orders / KOT', 'pos.shift_view_all' => 'View Food & Beverage shift reports for all service staff', 'pos.settle' => 'Bill & settle', 'pos.refund' => 'Refund settled POS payments', 'pos.void' => 'Void orders / items', 'pos.kitchen' => 'Kitchen display (KDS) – bump tickets', 'pos.printers' => 'Set up KOT printers, station routing and reprints'],
         'Restaurant Reservations' => ['tables.view' => 'View table reservations, the floor plan & waitlist', 'tables.book' => 'Take / change / cancel table bookings, seat parties, manage the waitlist',
             'tables.manage' => 'Reservation settings, service periods, floor-plan layout & blocking tables'],

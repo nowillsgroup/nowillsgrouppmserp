@@ -252,7 +252,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
     $adminUser = $in('admin_user', 'admin');
     $adminEmail = $in('admin_email');
     $adminPass = (string) ($_POST['admin_pass'] ?? '');
-    $seedDemo = ! empty($_POST['seed_demo']);
 
     if (! $checksOk) {
         $errors[] = 'Fix the failing requirements above before installing.';
@@ -395,42 +394,32 @@ ENV;
             }
             $summary[] = 'Ran all migrations';
 
-            if ($seedDemo) {
-                $summary[] = 'Seeding demo data — this is the slow step, please wait…';
-                flush_now();
+            // Production installation always starts with only the property and administrator
+            // supplied above; the development DatabaseSeeder is never invoked here.
+            $hotel = App\Models\Hotel::firstOrCreate(
+                ['code' => $hotelCode],
+                [
+                    'name' => $hotelName,
+                    'business_date' => now()->toDateString(),
+                    'country' => 'Ghana',
+                    'currency' => $currency,
+                    'currency_symbol' => $currencySymbol,
+                    'timezone' => $timezone,
+                ]
+            );
 
-                $code = $kernel->call('db:seed', ['--force' => true]);
-                if ($code !== 0) {
-                    throw new RuntimeException('db:seed failed: '.trim($kernel->output()));
-                }
-                $summary[] = 'Seeded demo data (2 properties, demo logins)';
-            } else {
-                // Create the first property and its administrator.
-                $hotel = App\Models\Hotel::firstOrCreate(
-                    ['code' => $hotelCode],
-                    [
-                        'name' => $hotelName,
-                        'business_date' => now()->toDateString(),
-                        'country' => 'Ghana',
-                        'currency' => $currency,
-                        'currency_symbol' => $currencySymbol,
-                        'timezone' => $timezone,
-                    ]
-                );
+            App\Services\HotelProvisioner::provision($hotel);
+            $summary[] = "Created property {$hotel->code} — {$hotel->name}";
 
-                App\Services\HotelProvisioner::provision($hotel);
-                $summary[] = "Created property {$hotel->code} — {$hotel->name}";
-
-                $admin = App\Models\User::firstOrNew(['username' => $adminUser]);
-                $admin->name = $adminName;
-                $admin->email = $adminEmail ?: null;
-                $admin->password = $adminPass;   // 'hashed' cast on the model
-                $admin->is_active = true;
-                $admin->hotel_id = $hotel->id;
-                $admin->is_super_admin = true;
-                $admin->save();
-                $summary[] = "Created administrator {$admin->username}";
-            }
+            $admin = App\Models\User::firstOrNew(['username' => $adminUser]);
+            $admin->name = $adminName;
+            $admin->email = $adminEmail ?: null;
+            $admin->password = $adminPass;   // 'hashed' cast on the model
+            $admin->is_active = true;
+            $admin->hotel_id = $hotel->id;
+            $admin->is_super_admin = true;
+            $admin->save();
+            $summary[] = "Created administrator {$admin->username}";
 
             // Upload and runtime folders the app writes into. public/uploads
             // and storage/app/backups are gitignored, so they are absent from
@@ -570,7 +559,7 @@ $formValue = fn (string $k, string $d = '') => h((string) ($_POST[$k] ?? $d));
     <p class="hint">If that PHP path does not exist on your host, use <code>/usr/local/bin/php</code> or ask your host for the CLI PHP path.</p>
 
     <h3>Finish the production checklist</h3>
-    <p>See <code>docs/INSTALL-CPANEL.md</code> — enable HTTPS, change the demo passwords if you seeded data, and store backups off-site.</p>
+    <p>See <code>docs/INSTALL-CPANEL.md</code> — enable HTTPS, configure mail, and store backups off-site.</p>
   </div>
 
 <?php else: ?>
@@ -636,20 +625,6 @@ $formValue = fn (string $k, string $d = '') => h((string) ($_POST[$k] ?? $d));
       <div><label>Username</label><input type="text" name="admin_user" value="<?= $formValue('admin_user', 'admin') ?>" required></div>
       <div><label>E-mail</label><input type="email" name="admin_email" value="<?= $formValue('admin_email') ?>"></div>
       <div><label>Password (min 8 characters)</label><input type="password" name="admin_pass" required></div>
-    </div>
-
-    <h2 style="margin-top:22px">5 · Demo data (optional)</h2>
-    <div class="note">
-      <label style="font-weight:400;display:flex;gap:8px;align-items:flex-start;margin:0">
-        <input type="checkbox" name="seed_demo" value="1" <?= ! empty($_POST['seed_demo']) ? 'checked' : '' ?> style="width:auto;margin-top:3px">
-        <span>
-          <strong>Install the demo dataset</strong> — two properties, ~200 reservations, POS, ledgers and staff
-          logins. Ideal for a trial or training. <strong>Do not use it for a live hotel:</strong> it contains
-          fake guests and known demo passwords.
-          <span class="hint">This is the slowest step — on shared hosting it can take a minute or more. Leave it
-          unchecked for a clean, fast install of just your own property.</span>
-        </span>
-      </label>
     </div>
 
     <p style="margin-top:20px">

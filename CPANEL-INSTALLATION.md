@@ -12,7 +12,6 @@ This ZIP contains the **complete Nowills PMS application** — all files needed 
 - **POS Module** — Point of Sale terminal, order terminal, menu catalog, cart, KOT printing, settlement
 - **Billing Reconciliation** — AP/AR reconciliation with foreign currency support
 - **Migration Importers** — Opening balances, inventory, supplier importers
-- **Preview Files** — HTML previews for POS Terminal, Order Terminal, Robita Locks
 - **Web Installer** — `install.php` — browser-based setup, no SSH needed
 - **Apache .htaccess** — ready for cPanel/Apache
 
@@ -52,10 +51,7 @@ Make these directories writable (cPanel → File Manager → Change Permissions)
 3. Check that these menus appear:
    - **Front Office → Interfaces → Robita Locks**
    - **Operations → POS / Restaurant → POS Terminal**
-4. Preview pages:
-   - `https://yourdomain.com/preview-pos.html`
-   - `https://yourdomain.com/preview-pos-order.html`
-   - `https://yourdomain.com/preview-robita.html`
+4. Use the modules through the authenticated PMS account; pages display the property's own data.
 
 ### 6. Secure the Installer (Optional)
 After installation completes, delete `install.php` from cPanel File Manager:
@@ -104,7 +100,3 @@ After installation completes, delete `install.php` from cPanel File Manager:
 ### POS Terminal not accessible
 - Check that `pos.view` permission is assigned
 - Verify POS menu entries in `config/pms.php`
-
-### Preview pages show blank
-- Verify `public/css/app.css` is accessible at `https://yourdomain.com/css/app.css`
-- Check that preview HTML files are in the `public/` directory

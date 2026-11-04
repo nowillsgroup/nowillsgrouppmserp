@@ -850,9 +850,21 @@ const server = Bun.serve({
     // Dev preview entry: skip the marketing landing page and serve the app
     // home DIRECTLY (no redirect — some preview proxies do not follow 302s
     // inside the iframe, which shows up as a blank preview).
-    if (DEV_LOGIN && (url.pathname === '/' || url.pathname === '')) {
+    const previewHome = DEV_HOME_URL.pathname.startsWith('/__preview/');
+    if ((DEV_LOGIN || previewHome) && (url.pathname === '/' || url.pathname === '')) {
       url.pathname = DEV_HOME_URL.pathname;
       if (!url.search) url.search = DEV_HOME_URL.search;
+    }
+
+    // UI-only previews for screens that need a seeded account/database to render.
+    // These files are served only by the development server and never write app data.
+    if (url.pathname === '/__preview/waiter-pos' || url.pathname === '/__preview/pos-dashboard') {
+      const previewFile = url.pathname.endsWith('/pos-dashboard')
+        ? 'pos-dashboard.html'
+        : 'waiter-pos.html';
+      return new Response(Bun.file(join(REPO_ROOT, 'deploy/dev/previews', previewFile)), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+      });
     }
 
     // Development changes index (dev server only — not part of the product).

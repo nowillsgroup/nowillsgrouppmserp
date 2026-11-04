@@ -15,6 +15,14 @@ class DepartmentShiftService
 {
     public const FOOD_BEVERAGE = 'food_beverage';
 
+    /** Only the waiter-level service role is locked to a personal shift; cashier/manager and admin roles keep their existing access. */
+    public static function requiresPersonalShift(?User $actor): bool
+    {
+        return $actor !== null && ! $actor->is_super_admin && ! $actor->is_group_admin
+            && $actor->hasPermission('service_shift.waiter_required') && $actor->hasPermission('pos.order')
+            && ! $actor->hasPermission('pos.settle') && ! $actor->hasPermission('pos.shift_view_all');
+    }
+
     public static function activeForUser(?int $userId = null, string $department = self::FOOD_BEVERAGE): ?DepartmentShiftSession
     {
         $userId ??= (int) auth()->id();

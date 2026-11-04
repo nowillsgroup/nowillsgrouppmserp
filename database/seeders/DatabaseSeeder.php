@@ -20,6 +20,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \\RuntimeException(
+                'DatabaseSeeder creates synthetic development/demo records and is disabled in production.'
+            );
+        }
+
         $today = Carbon::today();
         $group = Models\HotelGroup::create(['code' => 'NWGROUP', 'name' => 'Nowills Hospitality Group']);
 

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e291d">
+  <title>Waiter POS Terminal Preview</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    :root{--forest:#0e291d;--green:#168553;--green-soft:#edfaf3;--ink:#172033;--muted:#718096;--line:#dce5df;--bg:#f4f7f5}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    .waiter-preview{min-height:100vh;padding:clamp(14px,2.2vw,30px);max-width:1680px;margin:0 auto}
+    .preview-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:18px;padding:14px 18px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 5px 20px rgba(18,45,30,.04)}
+    .brand{display:flex;align-items:center;gap:12px}.brand-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--forest);color:#bde8ce;font-size:19px}.brand-name{font-size:.8rem;font-weight:850;letter-spacing:.1em}.brand-sub{display:block;margin-top:2px;color:var(--muted);font-size:.75rem;font-weight:500;letter-spacing:0}
+    .shift-actions{display:flex;align-items:center;gap:10px}.shift-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #bce7d3;border-radius:999px;background:var(--green-soft);color:#117e51;font-size:.78rem;font-weight:750;white-space:nowrap}.shift-dot{width:8px;height:8px;border-radius:50%;background:#19a264;box-shadow:0 0 0 3px #c9f0dc}
+    .shift-link{display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border:1px solid #cfdad3;border-radius:10px;background:#fff;color:var(--ink);font-size:.84rem;font-weight:700;text-decoration:none;white-space:nowrap}.shift-link:hover{border-color:#83c9a0;color:#126d44}
+    .preview-note{display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;padding:12px 14px;border:1px solid #d9e6fb;border-radius:12px;background:#f3f7ff;color:#526582;font-size:.8rem;line-height:1.5}.preview-note strong{color:#354b6a}.preview-note .note-icon{font-size:1rem;line-height:1.3}
+    .floor-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:5px 0 15px}.floor-heading h1{margin:0;font-size:clamp(1.55rem,3vw,2.1rem);letter-spacing:-.035em}.floor-heading p{margin:6px 0 0;color:var(--muted);font-size:.9rem}.floor-kicker{display:block;margin-bottom:5px;color:var(--green);font-size:.68rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+    .outlet-tabs{display:flex;gap:7px;overflow-x:auto;padding:4px 1px 13px}.outlet-tab{padding:9px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#667286;font-size:.82rem;font-weight:650;white-space:nowrap}.outlet-tab.active{border-color:#b7e4ca;background:var(--green-soft);color:#117e51}
+    .table-panel{overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 6px 24px rgba(18,45,30,.04)}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 19px;border-bottom:1px solid #edf1ee}.panel-head h2{margin:0;font-size:1rem}.legend{display:flex;gap:13px;align-items:center;color:#687687;font-size:.74rem}.legend span{display:flex;gap:6px;align-items:center}.legend i{width:9px;height:9px;border-radius:3px;display:inline-block}.legend .free-dot{background:#86efac}.legend .busy-dot{background:#fca5a5}.legend .clear-dot{background:#c4b5fd}
+    .tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:clamp(13px,2vw,22px)}.table-card{position:relative;display:flex;min-height:137px;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;border:2px solid;border-radius:14px;background:#fff;text-align:center;cursor:pointer;transition:transform .15s,box-shadow .15s}.table-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(17,55,35,.09)}.table-card:focus-visible{outline:3px solid #79c89a;outline-offset:2px}.table-card.free{border-color:#86efac;background:#f0fdf4}.table-card.busy{border-color:#fca5a5;background:#fff6f5}.table-card.clear{border-color:#c4b5fd;background:#faf8ff;cursor:not-allowed}.table-no{font-size:1.5rem;font-weight:850;letter-spacing:-.04em}.table-meta{margin-top:4px;color:#758195;font-size:.75rem}.table-status{margin-top:11px;padding:5px 9px;border-radius:999px;background:#dcfce7;color:#157347;font-size:.72rem;font-weight:750}.busy .table-status{background:#fee2e2;color:#a53e3e}.clear .table-status{background:#ede9fe;color:#6b4ba1}.table-order{margin-top:5px;color:#8b5050;font-size:.72rem}
+    .preview-footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 4px;color:#84908b;font-size:.72rem}.toast{position:fixed;left:50%;bottom:22px;z-index:10;max-width:min(560px,calc(100vw - 32px));transform:translate(-50%,15px);opacity:0;pointer-events:none;padding:12px 16px;border:1px solid #c8e7d4;border-radius:12px;background:#103b27;color:#effcf4;font-size:.85rem;box-shadow:0 12px 28px rgba(9,35,20,.22);transition:opacity .18s,transform .18s}.toast.show{transform:translate(-50%,0);opacity:1}
+    @media(max-width:600px){.preview-top{align-items:flex-start;padding:12px}.shift-pill{display:none}.shift-link{padding:9px 10px;font-size:.77rem}.brand-sub{max-width:185px}.floor-heading{align-items:flex-start;flex-direction:column}.panel-head{align-items:flex-start;flex-direction:column}.tables-grid{grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:9px}.table-card{min-height:122px}.legend{gap:9px;font-size:.7rem}}
+  </style>
+</head>
+<body>
+  <main class="waiter-preview">
+    <header class="preview-top">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">N</span><div class="brand-name">NOWILLS PMS<span class="brand-sub">Point of Sale · Waiter terminal</span></div></div>
+      <div class="shift-actions"><span class="shift-pill"><i class="shift-dot"></i> F&amp;B shift open</span><a class="shift-link" href="/department-shifts" aria-label="My shift and close shift">◷ <span>My shift / Close shift</span></a></div>
+    </header>
+
+    <aside class="preview-note"><span class="note-icon" aria-hidden="true">ⓘ</span><div><strong>Visual preview only.</strong> These sample table cards are not database records. In the live waiter view, tapping a free table starts an order directly; tapping an occupied table opens its current order. No orders or table changes are saved from this preview.</div></aside>
+
+    <section aria-labelledby="floorTitle">
+      <div class="floor-heading"><div><span class="floor-kicker">Food &amp; Beverage · Service shift active</span><h1 id="floorTitle">Choose a table</h1><p>Tap a free table to start an order, or an occupied table to continue it.</p></div></div>
+      <nav class="outlet-tabs" aria-label="Outlet"><span class="outlet-tab active">Restaurant · preview</span></nav>
+      <section class="table-panel" aria-labelledby="tablesTitle">
+        <div class="panel-head"><h2 id="tablesTitle">Tables</h2><div class="legend" aria-label="Table status legend"><span><i class="free-dot"></i>Free</span><span><i class="busy-dot"></i>In service</span><span><i class="clear-dot"></i>To clear</span></div></div>
+        <div class="tables-grid">
+          <button class="table-card free" type="button" data-table="01"><span class="table-no">01</span><span class="table-meta">Main dining · 4 seats</span><span class="table-status">Available</span></button>
+          <button class="table-card busy" type="button" data-table="02"><span class="table-no">02</span><span class="table-meta">Main dining · 2 seats</span><span class="table-status">In service</span><span class="table-order">Current order · tap to continue</span></button>
+          <button class="table-card free" type="button" data-table="03"><span class="table-no">03</span><span class="table-meta">Window · 4 seats</span><span class="table-status">Available</span></button>
+          <button class="table-card clear" type="button" disabled><span class="table-no">04</span><span class="table-meta">Window · 6 seats</span><span class="table-status">To clear</span></button>
+          <button class="table-card busy" type="button" data-table="05"><span class="table-no">05</span><span class="table-meta">Terrace · 4 seats</span><span class="table-status">In service</span><span class="table-order">Current order · tap to continue</span></button>
+          <button class="table-card free" type="button" data-table="06"><span class="table-no">06</span><span class="table-meta">Terrace · 2 seats</span><span class="table-status">Available</span></button>
+          <button class="table-card free" type="button" data-table="07"><span class="table-no">07</span><span class="table-meta">Private dining · 8 seats</span><span class="table-status">Available</span></button>
+          <button class="table-card free" type="button" data-table="08"><span class="table-no">08</span><span class="table-meta">Bar · 3 seats</span><span class="table-status">Available</span></button>
+        </div>
+      </section>
+      <footer class="preview-footer"><span>Full-page waiter view · table grid expands to the available screen</span><span>Tap a free table → order terminal</span></footer>
+    </section>
+  </main>
+  <div class="toast" id="previewToast" role="status" aria-live="polite"></div>
+  <script>
+    let toastTimer;
+    document.querySelectorAll('[data-table]').forEach(card => card.addEventListener('click', () => {
+      const table = card.dataset.table;
+      const action = card.classList.contains('busy') ? 'continue the current order' : 'start a new order';
+      const toast = document.getElementById('previewToast');
+      toast.textContent = `Table ${table} selected — the live terminal would ${action}. Preview only; nothing was saved.`;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 3400);
+    }));
+  </script>
+</body>
+</html>
