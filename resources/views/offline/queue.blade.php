@@ -28,8 +28,10 @@
       <div>
         <h3><x-icon name="layers"/> Work this device is still holding</h3>
         <p class="small muted mb-0">
-          Orders, kitchen tickets, check-ins, folio charges, room statuses and guest requests wait here until the server
-          has them. Nothing leaves this list without an answer from the server, or without a person discarding it.
+          Restaurant orders and kitchen tickets, front-desk check-ins and folio charges, guest requests, and any work
+          another screen has handed to this queue. Nothing leaves this list without an answer from the server, or
+          without a person discarding it. Room statuses are still kept by the housekeeping screen itself — open it to
+          see that list.
         </p>
       </div>
       <div class="offline-pos-state" data-queue-state role="status" aria-live="polite">Reading this device…</div>

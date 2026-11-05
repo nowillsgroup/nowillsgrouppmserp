@@ -42,6 +42,7 @@ QUEUE_VIEW = read("resources/views/offline/queue.blade.php")
 RECON_SERVICE = read("app/Services/OfflineReconciliationService.php")
 RECON_VIEW = read("resources/views/offline/reconciliation.blade.php")
 PREP_SERVICE = read("app/Services/OfflinePreparationService.php")
+GUEST_JS = read("public/js/offline-guest-requests.js")
 PREPARE_JS = CORE[CORE.index("function prepare(plan)"):CORE.index("function backoff(attempts)")]
 STAY_SERVICE = read("app/Services/StayService.php")
 FOLIO_SERVICE = read("app/Services/FolioService.php")
@@ -53,7 +54,8 @@ class OfflineCoreCheck(unittest.TestCase):
     def test_an_operation_id_is_made_on_the_device_and_reused_on_replay(self):
         self.assertIn("function uuid()", CORE)
         self.assertIn("crypto.randomUUID", CORE)
-        self.assertIn("id: uuid()", CORE, "every queued operation carries a device-generated id")
+        self.assertIn("id: options.id || uuid(),", CORE,
+                      "every queued operation carries a device-generated id, unless it already has one")
         self.assertIn("operation_id: row.id", CORE, "the queue posts that id to the server")
         # The server must answer a repeated id from its own store, not by applying again.
         self.assertIn("OfflineSyncOperation::where('operation_id', $operationId)->lockForUpdate()->first()", SYNC_SERVICE)
@@ -453,6 +455,45 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertIn("'snapshot_key' => $snapshotKey", PREP_SERVICE)
         self.assertIn("'pos'", PREP_SERVICE)
         self.assertIn("'frontdesk'", PREP_SERVICE)
+
+    # ── one queue ──────────────────────────────────────────────────────────────
+
+    def test_the_guest_request_screen_uses_the_shared_queue(self):
+        self.assertIn("core.enqueue('guest_request.create', payload, {", GUEST_JS)
+        self.assertIn("const core = window.PmsOffline || null;", GUEST_JS)
+        self.assertIn("await core.flush({ force: true });", GUEST_JS)
+        # The screen no longer speaks to the sync endpoint or keeps its own timer.
+        self.assertNotIn("fetch(syncUrl", GUEST_JS)
+        self.assertNotIn("setInterval(", GUEST_JS)
+        self.assertNotIn("refreshCsrf", GUEST_JS)
+        self.assertIn("core.pending().catch(() => [])", GUEST_JS)
+
+    def test_work_already_queued_survives_the_move_onto_the_shared_queue(self):
+        self.assertIn("async function migrateLegacyQueue()", GUEST_JS)
+        self.assertIn("await allOutbox()", GUEST_JS)
+        self.assertIn("id: row.operation_id,", GUEST_JS,
+                      "the operation id is kept, so the server still recognises the work")
+        self.assertIn("await deleteOutbox(row.operation_id);", GUEST_JS)
+        self.assertIn("id: options.id || uuid(),", CORE, "the queue can take the id a row was stored under")
+        self.assertIn("migrateLegacyQueue().then(", GUEST_JS)
+
+    def test_the_screen_follows_the_queue_it_hands_work_to(self):
+        self.assertIn("window.addEventListener('pms-offline:applied'", GUEST_JS)
+        self.assertIn("request_no: entry.result.request.request_no", GUEST_JS)
+        self.assertIn("async function applyQueued()", GUEST_JS)
+        self.assertIn("row.status === 'queued' || row.status === 'retry'", GUEST_JS,
+                      "the pending badge counts only this screen's own rows")
+
+    def test_the_screen_is_covered_by_a_harness(self):
+        self.assertTrue((ROOT / "deploy/dev/audit/offline_guest_request_queue_check.js").exists())
+        result = subprocess.run(["node", str(ROOT / "deploy/dev/audit/offline_guest_request_queue_check.js")],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("assertions passed", result.stdout)
+
+    def test_the_outbox_says_which_screen_still_keeps_its_own_list(self):
+        self.assertIn("Room statuses are still kept by the housekeeping screen itself", QUEUE_VIEW)
+        self.assertIn("Housekeeping is the one screen left on its own older queue", DOC)
 
     # ── it has to parse ────────────────────────────────────────────────────────
 

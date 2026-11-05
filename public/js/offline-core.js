@@ -167,13 +167,16 @@
    * Put an operation in the queue.
    * @param {string} operation  server-side name, e.g. 'pos.order.kot'
    * @param {object} payload    what the server needs to apply it
-   * @param {object} [options]  { baseUpdatedAt, label }
+   * @param {object} [options]  { baseUpdatedAt, label, id }
    * @returns {Promise<object>} the stored row (its id is the operation id)
    */
   function enqueue(operation, payload, options) {
     options = options || {};
     var row = {
-      id: uuid(),
+      // `id` is only passed when work already carries one — a screen moving onto
+      // this queue keeps the operation ids its rows were stored under, so the
+      // server still recognises them and cannot apply the same work twice.
+      id: options.id || uuid(),
       operation: operation,
       payload: payload || {},
       base_updated_at: options.baseUpdatedAt || new Date().toISOString(),

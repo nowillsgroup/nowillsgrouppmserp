@@ -21,7 +21,7 @@ folio. Both replay through the same services the online screens use — `StaySer
 still waits for a connection: payments, refunds, settlement and check-out stay on the online cashier screen,
 so a guest cannot be charged twice and the shift's cash total keeps one source.
 
-The guest-request slice provides a tenant-scoped, permission-checked capture screen at `offline/guest-requests` with a snapshot at `offline/guest-requests/snapshot`. It queues `guest_request.create` through the authenticated offline outbox, shows queued and synced requests, and reports rejected or stale stays without silently losing the capture. The snapshot contains only checked-in stay identifiers, room numbers, open request status, and request-category choices; guest names and other guest PII are intentionally excluded. Creation reuses the online request service, requires `requests.manage`, accepts only currently checked-in stays, and records an idempotent server receipt before acknowledging the browser.
+The guest-request slice provides a tenant-scoped, permission-checked capture screen at `offline/guest-requests` with a snapshot at `offline/guest-requests/snapshot`. It queues `guest_request.create` through the shared offline outbox, shows queued and synced requests, and reports rejected or stale stays without silently losing the capture. The snapshot contains only checked-in stay identifiers, room numbers, open request status, and request-category choices; guest names and other guest PII are intentionally excluded. Creation reuses the online request service, requires `requests.manage`, accepts only currently checked-in stays, and records an idempotent server receipt before acknowledging the browser.
 
 ---
 

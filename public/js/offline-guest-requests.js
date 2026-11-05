@@ -1,4 +1,16 @@
-/* Nowills PMS — offline guest-request capture */
+/*
+ * Nowills PMS — offline guest-request capture.
+ *
+ * The screen captures a request and hands it to the shared outbox in
+ * /js/offline-core.js, so guest requests travel on the same queue, the same
+ * backoff, the same Background Sync and the same retry/discard screen as the
+ * restaurant and front-desk work. This file keeps only what is specific to the
+ * screen: the form, the room list and the recent-request cards.
+ *
+ * Rows queued by the older version of this file (its own `outbox` store in
+ * `nowills-pms-offline`) are moved onto the shared queue on load, keeping the
+ * operation id they were stored with.
+ */
 (function () {
   'use strict';
 
@@ -13,9 +25,7 @@
   const snapshotUrl = app.dataset.snapshotUrl;
   const syncUrl = app.dataset.syncUrl;
   const canCreate = app.dataset.canCreate === '1';
-  const deviceKey = 'nowills-offline-device:' + hotel;
-  const device = localStorage.getItem(deviceKey) || (window.crypto?.randomUUID ? window.crypto.randomUUID() : 'device-' + Date.now() + '-' + Math.random().toString(16).slice(2));
-  localStorage.setItem(deviceKey, device);
+  // The shared queue owns the device id and the CSRF token; this screen is a form.
 
   const stateLabel = document.querySelector('[data-guest-request-state]');
   const staySelect = document.querySelector('[data-guest-stay]');
@@ -35,10 +45,9 @@
   const requestList = document.querySelector('[data-guest-request-list]');
   const requestEmpty = document.querySelector('[data-guest-request-empty]');
   const requestCount = document.querySelector('[data-guest-request-count]');
-  const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
   const snapshotKey = () => hotel + ':guest-requests';
   let snapshot = null;
-  let syncing = false;
+  const core = window.PmsOffline || null;
 
   function openDb() {
     return new Promise((resolve, reject) => {
@@ -196,7 +205,12 @@
   }
 
   async function updatePending() {
-    const count = (await allOutbox()).length;
+    // Only this screen's own rows: the shared queue also carries the restaurant,
+    // front desk and housekeeping work, which is not this screen's business.
+    const rows = core ? await core.pending().catch(() => []) : await allOutbox();
+    const count = core
+      ? rows.filter(row => row.operation === 'guest_request.create' && (row.status === 'queued' || row.status === 'retry')).length
+      : rows.length;
     const pending = document.querySelector('[data-offline-pending]');
     if (pending) pending.textContent = count ? ' · ' + count + ' pending' : '';
     document.body.classList.toggle('offline-has-pending', count > 0);
@@ -226,64 +240,57 @@
     }
   }
 
-  async function refreshCsrf() {
-    try {
-      const response = await fetch(window.location.pathname || '/offline/guest-requests', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html' } });
-      if (!response.ok) return false;
-      const html = await response.text();
-      const match = html.match(/<meta\s+name=["']csrf-token["']\s+content=["']([^"']+)/i);
-      if (match) document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', match[1]);
-      return !!match;
-    } catch (_) {
-      return false;
-    }
+  /** Send what this device holds, through the shared queue. */
+  async function syncOutbox() {
+    if (!core) return;
+    if (!navigator.onLine) return;
+    await core.flush({ force: true });
+    await applyQueued();
+    await updatePending();
+    setState(navigator.onLine ? 'Online · ready for offline capture' : 'Offline · changes will sync automatically');
   }
 
-  async function syncOutbox() {
-    if (syncing || !navigator.onLine) return;
-    syncing = true;
+  /**
+   * Move rows the older version of this screen queued in its own store onto the
+   * shared queue, keeping each operation id so the server still recognises work it
+   * may already have applied.
+   */
+  async function migrateLegacyQueue() {
+    if (!core) return 0;
+    let moved = 0;
     try {
-      const rows = await allOutbox();
-      await updatePending();
-      const requestRows = rows.filter(row => row.operation === 'guest_request.create');
-      if (!requestRows.length) return;
-      setState('Online · syncing ' + requestRows.length + ' request' + (requestRows.length === 1 ? '' : 's'));
-      const send = () => fetch(syncUrl, {
-        method: 'POST', credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Offline-Device': device },
-        body: JSON.stringify({ operations: requestRows.map(row => ({ operation_id: row.operation_id, operation: row.operation, payload: row.payload })) }),
-      });
-      let response = await send();
-      if (response.status === 419 && await refreshCsrf()) response = await send();
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) notify('Offline requests are waiting for an authenticated session.', 'error');
-        throw new Error('Sync returned HTTP ' + response.status);
+      const rows = (await allOutbox()).filter(row => row.operation === 'guest_request.create' && row.payload);
+      for (const row of rows) {
+        await core.enqueue('guest_request.create', row.payload, {
+          id: row.operation_id,
+          label: 'Guest request · room ' + (row.payload?.room_no || (row.payload?.stay_id ? '#' + row.payload.stay_id : '')),
+        });
+        await deleteOutbox(row.operation_id);
+        moved += 1;
       }
-      const data = await response.json();
-      for (const result of data.results || []) {
-        const local = (snapshot?.local_requests || []).find(request => request.operation_id === result.operation_id);
-        if (result.status === 'applied') {
-          if (local) Object.assign(local, result.request || {}, { sync_status: null });
-          notify('Guest request ' + (result.request?.request_no || 'created') + ' synced.', 'info');
-        } else if (result.status === 'rejected') {
-          if (local) Object.assign(local, { sync_status: 'rejected', error: result.error || 'The request was rejected.' });
-          notify(result.error || 'The guest request was rejected.', 'error');
-        } else if (result.status === 'conflict') {
-          if (local) Object.assign(local, { sync_status: 'conflict', error: result.error || 'The request needs review.' });
-          notify('The guest request needs review before it can be created.', 'error');
-        } else if (result.status === 'retry') {
-          notify(result.error || 'The request was not confirmed and remains queued for retry.', 'error');
-        }
-        if (result.operation_id && ['applied', 'rejected', 'conflict'].includes(result.status)) await deleteOutbox(result.operation_id);
-      }
-      await updatePending();
-      await fetchSnapshot();
-      setState('Online · synced guest requests');
-    } catch (error) {
-      if (navigator.onLine) console.debug('Guest-request sync postponed:', error.message);
-      setState(navigator.onLine ? 'Online · requests remain queued' : 'Offline · requests remain queued');
-    } finally {
-      syncing = false;
+    } catch (_) {
+      // A device with no legacy store simply has nothing to move.
+    }
+    return moved;
+  }
+
+  /** Reflect the queue's state on the request cards this device captured. */
+  async function applyQueued() {
+    if (!core) return;
+    const rows = await core.pending().catch(() => []);
+    const byId = new Map(rows.map(row => [row.id, row]));
+    let changed = false;
+    (snapshot?.local_requests || []).forEach(request => {
+      const row = byId.get(request.operation_id);
+      const status = row ? row.status : request.request_no ? null : 'sent';
+      if (request.sync_status === status && (row?.error || null) === (request.error || null)) return;
+      request.sync_status = status;
+      request.error = row ? row.error : null;
+      changed = true;
+    });
+    if (changed) {
+      await writeSnapshot(snapshot);
+      renderRequests();
     }
   }
 
@@ -300,13 +307,20 @@
       quantity: Math.max(1, Math.min(10, Number(quantityInput?.value || 1))), preferred_at: preferredAt,
       status: null, sync_status: 'queued', created_at: new Date().toISOString(), request_no: null,
     };
-    const row = {
-      operation_id: operationId, hotel, operation: 'guest_request.create',
-      payload: { stay_id: Number(staySelect.value), category: categoryKey, item: itemSelect.value, quantity: request.quantity, preferred_at: preferredAt, time: timeInput?.value || '', notes: notesInput?.value.trim() || '' },
-      created_at: request.created_at,
+    const payload = {
+      stay_id: Number(staySelect.value), category: categoryKey, item: itemSelect.value,
+      quantity: request.quantity, preferred_at: preferredAt,
+      time: timeInput?.value || '', notes: notesInput?.value.trim() || '',
     };
     try {
-      await saveOutbox(row);
+      if (core) {
+        await core.enqueue('guest_request.create', payload, {
+          id: operationId,
+          label: 'Guest request · room ' + (request.room_no || '#' + payload.stay_id) + ' · ' + request.item,
+        });
+      } else {
+        await saveOutbox({ operation_id: operationId, hotel, operation: 'guest_request.create', payload, created_at: request.created_at });
+      }
       snapshot = snapshot || { local_requests: [] };
       snapshot.local_requests = [request, ...(snapshot.local_requests || [])].slice(0, 30);
       await writeSnapshot(snapshot);
@@ -334,7 +348,29 @@
   window.addEventListener('online', () => { fetchSnapshot().then(syncOutbox); });
   window.addEventListener('offline', () => { setState('Offline · changes will sync automatically'); updateFormState(); });
 
+  // The queue sends itself; this only keeps the cards and the count honest.
+  if (core) {
+    core.onChange(() => { updatePending(); applyQueued(); });
+    window.addEventListener('pms-offline:applied', event => {
+      (event.detail?.applied || []).forEach(entry => {
+        if (entry.operation !== 'guest_request.create') return;
+        const local = (snapshot?.local_requests || []).find(request => request.operation_id === entry.result?.operation_id
+          || request.operation_id === entry.payload?.operation_id);
+        if (local && entry.result?.request) {
+          Object.assign(local, { request_no: entry.result.request.request_no || local.request_no, sync_status: null });
+          notify('Guest request ' + (local.request_no || 'created') + ' is on the server.', 'info');
+        }
+      });
+      applyQueued();
+      renderRequests();
+    });
+  }
+
   updatePending();
+  migrateLegacyQueue().then(moved => {
+    if (moved) notify(moved + ' queued request' + (moved === 1 ? ' was' : 's were') + ' moved onto the shared outbox.', 'info');
+    updatePending();
+    applyQueued();
+  });
   fetchSnapshot().then(syncOutbox);
-  setInterval(() => { if (navigator.onLine) syncOutbox(); }, 30000);
 })();

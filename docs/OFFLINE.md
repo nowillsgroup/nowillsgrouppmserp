@@ -86,7 +86,8 @@ moment a guest asks for the bill.
 |---|---|
 | `public/js/offline-core.js` | The queue: IndexedDB stores, enqueue, flush with backoff, snapshot cache, status events. Used by pages **and** by the service worker. |
 | `public/sw.js` | App shell cache, offline navigation fallback to `/offline`, Background Sync that flushes the queue with no tab open. |
-| `public/js/offline-sync.js` | Housekeeping / guest-request screen logic (older, screen-specific). |
+| `public/js/offline-sync.js` | Housekeeping screen logic (older: keeps its own snapshot **and** its own queue in `nowills-pms-offline`). |
+| `public/js/offline-guest-requests.js` | Guest-request form and cards; its queue is the shared one (its own snapshot store is older). |
 | `public/js/offline-pos.js` | Restaurant terminal drawn from the snapshot. |
 | `public/js/offline-frontdesk.js` | Front desk: arrivals, in-house rooms, the charge form, drawn from the snapshot. |
 | `public/js/offline-queue.js` | The outbox screen: what this device holds, why the server refused it, retry and discard. |
@@ -111,7 +112,16 @@ moment a guest asks for the bill.
 | signed out | The queue stops and says so. Nothing is dropped; sign in and it resumes. |
 
 Retries never re-order the queue, and a stalled operation is never deleted on its
-own — someone has to look at it. That look happens on `/offline/queue`: the server's
+own — someone has to look at it.
+
+One queue, one set of rules: the restaurant, front desk and guest-request screens
+write into the same outbox, so one backoff, one Background Sync and one review
+screen cover all three. Rows the guest-request screen queued in its own older store
+are moved onto the shared queue the first time it loads, keeping the operation id
+they were stored with (so the server still recognises work it may already have
+applied). Housekeeping is the one screen left on its own older queue; moving it is
+a separate change, and until then `/offline/queue` says so rather than implying it
+shows everything. That look happens on `/offline/queue`: the server's
 reason is on the row, **Try again** puts one change back in the queue with its backoff
 cleared (and sends it at once), and **Discard** asks first, because the server never
 received that work and it cannot be recovered.
