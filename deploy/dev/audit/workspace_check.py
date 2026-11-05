@@ -177,6 +177,14 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('`unassigned`', doc)
         self.assertIn('RoomImage::url(\'thumb\')', doc)
 
+    def test_the_screen_says_what_it_means(self):
+        # icon-only controls need a name, and every picture needs an alt
+        self.assertIn('aria-label="Close room details"', VIEW)
+        self.assertIn('loading="lazy" decoding="async"', VIEW)
+        self.assertIn('alt=""', VIEW, 'the room picture is decorative: the card is named by its aria-label')
+        self.assertIn('every control has a name', CHECK)
+        self.assertIn('every picture is described or marked decorative', CHECK)
+
     def test_the_keyboard_reaches_the_board(self):
         self.assertIn("if (event.key === '/')", VIEW)
         self.assertIn("event.key === 'r' || event.key === 'R'", VIEW)

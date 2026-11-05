@@ -229,6 +229,26 @@ ok('the sidebar is around it', Boolean($('aside.sidebar')) && Boolean($('.page-h
 ok('no preview furniture on the screen',
   !/sample|preview|illustrative|not linked|static screen/i.test($('main')?.textContent ?? ''));
 
+/* ── what a screen reader gets ───────────────────────────────────────────── */
+const controls = [...doc.querySelectorAll('button, a[href], [role="button"]')];
+const named = (element) => {
+  const label = (element.getAttribute('aria-label') || '').trim();
+  if (label) return true;
+  if (element.getAttribute('aria-labelledby')) return true;
+  const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
+  return text.length > 0;
+};
+const anonymous = controls.filter(control => !named(control));
+ok('every control has a name', anonymous.length === 0,
+  anonymous.slice(0, 3).map(node => node.outerHTML.slice(0, 70)).join(' · '));
+ok('every picture is described or marked decorative',
+  $$('#wsGrid img').every(img => img.hasAttribute('alt')));
+ok('the housekeeping badges are read out in full',
+  $$('.ws-hk-badge').every(badge => /Current .*housekeeping/i.test(badge.textContent.replace(/\s+/g, ' '))
+    || Boolean(badge.getAttribute('title'))));
+ok('the sortable rack headers say what they sort by',
+  $$('.ws-rack-sort').every(button => (button.textContent || '').trim().length > 0));
+
 /* ── the modals the board opens ──────────────────────────────────────────── */
 ok('every room has a details dialog', $$('.ws-modal').length === cards.length, `${$$('.ws-modal').length}`);
 $('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
