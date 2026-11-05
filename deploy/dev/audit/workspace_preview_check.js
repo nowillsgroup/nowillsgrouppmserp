@@ -180,6 +180,12 @@ doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'b', bubbles: true 
 ok('B returns to the board', $('#wsGrid')?.hidden === false && $('#wsRack')?.hidden === true);
 doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'r', bubbles: true }));
 ok('R opens the rack', $('#wsRack')?.hidden === false);
+search.value = 'zzz-not-a-room';
+search.dispatchEvent(new window.Event('input', { bubbles: true }));
+ok('a search that matches nothing says so', $('#wsNoResults')?.hidden === false);
+search.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+ok('Escape clears the search first', search.value === '' && $('#wsNoResults')?.hidden === true,
+  `value "${search.value}"`);
 doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: '/' }));
 ok('slash focuses the search', doc.activeElement === search, doc.activeElement?.id);
 doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'b' }));

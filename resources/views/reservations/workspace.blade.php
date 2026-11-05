@@ -1034,7 +1034,17 @@
     const tag = String(event.target?.tagName || '').toLowerCase();
     const typing = tag === 'input' || tag === 'select' || tag === 'textarea' || event.target?.isContentEditable;
     if (typing) {
-      if (event.key === 'Escape') event.target.blur();
+      // Escape clears the search first, so a half-typed filter never has to be
+      // deleted by hand; a second Escape leaves the field.
+      if (event.key === 'Escape') {
+        if (event.target === search && search.value) {
+          event.preventDefault();
+          search.value = '';
+          applyWsFilters();
+        } else {
+          event.target.blur();
+        }
+      }
       return;
     }
     if (event.key === '/') {

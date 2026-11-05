@@ -139,6 +139,11 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn("event.key === 'r' || event.key === 'R'", VIEW)
         self.assertIn("event.key === 'g' || event.key === 'G'", VIEW)
 
+    def test_escape_clears_the_search_before_leaving_it(self):
+        # a half-typed filter should not have to be deleted by hand
+        self.assertIn("if (event.target === search && search.value)", VIEW)
+        self.assertIn("search.value = '';\n          applyWsFilters();", VIEW)
+
     def test_the_board_prints(self):
         self.assertIn('@media print{', VIEW)
         self.assertIn('.ws-cmd,.ws-rail', VIEW)
