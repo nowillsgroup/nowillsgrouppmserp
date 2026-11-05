@@ -78,6 +78,9 @@ if (edit) {
   ok('edit: each photo is an image with a source',
     figures.length > 0 && figures.every(f => (f.querySelector('img')?.getAttribute('src') ?? '').startsWith('/preview-assets/')));
   ok('edit: each photo has alt text', figures.every(f => (f.querySelector('img')?.getAttribute('alt') ?? '').length > 0));
+  ok('edit: each tile links to the full-size photo',
+    figures.every(f => (f.querySelector('a.room-photo-full')?.getAttribute('href') ?? '').startsWith('/preview-assets/')),
+    figures[0]?.querySelector('a.room-photo-full')?.getAttribute('href'));
   ok('edit: one photo is marked primary',
     figures.filter(f => /Primary/.test(f.textContent)).length === 1,
     `${figures.filter(f => /Primary/.test(f.textContent)).length} marked`);
