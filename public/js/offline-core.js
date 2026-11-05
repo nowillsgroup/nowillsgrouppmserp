@@ -203,6 +203,30 @@
     return run(OUTBOX, 'readwrite', function (store) { return store.delete(id); });
   }
 
+  /**
+   * Put a change back in the queue, now.
+   *
+   * A person uses this after fixing what the server complained about — a room that
+   * was occupied has been freed, a category was wrong — instead of re-typing work
+   * the guest already watched happen.
+   */
+  function retry(id) {
+    return patch(id, { status: 'queued', attempts: 0, next_attempt_at: 0, error: null })
+      .then(function (row) { return refresh().then(function () { return row; }); })
+      .then(function (row) {
+        if (!row) return null;
+        return flush({ force: true }).then(function () { return row; });
+      });
+  }
+
+  /**
+   * Give up on one queued change. Only a person may drop work: the server never
+   * removes an operation, and the screen asks before it calls this.
+   */
+  function discard(id) {
+    return drop(id).then(function () { return refresh(); });
+  }
+
   function backoff(attempts) {
     var seconds = Math.min(30 * Math.pow(2, Math.max(0, attempts - 1)), 900);
     return now() + seconds * 1000;
@@ -433,6 +457,8 @@
     cachedSnapshot: cachedSnapshot,
     clearSnapshot: clear,
     pending: allRows,
+    retry: retry,
+    discard: discard,
     refresh: refresh,
     status: status,
     onChange: onChange,

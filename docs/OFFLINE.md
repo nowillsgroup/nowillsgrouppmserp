@@ -18,6 +18,7 @@ been taught to draw itself from a snapshot and to write its work into the queue.
 | Housekeeping | `/offline/housekeeping` | Room status, start / DND / complete a task, checklist, maintenance issue | Automatically |
 | Guest requests | `/offline/guest-requests` | Log a request against an in-house room | Automatically |
 | Front desk | `/offline/frontdesk` | Check a reserved guest into a vacant room, post a folio charge | Automatically, on the business date the desk was working |
+| Outbox | `/offline/queue` | Every change this device still holds, the server's reason when it refused one, and a person's decision: send it again or discard it | Automatically, or when the person presses *Sync now* |
 | Offline hub | `/offline` | What is saved on this device, what is queued, what needs a person | — |
 | Desk packs | `/offline/desktop` | Multi-day pack for a front-desk machine, then review what it sent back | On demand |
 
@@ -87,6 +88,7 @@ moment a guest asks for the bill.
 | `public/js/offline-sync.js` | Housekeeping / guest-request screen logic (older, screen-specific). |
 | `public/js/offline-pos.js` | Restaurant terminal drawn from the snapshot. |
 | `public/js/offline-frontdesk.js` | Front desk: arrivals, in-house rooms, the charge form, drawn from the snapshot. |
+| `public/js/offline-queue.js` | The outbox screen: what this device holds, why the server refused it, retry and discard. |
 | `app/Services/OfflineSyncService.php` | Server half of the queue: dispatch, replay safety, housekeeping and guest-request slices. |
 | `app/Services/OfflinePosService.php` | Snapshot + `pos.order.create` + `pos.order.kot`. |
 | `app/Services/OfflineFrontDeskService.php` | Desk snapshot + `frontdesk.checkin` + `frontdesk.charge`, replayed through `StayService` and `FolioService`. |
@@ -106,7 +108,10 @@ moment a guest asks for the bill.
 | signed out | The queue stops and says so. Nothing is dropped; sign in and it resumes. |
 
 Retries never re-order the queue, and a stalled operation is never deleted on its
-own — someone has to look at it.
+own — someone has to look at it. That look happens on `/offline/queue`: the server's
+reason is on the row, **Try again** puts one change back in the queue with its backoff
+cleared (and sends it at once), and **Discard** asks first, because the server never
+received that work and it cannot be recovered.
 
 Background Sync is used where the browser has it (Chrome, Edge, Android). Without
 it, the queue flushes the next time any app screen is opened. On iOS the tab has to

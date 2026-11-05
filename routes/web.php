@@ -1356,6 +1356,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('offline')->name('offline.')->controller(Controllers\OfflineSyncController::class)->middleware('throttle:120,1')->group(function () {
         // The hub is what the service worker falls back to, so it carries no permission of its own.
         Route::get('/', 'hub')->name('hub');
+        // The outbox itself: everything this device still holds, and what a person must decide.
+        Route::get('/queue', 'queue')->name('queue');
         // v7.78 offline ordering: menu, tables and running orders on the device, orders queued and replayed.
         Route::get('/pos', 'posWorkspace')->middleware('perm:pos.order,pos.view')->name('pos');
         Route::get('/pos/snapshot', 'posSnapshot')->middleware('perm:pos.order,pos.view')->name('pos.snapshot');

@@ -17,6 +17,11 @@ class OfflineSyncController extends Controller
         return view('offline.index');
     }
 
+    public function queue()
+    {
+        return view('offline.queue');
+    }
+
     public function workspace()
     {
         return view('offline.housekeeping');

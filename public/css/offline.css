@@ -145,3 +145,23 @@ body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber)
 .offline-desk-charge .offline-desk-check{flex-direction:row;align-items:center;gap:.4rem;grid-column:1 / -1;font-size:.8rem;color:var(--c-text-2)}
 .offline-desk-charge button{grid-column:1 / -1;justify-self:start}
 @media(max-width:1000px){.offline-desk-grid{grid-template-columns:1fr}.offline-desk-arrivals,.offline-desk-inhouse{max-height:none}.offline-desk-charge{grid-template-columns:1fr}}
+
+/* The outbox screen: what this device still holds, and what a person must decide. */
+.offline-queue-summary{display:flex;flex-wrap:wrap;gap:1.6rem;margin:1rem 0 1rem}
+.offline-queue-stat{display:flex;flex-direction:column;gap:.1rem}
+.offline-queue-stat b{font-size:1.05rem;font-weight:700}
+.offline-queue-list{display:flex;flex-direction:column;max-height:26rem;overflow:auto}
+.offline-queue-row{display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start;padding:.6rem .1rem;border-bottom:1px solid var(--c-border)}
+.offline-queue-row:last-child{border-bottom:0}
+.offline-queue-row-main{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.offline-queue-row-main b{font-size:.86rem;font-weight:650}
+.offline-queue-error{margin:.15rem 0 0;color:#8a5a10;font-weight:600}
+.offline-queue-row-conflict .offline-queue-error,.offline-queue-row-rejected .offline-queue-error,.offline-queue-row-stalled .offline-queue-error{color:#8a2f2f}
+.offline-queue-row-actions{display:flex;gap:.4rem;flex:0 0 auto}
+.offline-queue-detail{margin-top:.2rem}
+.offline-queue-detail summary{cursor:pointer;list-style:none}
+.offline-queue-detail summary::-webkit-details-marker{display:none}
+.offline-queue-detail summary::before{content:'▸ ';font-weight:700}
+.offline-queue-detail[open] summary::before{content:'▾ '}
+.offline-queue-detail pre{margin:.35rem 0 0;padding:.55rem .65rem;border:1px solid var(--c-border);border-radius:8px;background:#fbfcfb;font-size:.72rem;line-height:1.45;overflow:auto;max-height:12rem}
+@media(max-width:820px){.offline-queue-row{flex-direction:column}.offline-queue-row-actions{width:100%}.offline-queue-row-actions .btn{flex:1 1 auto}}

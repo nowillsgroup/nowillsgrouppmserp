@@ -58,6 +58,13 @@
         <span class="badge badge-green">Request capture</span>
       </div>
     </a>
+    <a class="card offline-hub-card" href="{{ route('offline.queue') }}">
+      <div class="card-body">
+        <h3><x-icon name="layers"/> Outbox</h3>
+        <p class="small muted">Everything this device is still holding, with the server's reason when it refused something, and a decision for the desk supervisor.</p>
+        <span class="badge badge-green">Retry or discard</span>
+      </div>
+    </a>
     <a class="card offline-hub-card" href="{{ route('offline.desktop.workspace') }}">
       <div class="card-body">
         <h3><x-icon name="download"/> Desk packs</h3>
