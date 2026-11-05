@@ -473,9 +473,17 @@ foreach ($docVersions as $f => $v) {
 }
 
 /* ── 14. Files the install guides tell you to use ─────────────────────────── */
-foreach (['public/install.php', 'artisan', 'build/vendor/autoload.php', '.htaccess', 'public/.htaccess'] as $f) {
+foreach (['deploy/installers/public-install.php.txt', 'artisan', 'build/vendor/autoload.php', '.htaccess', 'public/.htaccess'] as $f) {
     if (! is_file($root.'/'.$f)) {
         add('S', 'Packaging', "{$f} is missing from the repository — the documented install will fail", $f);
+    }
+}
+
+// The installers ship as templates outside the web root; a live copy in public/ or at
+// the root would be a security hole and would keep the checkout permanently dirty.
+foreach (['public/install.php', 'install.php'] as $f) {
+    if (is_file($root.'/'.$f)) {
+        add('S', 'Packaging', "{$f} is a live installer copy — it ships as deploy/installers/*.php.txt and must be copied out only for the install, then deleted", $f);
     }
 }
 

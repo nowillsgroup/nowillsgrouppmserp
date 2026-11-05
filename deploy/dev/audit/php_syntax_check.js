@@ -44,13 +44,15 @@ if (!phpParser) {
 }
 const engine = new phpParser({ parser: { php7: true, suppressErrors: false } });
 
-const TARGETS = ['app', 'config', 'database', 'routes', 'tests'];
+// The installers live outside the web root as .php.txt templates; they are still PHP
+// that someone copies straight onto a server, so they get parsed like the rest.
+const TARGETS = ['app', 'config', 'database', 'routes', 'tests', 'deploy/installers'];
 
 const walk = dir =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const p = path.join(dir, entry.name);
     if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : walk(p);
-    return entry.name.endsWith('.php') ? [p] : [];
+    return entry.name.endsWith('.php') || entry.name.endsWith('.php.txt') ? [p] : [];
   });
 
 let parsed = 0;

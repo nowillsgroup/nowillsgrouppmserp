@@ -38,3 +38,13 @@ deploy/dev/previews/*-snapshot.png
 
 # local scratch space used by the agent sandbox
 .arena-scratch/
+
+# The installers ship as templates (deploy/installers/*.php.txt) and are copied to the
+# web root for the one-time install, then deleted. They must not be tracked: a server
+# that has correctly removed them would otherwise sit with a permanently dirty tree,
+# and CyberPanel's Git Manager refuses to push or pull from a dirty checkout.
+/install.php
+/public/install.php
+
+# Release/build archives are artifacts, not source.
+*.zip

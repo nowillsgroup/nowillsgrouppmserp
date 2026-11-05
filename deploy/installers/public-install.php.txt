@@ -1,4 +1,18 @@
 <?php
+// ─────────────────────────────────────────────────────────────────────────────
+// SHIPPED AS A TEMPLATE — not as a live file.
+//
+// Copy it into place for the one-time install, then delete it again:
+//     cp deploy/installers/public-install.php.txt public/install.php
+//     ... finish the wizard at /install.php ...
+//     rm public/install.php
+//
+// It is a .php.txt file so that a web server can never execute it where it sits,
+// and it lives outside the document root so a finished server never carries it.
+// The live paths (public/install.php) are gitignored: a server that has correctly removed the
+// installer stays clean, which is what lets CyberPanel's Git Manager pull and push
+// at all — it refuses to touch a checkout with uncommitted changes.
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Nowills PMS — cPanel / shared-hosting web installer.
