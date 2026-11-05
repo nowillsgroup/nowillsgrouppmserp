@@ -36,6 +36,17 @@
   $searchQuery = is_string($filters['q'] ?? null) ? trim($filters['q']) : '';
   $roomStatusLabels = ['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'leased' => 'Leased', 'maintenance' => 'Maintenance', 'house_use' => 'House Use', 'group_hold' => 'Group Hold', 'other_block' => 'Other Block'];
   $roomStatusKeys = array_flip($roomStatusLabels);
+  $attentionItems = $attention ?? [];
+  $attentionCount = collect($attentionItems)->sum('count');
+  $trendInhouse = $trend['inhouse'] ?? [];
+  $headStats = [
+      ['Arrivals', $arrivals->count(), can_do('frontdesk.view') ? route('frontdesk.arrivals', ['date' => $date->toDateString()]) : null, 'login'],
+      ['Departures', $departures->count(), can_do('frontdesk.view') ? route('frontdesk.departures', ['date' => $date->toDateString()]) : null, 'logout'],
+      ['In house', $trendInhouse ? (int) $trendInhouse[count($trendInhouse) - 1] : 0, can_do('frontdesk.view') ? route('frontdesk.inhouse') : null, 'users'],
+      ['Rooms sold', ($statusSummary['Occupied'][0] ?? 0) + ($statusSummary['Reserved'][0] ?? 0), null, 'bed'],
+  ];
+@endphp
+@php
   $checkInBlockReason = static function ($room, array $inventoryBlocks) use ($roomStatusLabels): string {
       if (! $room) return 'No room is assigned to this stay.';
       if (! $room->is_active) return 'The assigned room is inactive.';
@@ -93,6 +104,12 @@
       @elseif ($isHistory)<span class="badge badge-slate ws-head-context">Historic board</span>
       @else<span class="badge badge-green ws-head-context">Business date</span>@endif
     </div>
+    <div class="ws-head-stats">
+      @foreach ($headStats as [$statLabel, $statValue, $statUrl, $statIcon])
+        @if ($statUrl)<a class="ws-head-stat" href="{{ $statUrl }}"><x-icon name="{{ $statIcon }}" size="sm"/> <b>{{ $statValue }}</b> <span>{{ $statLabel }}</span></a>
+        @else<span class="ws-head-stat"><x-icon name="{{ $statIcon }}" size="sm"/> <b>{{ $statValue }}</b> <span>{{ $statLabel }}</span></span>@endif
+      @endforeach
+    </div>
     @if ($isHistory)<div class="muted small ws-history-note">Past stays are inferred from current reservation records; dated outages and leases are honored, but room-status and housekeeping history is unavailable. VIP flags reflect current guest profiles.</div>
     @elseif ($isFuture)<div class="muted small ws-history-note">Forward reservations, active non-occupancy room flags and dated blocks apply; housekeeping is current and availability may change. VIP flags reflect current guest profiles.</div>@endif
   </div>
@@ -104,57 +121,15 @@
 {{-- ── KPI strip ── --}}
 @php
   use App\Services\ReservationWorkspaceService as WS;
-  $guestLabel = $isFuture ? 'Guests expected' : ($isHistory ? 'Guests staying' : 'In-house guests');
-  $revenueLabel = $isFuture ? 'Booked room-rate value' : ($isHistory ? 'Room-rate value' : 'Room-rate total');
   $revenueExplanation = $isToday
       ? 'Current room-rate total includes checked-in stays covering the hotel business date; arrivals not yet checked in are excluded. Excludes taxes, fees, and folio postings.'
       : ($isFuture
           ? 'Booked room-rate value includes reserved and checked-in stays covering the selected date. Excludes taxes, fees, and folio postings.'
           : 'Historical room-rate value includes checked-in and checked-out stays covering the selected date. Excludes taxes, fees, and folio postings.');
-  $tile = [
-    'occupancy' => ['Occupancy', fn ($v) => $v.'%'],
-    'revenue' => [$revenueLabel, fn ($v) => money($v)],
-    'available' => ['Available', fn ($v) => $v],
-    'occupied' => ['Occupied', fn ($v) => $v],
-    'reserved' => ['Reserved', fn ($v) => $v],
-    'arrivals' => ['Arrivals', fn ($v) => $v],
-    'departures' => ['Departures', fn ($v) => $v],
-    'inhouse' => [$guestLabel, fn ($v) => $v],
-    'vips' => [$isFuture ? 'VIP guests expected' : 'VIP guests', fn ($v) => $v],
-  ];
-  $tileLinks = [
-    'occupancy' => [route('frontdesk.tapechart'), 'frontdesk.view'],
-    'revenue' => [route('revenue.index'), 'revenue.view'],
-    'available' => [route('frontdesk.rooms'), 'frontdesk.view'],
-    'occupied' => [route('frontdesk.rooms'), 'frontdesk.view'],
-    'reserved' => [route('frontdesk.rooms'), 'frontdesk.view'],
-    'arrivals' => [route('frontdesk.arrivals'), 'frontdesk.view'],
-    'departures' => [route('frontdesk.departures'), 'frontdesk.view'],
-    'inhouse' => [route('frontdesk.inhouse'), 'frontdesk.view'],
-    'vips' => [route('frontdesk.inhouse'), 'frontdesk.view'],
-  ];
-  $kpis = [];
-  foreach ($tile as $key => [$label, $fmt]) {
-      if ($key === 'revenue' && ! can_do('revenue.view')) continue;
-      $delta = $deltas[$key] ?? null;
-      $tone = ! in_array($key, ['occupancy', 'revenue'], true) || $delta === null || $delta == 0
-          ? 'neutral'
-          : ($delta > 0 ? 'green' : 'red');
-      $kpis[] = [
-          'key' => $key,
-          'label' => $label,
-          'value' => $fmt($trend[$key][count($trend[$key]) - 1]),
-          'delta' => $delta === null ? '—' : ($delta > 0 ? '+' : '').$delta.'%',
-          'tone' => $tone,
-          'series' => $trend[$key],
-          'link' => $tileLinks[$key][0],
-          'permission' => $tileLinks[$key][1],
-      ];
-  }
 @endphp
-<div class="ws-kpis" style="--ws-kpi-count:{{ count($kpis) }}">
-  @foreach ($kpis as $k)
-  @php $canOpenKpi = $isToday && $k['key'] !== 'revenue' && can_do($k['permission']); @endphp
+<div class="ws-kpis" style="--ws-kpi-count:{{ count($kpiTiles) }}">
+  @foreach ($kpiTiles as $k)
+  @php $canOpenKpi = $k['opens'] && can_do($k['permission']); @endphp
   @if ($canOpenKpi)<a class="ws-kpi" href="{{ $k['link'] }}" style="color:inherit;text-decoration:none" title="{{ $k['key'] === 'revenue' ? $revenueExplanation : 'Change compared with the previous selected day' }}">
   @else<div class="ws-kpi" title="{{ $k['key'] === 'revenue' ? $revenueExplanation : 'Change compared with the previous selected day' }}">
   @endif
@@ -167,7 +142,8 @@
 </div>
 @if (can_do('revenue.view'))<div class="ws-revenue-note muted small">{{ $revenueExplanation }}</div>@endif
 
-{{-- ── Filters ── --}}
+{{-- ── Command bar: search, filters, board layout ── --}}
+<div class="ws-cmd" id="wsCmd">
 <div class="ws-filters" role="group" aria-label="Room board search and filters">
   <span class="muted small">FILTERS</span>
   <input id="fSearch" class="input ws-select ws-search" type="search" value="{{ $searchQuery }}" placeholder="Room, type, floor, guest or reference" autocomplete="off" aria-label="Search this room board by room, room type, floor, amenity, guest, phone, email, company, group or reservation">
@@ -196,10 +172,28 @@
   <label class="ws-vip-filter"><input id="fVip" type="checkbox" value="1" @checked($selectedVip) aria-label="Filter to guests currently marked VIP" aria-controls="wsGrid"> Current VIP only</label>
   <button type="button" class="btn btn-sm btn-ghost" id="clearWsFilters">Clear filters</button>
   <span id="wsVisibleCount" class="muted small ws-filter-count" aria-hidden="true"></span>
+  <span class="ws-chips" id="wsChips" aria-label="Active filters"></span>
+</div>
+<div class="ws-toolbar">
+  <div class="ws-viewswitch" role="tablist" aria-label="Room board layout">
+    <button type="button" role="tab" id="wsTabBoard" class="ws-vs-btn is-on" data-ws-view="board" aria-selected="true" aria-controls="wsGrid"><x-icon name="grid" size="sm"/> Board</button>
+    <button type="button" role="tab" id="wsTabRack" class="ws-vs-btn" data-ws-view="rack" aria-selected="false" aria-controls="wsRack"><x-icon name="list" size="sm"/> Rack</button>
+  </div>
+  <label class="ws-groupby" for="wsGroupBy"><span>Group by</span>
+    <select id="wsGroupBy">
+      <option value="">Nothing</option>
+      <option value="floor">Floor</option>
+      <option value="type">Room type</option>
+      <option value="status">Status</option>
+    </select>
+  </label>
+  <span class="ws-keys" aria-hidden="true"><kbd>/</kbd> search <kbd>B</kbd> board <kbd>R</kbd> rack <kbd>G</kbd> group</span>
+</div>
 </div>
 <div id="wsFilterStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="ws-body">
+  <div class="ws-main">
   {{-- ── Room board ── --}}
   <div class="ws-grid" id="wsGrid" role="region" aria-label="Room board for {{ $date->format('j F Y') }}">
     @forelse ($cards as $c)
@@ -207,43 +201,51 @@
         $room = $c['room']; $stay = $c['stay']; $src = $stay?->reservation?->businessSource?->name ?? '';
         $roomSource = $stay ? ($src ?: 'Direct') : '';
         $isVip = (bool) ($stay?->guest?->is_vip || $stay?->reservation?->guest?->is_vip);
-        $hkTone = match ($room->hk_status) { 'dirty' => 'dirty', 'clean' => 'clean', 'inspected' => 'inspected', 'touch_up' => 'touchup', default => 'unknown' };
+        $hkTone = ['dirty' => 'dirty', 'clean' => 'clean', 'inspected' => 'inspected', 'touch_up' => 'touchup'][$room->hk_status] ?? 'unknown';
         $stayGuestName = $guestDisplayName($stay);
         $stayGuestInitial = $guestInitial($stay);
-        $searchText = implode(' ', array_map('strval', array_filter([
+        // the room's own photo first, then its type's, then the generated block
+        $cardPhoto = $c['photo_full'] ?? $c['photo'] ?? $room->roomType?->image;
+        $searchText = implode(' ', array_unique(array_map('strval', array_filter([
           $room->room_no, $room->roomType?->name, $room->roomType?->code, $room->floor?->name, $stay?->reservation?->reservation_no,
           $stay?->reservation?->group_name, $stay?->reservation?->ota_reference, $stay?->reservation?->company?->name, $roomSource,
           $stay?->guest?->first_name, $stay?->guest?->last_name, $stay?->guest?->phone, $stay?->guest?->email,
           $stay?->reservation?->guest?->first_name, $stay?->reservation?->guest?->last_name,
           $stay?->reservation?->guest?->phone, $stay?->reservation?->guest?->email,
           implode(' ', $c['amenities']),
-        ], fn ($value) => is_scalar($value) && trim((string) $value) !== '')));
+        ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}">
-        <div class="ws-card-head">
-          <div class="flex gap">
-            <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
-            <div>
-              <div class="bold small">{{ $room->roomType?->name ?? '—' }}</div>
-              <div class="muted small">{{ $room->floor?->name ? 'F'.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->code : '' }}</div>
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}">
+        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
+          @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
+          <div class="ws-card-head">
+            <div class="flex gap">
+              <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
+              <div>
+                <div class="bold small">{{ $room->roomType?->name ?? '—' }}</div>
+                <div class="muted small">{{ $room->floor?->name ? (is_numeric($room->floor->name) ? 'Floor '.$room->floor->name : $room->floor->name) : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->code : '' }}</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
+              @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: {{ $housekeepingLabel($room->hk_status) }}</div>@endif
+              @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
             </div>
           </div>
-          <div class="text-right">
-            <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-            @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: {{ $housekeepingLabel($room->hk_status) }}</div>@endif
-            @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
+          <div class="ws-photo-foot">
+            <span class="ws-photo-meta">
+              <span><x-icon name="home"/>{{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
+              <span><x-icon name="user"/>{{ $room->roomType?->max_adults ?? 2 }} {{ \Illuminate\Support\Str::plural('guest', $room->roomType?->max_adults ?? 2) }}</span>
+              <span><x-icon name="shield"/>{{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
+            </span>
+            @if (($c['rate'] ?? 0) > 0)
+              <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
+            @else
+              <span class="ws-photo-rate ws-rate-unset" title="No nightly rate is set on this room type — set one in Master Data">No rate</span>
+            @endif
           </div>
         </div>
-
-        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Open room {{ $room->room_no }} details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:{{ $room->roomType?->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
-          <span class="ws-photo-tag">{{ strtoupper($room->roomType?->code ?? $room->roomType?->name ?? 'ROOM') }}</span>
-          <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
-        </div>
-        <div class="ws-room-meta small muted">
-          <span><x-icon name="home" /> {{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
-          <span><x-icon name="user"/> {{ $room->roomType?->max_adults ?? 2 }}</span>
-          <span><x-icon name="shield"/> {{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
-        </div>
+        <div class="ws-card-body">
         <div class="ws-amen">
           @foreach (array_slice($c['amenities'], 0, 10) as $a)
             <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
@@ -314,6 +316,7 @@
           @endif
           <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· All actions</button>
         </div>
+        </div>
       </div>
     @empty
       <div class="card ws-empty"><div class="card-body"><span class="ws-empty-icon"><x-icon name="bed"/></span><div class="ws-empty-copy"><h2 class="ws-empty-title">No active rooms</h2><p class="muted small">There are no active rooms to show for this property.</p></div></div></div>
@@ -321,13 +324,55 @@
     <div class="card ws-empty" id="wsNoResults" hidden><div class="card-body"><span class="ws-empty-icon"><x-icon name="search"/></span><div class="ws-empty-copy"><h2 class="ws-empty-title">No rooms match these filters</h2><p class="muted small">Clear the search or filters to see the full room board.</p><button type="button" class="btn btn-sm btn-ghost" id="clearWsFiltersEmpty">Clear search and filters</button></div></div></div>
   </div>
 
+  {{-- ── Room rack: the same rooms as one dense table, for fast scanning ── --}}
+  <section class="ws-rack" id="wsRack" data-hk-column="{{ $canViewHousekeeping ? '1' : '0' }}" role="region" aria-label="Room rack for {{ $date->format('j F Y') }}" hidden>
+    <div class="ws-rack-scroll">
+      <table class="ws-rack-table" id="wsRackTable">
+        <caption class="sr-only">Every room on this date: status, guest, stay, rate, housekeeping and actions. The rows are built from the room board, so both views always agree.</caption>
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="ascending"><button type="button" class="ws-rack-sort" data-ws-sort="room">Room</button></th>
+            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="type">Type · Floor</button></th>
+            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="status">Status</button></th>
+            <th scope="col">Guest</th>
+            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="nights">Nights</button></th>
+            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="rate">Rate</button></th>
+            <th scope="col" class="num">Balance</th>
+            @if ($canViewHousekeeping)<th scope="col">HK</th>@endif
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody id="wsRackBody"></tbody>
+      </table>
+    </div>
+    <div class="card ws-empty" id="wsRackEmpty" hidden><div class="card-body"><span class="ws-empty-icon"><x-icon name="search"/></span><div class="ws-empty-copy"><h2 class="ws-empty-title">No rooms match these filters</h2><p class="muted small">Clear the search or filters to see the whole rack.</p><button type="button" class="btn btn-sm btn-ghost" id="clearWsFiltersRack">Clear search and filters</button></div></div></div>
+  </section>
+  </div>
+
   {{-- ── Right rail ── --}}
   <div class="ws-rail">
+    <div class="card ws-rail-card ws-attention" id="wsAttention"><div class="card-body">
+      <div class="ws-rail-title"><x-icon name="alert"/> NEEDS ATTENTION
+        @if ($attentionCount > 0)<span class="ws-attention-count">{{ $attentionCount }}</span>@endif
+      </div>
+      @forelse ($attentionItems as $item)
+        @if (! empty($item['url']))<a class="ws-attention-row tone-{{ $item['tone'] }}" href="{{ $item['url'] }}">
+        @else<div class="ws-attention-row tone-{{ $item['tone'] }}">@endif
+          <span class="ws-attention-n">{{ $item['count'] }}</span>
+          <span class="ws-attention-copy"><b>{{ $item['label'] }}</b><span class="muted small">{{ $item['detail'] }}</span></span>
+        @if (! empty($item['url']))</a>@else</div>@endif
+      @empty
+        <div class="ws-attention-clear"><x-icon name="check"/> <span class="ws-attention-copy"><b>All clear</b><span class="muted small">No unassigned arrivals, refused check-ins, held checkouts or rooms waiting for housekeeping.</span></span></div>
+      @endforelse
+    </div></div>
+
     <div class="card ws-rail-card"><div class="card-body">
       @php
         $m = $date->copy()->startOfMonth(); $days = $m->daysInMonth; $pad = ((int) $m->format('w') + 6) % 7;
         $prevMonthDate = $m->copy()->subDay();
         $nextMonthDate = $m->copy()->addMonth();
+        $padCells = $pad > 0 ? range(1, $pad) : [];
+        $monthDays = $days > 0 ? range(1, $days) : [];
       @endphp
       <div class="ws-cal-head">
         @if ($prevMonthDate->gte($dateMin))<a class="btn btn-sm btn-ghost" data-ws-nav href="{{ route('reservations.workspace', array_merge(request()->except('date'), ['date' => $prevMonthDate->toDateString()])) }}" aria-label="Previous month" title="Previous month">‹</a>@else<button type="button" class="btn btn-sm btn-ghost disabled" disabled aria-label="Previous month unavailable: date range limit" title="Date range limit">‹</button>@endif
@@ -336,8 +381,8 @@
       </div>
       <div class="ws-cal">
         @foreach ([['M', 'Monday'], ['T', 'Tuesday'], ['W', 'Wednesday'], ['T', 'Thursday'], ['F', 'Friday'], ['S', 'Saturday'], ['S', 'Sunday']] as [$initial, $weekday])<span class="ws-cal-d muted"><span aria-hidden="true">{{ $initial }}</span><span class="sr-only">{{ $weekday }}</span></span>@endforeach
-        @for ($i = 0; $i < $pad; $i++)<span></span>@endfor
-        @for ($day = 1; $day <= $days; $day++)
+        @foreach ($padCells as $padCell)<span></span>@endforeach
+        @foreach ($monthDays as $day)
           @php
             $ds = $m->copy()->day($day)->toDateString();
             $selectedDay = $ds === $date->toDateString();
@@ -356,7 +401,7 @@
             @endif
             <span class="ws-cal-dots" aria-hidden="true">@if($hasA)<i class="dot-a"></i>@endif @if($hasD)<i class="dot-d"></i>@endif</span>
           @if ($inRange)</a>@else</span>@endif
-        @endfor
+        @endforeach
       </div>
       <div class="ws-cal-legend small muted"><span class="ws-legend"><i class="dot-a"></i> Arrivals</span> <span class="ws-legend"><i class="dot-d"></i> Departures</span></div>
     </div></div>
@@ -391,11 +436,7 @@
         $canAssign = can_do('reservations.edit') && ! $s->room_id && $s->status === 'reserved' && $date->gte($businessDate);
         $canCheckIn = $isToday && $s->status === 'reserved' && $s->room?->is_active && $s->room?->status === 'vacant' && ! isset($inventoryBlocks[$s->room_id]) && can_do('frontdesk.checkin');
         $freeRooms = $canAssign ? ($assignableByStay[$s->id] ?? collect()) : collect();
-        $freeRooms = $freeRooms->sort(function ($a, $b) use ($canViewHousekeeping) {
-            $aPriority = ! $canViewHousekeeping ? 1 : match ($a->hk_status) { 'inspected' => 0, 'clean' => 1, default => 2 };
-            $bPriority = ! $canViewHousekeeping ? 1 : match ($b->hk_status) { 'inspected' => 0, 'clean' => 1, default => 2 };
-            return ($aPriority <=> $bPriority) ?: strnatcasecmp((string) $a->room_no, (string) $b->room_no);
-        })->values();
+        $freeRooms = WS::sortAssignable($freeRooms, $canViewHousekeeping);
         $assignGuestName = $guestDisplayName($s, 'guest');
         $assignReservationNo = $s->reservation?->reservation_no;
         $freeSameType = $freeRooms->where('room_type_id', $s->room_type_id);
@@ -408,7 +449,7 @@
         @endif
           <span class="ws-avatar sm">{{ $guestInitial($s) }}</span>
           <span><b>{{ $guestDisplayName($s) }}</b>
-            <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}@if ($canViewHousekeeping && $s->room?->hk_status && ! in_array($s->room->hk_status, ['clean', 'inspected'], true)) · Current housekeeping: {{ $housekeepingLabel($s->room->hk_status) }}@endif</span></span>
+            <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}@if ($canViewHousekeeping && $s->room && $s->room->hk_status && ! in_array($s->room->hk_status, ['clean', 'inspected'], true)) · Current housekeeping: {{ $housekeepingLabel($s->room->hk_status) }}@endif</span></span>
         @if ($canCheckIn || can_do('reservations.view'))</a>@else</div>@endif
         @if ($isToday && $s->status === 'reserved' && $s->room_id && can_do('frontdesk.checkin') && ! $canCheckIn)
           <div class="ws-checkin-blocker ws-assign-none">Check-in blocked: {{ $checkInBlockReason($s->room, $inventoryBlocks) }} Resolve the issue or have an authorized user reassign the stay.</div>
@@ -451,7 +492,7 @@
           <span><b>{{ $guestDisplayName($s) }}</b>
           <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}
             @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
-            @if ($da !== null && can_do('folio.view')) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}" title="{{ $s->status === 'checked_out' ? ($da < 0 ? 'Final folio credit' : 'Final folio balance') : ($da < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $da > 0 ? money($da).' to settle' : ($da < 0 ? money(abs($da)).' credit' : 'settled') }}</b>@endif
+            @if ($da !== null && can_do('folio.view')) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}" title="{{ $s->status === 'checked_out' ? ($da < 0 ? 'Final folio credit' : 'Final folio balance') : ($da < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $da > 0 ? money($da).' to settle' : ($da < 0 ? money(abs($da)).' credit' : 'Settled') }}</b>@endif
             @if (! empty($df['blocked']))
               @if (can_do('folio.view'))<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>
               @else<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ checkout blocked · {{ count($df['blocked']) }} item(s)</span>@endif
@@ -514,6 +555,11 @@
 @foreach ($cards as $c)
 @php
   $room = $c['room']; $stay = $c['stay'];
+  // the dialog is its own loop over the same cards: nothing may be assumed from
+  // the board loop above it
+  $cardPhoto = $c['photo'] ?? $room->roomType?->image;
+  $stayGuestName = $guestDisplayName($stay);
+  $stayGuestInitial = $guestInitial($stay);
   $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
   $modalGuestIsVip = (bool) ($stay?->guest?->is_vip || $stay?->reservation?->guest?->is_vip);
   $modalGuestContext = collect([
@@ -538,23 +584,24 @@
   if ($stay && can_do('frontdesk.view')) $roomActions[] = ['Print Registration Card', 'print', route('frontdesk.grc', $stay)];
   if (can_do('desk.messages')) $roomActions[] = ['Guest Messages', 'message', route('desk.messages')];
   if (can_do('maintenance.manage')) $roomActions[] = ['Maintenance', 'tool', route('maintenance.index')];
+  $maxAdults = $room->roomType?->max_adults ?? 2;
   $facts = [
     ['Size', $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—')],
-    ['Max Occupancy', ($room->roomType?->max_adults ?? 2).' guests'],
+    ['Max Occupancy', $maxAdults.' '.\Illuminate\Support\Str::plural('guest', $maxAdults)],
     ['Configuration', $room->roomType?->name ?? '—'],
     ['Smoking', $room->is_smoking ? 'Smoking' : 'Non-Smoking'],
   ];
   if ($canViewHousekeeping) $facts[] = ['Current housekeeping', $housekeepingLabel($room->hk_status)];
 @endphp
 <div class="modal ws-modal" id="roomModal{{ $room->id }}" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle{{ $room->id }}" tabindex="-1"><div class="modal-box wide">
-  <div class="ws-modal-hero" style="background:{{ $room->roomType?->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ (($room->room_type_id ?? $room->id) * 47) % 360 }},32%,24%), hsl({{ (($room->room_type_id ?? $room->id) * 47 + 40) % 360 }},26%,38%))">
+  <div class="ws-modal-hero" style="background:{{ $cardPhoto ? 'url('.$cardPhoto.') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ (($room->room_type_id ?? $room->id) * 47) % 360 }},32%,24%), hsl({{ (($room->room_type_id ?? $room->id) * 47 + 40) % 360 }},26%,38%))">
     <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><x-icon name="x"/></button>
     <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">{{ $room->room_no }}</span>
       <div><h2 id="roomModalTitle{{ $room->id }}" class="bold ws-modal-title"><span class="sr-only">Room {{ $room->room_no }}: </span>{{ $room->roomType?->name ?? 'Room details' }} · {{ $room->roomType?->code ?? '' }}</h2>
         <div class="small" style="opacity:.85">{{ $room->floor?->name ? 'Floor '.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->name : '' }}</div></div>
       <div class="text-right"><span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-        <div class="ws-photo-rate" style="position:static;margin-top:6px">{{ money($c['rate']) }} <small>/ night</small></div></div>
+        <div class="ws-photo-rate{{ ($c['rate'] ?? 0) > 0 ? '' : ' ws-rate-unset' }}" style="position:static;margin-top:6px" @if (($c['rate'] ?? 0) <= 0) title="No nightly rate is set on this room type — set one in Master Data" @endif>{{ ($c['rate'] ?? 0) > 0 ? money($c['rate']).' / night' : 'No rate set' }}</div></div>
     </div>
   </div>
   <div class="modal-body">
@@ -577,7 +624,7 @@
         <tbody>
         <tr><td class="muted">Confirmation</td><td class="bold">{{ $stay->reservation?->reservation_no ?? '—' }}</td><td class="muted">Source</td><td class="bold">{{ $stay->reservation?->businessSource?->name ?? 'Direct' }}</td></tr>
         <tr><td class="muted">Stay</td><td class="bold">{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }} → {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }} · {{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</td><td class="muted">Guests</td><td class="bold">{{ $stay->adults }} Adults · {{ $stay->children }} Children</td></tr>
-        <tr><td class="muted">Rate</td><td class="bold">{{ money($c['rate']) }}/n</td>@if (can_do('folio.view'))<td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ $c['balance'] === null ? 'No folio' : ($c['balance'] > 0 ? money($c['balance']) : ($c['balance'] < 0 ? money(abs($c['balance'])).' in credit' : 'Settled')) }}</td>@else<td colspan="2"></td>@endif</tr>
+        <tr><td class="muted">Rate</td><td class="bold">{{ ($c['rate'] ?? 0) > 0 ? money($c['rate']).'/n' : 'Not set' }}</td>@if (can_do('folio.view'))<td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ $c['balance'] === null ? 'No folio' : ($c['balance'] > 0 ? money($c['balance']) : ($c['balance'] < 0 ? money(abs($c['balance'])).' in credit' : 'Settled')) }}</td>@else<td colspan="2"></td>@endif</tr>
         @if (can_do('folio.view') && ($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">{{ money($c['due']) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
         </tbody>
       </table>
@@ -605,31 +652,43 @@
 
   const normalizeSearchText = value => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();
   const compactSearchText = value => normalizeSearchText(value).replace(/[^\p{L}\p{N}]/gu, '');
-  function applyWsFilters(announceDelay = 0) {
+  function wsMatch(el) {
     const values = [status?.value || '', type?.value || '', floor?.value || '', source?.value || '', housekeeping?.value || ''];
     const vipSelected = Boolean(vipOnly?.checked);
     const queryText = normalizeSearchText(search?.value.trim() || '');
     const compactQuery = compactSearchText(queryText);
+    const data = el.dataset || {};
+    const matchesHousekeeping = !values[4] || (values[4] === 'ready'
+      ? ['clean', 'inspected'].includes(data.hk)
+      : data.hk === values[4]);
+    const matchesFilters = (!values[0] || data.status === values[0])
+      && (!values[1] || data.type === values[1])
+      && (!values[2] || data.floor === values[2])
+      && (!values[3] || data.source === values[3])
+      && matchesHousekeeping
+      && (!vipSelected || data.vip === '1');
+    if (!matchesFilters) return false;
+    const cardSearchText = normalizeSearchText(data.search || el.textContent);
+    return !queryText || cardSearchText.includes(queryText)
+      || (compactQuery && compactSearchText(cardSearchText).includes(compactQuery));
+  }
+
+  function applyWsFilters(announceDelay = 0) {
+    const values = [status?.value || '', type?.value || '', floor?.value || '', source?.value || '', housekeeping?.value || ''];
+    const vipSelected = Boolean(vipOnly?.checked);
+    const queryText = normalizeSearchText(search?.value.trim() || '');
     const cards = [...document.querySelectorAll('#wsGrid .ws-card')];
+    const rows = [...document.querySelectorAll('#wsRackBody tr')];
     const noResults = document.getElementById('wsNoResults');
     let visible = 0;
     cards.forEach(card => {
-      const matchesHousekeeping = !values[4] || (values[4] === 'ready'
-        ? ['clean', 'inspected'].includes(card.dataset.hk)
-        : card.dataset.hk === values[4]);
-      const matchesFilters = (!values[0] || card.dataset.status === values[0])
-        && (!values[1] || card.dataset.type === values[1])
-        && (!values[2] || card.dataset.floor === values[2])
-        && (!values[3] || card.dataset.source === values[3])
-        && matchesHousekeeping
-        && (!vipSelected || card.dataset.vip === '1');
-      const cardSearchText = normalizeSearchText(card.dataset.search || card.textContent);
-      const matchesSearch = !queryText || cardSearchText.includes(queryText)
-        || (compactQuery && compactSearchText(cardSearchText).includes(compactQuery));
-      card.hidden = !(matchesFilters && matchesSearch);
+      card.hidden = !wsMatch(card);
       if (!card.hidden) visible++;
     });
+    rows.forEach(row => { row.hidden = !wsMatch(row); });
     if (noResults) noResults.hidden = cards.length === 0 || visible > 0;
+    const rackEmpty = document.getElementById('wsRackEmpty');
+    if (rackEmpty) rackEmpty.hidden = !(rows.length > 0 && rows.every(row => row.hidden));
     const totalNoun = cards.length === 1 ? 'room' : 'rooms';
     const filterStatus = document.getElementById('wsFilterStatus');
     if (filterStatus) {
@@ -646,6 +705,8 @@
     document.querySelectorAll('[data-ws-hk-filter]').forEach(button => {
       button.setAttribute('aria-pressed', String(housekeeping?.value === button.dataset.wsHkFilter));
     });
+    updateGroups();
+    renderChips();
     const params = new URLSearchParams(window.location.search);
     ['status', 'type', 'floor', 'source', 'hk'].forEach((key, i) => values[i] ? params.set(key, values[i]) : params.delete(key));
     if (vipSelected) params.set('vip', '1'); else params.delete('vip');
@@ -658,10 +719,395 @@
       const targetParams = new URLSearchParams(window.location.search);
       if (targetDate) targetParams.set('date', targetDate);
       else targetParams.delete('date');
+      // moving through the month must not drop the layout or the grouping
+      if (activeView === 'rack') targetParams.set('view', 'rack'); else targetParams.delete('view');
+      if (groupMode) targetParams.set('group', groupMode); else targetParams.delete('group');
       target.search = targetParams.toString();
       link.href = target.pathname + target.search + target.hash;
     });
   }
+
+  /* ── active filters as removable chips ───────────────────────────────── */
+  function addChip(wrap, text, onRemove) {
+    const chip = document.createElement('span');
+    chip.className = 'ws-chip';
+    const label = document.createElement('span');
+    label.textContent = text;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('aria-label', `Remove filter ${text}`);
+    button.textContent = '×';
+    button.addEventListener('click', onRemove);
+    chip.append(label, button);
+    wrap.appendChild(chip);
+  }
+
+  function renderChips() {
+    const wrap = document.getElementById('wsChips');
+    if (!wrap) return;
+    wrap.textContent = '';
+    [[status, 'Room status'], [type, 'Room type'], [floor, 'Floor'], [source, 'Source'], [housekeeping, 'Housekeeping']]
+      .forEach(([element]) => {
+        if (!element || !element.value) return;
+        const option = element.options[element.selectedIndex];
+        const text = (option ? option.textContent : element.value).trim();
+        addChip(wrap, text, () => { element.value = ''; applyWsFilters(); element.focus(); });
+      });
+    if (vipOnly?.checked) addChip(wrap, 'Current VIP only', () => { vipOnly.checked = false; applyWsFilters(); vipOnly.focus(); });
+    if (search?.value.trim()) addChip(wrap, `Search: ${search.value.trim()}`, () => { search.value = ''; applyWsFilters(); search.focus(); });
+  }
+
+  /* ── grouping: floor, room type or status ────────────────────────────── */
+  const grid = document.getElementById('wsGrid');
+  const rack = document.getElementById('wsRack');
+  const groupSelect = document.getElementById('wsGroupBy');
+  let groupMode = '';
+
+  function updateGroups() {
+    if (!groupMode || !grid) return;
+    grid.querySelectorAll('.ws-group').forEach(group => {
+      const shown = [...group.querySelectorAll('.ws-card')].filter(card => !card.hidden).length;
+      const badge = group.querySelector('.ws-group-count');
+      if (badge) badge.textContent = String(shown);
+      group.hidden = shown === 0;
+    });
+  }
+
+  function applyGrouping(mode) {
+    groupMode = mode || '';
+    syncUrlParam('group', groupMode);
+    if (!grid) return;
+    // read the cards before dropping their group wrappers, or they go with them
+    const groupCards = [...grid.querySelectorAll('.ws-card')];
+    const empties = [...grid.querySelectorAll(':scope > .ws-empty')];
+    grid.querySelectorAll('.ws-group').forEach(group => group.remove());
+    if (!groupMode) {
+      groupCards.forEach(card => grid.appendChild(card));
+      empties.forEach(node => grid.appendChild(node));
+      return;
+    }
+    const key = groupMode === 'floor' ? 'floorName' : groupMode === 'type' ? 'typeName' : 'statusLabel';
+    const buckets = new Map();
+    groupCards.forEach(card => {
+      const label = (card.dataset[key] || 'Unspecified').trim() || 'Unspecified';
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label).push(card);
+    });
+    [...buckets.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(label => {
+      const section = document.createElement('section');
+      section.className = 'ws-group';
+      section.dataset.group = groupMode;
+      const head = document.createElement('h3');
+      head.className = 'ws-group-head';
+      const title = document.createElement('span');
+      title.textContent = label;
+      const count = document.createElement('span');
+      count.className = 'ws-group-count';
+      count.textContent = String(buckets.get(label).length);
+      head.append(title, count);
+      const inner = document.createElement('div');
+      inner.className = 'ws-group-grid';
+      buckets.get(label).forEach(card => inner.appendChild(card));
+      section.append(head, inner);
+      grid.appendChild(section);
+    });
+    empties.forEach(node => grid.appendChild(node));
+    updateGroups();
+  }
+
+  /* ── rack: the room board as one dense table ─────────────────────────── */
+  function rackCell(main, sub) {
+    const td = document.createElement('td');
+    if (main) {
+      const strong = document.createElement('b');
+      strong.textContent = main;
+      td.appendChild(strong);
+    }
+    if (sub) {
+      const small = document.createElement('span');
+      small.className = 'muted small';
+      small.textContent = (main ? ' · ' : '') + sub;
+      td.appendChild(small);
+    }
+    return td;
+  }
+
+  function buildRack() {
+    const body = document.getElementById('wsRackBody');
+    if (!body || body.dataset.built === '1') return;
+    [...document.querySelectorAll('#wsGrid .ws-card')].forEach(card => {
+      const roomNo = (card.querySelector('.ws-room-no')?.textContent || '').trim().replace(/^Room\s+/i, '');
+      const roomId = card.querySelector('[data-room]')?.dataset.room || '';
+      const guest = card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
+      const guestMeta = card.querySelector('.ws-guest .muted.small')?.textContent.trim() || '';
+      const nights = card.querySelector('.ws-nights')?.textContent.trim() || '';
+      const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
+      const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
+      const hk = (card.querySelector('.ws-hk-badge')?.textContent || '').replace(/\s+/g, ' ').trim();
+      const badge = card.querySelector('.ws-card-head .badge');
+      const actions = card.querySelector('.ws-actions');
+      const row = document.createElement('tr');
+      ['status', 'type', 'floor', 'source', 'hk', 'vip', 'search', 'typeName', 'floorName', 'statusLabel', 'photo']
+        .forEach(key => { row.dataset[key] = card.dataset[key] || ''; });
+      row.dataset.room = roomId;
+      row.dataset.rate = rate;
+      row.dataset.nights = nights;
+
+      const roomCell = document.createElement('td');
+      const roomWrap = document.createElement('div');
+      roomWrap.className = 'ws-rack-room';
+      // the same picture the card shows, small enough for a table row
+      if (card.dataset.photo) {
+        const thumb = document.createElement('span');
+        thumb.className = 'ws-rack-thumb';
+        thumb.style.backgroundImage = `url(${card.dataset.photo})`;
+        thumb.setAttribute('aria-hidden', 'true');
+        roomWrap.appendChild(thumb);
+      }
+      const strong = document.createElement('b');
+      strong.textContent = roomNo;
+      roomWrap.appendChild(strong);
+      if (roomId) {
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'ws-rack-open ws-room-open';
+        open.dataset.room = roomId;
+        open.textContent = 'Details';
+        open.setAttribute('aria-label', `Open details for room ${roomNo}`);
+        roomWrap.appendChild(open);
+      }
+      roomCell.appendChild(roomWrap);
+      row.appendChild(roomCell);
+
+      row.appendChild(rackCell(card.dataset.typeName || '—', card.dataset.floorName || ''));
+      const statusCell = document.createElement('td');
+      if (badge) statusCell.appendChild(badge.cloneNode(true));
+      row.appendChild(statusCell);
+
+      const guestCell = document.createElement('td');
+      const guestWrap = document.createElement('div');
+      guestWrap.className = 'ws-rack-guest';
+      const guestName = document.createElement('b');
+      guestName.textContent = guest || 'No guest';
+      guestWrap.appendChild(guestName);
+      if (guestMeta) {
+        const meta = document.createElement('span');
+        meta.textContent = guestMeta;
+        guestWrap.appendChild(meta);
+      }
+      guestCell.appendChild(guestWrap);
+      row.appendChild(guestCell);
+
+      const nightsCell = document.createElement('td');
+      nightsCell.className = 'num';
+      nightsCell.textContent = nights || '—';
+      row.appendChild(nightsCell);
+
+      const rateCell = document.createElement('td');
+      rateCell.className = 'num';
+      rateCell.textContent = rate.replace(/\s*\/\s*night$/i, '') || '—';
+      row.appendChild(rateCell);
+
+      const balanceCell = document.createElement('td');
+      balanceCell.className = 'num';
+      balanceCell.textContent = balance || '—';
+      row.appendChild(balanceCell);
+
+      if (document.getElementById('wsRack')?.dataset.hkColumn === '1') {
+        const hkCell = document.createElement('td');
+        hkCell.textContent = hk ? hk.replace(/^Current\s*(HK\s*)?:?\s*/i, '') : '—';
+        row.appendChild(hkCell);
+      }
+
+      const actionCell = document.createElement('td');
+      const actionWrap = document.createElement('div');
+      actionWrap.className = 'ws-rack-actions';
+      [...(actions?.children || [])].forEach(node => {
+        // links and plain buttons come across as they are; the form-wrapped ones
+        // (extend, mark dirty) have to be copied with their form, or the rack would
+        // silently lose every action that posts
+        if (node.matches('a.btn, button.btn')) {
+          if (!node.matches('.ws-all')) actionWrap.appendChild(node.cloneNode(true));
+        } else if (node.matches('form')) {
+          const copy = node.cloneNode(true);
+          // the board keeps its ids; a second copy in the same page may not
+          copy.querySelectorAll('label[for]').forEach(label => {
+            const control = copy.querySelector(`[id="${label.getAttribute('for')}"]`);
+            const text = label.textContent.trim();
+            if (control && text) control.setAttribute('aria-label', text);
+            label.removeAttribute('for');
+            if (!label.querySelector('input,select,textarea')) label.remove();
+          });
+          copy.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+          actionWrap.appendChild(copy);
+        }
+      });
+      if (!actionWrap.children.length) {
+        const fallback = document.createElement('span');
+        fallback.className = 'muted small';
+        fallback.textContent = '—';
+        actionWrap.appendChild(fallback);
+      }
+      actionCell.appendChild(actionWrap);
+      row.appendChild(actionCell);
+
+      body.appendChild(row);
+    });
+    body.dataset.built = '1';
+    if (rackSort) applyRackSort(rackSort.key, rackSort.dir);
+  }
+
+  /* The chosen order survives a refresh, like the chosen layout. */
+  let rackSort = null;
+  try {
+    const saved = sessionStorage.getItem('wsSort') || '';
+    const [savedKey, savedDir] = saved.split(':');
+    if (savedKey && (savedDir === 'asc' || savedDir === 'desc')) rackSort = { key: savedKey, dir: savedDir };
+  } catch (error) { /* private mode */ }
+
+  function applyRackSort(key, dir) {
+    rackSort = key ? { key, dir } : null;
+    document.querySelectorAll('.ws-rack-table th').forEach(cell => cell.removeAttribute('aria-sort'));
+    if (rackSort) {
+      const header = document.querySelector(`.ws-rack-sort[data-ws-sort="${rackSort.key}"]`)?.closest('th');
+      header?.setAttribute('aria-sort', rackSort.dir === 'asc' ? 'ascending' : 'descending');
+      sortRack(rackSort.key, rackSort.dir);
+    }
+    try {
+      if (rackSort) sessionStorage.setItem('wsSort', `${rackSort.key}:${rackSort.dir}`);
+      else sessionStorage.removeItem('wsSort');
+    } catch (error) { /* private mode */ }
+  }
+
+  function sortRack(key, dir) {
+    const body = document.getElementById('wsRackBody');
+    if (!body) return;
+    const rows = [...body.querySelectorAll('tr')];
+    const numeric = key === 'rate' || key === 'nights';
+    const value = row => {
+      if (key === 'room') return row.querySelector('b')?.textContent.trim() || '';
+      if (key === 'type') return row.dataset.typeName || '';
+      if (key === 'status') return row.dataset.statusLabel || '';
+      if (key === 'rate') return Number((row.dataset.rate || '').replace(/[^\d.]/g, '')) || 0;
+      return Number((row.dataset.nights || '').replace(/[^\d.]/g, '')) || 0;
+    };
+    rows.sort((a, b) => {
+      const first = value(a);
+      const second = value(b);
+      const order = numeric ? first - second : String(first).localeCompare(String(second), undefined, { numeric: true });
+      return dir === 'desc' ? -order : order;
+    });
+    rows.forEach(row => body.appendChild(row));
+  }
+
+  /* ── the two layouts ─────────────────────────────────────────────────── */
+  // A board or rack worth looking at is worth linking to, so the layout and the
+  // grouping ride in the address bar beside the filters (and follow date changes).
+  function syncUrlParam(key, value) {
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set(key, value); else params.delete(key);
+    const query = params.toString();
+    history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+  }
+
+  let activeView = 'board';
+  function setView(next) {
+    activeView = next === 'rack' ? 'rack' : 'board';
+    const isRack = activeView === 'rack';
+    if (isRack) buildRack();
+    if (grid) grid.hidden = isRack;
+    if (rack) rack.hidden = !isRack;
+    document.querySelectorAll('[data-ws-view]').forEach(button => {
+      const on = button.dataset.wsView === activeView;
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-selected', String(on));
+      button.tabIndex = on ? 0 : -1;
+    });
+    if (groupSelect) groupSelect.disabled = isRack;
+    syncUrlParam('view', isRack ? 'rack' : '');
+    applyWsFilters();
+    try { sessionStorage.setItem('wsView', activeView); } catch (error) { /* private mode */ }
+  }
+
+  document.querySelectorAll('[data-ws-view]').forEach(button => {
+    button.addEventListener('click', () => setView(button.dataset.wsView));
+  });
+  groupSelect?.addEventListener('change', () => {
+    applyGrouping(groupSelect.value);
+    applyWsFilters();
+  });
+  document.querySelectorAll('.ws-rack-sort').forEach(button => {
+    button.addEventListener('click', () => {
+      // a new column starts ascending; the same column again reverses
+      const key = button.dataset.wsSort;
+      applyRackSort(key, rackSort?.key === key && rackSort.dir === 'asc' ? 'desc' : 'asc');
+    });
+  });
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('.ws-room-open');
+    if (trigger) {
+      event.preventDefault();
+      openRoomModal(trigger.dataset.room, trigger);
+    }
+  });
+
+  /* ── keyboard: / search, B board, R rack, G group ────────────────────── */
+  document.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+    const tag = String(event.target?.tagName || '').toLowerCase();
+    const typing = tag === 'input' || tag === 'select' || tag === 'textarea' || event.target?.isContentEditable;
+    if (typing) {
+      // Escape clears the search first, so a half-typed filter never has to be
+      // deleted by hand; a second Escape leaves the field.
+      if (event.key === 'Escape') {
+        if (event.target === search && search.value) {
+          event.preventDefault();
+          search.value = '';
+          applyWsFilters();
+        } else {
+          event.target.blur();
+        }
+      }
+      return;
+    }
+    if (event.key === '/') {
+      event.preventDefault();
+      search?.focus();
+    } else if (event.key === 'b' || event.key === 'B') {
+      setView('board');
+    } else if (event.key === 'r' || event.key === 'R') {
+      setView('rack');
+    } else if (event.key === 'g' || event.key === 'G') {
+      if (!groupSelect || groupSelect.disabled) return;
+      const options = [...groupSelect.options];
+      const index = (groupSelect.selectedIndex + 1) % options.length;
+      groupSelect.selectedIndex = index;
+      applyGrouping(groupSelect.value);
+      applyWsFilters();
+    }
+  });
+
+  const opening = new URLSearchParams(window.location.search);
+  // The server renders the filters from the address bar; seeding them here as well
+  // keeps a pasted link honest, and an invalid value clears the filter instead of
+  // quietly emptying the board.
+  [[status, 'status'], [type, 'type'], [floor, 'floor'], [source, 'source'], [housekeeping, 'hk']]
+    .forEach(([element, key]) => {
+      if (!element || !opening.has(key)) return;
+      const wanted = opening.get(key) || '';
+      element.value = [...element.options].some(option => option.value === wanted) ? wanted : '';
+    });
+  if (vipOnly && opening.get('vip') === '1') vipOnly.checked = true;
+  if (search && opening.get('q')) search.value = opening.get('q');
+
+  let storedView = 'board';
+  try { storedView = sessionStorage.getItem('wsView') === 'rack' ? 'rack' : 'board'; } catch (error) { /* private mode */ }
+  if (opening.get('view') === 'rack' || opening.get('view') === 'board') storedView = opening.get('view');
+  const openingGroup = ['floor', 'type', 'status'].includes(opening.get('group') || '') ? opening.get('group') : null;
+  if (openingGroup && groupSelect) groupSelect.value = openingGroup;
+  setView(storedView);
+  if (groupSelect) applyGrouping(groupSelect.value);
+  applyWsFilters();
 
   filters.forEach(select => select.addEventListener('change', () => applyWsFilters()));
   document.querySelectorAll('[data-ws-status-filter]').forEach(button => button.addEventListener('click', () => {
@@ -687,16 +1133,22 @@
     applyWsFilters();
     if (event.currentTarget.id === 'clearWsFiltersEmpty') search?.focus();
   };
-  document.querySelectorAll('#clearWsFilters, #clearWsFiltersEmpty').forEach(button => button.addEventListener('click', clearWsFilters));
+  document.querySelectorAll('#clearWsFilters, #clearWsFiltersEmpty, #clearWsFiltersRack').forEach(button => button.addEventListener('click', clearWsFilters));
   document.getElementById('refreshWsBoard')?.addEventListener('click', () => window.location.reload());
-  document.querySelectorAll('.ws-extend-form').forEach(form => form.addEventListener('submit', () => {
-    const departureDate = form.querySelector('[name="departure_date"]')?.value;
-    if (departureDate) form.dataset.confirm = `Extend the stay in room ${form.dataset.roomNo} through ${departureDate}? Availability and stay charges will be rechecked.`;
-  }));
-  document.querySelectorAll('.ws-assign').forEach(form => form.addEventListener('submit', () => {
-    const selectedRoom = form.querySelector('.ws-assign-select')?.selectedOptions?.[0]?.textContent?.trim().replace(/\s+/g, ' ');
-    if (selectedRoom) form.dataset.confirm = `Assign ${selectedRoom} to ${form.dataset.guestName}? Room availability will be rechecked before saving.`;
-  }));
+  // Delegated, in the capture phase: the rack's action forms are copies of the
+  // board's, so only a listener on the document can reach them — and it has to run
+  // before the page's confirm interceptor reads data-confirm.
+  document.addEventListener('submit', event => {
+    const form = event.target;
+    if (!(form instanceof Element)) return;
+    if (form.classList.contains('ws-extend-form')) {
+      const departureDate = form.querySelector('[name="departure_date"]')?.value;
+      if (departureDate) form.dataset.confirm = `Extend the stay in room ${form.dataset.roomNo} through ${departureDate}? Availability and stay charges will be rechecked.`;
+    } else if (form.classList.contains('ws-assign')) {
+      const selectedRoom = form.querySelector('.ws-assign-select')?.selectedOptions?.[0]?.textContent?.trim().replace(/\s+/g, ' ');
+      if (selectedRoom) form.dataset.confirm = `Assign ${selectedRoom} to ${form.dataset.guestName}? Room availability will be rechecked before saving.`;
+    }
+  }, true);
   document.getElementById('wsDateJump')?.addEventListener('change', event => {
     const input = event.currentTarget;
     if (!input.value || input.value < input.min || input.value > input.max) return;
@@ -833,7 +1285,7 @@
 .ws-head-snapshot{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);font-size:10px;font-weight:650;white-space:nowrap}
 .ws-head-snapshot .i{width:13px;height:13px;color:#c8e8d0}
 .ws-head-snapshot time{color:#fff;font-variant-numeric:tabular-nums;font-weight:800}
-.ws-photo-link:focus-visible{outline:3px solid var(--c-primary);outline-offset:2px}
+.ws-photo-link:focus-visible{outline:3px solid #fff;outline-offset:-4px;box-shadow:inset 0 0 0 5px rgba(21,128,61,.85)}
 .ws-extend-form .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .ws-kpis{display:grid;grid-template-columns:repeat(var(--ws-kpi-count),minmax(0,1fr));gap:9px;margin-bottom:8px}
 .ws-revenue-note{margin:0 0 12px 2px}
@@ -860,8 +1312,9 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;align-items:stretch}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
 .ws-card[data-status="occupied"]{--ws-status-accent:#3b82f6}
@@ -869,18 +1322,26 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{display:flex;min-height:58px;justify-content:space-between;gap:8px;padding:10px 12px 7px}
-.ws-card-head>.flex{min-width:0;align-items:center}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:52%}
-.ws-card-head .badge{white-space:normal}
-.ws-room-no{font-size:22px;font-weight:800;margin:0;line-height:1.1}
+.ws-card-head .text-right{max-width:48%;flex:0 0 auto}
+.ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .badge{white-space:normal;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-room-no{font-size:28px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap}
+.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;height:136px;margin:0 12px;overflow:hidden;border-radius:10px}
-.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.08) 35%,rgba(15,23,42,.42));content:"";pointer-events:none}
+.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
+.ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
+.ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
+.ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
 .ws-photo-link:hover{filter:saturate(1.08)}
 .ws-person-row{display:flex;flex-direction:column;gap:4px}
 .ws-person-row+.ws-person-row{margin-top:4px;padding-top:8px;border-top:1px solid #f1f5f9}
@@ -890,17 +1351,16 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-tag{position:absolute;z-index:1;left:10px;top:8px;background:rgba(15,23,42,.74);color:#fff;font-size:9px;font-weight:750;letter-spacing:.07em;padding:3px 7px;border-radius:6px}
 .ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
-.ws-room-meta{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 2px}
-.ws-room-meta>span{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;color:#64748b;font-size:10px}
-.ws-room-meta .i{width:13px;height:13px;flex:0 0 13px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px 10px;color:#94a3b8}
+.ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
+.ws-photo-rate.ws-rate-unset small{color:#b45309}
+.ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
+.ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
 .ws-amen .i{width:15px;height:15px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:5px;padding:10px 12px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
+.ws-guest{flex:1;margin-top:0;padding:9px 14px 10px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
 .ws-guest>.flex{align-items:center}
 .ws-guest>.flex>div{min-width:0}
 .ws-guest>.flex .bold{overflow-wrap:anywhere}
@@ -917,7 +1377,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 12px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:30px;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:13px;height:13px;flex:0 0 13px}
 .ws-actions .btn-ghost{border:1px solid transparent}
@@ -980,7 +1440,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-modal .modal-box{max-width:900px;max-height:90vh;overflow-y:auto;overscroll-behavior:contain}
 .ws-modal .modal-box.wide{width:min(920px,calc(100vw - 2rem))}
 .ws-modal .modal-body{padding:20px}
-.ws-modal-hero{position:relative;isolation:isolate;min-height:152px;overflow:hidden;padding:58px 22px 20px;color:#fff;border-radius:0}
+.ws-modal-hero{position:relative;isolation:isolate;display:flex;min-height:216px;align-items:flex-end;overflow:hidden;padding:58px 22px 20px;color:#fff;border-radius:0}
 .ws-modal-hero:before{position:absolute;z-index:0;inset:0;background:linear-gradient(90deg,rgba(6,28,17,.78),rgba(10,40,24,.38)),linear-gradient(0deg,rgba(6,28,17,.45),transparent 75%);content:"";pointer-events:none}
 .ws-modal-hero>*{position:relative;z-index:1}
 .ws-modal-x{position:absolute;z-index:2;top:10px;right:10px;color:#fff;background:rgba(7,28,17,.42);border:1px solid rgba(255,255,255,.3)}
@@ -1034,6 +1494,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
   .ws-assign,.ws-assign-none{padding-left:0}
   .ws-person-row>.ws-assign{padding-left:7px}
   .ws-person-row>.ws-assign-none{margin-left:0;padding-left:9px}
+  .ws-photo{min-height:184px}
   .ws-extend-form{width:100%}
   .ws-extend-form input{flex:1;max-width:none}
 }
@@ -1049,7 +1510,6 @@ body.dark .ws-assign-select{background:var(--c-surface);color:var(--c-text);bord
 body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{color:var(--c-muted)}
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
-body.dark .ws-room-meta>span{background:#243229;color:#c1d2c5;border-color:var(--c-border)}
 body.dark .ws-guest.vacant{background:#18281e}
 body.dark .ws-stay,body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-nights{background:#143323;color:#86efac}
@@ -1089,5 +1549,142 @@ body.dark .ws-fac-more summary:focus-visible{outline-color:#86efac}
 body.dark .ws-amen-more{background:#193525;border-color:#3b5946;color:#86efac}
 body.dark .ws-vip-filter{border-color:var(--c-border)}
 body.dark .ws-cal-day.disabled{color:#94a3b8}
+/* ────────────────────────────────────────────────────────────────────────
+   v7.79 — the desk command bar, the rack, grouping and the attention rail
+   ──────────────────────────────────────────────────────────────────────── */
+.ws-head-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ws-head-stat{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.86);font-size:11px;text-decoration:none}
+.ws-head-stat b{color:#fff;font-size:13px;font-variant-numeric:tabular-nums}
+.ws-head-stat .i{width:13px;height:13px;color:#c8e8d0}
+a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2);color:#fff}
+.ws-cmd{position:sticky;top:var(--top-h,58px);z-index:12;margin:0 0 12px;padding:8px 8px 6px;border:1px solid #e2e8f0;border-radius:14px;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(15,23,42,.06)}
+.ws-cmd .ws-filters{margin-bottom:6px;border:0;padding:2px;box-shadow:none;background:transparent}
+.ws-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 4px 6px;border-top:1px solid #f1f5f9;margin-top:2px;padding-top:8px}
+.ws-viewswitch{display:inline-flex;padding:2px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc}
+.ws-vs-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:0;border-radius:7px;background:transparent;color:#475569;font-size:12px;font-weight:650;cursor:pointer;transition:background-color .14s ease,color .14s ease}
+.ws-vs-btn .i{width:14px;height:14px}
+.ws-vs-btn.is-on{background:#fff;color:#14532d;box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.ws-vs-btn:hover{color:#14532d}
+.ws-vs-btn:focus-visible{outline:3px solid #15803d;outline-offset:1px}
+.ws-groupby{display:inline-flex;align-items:center;gap:6px;color:#64748b;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.ws-groupby select{min-height:32px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e293b;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none}
+.ws-groupby select:focus-visible{outline:3px solid rgba(21,128,61,.35);outline-offset:1px}
+.ws-groupby select:disabled{opacity:.5}
+.ws-keys{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:#94a3b8;font-size:10px;white-space:nowrap}
+.ws-keys kbd{display:inline-block;min-width:17px;padding:1px 4px;border:1px solid #e2e8f0;border-bottom-width:2px;border-radius:5px;background:#f8fafc;color:#475569;font-family:inherit;font-size:10px;font-weight:750;text-align:center}
+.ws-chips{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
+.ws-chips:empty{display:none}
+.ws-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 5px 3px 9px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#14532d;font-size:11px;font-weight:650}
+.ws-chip button{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:#dcfce7;color:#166534;font-size:12px;line-height:1;cursor:pointer}
+.ws-chip button:hover{background:#bbf7d0}
+.ws-chip button:focus-visible{outline:2px solid #15803d;outline-offset:1px}
+.ws-main{min-width:0}
+.ws-group{grid-column:1/-1}
+.ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
+.ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
+.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-rack{min-width:0}
+.ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
+.ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
+.ws-rack-table th{padding:0;border-bottom:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:10px;font-weight:800;letter-spacing:.07em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.ws-rack-table th.num{text-align:right}
+.ws-rack-sort{display:block;width:100%;padding:10px 12px;border:0;background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-align:inherit;text-transform:inherit;cursor:pointer}
+.ws-rack-table th.num .ws-rack-sort{text-align:right}
+.ws-rack-sort:hover{background:#f0fdf4;color:#14532d}
+.ws-rack-sort:focus-visible{outline:2px solid #15803d;outline-offset:-2px}
+.ws-rack-table th[aria-sort="ascending"] .ws-rack-sort:after{content:" ↑"}
+.ws-rack-table th[aria-sort="descending"] .ws-rack-sort:after{content:" ↓"}
+.ws-rack-table td{padding:9px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.ws-rack-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ws-rack-table tbody tr:last-child td{border-bottom:0}
+.ws-rack-table tbody tr:hover{background:#f0fdf4}
+.ws-rack-room{display:flex;align-items:center;gap:8px}
+.ws-rack-thumb{width:38px;height:28px;flex:0 0 38px;border:1px solid #e2e8f0;border-radius:6px;background:#f1f5f9 center/cover no-repeat}
+.ws-rack-room b{font-size:14px;font-weight:800}
+.ws-rack-open{padding:2px 7px;border:1px solid #d1e7d7;border-radius:6px;background:#f5fbf6;color:#14532d;font-size:10px;font-weight:750;cursor:pointer}
+.ws-rack-open:hover{background:#ecfdf3;border-color:#86c79b}
+.ws-rack-open:focus-visible{outline:2px solid #15803d;outline-offset:2px}
+.ws-rack-guest{display:flex;min-width:0;flex-direction:column;gap:1px}
+.ws-rack-guest b{font-weight:700;overflow-wrap:anywhere}
+.ws-rack-guest span{color:#64748b;font-size:11px}
+.ws-rack-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.ws-rack-actions form{display:inline-flex;gap:4px;align-items:center;margin:0}
+.ws-rack-actions input[type="date"]{width:116px;padding:3px 4px;border:1px solid #d8e3dc;border-radius:6px;font-size:11px}
+.ws-rack-actions .btn{min-height:27px;padding:3px 7px;border-radius:6px;font-size:11px}
+.ws-attention{border-color:#fcd34d;box-shadow:0 3px 12px rgba(180,83,9,.08)}
+.ws-attention-count{display:inline-flex;min-width:19px;align-items:center;justify-content:center;padding:1px 6px;border-radius:999px;background:#b45309;color:#fff;font-size:10px;font-variant-numeric:tabular-nums;font-weight:800}
+.ws-attention-row{display:flex;gap:9px;align-items:flex-start;padding:8px 6px;border-radius:8px;color:inherit;text-decoration:none}
+.ws-attention-row+.ws-attention-row{border-top:1px solid #f1f5f9}
+a.ws-attention-row:hover,a.ws-attention-row:focus-visible{background:#fffbeb;color:inherit}
+.ws-attention-n{display:inline-flex;width:24px;height:24px;flex:0 0 24px;align-items:center;justify-content:center;border-radius:7px;font-size:12px;font-variant-numeric:tabular-nums;font-weight:800}
+.ws-attention-row.tone-red .ws-attention-n{background:#fee2e2;color:#b91c1c}
+.ws-attention-row.tone-amber .ws-attention-n{background:#fef3c7;color:#92400e}
+.ws-attention-row.tone-slate .ws-attention-n{background:#f1f5f9;color:#475569}
+.ws-attention-copy{display:flex;min-width:0;flex-direction:column;gap:1px}
+.ws-attention-copy b{font-size:12px}
+.ws-attention-copy .small{line-height:1.35}
+.ws-attention-clear{display:flex;gap:9px;align-items:flex-start;padding:6px;color:#15803d}
+.ws-attention-clear .i{width:18px;height:18px;flex:0 0 18px}
+.ws-attention-clear b{color:#14532d;font-size:12px}
+/* hidden must beat the flex/grid display these elements ask for */
+.ws-card[hidden],.ws-grid[hidden],.ws-rack[hidden],.ws-group[hidden],.ws-empty[hidden],.ws-rack-table tr[hidden],.ws-cmd[hidden]{display:none!important}
+body.dark .ws-cmd{background:rgba(19,32,24,.96);border-color:var(--c-border)}
+body.dark .ws-toolbar{border-top-color:var(--c-border)}
+body.dark .ws-viewswitch{background:var(--c-surface);border-color:var(--c-border)}
+body.dark .ws-vs-btn{color:#c1d2c5}
+body.dark .ws-vs-btn.is-on{background:#193525;color:#86efac;box-shadow:none}
+body.dark .ws-groupby{color:#c1d2c5}
+body.dark .ws-groupby select{background:var(--c-surface);border-color:var(--c-border);color:var(--c-text)}
+body.dark .ws-group-head{color:#86efac}
+body.dark .ws-group-head:after{background:var(--c-border)}
+body.dark .ws-group-count{background:#143323;color:#86efac}
+body.dark .ws-rack-scroll{background:var(--c-surface);border-color:var(--c-border)}
+body.dark .ws-rack-table th{background:#18281e;border-bottom-color:var(--c-border);color:#c1d2c5}
+body.dark .ws-rack-table td{border-bottom-color:var(--c-border)}
+body.dark .ws-rack-table tbody tr:hover{background:#193525}
+body.dark .ws-rack-open{background:#193525;border-color:#3b5946;color:#86efac}
+body.dark .ws-rack-open:hover{background:#234630}
+body.dark .ws-rack-sort:hover{background:#193525;color:#d7f5df}
+body.dark .ws-attention{background:var(--c-surface);border-color:#854d0e}
+body.dark .ws-attention-row+.ws-attention-row{border-top-color:var(--c-border)}
+body.dark .ws-attention-row.tone-red .ws-attention-n{background:#3b1d24;color:#fda4af}
+body.dark .ws-attention-row.tone-amber .ws-attention-n{background:#422006;color:#fcd34d}
+body.dark .ws-attention-row.tone-slate .ws-attention-n{background:#243229;color:#c1d2c5}
+body.dark .ws-attention-clear{color:#86efac}
+body.dark .ws-attention-clear b{color:#d7f5df}
+body.dark .ws-attention-count{background:#b45309;color:#fff}
+body.dark .ws-keys kbd{background:#18281e;border-color:var(--c-border);color:#c1d2c5}
+body.dark .ws-chip{background:#143323;border-color:#3b5946;color:#86efac}
+body.dark .ws-chip button{background:#193525;color:#86efac}
+body.dark a.ws-attention-row:hover{background:#193525}
+@media (max-width:1180px){.ws-keys{display:none}}
+@media (max-width:980px){.ws-cmd{position:static}.ws-rack-table{min-width:760px}}
+@media (max-width:680px){
+  .ws-toolbar{gap:8px}
+  .ws-viewswitch{flex:1}
+  .ws-vs-btn{flex:1;justify-content:center}
+  .ws-groupby{flex:1;justify-content:space-between}
+  .ws-groupby select{flex:1}
+  .ws-head-stat{flex:1 1 auto;justify-content:center}
+}
+@media print{
+  .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys{display:none!important}
+  .ws-body{grid-template-columns:1fr}
+  .ws-main{grid-column:1/-1}
+  .ws-head{box-shadow:none;background:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ws-card,.ws-rack-scroll{break-inside:avoid;box-shadow:none}
+  .ws-rack-scroll{overflow:visible;border:0}
+  .ws-rack-table{min-width:0;font-size:10px}
+  .ws-photo{aspect-ratio:auto;min-height:104px}
+  .ws-card-head{padding:8px 10px 0}
+  .ws-room-no{font-size:20px}
+  .ws-photo-foot{padding:8px 10px}
+  .ws-rack-thumb{display:none}
+  .ws-rack-table th,.ws-rack-table td{padding:4px 6px}
+  .ws-rack-sort{padding:4px 6px;cursor:auto}
+  .ws-rack-open,.ws-chip button,.ws-empty{display:none!important}
+  .ws-cmd{position:static}
+}
 </style>
 @endpush

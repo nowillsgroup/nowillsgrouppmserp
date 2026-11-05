@@ -7178,10 +7178,14 @@ class ReportController extends Controller
 
     protected function r_room_images($from, $to): array
     {
-        $rows = RoomImage::with('room.roomType')->whereBetween('uploaded_at', [$from, $to])->get()->map(fn ($r) => [
-            'room' => optional($r->room)->room_no, 'type' => optional($r->roomType)->name,
-            'filename' => $r->filename, 'uploaded' => $r->uploaded_at,
-            'caption' => $r->caption, 'status' => $r->status, 'user' => $r->user_id,
+        // room_images keeps path / caption / is_primary / is_active / timestamps — the
+        // register reads those, not columns the table never had.
+        $rows = RoomImage::with('room.roomType', 'roomType')->whereBetween('created_at', [$from, $to])->get()->map(fn ($r) => [
+            'room' => optional($r->room)->room_no ?: optional($r->roomType)->name,
+            'type' => optional(optional($r->room)->roomType ?? $r->roomType)->name,
+            'filename' => basename((string) $r->path), 'uploaded' => $r->created_at,
+            'caption' => $r->caption,
+            'status' => $r->is_primary ? 'Primary' : ($r->is_active ? 'Active' : 'Hidden'),
         ]);
         return ['cols' => ['room' => 'Room', 'type' => 'Room Type', 'filename' => 'Filename', 'uploaded' => 'Uploaded', 'caption' => 'Caption', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Room image register.'];
     }

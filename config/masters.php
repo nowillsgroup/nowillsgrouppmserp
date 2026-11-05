@@ -27,13 +27,13 @@ return [
         'columns' => ['code', 'name', 'base_rate', 'base_occupancy', 'max_adults', 'show_online', 'is_active'], 'unique' => ['code'],
         'refs' => [['rooms', 'room_type_id'], ['reservation_rooms', 'room_type_id']]],
 
-    'rooms' => ['title' => 'Rooms', 'model' => Models\Room::class, 'order' => 'room_no', 'with' => ['roomType', 'floor'],
+    'rooms' => ['title' => 'Rooms', 'model' => Models\Room::class, 'order' => 'room_no', 'with' => ['roomType.images', 'floor', 'images'], 'photos' => true,
         'fields' => [
             'room_no' => ['Room no.', 'text', 'required|string|max:20'], 'room_type_id' => ['Room type', 'select', 'required|integer|owned:room_types', 'model:RoomType,name'],
             'floor_id' => ['Floor', 'select', 'nullable|integer|owned:floors', 'model:Floor,name'], 'extension' => ['Phone extension', 'text', 'nullable|string|max:10'],
             'is_smoking' => ['Smoking room', 'bool', 'boolean'], 'notes' => ['Notes', 'text', 'nullable|string|max:255'], 'is_active' => $active,
         ],
-        'columns' => ['room_no', 'roomType.name' => 'Type', 'floor.name' => 'Floor', 'status', 'hk_status', 'is_smoking', 'is_active'], 'unique' => ['room_no'],
+        'columns' => ['photo' => 'Photo', 'room_no', 'roomType.name' => 'Type', 'floor.name' => 'Floor', 'status', 'hk_status', 'is_smoking', 'is_active'], 'unique' => ['room_no'],
         'refs' => [['reservation_rooms', 'room_id'], ['maintenance_requests', 'room_id']]],
 
     'rate-plans' => ['title' => 'Rate Plans', 'model' => Models\RatePlan::class, 'order' => 'room_type_id', 'with' => ['roomType'],

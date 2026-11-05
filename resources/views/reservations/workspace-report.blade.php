@@ -54,6 +54,19 @@
   @endforeach
 </div>
 
+@php
+  $attentionItems = $attention ?? [];
+  $attentionCount = collect($attentionItems)->sum('count');
+@endphp
+<div style="margin:0 0 14px;border:1px solid #d7dce5;border-radius:8px;padding:10px 12px">
+  <div class="small" style="text-transform:uppercase;letter-spacing:.4px;font-weight:700">Needs attention @if ($attentionCount > 0)· {{ $attentionCount }} outstanding @endif</div>
+  @forelse ($attentionItems as $item)
+  <div class="small" style="margin-top:5px"><strong>{{ $item['count'] }}</strong> {{ $item['label'] }} <span class="text-2">— {{ $item['detail'] }}</span></div>
+  @empty
+  <div class="small text-2" style="margin-top:5px">Nothing outstanding: no unassigned arrivals, refused check-ins, held checkouts or rooms waiting for housekeeping.</div>
+  @endforelse
+</div>
+
 <div class="two" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
   <div>
     <h3 style="margin:10px 0 6px">Arrivals · {{ $date->format('j M Y') }} · {{ $arrivals->count() }}</h3>

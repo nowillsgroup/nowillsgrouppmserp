@@ -23,6 +23,12 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/fleet-overview.html');
   } else if (pathname === '/management-dashboard' || pathname === '/__preview/management-dashboard') {
     file = resolve(ROOT, 'deploy/dev/previews/management-dashboard.html');
+  } else if (pathname === '/reservations-workspace' || pathname === '/__preview/reservations-workspace') {
+    file = resolve(ROOT, 'deploy/dev/previews/reservations-workspace.html');
+  } else if (pathname === '/rooms-create' || pathname === '/__preview/rooms-create') {
+    file = resolve(ROOT, 'deploy/dev/previews/rooms-create.html');
+  } else if (pathname === '/rooms-edit' || pathname === '/__preview/rooms-edit') {
+    file = resolve(ROOT, 'deploy/dev/previews/rooms-edit.html');
   } else if (pathname === '/fleet-maintenance' || pathname === '/__preview/fleet-maintenance') {
     file = resolve(ROOT, 'deploy/dev/previews/fleet-maintenance.html');
   } else if (pathname === '/fleet-fuel' || pathname === '/__preview/fleet-fuel') {
@@ -61,6 +67,9 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'public/css/dashboard.css');
   } else if (pathname === '/css/offline.css') {
     file = resolve(ROOT, 'public/css/offline.css');
+  } else if (pathname.startsWith('/preview-assets/')) {
+    // sample photography for the preview screens (never shipped to the application)
+    file = resolve(ROOT, 'deploy/dev/previews/assets', pathname.slice('/preview-assets/'.length));
   } else if (pathname.startsWith('/images/')) {
     file = resolve(ROOT, 'public', `.${pathname}`);
   }

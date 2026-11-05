@@ -178,6 +178,22 @@ class ReservationWorkspaceService
         return 'star';
     }
 
+    /**
+     * Rooms offered in the assign picker: the ones housekeeping has already released
+     * first (inspected, then clean), then by room number. Without housekeeping
+     * permission the order is just the room number.
+     */
+    public static function sortAssignable($rooms, bool $byHousekeeping = true)
+    {
+        return collect($rooms)->sort(function ($a, $b) use ($byHousekeeping) {
+            $priority = ['inspected' => 0, 'clean' => 1];
+            $left = $byHousekeeping ? ($priority[$a->hk_status] ?? 2) : 1;
+            $right = $byHousekeeping ? ($priority[$b->hk_status] ?? 2) : 1;
+
+            return ($left <=> $right) ?: strnatcasecmp((string) $a->room_no, (string) $b->room_no);
+        })->values();
+    }
+
     /** Tiny SVG sparkline for the KPI strip. */
     public static function spark(array $values, string $tone = 'green'): string
     {
@@ -221,7 +237,9 @@ class ReservationWorkspaceService
         $isFuture = $date->gt($businessDate);
         $hotelId = \App\Support\Tenant::id();
 
-        $rooms = Room::with(['roomType.amenityLinks.amenity', 'amenityLinks.amenity', 'floor'])
+        // The cards are photo-first: each room's own picture (primary first), falling
+        // back to its type's picture and then to a generated block.
+        $rooms = Room::with(['roomType.amenityLinks.amenity', 'amenityLinks.amenity', 'floor', 'images'])
             ->where('hotel_id', $hotelId)->where('is_active', true)
             ->orderBy('room_no')->get();
         $trendDates = [];
@@ -322,6 +340,8 @@ class ReservationWorkspaceService
                 'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
                 'amenities' => $amenities,
+                'photo' => $room->images->first()?->url('thumb'),
+                'photo_full' => $room->images->first()?->url(),
                 'arriving_on_date' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $selectedDay,
             ];
 

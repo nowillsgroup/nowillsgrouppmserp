@@ -3092,3 +3092,15 @@ body.sidebar-collapsed .nav-item.nav-group:not(.flyout-dismissed):focus-within >
 @media (prefers-reduced-motion: reduce) {
   .sidebar-mobile-close { transition-duration: .01ms !important; }
 }
+
+/* room photos on the master record (added at creation, managed from the room form) */
+.room-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .9rem; }
+.room-photo { margin: 0; border: 1px solid var(--c-border); border-radius: 10px; overflow: hidden; background: var(--c-surface); }
+.room-photo img { width: 100%; height: 132px; object-fit: cover; display: block; background: #f1f5f9; }
+.room-photo-full { display: block; }
+.room-photo-full:focus-visible { outline: 3px solid var(--c-primary); outline-offset: -3px; }
+.room-photo figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; padding: .5rem .65rem; }
+.room-photo-caption { font-size: .78rem; color: var(--c-text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-photo-actions { display: flex; gap: .35rem; margin-left: auto; }
+.room-photo-actions form { margin: 0; }
+@media (max-width: 640px) { .room-photo-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }

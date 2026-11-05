@@ -2782,6 +2782,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/{id}/edit', 'edit')->name('edit');
         Route::put('/{id}', 'update')->name('update');
         Route::delete('/{id}', 'destroy')->name('destroy');
+        // photos on the record itself (rooms): add, choose the primary, take one off
+        Route::post('/{id}/photos', 'storePhoto')->whereNumber('id')->name('photos.store');
+        Route::post('/{id}/photos/{image}/primary', 'photoPrimary')->whereNumber('id')->whereNumber('image')->name('photos.primary');
+        Route::post('/{id}/photos/{image}/hide', 'photoHide')->whereNumber('id')->whereNumber('image')->name('photos.hide');
     });
 
     // ---- Administration
