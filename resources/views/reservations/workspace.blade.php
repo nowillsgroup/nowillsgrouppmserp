@@ -897,7 +897,24 @@
       const actionWrap = document.createElement('div');
       actionWrap.className = 'ws-rack-actions';
       [...(actions?.children || [])].forEach(node => {
-        if (node.matches('a.btn, button.btn') && !node.matches('.ws-all')) actionWrap.appendChild(node.cloneNode(true));
+        // links and plain buttons come across as they are; the form-wrapped ones
+        // (extend, mark dirty) have to be copied with their form, or the rack would
+        // silently lose every action that posts
+        if (node.matches('a.btn, button.btn')) {
+          if (!node.matches('.ws-all')) actionWrap.appendChild(node.cloneNode(true));
+        } else if (node.matches('form')) {
+          const copy = node.cloneNode(true);
+          // the board keeps its ids; a second copy in the same page may not
+          copy.querySelectorAll('label[for]').forEach(label => {
+            const control = copy.querySelector(`[id="${label.getAttribute('for')}"]`);
+            const text = label.textContent.trim();
+            if (control && text) control.setAttribute('aria-label', text);
+            label.removeAttribute('for');
+            if (!label.querySelector('input,select,textarea')) label.remove();
+          });
+          copy.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+          actionWrap.appendChild(copy);
+        }
       });
       if (!actionWrap.children.length) {
         const fallback = document.createElement('span');
@@ -911,6 +928,29 @@
       body.appendChild(row);
     });
     body.dataset.built = '1';
+    if (rackSort) applyRackSort(rackSort.key, rackSort.dir);
+  }
+
+  /* The chosen order survives a refresh, like the chosen layout. */
+  let rackSort = null;
+  try {
+    const saved = sessionStorage.getItem('wsSort') || '';
+    const [savedKey, savedDir] = saved.split(':');
+    if (savedKey && (savedDir === 'asc' || savedDir === 'desc')) rackSort = { key: savedKey, dir: savedDir };
+  } catch (error) { /* private mode */ }
+
+  function applyRackSort(key, dir) {
+    rackSort = key ? { key, dir } : null;
+    document.querySelectorAll('.ws-rack-table th').forEach(cell => cell.removeAttribute('aria-sort'));
+    if (rackSort) {
+      const header = document.querySelector(`.ws-rack-sort[data-ws-sort="${rackSort.key}"]`)?.closest('th');
+      header?.setAttribute('aria-sort', rackSort.dir === 'asc' ? 'ascending' : 'descending');
+      sortRack(rackSort.key, rackSort.dir);
+    }
+    try {
+      if (rackSort) sessionStorage.setItem('wsSort', `${rackSort.key}:${rackSort.dir}`);
+      else sessionStorage.removeItem('wsSort');
+    } catch (error) { /* private mode */ }
   }
 
   function sortRack(key, dir) {
@@ -962,11 +1002,9 @@
   });
   document.querySelectorAll('.ws-rack-sort').forEach(button => {
     button.addEventListener('click', () => {
-      const header = button.closest('th');
-      const next = header?.getAttribute('aria-sort') === 'ascending' ? 'desc' : 'asc';
-      document.querySelectorAll('.ws-rack-table th').forEach(cell => cell.removeAttribute('aria-sort'));
-      header?.setAttribute('aria-sort', next === 'asc' ? 'ascending' : 'descending');
-      sortRack(button.dataset.wsSort, next);
+      // a new column starts ascending; the same column again reverses
+      const key = button.dataset.wsSort;
+      applyRackSort(key, rackSort?.key === key && rackSort.dir === 'asc' ? 'desc' : 'asc');
     });
   });
   document.addEventListener('click', event => {
@@ -1034,14 +1072,20 @@
   };
   document.querySelectorAll('#clearWsFilters, #clearWsFiltersEmpty, #clearWsFiltersRack').forEach(button => button.addEventListener('click', clearWsFilters));
   document.getElementById('refreshWsBoard')?.addEventListener('click', () => window.location.reload());
-  document.querySelectorAll('.ws-extend-form').forEach(form => form.addEventListener('submit', () => {
-    const departureDate = form.querySelector('[name="departure_date"]')?.value;
-    if (departureDate) form.dataset.confirm = `Extend the stay in room ${form.dataset.roomNo} through ${departureDate}? Availability and stay charges will be rechecked.`;
-  }));
-  document.querySelectorAll('.ws-assign').forEach(form => form.addEventListener('submit', () => {
-    const selectedRoom = form.querySelector('.ws-assign-select')?.selectedOptions?.[0]?.textContent?.trim().replace(/\s+/g, ' ');
-    if (selectedRoom) form.dataset.confirm = `Assign ${selectedRoom} to ${form.dataset.guestName}? Room availability will be rechecked before saving.`;
-  }));
+  // Delegated, in the capture phase: the rack's action forms are copies of the
+  // board's, so only a listener on the document can reach them — and it has to run
+  // before the page's confirm interceptor reads data-confirm.
+  document.addEventListener('submit', event => {
+    const form = event.target;
+    if (!(form instanceof Element)) return;
+    if (form.classList.contains('ws-extend-form')) {
+      const departureDate = form.querySelector('[name="departure_date"]')?.value;
+      if (departureDate) form.dataset.confirm = `Extend the stay in room ${form.dataset.roomNo} through ${departureDate}? Availability and stay charges will be rechecked.`;
+    } else if (form.classList.contains('ws-assign')) {
+      const selectedRoom = form.querySelector('.ws-assign-select')?.selectedOptions?.[0]?.textContent?.trim().replace(/\s+/g, ' ');
+      if (selectedRoom) form.dataset.confirm = `Assign ${selectedRoom} to ${form.dataset.guestName}? Room availability will be rechecked before saving.`;
+    }
+  }, true);
   document.getElementById('wsDateJump')?.addEventListener('change', event => {
     const input = event.currentTarget;
     if (!input.value || input.value < input.min || input.value > input.max) return;
@@ -1492,7 +1536,9 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-guest{display:flex;min-width:0;flex-direction:column;gap:1px}
 .ws-rack-guest b{font-weight:700;overflow-wrap:anywhere}
 .ws-rack-guest span{color:#64748b;font-size:11px}
-.ws-rack-actions{display:flex;gap:5px;flex-wrap:wrap}
+.ws-rack-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.ws-rack-actions form{display:inline-flex;gap:4px;align-items:center;margin:0}
+.ws-rack-actions input[type="date"]{width:116px;padding:3px 4px;border:1px solid #d8e3dc;border-radius:6px;font-size:11px}
 .ws-rack-actions .btn{min-height:27px;padding:3px 7px;border-radius:6px;font-size:11px}
 .ws-attention{border-color:#fcd34d;box-shadow:0 3px 12px rgba(180,83,9,.08)}
 .ws-attention-count{display:inline-flex;min-width:19px;align-items:center;justify-content:center;padding:1px 6px;border-radius:999px;background:#b45309;color:#fff;font-size:10px;font-variant-numeric:tabular-nums;font-weight:800}
@@ -1556,6 +1602,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-main{grid-column:1/-1}
   .ws-head{box-shadow:none;background:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .ws-card,.ws-rack-scroll{break-inside:avoid;box-shadow:none}
+  .ws-rack-scroll{overflow:visible;border:0}
+  .ws-rack-table{min-width:0;font-size:10px}
+  .ws-rack-table th,.ws-rack-table td{padding:4px 6px}
+  .ws-rack-sort{padding:4px 6px;cursor:auto}
+  .ws-rack-open,.ws-chip button,.ws-empty{display:none!important}
   .ws-cmd{position:static}
 }
 </style>

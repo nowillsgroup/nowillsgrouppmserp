@@ -135,10 +135,34 @@ rateHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 const firstRate = Number(($$('#wsRackBody tr')[0]?.dataset.rate ?? '').replace(/[^\d.]/g, ''));
 const rates = $$('#wsRackBody tr').map(row => Number((row.dataset.rate ?? '').replace(/[^\d.]/g, '')));
 ok('sorting by rate orders the rack', firstRate === Math.min(...rates), `${firstRate} vs min ${Math.min(...rates)}`);
+ok('the sorted column says so', rateHeader?.closest('th')?.getAttribute('aria-sort') === 'ascending',
+  rateHeader?.closest('th')?.getAttribute('aria-sort'));
+ok('the chosen order is remembered', window.sessionStorage.getItem('wsSort') === 'rate:asc',
+  window.sessionStorage.getItem('wsSort'));
 
 const statusHeader = $$('.ws-rack-sort').find(button => button.dataset.wsSort === 'room');
 statusHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 ok('sorting by room starts at 101', /101/.test($$('#wsRackBody tr')[0]?.textContent ?? ''), $$('#wsRackBody tr')[0]?.textContent?.slice(0, 20));
+ok('only one column is marked as sorted', $$('.ws-rack-table th[aria-sort]').length === 1,
+  `${$$('.ws-rack-table th[aria-sort]').length}`);
+rateHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('a new column starts ascending', rateHeader?.closest('th')?.getAttribute('aria-sort') === 'ascending');
+rateHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('clicking the same header again reverses it', rateHeader?.closest('th')?.getAttribute('aria-sort') === 'descending'
+  && Number(($$('#wsRackBody tr')[0]?.dataset.rate ?? '').replace(/[^\d.]/g, '')) === Math.max(...rates),
+  rateHeader?.closest('th')?.getAttribute('aria-sort'));
+statusHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+/* the rack's action forms are copies — they still have to confirm the right thing */
+const rackExtend = $$('#wsRackBody .ws-extend-form')[0];
+ok('the rack carries the board\u2019s actions', Boolean(rackExtend));
+if (rackExtend) {
+  const dateInput = rackExtend.querySelector('[name="departure_date"]');
+  dateInput.value = '2026-11-09';
+  rackExtend.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  ok('extending from the rack names the date it will use',
+    /2026-11-09|9 November|Nov 9/.test(rackExtend.dataset.confirm ?? ''), rackExtend.dataset.confirm);
+}
 
 statusSelect.value = 'reserved';
 statusSelect.dispatchEvent(new window.Event('change'));
@@ -159,6 +183,7 @@ doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'b' }));
 /* ── the screen, not a mock-up of it ─────────────────────────────────────── */
 ok('the stylesheet is linked', $$('link[rel="stylesheet"]').some(link => /app\.css/.test(link.getAttribute('href') ?? '')));
 ok('the page carries its own styles', /\.ws-rack-table\{/.test($('style')?.textContent ?? ''));
+ok('a printed rack fits the page', /\.ws-rack-table\{min-width:0/.test($('style')?.textContent ?? ''));
 ok('hidden rooms are really hidden by the stylesheet',
   /\.ws-card\[hidden\]/.test($('style')?.textContent ?? ''));
 ok('the page carries its own script', /applyWsFilters/.test($('script')?.textContent ?? ''));
@@ -172,6 +197,26 @@ $('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }
 $('.ws-photo-link')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 ok('opening a room shows its dialog', $$('.ws-modal.show').length === 1);
 ok('the dialog names the room', /Room|Deluxe|Standard/.test($('.ws-modal.show')?.textContent ?? ''));
+
+/* ── coming back to the screen ───────────────────────────────────────────── */
+// A desk keeps its layout and its order between refreshes; the page stores both.
+const reopened = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously',
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05',
+  pretendToBeVisual: true,
+  beforeParse(instance) {
+    instance.sessionStorage.setItem('wsSort', 'rate:desc');
+    instance.sessionStorage.setItem('wsView', 'rack');
+  },
+});
+const again = reopened.window.document;
+const reopenedRates = [...again.querySelectorAll('#wsRackBody tr')]
+  .map(row => Number((row.dataset.rate ?? '').replace(/[^\d.]/g, '')));
+ok('the saved order comes back', again.querySelector('#wsRack')?.hidden === false
+  && reopenedRates[0] === Math.max(...reopenedRates), `${reopenedRates[0]} of ${reopenedRates.length} rows`);
+ok('the saved order comes back marked on its column',
+  again.querySelector('.ws-rack-sort[data-ws-sort="rate"]')?.closest('th')?.getAttribute('aria-sort') === 'descending');
+reopened.window.close();
 
 if (failures.length) {
   console.log(`workspace preview check: ${failures.length} FAILED, ${passed} passed`);

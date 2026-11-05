@@ -142,6 +142,24 @@ class WorkspaceTest(unittest.TestCase):
     def test_the_board_prints(self):
         self.assertIn('@media print{', VIEW)
         self.assertIn('.ws-cmd,.ws-rail', VIEW)
+        # a printed rack has to fit the sheet instead of scrolling off it
+        self.assertIn('.ws-rack-table{min-width:0', VIEW)
+        self.assertIn('.ws-rack-scroll{overflow:visible', VIEW)
+
+    def test_the_rack_keeps_the_actions_that_post(self):
+        # the rack copies the board's action markup; a copy of a form does not keep
+        # its listeners, so the submit handling has to be delegated
+        self.assertIn("node.matches('form')", VIEW)
+        self.assertIn("document.addEventListener('submit'", VIEW)
+        self.assertIn('}, true);', VIEW)
+        self.assertIn("copy.querySelectorAll('label[for]')", VIEW)
+
+    def test_the_chosen_order_survives_a_refresh(self):
+        self.assertIn("sessionStorage.setItem('wsSort'", VIEW)
+        self.assertIn("sessionStorage.getItem('wsSort')", VIEW)
+        # a new column starts ascending, the column already sorted reverses
+        self.assertIn("rackSort?.key === key && rackSort.dir === 'asc' ? 'desc' : 'asc'", VIEW)
+        self.assertIn('aria-sort', VIEW)
 
     def test_the_page_carries_its_own_styles_and_script(self):
         self.assertIn("@push('head')", VIEW)
@@ -168,6 +186,8 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('no card is lost when grouping', CHECK)
         self.assertIn('hidden rooms are really hidden by the stylesheet', CHECK)
         self.assertIn('no preview furniture on the screen', CHECK)
+        self.assertIn('the saved order comes back', CHECK)
+        self.assertIn('extending from the rack names the date it will use', CHECK)
 
 
 if __name__ == "__main__":
