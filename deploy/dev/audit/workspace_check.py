@@ -149,6 +149,11 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn("'photo' => $room->images->first()?->url()", SERVICE)
         self.assertIn("$cardPhoto = $c['photo'] ?? $room->roomType?->image;", VIEW)
         self.assertNotIn('ws-room-meta', VIEW)
+        # the rack shows the same picture, small enough for a table row
+        self.assertIn("data-photo=\"{{ $cardPhoto }}\"", VIEW)
+        self.assertIn("thumb.className = 'ws-rack-thumb'", VIEW)
+        # a printed board stays on the page
+        self.assertIn('.ws-photo{aspect-ratio:auto;min-height:104px}', VIEW)
 
     def test_the_room_dialog_stands_on_its_own(self):
         # the dialogs are a second loop over the same cards; anything the board loop

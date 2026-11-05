@@ -152,6 +152,11 @@ ok('the rack shows status, guest, rate and an action',
   Boolean(rows[0]?.querySelector('.badge')) && rows[0].querySelectorAll('td').length >= 7,
   `${rows[0]?.querySelectorAll('td').length} cells`);
 ok('the rack can open a room', Boolean(rows[0]?.querySelector('.ws-room-open')));
+ok('the rack shows the room’s picture too', rows.filter(row => row.querySelector('.ws-rack-thumb')).length === rows.length,
+  `${rows.filter(row => row.querySelector('.ws-rack-thumb')).length} of ${rows.length} rows`);
+ok('the rack thumbnail is the card’s own photograph',
+  /url\(["']?\/preview-assets\//.test(rows[0]?.querySelector('.ws-rack-thumb')?.style.backgroundImage ?? ''),
+  rows[0]?.querySelector('.ws-rack-thumb')?.style.backgroundImage);
 ok('the rack headers sort', $$('.ws-rack-sort').length === 5, `${$$('.ws-rack-sort').length}`);
 
 const rateHeader = $$('.ws-rack-sort').find(button => button.dataset.wsSort === 'rate');

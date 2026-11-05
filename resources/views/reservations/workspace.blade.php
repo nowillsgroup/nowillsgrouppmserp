@@ -215,7 +215,7 @@
           implode(' ', $c['amenities']),
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}">
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}">
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Open room {{ $room->room_no }} details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:{{ $cardPhoto ? 'url('.$cardPhoto.') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           <div class="ws-card-head">
             <div class="flex gap">
@@ -841,7 +841,7 @@
       const badge = card.querySelector('.ws-card-head .badge');
       const actions = card.querySelector('.ws-actions');
       const row = document.createElement('tr');
-      ['status', 'type', 'floor', 'source', 'hk', 'vip', 'search', 'typeName', 'floorName', 'statusLabel']
+      ['status', 'type', 'floor', 'source', 'hk', 'vip', 'search', 'typeName', 'floorName', 'statusLabel', 'photo']
         .forEach(key => { row.dataset[key] = card.dataset[key] || ''; });
       row.dataset.room = roomId;
       row.dataset.rate = rate;
@@ -850,6 +850,14 @@
       const roomCell = document.createElement('td');
       const roomWrap = document.createElement('div');
       roomWrap.className = 'ws-rack-room';
+      // the same picture the card shows, small enough for a table row
+      if (card.dataset.photo) {
+        const thumb = document.createElement('span');
+        thumb.className = 'ws-rack-thumb';
+        thumb.style.backgroundImage = `url(${card.dataset.photo})`;
+        thumb.setAttribute('aria-hidden', 'true');
+        roomWrap.appendChild(thumb);
+      }
       const strong = document.createElement('b');
       strong.textContent = roomNo;
       roomWrap.appendChild(strong);
@@ -1571,6 +1579,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-table tbody tr:last-child td{border-bottom:0}
 .ws-rack-table tbody tr:hover{background:#f0fdf4}
 .ws-rack-room{display:flex;align-items:center;gap:8px}
+.ws-rack-thumb{width:38px;height:28px;flex:0 0 38px;border:1px solid #e2e8f0;border-radius:6px;background:#f1f5f9 center/cover no-repeat}
 .ws-rack-room b{font-size:14px;font-weight:800}
 .ws-rack-open{padding:2px 7px;border:1px solid #d1e7d7;border-radius:6px;background:#f5fbf6;color:#14532d;font-size:10px;font-weight:750;cursor:pointer}
 .ws-rack-open:hover{background:#ecfdf3;border-color:#86c79b}
@@ -1646,6 +1655,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-card,.ws-rack-scroll{break-inside:avoid;box-shadow:none}
   .ws-rack-scroll{overflow:visible;border:0}
   .ws-rack-table{min-width:0;font-size:10px}
+  .ws-photo{aspect-ratio:auto;min-height:104px}
+  .ws-card-head{padding:8px 10px 0}
+  .ws-room-no{font-size:20px}
+  .ws-photo-foot{padding:8px 10px}
+  .ws-rack-thumb{display:none}
   .ws-rack-table th,.ws-rack-table td{padding:4px 6px}
   .ws-rack-sort{padding:4px 6px;cursor:auto}
   .ws-rack-open,.ws-chip button,.ws-empty{display:none!important}
