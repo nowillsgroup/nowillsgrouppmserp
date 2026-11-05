@@ -386,20 +386,7 @@ class OfflinePosService
     /** The business date the device was working, never one it could invent. */
     protected static function businessDate(array $payload): string
     {
-        $raw = trim((string) ($payload['business_date'] ?? ''));
-        $today = bdate()->copy()->startOfDay();
-        if ($raw === '') {
-            return $today->toDateString();
-        }
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            throw ValidationException::withMessages(['payload.business_date' => ['The business date must be a calendar date.']]);
-        }
-        $date = Carbon::createFromFormat('Y-m-d', $raw, $today->timezone)->startOfDay();
-        if ($date->gt($today) || $date->lt($today->copy()->subDays(self::BACKDATE_DAYS))) {
-            throw ValidationException::withMessages(['payload.business_date' => ['A device may only post work from the last '.self::BACKDATE_DAYS.' business days.']]);
-        }
-
-        return $date->toDateString();
+        return OfflineSyncService::deviceBusinessDate($payload, self::BACKDATE_DAYS)->toDateString();
     }
 
     /** Preserve when the guest was actually served, within the same back-dating window. */

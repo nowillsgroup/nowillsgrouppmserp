@@ -49,6 +49,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/sidebar-navigation.html');
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
+  } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {
+    file = resolve(ROOT, 'deploy/dev/previews/offline-frontdesk.html');
   } else if (pathname === '/css/fleet.css') {
     file = resolve(ROOT, 'public/css/fleet.css');
   } else if (pathname === '/css/app.css') {

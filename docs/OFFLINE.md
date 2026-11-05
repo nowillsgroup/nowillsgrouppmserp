@@ -17,6 +17,7 @@ been taught to draw itself from a snapshot and to write its work into the queue.
 | Restaurant orders | `/offline/pos` | Open a dine-in / takeaway / room-service order, add dishes with side dishes and modifiers, send kitchen tickets | Automatically, in the order the work happened |
 | Housekeeping | `/offline/housekeeping` | Room status, start / DND / complete a task, checklist, maintenance issue | Automatically |
 | Guest requests | `/offline/guest-requests` | Log a request against an in-house room | Automatically |
+| Front desk | `/offline/frontdesk` | Check a reserved guest into a vacant room, post a folio charge | Automatically, on the business date the desk was working |
 | Offline hub | `/offline` | What is saved on this device, what is queued, what needs a person | — |
 | Desk packs | `/offline/desktop` | Multi-day pack for a front-desk machine, then review what it sent back | On demand |
 
@@ -26,6 +27,10 @@ been taught to draw itself from a snapshot and to write its work into the queue.
   all run through the cashier path — shift totals, the guest folio, E-VAT and the
   printed receipt live in one place. A second implementation on the device could
   charge a guest twice; the order itself never waits, only the payment does.
+* **Payments, refunds and check-out.** The front desk records the charge offline;
+  the money — advance, settlement, refund — and the check-out that closes the folio
+  stay on the online cashier screen, so a guest is never charged twice and the
+  shift's cash total never has two sources.
 * **Kitchen printing.** Ticket rows are created and appear on the kitchen screen
   when the sync lands, but paper comes from a printer the server talks to. If the
   kitchen needs paper during an outage, use the printer's own copy path or write
@@ -81,8 +86,10 @@ moment a guest asks for the bill.
 | `public/sw.js` | App shell cache, offline navigation fallback to `/offline`, Background Sync that flushes the queue with no tab open. |
 | `public/js/offline-sync.js` | Housekeeping / guest-request screen logic (older, screen-specific). |
 | `public/js/offline-pos.js` | Restaurant terminal drawn from the snapshot. |
+| `public/js/offline-frontdesk.js` | Front desk: arrivals, in-house rooms, the charge form, drawn from the snapshot. |
 | `app/Services/OfflineSyncService.php` | Server half of the queue: dispatch, replay safety, housekeeping and guest-request slices. |
 | `app/Services/OfflinePosService.php` | Snapshot + `pos.order.create` + `pos.order.kot`. |
+| `app/Services/OfflineFrontDeskService.php` | Desk snapshot + `frontdesk.checkin` + `frontdesk.charge`, replayed through `StayService` and `FolioService`. |
 | `resources/views/offline/` | The hub and the workspaces. |
 | `database/migrations/*_add_offline_ref_to_pos_orders.php` | `pos_orders.offline_ref`: the device's reference for a bill it opened offline. |
 

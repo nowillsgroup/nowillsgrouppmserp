@@ -128,3 +128,20 @@ body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber)
 
 @media(max-width:1180px){.offline-pos-grid{grid-template-columns:1fr 1fr}.offline-pos-draft-pane{grid-column:1 / -1}}
 @media(max-width:820px){.offline-pos-grid{grid-template-columns:1fr}.offline-pos-items{max-height:none}.offline-pos-orders{max-height:none}.offline-pos-state{white-space:normal;text-align:left}.offline-pos-search{max-width:none;width:100%}}
+
+/* Offline front desk: arrivals, in-house rows, the charge form and its queue. */
+.offline-desk-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:1rem;align-items:start}
+.offline-desk-arrivals,.offline-desk-inhouse{display:flex;flex-direction:column;max-height:22rem;overflow:auto}
+.offline-desk-row{display:flex;justify-content:space-between;gap:.7rem;align-items:center;padding:.5rem .1rem;border-bottom:1px solid var(--c-border)}
+.offline-desk-row:last-child{border-bottom:0}
+.offline-desk-row-main{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.offline-desk-row-main b{font-size:.85rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.offline-desk-row-actions{display:flex;gap:.4rem;align-items:center;flex:0 0 auto}
+.offline-desk-row-actions select{max-width:6.5rem;font-size:.8rem;padding:.25rem .4rem}
+.offline-desk-row.is-pending{opacity:.75}
+.offline-desk-charge{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.offline-desk-charge label{display:flex;flex-direction:column;gap:.2rem;font-size:.78rem;font-weight:650;color:var(--c-text-2)}
+.offline-desk-charge input[type="text"],.offline-desk-charge input[type="number"],.offline-desk-charge select{font:inherit;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--c-border);border-radius:8px;background:#fff;color:inherit}
+.offline-desk-charge .offline-desk-check{flex-direction:row;align-items:center;gap:.4rem;grid-column:1 / -1;font-size:.8rem;color:var(--c-text-2)}
+.offline-desk-charge button{grid-column:1 / -1;justify-self:start}
+@media(max-width:1000px){.offline-desk-grid{grid-template-columns:1fr}.offline-desk-arrivals,.offline-desk-inhouse{max-height:none}.offline-desk-charge{grid-template-columns:1fr}}

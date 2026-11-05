@@ -20,15 +20,16 @@ use Throwable;
  * Server half of the browser offline outbox.
  *
  * Slices today: housekeeping (room status, task actions, maintenance issues),
- * guest requests, and restaurant ordering (see OfflinePosService for why money is
- * not posted from a queued operation). All are replay-safe: an operation id is
+ * guest requests, restaurant ordering (see OfflinePosService) and front desk
+ * check-in / folio charges (see OfflineFrontDeskService). Neither the restaurant nor
+ * the desk posts money from a queued operation. All are replay-safe: an operation id is
  * stored when it lands, so a retried request returns the first answer instead of
  * applying the change twice, and stale changes are reported rather than silently
  * overwriting a newer server-side action.
  */
 class OfflineSyncService
 {
-    public const VERSION = 6;
+    public const VERSION = 7;
 
     public const ROOM_STATUSES = ['clean', 'dirty', 'inspected', 'touch_up'];
 
@@ -135,6 +136,8 @@ class OfflineSyncService
             'guest_request.create' => self::applyGuestRequest($operationId, $operation, $payload, $deviceId, $user),
             'pos.order.create' => OfflinePosService::createOrder($operationId, $operation, $payload, $deviceId, $user),
             'pos.order.kot' => OfflinePosService::addItems($operationId, $operation, $payload, $deviceId, $user),
+            'frontdesk.checkin' => OfflineFrontDeskService::checkIn($operationId, $operation, $payload, $deviceId, $user),
+            'frontdesk.charge' => OfflineFrontDeskService::postCharge($operationId, $operation, $payload, $deviceId, $user),
             default => self::rejectUnsupported($operationId, $operation ?: 'unknown', $payload, $deviceId, $user),
         };
     }
@@ -354,6 +357,30 @@ class OfflineSyncService
         });
     }
 
+    /**
+     * The business date the device was working on, never one it could invent:
+     * today, or up to $backdateDays of catch-up for work done during an outage.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public static function deviceBusinessDate(array $payload, int $backdateDays = 7): Carbon
+    {
+        $raw = trim((string) ($payload['business_date'] ?? ''));
+        $today = bdate()->copy()->startOfDay();
+        if ($raw === '') {
+            return $today;
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            throw ValidationException::withMessages(['payload.business_date' => ['The business date must be a calendar date.']]);
+        }
+        $date = Carbon::createFromFormat('Y-m-d', $raw, $today->timezone)->startOfDay();
+        if ($date->gt($today) || $date->lt($today->copy()->subDays($backdateDays))) {
+            throw ValidationException::withMessages(['payload.business_date' => ['A device may only post work from the last '.$backdateDays.' business days.']]);
+        }
+
+        return $date;
+    }
+
     protected static function baseTimestamp(array $raw, array $payload): string
     {
         $value = (string) ($raw['base_updated_at'] ?? $payload['base_updated_at'] ?? '');
@@ -425,6 +452,9 @@ class OfflineSyncService
             // Restaurant work: the order the sync produced, so the device can relabel
             // the order it opened while it was offline.
             'order' => $operation->result['order'] ?? null, 'kot' => $operation->result['kot'] ?? null,
+            // Front desk work: the stay that moved and the charge that posted.
+            'stay' => $operation->result['stay'] ?? null, 'charge' => $operation->result['charge'] ?? null,
+            'folio' => $operation->result['folio'] ?? null, 'already' => $operation->result['already'] ?? null,
             'error' => $operation->error];
     }
 

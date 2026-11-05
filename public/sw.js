@@ -22,12 +22,13 @@ const STATIC = [
   '/js/app.js',
   '/js/offline-core.js',
   '/js/offline-pos.js',
+  '/js/offline-frontdesk.js',
   '/js/offline-sync.js',
   '/js/offline-guest-requests.js',
   '/sw.js'
 ];
 // Screens that are built to work from a saved snapshot.
-const WORKSPACES = ['/offline', '/offline/pos', '/offline/housekeeping', '/offline/guest-requests'];
+const WORKSPACES = ['/offline', '/offline/pos', '/offline/housekeeping', '/offline/guest-requests', '/offline/frontdesk'];
 const FALLBACK = '/offline';
 const NAV_TIMEOUT_MS = 4000;
 

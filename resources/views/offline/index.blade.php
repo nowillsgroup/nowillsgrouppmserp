@@ -28,6 +28,14 @@
   </div>
 
   <div class="grid g-2 mb-1">
+    <a class="card offline-hub-card" href="{{ route('offline.frontdesk') }}">
+      <div class="card-body">
+        <h3><x-icon name="key"/> Front desk</h3>
+        <p class="small muted">Arrivals, in-house guests and the room list from the last snapshot. Check a reserved guest in and post folio charges with no connection.</p>
+        <span class="badge badge-green">Check-in and charges</span>
+        <span class="badge">Payment online</span>
+      </div>
+    </a>
     <a class="card offline-hub-card" href="{{ route('offline.pos') }}">
       <div class="card-body">
         <h3><x-icon name="cup"/> Restaurant orders</h3>

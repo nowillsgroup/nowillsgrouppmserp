@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\OfflineFrontDeskService;
 use App\Services\OfflinePosService;
 use App\Services\OfflineSyncService;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,16 @@ class OfflineSyncController extends Controller
     public function posSnapshot(Request $request): JsonResponse
     {
         return response()->json(OfflinePosService::snapshot($request->user()), 200, ['Cache-Control' => 'no-store']);
+    }
+
+    public function frontDeskWorkspace()
+    {
+        return view('offline.frontdesk');
+    }
+
+    public function frontDeskSnapshot(Request $request): JsonResponse
+    {
+        return response()->json(OfflineFrontDeskService::snapshot($request->user()), 200, ['Cache-Control' => 'no-store']);
     }
 
     public function housekeepingSnapshot(Request $request): JsonResponse
