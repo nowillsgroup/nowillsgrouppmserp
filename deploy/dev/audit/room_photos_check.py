@@ -84,7 +84,9 @@ class RoomPhotoCreationTest(unittest.TestCase):
         self.assertIn("route('masters.photos.primary'", GALLERY)
         self.assertIn("route('masters.photos.hide'", GALLERY)
         self.assertIn("route('masters.photos.store'", GALLERY)
-        self.assertIn("$photo->url()", GALLERY)
+        # the tile loads the card-sized copy; the click opens the photo itself
+        self.assertIn("$photo->url('thumb')", GALLERY)
+        self.assertIn('<a class="room-photo-full" href="{{ $photo->url() }}"', GALLERY)
         self.assertIn("enctype=\"multipart/form-data\"", GALLERY)
         self.assertIn("No photo on file yet", GALLERY)
 

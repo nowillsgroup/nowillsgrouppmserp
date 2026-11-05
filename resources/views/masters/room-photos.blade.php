@@ -16,7 +16,9 @@
       <div class="room-photo-grid">
         @foreach($photos as $photo)
           <figure class="room-photo">
-            <img src="{{ $photo->url() }}" alt="{{ $photo->caption ?: 'Room '.$room->room_no }}" loading="lazy">
+            <a class="room-photo-full" href="{{ $photo->url() }}" target="_blank" rel="noopener" aria-label="Open the full-size photo of room {{ $room->room_no }}">
+              <img src="{{ $photo->url('thumb') }}" alt="{{ $photo->caption ?: 'Room '.$room->room_no }}" loading="lazy">
+            </a>
             <figcaption>
               <span class="room-photo-caption">{{ $photo->caption ?: 'Room '.$room->room_no }}</span>
               @if($photo->is_primary)
