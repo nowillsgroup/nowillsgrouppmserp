@@ -727,6 +727,8 @@ class ReportController extends Controller
         'transport_tariffs' => ['Transport & Parking', 'Transport Tariff Register', 'Every airport, local and tour transport tariff', 'none', 'transport.view'],
         'transport_trips' => ['Transport & Parking', 'Transfer Register', 'Every pick-up, drop and local transfer in the period: time, guest, route, flight, car, driver, km, minutes late, fare, billing and status', 'range', 'transport.view'],
         'transport_vehicles' => ['Transport & Parking', 'Vehicle Utilisation & Running Cost', 'Per vehicle: trips, km driven, hours on the road, revenue, fuel & other running costs, cost per km, km per litre and margin', 'range', 'transport.view'],
+        'fleet_maintenance' => ['Transport & Parking', 'Fleet Maintenance & Service Compliance', 'Per vehicle: planned and repair jobs completed, supplier cost, jobs still open, services overdue and the next due date or odometer', 'range', 'transport.fleet'],
+        'fleet_gps' => ['Transport & Parking', 'Fleet GPS Activity', 'Per vehicle: fixes received, distance measured from the GPS trail, moving / parked share, last signal and trackers that are offline', 'range', 'transport.track'],
         'cash_flow' => ['Treasury & Payments', 'Cash-flow Statement (IAS 7)', 'Indirect method: profit, non-cash add-backs and working capital, investing and financing flows; opening + net = closing cash', 'range', 'treasury.view'], // v5.7
         'cash_forecast_lines' => ['Treasury & Payments', 'Cash Forecast Line Register', 'Every cash forecast line by date and source', 'range', 'accounts.view'],
         'cash_position' => ['Treasury & Payments', 'Cash Position', 'Book balance per bank, MoMo, cash box, float and clearing account as at a date, with minimums, unpresented cheques and last reconciliation', 'date', 'treasury.view'],
@@ -3960,6 +3962,71 @@ class ReportController extends Controller
             'summary' => ['km driven' => number_format($rows->sum('km')), 'Running cost' => money($rows->sum('fuel') + $rows->sum('other')),
                 'Cost per km' => $rows->sum('km') ? money(($rows->sum('fuel') + $rows->sum('other')) / $rows->sum('km')) : '–', 'Margin' => money($rows->sum('margin'))],
             'note' => 'Completed trips by scheduled date; km from the odometer readings entered at start and completion. Running cost = vehicle expenses dated in the period (fuel, service, repairs, tolls, parking). Driver salaries are in payroll and not included. Vehicles running at a loss are highlighted.'];
+    }
+
+    protected function r_fleet_maintenance($from, $to): array
+    {
+        $f = Carbon::parse($from)->toDateString();
+        $t = Carbon::parse($to)->toDateString();
+        $records = \App\Models\VehicleMaintenanceRecord::whereDate('completed_at', '>=', $f)->whereDate('completed_at', '<=', $t)->get()->groupBy('vehicle_id');
+        $rows = \App\Models\Vehicle::orderBy('code')->get()->map(function ($v) use ($records, $f, $t) {
+            $done = $records[$v->id] ?? collect();
+            $state = \App\Services\FleetService::maintenanceState($v);
+            if (! $done->count() && ! $state['open']->count() && ! $state['overdue']->count() && ! $v->is_active) {
+                return null;
+            }
+            $next = $state['plans']->filter(fn ($p) => $p->due_date)->sortBy('due_date')->first();
+
+            return ['car' => $v->code.' · '.$v->reg_no, 'done' => $done->count(),
+                'planned' => $done->whereIn('category', ['preventive', 'oil', 'tyres'])->count(), 'repairs' => $done->where('category', 'repair')->count(),
+                'cost' => round((float) $done->sum('actual_cost'), 2), 'open' => $state['open']->count(), 'overdue' => $state['overdue']->count(),
+                'last' => $done->sortByDesc('completed_at')->first()?->completed_at?->format('d M Y') ?? '',
+                'next' => $next?->due_date?->format('d M Y') ?? ($next?->due_odometer ? 'at '.number_format($next->due_odometer).' km' : ''),
+                '_class' => $state['overdue']->count() ? 'row-alert' : ''];
+        })->filter()->values();
+
+        return ['cols' => ['car' => 'Vehicle', 'done' => 'Jobs completed', 'planned' => 'Planned service', 'repairs' => 'Repairs', 'cost' => 'Cost',
+            'open' => 'Still open', 'overdue' => 'Service overdue', 'last' => 'Last completed', 'next' => 'Next due'],
+            'rows' => $rows, 'money' => ['cost'], 'sum' => ['done', 'planned', 'repairs', 'cost', 'open', 'overdue'],
+            'summary' => ['Jobs completed' => (string) $rows->sum('done'), 'Maintenance cost' => money($rows->sum('cost')),
+                'Still open' => (string) $rows->sum('open'), 'Overdue services' => (string) $rows->sum('overdue')],
+            'note' => 'Completed work orders in the period, by completion date. Cost is the invoice amount captured on the work order; when the same amount is also logged to running expenses it appears once in the Vehicle Utilisation report under service & repair. Overdue counts service-plan intervals whose date or odometer threshold has passed. Vehicles with an overdue service are highlighted.'];
+    }
+
+    protected function r_fleet_gps($from, $to): array
+    {
+        $f = Carbon::parse($from)->startOfDay();
+        $t = Carbon::parse($to)->endOfDay();
+        $limit = (int) \App\Services\FleetService::cfg()['speed_limit_kph'];
+        $fixes = \App\Models\VehiclePosition::whereBetween('recorded_at', [$f, $t])
+            ->selectRaw("vehicle_id, COUNT(*) n, MAX(recorded_at) last_at, AVG(CASE WHEN speed_kph IS NULL THEN 0 ELSE speed_kph END) avg_speed,
+                SUM(CASE WHEN speed_kph > 5 THEN 1 ELSE 0 END) moving, SUM(CASE WHEN speed_kph > {$limit} THEN 1 ELSE 0 END) overlimit")
+            ->groupBy('vehicle_id')->get()->keyBy('vehicle_id');
+        $rows = \App\Models\Vehicle::orderBy('code')->get()->map(function ($v) use ($fixes, $f, $t) {
+            $fx = $fixes[$v->id] ?? null;
+            $tracker = \App\Models\VehicleTracker::where('vehicle_id', $v->id)->orderByDesc('is_active')->first();
+            if (! $fx && ! $tracker && ! $v->is_active) {
+                return null;
+            }
+            $km = $fx ? \App\Services\FleetService::gpsKm($v->id, $f, $t) : 0;
+            $state = $tracker ? (\App\Services\FleetService::STATES[\App\Services\FleetService::trackerState($tracker)] ?? ['-']) : ['No device'];
+
+            return ['car' => $v->code.' · '.$v->reg_no, 'device' => $tracker ? ($tracker->provider.' · '.$tracker->device_uid) : '—',
+                'state' => $state[0], 'fixes' => (int) ($fx->n ?? 0), 'km' => $km, 'avgspeed' => $fx ? round((float) $fx->avg_speed, 1) : '',
+                'moving' => $fx && $fx->n ? round((int) $fx->moving / (int) $fx->n * 100).'%' : '',
+                'overlimit' => (int) ($fx->overlimit ?? 0),
+                'last' => $fx ? Carbon::parse($fx->last_at)->format('d M H:i') : 'No fix',
+                '_class' => $state[0] === 'Offline' ? 'row-alert' : ''];
+        })->filter()->values();
+        $tracked = $rows->filter(fn ($r) => $r['fixes'] > 0);
+
+        return ['cols' => ['car' => 'Vehicle', 'device' => 'Tracker', 'state' => 'Now', 'fixes' => 'Fixes', 'km' => 'km (GPS)', 'avgspeed' => 'Avg km/h',
+            'moving' => 'Moving', 'overlimit' => 'Over limit', 'last' => 'Last fix'],
+            'rows' => $rows, 'money' => [], 'sum' => ['fixes', 'km'],
+            'summary' => ['Distance' => number_format($rows->sum('km')).' km', 'Fixes received' => number_format($rows->sum('fixes')),
+                'Vehicles tracked' => $tracked->count().' / '.$rows->count(), 'Offline now' => (string) $rows->where('state', 'Offline')->count(),
+                'Fixes over '.$limit.' km/h' => number_format($rows->sum('overlimit'))],
+            'note' => 'Distance is measured from consecutive GPS fixes at most 10 minutes apart, ignoring fixes closer than 25 m (jitter) and single hops above 5 km (lost signal). “Over limit” counts fixes above the speeding limit set in Fleet settings. Trackers that are offline at the time the report runs are highlighted. GPS history is pruned nightly after the retention window set in Fleet settings.'];
     }
 
     protected function r_transport_drivers($from, $to): array

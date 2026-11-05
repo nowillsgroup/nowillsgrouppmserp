@@ -9,6 +9,12 @@
 
   // Sidebar groups and persisted desktop compact mode.
   const navStateKey = 'nowills-nav-state';
+  const syncFlyoutDescendants = (root, visible) => {
+    root.querySelectorAll('.nav-group').forEach(child => {
+      const trigger = child.querySelector(':scope > button');
+      if (trigger) trigger.setAttribute('aria-expanded', visible && child.classList.contains('open') ? 'true' : 'false');
+    });
+  };
   $$('.nav-group').forEach(group => {
     const button = group.querySelector(':scope > button');
     const key = group.dataset.navKey;
@@ -18,48 +24,117 @@
     if (!hasActiveChild && saved !== null) group.classList.toggle('open', saved === 'open');
     button.setAttribute('aria-expanded', group.classList.contains('open') ? 'true' : 'false');
     button.addEventListener('click', () => {
+      group.classList.remove('flyout-dismissed');
       const open = group.classList.toggle('open');
-      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const flyoutVisible = document.body.classList.contains('sidebar-collapsed')
+        && window.innerWidth > 860
+        && group.matches(':hover, :focus-within');
+      button.setAttribute('aria-expanded', flyoutVisible || open ? 'true' : 'false');
+      syncFlyoutDescendants(group, group.parentElement === nav ? (collapsedDesktop() ? flyoutVisible : open) : open);
       if (!moduleSearch?.value.trim()) localStorage.setItem(navStateKey + ':' + key, open ? 'open' : 'closed');
     });
     const collapsedDesktop = () => document.body.classList.contains('sidebar-collapsed') && window.innerWidth > 860;
-    group.addEventListener('mouseenter', () => { if (collapsedDesktop()) button.setAttribute('aria-expanded', 'true'); });
+    const placeCollapsedFlyout = () => {
+      if (!collapsedDesktop() || document.body.classList.contains('sidebar-searching') || group.classList.contains('flyout-dismissed') || group.parentElement !== nav) return;
+      const flyout = group.querySelector(':scope > .nav-sub');
+      if (!flyout) return;
+      const anchor = group.getBoundingClientRect();
+      const height = Math.min(flyout.scrollHeight, window.innerHeight - 16);
+      const top = Math.max(8, Math.min(anchor.top, window.innerHeight - 8 - height));
+      flyout.style.position = 'fixed';
+      flyout.style.left = `${sidebar?.getBoundingClientRect().right ?? 72}px`;
+      flyout.style.top = `${top}px`;
+      syncFlyoutDescendants(group, true);
+    };
+    group.addEventListener('mouseenter', () => {
+      if (collapsedDesktop()) {
+        group.classList.remove('flyout-dismissed');
+        button.setAttribute('aria-expanded', 'true');
+        placeCollapsedFlyout();
+      }
+    });
     group.addEventListener('mouseleave', () => {
-      if (collapsedDesktop() && !group.matches(':focus-within')) button.setAttribute('aria-expanded', 'false');
+      if (!group.matches(':focus-within')) group.classList.remove('flyout-dismissed');
+      if (collapsedDesktop() && !group.matches(':focus-within')) {
+        button.setAttribute('aria-expanded', 'false');
+        if (group.parentElement === nav) syncFlyoutDescendants(group, false);
+      }
     });
-    group.addEventListener('focusin', () => { if (collapsedDesktop()) button.setAttribute('aria-expanded', 'true'); });
+    group.addEventListener('focusin', () => {
+      if (collapsedDesktop() && !group.classList.contains('flyout-dismissed')) {
+        button.setAttribute('aria-expanded', 'true');
+        placeCollapsedFlyout();
+      }
+    });
     group.addEventListener('focusout', event => {
-      if (collapsedDesktop() && !group.contains(event.relatedTarget)) button.setAttribute('aria-expanded', 'false');
+      if (collapsedDesktop() && !group.contains(event.relatedTarget)) {
+        group.classList.remove('flyout-dismissed');
+        const hoverVisible = group.matches(':hover');
+        button.setAttribute('aria-expanded', hoverVisible ? 'true' : 'false');
+        if (group.parentElement === nav) syncFlyoutDescendants(group, hoverVisible);
+      }
     });
+    if (nav && group.parentElement === nav) {
+      nav.addEventListener('scroll', () => {
+        if (group.matches(':hover, :focus-within')) placeCollapsedFlyout();
+      }, { passive: true });
+    }
   });
   const navToggleButtons = $$('[data-toggle-nav]');
   const closeNavButtons = $$('[data-close-nav]');
+  const sidebar = $('#primary-sidebar');
   const setMobileNavOpen = (open, returnFocus = false) => {
+    const mobileViewport = window.innerWidth <= 860;
+    if (sidebar) {
+      sidebar.inert = mobileViewport && !open;
+      if (mobileViewport) sidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
+      else sidebar.removeAttribute('aria-hidden');
+    }
     document.body.classList.toggle('nav-open', open);
     navToggleButtons.forEach(button => {
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
       button.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
     });
-    if (open) setTimeout(() => $('#navModuleSearch')?.focus(), 80);
+    if (open) $('#navModuleSearch')?.focus({ preventScroll: true });
     else if (returnFocus) navToggleButtons[0]?.focus();
   };
   navToggleButtons.forEach(button => button.addEventListener('click', () => {
     setMobileNavOpen(!document.body.classList.contains('nav-open'));
   }));
   closeNavButtons.forEach(button => button.addEventListener('click', () => setMobileNavOpen(false, true)));
+  setMobileNavOpen(false);
   $$('.nav a').forEach(a => a.addEventListener('click', () => setMobileNavOpen(false)));
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 860 && document.body.classList.contains('nav-open')) setMobileNavOpen(false);
+    const open = document.body.classList.contains('nav-open');
+    setMobileNavOpen(window.innerWidth > 860 ? false : open);
   });
 
   const sidebarKey = 'nowills-sidebar-collapsed';
   const collapseButton = $('[data-collapse-sidebar]');
   const applySidebarMode = collapsed => {
     document.body.classList.toggle('sidebar-collapsed', collapsed);
-    document.body.classList.toggle('sidebar-searching', collapsed && !!moduleSearch?.value.trim());
+    const searching = !!moduleSearch?.value.trim();
+    document.body.classList.toggle('sidebar-searching', collapsed && searching);
+    if (!collapsed) {
+      $$('.nav > .nav-group > .nav-sub').forEach(flyout => {
+        flyout.style.removeProperty('position');
+        flyout.style.removeProperty('left');
+        flyout.style.removeProperty('top');
+      });
+    }
+    $$('.nav-group').forEach(group => {
+      const button = group.querySelector(':scope > button');
+      if (!button) return;
+      const expanded = collapsed && !searching
+        ? group.parentElement === nav && group.matches(':hover, :focus-within') && !group.classList.contains('flyout-dismissed')
+        : group.classList.contains('open');
+      button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    });
     if (collapseButton) {
-      collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-      collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      const label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      collapseButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      collapseButton.setAttribute('aria-label', label);
+      collapseButton.title = label;
     }
   };
   applySidebarMode(localStorage.getItem(sidebarKey) === '1' && window.innerWidth > 860);
@@ -69,9 +144,7 @@
     localStorage.setItem(sidebarKey, collapsed ? '1' : '0');
   });
   window.addEventListener('resize', () => {
-    if (window.innerWidth <= 860) {
-      document.body.classList.remove('sidebar-collapsed', 'sidebar-searching');
-    } else if (localStorage.getItem(sidebarKey) === '1') applySidebarMode(true);
+    applySidebarMode(window.innerWidth > 860 && localStorage.getItem(sidebarKey) === '1');
   });
 
   // Client-side module search keeps the permission-filtered menu and reveals matching paths.
@@ -159,7 +232,42 @@
     if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) { e.target.closest('.modal')?.classList.remove('show'); }
   });
   document.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && document.body.classList.contains('nav-open') && sidebar) {
+      const focusable = $$('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', sidebar)
+        .filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'));
+      if (!focusable.length) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!sidebar.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (e.key !== 'Escape') return;
+    if (document.body.classList.contains('sidebar-collapsed') && !document.body.classList.contains('sidebar-searching') && window.innerWidth > 860 && nav) {
+      let group = document.activeElement.closest('.nav-item.nav-group');
+      while (group && group.parentElement !== nav) group = group.parentElement?.closest('.nav-item.nav-group');
+      if (group) {
+        group.classList.add('flyout-dismissed');
+        const trigger = group.querySelector(':scope > button');
+        trigger?.setAttribute('aria-expanded', 'false');
+        trigger?.focus({ preventScroll: true });
+        trigger?.setAttribute('aria-expanded', 'false');
+        syncFlyoutDescendants(group, false);
+        e.preventDefault();
+        return;
+      }
+    }
     $$('.modal.show').forEach(m => m.classList.remove('show'));
     if (document.body.classList.contains('nav-open')) setMobileNavOpen(false, true);
   });

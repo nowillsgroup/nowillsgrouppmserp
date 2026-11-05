@@ -13,6 +13,11 @@
   @stack('head')
 </head>
 <body@hasSection('waiterTerminal') class="waiter-pos-fullscreen" @endif>
+<script>
+  try {
+    if (window.innerWidth > 860 && localStorage.getItem('nowills-sidebar-collapsed') === '1') document.body.classList.add('sidebar-collapsed');
+  } catch (_) {}
+</script>
 @include('partials.icons')
 @php
   $user = auth()->user();
@@ -25,11 +30,12 @@
   $alertPreview = \App\Services\NotificationCenter::preview($alerts);
 @endphp
 <div class="app">
-  <aside class="sidebar" id="primary-sidebar">
+  <aside class="sidebar" id="primary-sidebar" aria-label="Application sidebar">
     <div class="brand">
       <img class="brand-logo-full" src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-gold.webp') }}" alt="Nowills PMS — Cloud Hospitality Suite">
       <img class="brand-logo-mark" src="{{ \App\Support\BrandAsset::src('nowills-pms-premium-mark.webp') }}" alt="Nowills PMS">
-      <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
+      <button type="button" class="sidebar-collapse" data-collapse-sidebar aria-controls="primary-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><x-icon name="chev"/></button>
+      <button type="button" class="sidebar-mobile-close" data-close-nav aria-label="Close navigation" title="Close navigation"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
     </div>
     <div class="nav-search">
       <x-icon name="search" size="sm"/>

@@ -149,8 +149,8 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - Utilities & Energy · Daily Meter Readings · Licences & Compliance
 - **Security** — 4 pages
   - Visitors · Gate Passes · Incident Register · Watch List
-- **Transport** — 9 pages
-  - Dispatch Board · Trips · My Trips (driver) · Fleet & Papers · Vehicle Expenses · Vehicles · Drivers · Tariff Card · Transport Settings
+- **Transport** — 14 pages
+  - Dispatch Board · Trips · My Trips (driver) · Fleet & Papers · Fleet Management · Live Vehicle Tracking · Maintenance & Repairs · Fuel & Efficiency · Vehicle Expenses · Vehicles · Drivers · Tariff Card · Transport Settings · Fleet Settings
 - **Car Rental** — 2 pages
   - Rental Desk · Rental Fleet
 

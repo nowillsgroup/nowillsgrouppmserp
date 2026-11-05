@@ -33,4 +33,9 @@ class VehicleExpense extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function maintenanceRecord()
+    {
+        return $this->belongsTo(VehicleMaintenanceRecord::class, 'maintenance_record_id');
+    }
 }

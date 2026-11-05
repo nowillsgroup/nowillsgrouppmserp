@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel &amp; Efficiency · UI preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/fleet.css">
+<style>
+  body { margin: 0; background: #f6f8f6; }
+  .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
+  .pv-banner strong { display: block; }
+  .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .pv-head h1 { font-size: 1.35rem; margin: 0; }
+  .pv-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .pv-actions .btn { display: inline-flex; align-items: center; gap: .35rem; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 13h2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 17h14M6 17v2M18 17v2"/><path d="M3 13l2-6h14l2 6v4H3v-4Z"/><circle cx="7" cy="13.5" r="1"/><circle cx="17" cy="13.5" r="1"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 1 0 5 5L21 21l-2 2-9.6-9.6a4 4 0 0 1-5-5L6 6l3.5 3.5"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8.8a16 16 0 0 1 20 0M5 12.5a11 11 0 0 1 14 0M8.5 16.2a6 6 0 0 1 7 0"/><circle cx="12" cy="20" r="1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18.5v.5"/></symbol>
+</svg>
+
+<div class="pv-shell">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative fills, no operational records.</strong>
+      This page renders the Fuel &amp; Efficiency screen with sample fills. The real screen reads fuel expenses and GPS distance from the tenant database and writes nothing here.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/__preview/fleet-overview">Fleet management</a> · <a href="/__preview/fleet-maintenance">Maintenance</a></div></div>
+  </div>
+
+  <div class="pv-head">
+    <div>
+      <div class="tiny muted">Transport / Fleet / Fuel</div>
+      <h1>Fuel &amp; Efficiency</h1>
+    </div>
+    <div class="pv-actions">
+      <a class="btn" href="/__preview/fleet-tracking"><svg class="i"><use href="#i-wifi"/></svg> Live tracking</a>
+      <a class="btn" href="/__preview/fleet-maintenance"><svg class="i"><use href="#i-tool"/></svg> Maintenance</a>
+      <button class="btn" type="button" disabled title="Preview only"><svg class="i"><use href="#i-download"/></svg> Export CSV</button>
+      <a class="btn btn-ghost" href="fleet-cost-statement.html">Monthly statement</a>
+    </div>
+  </div>
+
+  <div class="filters" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+    <input type="date" value="2026-11-01" aria-label="From">
+    <input type="date" value="2026-11-04" aria-label="To">
+    <select aria-label="Vehicle"><option>All vehicles</option><option>INNOVA-1 · GT 4821-24</option><option>SEDAN-2 · GT 1190-23</option></select>
+    <button class="btn btn-sm" type="button" disabled>Apply</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat tone-amber"><div class="ico"><svg class="i"><use href="#i-wallet"/></svg></div>
+      <div><div class="v">GH₵ 4,260.00</div><div class="l">Fuel spend</div><div class="tiny muted">01 Nov – 04 Nov 2026</div></div></div>
+    <div class="stat tone-blue"><div class="ico"><svg class="i"><use href="#i-car"/></svg></div>
+      <div><div class="v">312.4</div><div class="l">Litres filled</div><div class="tiny muted">4 fill(s) shown</div></div></div>
+    <div class="stat tone-purple"><div class="ico"><svg class="i"><use href="#i-chart"/></svg></div>
+      <div><div class="v">1,842 km</div><div class="l">Distance (GPS)</div><div class="tiny muted">Tracked trail in the period</div></div></div>
+    <div class="stat tone-green"><div class="ico"><svg class="i"><use href="#i-trend"/></svg></div>
+      <div><div class="v">5.90 km/l</div><div class="l">Average</div><div class="tiny muted">GH₵ 2.31 fuel per km</div></div></div>
+  </div>
+
+  <div class="card" id="fuelChecks">
+    <div class="card-head"><h3>Fills to check</h3><span class="small muted">2 in this period</span></div>
+    <div class="card-body">
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <a href="/__preview/fleet-overview"><b>VAN-3</b></a> · 02 Nov · 62.00 L · GH₵ 860.00 <span class="tiny muted">· 84,180 km</span>
+        <div class="tiny muted">Burns 2.10 km/l against its usual 5.73 km/l.</div>
+      </div>
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <a href="/__preview/fleet-overview"><b>SEDAN-2</b></a> · 03 Nov · 34.40 L · GH₵ 470.00
+        <div class="tiny muted">Odometer advanced 310 km but the GPS trail shows 468 km.</div>
+      </div>
+      <p class="tiny muted mt-1">A fill is listed when consumption falls below 60% of the vehicle's own median, the odometer does not advance, the fill has no odometer, or the odometer runs ahead of / behind the GPS trail by more than 25% (GPS rules need at least 20 km of trail). Ask for the pump receipt before treating any of these as a loss.</p>
+    </div>
+  </div>
+
+  <div class="grid g-2">
+    <div class="card" id="fuelPrice">
+      <div class="card-head"><h3>Fuel price trend</h3><span class="small muted">Last 6 months · price per litre</span></div>
+      <div class="card-body">
+        <div class="flex gap-1" style="align-items:flex-end;height:120px" role="img"
+          aria-label="Illustrative average fuel price per litre for the last six months, cheapest 13.60 and dearest 14.20">
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">13.60</span>
+            <div style="width:100%;max-width:44px;height:22px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Jun</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">13.80</span>
+            <div style="width:100%;max-width:44px;height:34px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Jul</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">13.95</span>
+            <div style="width:100%;max-width:44px;height:43px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Aug</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">14.10</span>
+            <div style="width:100%;max-width:44px;height:53px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Sep</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">14.20</span>
+            <div style="width:100%;max-width:44px;height:60px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Oct</span>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
+            <span class="tiny muted" style="font-size:.65rem">13.64</span>
+            <div style="width:100%;max-width:44px;height:25px;background:#f59e0b;border-radius:4px 4px 0 0"></div>
+            <span class="tiny muted">Nov</span>
+          </div>
+        </div>
+        <p class="tiny muted mt-1">312.40 litres · GH₵ 4,260.00 over the period. Price per litre is spend ÷ litres for each month's fills; a month with no fill shows no bar rather than a guess.</p>
+      </div>
+    </div>
+
+    <div class="card" id="fuelVendors">
+      <div class="card-head"><h3>Where the fuel came from</h3><span class="small muted">Cheapest first · last 6 months</span></div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table class="table">
+            <caption class="sr-only">Fuel stations with litres, spend and average price per litre</caption>
+            <thead><tr><th scope="col">Station</th><th scope="col" class="num">Fills</th><th scope="col" class="num">Litres</th><th scope="col" class="num">Spend</th><th scope="col" class="num">Per litre</th></tr></thead>
+            <tbody>
+              <tr><td class="small"><b>GOIL Airport</b></td><td class="num">6</td><td class="num">486.20</td><td class="num">GH₵ 6,610.00</td><td class="num">13.60</td></tr>
+              <tr><td class="small"><b>Shell Liberation Rd</b></td><td class="num">4</td><td class="num">318.40</td><td class="num">GH₵ 4,341.00</td><td class="num">13.63</td></tr>
+              <tr><td class="small"><b>Total Spintex</b></td><td class="num">3</td><td class="num">244.00</td><td class="num">GH₵ 3,465.00</td><td class="num">14.20</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tiny muted mt-1">The cheapest litre is not always the cheapest fill: weigh credit terms and the detour to get there. Stations are free text, so near-duplicate names stay separate until they are cleaned up on the fill form.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="costPerKmLeague">
+    <div class="card-head"><h3>What a kilometre costs</h3>
+      <span class="small muted">Dearest first · 01 Oct – 04 Nov 2026</span></div>
+    <div class="card-body">
+      <p class="small m-0" style="margin-bottom:.4rem">Fleet median <b>GH₵ 2.26</b> per km · 1 car more than 25% above it</p>
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <div class="flex justify-between"><span><b>SAL-1</b> <span class="tiny muted">704 km · GH₵ 2,490</span></span><b>GH₵ 3.54</b></div>
+        <span class="tiny" style="color:#b45309">▲ more than 25% above the fleet median — check tyres, load, or the fuel log</span>
+      </div>
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <div class="flex justify-between"><span><b>BUS-2</b> <span class="tiny muted">2,142 km · GH₵ 4,840</span></span><b>GH₵ 2.26</b></div>
+        <div class="tiny muted">0.0 % against the fleet median</div>
+      </div>
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <div class="flex justify-between"><span><b>VAN-3</b> <span class="tiny muted">1,286 km · GH₵ 2,320</span></span><b>GH₵ 1.80</b></div>
+        <div class="tiny muted">-20.4 % against the fleet median</div>
+      </div>
+      <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+        <div class="flex justify-between"><span><b>PICK-1</b> <span class="tiny muted">38 km · GH₵ 970</span></span><b>GH₵ 25.53</b></div>
+        <div class="tiny muted">short hop — listed, not judged</div>
+      </div>
+      <p class="tiny muted mt-1">Cost per km is each car's recorded fuel, service, repair and other spend divided by its own GPS trail.
+        A car under 50 km is listed but never flagged — a short hop makes the ratio meaningless. Ranking adds no extra distance scan:
+        these are the same figures in the vehicle table below.</p>
+    </div>
+  </div>
+
+  <div class="card" id="costHistory">
+    <div class="card-head"><h3>Running cost by month</h3>
+      <span class="small muted">Last 12 months · fuel, service and everything else</span></div>
+    <div class="card-body">
+      <div class="flex gap-1" style="align-items:flex-end;height:130px" role="img"
+        aria-label="Illustrative total fleet running cost per month for the last 12 months">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">2.1</span><div style="width:100%;max-width:44px;height:52px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:60%;background:#f59e0b"></span><span style="display:block;height:30%;background:#3b82f6"></span><span style="display:block;height:10%;background:#94a3b8"></span></div><span class="tiny muted">Dec</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">3.4</span><div style="width:100%;max-width:44px;height:84px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:55%;background:#f59e0b"></span><span style="display:block;height:40%;background:#3b82f6"></span><span style="display:block;height:5%;background:#94a3b8"></span></div><span class="tiny muted">Jan</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">2.8</span><div style="width:100%;max-width:44px;height:69px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:66%;background:#f59e0b"></span><span style="display:block;height:24%;background:#3b82f6"></span><span style="display:block;height:10%;background:#94a3b8"></span></div><span class="tiny muted">Feb</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">3.9</span><div style="width:100%;max-width:44px;height:96px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:50%;background:#f59e0b"></span><span style="display:block;height:44%;background:#3b82f6"></span><span style="display:block;height:6%;background:#94a3b8"></span></div><span class="tiny muted">Mar</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">3.1</span><div style="width:100%;max-width:44px;height:77px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:58%;background:#f59e0b"></span><span style="display:block;height:35%;background:#3b82f6"></span><span style="display:block;height:7%;background:#94a3b8"></span></div><span class="tiny muted">Apr</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">2.6</span><div style="width:100%;max-width:44px;height:65px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:62%;background:#f59e0b"></span><span style="display:block;height:30%;background:#3b82f6"></span><span style="display:block;height:8%;background:#94a3b8"></span></div><span class="tiny muted">May</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">3.6</span><div style="width:100%;max-width:44px;height:89px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:54%;background:#f59e0b"></span><span style="display:block;height:40%;background:#3b82f6"></span><span style="display:block;height:6%;background:#94a3b8"></span></div><span class="tiny muted">Jun</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">4.2</span><div style="width:100%;max-width:44px;height:104px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:48%;background:#f59e0b"></span><span style="display:block;height:47%;background:#3b82f6"></span><span style="display:block;height:5%;background:#94a3b8"></span></div><span class="tiny muted">Jul</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">2.9</span><div style="width:100%;max-width:44px;height:72px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:60%;background:#f59e0b"></span><span style="display:block;height:32%;background:#3b82f6"></span><span style="display:block;height:8%;background:#94a3b8"></span></div><span class="tiny muted">Aug</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">3.3</span><div style="width:100%;max-width:44px;height:82px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:56%;background:#f59e0b"></span><span style="display:block;height:38%;background:#3b82f6"></span><span style="display:block;height:6%;background:#94a3b8"></span></div><span class="tiny muted">Sep</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">2.4</span><div style="width:100%;max-width:44px;height:60px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:64%;background:#f59e0b"></span><span style="display:block;height:28%;background:#3b82f6"></span><span style="display:block;height:8%;background:#94a3b8"></span></div><span class="tiny muted">Oct</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><span class="tiny muted" style="font-size:.62rem">1.2</span><div style="width:100%;max-width:44px;height:30px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><span style="display:block;height:72%;background:#f59e0b"></span><span style="display:block;height:22%;background:#3b82f6"></span><span style="display:block;height:6%;background:#94a3b8"></span></div><span class="tiny muted">Nov</span></div>
+      </div>
+      <p class="tiny muted mt-1">
+        Bars are total spend in thousands; the shadings are fuel (amber), service and repair (blue) and tolls / parking / other (grey).
+        Twelve months total <b>GH₵ 36,500</b>, heaviest in <b>Jul</b> at GH₵ 4,200.
+        A month with nothing posted shows no bar rather than a guess, and the percentage on a month is only drawn against a previous month that actually had spend.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" id="idleTime">
+    <div class="card-head"><h3>Standing time</h3>
+      <span class="small muted">Last 7 days · fixes with the ignition on and the wheels still</span></div>
+    <div class="card-body">
+      <p class="small m-0">
+        <b>4 h 35 min</b> of standing time across the fleet,
+        worth about <b>4.1 litres</b> at the 0.9 l/h idle rate in Fleet settings.
+      </p>
+      <div class="table-wrap mt-1">
+        <table class="table" id="idleTable">
+          <caption class="sr-only">Illustrative idle time per vehicle, with the fuel it is estimated to have burnt</caption>
+          <thead><tr><th scope="col">Vehicle</th><th scope="col" class="num">Standing time</th><th scope="col" class="num">≈ litres</th></tr></thead>
+          <tbody>
+            <tr class="row-alert"><td><b>TEMPO-4</b><div class="tiny muted">Toyota Hiace</div></td><td class="num">2 h 05 min</td><td class="num">1.9</td></tr>
+            <tr><td><b>VAN-3</b><div class="tiny muted">Hyundai H1</div></td><td class="num">1 h 40 min</td><td class="num">1.5</td></tr>
+            <tr><td><b>INNOVA-1</b><div class="tiny muted">Toyota Innova</div></td><td class="num">0 h 50 min</td><td class="num">0.8</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tiny muted mt-1">
+        Two consecutive fixes at most 10 minutes apart, both reporting the ignition on, with the later one below
+        5 km/h, count as standing time for that interval.
+        A car parked overnight with the ignition off contributes nothing, and a gap longer than 10 minutes is skipped rather than
+        credited to idling. The litre figure is an assumption priced from Fleet settings — the minutes and the rankings are measured.
+      </p>
+    </div>
+  </div>
+
+  <div class="card flush" id="efficiencyLeague">
+    <div class="card-head"><h3>Efficiency per vehicle</h3>
+      <span class="small muted">Distance from the GPS trail; fuel from running expenses · last 90 days</span></div>
+    <div class="card-body table-wrap">
+      <p class="small" style="padding:.6rem .9rem 0">
+        Fleet median <b>5.83 km/l</b>.
+        <b>1</b> vehicle(s) run more than 25% below it:
+        TEMPO-4.
+      </p>
+      <table class="table" id="fuelEfficiency">
+        <caption class="sr-only">Illustrative fuel consumption and cost per kilometre for each vehicle, with a comparison against the fleet median</caption>
+        <thead><tr><th scope="col">Vehicle</th><th scope="col" class="num">Fills</th><th scope="col" class="num">Litres</th><th scope="col" class="num">Fuel cost</th><th scope="col" class="num">Service &amp; repair</th><th scope="col" class="num">km</th><th scope="col" class="num">km / litre</th><th scope="col" class="num">vs median</th><th scope="col" class="num">Cost / km</th></tr></thead>
+        <tbody>
+          <tr class="row-alert"><td><b>TEMPO-4</b> <span class="badge badge-amber">Below median</span><div class="tiny muted">Toyota Hiace · GT 7710-21 · diesel</div></td><td class="num">2</td><td class="num">118.00</td><td class="num">GH₵ 1,540.00</td><td class="num">GH₵ 0.00</td><td class="num">596</td><td class="num">5.05</td><td class="num">-13.4%</td><td class="num">GH₵ 2.58</td></tr>
+          <tr><td><b>VAN-3</b><div class="tiny muted">Hyundai H1 · GT 3308-22 · diesel</div></td><td class="num">1</td><td class="num">62.00</td><td class="num">GH₵ 860.00</td><td class="num">GH₵ 0.00</td><td class="num">512</td><td class="num">5.73</td><td class="num">-1.7%</td><td class="num">GH₵ 3.90</td></tr>
+          <tr><td><b>SEDAN-2</b><div class="tiny muted">Toyota Corolla · GT 1190-23 · petrol</div></td><td class="num">1</td><td class="num">34.40</td><td class="num">GH₵ 470.00</td><td class="num">GH₵ 900.00</td><td class="num">418</td><td class="num">5.80</td><td class="num">-0.5%</td><td class="num">GH₵ 4.12</td></tr>
+          <tr><td><b>INNOVA-1</b><div class="tiny muted">Toyota Innova · GT 4821-24 · diesel</div></td><td class="num">1</td><td class="num">36.00</td><td class="num">GH₵ 480.00</td><td class="num">GH₵ 0.00</td><td class="num">642</td><td class="num">5.91</td><td class="num">+1.4%</td><td class="num">GH₵ 3.28</td></tr>
+        </tbody>
+      </table>
+      <p class="tiny muted" style="padding:.5rem .9rem .6rem">
+        “vs median” compares each vehicle with the fleet's own median km/l, never an outside benchmark — a hill route or a heavy van can be normal here.
+        A car is only flagged when it is more than 25% below the median <b>and</b> has covered at least 50 km, so a short week in traffic is not labelled wasteful.
+        Cars with neither fuel nor distance are left out; their spend still shows on the vehicle page.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid g-2-1">
+    <div class="card flush">
+      <div class="card-head"><h3>Fuel fills</h3><span class="small muted">Latest 300 in the period</span></div>
+      <div class="card-body table-wrap">
+        <table class="table">
+          <caption class="sr-only">Individual fuel fills with litres, amount, odometer, supplier and driver</caption>
+          <thead><tr><th scope="col">Date</th><th scope="col">Vehicle</th><th scope="col" class="num">Litres</th><th scope="col" class="num">Amount</th><th scope="col" class="num">Odometer</th><th scope="col">Supplier</th><th scope="col">Driver</th><th scope="col"><span class="sr-only">Correct or delete</span></th></tr></thead>
+          <tbody>
+            <tr><td class="nowrap">02 Nov</td><td><b>VAN-3</b></td><td class="num">62.00</td><td class="num">GH₵ 860.00</td><td class="num">84,180</td><td class="small">GOIL Airport</td><td class="small">Sunil Yadav</td><td class="small"><details><summary class="tiny">Correct</summary><div class="form-grid" style="margin-top:.4rem;min-width:250px"><label class="tiny">Litres</label><input type="number" value="62.00" disabled><label class="tiny">Amount</label><input type="number" value="860.00" disabled><label class="tiny">Why (logged)</label><input type="text" value="Pump receipt said 45 L" disabled><button class="btn btn-sm btn-primary" type="button" disabled title="Preview only">Save correction</button></div></details></td></tr>
+            <tr><td class="nowrap">02 Nov</td><td><b>INNOVA-1</b></td><td class="num">36.00</td><td class="num">GH₵ 480.00</td><td class="num">64,210</td><td class="small">GOIL Airport</td><td class="small">Kwame Mensah</td><td class="small"><details><summary class="tiny">Correct</summary><div class="form-grid" style="margin-top:.4rem;min-width:250px"><label class="tiny">Litres</label><input type="number" value="36.00" disabled><label class="tiny">Amount</label><input type="number" value="480.00" disabled><label class="tiny">Why (logged)</label><input type="text" value="Pump receipt said 45 L" disabled><button class="btn btn-sm btn-primary" type="button" disabled title="Preview only">Save correction</button></div></details></td></tr>
+            <tr><td class="nowrap">03 Nov</td><td><b>SEDAN-2</b></td><td class="num">34.40</td><td class="num">GH₵ 470.00</td><td class="num">60,930</td><td class="small">Shell Liberation Rd</td><td class="small">Yaw Boateng</td><td class="small"><details><summary class="tiny">Correct</summary><div class="form-grid" style="margin-top:.4rem;min-width:250px"><label class="tiny">Litres</label><input type="number" value="34.40" disabled><label class="tiny">Amount</label><input type="number" value="470.00" disabled><label class="tiny">Why (logged)</label><input type="text" value="Pump receipt said 45 L" disabled><button class="btn btn-sm btn-primary" type="button" disabled title="Preview only">Save correction</button></div></details></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Record a fill</h3></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="field span-all"><label for="pvFuelVehicle">Vehicle</label><select id="pvFuelVehicle"><option>INNOVA-1 · GT 4821-24</option><option>SEDAN-2 · GT 1190-23</option></select></div>
+          <div class="field span-all"><label for="pvFuelDate">Date</label><input id="pvFuelDate" type="date" value="2026-11-04"></div>
+          <div class="field"><label for="pvLitres">Litres / kWh</label><input id="pvLitres" type="number" step="0.01" value="40.00"></div>
+          <div class="field"><label for="pvAmount">Amount paid</label><input id="pvAmount" type="number" step="0.01" value="546.00"></div>
+          <div class="field"><label for="pvOdo">Odometer (km)</label><input id="pvOdo" type="number" value="64690"></div>
+          <div class="field"><label for="pvStation">Station / pump</label><input id="pvStation" value="GOIL Airport"></div>
+          <div class="span-all"><button class="btn btn-primary btn-block" type="button" disabled title="Preview only"><svg class="i"><use href="#i-plus"/></svg> Save fill</button></div>
+        </div>
+        <p class="tiny muted mt-1">Fills feed the running-cost report and the efficiency figures above. Add the supplier bill through Accounts Payable as usual.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="tiny muted" style="margin-top:1.25rem">The real screen lives under <b>Transport › Fuel &amp; Efficiency</b>. Served by the development preview server only — no database, no writes.</p>
+</div>
+</body>
+</html>

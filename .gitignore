@@ -32,3 +32,6 @@ Thumbs.db
 __pycache__/
 # generated route-table snapshot for system_audit.php (regenerate with artisan route:list --json)
 deploy/dev/audit/.routes.json
+
+# generated preview screenshots (re-create with the preview server when needed)
+deploy/dev/previews/*-snapshot.png

@@ -91,6 +91,21 @@ class DataImportExportHubTest(unittest.TestCase):
         self.assertIn("'hall_label'", CONTROLLER)
         self.assertIn("'package_label'", CONTROLLER)
 
+    def test_menu_item_variant_rates_stay_optional_on_the_legacy_import(self):
+        """Side-dish rate/cost are optional everywhere they are written, including the CSV importer."""
+        importer = (ROOT / "app/Services/Migration/Importers/MenuItemImporter.php").read_text()
+        for marker in (
+            "'variants.*.rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99']",
+            "'variants.*.cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99']",
+            "number_format(round((float) ($variant['rate'] ?? 0), 2), 2, '.', '')",
+            "number_format(round((float) ($variant['cost'] ?? 0), 2), 2, '.', '')",
+            "rate and cost may be left blank (saved as 0 = included in the item price)",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, importer)
+        doc = (ROOT / "docs/DATA-MIGRATION.md").read_text()
+        self.assertIn("`rate` and `cost` are optional", doc)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

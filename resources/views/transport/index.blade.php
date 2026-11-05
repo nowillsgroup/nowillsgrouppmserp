@@ -4,6 +4,7 @@
 @section('actions')
   <a class="btn" href="{{ route('tr.trips') }}"><x-icon name="menu"/> Trips</a>
   <a class="btn" href="{{ route('tr.fleet') }}"><x-icon name="car"/> Fleet</a>
+  @if(can_do('transport.track'))<a class="btn" href="{{ route('tr.fleet.tracking') }}"><x-icon name="wifi"/> Live tracking</a>@endif
   @if(can_do('transport.book'))<a class="btn btn-primary" href="{{ route('tr.create', ['date' => $date->toDateString()]) }}" id="newTripBtn"><x-icon name="plus"/> New trip</a>@endif
 @endsection
 @section('content')

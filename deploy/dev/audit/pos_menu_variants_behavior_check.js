@@ -19,6 +19,8 @@ const context = {
   confirm: () => true,
   render() {},
   window: {setTimeout() {}},
+  // The slice also wires the side-dish Continue button, so a DOM stub is needed here.
+  document: {getElementById: () => null, querySelectorAll: () => []},
 };
 vm.createContext(context);
 vm.runInContext(script, context);
@@ -47,15 +49,34 @@ lines = Object.values(context.cart);
 assert.equal(lines.length, 2, 'Different side selections remain separate order lines');
 assert.equal(lines.find(line => line.variants.length === 1).price, 72.5);
 
-const pickerCode = view.match(/function openModifierPicker\(button, groups, variants = \[\]\) \{[\s\S]*?(?=\ndocument\.querySelectorAll\('\.pos-item'\))/)?.[0];
+// A side dish saved with no rate (rate and cost are optional in the master form) must never invent a charge.
+const zeroContext = {
+  cart: {}, guestAllergies: [], allergenNames: {}, confirm: () => true,
+  render() {}, window: {setTimeout() {}},
+  document: {getElementById: () => null, querySelectorAll: () => []},
+};
+vm.createContext(zeroContext);
+vm.runInContext(script, zeroContext);
+zeroContext.addMenuItem(button, [], [{id: 20, name: 'Garden salad', rate: 0}]);
+const zeroLine = Object.values(zeroContext.cart)[0];
+assert.equal(zeroLine.price, 60, 'A side dish with a blank rate adds nothing to the item price');
+assert.deepEqual([...zeroLine.variants.map(v => v.id)], [20], 'The side dish is still attached to the line');
+
+const pickerCode = view.match(/function openModifierPicker\(button, groups, variants = \[\][^)]*\) \{[\s\S]*?(?=\ndocument\.querySelectorAll\('\.pos-item'\))/)?.[0];
 assert.ok(pickerCode, 'Expected POS side-dish picker and selection handler');
 let onAdd;
-const modal = {hidden: false, classList: {add() {}, remove() {modal.hidden = true;}}};
+let onSideContinue;
+const sideModal = {hidden: false, classList: {add() {sideModal.hidden = false;}, remove() {sideModal.hidden = true;}}};
+const modal = {hidden: false, classList: {add() {modal.hidden = false;}, remove() {modal.hidden = true;}}};
 const pickerElements = {
   modifierTitle: {textContent: ''},
   modifierChoices: {innerHTML: ''},
   modifierModal: modal,
   modifierAdd: {addEventListener(_event, handler) {onAdd = handler;}},
+  sideDishTitle: {textContent: ''},
+  sideDishChoices: {innerHTML: ''},
+  sideDishModal: sideModal,
+  sideDishContinue: {addEventListener(_event, handler) {onSideContinue = handler;}},
 };
 const selectedInputs = sides.map(v => ({dataset: {sideVariantId: String(v.id), sideVariantName: v.name, sideVariantRate: String(v.rate)}}));
 const pickerContext = {
@@ -80,4 +101,26 @@ assert.equal(pickedLine.price, 80.5, 'Selecting both checkboxes adds both rates'
 assert.deepEqual([...pickedLine.variants.map(v => v.id)], [12, 18]);
 assert.equal(modal.hidden, true, 'Adding selections closes the picker');
 
-console.log('POS side-dish behavior passed: multi-select picker, additive rates, identical-combination quantity grouping, and separate lines for different combinations.');
+// A dish with sides asks for them first, in its own popup.
+pickerContext.cart = {};
+pickerContext.openSideDishPicker(button, [], sides);
+assert.equal((pickerElements.sideDishChoices.innerHTML.match(/type="checkbox" data-side-variant-id=/g) || []).length, 2,
+  'The side-dish popup offers one checkbox per side dish');
+assert.match(pickerElements.sideDishTitle.textContent, /Side dish for Grilled chicken/);
+assert.equal(sideModal.hidden, false, 'Tapping a dish with sides opens the side-dish popup');
+onSideContinue();
+const sideFlowLine = Object.values(pickerContext.cart)[0];
+assert.equal(sideModal.hidden, true, 'Continuing closes the side-dish popup');
+assert.equal(sideFlowLine.price, 80.5, 'Continuing with no modifiers puts the chosen sides straight into the cart');
+assert.deepEqual([...sideFlowLine.variants.map(v => v.id)], [12, 18]);
+
+// With modifier groups too, the side step hands over to the options step with the sides pre-ticked.
+pickerContext.cart = {};
+pickerContext.openSideDishPicker(button, [{id: 5, name: 'Spice', min: 0, max: 2, required: false, options: []}], sides);
+onSideContinue();
+assert.equal(sideModal.hidden, true, 'The side step closes before the options step opens');
+assert.equal((pickerElements.modifierChoices.innerHTML.match(/checked/g) || []).length, 2,
+  'Sides chosen in the side step arrive pre-ticked in the options step');
+assert.equal(modal.hidden, false, 'The options step opens after the side step');
+
+console.log('POS side-dish behavior passed: dedicated side-dish popup on tap, optional (blank) rates adding nothing, multi-select picker, additive rates, identical-combination quantity grouping, separate lines for different combinations, and pre-ticked sides carried into the options step.');

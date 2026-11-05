@@ -63,7 +63,7 @@
   @endforeach
 
   <section class="card menu-item-form-card" aria-labelledby="menu-item-variants-title">
-    <div class="card-head"><div><h3 id="menu-item-variants-title">Variants / side dishes <span class="badge badge-slate" id="menuItemVariantCount" role="status" aria-live="polite">{{ count($variantRows) }}</span></h3><p class="small muted">Add the side dishes available with this item. Each variant has its own selling rate and cost; add as many as needed (up to 30).</p></div></div>
+    <div class="card-head"><div><h3 id="menu-item-variants-title">Variants / side dishes <span class="badge badge-slate" id="menuItemVariantCount" role="status" aria-live="polite">{{ count($variantRows) }}</span></h3><p class="small muted">Add the side dishes offered with this item; the waiter is asked to pick one when the dish is rung up. <b>Rate and cost are optional</b> — leave them blank for a side dish included in the item's price, or when the kitchen does not cost it separately. Add as many as needed (up to 30).</p></div></div>
     <div class="card-body">
       <div id="menuItemVariantRows" class="menu-item-variant-rows" data-next-index="{{ $nextVariantIndex }}">
         @foreach($variantRows as $index => $variant)
@@ -72,10 +72,10 @@
             <div class="field"><label for="variant-{{ $index }}-name">Name of side dish</label><input id="variant-{{ $index }}-name" name="variants[{{ $index }}][name]" value="{{ old('variants.'.$index.'.name', $variant['name'] ?? '') }}" maxlength="100" autocomplete="off" data-variant-name>
               @error('variants.'.$index.'.name')<span class="err">{{ $message }}</span>@enderror
             </div>
-            <div class="field"><label for="variant-{{ $index }}-rate">Rate / price ({{ $priceSymbol }})</label><input id="variant-{{ $index }}-rate" name="variants[{{ $index }}][rate]" type="number" min="0" step="0.01" value="{{ old('variants.'.$index.'.rate', $variant['rate'] ?? '') }}" inputmode="decimal">
+            <div class="field"><label for="variant-{{ $index }}-rate">Rate / price ({{ $priceSymbol }}) <span class="tiny muted">optional</span></label><input id="variant-{{ $index }}-rate" name="variants[{{ $index }}][rate]" type="number" min="0" step="0.01" value="{{ old('variants.'.$index.'.rate', $variant['rate'] ?? '') }}" inputmode="decimal" placeholder="Blank = included">
               @error('variants.'.$index.'.rate')<span class="err">{{ $message }}</span>@enderror
             </div>
-            <div class="field"><label for="variant-{{ $index }}-cost">Cost ({{ $priceSymbol }})</label><input id="variant-{{ $index }}-cost" name="variants[{{ $index }}][cost]" type="number" min="0" step="0.01" value="{{ old('variants.'.$index.'.cost', $variant['cost'] ?? '') }}" inputmode="decimal">
+            <div class="field"><label for="variant-{{ $index }}-cost">Cost ({{ $priceSymbol }}) <span class="tiny muted">optional</span></label><input id="variant-{{ $index }}-cost" name="variants[{{ $index }}][cost]" type="number" min="0" step="0.01" value="{{ old('variants.'.$index.'.cost', $variant['cost'] ?? '') }}" inputmode="decimal" placeholder="Blank = 0.00">
               @error('variants.'.$index.'.cost')<span class="err">{{ $message }}</span>@enderror
             </div>
             <button type="button" class="btn btn-sm btn-ghost menu-item-variant-remove" data-remove-variant aria-label="Remove side dish variant {{ $index + 1 }}"><x-icon name="trash" size="sm"/> Remove</button>
@@ -88,8 +88,8 @@
       <template id="menuItemVariantTemplate">
         <div class="menu-item-variant-row" data-variant-row role="group" aria-label="Side dish variant __INDEX_LABEL__">
           <div class="field"><label for="variant-__INDEX__-name">Name of side dish</label><input id="variant-__INDEX__-name" name="variants[__INDEX__][name]" maxlength="100" autocomplete="off" data-variant-name></div>
-          <div class="field"><label for="variant-__INDEX__-rate">Rate / price ({{ $priceSymbol }})</label><input id="variant-__INDEX__-rate" name="variants[__INDEX__][rate]" type="number" min="0" step="0.01" inputmode="decimal"></div>
-          <div class="field"><label for="variant-__INDEX__-cost">Cost ({{ $priceSymbol }})</label><input id="variant-__INDEX__-cost" name="variants[__INDEX__][cost]" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          <div class="field"><label for="variant-__INDEX__-rate">Rate / price ({{ $priceSymbol }}) <span class="tiny muted">optional</span></label><input id="variant-__INDEX__-rate" name="variants[__INDEX__][rate]" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Blank = included"></div>
+          <div class="field"><label for="variant-__INDEX__-cost">Cost ({{ $priceSymbol }}) <span class="tiny muted">optional</span></label><input id="variant-__INDEX__-cost" name="variants[__INDEX__][cost]" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Blank = 0.00"></div>
           <button type="button" class="btn btn-sm btn-ghost menu-item-variant-remove" data-remove-variant aria-label="Remove side dish variant"><x-icon name="trash" size="sm"/> Remove</button>
         </div>
       </template>

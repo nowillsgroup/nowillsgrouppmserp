@@ -9,49 +9,11 @@
   </div>
 @endsection
 @push('head')
-<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v8">
+<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v14">
 @endpush
 @section('content')
 <div class="dashboard-page">
-  <section class="dash-welcome" aria-label="Property dashboard summary">
-    <div class="dash-welcome-copy">
-      <span class="dash-eyebrow">PROPERTY OPERATIONS</span>
-      <h2>Welcome back, {{ auth()->user()->name }}</h2>
-      <p>Here is today’s operating picture for {{ $currentHotel->name }}.</p>
-      <nav class="dash-welcome-actions" aria-label="Property actions">
-        @if(can_do('reservations.view'))<a class="btn btn-sm btn-primary" href="{{ route('reservations.index', ['view' => 'dashboard']) }}"><x-icon name="calendar" size="sm"/> Reservation desk</a>@endif
-        @if(can_do('frontdesk.view'))<a class="btn btn-sm btn-soft" href="{{ route('frontdesk.arrivals') }}"><x-icon name="login" size="sm"/> Arrivals</a>@endif
-        @if(can_do('frontdesk.checkin'))<a class="btn btn-sm btn-soft" href="{{ route('frontdesk.walkin') }}"><x-icon name="users" size="sm"/> Walk-in</a>@endif
-      </nav>
-    </div>
-    <div class="dash-business-date"><span>Business date</span><strong>{{ bdate()->format('l, d M Y') }}</strong></div>
-  </section>
-  <section class="dash-section" aria-labelledby="dashRoomsHeading">
-    <div class="dash-section-heading">
-      <div><span class="dash-section-kicker">ROOMS &amp; GUEST FLOW</span><h2 id="dashRoomsHeading">Property at a glance</h2><p>Current room position and today’s guest movement.</p></div>
-      <span class="dash-section-note">Live property snapshot</span>
-    </div>
-<div class="stats dash-stats dash-stats-rooms">
-  <x-stat label="Occupancy" :value="$occPct.'%'" :sub="$occupied.' occupied · '.$sellable.' sellable rooms'" icon="bed" tone="blue" :href="can_do('frontdesk.view') ? route('frontdesk.rooms') : null"/>
-  <x-stat label="Arrivals checked in" :value="$arrivalsCheckedIn.' / '.$arrivalsExpected" sub="Checked in / due today (includes no-shows)" icon="login" tone="green" :href="can_do('frontdesk.view') ? route('frontdesk.arrivals') : null"/>
-  <x-stat label="Departures pending" :value="$departuresCount" sub="Due today or earlier" icon="logout" tone="amber" :href="can_do('frontdesk.view') ? route('frontdesk.departures') : null"/>
-  <x-stat label="In-house guests" :value="$inHouseGuests" sub="Currently staying" icon="users" tone="purple" :href="can_do('frontdesk.view') ? route('frontdesk.inhouse') : null"/>
-</div>
-  </section>
-  @if($canSeeFinance)
-  <section class="dash-section dash-finance-section" aria-labelledby="dashRevenueHeading">
-    <div class="dash-section-heading">
-      <div><span class="dash-section-kicker">TODAY’S PERFORMANCE</span><h2 id="dashRevenueHeading">Revenue snapshot</h2><p>Daily revenue and collection measures for the current business date.</p></div>
-      <span class="dash-section-note">Amounts in property currency</span>
-    </div>
-<div class="stats dash-stats dash-stats-finance">
-  <x-stat label="Room revenue" :value="money($roomRevenue)" sub="Posted room and extra-bed charges" icon="money" tone="blue"/>
-  <x-stat label="Other revenue" :value="money($otherRevenue)" sub="Other folio charges + settled POS" icon="cup" tone="teal"/>
-  <x-stat label="Collections" :value="money($collections)" sub="Payments + settled POS" icon="wallet" tone="green"/>
-  <x-stat label="Room revenue / occupied room" :value="money($adr)" sub="Posted room revenue ÷ rooms occupied now" icon="chart" tone="purple"/>
-</div>
-  </section>
-  @endif
+@include('dashboard.management-overview')
 
 {{-- v5.4 KPI alert events + pinned report views --}}
 @php $kpiEv = can_do('reports.alerts') ? \App\Services\KpiService::openEvents() : collect(); $pinned = can_do('reports.view') ? \App\Services\ReportScheduleService::viewsFor(auth()->user())->where('user_id', auth()->id())->where('is_pinned', true) : collect(); @endphp
@@ -151,6 +113,18 @@
           @if($trA['unassigned'] + $trA['requested'])<li id="dashTransportAttention"><span class="text-red"><x-icon name="car" size="sm"/> Transfers to confirm / without a car soon</span><a href="{{ route('tr.index') }}"><b>{{ $trA['requested'] }} / {{ $trA['unassigned'] }}</b></a></li>@endif
           @if($trA['papers_expired'] + $trA['licences'])<li id="dashTransportPapers"><span class="text-amber"><x-icon name="alert" size="sm"/> Vehicle papers expired / driving licences expiring</span><a href="{{ route('tr.fleet') }}"><b>{{ $trA['papers_expired'] }} / {{ $trA['licences'] }}</b></a></li>@endif
         @endif
+        @if((can_do('transport.track') || can_do('transport.fleet')) && \App\Models\Vehicle::exists())
+          @php $flA = \App\Services\FleetService::alerts(); @endphp
+          @if($flA['gps_offline'] + $flA['no_signal'])<li id="dashFleetSignal"><span class="text-red"><x-icon name="wifi" size="sm"/> Fleet trackers offline / never reported</span><a href="{{ can_do('transport.track') ? route('tr.fleet.tracking') : route('tr.fleet.index') }}"><b>{{ $flA['gps_offline'] }} / {{ $flA['no_signal'] }}</b></a></li>@endif
+          @if($flA['off_trip_today'] && can_do('transport.track'))<li id="dashFleetOffTrip"><span class="text-red"><x-icon name="car" size="sm"/> Vehicles moving with no trip today</span><a href="{{ route('tr.fleet.index') }}"><b>{{ $flA['off_trip_today'] }}</b></a></li>@endif
+          @if($flA['speed_today'] && can_do('transport.track'))<li id="dashFleetSpeed"><span class="text-amber"><x-icon name="trend" size="sm"/> Vehicles speeding today</span><a href="{{ route('tr.fleet.index') }}"><b>{{ $flA['speed_today'] }}</b></a></li>@endif
+          @if($flA['restricted_today'] && can_do('transport.track'))<li id="dashFleetRestricted"><span class="text-red"><x-icon name="shield" size="sm"/> Restricted-area entries today</span><a href="{{ route('tr.fleet.tracking') }}"><b>{{ $flA['restricted_today'] }}</b></a></li>@endif
+          @if($flA['geofence_today'] && can_do('transport.track'))<li id="dashFleetGeofence"><span class="text-amber"><x-icon name="globe" size="sm"/> Yard / zone crossings today</span><a href="{{ route('tr.fleet.tracking') }}"><b>{{ $flA['geofence_today'] }}</b></a></li>@endif
+          @if($flA['fuel_checks'] && can_do('transport.fleet'))<li id="dashFleetFuel"><span class="text-amber"><x-icon name="wallet" size="sm"/> Fuel fills to check (30 days)</span><a href="{{ route('tr.fleet.fuel') }}"><b>{{ $flA['fuel_checks'] }}</b></a></li>@endif
+          @if($flA['inspection_due'] && can_do('transport.fleet'))<li id="dashFleetInspection"><span class="text-amber"><x-icon name="check" size="sm"/> Vehicles due a pre-trip inspection</span><a href="{{ route('tr.fleet.maintenance') }}"><b>{{ $flA['inspection_due'] }}</b></a></li>@endif
+          @if($flA['incidents_open'] && can_do('transport.fleet'))<li id="dashFleetIncidents"><span class="text-red"><x-icon name="alert" size="sm"/> Vehicle incidents still open</span><a href="{{ route('tr.fleet.maintenance') }}"><b>{{ $flA['incidents_open'] }}</b></a></li>@endif
+          @if($flA['maintenance_overdue'] + $flA['open_repairs'])<li id="dashFleetWorkshop"><span class="text-amber"><x-icon name="tool" size="sm"/> Services overdue / open work orders</span><a href="{{ route('tr.fleet.maintenance') }}"><b>{{ $flA['maintenance_overdue'] }} / {{ $flA['open_repairs'] }}</b></a></li>@endif
+        @endif
         @if(can_do('formc.view') && \App\Services\FormCService::enabled())
           @php $fcA = \App\Services\FormCService::alerts(); @endphp
           @if($fcA['overdue'] + $fcA['due_soon'])<li id="dashFormC"><span class="{{ $fcA['overdue'] ? 'text-red' : 'text-amber' }}"><x-icon name="id" size="sm"/> Form C overdue / due soon (FRRO)</span><a href="{{ route('fg.formc') }}"><b>{{ $fcA['overdue'] }} / {{ $fcA['due_soon'] }}</b></a></li>@endif
@@ -176,43 +150,10 @@
   </div>
 </section>
 
+@include('dashboard.management-trends')
+
 <div class="grid g-2-1 dash-main-grid">
   <div class="dash-main-column">
-    <div class="card dash-chart-card">
-      <div class="card-head dash-chart-head">
-        <div><h3>{{ $canSeeFinance ? 'Revenue & occupancy trend' : 'Occupancy trend' }}</h3><p class="dash-card-subtitle">Last 14 completed audit days · focus or hover a bar to inspect the daily value.</p></div>
-        @if($canSeeFinance && can_do('nightaudit.run'))<a class="btn btn-sm btn-ghost" href="{{ route('nightaudit.index') }}">Night audit</a>@elseif($canSeeFinance && can_do('reports.view'))<a class="btn btn-sm btn-ghost" href="{{ route('reports.show', 'revenue') }}">Revenue report</a>@endif
-      </div>
-      <div class="card-body">
-        @if($audits->isEmpty())
-          <x-empty text="No completed audit days are available for this trend yet." icon="chart"/>
-        @else
-          <div class="dash-chart-grid">
-            @if($canSeeFinance)
-            @php $maxRevenue = max(1, $audits->max(fn($a) => $a->room_revenue + $a->other_revenue)); @endphp
-            <section class="dash-chart-panel" aria-labelledby="dashRevenueTrendHeading">
-              <div class="dash-chart-panel-heading"><h4 id="dashRevenueTrendHeading">Daily revenue</h4><span>Room + other revenue</span></div>
-              <div class="bar-chart dash-history-chart" role="group" aria-label="Daily revenue for the last 14 completed audit days">
-                @foreach($audits as $a)
-                  @php $v = $a->room_revenue + $a->other_revenue; @endphp
-                  <div class="col"><div class="b dash-revenue-bar" role="img" tabindex="0" aria-label="{{ $a->business_date->format('d M Y') }}: {{ money($v) }} revenue" title="{{ money($v) }} revenue" style="height: {{ max(2, $v / $maxRevenue * 100) }}%" data-v="{{ money($v) }}"></div><small>{{ $a->business_date->format('d/m') }}</small></div>
-                @endforeach
-              </div>
-            </section>
-            @endif
-            <section class="dash-chart-panel" aria-labelledby="dashOccupancyTrendHeading">
-              <div class="dash-chart-panel-heading"><h4 id="dashOccupancyTrendHeading">Daily occupancy</h4><span>Sellable rooms occupied</span></div>
-              <div class="bar-chart dash-history-chart" role="group" aria-label="Daily occupancy for the last 14 completed audit days">
-                @foreach($audits as $a)
-                  <div class="col"><div class="b dash-occupancy-bar" role="img" tabindex="0" aria-label="{{ $a->business_date->format('d M Y') }}: {{ $a->occupancy_pct }}% occupancy" title="{{ $a->occupancy_pct }}% occupancy" style="height: {{ max(2, min(100, (float) $a->occupancy_pct)) }}%" data-v="{{ $a->occupancy_pct }}%"></div><small>{{ $a->business_date->format('d/m') }}</small></div>
-                @endforeach
-              </div>
-            </section>
-          </div>
-        @endif
-      </div>
-    </div>
-
     @if(can_do('frontdesk.view'))
     <div class="grid g-2 dash-stay-grid">
       <div class="card">
@@ -294,10 +235,31 @@
 
 
 
-@if(can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('reservations.view') || can_do('banquet.view'))
+@if(can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('banquet.view'))
 <section class="dash-section dash-module-section" aria-labelledby="dashModulesHeading">
   <div class="dash-section-heading"><div><span class="dash-section-kicker">MORE PROPERTY SIGNALS</span><h2 id="dashModulesHeading">Department snapshots</h2><p>Finance, guest services, facilities and upcoming events.</p></div></div>
   <div class="dash-module-grid">
+    @if(can_do('transport.fleet') && $fleetCost)
+    <div class="card" id="dashFleetCost">
+      <div class="card-head"><h3>Fleet running cost · {{ $fleetCost['month']->format('M') }}</h3><a class="small" href="{{ route('tr.fleet.fuel') }}">Fuel &amp; costs</a></div>
+      <div class="card-body" style="padding-top:.3rem">
+        <div class="flex justify-between small"><span>Fuel</span><b>{{ money($fleetCost['fuel']) }}</b></div>
+        <div class="flex justify-between small"><span>Service &amp; repair</span><b>{{ money($fleetCost['service']) }}</b></div>
+        @if($fleetCost['other'] > 0)<div class="flex justify-between small"><span>Tolls, parking &amp; other</span><b>{{ money($fleetCost['other']) }}</b></div>@endif
+        <div class="flex justify-between small" style="border-top:1px solid var(--c-border);margin-top:.3rem;padding-top:.3rem">
+          <span>Total this month</span><b>{{ money($fleetCost['total']) }}</b></div>
+        @if($fleetCost['delta'] !== null)
+          <div class="tiny {{ $fleetCost['delta'] > 0 ? 'text-red' : 'text-green' }}">
+            {{ $fleetCost['delta'] > 0 ? '+' : '' }}{{ number_format($fleetCost['delta'], 1) }} % against {{ $fleetCost['month']->copy()->subMonthNoOverflow()->format('M') }}
+            ({{ money($fleetCost['prev_total']) }})</div>
+        @endif
+        @if($fleetCost['top'])
+          <div class="small mt-1">Most expensive: <a href="{{ route('tr.fleet.vehicle', $fleetCost['top']['vehicle']) }}"><b>{{ $fleetCost['top']['vehicle']->code }}</b></a> {{ money($fleetCost['top']['spend']) }}</div>
+        @endif
+        <div class="tiny muted mt-1">{{ $fleetCost['fills'] }} fill(s) · {{ number_format($fleetCost['litres'], 1) }} litres posted this month from vehicle expenses.</div>
+      </div>
+    </div>
+    @endif
     @if(can_do('budget.view') && ($bs = \App\Services\BudgetService::snapshot()))
     <div class="card" id="dashBudget">
       <div class="card-head"><h3>Budget @if($bs['budget'])· {{ \App\Services\BudgetService::monthLabels($bs['budget']->fiscal_year)[$bs['month']] }}@endif</h3><a class="small" href="{{ route('budgets.bva') }}">Budget vs Actual</a></div>
@@ -377,17 +339,6 @@
         <li><span class="{{ $cp['counts']['due'] ? 'text-amber' : '' }}"><x-icon name="clock" size="sm"/> Due for renewal</span><a href="{{ route('compliance.index', ['state' => 'due']) }}"><b>{{ $cp['counts']['due'] }}</b> · {{ $cp['counts']['renewing'] }} applied</a></li>
         @endif
       </ul></div>
-    </div>
-    @endif
-    @if(can_do('reservations.view'))
-    <div class="card">
-      <div class="card-head"><h3>Reservation source mix</h3><span class="small muted">Bookings created · last 30 days</span></div>
-      <div class="card-body">
-        @php $smax = max(1, $sourceMix->sum('c')); @endphp
-        @forelse($sourceMix as $s)
-          <div class="mb-1"><div class="flex justify-between small"><span>{{ $s->name }}</span><b>{{ $s->c }}</b></div><div class="progress"><span style="width: {{ $s->c / $smax * 100 }}%"></span></div></div>
-        @empty <div class="muted">No reservations created in the last 30 days.</div> @endforelse
-      </div>
     </div>
     @endif
     @if(can_do('banquet.view'))

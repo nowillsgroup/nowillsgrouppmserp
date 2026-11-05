@@ -8,6 +8,7 @@ use App\Models\PosOrder;
 use App\Models\PosTable;
 use App\Models\Setting;
 use App\Services\ActivityLogger;
+use App\Services\PosMenuVariantService;
 use App\Services\PosModifierService;
 use App\Support\Numbering;
 use App\Support\Tenant;
@@ -45,7 +46,7 @@ class QrMenuController extends Controller
     {
         $table = $this->table($token);
         $cats = MenuCategory::where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->orderBy('sort_order')->get();
-        $items = MenuItem::with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->with('modifiers')])
+        $items = MenuItem::with(['variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->with('modifiers')])
             ->where('is_available', true)->whereIn('menu_category_id', $cats->pluck('id'))
             ->where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->orderBy('name')->get();
         $cats = $cats->filter(fn ($c) => $items->contains('menu_category_id', $c->id))->values();
@@ -61,6 +62,7 @@ class QrMenuController extends Controller
             'items' => 'required|array|min:1|max:30', 'items.*.id' => 'required|integer|owned:menu_items',
             'items.*.qty' => 'required|integer|min:1|max:20', 'items.*.notes' => 'nullable|string|max:120',
             'items.*.modifiers' => 'nullable|array|max:20', 'items.*.modifiers.*' => 'integer|owned:menu_modifiers',
+            'items.*.variants' => 'nullable|array|max:30', 'items.*.variants.*' => 'integer|owned:menu_item_variants',
             'guest_name' => 'nullable|string|max:60', 'website' => 'nullable|size:0', // honeypot
             'allergens' => 'nullable|array', 'allergens.*' => 'string|in:'.implode(',', array_keys(\App\Services\AllergenService::ALLERGENS)), // v5.0
         ]);
@@ -82,12 +84,17 @@ class QrMenuController extends Controller
             }
             $guest = \App\Services\AllergenService::clean($order->allergens);
             foreach ($data['items'] as $index => $line) {
-                $m = MenuItem::with(['recipes.inventoryItem', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->with('modifiers')])
+                $m = MenuItem::with(['recipes.inventoryItem', 'variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $table->outlet_id))->with('modifiers')])
                     ->whereKey($line['id'])->where('is_available', true)->first();
                 if (! $m || ($m->outlet_id && (int) $m->outlet_id !== (int) $table->outlet_id)) {
                     throw ValidationException::withMessages(["items.{$index}.id" => 'One of the selected dishes is no longer available.']);
                 }
                 [$modifierSnapshots, $modifierAmount] = PosModifierService::snapshot($m, $line['modifiers'] ?? [], $index);
+                // Side dishes ride with the add-ons so the kitchen, the KOT and the bill read one list;
+                // a side dish with no rate adds nothing, i.e. it is included in the item price.
+                [$sideDishSnapshots, $sideDishAmount] = PosMenuVariantService::snapshot($m, $line['variants'] ?? [], $index);
+                $modifierSnapshots = array_merge($modifierSnapshots, $sideDishSnapshots);
+                $modifierAmount = round($modifierAmount + $sideDishAmount, 2);
                 $rate = round((float) $m->price + $modifierAmount, 2);
                 $order->items()->create(['menu_item_id' => $m->id, 'item_name' => $m->name, 'qty' => $line['qty'], 'rate' => $rate,
                     'modifier_amount' => $modifierAmount, 'modifiers' => $modifierSnapshots, 'tax_rate' => $m->tax_rate,

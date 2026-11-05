@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Running-cost statement — UI-only preview</title>
+<style>
+:root{color-scheme:light;--doc-ink:#18211d;--doc-muted:#66736d;--doc-line:#d8e1dc;--doc-soft:#f3f7f4;--doc-accent:#176a43;--doc-accent-soft:#eaf5ee;--doc-warn:#8b5510;--doc-warn-soft:#fff6e7}
+*{box-sizing:border-box}
+html{background:#edf1ee}
+body{font:13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:24px auto;padding:30px;color:var(--doc-ink);max-width:900px;background:#fff;box-shadow:0 12px 40px rgba(20,44,30,.1)}
+h1{font-size:19px;line-height:1.2;margin:0;letter-spacing:-.02em}.m{color:var(--doc-muted);font-size:11px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;border-bottom:2px solid var(--doc-accent);padding-bottom:14px}
+.doc{text-align:right;min-width:180px}.doc h2{margin:1px 0 4px;font-size:22px;letter-spacing:.03em;line-height:1.15}
+.kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px 18px;margin:14px 0}.kv div{min-width:0}
+.kv div span,.lbl{display:block;font-size:10px;text-transform:uppercase;color:var(--doc-muted);letter-spacing:.055em;font-weight:700;margin-bottom:2px}
+table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:7px 9px;border-bottom:1px solid var(--doc-line);text-align:left;vertical-align:top}th{font-size:10px;color:#45544c;background:var(--doc-soft);text-transform:uppercase;letter-spacing:.045em}td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}tfoot td{font-weight:700;border-top:2px solid var(--doc-ink)}
+.stamp{display:inline-block;border:1px solid #9da9a2;border-radius:999px;padding:3px 10px;font-weight:750;font-size:10px;margin-top:5px;text-transform:uppercase;letter-spacing:.045em;background:#fff5df;border-color:#efcd82;color:#80500a}
+.stamp.prio{background:#fceceb;border-color:#e4b1ad;color:#8d312a}
+.box{border:1px solid var(--doc-line);border-radius:9px;padding:11px 13px;margin:12px 0;break-inside:avoid-page;page-break-inside:avoid}
+.box.alert{background:var(--doc-warn-soft);border-color:#efcd82}
+.pre{white-space:pre-line}
+ul.checks{margin:4px 0 0;padding-left:18px}
+.sig{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:40px}.sig div{border-top:1px solid #88948e;padding-top:6px;font-size:11px;min-height:38px}
+.document-actions{max-width:900px;margin:0 auto 10px;display:flex;justify-content:flex-end;gap:8px}
+.document-actions a,.document-actions button{appearance:none;border:1px solid #c5d1c9;border-radius:8px;padding:9px 13px;background:#fff;color:#20372b;font:inherit;font-weight:700;cursor:pointer;text-decoration:none}
+.document-actions a:hover,.document-actions button:hover{background:var(--doc-soft)}
+.muted{color:var(--doc-muted)}.note{font-size:11px;color:#536159}.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.preflight{max-width:900px;margin:0 auto 10px;padding:10px 14px;border:1px solid #efcd82;background:#fff6e7;color:#6d4409;border-radius:9px;font-size:12px}
+@page{size:A4 portrait;margin:13mm 12mm 14mm}
+@media(max-width:700px){body{margin:12px;padding:18px}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}.sig{grid-template-columns:1fr}}
+@media print{html{background:#fff}body{max-width:none;width:auto;margin:0;padding:0;box-shadow:none;font-size:10pt;line-height:1.4;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}.document-actions,button,.noprint{display:none!important}.head,.box,.sig{break-inside:avoid-page;page-break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid-page;page-break-inside:avoid}}
+</style>
+</head><body>
+<div class="document-actions noprint">
+  <a href="fleet-fuel.html">Download CSV</a>
+  <a href="fleet-fuel.html">Back to fuel &amp; running costs</a>
+  <button type="button">Print</button>
+</div>
+
+<div class="head">
+  <div>
+    <h1>Nowills Group Hotel</h1>
+    <div class="m">Airport Residential Area, Accra</div>
+    <div class="m">Transport · Fleet accounts</div>
+  </div>
+  <div class="doc">
+    <div class="m">FLEET RUNNING-COST STATEMENT</div>
+    <h2>October 2026</h2>
+    <div class="m">01 Oct 2026 – 31 Oct 2026</div>
+    <div class="m">Printed 04 Nov 2026 09:20</div>
+  </div>
+</div>
+
+<div class="kv">
+  <div><span>Vehicles with spend</span><b>4</b></div>
+  <div><span>Fuel</span>GH₵ 7,670.00</div>
+  <div><span>Service &amp; repair</span>GH₵ 2,490.00</div>
+  <div><span>Tolls, parking &amp; other</span>GH₵ 460.00</div>
+  <div><span>Total running cost</span><b>GH₵ 10,620.00</b></div>
+  <div><span>Fuel drawn</span>1,679.50 l · 22 fill(s)</div>
+  <div><span>Distance (GPS)</span>4,132 km · 3 car(s)</div>
+  <div><span>Fleet cost per km</span>GH₵ 2.57</div>
+</div>
+
+  <table>
+    <caption class="sr-only">Running cost per vehicle for October 2026</caption>
+    <thead>
+      <tr>
+        <th scope="col">Vehicle</th>
+        <th scope="col">Registration</th>
+        <th scope="col" class="r">Fuel</th>
+        <th scope="col" class="r">Service &amp; repair</th>
+        <th scope="col" class="r">Other</th>
+        <th scope="col" class="r">Total</th>
+        <th scope="col" class="r">Litres</th>
+        <th scope="col" class="r">Distance</th>
+        <th scope="col" class="r">Cost / km</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>VAN-3</b><div class="muted">Toyota Hiace</div></td>
+        <td>GX 4821-24</td><td class="r">GH₵ 2,140.00</td><td class="r">—</td><td class="r">GH₵ 180.00</td>
+        <td class="r"><b>GH₵ 2,320.00</b></td><td class="r">412.50 · 6</td><td class="r">1,286 km</td><td class="r">GH₵ 1.80</td>
+      </tr>
+      <tr>
+        <td><b>SAL-1</b><div class="muted">Toyota Camry</div></td>
+        <td>GT 1204-23</td><td class="r">GH₵ 640.00</td><td class="r">GH₵ 1,850.00</td><td class="r">—</td>
+        <td class="r"><b>GH₵ 2,490.00</b></td><td class="r">148.00 · 2</td><td class="r">704 km</td><td class="r">GH₵ 3.54</td>
+      </tr>
+      <tr>
+        <td><b>BUS-2</b><div class="muted">Toyota Coaster</div></td>
+        <td>GE 7710-22</td><td class="r">GH₵ 3,980.00</td><td class="r">GH₵ 640.00</td><td class="r">GH₵ 220.00</td>
+        <td class="r"><b>GH₵ 4,840.00</b></td><td class="r">905.00 · 11</td><td class="r">2,142 km</td><td class="r">GH₵ 2.26</td>
+      </tr>
+      <tr>
+        <td><b>PICK-1</b><div class="muted">Toyota Hilux</div></td>
+        <td>GN 3390-24</td><td class="r">GH₵ 910.00</td><td class="r">—</td><td class="r">GH₵ 60.00</td>
+        <td class="r"><b>GH₵ 970.00</b></td><td class="r">214.00 · 3</td><td class="r">No trail</td><td class="r">—</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2">4 vehicle(s)</td>
+        <td class="r">GH₵ 7,670.00</td><td class="r">GH₵ 2,490.00</td><td class="r">GH₵ 460.00</td>
+        <td class="r">GH₵ 10,620.00</td><td class="r">1,679.50</td><td class="r">4,132 km</td><td class="r">GH₵ 2.57</td>
+      </tr>
+    </tfoot>
+  </table>
+
+<div class="box">
+  <span class="lbl">How to read this statement</span>
+  <ul class="checks">
+    <li>Only vehicles with something recorded in October 2026 appear — a quiet car is left off rather than printed as a row of zeroes.</li>
+    <li>Distance is the GPS trail from the paired trackers, measured fix to fix and ignoring hops under 25 m or over 5 km. <b>No trail</b> means the car reported no fixes at all that month; cost per km is then blank, because dividing by zero would invent a number.</li>
+    <li>Fleet cost per km covers only the cars that were measurable (3 of 4 this month).</li>
+    <li>Figures are the expenses recorded against each vehicle. They are not a purchase ledger and not a tax invoice — reconcile against the garage and filling-station receipts before posting to accounts.</li>
+  </ul>
+</div>
+
+<div class="sig">
+  <div>Prepared by<br><span class="muted">Transport / fleet office · name, signature and date</span></div>
+  <div>Checked by<br><span class="muted">Workshop supervisor · name, signature and date</span></div>
+  <div>Received by<br><span class="muted">Accounts · name, signature and date</span></div>
+</div>
+</body></html>

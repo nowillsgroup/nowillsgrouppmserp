@@ -61,6 +61,11 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         // v7.1 in-room TVs – keyed per device token (every TV shares the hotel's public IP); a TV polls every 10–120 s
+        // v7.61 fleet GPS: trackers on the same SIM / proxy may share an IP, so the device token carries its own ceiling
+        \Illuminate\Support\Facades\RateLimiter::for('fleet-gps', fn ($r) => [
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(240)->by('fleet-gps:'.$r->route('token')),
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(3000)->by('fleet-gps-ip:'.$r->ip()),
+        ]);
         \Illuminate\Support\Facades\RateLimiter::for('tv', fn ($r) => [
             \Illuminate\Cache\RateLimiting\Limit::perMinute(120)->by('tv:'.$r->route('token')),
             \Illuminate\Cache\RateLimiting\Limit::perMinute(6000)->by('tv-ip:'.$r->ip()),

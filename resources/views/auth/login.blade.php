@@ -14,8 +14,8 @@
     </div>
 
     <div class="auth-intro">
-      <p class="auth-eyebrow">One calm view of the whole property</p>
-      <h1>Hospitality operations,<br>beautifully connected.</h1>
+      <p class="auth-eyebrow">The hospitality operating system</p>
+      <h1>Every detail in sync.<br>Every stay exceptional.</h1>
       <p>Bring reservations, front desk, housekeeping, dining, events and finance together in one clear view—built for the way hospitality works.</p>
     </div>
 
@@ -55,10 +55,10 @@
           <button type="button" class="auth-slider-btn" data-auth-prev aria-label="Previous image">‹</button>
           <button type="button" class="auth-slider-btn" data-auth-next aria-label="Next image">›</button>
         </div>
-        <div class="auth-dots" role="tablist" aria-label="Choose a hospitality image">
-          <button type="button" class="auth-dot is-active" data-auth-dot="0" role="tab" aria-label="Show image 1" aria-selected="true"></button>
-          <button type="button" class="auth-dot" data-auth-dot="1" role="tab" aria-label="Show image 2" aria-selected="false"></button>
-          <button type="button" class="auth-dot" data-auth-dot="2" role="tab" aria-label="Show image 3" aria-selected="false"></button>
+        <div class="auth-dots" role="group" aria-label="Choose a hospitality image">
+          <button type="button" class="auth-dot is-active" data-auth-dot="0" aria-label="Show image 1" aria-pressed="true"></button>
+          <button type="button" class="auth-dot" data-auth-dot="1" aria-label="Show image 2" aria-pressed="false"></button>
+          <button type="button" class="auth-dot" data-auth-dot="2" aria-label="Show image 3" aria-pressed="false"></button>
         </div>
         <span class="auth-slider-count" data-auth-count>01 / 03</span>
       </div>
@@ -78,7 +78,7 @@
 
       <div class="field auth-login-field">
         <label for="hotel_code" id="codeLabel">{{ old('group_login') ? 'Group ID' : 'Hotel ID' }}</label>
-        <input class="input" id="hotel_code" name="hotel_code" value="{{ old('hotel_code') }}" placeholder="e.g. NOWILLS" required autofocus autocomplete="organization" autocapitalize="characters" spellcheck="false" aria-describedby="hotelCodeHint">
+        <input class="input" id="hotel_code" name="hotel_code" value="{{ old('hotel_code') }}" placeholder="e.g. NOWILLS" required autocomplete="organization" autocapitalize="characters" spellcheck="false" aria-describedby="hotelCodeHint">
         <small class="auth-field-hint" id="hotelCodeHint">Use the ID provided by your property administrator.</small>
       </div>
       <div class="field auth-login-field">
@@ -97,7 +97,21 @@
         <label class="check" for="remember"><input id="remember" type="checkbox" name="remember" value="1" @checked(old('remember'))> Remember me</label>
       </div>
       <button class="btn btn-primary btn-lg btn-block auth-login-submit" type="submit"><x-icon name="login"/> Sign in</button>
-      <div class="auth-login-help"><span class="auth-lock" aria-hidden="true">✓</span><span>Access is managed by your property administrator.</span></div>
+      <section class="auth-company-contact" aria-label="Nowills Group contact details">
+        <div class="auth-company-contact-head">
+          <strong class="auth-company-contact-name">Nowills Group</strong>
+          <span>ACCRA · GHANA</span>
+        </div>
+        <address>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          <span>2nd Floor, Toku House, Graphic Road, Accra</span>
+        </address>
+        <div class="auth-company-contact-links">
+          <a href="mailto:info@nowills.com"><x-icon name="mail"/><span>info@nowills.com</span></a>
+          <a href="tel:0538855565"><x-icon name="phone"/><span>0538855565</span></a>
+          <a href="https://www.nowills.com"><x-icon name="globe"/><span>www.nowills.com</span></a>
+        </div>
+      </section>
       @if(app()->environment('local'))
       <div class="alert alert-info small mt-2"><div><b>Demo:</b> Hotel ID <code>NOWILLS</code> · user <code>admin</code> · pass <code>Admin@123</code><br>Group: tick <i>Group login</i>, ID <code>NWGROUP</code> · <code>groupadmin</code> · <code>Admin@123</code></div></div>
       @endif
@@ -142,14 +156,21 @@
     dots.forEach((dot, index) => {
       const selected = index === active;
       dot.classList.toggle('is-active', selected);
-      dot.setAttribute('aria-selected', selected ? 'true' : 'false');
+      dot.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
     if (count) count.textContent = String(active + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
   };
-  const stop = () => clearInterval(timer);
+  const stop = () => {
+    clearInterval(timer);
+    timer = undefined;
+  };
   const start = () => {
     stop();
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(() => show(active + 1), 6500);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const interacting = root.matches(':hover') || root.contains(document.activeElement);
+    if (!reducedMotion && !interacting && document.visibilityState === 'visible') {
+      timer = setInterval(() => show(active + 1), 6500);
+    }
   };
 
   root.querySelector('[data-auth-prev]')?.addEventListener('click', () => { show(active - 1); start(); });
@@ -158,7 +179,10 @@
   root.addEventListener('mouseenter', stop);
   root.addEventListener('mouseleave', start);
   root.addEventListener('focusin', stop);
-  root.addEventListener('focusout', start);
+  root.addEventListener('focusout', event => {
+    if (!root.contains(event.relatedTarget)) start();
+  });
+  document.addEventListener('visibilitychange', start);
   start();
 })();
 </script>

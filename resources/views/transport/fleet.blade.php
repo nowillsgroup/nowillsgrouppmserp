@@ -2,6 +2,8 @@
 @section('title', 'Fleet & Papers')
 @section('crumbs') <a href="{{ route('tr.index') }}">Transport</a> / Fleet &amp; papers @endsection
 @section('actions')
+  @if(can_do('transport.view'))<a class="btn" href="{{ route('tr.fleet.index') }}"><x-icon name="car"/> Fleet management</a>@endif
+  @if(can_do('transport.track'))<a class="btn" href="{{ route('tr.fleet.tracking') }}"><x-icon name="wifi"/> Live tracking</a>@endif
   @if(can_do('transport.manage'))<a class="btn" href="{{ route('masters.index', 'drivers') }}"><x-icon name="users"/> Drivers</a><a class="btn btn-primary" href="{{ route('masters.create', 'vehicles') }}"><x-icon name="plus"/> Add vehicle</a>@endif
 @endsection
 @section('content')

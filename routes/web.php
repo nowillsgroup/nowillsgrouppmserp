@@ -61,6 +61,15 @@ Route::post('/api/pbx/{token}', [Controllers\InterfaceController::class, 'push']
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
         \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('pbx.api.push');
+// v7.61 fleet GPS ingest – a paired tracker pushes fixes to /api/fleet/{token}: stateless, token in the path, SHA-256 stored
+Route::post('/api/fleet/{token}', [Controllers\GpsIngestController::class, 'push'])->where(['token' => '[A-Za-z0-9]{48}'])->middleware('throttle:fleet-gps')
+    ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('fleet.gps.push');
+Route::get('/api/fleet/{token}/health', [Controllers\GpsIngestController::class, 'health'])->where(['token' => '[A-Za-z0-9]{48}'])->middleware('throttle:fleet-gps')
+    ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class, \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])->name('fleet.gps.health');
 // Robita normalized-event intake – stateless, bearer token is sent in Authorization (never in the URL).
 Route::post('/api/robita/events', [Controllers\RobitaController::class, 'webhook'])->middleware('throttle:120,1')
     ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class, \Illuminate\View\Middleware\ShareErrorsFromSession::class,
@@ -689,7 +698,9 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('service-shifts')->name('department-shifts.')->middleware('perm:pos.order,pos.shift_view_all')->controller(Controllers\DepartmentShiftController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'start')->middleware('perm:pos.order')->name('start');
+        Route::get('/day/print', 'printDay')->name('day-print');
         Route::get('/{session}', 'show')->whereNumber('session')->name('show');
+        Route::get('/{session}/print', 'print')->whereNumber('session')->name('print');
         Route::post('/{session}/close', 'close')->whereNumber('session')->middleware('perm:pos.order')->name('close');
     });
     Route::prefix('shifts')->name('shifts.')->middleware('perm:folio.shift')->controller(Controllers\ShiftController::class)->group(function () {
@@ -942,6 +953,51 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/settings', 'saveSettings')->name('settings.save');
             Route::post('/expenses', 'storeExpense')->name('expenses.store');
             Route::delete('/expenses/{vexp}', 'destroyExpense')->name('expenses.destroy');
+        });
+        // Full fleet management: GPS tracking, fuel efficiency, workshop planning
+        Route::prefix('fleet')->name('fleet.')->controller(Controllers\FleetController::class)->group(function () {
+            Route::middleware('perm:transport.view')->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/vehicles/{vehicle}', 'vehicle')->whereNumber('vehicle')->name('vehicle');
+                Route::get('/export/vehicles', 'exportVehicles')->name('export.vehicles');
+            });
+            Route::middleware('perm:transport.track')->group(function () {
+                Route::get('/tracking', 'tracking')->name('tracking');
+                Route::get('/tracking.json', 'feed')->name('feed');
+                Route::get('/export/gps', 'exportGps')->name('export.gps');
+            });
+            Route::middleware('perm:transport.fleet')->group(function () {
+                Route::post('/trackers', 'trackerStore')->name('trackers.store');
+                Route::post('/trackers/{tracker}/token', 'trackerRotate')->name('trackers.token');
+                Route::post('/trackers/{tracker}/toggle', 'trackerToggle')->name('trackers.toggle');
+                Route::post('/trackers/{tracker}/window', 'trackerWindow')->name('trackers.window');
+                Route::get('/maintenance', 'maintenance')->name('maintenance');
+                Route::post('/maintenance/plans', 'planStore')->name('plans.store');
+                Route::post('/maintenance/plans/{plan}/retire', 'planDelete')->name('plans.retire');
+                Route::post('/maintenance/records', 'recordStore')->name('records.store');
+                Route::post('/maintenance/records/{record}/start', 'recordStart')->name('records.start');
+                Route::post('/maintenance/records/{record}/complete', 'recordComplete')->name('records.complete');
+                Route::post('/maintenance/records/{record}/cancel', 'recordCancel')->name('records.cancel');
+                Route::get('/fuel', 'fuel')->name('fuel');
+                Route::post('/fuel', 'fuelStore')->name('fuel.store');
+                Route::put('/fuel/{expense}', 'fuelUpdate')->whereNumber('expense')->name('fuel.update');
+                Route::post('/fuel/{expense}/delete', 'fuelDestroy')->whereNumber('expense')->name('fuel.destroy');
+                Route::get('/export/fuel', 'exportFuel')->name('export.fuel');
+                Route::get('/export/work-orders', 'exportMaintenance')->name('export.work_orders');
+                Route::get('/export/inspections', 'exportInspections')->name('export.inspections');
+                Route::post('/geofences', 'geofenceStore')->name('geofences.store');
+                Route::post('/geofences/{geofence}/toggle', 'geofenceToggle')->name('geofences.toggle');
+                Route::post('/geofences/{geofence}/delete', 'geofenceDelete')->name('geofences.delete');
+                Route::post('/geofence-events/{event}/ack', 'geofenceAck')->name('geofences.ack');
+                Route::get('/work-order/{record}/print', 'workOrderPrint')->whereNumber('record')->name('work-order.print');
+                Route::get('/cost-statement', 'costStatement')->name('cost-statement');
+                Route::get('/cost-statement/export', 'exportStatement')->name('cost-statement.export');
+                Route::post('/inspections', 'inspectionStore')->name('inspections.store');
+                Route::post('/incidents', 'incidentStore')->name('incidents.store');
+                Route::post('/incidents/{incident}/status', 'incidentStatus')->whereNumber('incident')->name('incidents.status');
+                Route::get('/settings', 'settings')->name('settings');
+                Route::post('/settings', 'saveSettings')->name('settings.save');
+            });
         });
     });
 

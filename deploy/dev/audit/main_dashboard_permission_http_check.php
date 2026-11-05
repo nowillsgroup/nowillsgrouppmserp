@@ -17,24 +17,30 @@ $guard = Auth::guard();
 $originalUser = $guard->user();
 $kernel = app(Illuminate\Contracts\Http\Kernel::class);
 $roles = ['Housekeeping Supervisor', 'Restaurant Cashier', 'Security Officer'];
-$financialQueries = [];
-DB::listen(function (QueryExecuted $query) use (&$financialQueries): void {
+$financialQueries = $reservationQueries = [];
+DB::listen(function (QueryExecuted $query) use (&$financialQueries, &$reservationQueries): void {
     $sql = strtolower($query->sql);
     $bindings = array_map(fn ($binding) => strtolower((string) $binding), $query->bindings);
-    if (str_contains($sql, 'folio_transactions') || (str_contains($sql, 'pos_orders') && in_array('settled', $bindings, true))) {
+    if (str_contains($sql, 'folio_transactions') || (str_contains($sql, 'pos_orders') && (str_contains($sql, 'sum(') || in_array('payment', $bindings, true)))) {
         $financialQueries[] = $query->sql;
+    }
+    if (str_contains($sql, 'reservation_rooms')) {
+        $reservationQueries[] = $query->sql;
     }
 });
 
 try {
     foreach ($roles as $roleName) {
         $user = User::query()->where('hotel_id', 1)->whereHas('role', fn ($query) => $query->where('name', $roleName))->firstOrFail();
-        if (! $user->hasPermission('dashboard.view') || $user->hasPermission('folio.view') || $user->hasPermission('reports.view') || $user->hasPermission('revenue.view') || $user->hasPermission('income_audit.view') || $user->hasPermission('reservations.view')) {
+        $canSeePos = $user->hasPermission('pos.view');
+        $canSeeReservationOps = $user->hasPermission('frontdesk.view') || $user->hasPermission('reservations.view');
+        if (! $user->hasPermission('dashboard.view') || $user->hasPermission('folio.view') || $user->hasPermission('reports.view') || $user->hasPermission('revenue.view') || $user->hasPermission('income_audit.view') || $user->hasPermission('reservations.view') || $user->hasPermission('frontdesk.view')) {
             throw new RuntimeException("{$roleName} no longer represents the restricted-dashboard permission set.");
         }
 
         $guard->setUser($user);
         $financialQueryCountBefore = count($financialQueries);
+        $reservationQueryCountBefore = count($reservationQueries);
         $request = Request::create('/Dashboard', 'GET');
         $response = $kernel->handle($request);
         $html = $response->getContent();
@@ -42,9 +48,13 @@ try {
             'dashboard route returns HTTP 200' => $response->getStatusCode() === 200,
             'finance snapshot is absent' => ! str_contains($html, 'Revenue snapshot'),
             'historical revenue chart is absent' => ! str_contains($html, 'dash-revenue-bar'),
+            'revenue mix chart is absent' => ! str_contains($html, 'dashRevenueMixTitle'),
+            'reservation mix chart is absent' => ! str_contains($html, 'dashSourceMixTitle'),
+            'POS status chart matches POS permission' => str_contains($html, 'dashPosMixTitle') === $canSeePos,
             'occupancy trend remains visible' => str_contains($html, 'dash-occupancy-bar'),
             'new-bookings aggregate is absent' => ! str_contains($html, 'New bookings today'),
             'folio and settled-POS finance queries are skipped' => count($financialQueries) === $financialQueryCountBefore,
+            'guest-flow queries are skipped without front-desk or reservation access' => $canSeeReservationOps || count($reservationQueries) === $reservationQueryCountBefore,
         ];
 
         foreach ($checks as $label => $passed) {

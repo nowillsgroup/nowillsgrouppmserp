@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet vehicle · UI preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/fleet.css">
+<style>
+  body { margin: 0; background: #f6f8f6; }
+  .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
+  .pv-banner strong { display: block; }
+  .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .pv-head h1 { font-size: 1.35rem; margin: 0; }
+  .pv-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .pv-actions .btn { display: inline-flex; align-items: center; gap: .35rem; }
+  .fleet-state .fleet-dot { flex: none; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 17h14M6 17v2M18 17v2"/><path d="M3 13l2-6h14l2 6v4H3v-4Z"/><circle cx="7" cy="13.5" r="1"/><circle cx="17" cy="13.5" r="1"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8.8a16 16 0 0 1 20 0M5 12.5a11 11 0 0 1 14 0M8.5 16.2a6 6 0 0 1 7 0"/><circle cx="12" cy="20" r="1"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 21h18M7 21V10M12 21V4M17 21v-7"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 13h2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 1 0 5 5L21 21l-2 2-9.6-9.6a4 4 0 0 1-5-5L6 6l3.5 3.5"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5 9 18 20 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18.5v.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c3 4 3 14 0 18-3-4-3-14 0-18Z"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8H8M16 12H8M13 16H8"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></symbol>
+</svg>
+
+<div class="pv-shell">
+  <div class="pv-banner">
+    <svg class="i"><use href="#i-alert"/></svg>
+    <div><strong>UI-only preview · illustrative values, not live property data.</strong>
+      No records are created. Every figure here is a layout example; the live page reads the tenant's own vehicles, trackers, work orders and expenses.
+      <a href="/previews">All previews</a> · <a href="/__preview/fleet-maintenance">Maintenance →</a> · <a href="/__preview/fleet-tracking">Live tracking →</a></div>
+  </div>
+
+  <div class="pv-head">
+    <div>
+      <div class="small muted">Transport / Fleet / VAN-3</div>
+      <h1>VAN-3 · Fleet vehicle</h1>
+      <div class="small muted">Hyundai H1 · GT 3308-22 · diesel · 12 passengers · 6 bags · white</div>
+    </div>
+    <div class="pv-actions">
+      <a class="btn" href="/__preview/fleet-tracking"><svg class="i"><use href="#i-wifi"/></svg> Live tracking</a>
+      <a class="btn" href="/__preview/fleet-maintenance"><svg class="i"><use href="#i-tool"/></svg> Maintenance</a>
+      <a class="btn" href="/__preview/fleet-fuel"><svg class="i"><use href="#i-wallet"/></svg> Fuel</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat tone-blue"><div class="ico"><svg class="i"><use href="#i-car"/></svg></div><div><div class="v">84,120 km</div><div class="l">Odometer</div><div class="tiny muted">Toyota Hiace · GT 3308-22</div></div></div>
+    <div class="stat tone-red"><div class="ico"><svg class="i"><use href="#i-wifi"/></svg></div><div><div class="v">Offline</div><div class="l">GPS</div><div class="tiny muted">41 minutes ago</div></div></div>
+    <div class="stat tone-purple"><div class="ico"><svg class="i"><use href="#i-chart"/></svg></div><div><div class="v">512 km</div><div class="l">Distance this month</div><div class="tiny muted">Nov 2026 from the GPS trail</div></div></div>
+    <div class="stat tone-amber"><div class="ico"><svg class="i"><use href="#i-wallet"/></svg></div><div><div class="v">GH₵ 860.00</div><div class="l">Fuel this month</div><div class="tiny muted">62 litres</div></div></div>
+    <div class="stat tone-slate"><div class="ico"><svg class="i"><use href="#i-tool"/></svg></div><div><div class="v">GH₵ 1,240.00</div><div class="l">Service &amp; repair</div><div class="tiny muted">1 open job(s)</div></div></div>
+    <div class="stat tone-green"><div class="ico"><svg class="i"><use href="#i-trend"/></svg></div><div><div class="v">GH₵ 4.10</div><div class="l">Cost per km</div><div class="tiny muted">5.73 km / litre</div></div></div>
+  </div>
+
+  <div class="grid g-2">
+    <div class="card">
+      <div class="card-head"><h3>Vehicle</h3><a class="small" href="#inspection">Edit master</a></div>
+      <div class="card-body">
+        <dl class="fleet-kv">
+          <dt>Type</dt><dd>Van · diesel</dd>
+          <dt>Seats / bags</dt><dd>12 passengers · 6 bags</dd>
+          <dt>Colour</dt><dd>White</dd>
+          <dt>Workshop</dt><dd>In the workshop</dd>
+          <dt>Papers</dt><dd><span class="badge badge-green">Insurance 12 Aug 2027</span> <span class="badge badge-green">Permit 30 Jun 2027</span> <span class="badge badge-amber">Fitness 21 Nov 2026</span> <span class="badge badge-green">PUC 04 Mar 2027</span></dd>
+          <dt>Tracker</dt><dd>Teltonika FMB920 · <span class="fleet-state"><span class="fleet-dot offline"></span>offline after 20 min</span><div class="tiny muted">Last fix 04 Nov 2026 08:31 · 9 km/h</div></dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Workshop</h3><span class="small muted">1 open job</span></div>
+      <div class="card-body">
+        <p class="small m-0"><b>Brake pads and rear discs</b> <span class="badge badge-red">Urgent</span></p>
+        <p class="tiny muted">Raised from an unsafe pre-trip inspection · due 02 Nov 2026 (overdue) · supplier Accra Brake Centre</p>
+        <p class="small">Estimate <b>GH₵ 1,850.00</b> · posted <b>GH₵ 1,420.00</b> · <a href="/__preview/fleet-work-order">print job card →</a></p>
+        <p class="tiny muted m-0">Service plan: Brake service · next due 02 May 2027 or 104,120 km, whichever comes first.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g-2-1" id="inspection">
+    <div class="card">
+      <div class="card-head"><h3>Pre-trip inspection</h3><span class="small muted">Expected every 7 day(s)</span></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <label class="span-all"><span class="small">Inspected at</span><input type="datetime-local" value="2026-11-04T09:20"></label>
+          <label><span class="small">Odometer (km)</span><input type="number" value="84120"></label>
+          <label><span class="small">Inspected by</span><input type="text" value="Sunil Yadav"></label>
+          <label class="span-all"><span class="small">Result</span><select><option>Passed</option><option selected>Passed with a minor defect</option><option>Unsafe – do not dispatch</option></select></label>
+          <div class="span-all">
+            <span class="small" style="display:block;margin-bottom:.25rem">Checks confirmed</span>
+            <div class="grid g-2" style="gap:.35rem .9rem">
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Brakes &amp; handbrake</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Tyres &amp; pressures</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Lights &amp; indicators</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox"> Wipers &amp; screen wash</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Oil, coolant &amp; fuel</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Seat belts</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> First-aid kit &amp; extinguisher</label>
+              <label class="small" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Body, mirrors &amp; cleanliness</label>
+            </div>
+          </div>
+          <label class="span-all"><span class="small">Defects found</span><textarea rows="2">Near-side headlamp flickers on rough road; wiper blade split.</textarea></label>
+          <label class="small span-all" style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" checked> Open a work order for a minor or major defect</label>
+          <div class="span-all"><button class="btn btn-primary" type="button"><svg class="i"><use href="#i-check"/></svg> Record inspection</button></div>
+        </div>
+        <p class="tiny muted mt-1">An <b>Unsafe</b> result takes the car off the dispatch board immediately and can raise an urgent work order. Inspections can never be dated in the future.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Recent inspections</h3><span class="small muted">Latest 5</span></div>
+      <div class="card-body">
+        <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+          <span class="badge badge-red">Unsafe – do not dispatch</span>
+          <b>02 Nov 08:10</b> <span class="tiny muted">· 83,905 km</span>
+          <div class="tiny muted">Sunil Yadav · 7/8 checks confirmed · <span class="text-amber">work order #412</span></div>
+          <div class="tiny">Rear brake pads below the limit; car pulled from the board.</div>
+        </div>
+        <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+          <span class="badge badge-amber">Passed with a minor defect</span>
+          <b>28 Oct 06:50</b> <span class="tiny muted">· 83,410 km</span>
+          <div class="tiny muted">Kwame Mensah · 8/8 checks confirmed</div>
+          <div class="tiny">Near-side headlamp flickers on rough road.</div>
+        </div>
+        <div class="small" style="padding:.4rem 0">
+          <span class="badge badge-green">Passed</span>
+          <b>21 Oct 06:35</b> <span class="tiny muted">· 82,980 km</span>
+          <div class="tiny muted">Kwame Mensah · 8/8 checks confirmed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card flush">
+    <div class="card-head"><h3>Transfers</h3><span class="small muted">Latest 10 · billed distance against the trail</span></div>
+    <div class="card-body table-wrap">
+      <table class="table">
+        <caption class="sr-only">Recent transfers driven by VAN-3, with the billed distance and the GPS trail</caption>
+        <thead><tr><th scope="col">Trip</th><th scope="col">When</th><th scope="col">Guest</th><th scope="col">Route</th><th scope="col">Driver</th><th scope="col">Status</th><th scope="col" class="num">km</th><th scope="col" class="num">GPS km</th></tr></thead>
+        <tbody>
+          <tr class="row-alert"><td>TRP-1042</td><td class="small nowrap">04 Nov 08:10</td><td class="small">Mr. A. Owusu</td><td class="small">Hotel → Kotoka T3</td><td class="small">Sunil Yadav</td><td><span class="badge badge-green">Completed</span></td><td class="num">34</td><td class="num">48.6 <span class="badge badge-amber">Check</span></td></tr>
+          <tr><td>TRP-1039</td><td class="small nowrap">03 Nov 17:40</td><td class="small">Ms. L. Mensah</td><td class="small">Hotel → Labadi</td><td class="small">Kwame Mensah</td><td><span class="badge badge-green">Completed</span></td><td class="num">22</td><td class="num">21.4</td></tr>
+          <tr><td>TRP-1031</td><td class="small nowrap">02 Nov 11:05</td><td class="small">Walk-in</td><td class="small">Hotel → Accra Mall</td><td class="small">Yaw Boateng</td><td><span class="badge badge-green">Completed</span></td><td class="num">41</td><td class="num">40.2</td></tr>
+          <tr><td>TRP-1028</td><td class="small nowrap">01 Nov 06:20</td><td class="small">Group (6)</td><td class="small">Hotel → Cape Coast</td><td class="small">Sunil Yadav</td><td><span class="badge badge-blue">On trip</span></td><td class="num">142</td><td class="num"><span class="muted" title="Only completed trips with an odometer reading and recorded start / finish can be compared">—</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid g-2">
+    <div class="card flush">
+      <div class="card-head"><h3>Speed breaches</h3><span class="small muted">10 fastest fixes · 30 days · limit 80 km/h</span></div>
+      <div class="card-body table-wrap">
+        <table class="table">
+          <caption class="sr-only">The fastest GPS fixes recorded by this vehicle in the last 30 days</caption>
+          <thead><tr><th scope="col">When</th><th scope="col" class="num">Speed</th><th scope="col" class="num">Over</th><th scope="col">Where</th></tr></thead>
+          <tbody>
+            <tr><td class="small nowrap">31 Oct 21:14</td><td class="num">104 km/h</td><td class="num text-red">+24</td><td class="small">N1 Motorway</td></tr>
+            <tr><td class="small nowrap">30 Oct 20:52</td><td class="num">96 km/h</td><td class="num text-amber">+16</td><td class="small">Ring Road Central</td></tr>
+            <tr><td class="small nowrap">27 Oct 18:03</td><td class="num">88 km/h</td><td class="num text-amber">+8</td><td class="small">Spintex Road</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card flush">
+      <div class="card-head"><h3>Fence crossings</h3><span class="small muted">Latest 15</span></div>
+      <div class="card-body table-wrap">
+        <table class="table">
+          <caption class="sr-only">Recent geofence entries and exits for this vehicle</caption>
+          <thead><tr><th scope="col">When</th><th scope="col">Fence</th><th scope="col">Event</th></tr></thead>
+          <tbody>
+            <tr><td class="small nowrap">04 Nov 08:31</td><td class="small">Hotel yard</td><td><span class="badge badge-slate">exit</span></td></tr>
+            <tr><td class="small nowrap">04 Nov 07:58</td><td class="small"><span class="text-red">Restricted — fuel store</span></td><td><span class="badge badge-red">enter</span></td></tr>
+            <tr><td class="small nowrap">03 Nov 19:22</td><td class="small">Hotel yard</td><td><span class="badge badge-green">enter</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card flush">
+    <div class="card-head"><h3>Running expenses</h3><span class="small muted">Latest 20</span></div>
+    <div class="card-body table-wrap">
+      <table class="table">
+        <caption class="sr-only">Expenses recorded against this vehicle</caption>
+        <thead><tr><th scope="col">Date</th><th scope="col">Kind</th><th scope="col">Vendor</th><th scope="col" class="num">Litres</th><th scope="col" class="num">Odometer</th><th scope="col" class="num">Amount</th><th scope="col">Work order</th></tr></thead>
+        <tbody>
+          <tr><td class="small nowrap">04 Nov 2026</td><td>Repair</td><td class="small">Accra Brake Centre</td><td class="num">—</td><td class="num">84,120</td><td class="num">GH₵ 180.00</td><td class="small"><a href="/__preview/fleet-work-order">WO-00412</a></td></tr>
+          <tr><td class="small nowrap">03 Nov 2026</td><td>Repair</td><td class="small">Accra Brake Centre</td><td class="num">—</td><td class="num">84,050</td><td class="num">GH₵ 1,240.00</td><td class="small"><a href="/__preview/fleet-work-order">WO-00412</a></td></tr>
+          <tr><td class="small nowrap">01 Nov 2026</td><td>Fuel</td><td class="small">Shell Spintex</td><td class="num">62.00</td><td class="num">83,840</td><td class="num">GH₵ 860.00</td><td class="small">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>GPS trail</h3><span class="small muted">Latest 40 fixes · jitter-filtered distance</span></div>
+    <div class="card-body">
+      <p class="small muted m-0">04 Nov 08:31 · 5.6037, -0.1870 · 9 km/h · ignition on
+        <span class="badge badge-slate">parked</span></p>
+      <p class="small muted m-0">04 Nov 08:26 · 5.6041, -0.1866 · 0 km/h · ignition on</p>
+      <p class="small muted m-0">04 Nov 08:21 · 5.6050, -0.1859 · 34 km/h · ignition on</p>
+      <p class="tiny muted mt-1">Fixes more than 10 minutes apart, hops under 25 m and jumps over 5 km are ignored when the distance is summed, so a parked car with a drifting fix does not clock up kilometres.</p>
+    </div>
+  </div>
+
+  <p class="tiny muted" style="margin:1.4rem 0 .6rem">UI-only preview · <a href="/previews">all previews</a> · <a href="/__preview/fleet-overview">fleet overview</a> · <a href="/__preview/fleet-maintenance">maintenance</a> · <a href="/__preview/fleet-fuel">fuel</a> · <a href="/__preview/fleet-tracking">live tracking</a> · <a href="/__preview/fleet-work-order">job card</a></p>
+</div>
+</body>
+</html>

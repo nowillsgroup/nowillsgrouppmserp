@@ -51,7 +51,7 @@ class MenuItemImporter extends BaseImporter
             'food_type' => ['required' => true, 'desc' => 'veg, non_veg, egg or beverage.', 'example' => 'non_veg'],
             'description' => ['desc' => 'Optional menu description.', 'example' => 'Grilled with local herbs.'],
             'is_available' => ['desc' => '1/0, true/false, yes/no. CSV cannot activate an item; leave blank to preserve, or use 0 to hide.', 'example' => '0'],
-            'variants_json' => ['desc' => 'Optional JSON list of {name, rate, cost}; blank preserves existing variants, [] removes them.', 'example' => '[]'],
+            'variants_json' => ['desc' => 'Optional JSON list of {name, rate, cost}; rate and cost may be left blank (saved as 0 = included in the item price). Blank preserves existing variants, [] removes them.', 'example' => '[]'],
         ];
     }
 
@@ -298,13 +298,27 @@ class MenuItemImporter extends BaseImporter
 
             return null;
         }
+        // Rate and cost are optional: an empty cell arrives as '' in JSON and is normalised to null,
+        // which saves as 0 — the POS reads a 0 rate as "included in the item price".
+        $variants = array_map(function ($variant) {
+            if (! is_array($variant)) {
+                return $variant;
+            }
+            foreach (['rate', 'cost'] as $money) {
+                if (array_key_exists($money, $variant) && ($variant[$money] === '' || $variant[$money] === null)) {
+                    $variant[$money] = null;
+                }
+            }
+
+            return $variant;
+        }, $variants);
         try {
             $validated = Validator::make(['variants' => $variants], [
                 'variants' => ['array', 'max:30'],
                 'variants.*' => ['array:name,rate,cost'],
                 'variants.*.name' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
-                'variants.*.rate' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
-                'variants.*.cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+                'variants.*.rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+                'variants.*.cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             ], [
                 'variants.*.name.distinct' => 'Variant names must be unique (case-insensitive).',
             ])->validate();
@@ -316,8 +330,8 @@ class MenuItemImporter extends BaseImporter
 
         return array_map(fn ($variant) => [
             'name' => trim($variant['name']),
-            'rate' => number_format(round((float) $variant['rate'], 2), 2, '.', ''),
-            'cost' => number_format(round((float) $variant['cost'], 2), 2, '.', ''),
+            'rate' => number_format(round((float) ($variant['rate'] ?? 0), 2), 2, '.', ''),
+            'cost' => number_format(round((float) ($variant['cost'] ?? 0), 2), 2, '.', ''),
         ], array_values($validated['variants'] ?? []));
     }
 
