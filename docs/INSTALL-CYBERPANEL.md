@@ -308,6 +308,17 @@ runtime folders (`public/uploads{,/logos,/menu,/room-images}`, `storage/app/back
 caches), sets **755 folders / 644 files** — never 777 — and, when run as root, hands them back to
 the site user. It logs every step to `storage/logs/deploy.log`.
 
+The installer is **not** in the web root of the repository. It ships as a template outside the
+document root, so a finished server never carries it and never shows a dirty checkout to git —
+which is exactly what stops CyberPanel's Git Manager (and `git pull`) from working. Copy it in for
+the one install:
+
+```bash
+SITE=/home/pms.nowills.com/public_html
+SITE_USER=$(stat -c '%U' "$SITE")
+sudo -u "$SITE_USER" cp "$SITE/deploy/installers/public-install.php.txt" "$SITE/public/install.php"
+```
+
 Now open:
 
 ```
@@ -335,8 +346,9 @@ rm -f /home/pms.nowills.com/public_html/public/install.php
 ```
 
 It refuses to install twice (it drops `storage/framework/installed.lock`), but delete it anyway.
-If a later `git pull` brings it back (a commit that touches the file), delete it again — or make the
-block permanent in **vHost Conf**:
+`public/install.php` is gitignored, so deleting it leaves the checkout **clean** — no later `git pull`
+brings it back, and no commit can bring it back, because it is never committed. Make the block
+permanent in **vHost Conf**:
 
 ```apacheconf
 # inside the existing rewrite { rules <<<END_rules … END_rules } block
@@ -389,12 +401,20 @@ commands on the VPS. No keys to manage, no webhook, no port exposed.
 SITE=/home/pms.nowills.com/public_html
 SITE_USER=$(stat -c '%U' "$SITE")
 
+# 0. the checkout must be clean or git (and the panel) refuse — this says why, and fixes
+#    the one case that used to be permanent: a deleted, still-tracked web installer
+bash "$SITE/deploy/cyberpanel/fix-git-tree.sh" --site "$SITE" --fix
+
 # 1. get the new code (fast-forward only: it fails loudly instead of inventing a merge)
 sudo -u "$SITE_USER" bash -c "git -C '$SITE' pull --ff-only"
 
 # 2. make it live — this is the part people forget
 sudo -u "$SITE_USER" bash "$SITE/deploy/cyberpanel/post-deploy.sh"
 ```
+
+Before you merge a release, `node deploy/dev/audit/git_tracking_check.js` proves that neither the
+installer nor a build archive has crept back into git — the two things that make the pull above fail
+for reasons the error message never names.
 
 Why step 2 is not optional: `git pull` alone leaves the compiled config, routes and Blade views
 from the previous release in `bootstrap/cache/` and `storage/framework/views/`. The new classes are
@@ -434,7 +454,7 @@ post-deploy script manually. This keeps each production update an explicit opera
 | `https://pms.nowills.com/up` | A small JSON health response from Laravel |
 | Login, then **Settings → upload a logo** | Saves, and the image renders (proves `public/uploads` is writable) |
 | `bash deploy/cyberpanel/doctor.sh` | every ✔ except the two documented warnings |
-| `git -C <site> status` | clean |
+| `git -C <site> status` | clean — deleting `public/install.php` no longer dirties it |
 
 Log in with **Hotel ID + username + password** from the installer. Then work through
 [step 8 of the cPanel guide](INSTALL-CPANEL.md#step-8--go-live) for mail, backups and hardening —
@@ -511,11 +531,14 @@ paste its output here if you want a second pair of eyes on it.
 | **Login bounces back to the login page** | `APP_URL` does not match the browser address, or `storage/framework/sessions` is not writable by the site user. Fix `APP_URL`, delete `bootstrap/cache/config.php`, fix ownership. |
 | **Uploads 404 / logo missing** | `public/uploads` missing or unwritable — the hook creates it; check the owner is the site user. |
 | **Installer says `.env` is not writable** | The checkout is owned by root (you cloned as root). `chown -R pms.nowills.com:pms.nowills.com <site>`. |
-| **Installer refuses to run / says locked** | It already installed. To start over (empty database), delete `storage/framework/installed.lock` and re-upload `public/install.php`. |
+| **Installer refuses to run / says locked** | It already installed. To start over (empty database), delete `storage/framework/installed.lock`, then copy the template in again: `cp deploy/installers/public-install.php.txt public/install.php`. |
 | **503 Maintenance** | `rm storage/framework/maintenance.php` (or `artisan up`). |
 | **Scheduled work never happens** | Cron command must use the absolute `lsphp` path and the absolute `artisan` path. Check the cron log / that the job landed in the right user's crontab (`crontab -u pms.nowills.com -l`). |
 | **New release deploys but the UI is unchanged** | Compiled config/routes/views were not cleared. Run the post-deploy hook (step 9) — that is exactly what it does. |
 | **A manual pull fails** | Check `git -C /home/pms.nowills.com/public_html status`, verify the site user can read the Git remote, and use `git pull --ff-only` from step 9. This deployment does not use a webhook or automated pull. |
+| **CyberPanel → Manage Git will not commit, pull or push** | Its first check is a clean working tree. Run `bash deploy/cyberpanel/fix-git-tree.sh` (add `--fix` to clean it, `--stash` to park real edits). On a checkout older than this guide's installer change the cause is usually a permanent ` D public/install.php`; the script marks it skip-worktree, and no commit brings the file back any more. |
+| **`fatal: detected dubious ownership in repository`** | `.git` was created by root while the panel runs as the site user: `git config --global --add safe.directory /home/pms.nowills.com/public_html`, then re-run the script. |
+| **`remote: Invalid username or password` when the panel pushes** | GitHub no longer accepts account passwords over HTTPS. Use a personal access token with **Contents: Read and write** (or an SSH deploy key with write access) and push to a *branch*, not to protected `main`. |
 | **CSS/JS 404 after a pull** | `public/.htaccess` was overwritten or the pull left the working tree dirty — `git -C <site> status`, then `git checkout -- public/.htaccess`. |
 
 ---

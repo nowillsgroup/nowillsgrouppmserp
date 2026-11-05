@@ -101,6 +101,13 @@ do
     [ -e "$ROOT/$d/.gitkeep" ] || : > "$ROOT/$d/.gitkeep"
 done
 
+# ── 2b. Put the installer back where the wizard expects it ───────────────────
+# The installers are committed as deploy/installers/*.php.txt and are gitignored at
+# the web root, so a finished server never carries one (and never shows a dirty
+# tree to CyberPanel). The archive is a fresh install, so it gets them for real.
+cp "$ROOT/deploy/installers/public-install.php.txt" "$ROOT/public/install.php"
+cp "$ROOT/deploy/installers/root-install.php.txt"   "$ROOT/install.php"
+
 # ── 3. A plain-text pointer at the top of the archive ────────────────────────
 if [ "$FLAT" -eq 1 ]; then
     LAYOUT_NOTE="Extracted flat: this folder is the project root.
@@ -139,7 +146,8 @@ If the Document Root cannot be changed, leave the upload where it is: the
    Fill in the database details, your property and your admin account.
 
 4. Delete the installer
-   Remove public/install.php when it finishes. It is not needed again.
+   It deletes itself when it finishes; if it could not, remove public/install.php
+   by hand. It is not needed again.
 
 5. Add the cron entry
    cPanel → Cron Jobs → Once Per Minute:
@@ -169,7 +177,7 @@ check() { # path  description
 echo "Required files:"
 check build/vendor/autoload.php   "Composer packages (build/vendor) — no Composer needed on the server"
 check public/index.php            "web entry point"
-check public/install.php          "web installer"
+check public/install.php          "web installer (copied from deploy/installers)"
 check public/.htaccess            "front-controller rewrite"
 check .htaccess                   "shared-hosting fallback + sensitive-path block"
 check .env.example                ".env template"

@@ -82,7 +82,8 @@ fi
 hdr "3. .env"
 if [ ! -f "$ENV_FILE" ]; then
     bad ".env does not exist — the app has never been configured"
-    info "fix: open https://<domain>/install.php (or copy .env.example and edit it by hand)"
+    info "fix: copy '$APP_ROOT/deploy/installers/public-install.php.txt' to '$PUBLIC_DIR/install.php',"
+    info "     open https://<domain>/install.php — or copy .env.example and edit it by hand"
 else
     info ".env present, $(stat -c '%U:%G %a' "$ENV_FILE" 2>/dev/null)"
     app_env="$(env_get APP_ENV)"; app_debug="$(env_get APP_DEBUG)"; app_url="$(env_get APP_URL)"
@@ -127,7 +128,24 @@ if [ -f "$PUBLIC_DIR/install.php" ]; then
     warn "public/install.php is still online — it exposes your PHP config and folder permissions"
     info "fix: rm '$PUBLIC_DIR/install.php' once the install has finished"
 else
-    ok "installer not web-reachable (deleted)"
+    ok "installer not web-reachable (absent — it ships as deploy/installers/public-install.php.txt)"
+fi
+
+# 3. git state: the panel (and `git pull`) refuse to work on a dirty checkout
+if [ -d "$APP_ROOT/.git" ]; then
+    hdr "4b. Git working tree"
+    dirt="$(git -C "$APP_ROOT" status --porcelain 2>/dev/null || echo 'UNREADABLE')"
+    if [ "$dirt" = "UNREADABLE" ]; then
+        warn "git cannot read this repository (usually 'dubious ownership': .git owned by root)"
+        info "fix: git config --global --add safe.directory '$APP_ROOT'"
+    elif [ -z "$dirt" ]; then
+        ok "clean — CyberPanel's Git Manager and 'git pull --ff-only' can both run"
+    else
+        bad "uncommitted changes — CyberPanel's Git Manager and 'git pull' will refuse until this is clean"
+        printf '%s\n' "$dirt" | sed 's/^/         /'
+        info "fix: bash '$APP_ROOT/deploy/cyberpanel/fix-git-tree.sh' --site '$APP_ROOT' --fix"
+    fi
+    info "commit $(git -C "$APP_ROOT" log -1 --oneline 2>/dev/null || echo '?')"
 fi
 
 hdr "5. Compiled caches (the usual cause of 'I deployed but nothing changed')"

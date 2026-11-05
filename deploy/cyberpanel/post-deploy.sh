@@ -42,6 +42,16 @@ log "── Nowills PMS deploy hook: $APP_ROOT ──"
 [ -f "$APP_ROOT/build/vendor/autoload.php" ] || fail \
     "build/vendor/autoload.php is missing — the clone is incomplete (this project keeps its Composer packages in build/vendor)"
 
+# ── 0a. A dirty checkout means the code on disk is not the commit you think ──
+if [ -d "$APP_ROOT/.git" ]; then
+    DIRT="$(git -C "$APP_ROOT" status --porcelain 2>/dev/null || true)"
+    if [ -n "$DIRT" ]; then
+        log "WARNING: the checkout has uncommitted changes — the site is not running $(git -C "$APP_ROOT" log -1 --format=%h 2>/dev/null) exactly"
+        printf '%s\n' "$DIRT" | sed 's/^/        /' | tee -a "$LOG" >&2
+        log "        (it also blocks CyberPanel's Git Manager and 'git pull'; see deploy/cyberpanel/fix-git-tree.sh)"
+    fi
+fi
+
 # ── 0b. Catch the two states that make every page 500 ──────────────────────
 # A .env copied from .env.example (APP_DEBUG=true, APP_KEY empty) looks fine in a
 # file manager but the site dies with MissingAppKeyException on every request.

@@ -2737,6 +2737,9 @@ PHP ≥ 8.3 with the `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ct
 > commands below — see **[docs/INSTALL-CPANEL.md](docs/INSTALL-CPANEL.md)**. Upload the project, create a
 > database, then open `/install.php`: it checks the host, writes `.env`, generates the key, runs the
 > migrations and creates your first property and administrator. Delete `public/install.php` afterwards.
+> It is gitignored, so deleting it leaves a git checkout clean; if you cloned the repository rather
+> than unpacking the ZIP, copy it into place first with
+> `cp deploy/installers/public-install.php.txt public/install.php`.
 
 ```bash
 composer install --no-dev --optimize-autoloader

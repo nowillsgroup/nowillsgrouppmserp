@@ -12,7 +12,8 @@ This ZIP contains the **complete Nowills PMS application** — all files needed 
 - **POS Module** — Point of Sale terminal, order terminal, menu catalog, cart, KOT printing, settlement
 - **Billing Reconciliation** — AP/AR reconciliation with foreign currency support
 - **Migration Importers** — Opening balances, inventory, supplier importers
-- **Web Installer** — `install.php` — browser-based setup, no SSH needed
+- **Web Installer** — `install.php` — browser-based setup, no SSH needed (shipped as
+  `deploy/installers/public-install.php.txt`, and placed in `public/` by the ZIP)
 - **Apache .htaccess** — ready for cPanel/Apache
 
 ## Installation Steps (cPanel)
@@ -56,6 +57,10 @@ Make these directories writable (cPanel → File Manager → Change Permissions)
 ### 6. Secure the Installer (Optional)
 After installation completes, delete `install.php` from cPanel File Manager:
 - Right-click `install.php` → **Delete**
+
+Both `install.php` and `public/install.php` are gitignored, so a finished server never shows a dirty
+git checkout — which matters on a VPS, where CyberPanel's Git Manager refuses to pull or push until
+the tree is clean.
 
 ## Important Notes
 

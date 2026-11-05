@@ -96,6 +96,14 @@ You do not need to create any tables — the installer does that.
 
 ## Step 4 — Run the installer
 
+The ZIP already has `public/install.php` in place. **If you installed from git instead of the ZIP**,
+the installer ships outside the web root, so copy it in first (and copy the root one too in Layout B):
+
+```bash
+cp deploy/installers/public-install.php.txt public/install.php
+cp deploy/installers/root-install.php.txt   install.php      # Layout B only
+```
+
 Open:
 
 ```
@@ -122,7 +130,8 @@ creates your property and administrator, prepares the upload folders and caches 
 
 The installer refuses to run twice, but it still reports your PHP configuration and folder permissions to
 anyone who loads it. **Delete `public/install.php`** (and the copy in the project root, if Layout B put
-one there) as soon as the install finishes.
+one there) as soon as the install finishes. Both paths are gitignored, so deleting them leaves a git
+checkout clean — nothing brings them back and no deployment is blocked by them.
 
 Then open your site and log in with **Hotel ID** + **username** + **password** from Step 4.
 
