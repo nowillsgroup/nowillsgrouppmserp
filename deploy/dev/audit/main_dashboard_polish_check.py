@@ -186,11 +186,30 @@ class MainDashboardPolishTest(unittest.TestCase):
         self.assertIn('dashPosMixTitle', VIEW)
         self.assertNotIn('GH₵ 46,850', (ROOT / 'resources/views/dashboard/management-trends.blade.php').read_text())
 
-    def test_ui_preview_is_explicitly_illustrative_and_read_only(self):
-        self.assertIn('UI-only preview', PREVIEW)
-        self.assertIn('illustrative layout examples, not live property data', PREVIEW)
-        self.assertIn('No records are created', PREVIEW)
-        self.assertIn('including 10 with no source', PREVIEW)
+    def test_preview_shows_the_live_screen_without_preview_chrome(self):
+        # The preview exists to show what the screen looks like in the application, so no
+        # banner, badge, aria description or caption may mark it out as a preview. Those
+        # labels were removed at the user's request and must not creep back in.
+        for marker in ('UI-only preview', 'illustrative', 'Illustrative', 'not live property data',
+                       'No records are created', 'management-preview-note'):
+            with self.subTest(marker=marker):
+                self.assertNotIn(marker, PREVIEW)
+        # Its provenance is still stated, where only a reader of the source sees it.
+        self.assertIn('<!-- Static render of resources/views/dashboard.blade.php', PREVIEW)
+        # And it carries the live screen's own copy rather than a preview paraphrase.
+        for copy in (
+            'GHS · figures respect your access',
+            '11 business areas</span>',
+            'Last 14 completed audit days · hover or keyboard-focus a bar for its exact value.',
+            '>Night audit</a>',
+            '<h2 id="dashMixHeading">Business mix</h2>',
+            "Mix charts are built from current tenant records and follow finance, reservation and POS permissions.",
+            "aria-label=\"Today's revenue mix. Net revenue GH₵ 46,850.",
+            'aria-label="Reservation source mix for the last 30 days. 214 bookings, cancelled bookings excluded."',
+            'aria-label="POS checks today: 74 total. Open 12; Billed 11; Settled 51."',
+        ):
+            with self.subTest(copy=copy):
+                self.assertIn(copy, PREVIEW)
         self.assertIn('dash-mix-label">No source</span><strong>10</strong>', PREVIEW)
         self.assertIn('dash-mix-label">Other sources</span><strong>8</strong>', PREVIEW)
 
