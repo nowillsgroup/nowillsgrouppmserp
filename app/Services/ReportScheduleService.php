@@ -331,7 +331,9 @@ class ReportScheduleService
         if (! isset(self::RANGES[$range]) || $range === 'custom' && ! $view) {
             throw new RuntimeException('Choose a relative date range – a schedule always reports on the current period.');
         }
-        $users = User::whereIn('id', array_map('intval', (array) ($d['recipient_users'] ?? [])))->where('is_active', true)->get();
+        // Recipients must belong to this property (plus its group administrators): the ids arrive
+        // from the form, and a forged post must not subscribe another hotel's staff to this report.
+        $users = User::visibleToHotel()->whereIn('id', array_map('intval', (array) ($d['recipient_users'] ?? [])))->where('is_active', true)->get();
         foreach ($users as $u) {
             if (! $u->email) {
                 throw new RuntimeException("{$u->name} has no e-mail address.");
