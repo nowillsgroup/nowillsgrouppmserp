@@ -36,7 +36,6 @@
   $searchQuery = is_string($filters['q'] ?? null) ? trim($filters['q']) : '';
   $roomStatusLabels = ['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'leased' => 'Leased', 'maintenance' => 'Maintenance', 'house_use' => 'House Use', 'group_hold' => 'Group Hold', 'other_block' => 'Other Block'];
   $roomStatusKeys = array_flip($roomStatusLabels);
-  $statusTone = ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'];
   $attentionItems = $attention ?? [];
   $attentionCount = collect($attentionItems)->sum('count');
   $trendInhouse = $trend['inhouse'] ?? [];
@@ -705,6 +704,9 @@
       const targetParams = new URLSearchParams(window.location.search);
       if (targetDate) targetParams.set('date', targetDate);
       else targetParams.delete('date');
+      // moving through the month must not drop the layout or the grouping
+      if (activeView === 'rack') targetParams.set('view', 'rack'); else targetParams.delete('view');
+      if (groupMode) targetParams.set('group', groupMode); else targetParams.delete('group');
       target.search = targetParams.toString();
       link.href = target.pathname + target.search + target.hash;
     });
@@ -758,6 +760,7 @@
 
   function applyGrouping(mode) {
     groupMode = mode || '';
+    syncUrlParam('group', groupMode);
     if (!grid) return;
     // read the cards before dropping their group wrappers, or they go with them
     const groupCards = [...grid.querySelectorAll('.ws-card')];
@@ -975,6 +978,15 @@
   }
 
   /* ── the two layouts ─────────────────────────────────────────────────── */
+  // A board or rack worth looking at is worth linking to, so the layout and the
+  // grouping ride in the address bar beside the filters (and follow date changes).
+  function syncUrlParam(key, value) {
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set(key, value); else params.delete(key);
+    const query = params.toString();
+    history.replaceState(null, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+  }
+
   let activeView = 'board';
   function setView(next) {
     activeView = next === 'rack' ? 'rack' : 'board';
@@ -989,6 +1001,7 @@
       button.tabIndex = on ? 0 : -1;
     });
     if (groupSelect) groupSelect.disabled = isRack;
+    syncUrlParam('view', isRack ? 'rack' : '');
     applyWsFilters();
     try { sessionStorage.setItem('wsView', activeView); } catch (error) { /* private mode */ }
   }
@@ -1041,10 +1054,15 @@
     }
   });
 
+  const opening = new URLSearchParams(window.location.search);
   let storedView = 'board';
   try { storedView = sessionStorage.getItem('wsView') === 'rack' ? 'rack' : 'board'; } catch (error) { /* private mode */ }
+  if (opening.get('view') === 'rack' || opening.get('view') === 'board') storedView = opening.get('view');
+  const openingGroup = ['floor', 'type', 'status'].includes(opening.get('group') || '') ? opening.get('group') : null;
+  if (openingGroup && groupSelect) groupSelect.value = openingGroup;
   setView(storedView);
-  if (storedView === 'board' && groupSelect) applyGrouping(groupSelect.value);
+  if (groupSelect) applyGrouping(groupSelect.value);
+  applyWsFilters();
 
   filters.forEach(select => select.addEventListener('change', () => applyWsFilters()));
   document.querySelectorAll('[data-ws-status-filter]').forEach(button => button.addEventListener('click', () => {

@@ -49,6 +49,11 @@ application's real board, rack, filter chips, grouping and keyboard shortcuts:
 | Attention list and KPI tiles | `ReservationWorkspaceController::attention()` / `kpiTiles()`, mirrored in the sample |
 | Figures | fixed sample, `deploy/dev/preview/workspace-sample.mjs` |
 
+The screen keeps its layout, grouping and rack order in the address bar and in
+`sessionStorage`, so a preview link can open straight onto the rack
+(`/reservations-workspace?date=2026-11-05&view=rack&group=floor`) and the order staff
+chose survives a refresh.
+
 ## Build and check
 
 ```bash

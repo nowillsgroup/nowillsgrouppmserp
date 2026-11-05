@@ -154,6 +154,13 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('}, true);', VIEW)
         self.assertIn("copy.querySelectorAll('label[for]')", VIEW)
 
+    def test_a_layout_can_be_linked(self):
+        # a supervisor should be able to send "the rack, grouped by floor" to a colleague
+        self.assertIn("syncUrlParam('view'", VIEW)
+        self.assertIn("syncUrlParam('group'", VIEW)
+        self.assertIn("opening.get('view')", VIEW)
+        self.assertIn("targetParams.set('view', 'rack')", VIEW)
+
     def test_the_chosen_order_survives_a_refresh(self):
         self.assertIn("sessionStorage.setItem('wsSort'", VIEW)
         self.assertIn("sessionStorage.getItem('wsSort')", VIEW)
@@ -188,6 +195,7 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('no preview furniture on the screen', CHECK)
         self.assertIn('the saved order comes back', CHECK)
         self.assertIn('extending from the rack names the date it will use', CHECK)
+        self.assertIn('a link opens the rack it points at', CHECK)
 
 
 if __name__ == "__main__":

@@ -112,6 +112,9 @@ ok('grouping by floor builds a section per floor', groups.length === 3, `${group
 ok('each group is titled', groups.every(group => (group.querySelector('.ws-group-head')?.textContent ?? '').trim().length > 0));
 ok('the group counts add up to the board', groups.reduce((total, group) => total + Number(group.querySelector('.ws-group-count')?.textContent ?? 0), 0) === cards.length);
 ok('no card is lost when grouping', $$('#wsGrid .ws-card').length === cards.length);
+ok('the grouping is in the address bar', /(^|[?&])group=floor(&|$)/.test(window.location.search), window.location.search);
+ok('the filters keep the layout and grouping',
+  /view=|group=floor/.test(window.location.search) && !/group=$/.test(window.location.search));
 
 groupBy.value = '';
 groupBy.dispatchEvent(new window.Event('change'));
@@ -120,6 +123,7 @@ ok('turning grouping off returns the flat board', $$('#wsGrid .ws-group').length
 /* ── the rack ────────────────────────────────────────────────────────────── */
 $('#wsTabRack')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 ok('the rack replaces the board', $('#wsRack')?.hidden === false && $('#wsGrid')?.hidden === true);
+ok('the layout is in the address bar', /(^|[?&])view=rack(&|$)/.test(window.location.search), window.location.search);
 const rows = $$('#wsRackBody tr');
 ok('every room has a rack row', rows.length === cards.length, `${rows.length} rows`);
 ok('the rack shows the room number', (rows[0]?.querySelector('.ws-rack-room b')?.textContent ?? '').length === 3,
@@ -202,21 +206,41 @@ ok('the dialog names the room', /Room|Deluxe|Standard/.test($('.ws-modal.show')?
 // A desk keeps its layout and its order between refreshes; the page stores both.
 const reopened = new JSDOM(readFileSync(FILE, 'utf8'), {
   runScripts: 'dangerously',
-  url: 'https://preview.local/reservations/workspace?date=2026-11-05',
   pretendToBeVisual: true,
   beforeParse(instance) {
     instance.sessionStorage.setItem('wsSort', 'rate:desc');
-    instance.sessionStorage.setItem('wsView', 'rack');
   },
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05&view=rack&group=floor',
 });
 const again = reopened.window.document;
 const reopenedRates = [...again.querySelectorAll('#wsRackBody tr')]
   .map(row => Number((row.dataset.rate ?? '').replace(/[^\d.]/g, '')));
 ok('the saved order comes back', again.querySelector('#wsRack')?.hidden === false
   && reopenedRates[0] === Math.max(...reopenedRates), `${reopenedRates[0]} of ${reopenedRates.length} rows`);
+ok('a link opens the rack it points at', again.querySelector('#wsRack')?.hidden === false
+  && again.querySelector('#wsTabRack')?.getAttribute('aria-selected') === 'true');
+ok('a link opens the grouping it points at', again.querySelectorAll('#wsGrid .ws-group').length === 3,
+  `${again.querySelectorAll('#wsGrid .ws-group').length} groups`);
+const reopenedNav = [...again.querySelectorAll('a[data-ws-nav]')];
+ok('changing the date keeps the layout and grouping',
+  reopenedNav.length > 0 && reopenedNav.every(link => /view=rack/.test(link.getAttribute('href') ?? '')
+    && /group=floor/.test(link.getAttribute('href') ?? '')),
+  reopenedNav[0]?.getAttribute('href'));
 ok('the saved order comes back marked on its column',
   again.querySelector('.ws-rack-sort[data-ws-sort="rate"]')?.closest('th')?.getAttribute('aria-sort') === 'descending');
 reopened.window.close();
+
+// No link, no session — a plain reload still reopens the layout last used.
+const remembered = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously',
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05',
+  pretendToBeVisual: true,
+  beforeParse(instance) { instance.sessionStorage.setItem('wsView', 'rack'); },
+});
+const rememberedDoc = remembered.window.document;
+ok('a plain reload reopens the layout last used', rememberedDoc.querySelector('#wsRack')?.hidden === false
+  && rememberedDoc.querySelector('#wsGrid')?.hidden === true);
+remembered.window.close();
 
 if (failures.length) {
   console.log(`workspace preview check: ${failures.length} FAILED, ${passed} passed`);
