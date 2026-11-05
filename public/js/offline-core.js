@@ -227,6 +227,52 @@
     return drop(id).then(function () { return refresh(); });
   }
 
+  /**
+   * Warm this device for offline work.
+   *
+   * `plan` is what the server says this login may work: one entry per screen, with
+   * the page and the snapshot to keep. Each page is fetched so the service worker
+   * has the screen itself, and each snapshot is kept — in this queue's own store
+   * when the screen reads through it (`snapshot_key`), otherwise in the HTTP cache
+   * the service worker fills, which is what the older screens read.
+   *
+   * Nothing here invents data: a slice the server refuses is reported as failed.
+   *
+   * @param {Array<{key: string, label: string, page?: string, url?: string, snapshot_key?: string}>} plan
+   * @returns {Promise<Array<{key: string, label: string, page: boolean, snapshot: boolean, error: (string|null)}>>}
+   */
+  function prepare(plan) {
+    var results = [];
+
+    return (plan || []).reduce(function (chain, slice) {
+      return chain.then(function () {
+        var entry = { key: slice.key, label: slice.label, page: false, snapshot: false, error: null };
+        results.push(entry);
+
+        var page = slice.page
+          ? fetch(slice.page, { credentials: 'same-origin' })
+              .then(function (response) { entry.page = !!response.ok; })
+              .catch(function (error) { entry.error = error.message; })
+          : Promise.resolve();
+
+        return page.then(function () {
+          if (!slice.url) return null;
+
+          var pull = slice.snapshot_key
+            ? snapshot(slice.snapshot_key, slice.url).then(function () { entry.snapshot = true; })
+            : fetch(slice.url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+                .then(function (response) {
+                  if (!response.ok) throw new Error('The server could not send ' + slice.label + ' (' + response.status + ').');
+                  return response.json();
+                })
+                .then(function () { entry.snapshot = true; });
+
+          return pull.catch(function (error) { entry.error = entry.error || error.message; });
+        });
+      });
+    }, Promise.resolve()).then(function () { return results; });
+  }
+
   function backoff(attempts) {
     var seconds = Math.min(30 * Math.pow(2, Math.max(0, attempts - 1)), 900);
     return now() + seconds * 1000;
@@ -457,6 +503,7 @@
     cachedSnapshot: cachedSnapshot,
     clearSnapshot: clear,
     pending: allRows,
+    prepare: prepare,
     retry: retry,
     discard: discard,
     refresh: refresh,

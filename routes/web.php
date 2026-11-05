@@ -1356,6 +1356,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('offline')->name('offline.')->controller(Controllers\OfflineSyncController::class)->middleware('throttle:120,1')->group(function () {
         // The hub is what the service worker falls back to, so it carries no permission of its own.
         Route::get('/', 'hub')->name('hub');
+        // Which screens this login may keep on this device, so preparation is one press.
+        Route::get('/preparation', 'preparation')->name('preparation');
         // The outbox itself: everything this device still holds, and what a person must decide.
         Route::get('/queue', 'queue')->name('queue');
         // After an outage: what the devices sent, what it created and what needs a person.

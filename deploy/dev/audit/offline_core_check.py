@@ -41,6 +41,8 @@ QUEUE_JS = read("public/js/offline-queue.js")
 QUEUE_VIEW = read("resources/views/offline/queue.blade.php")
 RECON_SERVICE = read("app/Services/OfflineReconciliationService.php")
 RECON_VIEW = read("resources/views/offline/reconciliation.blade.php")
+PREP_SERVICE = read("app/Services/OfflinePreparationService.php")
+PREPARE_JS = CORE[CORE.index("function prepare(plan)"):CORE.index("function backoff(attempts)")]
 STAY_SERVICE = read("app/Services/StayService.php")
 FOLIO_SERVICE = read("app/Services/FolioService.php")
 
@@ -416,6 +418,41 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertIn("request()->fullUrlWithQuery(['export' => 'csv'])", RECON_VIEW)
         self.assertIn("route('offline.reconciliation')", read("resources/views/offline/desktop.blade.php"))
         self.assertIn("route('offline.queue')", RECON_VIEW, "a refused change links to the device outbox")
+
+    # ── preparing a device ─────────────────────────────────────────────────────
+
+    def test_a_device_is_prepared_in_one_press(self):
+        self.assertIn("function prepare(plan)", CORE)
+        self.assertIn("prepare: prepare,", CORE)
+        self.assertIn("data-hub-prepare", HUB_VIEW)
+        self.assertIn("window.PmsOffline.prepare(slices)", HUB_VIEW)
+        self.assertIn("window.PmsOffline.local.set(PREPARED, saved)", HUB_VIEW)
+        self.assertIn("data-preparation-url=\"{{ route('offline.preparation') }}\"", HUB_VIEW)
+        self.assertIn("Route::get('/preparation', 'preparation')", ROUTES)
+        self.assertIn("OfflinePreparationService::plan($request->user())", CONTROLLER)
+
+    def test_preparing_keeps_the_screen_and_its_list(self):
+        self.assertIn("fetch(slice.page, { credentials: 'same-origin' })", PREPARE_JS,
+                      "the page is fetched so the service worker has the screen")
+        self.assertIn("slice.snapshot_key", PREPARE_JS,
+                      "screens that read through this queue keep the snapshot in its store")
+        self.assertIn("entry.snapshot = true;", PREPARE_JS)
+        self.assertIn("entry.page = !!response.ok;", PREPARE_JS)
+        # Preparation is a copy, not a transaction: it never queues work.
+        self.assertNotIn("enqueue(", PREPARE_JS)
+        self.assertNotIn("flush(", PREPARE_JS)
+
+    def test_preparation_only_offers_what_the_login_may_work(self):
+        for perm in ("'pos.order'", "'pos.view'", "'frontdesk.view'", "'housekeeping.attendant'",
+                     "'housekeeping.manage'", "'requests.manage'"):
+            with self.subTest(perm=perm):
+                self.assertIn("hasPermission(" + perm + ")", PREP_SERVICE)
+        self.assertIn("! Route::has($page) || ! Route::has($snapshot)", PREP_SERVICE,
+                      "a slice whose routes are gone is not offered")
+        self.assertIn("array_values(array_filter([", PREP_SERVICE)
+        self.assertIn("'snapshot_key' => $snapshotKey", PREP_SERVICE)
+        self.assertIn("'pos'", PREP_SERVICE)
+        self.assertIn("'frontdesk'", PREP_SERVICE)
 
     # ── it has to parse ────────────────────────────────────────────────────────
 

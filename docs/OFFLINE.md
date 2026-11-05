@@ -90,6 +90,7 @@ moment a guest asks for the bill.
 | `public/js/offline-pos.js` | Restaurant terminal drawn from the snapshot. |
 | `public/js/offline-frontdesk.js` | Front desk: arrivals, in-house rooms, the charge form, drawn from the snapshot. |
 | `public/js/offline-queue.js` | The outbox screen: what this device holds, why the server refused it, retry and discard. |
+| `app/Services/OfflinePreparationService.php` | Which screens and snapshots a login may prepare on a device. |
 | `app/Services/OfflineSyncService.php` | Server half of the queue: dispatch, replay safety, housekeeping and guest-request slices. |
 | `app/Services/OfflinePosService.php` | Snapshot + `pos.order.create` + `pos.order.kot`. |
 | `app/Services/OfflineFrontDeskService.php` | Desk snapshot + `frontdesk.checkin` + `frontdesk.charge`, replayed through `StayService` and `FolioService`. |
@@ -124,10 +125,18 @@ be open: Safari has no Background Sync yet.
 ## 4. Preparing a device
 
 1. Sign in **while online**, on the network the device will work on.
-2. Open `/offline/pos` (and, if that member of staff covers rooms, `/offline/housekeeping`).
-   The snapshot downloads and the status line says *Saved on this device …*.
+2. Open `/offline` and press **Prepare now**. The device asks the server which
+   screens this login may work (`/offline/preparation`), then keeps each one: the
+   page itself, and its snapshot — in the shared cache for the restaurant and front
+   desk, and in the HTTP cache the service worker reads for the older housekeeping
+   and guest-request screens. The list says `ready` per screen, and the time of the
+   last preparation is kept so a supervisor can see how stale it is.
+   Opening each screen once while online does the same thing one at a time.
 3. Leave the tab open when the internet is expected to be shaky. The strip under
    the top bar shows offline state and how many changes are waiting.
+
+A login only ever prepares what its permissions carry: a waiter is not sent the
+folio snapshot, and a housekeeper is not sent the menu.
 4. When the connection returns, nothing has to be pressed: the queue sends itself.
 
 A device that never opened a screen online has nothing to draw from, and says so

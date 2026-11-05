@@ -12,7 +12,8 @@
   still works on this device, and what is waiting to be sent.
 --}}
 <div class="offline-hub"
-     data-snapshot-url="{{ route('offline.pos.snapshot') }}">
+     data-snapshot-url="{{ route('offline.pos.snapshot') }}"
+     data-preparation-url="{{ route('offline.preparation') }}">
 
   <div class="card mb-1">
     <div class="card-body flex justify-between gap-1 wrap">
@@ -76,6 +77,20 @@
 
   <section class="card flush">
     <div class="card-head">
+      <h3>Prepare this device</h3>
+      <button type="button" class="btn btn-sm btn-primary" data-hub-prepare>Prepare now</button>
+    </div>
+    <div class="card-body">
+      <p class="small muted" data-hub-prepare-note>
+        Pulls the screens and lists your login may work onto this device, so they open when the line is gone.
+        Do it once on a good connection; press again whenever the menu or the room list has moved.
+      </p>
+      <div class="offline-hub-prepare" data-hub-prepare-list aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="card flush">
+    <div class="card-head">
       <h3>Saved on this device</h3>
       <button type="button" class="btn btn-sm" data-outline-refresh>Refresh from the server</button>
     </div>
@@ -100,6 +115,9 @@
   const summaryEl = root.querySelector('[data-hub-summary]');
   const queueEl = root.querySelector('[data-hub-queue]');
   const hintEl = root.querySelector('[data-hub-hint]');
+  const prepareBtn = root.querySelector('[data-hub-prepare]');
+  const prepareNote = root.querySelector('[data-hub-prepare-note]');
+  const prepareList = root.querySelector('[data-hub-prepare-list]');
 
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never yet');
@@ -131,6 +149,58 @@
     hintEl.hidden = problems.length === 0;
     if (problems.length) hintEl.textContent = 'A change was refused or clashed with the server and is kept here so nothing disappears: open the screen it belongs to and redo it with the current figures.';
   }
+
+  // ── preparing this device ──────────────────────────────────────────────────
+
+  const PREPARED = 'prepared';
+
+  function paintPrepared(saved) {
+    const slices = (saved && saved.slices) || [];
+    if (!slices.length) { prepareList.innerHTML = ''; return; }
+
+    const done = slices.filter(s => s.page && (s.snapshot || !s.error));
+    prepareList.innerHTML =
+      '<div class="tiny muted" style="margin-bottom:.35rem">Prepared ' + esc(when(saved.at)) + ' · ' +
+        done.length + ' of ' + slices.length + ' screen(s)</div>' +
+      slices.map(s => {
+        const ok = s.page && !s.error;
+        return '<div class="offline-hub-prepare-row">' +
+          '<div><b>' + esc(s.label) + '</b><div class="tiny muted">' +
+            (ok ? (s.snapshot ? 'screen and list saved' : 'screen saved, list kept by the screen') : esc(s.error || 'not saved')) +
+          '</div></div>' +
+          '<span class="badge badge-' + (ok ? 'green' : 'amber') + '">' + (ok ? 'ready' : 'failed') + '</span>' +
+        '</div>';
+      }).join('');
+  }
+
+  async function prepare() {
+    prepareBtn.disabled = true;
+    prepareNote.textContent = 'Preparing — pulling each screen and its list…';
+    try {
+      const plan = await fetch(root.dataset.preparationUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(r => { if (!r.ok) throw new Error('The server could not say what to prepare (' + r.status + ').'); return r.json(); });
+      const slices = plan.slices || [];
+      if (!slices.length) {
+        prepareNote.textContent = 'This login has no offline screens to prepare.';
+        return;
+      }
+      const results = await window.PmsOffline.prepare(slices);
+      const saved = { at: new Date().toISOString(), business_date: plan.business_date, slices: results };
+      await window.PmsOffline.local.set(PREPARED, saved);
+      paintPrepared(saved);
+      const failed = results.filter(r => r.error || !r.page);
+      prepareNote.textContent = failed.length
+        ? failed.length + ' screen(s) could not be saved. Stay online and press Prepare now again.'
+        : 'Ready. Every screen your login may work is on this device.';
+    } catch (error) {
+      prepareNote.textContent = 'Preparation failed: ' + error.message;
+    } finally {
+      prepareBtn.disabled = false;
+    }
+  }
+
+  prepareBtn.addEventListener('click', prepare);
+  window.PmsOffline.local.get(PREPARED).then(paintPrepared).catch(() => {});
 
   window.PmsOffline.onChange(paint);
   root.querySelector('[data-outline-refresh]').addEventListener('click', () => window.PmsOffline.flush({ force: true }));

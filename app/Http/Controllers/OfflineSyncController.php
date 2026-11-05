@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\OfflineFrontDeskService;
+use App\Services\OfflinePreparationService;
 use App\Services\OfflineReconciliationService;
 use App\Services\OfflinePosService;
 use App\Services\OfflineSyncService;
@@ -21,6 +22,15 @@ class OfflineSyncController extends Controller
     public function queue()
     {
         return view('offline.queue');
+    }
+
+    /**
+     * What this login may prepare on this device, so the hub pulls the right
+     * screens and snapshots before the connection gets shaky.
+     */
+    public function preparation(Request $request): JsonResponse
+    {
+        return response()->json(OfflinePreparationService::plan($request->user()), 200, ['Cache-Control' => 'no-store']);
     }
 
     /**
