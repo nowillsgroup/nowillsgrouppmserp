@@ -47,6 +47,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'public/css/app.css');
   } else if (pathname === '/css/dashboard.css') {
     file = resolve(ROOT, 'public/css/dashboard.css');
+  } else if (pathname === '/css/offline.css') {
+    file = resolve(ROOT, 'public/css/offline.css');
   } else if (pathname.startsWith('/images/')) {
     file = resolve(ROOT, 'public', `.${pathname}`);
   }
