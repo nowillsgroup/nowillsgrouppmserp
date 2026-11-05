@@ -18,6 +18,7 @@ been taught to draw itself from a snapshot and to write its work into the queue.
 | Housekeeping | `/offline/housekeeping` | Room status, start / DND / complete a task, checklist, maintenance issue | Automatically |
 | Guest requests | `/offline/guest-requests` | Log a request against an in-house room | Automatically |
 | Front desk | `/offline/frontdesk` | Check a reserved guest into a vacant room, post a folio charge | Automatically, on the business date the desk was working |
+| Reconciliation | `/offline/reconciliation` | After an outage: every receipt a device left, what it produced, what was refused, CSV export | — |
 | Outbox | `/offline/queue` | Every change this device still holds, the server's reason when it refused one, and a person's decision: send it again or discard it | Automatically, or when the person presses *Sync now* |
 | Offline hub | `/offline` | What is saved on this device, what is queued, what needs a person | — |
 | Desk packs | `/offline/desktop` | Multi-day pack for a front-desk machine, then review what it sent back | On demand |
@@ -92,6 +93,7 @@ moment a guest asks for the bill.
 | `app/Services/OfflineSyncService.php` | Server half of the queue: dispatch, replay safety, housekeeping and guest-request slices. |
 | `app/Services/OfflinePosService.php` | Snapshot + `pos.order.create` + `pos.order.kot`. |
 | `app/Services/OfflineFrontDeskService.php` | Desk snapshot + `frontdesk.checkin` + `frontdesk.charge`, replayed through `StayService` and `FolioService`. |
+| `app/Services/OfflineReconciliationService.php` | Reads the receipts (`offline_sync_operations`) for the reconciliation page and its CSV. Read-only. |
 | `resources/views/offline/` | The hub and the workspaces. |
 | `database/migrations/*_add_offline_ref_to_pos_orders.php` | `pos_orders.offline_ref`: the device's reference for a bill it opened offline. |
 
@@ -153,7 +155,25 @@ rather than showing invented data.
 
 ---
 
-## 6. Honest limits
+## 6. After the line returns
+
+`/offline/reconciliation` is the evidence, not a promise. Every operation a device
+replays leaves a receipt in `offline_sync_operations`: which device, which member of
+staff, what was asked, what it produced (order number, room, folio) and whether it
+applied. The screen filters by date window (31 days at most), status, kind of work
+and device, and exports the same rows as CSV.
+
+It is read-only. Looking at what happened cannot change what happened: nothing on
+that screen replays, edits or deletes a receipt, and a refused change is still on
+the device — the page says so and links to `/offline/queue`, where a person sends it
+again or discards it.
+
+Who may read it: a login with `offline.desktop.view`, `frontdesk.view` or
+`housekeeping.manage`.
+
+---
+
+## 7. Honest limits
 
 * The snapshot is a copy. Two devices working the same table offline can both open
   a bill; the server joins the second one to the first and says so.
@@ -167,7 +187,7 @@ rather than showing invented data.
 
 ---
 
-## 7. Checking it
+## 8. Checking it
 
 ```bash
 python3 deploy/dev/audit/offline_core_check.py      # structure, rules, routes, docs

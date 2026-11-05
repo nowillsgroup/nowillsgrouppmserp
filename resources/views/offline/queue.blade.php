@@ -3,6 +3,9 @@
 @section('title', 'Outbox')
 @section('actions')
   <a class="btn" href="{{ route('offline.hub') }}"><x-icon name="wifi"/> Offline hub</a>
+  @if (can_do('offline.desktop.view') || can_do('frontdesk.view') || can_do('housekeeping.manage'))
+    <a class="btn" href="{{ route('offline.reconciliation') }}"><x-icon name="list"/> What this property sent</a>
+  @endif
   <button type="button" class="btn btn-primary" data-offline-sync-now><x-icon name="refresh"/> Sync now</button>
 @endsection
 

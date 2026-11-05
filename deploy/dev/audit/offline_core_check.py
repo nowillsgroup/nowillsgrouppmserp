@@ -39,6 +39,8 @@ DESK_JS = read("public/js/offline-frontdesk.js")
 DESK_VIEW = read("resources/views/offline/frontdesk.blade.php")
 QUEUE_JS = read("public/js/offline-queue.js")
 QUEUE_VIEW = read("resources/views/offline/queue.blade.php")
+RECON_SERVICE = read("app/Services/OfflineReconciliationService.php")
+RECON_VIEW = read("resources/views/offline/reconciliation.blade.php")
 STAY_SERVICE = read("app/Services/StayService.php")
 FOLIO_SERVICE = read("app/Services/FolioService.php")
 
@@ -371,6 +373,49 @@ class OfflineCoreCheck(unittest.TestCase):
         result = subprocess.run(["node", str(ROOT / "deploy/dev/build-offline-outbox-preview.js"), "--check"],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    # ── after the line returns ─────────────────────────────────────────────────
+
+    def test_the_reconciliation_page_reads_the_receipts_and_never_edits_them(self):
+        self.assertIn("class OfflineReconciliationService", RECON_SERVICE)
+        self.assertIn("OfflineSyncOperation::query()", RECON_SERVICE)
+        for write in ("->save(", "->update(", "->delete(", "::create(", "->forceDelete("):
+            with self.subTest(write=write):
+                self.assertNotIn(write, RECON_SERVICE, "looking at what happened must not change what happened")
+
+    def test_the_report_window_is_bounded(self):
+        self.assertIn("public const WINDOW_DAYS = 31;", RECON_SERVICE)
+        self.assertIn("if ($from->lt($earliest))", RECON_SERVICE)
+        self.assertIn("if ($to->gt($today))", RECON_SERVICE)
+        self.assertIn("public const LIMIT = 500;", RECON_SERVICE)
+        self.assertIn("'truncated' => $counts->sum() > self::LIMIT", RECON_SERVICE)
+        self.assertIn("if ($to->lt($from))", RECON_SERVICE, "a backwards range is swapped, not rejected")
+
+    def test_the_report_says_what_each_change_produced(self):
+        for key in ("$result['order']", "$result['stay']", "$result['charge']", "$result['room']", "$result['request']"):
+            with self.subTest(key=key):
+                self.assertIn(key, RECON_SERVICE)
+        self.assertIn("public const LABELS = [", RECON_SERVICE)
+        self.assertIn("'frontdesk.checkin' => 'Checked a guest in'", RECON_SERVICE)
+        self.assertIn("'pos.order.kot' => 'Sent dishes to the kitchen'", RECON_SERVICE)
+        self.assertIn("'needs_person' => in_array($operation->status, ['conflict', 'rejected'], true)", RECON_SERVICE)
+
+    def test_the_receipt_knows_who_sent_it(self):
+        model = read("app/Models/OfflineSyncOperation.php")
+        self.assertIn("public function user(): BelongsTo", model)
+        self.assertIn("return $this->belongsTo(User::class);", model)
+        self.assertIn("->with('user:id,name')", RECON_SERVICE)
+
+    def test_a_supervisor_reaches_the_report_and_can_export_it(self):
+        self.assertIn("Route::get('/reconciliation', 'reconciliation')", ROUTES)
+        self.assertIn("perm:offline.desktop.view,frontdesk.view,housekeeping.manage", ROUTES)
+        self.assertIn("return view('offline.reconciliation', $report);", CONTROLLER)
+        self.assertIn("response()->streamDownload(", CONTROLLER)
+        self.assertIn("OfflineReconciliationService::csv($report['rows'])", CONTROLLER)
+        self.assertIn("fputcsv(", RECON_SERVICE)
+        self.assertIn("request()->fullUrlWithQuery(['export' => 'csv'])", RECON_VIEW)
+        self.assertIn("route('offline.reconciliation')", read("resources/views/offline/desktop.blade.php"))
+        self.assertIn("route('offline.queue')", RECON_VIEW, "a refused change links to the device outbox")
 
     # ── it has to parse ────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\OfflineFrontDeskService;
+use App\Services\OfflineReconciliationService;
 use App\Services\OfflinePosService;
 use App\Services\OfflineSyncService;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,29 @@ class OfflineSyncController extends Controller
     public function queue()
     {
         return view('offline.queue');
+    }
+
+    /**
+     * What the devices sent back after an outage, and what it produced.
+     *
+     * Read-only: the receipts are the audit trail, so this screen shows them and
+     * never replays, edits or deletes one.
+     */
+    public function reconciliation(Request $request)
+    {
+        $report = OfflineReconciliationService::report($request->user(), $request->only(['from', 'to', 'device', 'status', 'operation']));
+
+        if ($request->query('export') === 'csv') {
+            $name = 'offline-reconciliation-'.$report['from']->toDateString().'_'.$report['to']->toDateString().'.csv';
+
+            return response()->streamDownload(
+                fn () => print OfflineReconciliationService::csv($report['rows']),
+                $name,
+                ['Content-Type' => 'text/csv; charset=UTF-8']
+            );
+        }
+
+        return view('offline.reconciliation', $report);
     }
 
     public function workspace()

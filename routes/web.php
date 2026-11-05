@@ -1358,6 +1358,9 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/', 'hub')->name('hub');
         // The outbox itself: everything this device still holds, and what a person must decide.
         Route::get('/queue', 'queue')->name('queue');
+        // After an outage: what the devices sent, what it created and what needs a person.
+        Route::get('/reconciliation', 'reconciliation')
+            ->middleware('perm:offline.desktop.view,frontdesk.view,housekeeping.manage')->name('reconciliation');
         // v7.78 offline ordering: menu, tables and running orders on the device, orders queued and replayed.
         Route::get('/pos', 'posWorkspace')->middleware('perm:pos.order,pos.view')->name('pos');
         Route::get('/pos/snapshot', 'posSnapshot')->middleware('perm:pos.order,pos.view')->name('pos.snapshot');
