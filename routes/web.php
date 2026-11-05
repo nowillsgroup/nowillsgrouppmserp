@@ -1354,11 +1354,28 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
 
     // ---- Offline-first workspace and authenticated browser outbox
     Route::prefix('offline')->name('offline.')->controller(Controllers\OfflineSyncController::class)->middleware('throttle:120,1')->group(function () {
+        // The hub is what the service worker falls back to, so it carries no permission of its own.
+        Route::get('/', 'hub')->name('hub');
+        // Which screens this login may keep on this device, so preparation is one press.
+        Route::get('/preparation', 'preparation')->name('preparation');
+        // The outbox itself: everything this device still holds, and what a person must decide.
+        Route::get('/queue', 'queue')->name('queue');
+        // After an outage: what the devices sent, what it created and what needs a person.
+        Route::get('/reconciliation', 'reconciliation')
+            ->middleware('perm:offline.desktop.view,frontdesk.view,housekeeping.manage')->name('reconciliation');
+        // v7.78 offline ordering: menu, tables and running orders on the device, orders queued and replayed.
+        Route::get('/pos', 'posWorkspace')->middleware('perm:pos.order,pos.view')->name('pos');
+        Route::get('/pos/snapshot', 'posSnapshot')->middleware('perm:pos.order,pos.view')->name('pos.snapshot');
         Route::get('/housekeeping', 'workspace')->middleware('perm:housekeeping.view,housekeeping.attendant,housekeeping.manage')->name('housekeeping');
         Route::get('/housekeeping/snapshot', 'housekeepingSnapshot')->middleware('perm:housekeeping.view,housekeeping.attendant,housekeeping.manage')->name('housekeeping.snapshot');
         Route::get('/guest-requests', 'guestRequests')->middleware('perm:requests.view,requests.manage')->name('guest_requests');
+        // Offline front desk: check a reserved guest in and post folio charges; payments stay online.
+        Route::get('/frontdesk', 'frontDeskWorkspace')->middleware('perm:frontdesk.view')->name('frontdesk');
+        Route::get('/frontdesk/snapshot', 'frontDeskSnapshot')->middleware('perm:frontdesk.view')->name('frontdesk.snapshot');
         Route::get('/guest-requests/snapshot', 'guestRequestSnapshot')->middleware('perm:requests.view,requests.manage')->name('guest_requests.snapshot');
-        Route::post('/sync', 'sync')->middleware('perm:housekeeping.manage,housekeeping.attendant,requests.manage')->name('sync');
+        // One outbox for every offline slice: any of the screens below may push, and the
+        // service checks the permission for each operation again.
+        Route::post('/sync', 'sync')->middleware('perm:housekeeping.manage,housekeeping.attendant,requests.manage,pos.order,pos.view,frontdesk.view,frontdesk.checkin,folio.post')->name('sync');
         // v7.39 desktop offline mode — multi-day cache-and-sync
         Route::prefix('desktop')->name('desktop.')->controller(Controllers\DesktopSyncController::class)->group(function () {
             Route::get('/', 'workspace')->middleware('perm:offline.desktop.view')->name('workspace');

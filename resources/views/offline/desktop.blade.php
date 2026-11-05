@@ -2,6 +2,7 @@
 @section('title', 'Desktop sync')
 
 @section('actions')
+<a class="btn" href="{{ route('offline.reconciliation') }}"><x-icon name="list"/> Sync activity</a>
 <a class="btn btn-primary" id="downloadPack" href="{{ route('offline.desktop.pack', ['days' => $window, 'device' => 'desk-01']) }}"><x-icon name="download"/> Download {{ $window }}-day pack</a>
 @endsection
 

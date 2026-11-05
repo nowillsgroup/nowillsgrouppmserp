@@ -41,3 +41,145 @@
 .offline-notice[hidden]{display:none}
 body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber) 45%,var(--c-border));color:var(--c-amber)}
 @media(max-width:860px){.offline-indicator{font-size:0;padding:.42rem}.offline-indicator-dot{width:.55rem;height:.55rem}.offline-workspace-state{white-space:normal;text-align:right}.offline-room-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}.offline-issue-fields{grid-template-columns:1fr 1fr}.offline-issue-fields input,.offline-issue-fields button{grid-column:1 / -1}}
+
+/* ── v7.78 offline restaurant terminal ───────────────────────────────────────
+   The screen a waiter uses when the connection is gone: tables, menu, ticket and
+   the queue. Everything is drawn from the device's snapshot, so the layout must
+   hold up on a phone in one hand and on a wall-mounted tablet. */
+.offline-pos{display:flex;flex-direction:column;gap:.85rem}
+.offline-pos-strip .card-body{gap:1rem;align-items:flex-start}
+.offline-pos-state{align-self:center;padding:.4rem .7rem;border:1px solid var(--c-border);border-radius:999px;background:var(--c-surface-2, #f6f8f7);font-size:.78rem;font-weight:650;color:var(--c-text-2);white-space:nowrap}
+.offline-pos-state.is-offline{border-color:color-mix(in srgb,var(--c-amber) 45%,var(--c-border));background:color-mix(in srgb,var(--c-amber) 10%,#fff);color:#8a5a10}
+.offline-pos-grid{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(300px,1.2fr) minmax(280px,1fr);gap:.85rem;align-items:start}
+.offline-pos-pane{min-width:0}
+.offline-pos-setup{display:flex;flex-wrap:wrap;gap:.5rem;align-items:end;margin-bottom:.7rem}
+.offline-pos-field{display:flex;flex-direction:column;gap:.2rem;font-size:.72rem;color:var(--c-text-2);min-width:0;flex:1 1 8rem}
+.offline-pos-field-narrow{flex:0 0 5.5rem}
+.offline-pos-field select,.offline-pos-field input{min-width:0}
+.offline-pos-tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:.45rem}
+.offline-pos-table{display:flex;flex-direction:column;gap:.15rem;align-items:flex-start;padding:.55rem .6rem;border:1px solid var(--c-border);border-radius:10px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.offline-pos-table:hover,.offline-pos-table:focus-visible{border-color:color-mix(in srgb,var(--c-green) 45%,var(--c-border))}
+.offline-pos-table.is-busy{background:color-mix(in srgb,var(--c-green) 7%,#fff);border-color:color-mix(in srgb,var(--c-green) 30%,var(--c-border))}
+.offline-pos-table.is-local{border-style:dashed}
+.offline-pos-table.is-active{box-shadow:0 0 0 2px color-mix(in srgb,var(--c-green) 38%,transparent)}
+.offline-pos-table-no{font-weight:800;font-size:.9rem}
+.offline-pos-table-total{font-size:.76rem;font-weight:700}
+.offline-pos-table-flag{align-self:flex-start;padding:0 .3rem;border-radius:4px;background:color-mix(in srgb,var(--c-amber) 20%,#fff);color:#8a5a10;font-size:.6rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.offline-pos-sub{margin:1rem 0 .4rem;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--c-text-2)}
+.offline-pos-orders{display:flex;flex-direction:column;gap:.35rem;max-height:15rem;overflow:auto}
+.offline-pos-order{display:grid;grid-template-columns:1fr auto;gap:.15rem .5rem;align-items:center;padding:.5rem .6rem;border:1px solid var(--c-border);border-radius:9px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.offline-pos-order.is-active{border-color:color-mix(in srgb,var(--c-green) 45%,var(--c-border));background:color-mix(in srgb,var(--c-green) 5%,#fff)}
+.offline-pos-order .badge{grid-column:2;justify-self:end}
+.offline-pos-order-total{font-weight:750;font-size:.85rem}
+.offline-pos-empty{margin:.5rem 0 0;padding:.6rem .7rem;border:1px dashed var(--c-border);border-radius:9px;color:var(--c-text-2);font-size:.8rem;background:#fbfcfb}
+.offline-pos-search{max-width:14rem}
+.offline-pos-categories{display:flex;gap:.35rem;overflow:auto;padding-bottom:.4rem;margin-bottom:.5rem}
+.offline-pos-category{padding:.35rem .7rem;border:1px solid var(--c-border);border-radius:999px;background:#fff;font:inherit;font-size:.78rem;cursor:pointer;white-space:nowrap;color:inherit}
+.offline-pos-category.is-active{background:var(--c-green);border-color:var(--c-green);color:#fff;font-weight:700}
+.offline-pos-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.45rem;max-height:26rem;overflow:auto}
+.offline-pos-item{display:flex;flex-direction:column;gap:.2rem;align-items:flex-start;padding:.55rem .6rem;border:1px solid var(--c-border);border-radius:10px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:inherit;min-height:3.4rem}
+.offline-pos-item:hover,.offline-pos-item:focus-visible{border-color:color-mix(in srgb,var(--c-green) 45%,var(--c-border));background:color-mix(in srgb,var(--c-green) 4%,#fff)}
+.offline-pos-item-name{font-weight:650;font-size:.85rem;line-height:1.25}
+.offline-pos-item-meta{font-size:.75rem;color:var(--c-text-2)}
+.offline-pos-item-side{font-weight:700;color:var(--c-green)}
+.offline-pos-draft{display:flex;flex-direction:column;gap:.35rem;max-height:22rem;overflow:auto}
+.offline-pos-line{display:grid;grid-template-columns:1fr auto auto auto;gap:.4rem;align-items:center;padding:.45rem .5rem;border-bottom:1px solid var(--c-border)}
+.offline-pos-line:last-child{border-bottom:0}
+.offline-pos-qty{display:flex;align-items:center;gap:.25rem;font-weight:700;font-size:.82rem}
+.offline-pos-qty .btn{padding:.1rem .4rem;line-height:1.1}
+.offline-pos-line-total{font-weight:750;font-size:.85rem;min-width:5.2rem;text-align:right}
+.offline-pos-draft-foot{display:flex;justify-content:space-between;align-items:end;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;padding-top:.7rem;border-top:1px solid var(--c-border)}
+.offline-pos-total{font-size:1.35rem;font-weight:850;letter-spacing:-.02em}
+.offline-pos-draft-actions{display:flex;gap:.4rem}
+.offline-pos-queue .card-body{padding-top:.5rem}
+.offline-pos-queue-row{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.4rem .1rem;border-bottom:1px solid var(--c-border);font-size:.82rem}
+.offline-pos-queue-row:last-child{border-bottom:0}
+.offline-pos-queue-conflict,.offline-pos-queue-rejected,.offline-pos-queue-stalled{color:#8a5a10}
+.offline-pos-modal{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(9,26,18,.45)}
+.offline-pos-modal[hidden]{display:none}
+.offline-pos-modal-panel{width:min(420px,100%);background:#fff;border-radius:14px;box-shadow:var(--shadow-lg);overflow:hidden}
+.offline-pos-modal-head,.offline-pos-modal-foot{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.8rem 1rem}
+.offline-pos-modal-head{border-bottom:1px solid var(--c-border)}
+.offline-pos-modal-head h3{margin:0;font-size:.95rem}
+.offline-pos-modal-body{padding:.9rem 1rem;max-height:60vh;overflow:auto}
+.offline-pos-modal-foot{border-top:1px solid var(--c-border);background:#fbfcfb}
+.offline-pos-side{display:flex;align-items:center;gap:.55rem;padding:.5rem .35rem;border-bottom:1px solid var(--c-border);cursor:pointer;font-size:.86rem}
+.offline-pos-side:last-child{border-bottom:0}
+.offline-pos-side .tiny{margin-left:auto;color:var(--c-text-2)}
+
+/* The offline hub the service worker falls back to. */
+.offline-hub-card{display:block;text-decoration:none;color:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+.offline-hub-card:hover,.offline-hub-card:focus-visible{border-color:color-mix(in srgb,var(--c-green) 45%,var(--c-border));box-shadow:var(--shadow)}
+.offline-hub-card h3{margin:0 0 .3rem;font-size:.95rem}
+.offline-hub-card p{margin:0 0 .5rem}
+.offline-hub-summary{display:flex;flex-wrap:wrap;gap:1.4rem;margin-bottom:.8rem}
+.offline-hub-stat{display:flex;flex-direction:column;gap:.1rem}
+.offline-hub-stat b{font-size:1rem}
+.offline-hub-queue{display:flex;flex-direction:column;gap:.3rem}
+.offline-hub-row{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.4rem .1rem;border-bottom:1px solid var(--c-border);font-size:.82rem}
+.offline-hub-row:last-child{border-bottom:0}
+.offline-hub-row-conflict,.offline-hub-row-rejected,.offline-hub-row-stalled{color:#8a5a10}
+
+/* The app-wide strip: only on screen when there is something to say. */
+.sync-strip{display:none;align-items:center;gap:.6rem;padding:.4rem clamp(.75rem,2vw,1.4rem);border-bottom:1px solid color-mix(in srgb,var(--c-amber) 35%,var(--c-border));background:color-mix(in srgb,var(--c-amber) 12%,#fff);color:#7a4d0a;font-size:.78rem;font-weight:600}
+.sync-strip.is-visible{display:flex}
+.sync-strip[data-state="offline"]{background:color-mix(in srgb,var(--c-amber) 18%,#fff)}
+.sync-strip a,.sync-strip button{margin-left:auto;color:inherit;font-weight:750;text-decoration:underline;background:none;border:0;cursor:pointer;font:inherit;padding:0}
+
+@media(max-width:1180px){.offline-pos-grid{grid-template-columns:1fr 1fr}.offline-pos-draft-pane{grid-column:1 / -1}}
+@media(max-width:820px){.offline-pos-grid{grid-template-columns:1fr}.offline-pos-items{max-height:none}.offline-pos-orders{max-height:none}.offline-pos-state{white-space:normal;text-align:left}.offline-pos-search{max-width:none;width:100%}}
+
+/* Offline front desk: arrivals, in-house rows, the charge form and its queue. */
+.offline-desk-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:1rem;align-items:start}
+.offline-desk-arrivals,.offline-desk-inhouse{display:flex;flex-direction:column;max-height:22rem;overflow:auto}
+.offline-desk-row{display:flex;justify-content:space-between;gap:.7rem;align-items:center;padding:.5rem .1rem;border-bottom:1px solid var(--c-border)}
+.offline-desk-row:last-child{border-bottom:0}
+.offline-desk-row-main{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.offline-desk-row-main b{font-size:.85rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.offline-desk-row-actions{display:flex;gap:.4rem;align-items:center;flex:0 0 auto}
+.offline-desk-row-actions select{max-width:6.5rem;font-size:.8rem;padding:.25rem .4rem}
+.offline-desk-row.is-pending{opacity:.75}
+.offline-desk-charge{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.offline-desk-charge label{display:flex;flex-direction:column;gap:.2rem;font-size:.78rem;font-weight:650;color:var(--c-text-2)}
+.offline-desk-charge input[type="text"],.offline-desk-charge input[type="number"],.offline-desk-charge select{font:inherit;font-size:.85rem;padding:.35rem .5rem;border:1px solid var(--c-border);border-radius:8px;background:#fff;color:inherit}
+.offline-desk-charge .offline-desk-check{flex-direction:row;align-items:center;gap:.4rem;grid-column:1 / -1;font-size:.8rem;color:var(--c-text-2)}
+.offline-desk-charge button{grid-column:1 / -1;justify-self:start}
+@media(max-width:1000px){.offline-desk-grid{grid-template-columns:1fr}.offline-desk-arrivals,.offline-desk-inhouse{max-height:none}.offline-desk-charge{grid-template-columns:1fr}}
+
+/* The outbox screen: what this device still holds, and what a person must decide. */
+.offline-queue-summary{display:flex;flex-wrap:wrap;gap:1.6rem;margin:1rem 0 1rem}
+.offline-queue-stat{display:flex;flex-direction:column;gap:.1rem}
+.offline-queue-stat b{font-size:1.05rem;font-weight:700}
+.offline-queue-list{display:flex;flex-direction:column;max-height:26rem;overflow:auto}
+.offline-queue-row{display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start;padding:.6rem .1rem;border-bottom:1px solid var(--c-border)}
+.offline-queue-row:last-child{border-bottom:0}
+.offline-queue-row-main{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.offline-queue-row-main b{font-size:.86rem;font-weight:650}
+.offline-queue-error{margin:.15rem 0 0;color:#8a5a10;font-weight:600}
+.offline-queue-row-conflict .offline-queue-error,.offline-queue-row-rejected .offline-queue-error,.offline-queue-row-stalled .offline-queue-error{color:#8a2f2f}
+.offline-queue-row-actions{display:flex;gap:.4rem;flex:0 0 auto}
+.offline-queue-detail{margin-top:.2rem}
+.offline-queue-detail summary{cursor:pointer;list-style:none}
+.offline-queue-detail summary::-webkit-details-marker{display:none}
+.offline-queue-detail summary::before{content:'▸ ';font-weight:700}
+.offline-queue-detail[open] summary::before{content:'▾ '}
+.offline-queue-detail pre{margin:.35rem 0 0;padding:.55rem .65rem;border:1px solid var(--c-border);border-radius:8px;background:#fbfcfb;font-size:.72rem;line-height:1.45;overflow:auto;max-height:12rem}
+@media(max-width:820px){.offline-queue-row{flex-direction:column}.offline-queue-row-actions{width:100%}.offline-queue-row-actions .btn{flex:1 1 auto}}
+
+/* Offline reconciliation: what each device sent back, and what it produced. */
+.offline-recon-row-conflict td,.offline-recon-row-rejected td,.offline-recon-row-stalled td{background:color-mix(in srgb,var(--c-amber) 7%,#fff)}
+.offline-recon-reason{color:#8a2f2f;font-weight:600;max-width:22rem}
+.table td.offline-recon-reason{white-space:normal}
+
+/* Preparing a device: which screens this login may keep, and whether they saved. */
+.offline-hub-prepare{display:flex;flex-direction:column;gap:.3rem}
+.offline-hub-prepare-row{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.35rem .1rem;border-bottom:1px solid var(--c-border);font-size:.82rem}
+.offline-hub-prepare-row:last-child{border-bottom:0}
+
+/* A room whose status is still queued on this device. */
+.offline-room-card.is-pending{outline:2px dashed color-mix(in srgb,var(--c-amber) 55%,transparent);outline-offset:2px}
+
+/* What this browser can do: worker, cache, storage, background sync, list ages. */
+.offline-hub-health{display:flex;flex-direction:column;gap:.3rem}
+.offline-hub-health-row{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.35rem .1rem;border-bottom:1px solid var(--c-border);font-size:.82rem}
+.offline-hub-health-row:last-child{border-bottom:0}

@@ -181,6 +181,12 @@
       </div>
     </header>
 
+    {{-- v7.78: says what is queued on this device, and only appears when there is something to say. --}}
+    <div class="sync-strip" data-sync-strip role="status" aria-live="polite" hidden>
+      <span data-sync-strip-text>Working from this device</span>
+      <a href="{{ route('offline.hub') }}" data-sync-strip-link>What is saved here</a>
+    </div>
+
     <main class="content{{ request()->routeIs('pos.terminal') ? ' pos-terminal-page' : '' }}">
       @unless($__env->hasSection('hidePageHead'))
         <div class="page-head">
@@ -197,7 +203,35 @@
   </div>
 </div>
 <script src="{{ asset('js/app.js') }}?v={{ config('pms.version') }}"></script>
+<script src="{{ asset('js/offline-core.js') }}?v={{ config('pms.version') }}"></script>
 <script src="{{ asset('js/offline-sync.js') }}?v={{ config('pms.version') }}"></script>
+<script>
+// The offline queue is shared by every screen: this keeps the strip honest even on
+// pages that know nothing about offline work.
+(function () {
+  if (!window.PmsOffline) return;
+  const strip = document.querySelector('[data-sync-strip]');
+  const text = document.querySelector('[data-sync-strip-text]');
+  const paint = status => {
+    if (!strip || !text) return;
+    const waiting = status.queued || 0;
+    const problems = (status.conflicts || 0) + (status.rejected || 0);
+    const lines = [];
+    if (!status.online) lines.push('Offline — this device keeps working');
+    if (waiting) lines.push(waiting + (waiting === 1 ? ' change' : ' changes') + ' waiting to sync');
+    if (problems) lines.push(problems + ' need attention');
+    if (status.syncing) lines.push('Syncing…');
+    text.textContent = lines.join(' · ');
+    strip.hidden = lines.length === 0;
+    strip.classList.toggle('is-visible', lines.length > 0);
+    strip.dataset.state = status.online ? 'online' : 'offline';
+  };
+  window.PmsOffline.onChange(paint);
+  window.PmsOffline.watch();
+  document.querySelectorAll('[data-offline-sync-now]').forEach(button =>
+    button.addEventListener('click', () => window.PmsOffline.flush({ force: true })));
+})();
+</script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('{{ asset('sw.js') }}', { updateViaCache: 'none' }).catch(() => {}));

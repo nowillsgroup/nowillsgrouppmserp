@@ -19,13 +19,17 @@ use Throwable;
 /**
  * Server half of the browser offline outbox.
  *
- * The housekeeping slice supports room-status changes and assigned task
- * actions. Both are replay-safe and reject stale changes rather than silently
+ * Slices today: housekeeping (room status, task actions, maintenance issues),
+ * guest requests, restaurant ordering (see OfflinePosService) and front desk
+ * check-in / folio charges (see OfflineFrontDeskService). Neither the restaurant nor
+ * the desk posts money from a queued operation. All are replay-safe: an operation id is
+ * stored when it lands, so a retried request returns the first answer instead of
+ * applying the change twice, and stale changes are reported rather than silently
  * overwriting a newer server-side action.
  */
 class OfflineSyncService
 {
-    public const VERSION = 5;
+    public const VERSION = 7;
 
     public const ROOM_STATUSES = ['clean', 'dirty', 'inspected', 'touch_up'];
 
@@ -130,6 +134,10 @@ class OfflineSyncService
             'housekeeping.task' => self::applyTask($operationId, $operation, $raw, $payload, $deviceId, $user),
             'housekeeping.maintenance' => self::applyMaintenance($operationId, $operation, $payload, $deviceId, $user),
             'guest_request.create' => self::applyGuestRequest($operationId, $operation, $payload, $deviceId, $user),
+            'pos.order.create' => OfflinePosService::createOrder($operationId, $operation, $payload, $deviceId, $user),
+            'pos.order.kot' => OfflinePosService::addItems($operationId, $operation, $payload, $deviceId, $user),
+            'frontdesk.checkin' => OfflineFrontDeskService::checkIn($operationId, $operation, $payload, $deviceId, $user),
+            'frontdesk.charge' => OfflineFrontDeskService::postCharge($operationId, $operation, $payload, $deviceId, $user),
             default => self::rejectUnsupported($operationId, $operation ?: 'unknown', $payload, $deviceId, $user),
         };
     }
@@ -349,6 +357,30 @@ class OfflineSyncService
         });
     }
 
+    /**
+     * The business date the device was working on, never one it could invent:
+     * today, or up to $backdateDays of catch-up for work done during an outage.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public static function deviceBusinessDate(array $payload, int $backdateDays = 7): Carbon
+    {
+        $raw = trim((string) ($payload['business_date'] ?? ''));
+        $today = bdate()->copy()->startOfDay();
+        if ($raw === '') {
+            return $today;
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            throw ValidationException::withMessages(['payload.business_date' => ['The business date must be a calendar date.']]);
+        }
+        $date = Carbon::createFromFormat('Y-m-d', $raw, $today->timezone)->startOfDay();
+        if ($date->gt($today) || $date->lt($today->copy()->subDays($backdateDays))) {
+            throw ValidationException::withMessages(['payload.business_date' => ['A device may only post work from the last '.$backdateDays.' business days.']]);
+        }
+
+        return $date;
+    }
+
     protected static function baseTimestamp(array $raw, array $payload): string
     {
         $value = (string) ($raw['base_updated_at'] ?? $payload['base_updated_at'] ?? '');
@@ -397,11 +429,11 @@ class OfflineSyncService
     /** @param array<string, mixed> $payload */
     protected static function persistRejected(string $operationId, string $operation, array $payload, ?string $deviceId, User $user, string $error): array
     {
-        return self::record($operationId, $operation, $payload, $deviceId, $user, 'rejected', $payload['room_id'] ?? $payload['task_id'] ?? $payload['stay_id'] ?? null, null, $error);
+        return self::record($operationId, $operation, $payload, $deviceId, $user, 'rejected', $payload['room_id'] ?? $payload['task_id'] ?? $payload['stay_id'] ?? $payload['order_id'] ?? null, null, $error);
     }
 
     /** @param array<string, mixed>|null $result */
-    protected static function record(string $operationId, string $operation, array $payload, ?string $deviceId, User $user, string $status, ?int $entityId, ?array $result = null, ?string $error = null): array
+    public static function record(string $operationId, string $operation, array $payload, ?string $deviceId, User $user, string $status, ?int $entityId, ?array $result = null, ?string $error = null): array
     {
         $record = OfflineSyncOperation::create([
             'user_id' => $user->id, 'operation_id' => $operationId, 'device_id' => $deviceId,
@@ -412,11 +444,17 @@ class OfflineSyncService
         return self::stored($record);
     }
 
-    protected static function stored(OfflineSyncOperation $operation): array
+    public static function stored(OfflineSyncOperation $operation): array
     {
         return ['operation_id' => $operation->operation_id, 'status' => $operation->status,
             'room' => $operation->result['room'] ?? null, 'task' => $operation->result['task'] ?? null,
             'ticket' => $operation->result['ticket'] ?? null, 'request' => $operation->result['request'] ?? null,
+            // Restaurant work: the order the sync produced, so the device can relabel
+            // the order it opened while it was offline.
+            'order' => $operation->result['order'] ?? null, 'kot' => $operation->result['kot'] ?? null,
+            // Front desk work: the stay that moved and the charge that posted.
+            'stay' => $operation->result['stay'] ?? null, 'charge' => $operation->result['charge'] ?? null,
+            'folio' => $operation->result['folio'] ?? null, 'already' => $operation->result['already'] ?? null,
             'error' => $operation->error];
     }
 
