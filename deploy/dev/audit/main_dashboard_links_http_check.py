@@ -31,7 +31,7 @@ class QuickActions(HTMLParser):
         values = dict(attrs)
         if values.get("id"):
             self.ids.append(values["id"])
-        if tag == "nav" and "dash-welcome-actions" in (values.get("class") or "").split():
+        if tag == "nav" and "dash-exec-actions" in (values.get("class") or "").split():
             self.in_actions = True
         elif self.in_actions and tag == "a":
             self.current = {"href": values.get("href") or "", "label": ""}
@@ -64,7 +64,7 @@ def main() -> int:
     except (HTTPError, URLError, TimeoutError) as error:
         print(f"FAIL main dashboard request: {error}", file=sys.stderr)
         return 1
-    if status != 200 or 'class="dash-welcome-actions"' not in html:
+    if status != 200 or 'class="dash-exec-actions"' not in html:
         print(f"FAIL expected the main dashboard quick actions (HTTP {status}, {final_url})", file=sys.stderr)
         return 1
 

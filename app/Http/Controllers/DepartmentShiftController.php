@@ -55,4 +55,23 @@ class DepartmentShiftController extends Controller
 
         return view('department-shifts.show', ['session' => $session, 'summary' => DepartmentShiftService::summary($session)]);
     }
+
+    /** Printable report for a whole business date: every service shift and what each collected. */
+    public function printDay(Request $request)
+    {
+        abort_unless($request->user()->hasPermission('pos.order') || $request->user()->hasPermission('pos.shift_view_all'), 403);
+        $data = $request->validate(['date' => 'nullable|date']);
+
+        return view('department-shifts.day-print', DepartmentShiftService::workspace($request->user(), $data['date'] ?? null));
+    }
+
+    /** Printable live totals sheet the waiter can hand over with the bill folder. */
+    public function print(Request $request, DepartmentShiftSession $session)
+    {
+        abort_unless($session->department === DepartmentShiftService::FOOD_BEVERAGE, 404);
+        abort_unless((int) $session->user_id === (int) $request->user()->id || $request->user()->hasPermission('pos.shift_view_all'), 403);
+        $session->load(['user', 'posOrders.outlet', 'posOrders.table']);
+
+        return view('department-shifts.print', ['session' => $session, 'summary' => DepartmentShiftService::summary($session)]);
+    }
 }

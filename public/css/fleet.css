@@ -1,0 +1,47 @@
+/* Fleet management: live GPS board, maintenance & fuel panels. */
+.fleet-map-wrap { position: relative; }
+.fleet-map {
+  position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 260px;
+  border-radius: 12px; overflow: hidden; background: var(--c-surface-2, #f1f5f3);
+  border: 1px solid var(--c-border);
+}
+.fleet-map svg { display: block; width: 100%; height: 100%; }
+.fleet-map .grid-line { stroke: var(--c-border); stroke-width: 1; opacity: .55; }
+.fleet-map .trail { fill: none; stroke: var(--c-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.fleet-map .trail.stale { stroke: var(--c-text-3, #94a3b8); opacity: .3; }
+.fleet-map .fence circle { fill-opacity: .07; stroke-width: 1.5; stroke-dasharray: 7 5; }
+.fleet-map .fence text { font-size: 10px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--c-surface, #fff); stroke-width: 3px; fill: var(--c-text-2, #475569); }
+.fleet-map .fence.yard circle { fill: #16a34a; stroke: #16a34a; }
+.fleet-map .fence.zone circle { fill: #2563eb; stroke: #2563eb; }
+.fleet-map .fence.restricted circle { fill: #dc2626; stroke: #dc2626; }
+.fleet-map .marker circle { stroke: #fff; stroke-width: 2; }
+.fleet-map .marker text { font-size: 11px; font-weight: 700; fill: var(--c-text); paint-order: stroke; stroke: var(--c-surface, #fff); stroke-width: 3px; }
+.fleet-map .marker.moving circle { fill: #16a34a; }
+.fleet-map .marker.parked circle { fill: #2563eb; }
+.fleet-map .marker.offline circle { fill: #dc2626; }
+.fleet-map .marker.never circle, .fleet-map .marker.disabled circle { fill: #64748b; }
+.fleet-map-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 1.5rem; color: var(--c-text-2); }
+.fleet-map-meta { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; margin-top: .5rem; }
+.fleet-legend { display: flex; flex-wrap: wrap; gap: .75rem; font-size: .78rem; color: var(--c-text-2); }
+.fleet-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.fleet-dot { width: .6rem; height: .6rem; border-radius: 999px; display: inline-block; }
+.fleet-dot.moving { background: #16a34a; }
+.fleet-dot.parked { background: #2563eb; }
+.fleet-dot.offline { background: #dc2626; }
+.fleet-dot.never, .fleet-dot.disabled { background: #64748b; }
+.fleet-state { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.fleet-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; word-break: break-all;
+  background: var(--c-surface-2, #f1f5f3); border: 1px dashed var(--c-border); border-radius: 8px; padding: .55rem .7rem; display: block;
+}
+.fleet-endpoint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; word-break: break-all; }
+.fleet-kv { display: grid; grid-template-columns: max-content 1fr; gap: .35rem .9rem; font-size: .84rem; }
+.fleet-kv dt { color: var(--c-text-2); }
+.fleet-kv dd { margin: 0; font-weight: 600; }
+.fleet-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+@media (max-width: 720px) {
+  .fleet-map { aspect-ratio: 4 / 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-map .trail { transition: none; }
+}

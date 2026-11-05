@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UI previews · Nowills PMS</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  body { margin: 0; background: #f4f7f5; color: #102b1e; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .pv { max-width: 940px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+  .pv h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  .pv p.lead { margin: 0 0 1.5rem; color: #44584c; font-size: .92rem; }
+  .pv-note { background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .7rem .9rem; font-size: .82rem; margin-bottom: 1.5rem; }
+  .pv-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .pv-card { display: block; background: #fff; border: 1px solid #dbe4dd; border-radius: 14px; padding: 1.1rem 1.15rem; text-decoration: none; color: inherit; box-shadow: 0 1px 2px rgba(16, 43, 30, .06); }
+  .pv-card:hover, .pv-card:focus-visible { border-color: #1f7a4d; box-shadow: 0 4px 14px rgba(16, 43, 30, .12); }
+  .pv-card h2 { font-size: 1rem; margin: 0 0 .3rem; }
+  .pv-card p { margin: 0; font-size: .82rem; color: #44584c; }
+  .pv-card .pv-tag { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #1f7a4d; background: #e7f4ec; border-radius: 999px; padding: .15rem .5rem; margin-bottom: .5rem; }
+  .pv-foot { margin-top: 1.75rem; font-size: .78rem; color: #667a6d; }
+</style>
+</head>
+<body>
+<main class="pv">
+  <h1>UI previews</h1>
+  <p class="lead">Static, read-only screens for the redesigned dashboard and the fleet management module — overview, live tracking, maintenance and fuel. Nothing here connects to a database.</p>
+  <div class="pv-note" role="note"><strong>Illustrative only.</strong> Figures, vehicles and GPS positions are sample values; these pages create no records and call no operational services.</div>
+
+  <div class="pv-cards">
+    <a class="pv-card" href="/__preview/management-dashboard">
+      <span class="pv-tag">Dashboard</span>
+      <h2>Management overview</h2>
+      <p>Executive KPIs, department pulse, revenue &amp; occupancy trend and the operating-pulse panel.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-overview">
+      <span class="pv-tag">Fleet</span>
+      <h2>Fleet management</h2>
+      <p>Vehicle register with GPS state, running cost, fuel efficiency, speeding, off-trip movement, fences and workshop status.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-maintenance">
+      <span class="pv-tag">Fleet</span>
+      <h2>Maintenance &amp; repairs</h2>
+      <p>Workshop performance, days off road, open-job ageing, service plans and work orders with estimate versus actual cost.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-fuel">
+      <span class="pv-tag">Fleet</span>
+      <h2>Fuel &amp; efficiency</h2>
+      <p>Fills to check, six-month price trend, station comparison, km per litre and cost per kilometre per vehicle.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-vehicle">
+      <span class="pv-tag">Fleet</span>
+      <h2>Vehicle history</h2>
+      <p>One car end to end: GPS state, papers, workshop, pre-trip inspection form, transfers against the trail, speeding, fences and running expenses.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-work-order">
+      <span class="pv-tag">Fleet</span>
+      <h2>Printable job card</h2>
+      <p>The work order a garage receives: vehicle, work requested, inspection defects, posted costs, release checklist and signatures.</p>
+    </a>
+    <a class="pv-card" href="/__preview/pos-terminal">
+      <span class="pv-tag">Restaurant POS</span>
+      <h2>Terminal · order placement</h2>
+      <p>Tap a dish to build a kitchen ticket; a dish that comes with a side asks for the side first, with optional rates shown as <em>included</em>.</p>
+    </a>
+    <a class="pv-card" href="/__preview/service-shift-totals">
+      <span class="pv-tag">My shift</span>
+      <h2>Service shift totals sheet</h2>
+      <p>Live shift totals by payment method with one total, and the printable handover sheet it produces.</p>
+    </a>
+    <a class="pv-card" href="/__preview/qr-menu">
+      <span class="pv-tag">Guest QR menu</span>
+      <h2>Guest picks the side dish</h2>
+      <p>The self-ordering page on the guest's own phone: ADD opens the side sheet first, and a side dish with no rate reads <em>included</em>.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-cost-statement">
+      <span class="pv-tag">Fleet</span>
+      <h2>Monthly cost statement</h2>
+      <p>The end-of-month statement accounts ask for: running cost per vehicle, GPS distance, cost per km, fleet totals and signature lines.</p>
+    </a>
+    <a class="pv-card" href="/__preview/fleet-tracking">
+      <span class="pv-tag">Fleet</span>
+      <h2>Live vehicle tracking</h2>
+      <p>GPS map with moving / parked / signal-lost states, trails, fences, device list and the tracker pairing form.</p>
+    </a>
+  </div>
+
+  <p class="pv-foot">The real screens live in the application under <code>Dashboard</code> and <code>Transport › Fleet Management</code>. Served by the development preview server only.</p>
+</main>
+</body>
+</html>

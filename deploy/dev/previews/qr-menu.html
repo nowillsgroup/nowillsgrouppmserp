@@ -1,0 +1,125 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guest QR menu · side dishes — UI-only preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  :root{--pv-green:#166534;--pv-ink:#172033;--pv-muted:#64748b;--pv-line:#dce5df}
+  body{margin:0;background:#eef2ef;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  .pv-wrap{max-width:1180px;margin:0 auto;padding:clamp(14px,2vw,26px)}
+  .pv-banner{display:flex;gap:10px;margin-bottom:16px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
+  .pv-banner strong{color:#63481a}
+  .pv-head{margin:0 0 14px}
+  .pv-head h1{margin:0;font-size:clamp(1.3rem,2.4vw,1.75rem);letter-spacing:-.03em}
+  .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
+  .pv-kicker{display:block;margin-bottom:4px;color:var(--pv-green);font-size:.66rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+  .pv-stage{display:flex;gap:clamp(16px,3vw,34px);align-items:flex-start;flex-wrap:wrap}
+  .pv-phone{position:relative;flex:none;width:min(100%,392px);border-radius:34px;background:#0f1c15;padding:9px;box-shadow:0 26px 60px rgba(15,28,21,.28)}
+  .pv-screen{position:relative;overflow:hidden;border-radius:27px;background:#f6f7fb;height:720px;display:flex;flex-direction:column}
+  .qm-head{background:linear-gradient(135deg,#10271c,#166534);color:#fff;padding:1.15rem 1rem .95rem}
+  .qm-head h1{font-size:1.25rem;margin:0}.qm-head .sub{opacity:.85;font-size:.82rem}
+  .qm-table{display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:.15rem .7rem;font-size:.78rem;margin-top:.4rem}
+  .qm-cats{display:flex;gap:.4rem;background:#fff;border-bottom:1px solid var(--pv-line);padding:.55rem .8rem;font-size:.8rem}
+  .qm-cats span{padding:.3rem .75rem;border-radius:999px;background:#f0fdf4;color:var(--pv-green)}
+  .qm-cats span.active{background:var(--pv-green);color:#fff}
+  .qm-body{flex:1;overflow:auto;padding:.6rem .8rem}
+  .qm-item{display:flex;gap:.75rem;align-items:center;background:#fff;border:1px solid var(--pv-line);border-radius:12px;padding:.75rem;margin-bottom:.55rem}
+  .qm-item .info{flex:1;min-width:0}
+  .qm-item .nm{font-weight:650;font-size:.92rem}
+  .qm-item .ds{font-size:.78rem;color:var(--pv-muted);margin-top:.1rem}
+  .qm-item .pr{font-weight:700;margin-top:.2rem;font-size:.9rem}
+  .qm-add{border:1px solid var(--pv-green);color:var(--pv-green);background:#fff;border-radius:9px;padding:.42rem .9rem;font-weight:700;font-size:.82rem}
+  .qm-bar{display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:#0f1c15;color:#fff;padding:.7rem .85rem}
+  .qm-bar b{font-variant-numeric:tabular-nums}
+  .qm-bar button{background:#22c55e;color:#04240f;border:0;border-radius:9px;padding:.5rem .95rem;font-weight:800;font-size:.82rem}
+  .qv-sheet{position:absolute;inset:0;display:flex;align-items:flex-end;background:rgba(8,20,14,.55)}
+  .qv-sheet .box{width:100%;background:#fff;border-radius:18px 18px 0 0;padding:1rem .95rem 1.15rem;box-shadow:0 -12px 30px rgba(8,20,14,.28)}
+  .qv-sheet h3{margin:0 0 .2rem;font-size:1.02rem}
+  .qv-sheet .hint{margin:0 0 .6rem;font-size:.78rem;color:var(--pv-muted)}
+  .qv-sheet .go{display:block;width:100%;border:0;border-radius:10px;padding:.7rem;margin-top:.85rem;background:var(--pv-green);color:#fff;font-weight:800;font-size:.9rem}
+  .pv-aside{flex:1;min-width:min(100%,320px)}
+  .pv-aside h2{margin:0 0 .5rem;font-size:1.02rem}
+  .pv-aside ol{margin:0;padding-left:1.15rem;color:#334155;font-size:.86rem;line-height:1.6}
+  .pv-aside li{margin-bottom:.45rem}
+  .pv-aside .card{margin-top:1rem}
+</style>
+</head><body>
+<main class="pv-wrap">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative menu, no operational records.</strong>
+      The real page reads this table's outlet menu and side dishes from the tenant database; orders it sends stay <em>pending</em> until staff accept them.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-terminal">POS terminal</a></div>
+    </div>
+  </div>
+
+  <div class="pv-head">
+    <span class="pv-kicker">Guest QR menu · self-ordering</span>
+    <h1>The guest picks the side on their own phone</h1>
+    <p>Same rule as the terminal: a dish with side dishes asks for them first, and a side dish with no rate is <em>included</em>.</p>
+  </div>
+
+  <div class="pv-stage">
+    <div class="pv-phone">
+      <div class="pv-screen">
+        <div class="qm-head"><h1>Garden Restaurant</h1><div class="sub">Nowills Hotel</div><span class="qm-table">Table 7</span></div>
+        <div class="qm-cats"><span class="active">Main course</span><span>Sides</span><span>Dessert</span><span>Drinks</span></div>
+        <div class="qm-body">
+          <div class="qm-item">
+            <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Grilled chicken</div>
+              <div class="ds">Charcoal grilled, pepper sauce</div>
+              <div class="pr">GH₵ 85.00 <span class="tiny muted">· 3 sides</span></div></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+          </div>
+          <div class="qm-item">
+            <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Jollof rice &amp; chicken</div>
+              <div class="ds">Smoky jollof, grilled chicken thigh</div>
+              <div class="pr">GH₵ 72.00 <span class="tiny muted">· 2 sides</span></div></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+          </div>
+          <div class="qm-item">
+            <div class="info"><div class="nm"><span class="veg-dot veg"></span> Palava sauce &amp; yam</div>
+              <div class="ds">Slow-cooked greens, boiled yam</div>
+              <div class="pr">GH₵ 64.00</div></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+          </div>
+          <div class="qm-item">
+            <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Banku &amp; tilapia</div>
+              <div class="ds">Grilled tilapia, ground pepper</div>
+              <div class="pr">GH₵ 95.00 <span class="tiny muted">· 2 sides</span></div></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+          </div>
+        </div>
+        <div class="qm-bar"><div><b>3</b> item(s) · <b>GH₵ 229.50</b></div><button type="button" disabled title="Preview only">View order</button></div>
+
+        <div class="qv-sheet" role="dialog" aria-modal="true" aria-labelledby="guestSideTitle">
+          <div class="box">
+            <h3 id="guestSideTitle">Side dish for Grilled chicken</h3>
+            <p class="hint">This dish comes with a side. Continue with none if you do not want one.</p>
+            <fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0">
+              <legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>
+              <label class="check"><input type="checkbox" checked disabled> French fries <span class="tiny muted">+GH₵ 12.50</span></label>
+              <label class="check"><input type="checkbox" disabled> Garden salad <span class="tiny muted">included</span></label>
+              <label class="check"><input type="checkbox" disabled> Fried plantain <span class="tiny muted">+GH₵ 8.00</span></label>
+            </fieldset>
+            <button type="button" class="go" disabled title="Preview only">Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="pv-aside">
+      <h2>What the guest sees</h2>
+      <ol>
+        <li>The dish tile shows how many sides it carries (<b>3 sides</b>), so nobody taps expecting a plain plate.</li>
+        <li><b>ADD</b> opens the side sheet first — tick one or more, or continue with none.</li>
+        <li>A side with a rate shows <b>+GH₵ 12.50</b>; a side with no rate in the menu master shows <b>included</b> and adds nothing.</li>
+        <li>If the dish also has options (spice level, doneness), the sheet moves on to them with the chosen sides already ticked.</li>
+        <li>The order reaches the POS as <b>pending</b> — no bill and no KOT until staff accept it, and the sides print with the line.</li>
+      </ol>
+      <div class="card"><div class="card-body small">
+        <b>Server side:</b> the sheet posts <code>items[n][variants][]</code>; the controller validates each id against this property, runs it through the same side-dish snapshot the terminal uses, and merges it into the stored add-on list with <code>type: side_dish</code>.
+      </div></div>
+    </aside>
+  </div>
+</main>
+</body></html>

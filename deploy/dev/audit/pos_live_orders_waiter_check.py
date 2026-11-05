@@ -27,7 +27,17 @@ class PosLiveOrdersWaiterTest(unittest.TestCase):
         self.assertIn('data-scope="mine"', VIEW)
         self.assertIn('data-scope="all"', VIEW)
         self.assertIn("$data['steward'] = filled($data['steward'] ?? null) ? trim($data['steward']) : (auth()->user()?->name ?: null);", CONTROLLER)
-        self.assertIn("Route::post('/orders/{order}/claim', 'claim')->middleware('perm:pos.order')->name('claim')", ROUTES)
+        # Claiming an order is a POS workflow action, so it sits behind both the permission and the
+        # open-shift gate (waiter_pos_shift_gate_check.py holds that side of the contract): a waiter
+        # with no open service shift cannot take an order off the floor. Assert the *properties* of
+        # the route rather than its exact text, so a later middleware addition cannot silently break
+        # the check the way it did before.
+        claim = [line for line in ROUTES.splitlines() if "'/orders/{order}/claim'" in line]
+        self.assertEqual(1, len(claim), "the claim route must exist exactly once")
+        self.assertIn("'claim'", claim[0])
+        self.assertIn("middleware('perm:pos.order')", claim[0], "claiming an order needs pos.order")
+        self.assertIn("middleware('waiter.shift')", claim[0], "claiming an order needs an open waiter shift")
+        self.assertIn("->name('claim')", claim[0])
         self.assertIn("$locked->steward = $waiter", CONTROLLER)
         self.assertIn('data-claim-url="${esc(order.claim_url)}"', VIEW)
         self.assertIn("Order assigned to you and added to My orders.", VIEW)

@@ -197,8 +197,10 @@ class MasterController extends Controller
             'variants' => ['nullable', 'array', 'max:30'],
             'variants.*' => ['array:name,rate,cost'],
             'variants.*.name' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
-            'variants.*.rate' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
-            'variants.*.cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            // Rate and cost are optional: a side dish included in the item's own price (or one the
+            // kitchen does not cost separately yet) is saved at 0 rather than being refused.
+            'variants.*.rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+            'variants.*.cost' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ], [
             'variants.*.name.distinct' => 'Each side dish variant must have a unique name.',
         ], [
@@ -213,8 +215,10 @@ class MasterController extends Controller
         $row->variants()->delete();
         foreach ($variants as $sort => $variant) {
             $row->variants()->create([
-                'name' => $variant['name'], 'rate' => round((float) $variant['rate'], 2),
-                'cost' => round((float) $variant['cost'], 2), 'sort_order' => $sort,
+                'name' => $variant['name'],
+                'rate' => round((float) ($variant['rate'] ?? 0), 2),
+                'cost' => round((float) ($variant['cost'] ?? 0), 2),
+                'sort_order' => $sort,
             ]);
         }
     }

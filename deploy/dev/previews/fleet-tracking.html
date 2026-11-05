@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Vehicle Tracking · UI preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/fleet.css">
+<style>
+  body { margin: 0; background: #f6f8f6; }
+  .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
+  .pv-banner strong { display: block; }
+  .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .pv-head h1 { font-size: 1.35rem; margin: 0; }
+  .pv-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 1rem; }
+  @media (max-width: 860px) { .pv-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="pv-shell">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative positions, no operational records.</strong>
+      This page renders the fleet tracking layout with sample vehicles. The real screen reads live GPS fixes from paired devices and writes nothing here.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/__preview/fleet-overview">Fleet management</a> · <a href="/__preview/management-dashboard">Management dashboard</a> · <a href="#geofences">Geofences</a> · <a href="#driverBehaviour">Driver behaviour</a></div></div>
+  </div>
+
+  <div class="pv-head">
+    <div>
+      <div class="tiny muted">Transport / Fleet / Live tracking</div>
+      <h1>Live Vehicle Tracking</h1>
+    </div>
+    <div class="flex gap-1 wrap">
+      <a class="btn" href="/__preview/fleet-maintenance">Maintenance</a>
+      <a class="btn" href="/__preview/fleet-fuel">Fuel</a>
+      <a class="btn btn-primary" href="#preview">Device settings</a>
+    </div>
+  </div>
+
+  <div class="pv-grid">
+    <div class="card">
+      <div class="card-head"><h3>Live map</h3><span class="small muted">Refreshes every 20 seconds</span></div>
+      <div class="card-body">
+        <div class="fleet-map-wrap">
+          <div class="fleet-map">
+            <svg viewBox="0 0 1000 625" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="pvMapTitle pvMapStatus">
+              <title id="pvMapTitle">Illustrative last known positions of four hotel vehicles</title>
+              <g>
+                <line class="grid-line" x1="125" y1="0" x2="125" y2="625"/><line class="grid-line" x1="250" y1="0" x2="250" y2="625"/>
+                <line class="grid-line" x1="375" y1="0" x2="375" y2="625"/><line class="grid-line" x1="500" y1="0" x2="500" y2="625"/>
+                <line class="grid-line" x1="625" y1="0" x2="625" y2="625"/><line class="grid-line" x1="750" y1="0" x2="750" y2="625"/>
+                <line class="grid-line" x1="875" y1="0" x2="875" y2="625"/>
+                <line class="grid-line" x1="0" y1="125" x2="1000" y2="125"/><line class="grid-line" x1="0" y1="250" x2="1000" y2="250"/>
+                <line class="grid-line" x1="0" y1="375" x2="1000" y2="375"/><line class="grid-line" x1="0" y1="500" x2="1000" y2="500"/>
+              </g>
+              <g class="fence yard" transform="translate(210,400)" role="img" aria-label="Hotel yard fence, 300 metres">
+                <circle r="130"><title>Hotel yard · 300 m</title></circle><text y="-137">Hotel yard</text>
+              </g>
+              <g class="fence restricted" transform="translate(840,520)" role="img" aria-label="Restricted area fence, 90 metres">
+                <circle r="62"><title>Airport restricted area · 90 m</title></circle><text y="-69">Restricted</text>
+              </g>
+              <polyline class="trail" points="210,430 260,405 300,395 340,372 380,360 420,330"/>
+              <polyline class="trail" points="700,220 660,250 640,290 610,300"/>
+              <polyline class="trail stale" points="150,180 190,196 220,214"/>
+              <g class="marker moving" transform="translate(420,330)" role="img" aria-label="INNOVA-1 – Moving">
+                <circle r="9"><title>INNOVA-1 – Moving (58 km/h)</title></circle><text x="13" y="4">INNOVA-1</text>
+              </g>
+              <g class="marker parked" transform="translate(610,300)" role="img" aria-label="SEDAN-2 – Parked">
+                <circle r="9"><title>SEDAN-2 – Parked, ignition off</title></circle><text x="13" y="4">SEDAN-2</text>
+              </g>
+              <g class="marker offline" transform="translate(220,214)" role="img" aria-label="VAN-3 – Signal lost">
+                <circle r="9"><title>VAN-3 – Signal lost 46 minutes ago</title></circle><text x="13" y="4">VAN-3</text>
+              </g>
+              <g class="marker never" transform="translate(840,520)" role="img" aria-label="TEMPO-4 – No signal yet">
+                <circle r="9"><title>TEMPO-4 – device paired, no signal yet</title></circle><text x="13" y="4">TEMPO-4</text>
+              </g>
+            </svg>
+          </div>
+          <div class="fleet-map-meta">
+            <p class="small muted m-0" id="pvMapStatus" aria-live="polite">2 of 4 vehicles reporting · 1 moving · 1 signal lost</p>
+            <span class="small muted">Updated 12:44</span>
+          </div>
+          <div class="fleet-legend" aria-hidden="true">
+            <span><i class="fleet-dot moving"></i>Moving</span>
+            <span><i class="fleet-dot parked"></i>Parked</span>
+            <span><i class="fleet-dot offline"></i>Signal lost</span>
+            <span><i class="fleet-dot never"></i>No signal yet</span>
+          </div>
+        </div>
+        <p class="tiny muted mt-1">The map is drawn from the reported coordinates inside this page – no third-party tiles are loaded, so it works on a hotel network without internet. Open a vehicle row to jump to its coordinates in your maps app.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Devices</h3><span class="small muted">4 paired · each with its own signal window</span></div>
+      <div class="card-body">
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:.6rem">
+          <li><b>INNOVA-1</b> <span class="fleet-state"><span class="fleet-dot moving"></span>Moving</span>
+            <div class="tiny muted">Teltonika · 862341000011223 · 14 seconds ago</div></li>
+          <li><b>SEDAN-2</b> <span class="fleet-state"><span class="fleet-dot parked"></span>Parked</span>
+            <div class="tiny muted">Concox / Jimi · 868120051122334 · 3 minutes ago</div></li>
+          <li><b>VAN-3</b> <span class="fleet-state"><span class="fleet-dot offline"></span>Signal lost</span>
+            <div class="tiny muted">Generic HTTP push · VAN3-GH-01 · 46 minutes ago · offline after 20 min</div></li>
+          <li><b>TEMPO-4</b> <span class="fleet-state"><span class="fleet-dot parked"></span>Parked</span>
+            <div class="tiny muted">Traccar · TEMPO4-GH · 96 minutes ago · offline after 180 min (device)</div></li>
+          <li><b>DZIRE-1</b> <span class="fleet-state"><span class="fleet-dot never"></span>No signal yet</span>
+            <div class="tiny muted">Traccar · DZIRE1-GH · never reported</div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="pv-grid">
+    <div class="card" id="driverBehaviour">
+      <div class="card-head"><h3>Driver behaviour</h3><span class="small muted">Fixes above 80 km/h · last 7 days</span></div>
+      <div class="card-body">
+        <table class="table">
+          <caption class="sr-only">Illustrative speeding summary per vehicle</caption>
+          <thead><tr><th scope="col">Vehicle</th><th scope="col" class="num">Fixes</th><th scope="col" class="num">Fastest</th><th scope="col" class="num">Avg over</th><th scope="col">Last seen</th></tr></thead>
+          <tbody>
+            <tr><td><b>INNOVA-1</b><div class="tiny muted">GT 4821-24</div></td><td class="num">6</td><td class="num text-red">104 km/h</td><td class="num">+11.4</td><td class="small">Today 12:38</td></tr>
+            <tr><td><b>VAN-3</b><div class="tiny muted">GT 3308-22</div></td><td class="num">2</td><td class="num text-red">88 km/h</td><td class="num">+3.5</td><td class="small">Yesterday 17:22</td></tr>
+          </tbody>
+        </table>
+        <p class="tiny muted mt-1">Speed is read from each fix, so a unit that reports only on ignition shows fewer rows than a live-tracking unit. The limit lives in Fleet settings.</p>
+      </div>
+    </div>
+
+    <div class="card" id="offTrip">
+      <div class="card-head"><h3>Movement with no trip</h3><span class="small muted">Today · at least 1 km driven</span></div>
+      <div class="card-body">
+        <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+          <b>SEDAN-2</b> <span class="badge badge-amber">4.6 km</span>
+          <div class="tiny muted">No trip is scheduled for this vehicle today. Last fix 11:04. Check the log book, or record the trip so the distance is billed.</div>
+        </div>
+        <div class="small" style="padding:.4rem 0;border-bottom:1px solid var(--c-border)">
+          <b>TEMPO-4</b> <span class="badge badge-amber">1.2 km</span>
+          <div class="tiny muted">No trip is scheduled for this vehicle today. Last fix 09:41.</div>
+        </div>
+        <p class="tiny muted mt-1">Distance comes from the GPS trail, so a car moved a few hundred metres with the ignition on may not reach the 1 km threshold.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pv-grid">
+    <div class="card" id="geofences">
+      <div class="card-head"><h3>Yard &amp; zone fences</h3><span class="small muted">Crossings recorded from incoming positions</span></div>
+      <div class="card-body">
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:.6rem">
+          <li><b>Hotel yard</b> <span class="badge badge-green">Hotel yard</span>
+            <div class="tiny muted">300 m radius · on entry and exit · 2 vehicles inside now</div></li>
+          <li><b>Airport drop-off</b> <span class="badge badge-blue">Service zone</span>
+            <div class="tiny muted">250 m radius · on exit only · 0 inside now</div></li>
+          <li><b>Airport restricted area</b> <span class="badge badge-red">Restricted area</span>
+            <div class="tiny muted">90 m radius · on entry only · 0 inside now</div></li>
+          <li><b>Fuel depot</b> <span class="badge badge-slate">Service zone</span> <span class="badge badge-slate">paused</span>
+            <div class="tiny muted">120 m radius · record silently · paused, nothing is evaluated</div></li>
+        </ul>
+        <p class="tiny muted mt-1">Only the newest fix of each device report is evaluated, so a batch upload cannot replay old crossings.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Recent crossings</h3><span class="small muted">Last 3 days</span></div>
+      <div class="card-body">
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:.5rem">
+          <li class="small"><b>INNOVA-1</b> left <b>Hotel yard</b><div class="tiny muted">Today 08:12</div></li>
+          <li class="small"><b>SEDAN-2</b> entered <b>Hotel yard</b><div class="tiny muted">Today 07:55 · acknowledged</div></li>
+          <li class="small"><b>VAN-3</b> left <b>Airport drop-off</b><div class="tiny muted">Yesterday 17:40</div></li>
+        </ul>
+        <p class="tiny muted mt-1">Each crossing links back to the position that caused it, so a disputed trip can be checked.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="addGeofence">
+    <div class="card-head"><h3>Add a geofence</h3><span class="small muted">A circle around one point</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label for="pvFenceName">Name</label><input id="pvFenceName" value="Hotel yard"></div>
+        <div class="field"><label for="pvFenceKind">Type</label><select id="pvFenceKind"><option>Hotel yard</option><option>Service zone</option><option>Restricted area</option></select></div>
+        <div class="field"><label for="pvFenceRadius">Radius (metres)</label><input id="pvFenceRadius" type="number" value="300"></div>
+        <div class="field"><label for="pvFenceAlert">Record alerts</label><select id="pvFenceAlert"><option>On entry and exit</option><option>On entry only</option><option>On exit only</option><option>Record silently</option></select></div>
+        <div class="field"><label for="pvFenceLat">Centre latitude</label><input id="pvFenceLat" value="5.6037170"></div>
+        <div class="field"><label for="pvFenceLng">Centre longitude</label><input id="pvFenceLng" value="-0.1870050"></div>
+        <div class="span-all"><button class="btn btn-primary" type="button" disabled title="Preview only">+ Add geofence</button></div>
+      </div>
+      <p class="tiny muted mt-1">Radius is between 25 m and 50 km. Pausing a fence keeps its history but stops new crossings; deleting it removes both.</p>
+    </div>
+  </div>
+
+  <div class="card" id="preview">
+    <div class="card-head"><h3>Pair a tracking device</h3><span class="small muted">Works with any unit that can POST a position</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label for="pvVehicle">Vehicle</label><select id="pvVehicle"><option>INNOVA-1 · GT 4821-24</option><option>SEDAN-2 · GT 1190-23</option></select></div>
+        <div class="field"><label for="pvProvider">Device family</label><select id="pvProvider"><option>Teltonika</option><option>Traccar</option><option>Generic HTTP push (JSON / form)</option></select></div>
+        <div class="field"><label for="pvDevice">Device ID / IMEI</label><input id="pvDevice" value="862341000099887"></div>
+        <div class="field"><label for="pvLabel">Label (optional)</label><input id="pvLabel" value="dashboard unit"></div>
+        <div class="field"><label for="pvWindow">Signal window (minutes)</label><input id="pvWindow" type="number" placeholder="property default" value=""></div>
+        <label class="small span-all" style="display:flex;gap:.4rem;align-items:center">
+          <input type="checkbox"> Replace the device already paired to this vehicle (the old unit stops reporting at once)
+        </label>
+        <div class="span-all"><button class="btn btn-primary" type="button" disabled title="Preview only">Pair device &amp; create token</button></div>
+      </div>
+      <p class="tiny muted mt-1">In the real screen, pairing generates a 48-character token shown once; only its SHA-256 hash is stored. One device per car: a second unit is refused unless you tick the replacement box, because two trails on one vehicle would be added into a single distance figure. Buttons are disabled in this preview.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

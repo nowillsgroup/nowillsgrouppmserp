@@ -51,11 +51,11 @@ body{background:#f6f7fb;padding-bottom:6rem}
 <section class="qm-cat" id="cat{{ $c->id }}"><h2>{{ $c->name }}</h2>
 @foreach($items->where('menu_category_id', $c->id) as $i)
   @php $al = $allergenMap[$i->id] ?? ['contains' => [], 'may' => []]; @endphp
-  <div class="qm-item" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-modifiers="{{ e(json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values())) }}">
+  <div class="qm-item" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-variants="{{ e(json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values())) }}" data-modifiers="{{ e(json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values())) }}">
     @if($i->imageUrl())<img class="qm-photo" src="{{ $i->imageUrl() }}" alt="{{ $i->name }}">@endif
     <div class="info"><div class="nm"><span class="veg-dot {{ $i->food_type }}"></span> {{ $i->name }}</div>@if($i->description)<div class="ds">{{ $i->description }}</div>@endif
       @if($al['contains'] || $al['may'])<div>@foreach($al['contains'] as $k)<span class="al" data-al="{{ $k }}">{{ \App\Services\AllergenService::short($k) }}</span>@endforeach @foreach($al['may'] as $k)<span class="al" data-al="{{ $k }}">may contain {{ strtolower(\App\Services\AllergenService::short($k)) }}</span>@endforeach</div>@endif
-      <div class="qm-warn" hidden></div><div class="pr">{{ money($i->price) }}</div></div>
+      <div class="qm-warn" hidden></div><div class="pr">{{ money($i->price) }}@if($i->variants->isNotEmpty())<span class="tiny muted"> · {{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}</span>@endif</div></div>
     <div class="ctl"><button type="button" class="qm-add">ADD</button></div>
   </div>
 @endforeach
@@ -68,6 +68,12 @@ body{background:#f6f7fb;padding-bottom:6rem}
 </div>
 
 <div class="qm-bar" id="bar"><div><b id="barCount">0</b> item(s) · <b id="barTotal">0</b></div><button type="button" onclick="openSheet()">View order</button></div>
+
+<div class="qm-sheet" id="sideSheet" onclick="if(event.target===this)closeSides()"><div class="box">
+  <div class="flex justify-between items-center"><h3 id="sideTitle">Choose a side dish</h3><button type="button" class="btn btn-ghost btn-icon" onclick="closeSides()" aria-label="Close"><x-icon name="x"/></button></div>
+  <div id="sideChoices"></div>
+  <button type="button" class="btn btn-primary btn-block mt-1" id="sideContinue">Continue</button>
+</div></div>
 
 <div class="qm-sheet" id="modifierSheet" onclick="if(event.target===this)closeModifiers()"><div class="box">
   <div class="flex justify-between items-center"><h3 id="modifierTitle">Choose options</h3><button type="button" class="btn btn-ghost btn-icon" onclick="closeModifiers()"><x-icon name="x"/></button></div>
@@ -100,21 +106,48 @@ const cur = @json($hotel->currency_symbol ?? 'GH₵');
 const cart = {}; // key -> {menu_id, name, price, qty, notes, modifiers}
 const fmt = v => cur + ' ' + v.toFixed(2);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let modifierTarget = null, modifierGroups = [];
+let modifierTarget = null, modifierGroups = [], modifierSides = [];
 function groupsFor(item){ try { return JSON.parse(item.dataset.modifiers || '[]'); } catch (e) { return []; } }
-function addItem(item, modifiers = []) {
-  const ids = modifiers.map(m => m.id).sort((a, b) => a - b), key = item.dataset.id + ':' + ids.join(',');
+function sidesFor(item){ try { return JSON.parse(item.dataset.variants || '[]'); } catch (e) { return []; } }
+/** A dish that comes with a side always asks the guest for it before it joins the order. */
+function addItem(item, modifiers = [], sides = []) {
+  const ids = modifiers.map(m => m.id).sort((a, b) => a - b), sideIds = sides.map(v => v.id).sort((a, b) => a - b);
+  const key = item.dataset.id + ':' + ids.join(',') + ':s:' + sideIds.join(',');
   if (!cart[key]) {
-    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0);
-    cart[key] = { menu_id: item.dataset.id, name: item.dataset.name, price: +item.dataset.price + delta, qty: 0, modifiers };
+    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0) + sides.reduce((sum, v) => sum + Number(v.rate || 0), 0);
+    cart[key] = { menu_id: item.dataset.id, name: item.dataset.name, price: +item.dataset.price + delta, qty: 0, modifiers, sides };
   }
   cart[key].qty = Math.min(20, cart[key].qty + 1);
   draw();
 }
-function openModifiers(item){
-  modifierTarget = item; modifierGroups = groupsFor(item);
+/** The tick list for a dish's side dishes; a rate of 0 reads "included", never a charge. */
+function sideChoicesHtml(sides, preselected = [], legend = 'Tick one or more, or continue with none.'){
+  if (!sides.length) return '';
+  const chosen = new Set((preselected || []).map(v => Number(v.id)));
+  return `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">Side dishes <span class="tiny muted">${legend}</span></legend>`
+    + sides.map(v => `<label class="check"><input type="checkbox" data-side-id="${v.id}" data-side-name="${esc(v.name)}" data-side-rate="${Number(v.rate) || 0}"${chosen.has(Number(v.id)) ? ' checked' : ''}> ${esc(v.name)} <span class="tiny muted">${Number(v.rate) ? '+' + fmt(Number(v.rate)) : 'included'}</span></label>`).join('')
+    + '</fieldset>';
+}
+function pickedSides(scope){
+  return [...document.querySelectorAll(scope + ' [data-side-id]:checked')].map(input => ({id: Number(input.dataset.sideId), name: input.dataset.sideName, rate: Number(input.dataset.sideRate) || 0}));
+}
+function openSides(item){
+  modifierTarget = item; modifierSides = sidesFor(item);
+  document.getElementById('sideTitle').textContent = 'Side dish for ' + item.dataset.name;
+  document.getElementById('sideChoices').innerHTML = sideChoicesHtml(modifierSides);
+  document.getElementById('sideSheet').classList.add('show');
+}
+function closeSides(){ document.getElementById('sideSheet').classList.remove('show'); }
+document.getElementById('sideContinue').addEventListener('click', () => {
+  const item = modifierTarget, sides = pickedSides('#sideChoices');
+  closeSides();
+  if (groupsFor(item).length) openModifiers(item, sides);
+  else if (item) addItem(item, [], sides);
+});
+function openModifiers(item, preselectedSides = []){
+  modifierTarget = item; modifierGroups = groupsFor(item); modifierSides = sidesFor(item);
   document.getElementById('modifierTitle').textContent = 'Options for ' + item.dataset.name;
-  document.getElementById('modifierChoices').innerHTML = modifierGroups.map(group => `<fieldset class="field" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">${esc(group.name)} <span class="tiny muted">${group.min}–${group.max}${group.required ? ' · required' : ''}</span></legend>${group.options.map(option => `<label class="check"><input type="checkbox" data-modifier-group="${group.id}" data-modifier-id="${option.id}" data-modifier-name="${esc(option.name)}" data-price-delta="${option.price_delta}"> ${esc(option.name)} <span class="tiny muted">${Number(option.price_delta) ? (Number(option.price_delta) > 0 ? '+' : '') + Number(option.price_delta).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`).join('');
+  document.getElementById('modifierChoices').innerHTML = sideChoicesHtml(modifierSides, preselectedSides, 'Chosen above — change if needed.') + modifierGroups.map(group => `<fieldset class="field" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">${esc(group.name)} <span class="tiny muted">${group.min}–${group.max}${group.required ? ' · required' : ''}</span></legend>${group.options.map(option => `<label class="check"><input type="checkbox" data-modifier-group="${group.id}" data-modifier-id="${option.id}" data-modifier-name="${esc(option.name)}" data-price-delta="${option.price_delta}"> ${esc(option.name)} <span class="tiny muted">${Number(option.price_delta) ? (Number(option.price_delta) > 0 ? '+' : '') + Number(option.price_delta).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`).join('');
   document.getElementById('modifierSheet').classList.add('show');
 }
 function closeModifiers(){ document.getElementById('modifierSheet').classList.remove('show'); }
@@ -124,29 +157,29 @@ document.getElementById('modifierAdd').addEventListener('click', () => {
     const count = selected.filter(input => Number(input.dataset.modifierGroup) === Number(group.id)).length;
     if (count < Number(group.min) || count > Number(group.max)) { alert(`Choose between ${group.min} and ${group.max} option(s) for ${group.name}.`); return; }
   }
-  addItem(modifierTarget, selected.map(input => ({id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup)})));
+  addItem(modifierTarget, selected.map(input => ({id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup)})), pickedSides('#modifierChoices'));
   closeModifiers();
 });
 function draw(){
   document.querySelectorAll('.qm-item').forEach(el => {
     const id = el.dataset.id, groups = groupsFor(el), q = Object.values(cart).filter(l => l.menu_id === id).reduce((sum, l) => sum + l.qty, 0), ctl = el.querySelector('.ctl');
-    if (groups.length) ctl.innerHTML = `<button type="button" class="qm-add">ADD${q ? ' (' + q + ')' : ''}</button>`;
-    else { const key = id + ':'; ctl.innerHTML = q ? `<div class="qty"><button type="button" data-cart-key="${key}" data-d="-1">−</button><span class="n">${q}</span><button type="button" data-cart-key="${key}" data-d="1">+</button></div>` : '<button type="button" class="qm-add">ADD</button>'; }
+    if (groups.length || sidesFor(el).length) ctl.innerHTML = `<button type="button" class="qm-add">ADD${q ? ' (' + q + ')' : ''}</button>`;
+    else { const key = id + '::s:'; ctl.innerHTML = q ? `<div class="qty"><button type="button" data-cart-key="${key}" data-d="-1">−</button><span class="n">${q}</span><button type="button" data-cart-key="${key}" data-d="1">+</button></div>` : '<button type="button" class="qm-add">ADD</button>'; }
   });
   const lines = Object.entries(cart), count = lines.reduce((a, [, l]) => a + l.qty, 0), total = lines.reduce((a, [, l]) => a + l.qty * l.price, 0);
   document.getElementById('bar').classList.toggle('show', count > 0);
   document.getElementById('barCount').textContent = count; document.getElementById('barTotal').textContent = fmt(total);
   document.getElementById('sheetTotal').textContent = fmt(total);
   document.getElementById('sheetLines').innerHTML = lines.map(([key, l], i) => `<div class="cart-line" style="align-items:flex-start">
-    <div style="flex:1"><b class="small">${l.qty} × ${esc(l.name)}</b>${l.modifiers?.length ? `<div class="tiny muted">${l.modifiers.map(m => esc(m.name) + (Number(m.price_delta) ? ' ' + (Number(m.price_delta) > 0 ? '+' : '') + Number(m.price_delta).toFixed(2) : '')).join(' · ')}</div>` : ''}<input class="input input-sm mt-1" placeholder="Note (e.g. less spicy)" maxlength="120" name="items[${i}][notes]" value="${esc(l.notes||'')}" oninput="cart['${key}'].notes=this.value">
-    <input type="hidden" name="items[${i}][id]" value="${l.menu_id}"><input type="hidden" name="items[${i}][qty]" value="${l.qty}">${(l.modifiers || []).map(m => `<input type="hidden" name="items[${i}][modifiers][]" value="${m.id}">`).join('')}</div><div class="qty"><button type="button" class="cart-adjust" data-key="${key}" data-d="-1">−</button><span class="n">${fmt(l.qty * l.price)}</span><button type="button" class="cart-adjust" data-key="${key}" data-d="1">+</button></div></div>`).join('');
+    <div style="flex:1"><b class="small">${l.qty} × ${esc(l.name)}</b>${l.modifiers?.length ? `<div class="tiny muted">${l.modifiers.map(m => esc(m.name) + (Number(m.price_delta) ? ' ' + (Number(m.price_delta) > 0 ? '+' : '') + Number(m.price_delta).toFixed(2) : '')).join(' · ')}</div>` : ''}${l.sides?.length ? `<div class="tiny muted">Side dishes: ${l.sides.map(v => esc(v.name) + (Number(v.rate) ? ' +' + Number(v.rate).toFixed(2) : ' included')).join(' · ')}</div>` : ''}<input class="input input-sm mt-1" placeholder="Note (e.g. less spicy)" maxlength="120" name="items[${i}][notes]" value="${esc(l.notes||'')}" oninput="cart['${key}'].notes=this.value">
+    <input type="hidden" name="items[${i}][id]" value="${l.menu_id}"><input type="hidden" name="items[${i}][qty]" value="${l.qty}">${(l.modifiers || []).map(m => `<input type="hidden" name="items[${i}][modifiers][]" value="${m.id}">`).join('')}${(l.sides || []).map(v => `<input type="hidden" name="items[${i}][variants][]" value="${v.id}">`).join('')}</div><div class="qty"><button type="button" class="cart-adjust" data-key="${key}" data-d="-1">−</button><span class="n">${fmt(l.qty * l.price)}</span><button type="button" class="cart-adjust" data-key="${key}" data-d="1">+</button></div></div>`).join('');
   if (!count) closeSheet();
 }
 document.addEventListener('click', e => {
   const adjust = e.target.closest('.cart-adjust');
   if (adjust) { const line = cart[adjust.dataset.key]; if (line) { line.qty = Math.min(20, line.qty + Number(adjust.dataset.d)); if (line.qty <= 0) delete cart[adjust.dataset.key]; draw(); } return; }
   const item = e.target.closest('.qm-item'); if (!item) return;
-  if (e.target.closest('.qm-add')) { const groups = groupsFor(item); if (groups.length) openModifiers(item); else addItem(item); return; }
+  if (e.target.closest('.qm-add')) { const groups = groupsFor(item); if (sidesFor(item).length) openSides(item); else if (groups.length) openModifiers(item); else addItem(item); return; }
   if (e.target.dataset.d) { const key = e.target.dataset.cartKey, line = cart[key]; if (line) { line.qty = Math.min(20, line.qty + Number(e.target.dataset.d)); if (line.qty <= 0) delete cart[key]; draw(); } }
 });
 // v5.0 allergy filter – remembered on this phone, sent with the order

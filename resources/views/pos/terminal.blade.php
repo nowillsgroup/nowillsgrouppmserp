@@ -79,7 +79,7 @@
           <span class="pos-photo{{ $i->imageUrl() ? '' : ' pos-photo-empty' }}">@if($i->imageUrl())<img src="{{ $i->imageUrl() }}" alt="">@else<span class="veg-dot {{ $i->food_type }}"></span>@endif</span>
           <span class="pos-item-count hidden" data-item-count="{{ $i->id }}" aria-hidden="true">0</span>
           <span class="pos-meta flex items-center gap-1"><span class="veg-dot {{ $i->food_type }}" aria-hidden="true"></span><span class="tiny muted">{{ $i->code }}</span><span class="tiny muted pos-food-label">{{ ['veg' => 'Veg', 'non_veg' => 'Non-veg', 'egg' => 'Egg', 'beverage' => 'Drink'][$i->food_type] ?? ucfirst($i->food_type) }}</span>@if($al['contains'])<span class="allergen-codes" title="Contains: {{ $A::names($al['contains']) }}">Contains: {{ implode(' ', array_map([$A, 'code'], $al['contains'])) }}</span>@endif @if($al['may'])<span class="allergen-codes allergen-may" title="May contain: {{ $A::names($al['may']) }}">May: {{ implode(' ', array_map([$A, 'code'], $al['may'])) }}</span>@endif</span>
-          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span></button>
+          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span>@if($i->variants->isNotEmpty())<span class="tiny muted pos-food-label">{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}</span>@endif</button>
       @endforeach
         <div id="menuEmpty" class="pos-menu-empty hidden"><x-icon name="search"/><b>No matching menu items</b><span>Try another item name, code, or category.</span><button type="button" class="btn btn-sm btn-ghost" id="clearMenuFilters">Clear filters</button></div>
       </div>
@@ -367,6 +367,14 @@
   <div class="modal-body" id="modifierChoices"></div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn btn-primary" id="modifierAdd">Add to order</button></div>
 </div></div>
+<div class="modal" id="sideDishModal"><div class="modal-box" style="max-width:520px">
+  <div class="modal-head"><h3 id="sideDishTitle">Choose a side dish</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
+  <div class="modal-body">
+    <p class="small muted" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+    <div id="sideDishChoices"></div>
+  </div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn btn-primary" id="sideDishContinue">Continue</button></div>
+</div></div>
 @if(in_array($order->status,['open','billed']) && can_do('pos.void'))
 <div class="modal" id="voidModal"><div class="modal-box"><form method="post" action="{{ route('pos.void', $order) }}">@csrf
   <div class="modal-head"><h3>Void order</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
@@ -485,12 +493,45 @@ function addMenuItem(button, modifiers = [], variants = []) {
   button.classList.add('pos-item-added');
   window.setTimeout(() => button.classList.remove('pos-item-added'), 480);
 }
-function openModifierPicker(button, groups, variants = []) {
+let sideDishButton = null, sideDishGroups = [], sideDishChoiceList = [];
+/** What the waiter ticked in a side-dish block — one reader for both pickers. */
+function pickedSideDishes(scope) {
+  return [...document.querySelectorAll(scope + ' [data-side-variant-id]:checked')].map(input => ({
+    id: Number(input.dataset.sideVariantId), name: input.dataset.sideVariantName, rate: Number(input.dataset.sideVariantRate),
+  }));
+}
+/** A dish that comes with a side always asks for it first, so nobody has to guess in the kitchen. */
+function openSideDishPicker(button, groups, variants) {
+  sideDishButton = button;
+  sideDishGroups = groups || [];
+  sideDishChoiceList = variants || [];
+  const title = document.getElementById('sideDishTitle');
+  if (title) title.textContent = 'Side dish for ' + button.dataset.name;
+  const box = document.getElementById('sideDishChoices');
+  if (box) {
+    box.innerHTML = `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0"><legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>${sideDishChoiceList.map(variant => `<label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"> ${esc(variant.name)} <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`;
+  }
+  document.getElementById('sideDishModal')?.classList.add('show');
+}
+document.getElementById('sideDishContinue')?.addEventListener('click', () => {
+  const picked = pickedSideDishes('#sideDishChoices');
+  document.getElementById('sideDishModal')?.classList.remove('show');
+  if (!sideDishButton) return;
+  const button = sideDishButton;
+  if (sideDishGroups.length) {
+    openModifierPicker(button, sideDishGroups, sideDishChoiceList, picked);
+  } else {
+    addMenuItem(button, [], picked);
+    sideDishButton = null;
+  }
+});
+function openModifierPicker(button, groups, variants = [], preselected = []) {
   modifierButton = button;
   modifierGroups = groups;
   modifierVariants = variants;
   document.getElementById('modifierTitle').textContent = 'Options for ' + button.dataset.name;
-  const sideDishChoices = variants.length ? `<fieldset class="field pos-side-dish-choices"><legend class="bold small">Side dishes <span class="tiny muted">Choose any; each rate is added to the item.</span></legend>${variants.map(variant => `<label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"> ${esc(variant.name)} <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>` : '';
+  const preselectedIds = preselected.map(v => Number(v.id));
+  const sideDishChoices = variants.length ? `<fieldset class="field pos-side-dish-choices"><legend class="bold small">Side dishes <span class="tiny muted">${preselectedIds.length ? 'Chosen above — change if needed.' : 'Choose any; each rate is added to the item.'}</span></legend>${variants.map(variant => `<label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"${preselectedIds.includes(Number(variant.id)) ? ' checked' : ''}> ${esc(variant.name)} <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>` : '';
   const modifierChoices = groups.map(group => `<fieldset class="field" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">${esc(group.name)} <span class="tiny muted">${group.min}–${group.max}${group.required ? ' · required' : ''}</span></legend>${group.options.map(option => `<label class="check"><input type="checkbox" data-modifier-group="${group.id}" data-modifier-id="${option.id}" data-modifier-name="${esc(option.name)}" data-price-delta="${option.price_delta}" value="${option.id}"> ${esc(option.name)} <span class="tiny muted">${Number(option.price_delta) ? (Number(option.price_delta) > 0 ? '+' : '') + Number(option.price_delta).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`).join('');
   document.getElementById('modifierChoices').innerHTML = sideDishChoices + modifierChoices;
   document.getElementById('modifierModal').classList.add('show');
@@ -501,7 +542,7 @@ document.getElementById('modifierAdd')?.addEventListener('click', () => {
     const count = selected.filter(input => Number(input.dataset.modifierGroup) === Number(group.id)).length;
     if (count < Number(group.min) || count > Number(group.max)) { alert(`Choose between ${group.min} and ${group.max} option(s) for ${group.name}.`); return; }
   }
-  const selectedVariants = [...document.querySelectorAll('#modifierChoices [data-side-variant-id]:checked')].map(input => ({id: Number(input.dataset.sideVariantId), name: input.dataset.sideVariantName, rate: Number(input.dataset.sideVariantRate)}));
+  const selectedVariants = pickedSideDishes('#modifierChoices');
   const selectedModifiers = selected.map(input => ({ id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup) }));
   addMenuItem(modifierButton, selectedModifiers, selectedVariants);
   document.getElementById('modifierModal').classList.remove('show');
@@ -510,7 +551,9 @@ document.querySelectorAll('.pos-item').forEach(button => button.addEventListener
   let groups = [], variants = [];
   try { groups = JSON.parse(button.dataset.modifiers || '[]'); } catch (e) { groups = []; }
   try { variants = JSON.parse(button.dataset.variants || '[]'); } catch (e) { variants = []; }
-  if (groups.length || variants.length) { openModifierPicker(button, groups, variants); } else { addMenuItem(button); }
+  if (variants.length) { openSideDishPicker(button, groups, variants); }
+  else if (groups.length) { openModifierPicker(button, groups, []); }
+  else { addMenuItem(button); }
 }));
 let activePosCategory = '';
 function filterMenu() {

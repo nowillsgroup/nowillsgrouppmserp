@@ -17,6 +17,17 @@
           <div><span class="small muted">Still open</span><div class="h2">{{ $liveSummary['open_orders'] }}</div></div>
         </div>
         @if($currentServiceShift->opening_note)<p class="small mt-1"><b>Opening note:</b> {{ $currentServiceShift->opening_note }}</p>@endif
+        @php $livePayments = $liveSummary['payments'] ?? []; @endphp
+        <div class="flex justify-between items-center mt-1" style="gap:.5rem;flex-wrap:wrap">
+          <div class="flex gap-1 wrap items-center">
+            @foreach($livePayments as $row)
+              <span class="badge badge-{{ ! empty($row['is_cash']) ? 'green' : 'blue' }}" title="{{ $row['count'] }} tender{{ $row['count'] === 1 ? '' : 's' }}">{{ $row['name'] }} {{ money($row['net']) }}</span>
+            @endforeach
+            <span class="small"><b>Total, all methods: {{ money($liveSummary['payments_total'] ?? 0) }}</b>@if(($liveSummary['room_posts'] ?? 0) > 0)<span class="tiny muted"> · {{ money($liveSummary['room_posts']) }} posted to rooms</span>@endif</span>
+          </div>
+          <a class="btn btn-sm" href="{{ route('department-shifts.print', $currentServiceShift) }}" target="_blank" rel="noopener"><x-icon name="print" size="sm"/> Print totals sheet</a>
+        </div>
+        @if(! $livePayments)<p class="tiny muted mt-1">No payment has been collected on this shift yet — room-posted orders are billed to the guest folio.</p>@endif
       </div>
       @if(can_do('pos.order'))
         <div class="card-foot"><form method="post" action="{{ route('department-shifts.close', $currentServiceShift) }}" data-confirm="Close your service shift and save this close-out? POS order entry will lock until you open another shift. Any open orders remain open for handover.">@csrf
@@ -36,12 +47,12 @@
   </section>
 
   <section class="card">
-    <div class="card-head"><div><h2>Department day report</h2><div class="small muted">Individual server close-outs grouped by shift.</div></div></div>
+    <div class="card-head"><div><h2>Department day report</h2><div class="small muted">Individual server close-outs grouped by shift.</div></div><a class="btn btn-sm" href="{{ route('department-shifts.day-print', ['date' => $serviceShiftDate]) }}" target="_blank" rel="noopener"><x-icon name="print" size="sm"/> Print day report</a></div>
     <form method="get" class="card-body flex gap-1 wrap items-end"><div class="field"><label for="serviceShiftDate">Business date</label><input id="serviceShiftDate" type="date" name="date" value="{{ $serviceShiftDate }}"></div><button class="btn">View day</button>@if($serviceShiftDate !== bdate()->toDateString())<a class="btn btn-ghost" href="{{ route('department-shifts.index') }}">Today</a>@endif</form>
     @if($serviceDaySummary->isNotEmpty())
-      <div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Shift</th><th class="num">Staff sessions</th><th class="num">Active</th><th class="num">Orders</th><th class="num">Covers</th><th class="num">Order value</th><th class="num">Settled POS sales</th><th class="num">Open orders</th></tr></thead><tbody>
-        @foreach($serviceDaySummary as $shift => $summary)<tr><td><b>{{ ucfirst($shift) }}</b></td><td class="num">{{ $summary['people'] }}</td><td class="num">{{ $summary['active'] }}</td><td class="num">{{ $summary['orders'] }}</td><td class="num">{{ $summary['covers'] }}</td><td class="num">{{ money($summary['order_value']) }}</td><td class="num">{{ money($summary['settled_sales']) }}</td><td class="num">{{ $summary['open_orders'] }}</td></tr>@endforeach
-      </tbody></table></div>
+      <div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>Shift</th><th class="num">Staff sessions</th><th class="num">Active</th><th class="num">Orders</th><th class="num">Covers</th><th class="num">Order value</th><th class="num">Settled POS sales</th><th class="num">Collected by method</th><th class="num">Open orders</th></tr></thead><tbody>
+        @foreach($serviceDaySummary as $shift => $summary)<tr><td><b>{{ ucfirst($shift) }}</b></td><td class="num">{{ $summary['people'] }}</td><td class="num">{{ $summary['active'] }}</td><td class="num">{{ $summary['orders'] }}</td><td class="num">{{ $summary['covers'] }}</td><td class="num">{{ money($summary['order_value']) }}</td><td class="num">{{ money($summary['settled_sales']) }}</td><td class="num">{{ money($summary['payments_total'] ?? 0) }}</td><td class="num">{{ $summary['open_orders'] }}</td></tr>@endforeach
+      </tbody><tfoot><tr><td><b>All shifts</b></td><td class="num">{{ $serviceDaySummary->sum('people') }}</td><td class="num">{{ $serviceDaySummary->sum('active') }}</td><td class="num">{{ $serviceDaySummary->sum('orders') }}</td><td class="num">{{ $serviceDaySummary->sum('covers') }}</td><td class="num">{{ money($serviceDaySummary->sum('order_value')) }}</td><td class="num">{{ money($serviceDaySummary->sum('settled_sales')) }}</td><td class="num">{{ money($serviceDaySummary->sum('payments_total')) }}</td><td class="num">{{ $serviceDaySummary->sum('open_orders') }}</td></tr></tfoot></table></div>
     @else
       <div class="card-body small muted">No Food &amp; Beverage service shifts were recorded for this business date{{ $canViewServiceTeam ? '.' : ' for your account.' }}</div>
     @endif
@@ -52,7 +63,7 @@
   <div class="card-head"><div><h2>{{ $canViewServiceTeam ? 'Team shift sessions' : 'My shift sessions' }}</h2><div class="small muted">{{ $canViewServiceTeam ? 'Staff on the selected business date.' : 'Your individual session history.' }}</div></div></div>
   <div class="card-body table-wrap"><table class="table"><thead><tr><th>Staff member</th><th>Shift / date</th><th>Opened / closed</th><th class="num">Orders</th><th class="num">Covers</th><th class="num">Order value</th><th class="num">Settled sales</th><th>Status</th><th></th></tr></thead><tbody>
     @forelse($teamServiceSessions as $session)
-      <tr><td>{{ $session->user?->name ?? 'Former staff member' }}@if((int) $session->user_id === (int) auth()->id()) <span class="badge badge-blue">You</span>@endif</td><td>{{ ucfirst($session->shift) }}<div class="small muted">{{ $session->business_date->format('d M Y') }}</div></td><td class="small">{{ $session->opened_at->format('H:i') }} – {{ $session->closed_at?->format('H:i') ?? '—' }}</td><td class="num">{{ $session->report_summary['orders'] }}</td><td class="num">{{ $session->report_summary['covers'] }}</td><td class="num">{{ money($session->report_summary['order_value']) }}</td><td class="num">{{ money($session->report_summary['settled_sales']) }}</td><td><span class="badge badge-{{ $session->status === 'open' ? 'green' : 'slate' }}">{{ $session->statusLabel() }}</span></td><td><a class="btn btn-sm" href="{{ route('department-shifts.show', $session) }}">Report</a></td></tr>
+      <tr><td>{{ $session->user?->name ?? 'Former staff member' }}@if((int) $session->user_id === (int) auth()->id()) <span class="badge badge-blue">You</span>@endif</td><td>{{ ucfirst($session->shift) }}<div class="small muted">{{ $session->business_date->format('d M Y') }}</div></td><td class="small">{{ $session->opened_at->format('H:i') }} – {{ $session->closed_at?->format('H:i') ?? '—' }}</td><td class="num">{{ $session->report_summary['orders'] }}</td><td class="num">{{ $session->report_summary['covers'] }}</td><td class="num">{{ money($session->report_summary['order_value']) }}</td><td class="num">{{ money($session->report_summary['settled_sales']) }}</td><td><span class="badge badge-{{ $session->status === 'open' ? 'green' : 'slate' }}">{{ $session->statusLabel() }}</span></td><td><a class="btn btn-sm" href="{{ route('department-shifts.show', $session) }}">Report</a> <a class="btn btn-sm" href="{{ route('department-shifts.print', $session) }}" target="_blank" rel="noopener" title="Print shift totals"><x-icon name="print" size="sm"/> Print</a></td></tr>
     @empty<tr><td colspan="9" class="muted">No individual shift sessions found for this date.</td></tr>@endforelse
   </tbody></table></div>
 </section>

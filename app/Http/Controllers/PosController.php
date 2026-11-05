@@ -44,7 +44,10 @@ class PosController extends Controller
             return \Illuminate\Support\Carbon::parse($fallback)->startOfDay();
         };
         $to = $parseDate($request->query('to'), $businessDate);
-        $from = $parseDate($request->query('from'), \Illuminate\Support\Carbon::parse($businessDate)->subDays(2)->toDateString());
+        $presetDays = $request->query('range_days');
+        $from = is_string($presetDays) && in_array($presetDays, ['1', '7', '30'], true)
+            ? $to->copy()->subDays((int) $presetDays - 1)
+            : $parseDate($request->query('from'), \Illuminate\Support\Carbon::parse($businessDate)->subDays(2)->toDateString());
         if ($from->gt($to)) {
             [$from, $to] = [$to->copy(), $from->copy()];
         }
@@ -117,7 +120,7 @@ class PosController extends Controller
             $dailyTrend->push(['date' => $day, 'label' => $cursor->format('d M'), 'total' => (float) $segments->sum('sales'), 'segments' => $segments]);
             $cursor->addDay();
         }
-        $maxDailySales = (float) $dailyTrend->max('total');
+        $maxDailySales = max(0.0, (float) $dailyTrend->max('total'));
         $dailyTrend = $dailyTrend->map(function ($day) use ($maxDailySales) {
             $day['segments'] = $day['segments']->map(fn ($segment) => $segment + [
                 'height' => $maxDailySales > 0 ? round($segment['sales'] / $maxDailySales * 100, 2) : 0,
@@ -125,7 +128,14 @@ class PosController extends Controller
 
             return $day;
         });
-        $trendAxis = collect([1, .75, .5, .25, 0])->map(fn ($factor) => number_format($maxDailySales * $factor, 0));
+        $currencySymbol = \App\Support\Tenant::hotel()?->currency_symbol ?? 'GH₵';
+        $trendAxis = collect([1, .75, .5, .25, 0])->map(function ($factor) use ($maxDailySales, $currencySymbol) {
+            $amount = $maxDailySales * $factor;
+            $label = $amount >= 999500 ? rtrim(rtrim(number_format($amount / 1000000, 1), '0'), '.').'m'
+                : ($amount >= 1000 ? rtrim(rtrim(number_format($amount / 1000, $amount >= 10000 ? 0 : 1), '0'), '.').'k' : number_format($amount, 0));
+
+            return $currencySymbol.' '.$label;
+        });
 
         $typeRows = (clone $orders)->where('status', 'settled')->reorder()
             ->selectRaw('order_type, COUNT(*) as checks, SUM(total) as sales')->groupBy('order_type')->get()->keyBy('order_type');
@@ -138,13 +148,15 @@ class PosController extends Controller
 
             return ['type' => $type, 'label' => $label, 'sales' => $sales, 'checks' => (int) ($row->checks ?? 0),
                 'percent' => $typeTotal > 0 ? round($sales / $typeTotal * 100, 2) : 0, 'color' => $typePalette[$type]];
-        })->values();
+        })->filter(fn ($type) => $type['sales'] > 0)->values();
         $otherTypeRows = $typeRows->except(array_keys($typeLabels));
         if ($otherTypeRows->isNotEmpty()) {
             $otherSales = (float) $otherTypeRows->sum('sales');
-            $orderTypes->push(['type' => 'other', 'label' => 'Other', 'sales' => $otherSales,
-                'checks' => (int) $otherTypeRows->sum('checks'),
-                'percent' => $typeTotal > 0 ? round($otherSales / $typeTotal * 100, 2) : 0, 'color' => '#64748b']);
+            if ($otherSales > 0) {
+                $orderTypes->push(['type' => 'other', 'label' => 'Other', 'sales' => $otherSales,
+                    'checks' => (int) $otherTypeRows->sum('checks'),
+                    'percent' => $typeTotal > 0 ? round($otherSales / $typeTotal * 100, 2) : 0, 'color' => '#64748b']);
+            }
         }
         $donutStops = [];
         $donutOffset = 0.0;
@@ -241,7 +253,9 @@ class PosController extends Controller
             'collections' => $percentChange($collections, $previousCollections),
             'orders' => $percentChange((float) ($summary->order_count ?? 0), (float) ($previousSummary->order_count ?? 0)),
             'complimentary' => $percentChange((float) $complimentaryChecks, (float) $previousComplimentaryChecks),
-            'turnaround' => $percentChange((float) $turnaroundMinutes, (float) $previousTurnaround['minutes']),
+            'turnaround' => $turnaroundCount > 0 && $previousTurnaround['count'] > 0
+                ? $percentChange((float) $turnaroundMinutes, (float) $previousTurnaround['minutes'])
+                : null,
             'discounts' => $percentChange((float) ($summary->discounts ?? 0), (float) ($previousSummary->discounts ?? 0)),
         ];
 
@@ -279,9 +293,12 @@ class PosController extends Controller
         return view('pos.dashboard', [
             'outlets' => $outlets, 'selectedOutlet' => $selectedOutlet,
             'from' => $fromDate, 'to' => $toDate, 'rangeDays' => $from->diffInDays($to) + 1,
+            'previousFrom' => $previousFrom->toDateString(), 'previousTo' => $previousTo->toDateString(),
+            'previousTurnaroundItemsCount' => $previousTurnaround['count'],
             'summary' => $summary, 'collections' => $collections, 'complimentaryChecks' => $complimentaryChecks, 'kpiChanges' => $kpiChanges,
             'turnaroundMinutes' => $turnaroundMinutes, 'turnaroundItemsCount' => $turnaroundCount, 'paymentMix' => $paymentMix,
             'dailyTrend' => $dailyTrend, 'chartOutlets' => $chartOutlets, 'trendAxis' => $trendAxis,
+            'hasDailySales' => $maxDailySales > 0, 'hasOrderTypeSales' => $typeTotal > 0,
             'orderTypes' => $orderTypes, 'donutStyle' => $donutStyle, 'topItems' => $topItems, 'lowItems' => $lowItems,
             'revenueControls' => $revenueControls, 'leakageWatch' => $leakageWatch,
         ]);

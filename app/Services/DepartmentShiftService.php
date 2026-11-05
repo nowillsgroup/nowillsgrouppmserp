@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\DepartmentShiftSession;
+use App\Models\PaymentMode;
 use App\Models\PosOrder;
+use App\Models\PosPayment;
 use App\Models\User;
 use App\Support\Tenant;
 use Illuminate\Support\Carbon;
@@ -87,7 +89,10 @@ class DepartmentShiftService
     public static function summary(DepartmentShiftSession $session): array
     {
         if ($session->status === 'closed' && is_array($session->close_snapshot)) {
-            return $session->close_snapshot;
+            $snapshot = $session->close_snapshot;
+            // Close-outs saved before the payment breakdown existed still print their method totals:
+            // a closed shift's payments are settled history, so reading them once is safe.
+            return array_key_exists('payments', $snapshot) ? $snapshot : array_merge($snapshot, self::paymentsByMode($session));
         }
 
         $stats = $session->posOrders()->selectRaw('COUNT(*) as orders_count')
@@ -99,7 +104,7 @@ class DepartmentShiftService
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END), 0) as settled_orders")
             ->selectRaw("COALESCE(SUM(CASE WHEN status IN ('open', 'billed') THEN 1 ELSE 0 END), 0) as open_orders")->first();
 
-        return [
+        return array_merge([
             'orders' => (int) $stats->orders_count,
             'covers' => (int) $stats->covers_count,
             'order_value' => round((float) $stats->order_value, 2),
@@ -108,6 +113,54 @@ class DepartmentShiftService
             'void_orders' => (int) $stats->void_orders,
             'settled_orders' => (int) $stats->settled_orders,
             'open_orders' => (int) $stats->open_orders,
+        ], self::paymentsByMode($session));
+    }
+
+    /**
+     * What was taken on this shift, per payment method: payments in, refunds out, net.
+     * The same orders' cashier-shift reconciliation stays with the cashier drawer — this is the
+     * service shift's own collection sheet, so a waiter can hand it over with the bill folder.
+     *
+     * @return array{payments: array<int, array<string, mixed>>, payments_in: float, payments_out: float, payments_total: float}
+     */
+    protected static function paymentsByMode(DepartmentShiftSession $session): array
+    {
+        $modes = PaymentMode::withoutGlobalScopes()->where('hotel_id', $session->hotel_id)->get()->keyBy('id');
+        $rows = [];
+        $add = function (?int $modeId, float $in, float $out) use (&$rows, $modes) {
+            $mode = $modeId !== null ? ($modes[$modeId] ?? null) : null;
+            $key = $mode?->name ?? ($modeId === null ? 'Unspecified method' : 'Other');
+            $rows[$key] ??= ['name' => $key, 'is_cash' => $mode?->type === 'cash', 'collected' => 0.0, 'refunded' => 0.0, 'net' => 0.0, 'count' => 0];
+            $rows[$key]['collected'] += $in;
+            $rows[$key]['refunded'] += $out;
+            $rows[$key]['net'] += $in - $out;
+            $rows[$key]['count']++;
+        };
+
+        $payments = PosPayment::whereIn('pos_order_id', $session->posOrders()->select('id'))
+            ->get(['pos_order_id', 'payment_mode_id', 'kind', 'amount']);
+        $payments->each(fn ($p) => $add($p->payment_mode_id === null ? null : (int) $p->payment_mode_id,
+            $p->kind === 'payment' ? (float) $p->amount : 0,
+            $p->kind === 'refund' ? (float) $p->amount : 0));
+
+        // Orders settled before the payment ledger existed have no rows; count them once through the legacy columns.
+        $ledgerOrderIds = $payments->pluck('pos_order_id')->unique();
+        PosOrder::where('department_shift_session_id', $session->id)->where('status', 'settled')->where('settlement', 'payment')
+            ->when($ledgerOrderIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $ledgerOrderIds))
+            ->get(['id', 'total', 'payment_mode_id'])
+            ->each(fn ($o) => $add($o->payment_mode_id === null ? null : (int) $o->payment_mode_id, (float) $o->total, 0));
+
+        ksort($rows);
+        $rows = array_values(array_map(fn ($row) => [
+            'name' => $row['name'], 'is_cash' => $row['is_cash'], 'count' => $row['count'],
+            'collected' => round($row['collected'], 2), 'refunded' => round($row['refunded'], 2), 'net' => round($row['net'], 2),
+        ], $rows));
+
+        return [
+            'payments' => $rows,
+            'payments_in' => round(collect($rows)->sum('collected'), 2),
+            'payments_out' => round(collect($rows)->sum('refunded'), 2),
+            'payments_total' => round(collect($rows)->sum('net'), 2),
         ];
     }
 
@@ -129,6 +182,7 @@ class DepartmentShiftService
             'covers' => $sessions->sum(fn ($s) => $s->report_summary['covers']),
             'order_value' => round($sessions->sum(fn ($s) => $s->report_summary['order_value']), 2),
             'settled_sales' => round($sessions->sum(fn ($s) => $s->report_summary['settled_sales']), 2),
+            'payments_total' => round($sessions->sum(fn ($s) => (float) ($s->report_summary['payments_total'] ?? 0)), 2),
             'open_orders' => $sessions->sum(fn ($s) => $s->report_summary['open_orders']),
         ]);
 

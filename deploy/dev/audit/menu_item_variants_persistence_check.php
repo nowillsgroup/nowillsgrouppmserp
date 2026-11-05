@@ -54,6 +54,17 @@ try {
         throw new RuntimeException('A side dish from another menu item was accepted at POS.');
     }
 
+    // Rate and cost are optional: an empty rate/cost (null after the request middleware) saves as 0,
+    // which the POS reads as "included in the item price" rather than inventing a charge.
+    $blank = $base;
+    $blank['name'] = $name.' blank rate';
+    $blank['variants'] = [['name' => 'Garden salad', 'rate' => null, 'cost' => null]];
+    $controller->store(Request::create('/masters/menu-items', 'POST', $blank), 'menu-items');
+    $blankVariant = MenuItem::where('name', $blank['name'])->firstOrFail()->variants->first();
+    if (! $blankVariant || (float) $blankVariant->rate !== 0.0 || (float) $blankVariant->cost !== 0.0) {
+        throw new RuntimeException('A side dish submitted without a rate and cost was not saved at zero.');
+    }
+
     $updated = $base;
     $updated['variants'] = [['name' => 'Fried plantain', 'rate' => '8.75', 'cost' => '4.10']];
     $controller->update(Request::create('/masters/menu-items/'.$item->id, 'PUT', $updated), 'menu-items', $item->id);

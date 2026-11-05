@@ -1,0 +1,182 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service shift totals · screen + printed sheet — UI-only preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  :root{--pv-green:#166534;--pv-ink:#172033;--pv-muted:#64748b;--pv-line:#dce5df}
+  body{margin:0;background:#eef2ef;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  .pv-wrap{max-width:1400px;margin:0 auto;padding:clamp(14px,2vw,26px)}
+  .pv-banner{display:flex;gap:10px;margin-bottom:16px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
+  .pv-banner strong{color:#63481a}
+  .pv-head{margin:0 0 16px}
+  .pv-head h1{margin:0;font-size:clamp(1.3rem,2.4vw,1.75rem);letter-spacing:-.03em}
+  .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
+  .pv-kicker{display:block;margin-bottom:4px;color:var(--pv-green);font-size:.66rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+  .pv-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:clamp(16px,2.5vw,30px);align-items:start}
+  .pv-label{display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem;font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pv-muted)}
+  .pv-label span{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pv-green)}
+  .pv-screen{background:#f5f7f9;border:1px solid var(--pv-line);border-radius:14px;padding:clamp(12px,1.6vw,18px)}
+  .pv-sheet{background:#fff;border:1px solid #cfd8d2;border-radius:6px;padding:clamp(16px,2.2vw,26px);box-shadow:0 18px 40px rgba(15,28,21,.16)}
+  .pv-sheet .ph{display:flex;justify-content:space-between;gap:1rem;border-bottom:2px solid #166534;padding-bottom:.6rem;margin-bottom:.8rem}
+  .pv-sheet .ph h2{margin:0;font-size:1.02rem}
+  .pv-sheet .ph .r{text-align:right;font-size:.8rem}
+  .pv-sheet h3{font-size:.86rem;margin:1rem 0 .35rem}
+  .pv-tiny{font-size:.68rem;color:var(--pv-muted)}
+  .pv-sign{display:flex;gap:2rem;flex-wrap:wrap;margin-top:1.1rem;font-size:.74rem}
+  .pv-sign div{min-width:190px}
+  .pv-sign i{display:block;height:1.5rem;border-bottom:1px solid #94a3b8}
+  .pv-note{margin:.75rem 0 0;font-size:.76rem;color:var(--pv-muted)}
+  .pv-bar{display:flex;gap:.4rem;margin-bottom:.6rem}
+</style>
+</head><body>
+<main class="pv-wrap">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative figures, no operational records.</strong>
+      The real card reads the payments of the orders linked to that waiter's service shift. Print uses the report's own printable sheet, which opens from the card or the shift list.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-terminal">POS terminal</a> · <a href="/qr-menu">Guest QR menu</a></div>
+    </div>
+  </div>
+
+  <div class="pv-head">
+    <span class="pv-kicker">My shift · Food &amp; beverage service</span>
+    <h1>Live shift totals: payment methods, one total, printable</h1>
+    <p>Left is the card on the shift report; right is exactly what the printer receives.</p>
+  </div>
+
+  <div class="pv-cols">
+    <div>
+      <p class="pv-label"><span></span>On screen · live shift totals</p>
+      <div class="pv-screen">
+        <div class="card">
+          <div class="card-head"><h3>Live shift totals</h3><span class="badge badge-green">Live</span></div>
+          <div class="card-body">
+            <ul class="list">
+              <li><span>Orders handled</span><b>14</b></li>
+              <li><span>Covers</span><b>31</b></li>
+              <li><span>Order value, excluding voids</span><b>GH₵ 3,486.00</b></li>
+              <li><span>Settled POS sales</span><b>GH₵ 2,914.50</b></li>
+              <li><span>Room-posted orders</span><b>GH₵ 571.50</b></li>
+              <li><span>Voided orders</span><b>1</b></li>
+              <li><span>Open / billed orders at close</span><b>2</b></li>
+            </ul>
+
+            <div class="flex justify-between items-center mt-2" style="gap:.5rem;flex-wrap:wrap">
+              <div><b class="small">Payments by method</b>
+                <div class="tiny muted">What this shift collected on its own orders. Room posts settle on the guest folio, not here.</div></div>
+              <button type="button" class="btn btn-sm" disabled title="Preview only">Print totals sheet</button>
+            </div>
+            <div class="table-wrap mt-1">
+              <table class="table table-compact">
+                <thead><tr><th>Payment method</th><th class="num">Collected</th><th class="num">Refunds</th><th class="num">Net</th></tr></thead>
+                <tbody>
+                  <tr><td><b>Cash</b> <span class="tiny muted">· drawer cash</span><div class="tiny muted">9 tenders</div></td><td class="num">GH₵ 1,240.00</td><td class="num">GH₵ 60.00</td><td class="num">GH₵ 1,180.00</td></tr>
+                  <tr><td><b>MTN MoMo</b><div class="tiny muted">4 tenders</div></td><td class="num">GH₵ 980.50</td><td class="num">GH₵ 0.00</td><td class="num">GH₵ 980.50</td></tr>
+                  <tr><td><b>Visa / Mastercard</b><div class="tiny muted">3 tenders</div></td><td class="num">GH₵ 754.00</td><td class="num">GH₵ 0.00</td><td class="num">GH₵ 754.00</td></tr>
+                </tbody>
+                <tfoot><tr><td><b>Total, all methods</b></td><td class="num">GH₵ 2,974.50</td><td class="num">GH₵ 60.00</td><td class="num">GH₵ 2,914.50</td></tr></tfoot>
+              </table>
+            </div>
+            <p class="tiny muted mt-1">Total collected on this open shift: <b>GH₵ 2,914.50</b> · GH₵ 571.50 of orders were posted to guest rooms instead of being paid here. Payment reconciliation against the drawer stays on the cashier shift.</p>
+          </div>
+        </div>
+      </div>
+      <p class="pv-note">The three metric lines above the table are unchanged; the method table sits under them with one bold <b>Total, all methods</b> row.</p>
+    </div>
+
+    <div>
+      <p class="pv-label"><span></span>Printed sheet · what comes out of the printer</p>
+      <div class="pv-bar"><button type="button" class="btn btn-sm" disabled title="Preview only">← Back</button><button type="button" class="btn btn-sm btn-primary" disabled title="Preview only">Print</button></div>
+      <div class="pv-sheet">
+        <div class="ph">
+          <div><h2>Nowills Hotel</h2><div class="pv-tiny">Airport Residential Area, Accra · Ph: 030 000 0000</div><div class="pv-tiny">TIN: C0000000000</div></div>
+          <div class="r"><h2 style="color:#166534;font-size:.95rem;margin:0 0 .2rem">Service shift totals</h2>
+            <div class="pv-tiny"><b>Report:</b> #418 · LIVE (provisional)<br><b>Staff member:</b> Ama Boateng<br><b>Department:</b> Food &amp; Beverage Service<br><b>Shift:</b> Evening<br><b>Business date:</b> Tue, 04 Nov 2026<br><b>Opened:</b> 04 Nov 2026 15:58<br><b>Printed:</b> 04 Nov 2026 20:41</div></div>
+        </div>
+
+        <p class="small" style="font-size:.78rem"><b>Provisional live sheet.</b> This shift is still open, so the figures below can change until it is closed. POS order value belongs to the service shift; payment reconciliation against the drawer stays on the cashier shift.</p>
+
+        <table class="table table-compact" style="font-size:.76rem">
+          <thead><tr><th>Orders</th><th>Covers</th><th class="num">Order value</th><th class="num">Settled sales</th><th class="num">Room-posted</th><th>Voids</th><th>Open / billed</th></tr></thead>
+          <tbody><tr><td>14</td><td>31</td><td class="num">3,486.00</td><td class="num">2,914.50</td><td class="num">571.50</td><td>1</td><td>2</td></tr></tbody>
+        </table>
+
+        <h3>Payments by method</h3>
+        <table class="table table-compact" style="font-size:.76rem">
+          <thead><tr><th>Payment method</th><th class="num">Tenders</th><th class="num">Collected</th><th class="num">Refunds</th><th class="num">Net</th></tr></thead>
+          <tbody>
+            <tr><td><b>Cash</b> <span class="pv-tiny">(drawer cash)</span></td><td class="num">9</td><td class="num">1,240.00</td><td class="num">60.00</td><td class="num">1,180.00</td></tr>
+            <tr><td><b>MTN MoMo</b></td><td class="num">4</td><td class="num">980.50</td><td class="num">0.00</td><td class="num">980.50</td></tr>
+            <tr><td><b>Visa / Mastercard</b></td><td class="num">3</td><td class="num">754.00</td><td class="num">0.00</td><td class="num">754.00</td></tr>
+          </tbody>
+          <tfoot><tr><td><b>Total, all methods</b></td><td class="num">16</td><td class="num">2,974.50</td><td class="num">60.00</td><td class="num">2,914.50</td></tr></tfoot>
+        </table>
+        <p class="small" style="font-size:.78rem;margin-top:.6rem">Total collected on this shift, all payment methods: <b>GH₵ 2,914.50</b> · a further GH₵ 571.50 was posted to guest rooms instead of being paid at the table.</p>
+
+        <h3>Orders linked to this shift</h3>
+        <table class="table table-compact" style="font-size:.74rem">
+          <thead><tr><th>Order</th><th>Outlet / table</th><th>Guest</th><th>Opened</th><th class="num">Covers</th><th>Status</th><th class="num">Value</th></tr></thead>
+          <tbody>
+            <tr><td>POS-002140</td><td>Garden Restaurant<div class="pv-tiny">Table 7</div></td><td>Walk-in</td><td>16:02</td><td class="num">2</td><td>Settled</td><td class="num">315.50</td></tr>
+            <tr><td>POS-002141</td><td>Garden Restaurant<div class="pv-tiny">Table 3</div></td><td>A. Mensah</td><td>16:20</td><td class="num">4</td><td>Settled</td><td class="num">482.00</td></tr>
+            <tr><td>POS-002142</td><td>Room service<div class="pv-tiny">Room 204</div></td><td>K. Adjei</td><td>17:05</td><td class="num">1</td><td>Settled</td><td class="num">268.00</td></tr>
+            <tr><td>POS-002147</td><td>Garden Restaurant<div class="pv-tiny">Table 11</div></td><td>Walk-in</td><td>19:48</td><td class="num">3</td><td>Open</td><td class="num">0.00</td></tr>
+          </tbody>
+        </table>
+
+        <div class="pv-sign">
+          <div><b>Handed over by</b><i></i><span class="pv-tiny">Name / signature · Ama Boateng</span></div>
+          <div><b>Received by (supervisor)</b><i></i><span class="pv-tiny">Name / signature</span></div>
+        </div>
+        <p class="pv-tiny" style="margin-top:.9rem">Printed from Nowills PMS · report #418 · provisional live figures.</p>
+      </div>
+      <p class="pv-note">Same numbers on both sides: the card and the sheet are generated from one summary, so a printed handover can never disagree with the screen.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:clamp(20px,3vw,34px)">
+    <p class="pv-label"><span></span>Where the waiter lands · My shift workspace</p>
+    <div class="pv-screen">
+      <div class="grid g-2">
+        <section class="card">
+          <div class="card-head"><div><h2 style="font-size:1rem;margin:0">Your service shift is open</h2>
+            <div class="small muted">Evening · 04 Nov 2026 · opened 15:58</div></div><span class="badge badge-green">Open</span></div>
+          <div class="card-body">
+            <div class="grid g-4">
+              <div><span class="small muted">Orders handled</span><div class="h2">14</div></div>
+              <div><span class="small muted">Covers</span><div class="h2">31</div></div>
+              <div><span class="small muted">Order value</span><div class="h2">GH₵ 3,486.00</div></div>
+              <div><span class="small muted">Still open</span><div class="h2">2</div></div>
+            </div>
+            <div class="flex justify-between items-center mt-1" style="gap:.5rem;flex-wrap:wrap">
+              <div class="flex gap-1 wrap items-center">
+                <span class="badge badge-green" title="9 tenders">Cash GH₵ 1,180.00</span>
+                <span class="badge badge-blue" title="4 tenders">MTN MoMo GH₵ 980.50</span>
+                <span class="badge badge-blue" title="3 tenders">Visa / Mastercard GH₵ 754.00</span>
+                <span class="small"><b>Total, all methods: GH₵ 2,914.50</b> <span class="tiny muted">· GH₵ 571.50 posted to rooms</span></span>
+              </div>
+              <button type="button" class="btn btn-sm" disabled title="Preview only">Print totals sheet</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><div><h2 style="font-size:1rem;margin:0">Department day report</h2>
+            <div class="small muted">Individual server close-outs grouped by shift.</div></div></div>
+          <div class="card-body table-wrap">
+            <table class="table table-compact">
+              <thead><tr><th>Shift</th><th class="num">Sessions</th><th class="num">Orders</th><th class="num">Order value</th><th class="num">Settled</th><th class="num">Collected by method</th></tr></thead>
+              <tbody>
+                <tr><td><b>Morning</b></td><td class="num">3</td><td class="num">22</td><td class="num">GH₵ 5,120.00</td><td class="num">GH₵ 4,980.00</td><td class="num">GH₵ 4,980.00</td></tr>
+                <tr><td><b>Evening</b></td><td class="num">2</td><td class="num">19</td><td class="num">GH₵ 4,860.00</td><td class="num">GH₵ 3,640.50</td><td class="num">GH₵ 3,640.50</td></tr>
+              </tbody>
+              <tfoot><tr><td><b>All shifts</b></td><td class="num">5</td><td class="num">41</td><td class="num">GH₵ 9,980.00</td><td class="num">GH₵ 8,620.50</td><td class="num">GH₵ 8,620.50</td></tr></tfoot>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <p class="pv-note">The open-shift card carries the method chips, the total for all methods and the print command; the day report closes with an <b>All shifts</b> total row.</p>
+  </div>
+</main>
+</body></html>

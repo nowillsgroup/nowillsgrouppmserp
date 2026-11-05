@@ -35,6 +35,7 @@ $background(Schedule::command('pms:channel-push'))->everyMinute()->withoutOverla
 Schedule::command('pms:einvoice-retry')->everyFiveMinutes()->withoutOverlapping(); // v4.3: GRA E-VAT submission retries with back-off
 Schedule::command('pms:feedback-run')->everyFifteenMinutes()->withoutOverlapping(); // v3.1: post-stay surveys (send / remind / expire) + escalate overdue guest cases
 Schedule::command('pms:tables-run')->everyFiveMinutes()->withoutOverlapping(); // v3.2: table booking reminders, automatic no-shows, end-of-day waitlist
+Schedule::command('pms:fleet-run')->dailyAt('03:50')->withoutOverlapping(); // v7.61: GPS history retention, fleet service alerts
 Schedule::command('pms:transport-run')->everyFiveMinutes()->withoutOverlapping(); // v3.3: driver reminders, expire unconfirmed transfer requests
 Schedule::command('pms:foreign-run')->hourly()->withoutOverlapping(); // v3.4: Form C (FRRO) due / overdue alerts, forex surrender check
 Schedule::command('pms:frontdesk-run')->everyFiveMinutes()->withoutOverlapping(); // v3.5: late / missed wake-up call escalation

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maintenance &amp; Repairs · UI preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/fleet.css">
+<style>
+  body { margin: 0; background: #f6f8f6; }
+  .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
+  .pv-banner strong { display: block; }
+  .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .pv-head h1 { font-size: 1.35rem; margin: 0; }
+  .pv-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .pv-actions .btn { display: inline-flex; align-items: center; gap: .35rem; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 1 0 5 5L21 21l-2 2-9.6-9.6a4 4 0 0 1-5-5L6 6l3.5 3.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 13h2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8.8a16 16 0 0 1 20 0M5 12.5a11 11 0 0 1 14 0M8.5 16.2a6 6 0 0 1 7 0"/><circle cx="12" cy="20" r="1"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18.5v.5"/></symbol>
+</svg>
+
+<div class="pv-shell">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative jobs, no operational records.</strong>
+      This page renders the Maintenance &amp; Repairs screen with sample work orders. The real screen reads plans, work orders and completed-job cost from the tenant database and writes nothing here.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/__preview/fleet-overview">Fleet management</a> · <a href="/__preview/fleet-fuel">Fuel &amp; efficiency</a></div></div>
+  </div>
+
+  <div class="pv-head">
+    <div>
+      <div class="tiny muted">Transport / Fleet / Maintenance</div>
+      <h1>Maintenance &amp; Repairs</h1>
+    </div>
+    <div class="pv-actions">
+      <a class="btn" href="/__preview/fleet-tracking"><svg class="i"><use href="#i-wifi"/></svg> Live tracking</a>
+      <a class="btn" href="/__preview/fleet-fuel"><svg class="i"><use href="#i-wallet"/></svg> Fuel</a>
+      <button class="btn" type="button" disabled title="Preview only"><svg class="i"><use href="#i-download"/></svg> Export CSV</button>
+    </div>
+  </div>
+
+  <div class="grid g-2">
+    <div class="card" id="workshopStats">
+      <div class="card-head"><h3>Workshop performance</h3><span class="small muted">Last 90 days · closed jobs</span></div>
+      <div class="card-body">
+        <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:.75rem">
+          <div class="stat tone-blue">
+            <div class="ico"><svg class="i"><use href="#i-tool"/></svg></div>
+            <div><div class="v">14</div><div class="l">Jobs closed</div></div>
+          </div>
+          <div class="stat tone-amber">
+            <div class="ico"><svg class="i"><use href="#i-clock"/></svg></div>
+            <div><div class="v">23</div><div class="l">Days off road</div><div class="tiny muted">1.9 day(s) per job</div></div>
+          </div>
+          <div class="stat tone-purple">
+            <div class="ico"><svg class="i"><use href="#i-wallet"/></svg></div>
+            <div><div class="v">GH₵ 9,480.00</div><div class="l">Repair spend</div><div class="tiny muted">GH₵ 677.14 per job</div></div>
+          </div>
+        </div>
+
+        <div class="small" style="padding:.2rem 0">
+          <div class="flex items-center justify-between gap-1"><span>Preventive service</span><span class="tiny muted">7</span></div>
+          <div style="height:.3rem;background:var(--c-slate-50,#f1f5f9);border-radius:999px;overflow:hidden;margin-top:.15rem"><div style="height:100%;width:50%;background:#6366f1"></div></div>
+        </div>
+        <div class="small" style="padding:.2rem 0">
+          <div class="flex items-center justify-between gap-1"><span>Repair</span><span class="tiny muted">4</span></div>
+          <div style="height:.3rem;background:var(--c-slate-50,#f1f5f9);border-radius:999px;overflow:hidden;margin-top:.15rem"><div style="height:100%;width:29%;background:#6366f1"></div></div>
+        </div>
+        <div class="small" style="padding:.2rem 0">
+          <div class="flex items-center justify-between gap-1"><span>Tyres</span><span class="tiny muted">2</span></div>
+          <div style="height:.3rem;background:var(--c-slate-50,#f1f5f9);border-radius:999px;overflow:hidden;margin-top:.15rem"><div style="height:100%;width:14%;background:#6366f1"></div></div>
+        </div>
+        <div class="small" style="padding:.2rem 0">
+          <div class="flex items-center justify-between gap-1"><span>Inspection</span><span class="tiny muted">1</span></div>
+          <div style="height:.3rem;background:var(--c-slate-50,#f1f5f9);border-radius:999px;overflow:hidden;margin-top:.15rem"><div style="height:100%;width:7%;background:#6366f1"></div></div>
+        </div>
+        <p class="tiny muted mt-1">Days off road are counted from start to completion, so a job the desk never started adds no downtime – the number is a floor, not an estimate.</p>
+      </div>
+    </div>
+
+    <div class="card" id="openJobsAgeing">
+      <div class="card-head"><h3>Open jobs</h3><span class="small muted">2 waiting</span></div>
+      <div class="card-body" style="padding:.2rem .9rem 0"><a class="btn btn-sm btn-ghost" href="/__preview/fleet-work-order">Printable job card (WO-00412) →</a></div>
+      <div class="card-body">
+        <p class="small m-0">Oldest: <a href="/__preview/fleet-overview"><b>VAN-3</b></a> – Brake pads <span class="text-red">(2 day(s) overdue)</span></p>
+        <div class="table-wrap mt-1">
+          <table class="table">
+            <caption class="sr-only">Open work orders with due date and priority</caption>
+            <thead><tr><th scope="col">Vehicle</th><th scope="col">Job</th><th scope="col">Due</th><th scope="col">Priority</th></tr></thead>
+            <tbody>
+              <tr><td class="small"><b>VAN-3</b></td><td class="small">Brake pads</td><td class="small nowrap"><span class="text-red">02 Nov</span></td><td><span class="badge badge-red">Urgent</span></td></tr>
+              <tr><td class="small"><b>TEMPO-4</b></td><td class="small">Full service</td><td class="small nowrap">12 Nov</td><td><span class="badge badge-slate">Normal</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tiny muted mt-1">Busiest suppliers by value (90 days): Kaneshie Auto GH₵ 4,180.00 (5) · TyrePlus GH₵ 2,960.00 (3) · Innova Service Centre GH₵ 1,240.00 (2)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g-2" id="inspections">
+    <div class="card">
+      <div class="card-head"><h3>Pre-trip inspections</h3><span class="small muted">Expected every 7 day(s)</span></div>
+      <div class="card-body">
+        <p class="small m-0"><b>2</b> of 4 active vehicle(s) are due an inspection.</p>
+        <ul class="small" style="margin:.5rem 0 0;padding-left:1.1rem;display:grid;gap:.2rem">
+          <li><a href="/__preview/fleet-overview"><b>TEMPO-4</b></a> <span class="text-red">never inspected</span></li>
+          <li><a href="/__preview/fleet-overview"><b>VAN-3</b></a> <span class="muted">9 day(s) since the last inspection</span></li>
+        </ul>
+        <p class="tiny muted mt-1">A never-inspected car counts as overdue: a blank history is a gap, not a clean record. Record inspections from the vehicle page.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>What a car was checked for</h3><span class="small muted">Eight items per inspection</span></div>
+      <div class="card-body">
+        <ul class="small" style="margin:0;padding-left:1.1rem;display:grid;gap:.2rem">
+          <li>Brakes &amp; handbrake</li><li>Tyres &amp; pressures</li><li>Lights &amp; indicators</li><li>Wipers &amp; screen wash</li>
+          <li>Oil, coolant &amp; fuel</li><li>Seat belts</li><li>First-aid kit &amp; extinguisher</li><li>Body, mirrors &amp; cleanliness</li>
+        </ul>
+        <p class="tiny muted mt-1">A check that is not ticked is recorded as not confirmed and printed on the job card, so a defect cannot arrive without its context.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="incidentLog">
+    <div class="card-head"><h3>Incident log</h3><span class="small muted">2 live · 1 major or worse · estimate GH₵ 9,400.00</span></div>
+    <div class="card-body table-wrap">
+      <table class="table" id="incidentTable">
+        <caption class="sr-only">Illustrative vehicle incidents, live ones first</caption>
+        <thead><tr><th scope="col">When</th><th scope="col">Vehicle</th><th scope="col">What happened</th><th scope="col">Severity</th>
+          <th scope="col" class="num">Estimate</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Update</span></th></tr></thead>
+        <tbody>
+          <tr class="row-alert"><td class="nowrap">02 Nov<div class="tiny muted">18:40</div></td>
+            <td><b>VAN-3</b><div class="tiny muted">Sunil Yadav</div></td>
+            <td class="small">Accident<div class="tiny muted">Rear-ended at the Airport bypass roundabout; offside rear panel and bumper damaged.</div>
+              <div class="tiny muted">Airport bypass · Police AR/1182/26</div></td>
+            <td><span class="badge badge-red">Major</span></td><td class="num">GH₵ 8,000.00</td>
+            <td class="small">Under investigation<div class="tiny muted">Claim filed with the insurer</div></td>
+            <td class="small"><details><summary class="tiny">Update</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+          <tr><td class="nowrap">27 Oct<div class="tiny muted">09:05</div></td>
+            <td><b>PICK-1</b><div class="tiny muted">Yaw Boateng</div></td>
+            <td class="small">Damage<div class="tiny muted">Cracked windscreen from a stone on the Tema motorway.</div>
+              <div class="tiny muted">Tema motorway</div></td>
+            <td><span class="badge badge-amber">Minor</span></td><td class="num">GH₵ 1,400.00</td>
+            <td class="small">Open</td>
+            <td class="small"><details><summary class="tiny">Update</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+          <tr><td class="nowrap">14 Sep<div class="tiny muted">21:15</div></td>
+            <td><b>BUS-2</b><div class="tiny muted">Kwame Mensah</div></td>
+            <td class="small">Breakdown<div class="tiny muted">Alternator failed on the Kumasi road; recovered by the AA.</div>
+              <div class="tiny muted">Nsawam</div></td>
+            <td><span class="badge badge-amber">Minor</span></td><td class="num">—</td>
+            <td class="small">Closed<div class="tiny muted">Repaired on work order WO-00402</div></td>
+            <td class="small"><details><summary class="tiny">Reopen</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+        </tbody>
+      </table>
+      <p class="tiny muted" style="padding:.5rem .9rem .6rem">The estimate is what the property expects the incident to cost, for the insurer — it is <b>not</b> money posted.
+        Actual repair spend goes on the work order and into running costs, and closing an incident never changes either.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>Report an incident</h3></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field span-all"><label for="pvIncVehicle">Vehicle</label><select id="pvIncVehicle"><option>VAN-3 · GX 4821-24</option><option>PICK-1 · GN 3390-24</option></select></div>
+        <div class="field"><label for="pvIncWhen">When it happened</label><input id="pvIncWhen" type="datetime-local" value="2026-11-04T09:20"></div>
+        <div class="field"><label for="pvIncKind">What happened</label><select id="pvIncKind"><option>Accident</option><option>Damage</option><option>Breakdown</option><option>Theft</option><option>Other</option></select></div>
+        <div class="field"><label for="pvIncSeverity">Severity</label><select id="pvIncSeverity"><option>Minor</option><option>Major</option><option>Critical</option></select></div>
+        <div class="field"><label for="pvIncWhere">Where</label><input id="pvIncWhere" value="Airport bypass"></div>
+        <div class="field"><label for="pvIncThird">Other vehicle / person</label><input id="pvIncThird" value="Taxi GT 5541-25"></div>
+        <div class="field"><label for="pvIncPolice">Police report no.</label><input id="pvIncPolice" value="AR/1182/26"></div>
+        <div class="field"><label for="pvIncCost">Estimated cost</label><input id="pvIncCost" type="number" step="0.01" value="8000.00"></div>
+        <div class="field span-all"><label for="pvIncDesc">What happened</label><textarea id="pvIncDesc">Rear-ended at the roundabout.</textarea></div>
+        <div class="span-all"><button class="btn btn-primary" type="button" disabled title="Preview only">Log incident</button></div>
+      </div>
+      <p class="tiny muted mt-1">Logging an incident raises nothing automatically: open a work order for the repair and post the actual cost there,
+        so the insurer's estimate here and the money spent stay separate.</p>
+    </div>
+  </div>
+
+  <div class="card" id="inspectionLog">
+    <div class="card-head"><h3>Inspection log</h3><span class="small muted">14 recorded · <a href="#">download CSV</a></span></div>
+    <div class="card-body">
+      <div class="filters" style="margin-bottom:.6rem">
+        <span class="small muted">All vehicles</span> · <span class="small muted">Any result</span>
+        <span class="tiny muted">(filter by vehicle and result in the real screen)</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="inspectionLogTable">
+          <caption class="sr-only">Illustrative inspection log with result, checked items and any work order raised</caption>
+          <thead><tr><th scope="col">When</th><th scope="col">Vehicle</th><th scope="col">Inspector</th><th scope="col">Odometer</th>
+            <th scope="col">Result</th><th scope="col" class="num">Checks</th><th scope="col">Defects / work order</th></tr></thead>
+          <tbody>
+            <tr class="row-alert"><td class="small nowrap">02 Nov 2026 08:10</td><td><a href="/__preview/fleet-vehicle"><b>VAN-3</b></a></td><td class="small">Sunil Yadav</td><td class="num">83,905</td><td><span class="badge badge-red">Unsafe – do not dispatch</span></td><td class="num">7/8</td><td class="small">Rear brake pads below the limit; car pulled from the board.<div class="tiny text-amber"><a href="/__preview/fleet-work-order">Brake pads and rear discs</a> (In progress)</div></td></tr>
+            <tr><td class="small nowrap">03 Nov 2026 06:55</td><td><a href="/__preview/fleet-vehicle"><b>SEDAN-2</b></a></td><td class="small">Kwame Mensah</td><td class="num">48,210</td><td><span class="badge badge-amber">Passed with a minor defect</span></td><td class="num">8/8</td><td class="small">Near-side headlamp flickers on rough road.<div class="tiny text-amber">Defect from pre-trip inspection (Scheduled)</div></td></tr>
+            <tr><td class="small nowrap">04 Nov 2026 06:30</td><td><a href="/__preview/fleet-vehicle"><b>INNOVA-1</b></a></td><td class="small">Sunil Yadav</td><td class="num">64,102</td><td><span class="badge badge-green">Passed</span></td><td class="num">8/8</td><td class="small"><span class="muted">—</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warn" id="workshopAttention">
+    <svg class="i"><use href="#i-alert"/></svg>
+    <div><b>VAN-3</b> (84,180 km) – brake pads overdue, 1 open job: Brake pads. <b>SEDAN-2</b> (61,240 km) – 1 open job: Tyre rotation.</div>
+  </div>
+
+  <div class="card flush">
+    <div class="card-head"><h3>Service plans</h3><span class="small muted">Day and kilometre intervals</span></div>
+    <div class="card-body table-wrap">
+      <table class="table">
+        <caption class="sr-only">Active service plans with next due date and odometer</caption>
+        <thead><tr><th scope="col">Vehicle</th><th scope="col">Plan</th><th scope="col" class="num">Every (days)</th><th scope="col" class="num">Every (km)</th><th scope="col">Next due</th><th scope="col">State</th></tr></thead>
+        <tbody>
+          <tr><td class="small"><b>INNOVA-1</b></td><td class="small">Oil &amp; filter</td><td class="num">90</td><td class="num">5,000</td><td class="small">18 Nov 2026 · 64,500 km</td><td><span class="badge badge-amber">Due soon</span></td></tr>
+          <tr><td class="small"><b>SEDAN-2</b></td><td class="small">Tyre rotation</td><td class="num">120</td><td class="num">10,000</td><td class="small">— · 61,200 km</td><td><span class="badge badge-red">Overdue</span></td></tr>
+          <tr><td class="small"><b>VAN-3</b></td><td class="small">Brake pads</td><td class="num">180</td><td class="num">25,000</td><td class="small">02 Nov 2026 · 84,500 km</td><td><span class="badge badge-red">Overdue</span></td></tr>
+          <tr><td class="small"><b>TEMPO-4</b></td><td class="small">Full service</td><td class="num">180</td><td class="num">10,000</td><td class="small">‑ · 92,000 km</td><td><span class="badge badge-slate">Planned</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid g-2-1">
+    <div class="card flush">
+      <div class="card-head"><h3>Work orders</h3><span class="small muted">Open and in progress</span></div>
+      <div class="card-body table-wrap">
+        <table class="table">
+          <caption class="sr-only">Work orders with priority, supplier, estimate and actual cost</caption>
+          <thead><tr><th scope="col">Vehicle</th><th scope="col">Job</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col" class="num">Estimate</th><th scope="col" class="num">Actual</th></tr></thead>
+          <tbody>
+            <tr><td class="small"><b>VAN-3</b></td><td class="small">Brake pads <div class="tiny muted">Kaneshie Auto · due 02 Nov</div></td><td><span class="badge badge-red">Urgent</span></td><td><span class="badge badge-blue">In progress</span></td><td class="num">GH₵ 1,450.00</td><td class="num">—</td></tr>
+            <tr><td class="small"><b>TEMPO-4</b></td><td class="small">Full service <div class="tiny muted">Innova Service Centre · due 12 Nov</div></td><td><span class="badge badge-slate">Normal</span></td><td><span class="badge badge-amber">Scheduled</span></td><td class="num">GH₵ 950.00</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>How completion works</h3></div>
+      <div class="card-body small muted">
+        Completing a job records the odometer, rolls its linked plan forward, releases the vehicle back to available only when no other open job needs it in the workshop, and can post the invoice straight to running expenses — so the cost appears in cost per kilometre without a second entry.
+        <p class="tiny muted mt-1 m-0">Buttons are disabled in this preview.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="tiny muted" style="margin-top:1.25rem">The real screen lives under <b>Transport › Maintenance &amp; Repairs</b>. Served by the development preview server only — no database, no writes.</p>
+</div>
+</body>
+</html>

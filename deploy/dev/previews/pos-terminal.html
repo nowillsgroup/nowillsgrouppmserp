@@ -1,0 +1,185 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POS terminal · order placement — UI-only preview</title>
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  :root{--pv-green:#168553;--pv-ink:#172033;--pv-muted:#718096;--pv-line:#dce5df}
+  body{margin:0;background:#f4f7f5;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  .pv-wrap{max-width:1500px;margin:0 auto;padding:clamp(14px,2vw,26px)}
+  .pv-banner{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
+  .pv-banner strong{color:#63481a}
+  .pv-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 12px}
+  .pv-head h1{margin:0;font-size:clamp(1.4rem,2.6vw,1.9rem);letter-spacing:-.03em}
+  .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
+  .pv-kicker{display:block;margin-bottom:4px;color:var(--pv-green);font-size:.66rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase}
+  .pv-note{margin:12px 0 0;color:var(--pv-muted);font-size:.78rem}
+  .pos-side-dish-choices .check{display:flex;align-items:center;gap:.5rem;padding:.45rem .2rem;border-bottom:1px solid var(--pv-line)}
+  .pos-side-dish-choices .check:last-of-type{border-bottom:0}
+</style>
+</head><body>
+<main class="pv-wrap">
+  <div class="pv-banner" role="note">
+    <span aria-hidden="true">⚠</span>
+    <div><strong>UI-only preview – illustrative menu and draft, no operational records.</strong>
+      The real screen reads the outlet's menu, prices and side dishes from the tenant database and writes nothing here.
+      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-dashboard">POS dashboard</a> · <a href="/__preview/management-dashboard">Management dashboard</a></div>
+    </div>
+  </div>
+
+  <div class="pv-head">
+    <div>
+      <span class="pv-kicker">Restaurant POS · order placement</span>
+      <h1>Garden Restaurant — Table 7</h1>
+      <p>Tap a dish; a dish that comes with a side asks for the side first.</p>
+    </div>
+    <div class="flex gap-1">
+      <span class="badge badge-blue">Order #POS-002148</span>
+      <span class="badge badge-green">Shift open · Ama Boateng</span>
+    </div>
+  </div>
+
+  <div class="pos-order-context" role="group" aria-label="Order context">
+    <div class="pos-context-cell"><span><small>Table / service</small><b>Table 7</b></span></div>
+    <div class="pos-context-cell"><span><small>Customer</small><b>Walk-in guest</b></span></div>
+    <div class="pos-context-cell"><span><small>Pax</small><b>2</b></span></div>
+    <div class="pos-context-cell"><span><small>Waiter</small><b>Ama Boateng</b></span></div>
+    <div class="pos-context-cell"><span><small>Ref. #</small><b>POS-002148</b></span></div>
+  </div>
+
+  <div class="pos pos-terminal">
+    <div class="pos-catalog-panel">
+      <div class="pos-menu-toolbar">
+        <div class="pos-menu-heading"><span class="pos-eyebrow">MENU CATALOG</span><h2>Build this order</h2>
+          <div class="pos-menu-subline"><span class="small muted">Choose dishes to add to the kitchen ticket.</span><span class="pos-menu-count" role="status" aria-live="polite">10 items available</span></div></div>
+        <div class="pos-menu-controls">
+          <label class="pos-search"><input class="input" type="search" placeholder="Search item or code… ( / )" aria-label="Search menu items by name or code" disabled title="Preview only"></label>
+          <button type="button" class="btn btn-accent" disabled title="Preview only">Open item</button>
+        </div>
+      </div>
+
+      <div class="pos-catalog">
+        <nav class="pos-cats" aria-label="Menu categories">
+          <button type="button" class="active" aria-pressed="true">All <span aria-hidden="true">10</span></button>
+          <button type="button" aria-pressed="false">Main course <span aria-hidden="true">5</span></button>
+          <button type="button" aria-pressed="false">Sides <span aria-hidden="true">3</span></button>
+          <button type="button" aria-pressed="false">Dessert <span aria-hidden="true">1</span></button>
+          <button type="button" aria-pressed="false">Beverage <span aria-hidden="true">1</span></button>
+        </nav>
+
+        <div class="pos-items" id="posItems">
+          <button type="button" class="pos-item" disabled title="Preview only" data-name="Grilled chicken">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-118</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>Grilled chicken</b><span class="p">GH₵ 85.00</span><span class="tiny muted pos-food-label">3 sides</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only" data-name="Jollof rice &amp; chicken">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-104</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>Jollof rice &amp; chicken</b><span class="p">GH₵ 72.00</span><span class="tiny muted pos-food-label">2 sides</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only" data-name="Banku &amp; tilapia">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-109</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>Banku &amp; tilapia</b><span class="p">GH₵ 95.00</span><span class="tiny muted pos-food-label">2 sides</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">M-121</span><span class="tiny muted pos-food-label">Veg</span></span>
+            <b>Palava sauce &amp; yam</b><span class="p">GH₵ 64.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-127</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>Club sandwich</b><span class="p">GH₵ 58.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">S-02</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>Fried plantain</b><span class="p">GH₵ 18.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">S-03</span><span class="tiny muted pos-food-label">Veg</span></span>
+            <b>Garden salad</b><span class="p">GH₵ 22.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">S-01</span><span class="tiny muted pos-food-label">Non-veg</span></span>
+            <b>French fries</b><span class="p">GH₵ 20.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">D-11</span><span class="tiny muted pos-food-label">Veg</span></span>
+            <b>Chocolate mousse</b><span class="p">GH₵ 32.00</span>
+          </button>
+          <button type="button" class="pos-item" disabled title="Preview only">
+            <span class="pos-photo pos-photo-empty"><span class="veg-dot beverage"></span></span>
+            <span class="pos-meta flex items-center gap-1"><span class="veg-dot beverage" aria-hidden="true"></span><span class="tiny muted">B-04</span><span class="tiny muted pos-food-label">Drink</span></span>
+            <b>Fresh orange juice</b><span class="p">GH₵ 28.00</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cart">
+      <div class="card pos-ticket-card">
+        <div class="card-head"><div class="pos-card-title"><span class="pos-card-icon" aria-hidden="true">🔔</span><div><h3>New kitchen ticket</h3><span class="tiny muted" role="status" aria-live="polite">3 items · 2 lines</span></div></div>
+          <button type="button" class="btn btn-sm btn-ghost" disabled title="Preview only">Clear</button></div>
+
+        <div class="card-body cart-lines">
+          <div class="cart-line">
+            <div class="flex gap-1"><div><b class="small">Grilled chicken</b><span class="tiny muted pos-unit-rate">GH₵ 97.50 each</span>
+              <div class="tiny text-green">Side dishes: French fries +12.50</div>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Grilled chicken" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
+            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>1</span><button type="button" disabled title="Preview only">+</button></span>
+            <b class="small pos-line-amount">GH₵ 97.50</b>
+          </div>
+
+          <div class="cart-line">
+            <div class="flex gap-1"><div><b class="small">Banku &amp; tilapia</b><span class="tiny muted pos-unit-rate">GH₵ 95.00 each</span>
+              <div class="tiny text-green">Side dishes: Garden salad included</div>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Banku &amp; tilapia" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
+            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>2</span><button type="button" disabled title="Preview only">+</button></span>
+            <b class="small pos-line-amount">GH₵ 190.00</b>
+          </div>
+
+          <div class="cart-line">
+            <div class="flex gap-1"><div><b class="small">Fresh orange juice</b><span class="tiny muted pos-unit-rate">GH₵ 28.00 each</span>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Fresh orange juice" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
+            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>1</span><button type="button" disabled title="Preview only">+</button></span>
+            <b class="small pos-line-amount">GH₵ 28.00</b>
+          </div>
+        </div>
+
+        <div class="card-foot pos-ticket-footer">
+          <div class="pos-ticket-total"><span class="tiny muted pos-draft-label">Draft items total</span><b class="pos-draft-total"><span>GH₵</span> <span>315.50</span></b>
+            <span class="tiny muted">Auto-route to station printers</span></div>
+          <button type="button" class="btn btn-accent" disabled title="Preview only">Send KOT</button>
+        </div>
+      </div>
+
+      <p class="pv-note">The draft groups identical combinations: the same dish with the same sides shares a line and its quantity changes, while a different side selection stays a separate line so the kitchen is never guessing.</p>
+    </div>
+  </div>
+</main>
+
+<div class="modal show" id="sideDishModal" role="dialog" aria-modal="true" aria-labelledby="sideDishTitle">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-head"><h3 id="sideDishTitle">Side dish for Grilled chicken</h3>
+      <button type="button" class="btn btn-ghost btn-icon" disabled title="Preview only" aria-label="Close">×</button></div>
+    <div class="modal-body">
+      <p class="small muted" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+      <fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0">
+        <legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>
+        <label class="check"><input type="checkbox" checked disabled> French fries <span class="tiny muted">+GH₵ 12.50</span></label>
+        <label class="check"><input type="checkbox" disabled> Garden salad <span class="tiny muted">included</span></label>
+        <label class="check"><input type="checkbox" disabled> Fried plantain <span class="tiny muted">+GH₵ 8.00</span></label>
+        <label class="check"><input type="checkbox" disabled> Extra gravy <span class="tiny muted">included</span></label>
+      </fieldset>
+      <p class="tiny muted">Rate and cost are optional in the menu master: blank means the side is included in the dish price, so the bill never invents a charge for rice or salad.</p>
+    </div>
+    <div class="modal-foot"><button type="button" class="btn" disabled title="Preview only">Cancel</button>
+      <button type="button" class="btn btn-primary" disabled title="Preview only">Continue</button></div>
+  </div>
+</div>
+</body></html>

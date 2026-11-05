@@ -44,8 +44,12 @@ class MenuItemsPolishTest(unittest.TestCase):
         for marker in (
             "'variants' => ['nullable', 'array', 'max:30']",
             "'variants.*.name' => ['required', 'string', 'max:100', 'distinct:ignore_case']",
-            "'variants.*.rate' => ['required', 'numeric', 'min:0'",
-            "'variants.*.cost' => ['required', 'numeric', 'min:0'",
+            # Rate and cost are optional on purpose: a side dish included in the item price, or one
+            # the kitchen does not cost separately, must save without being invented.
+            "'variants.*.rate' => ['nullable', 'numeric', 'min:0'",
+            "'variants.*.cost' => ['nullable', 'numeric', 'min:0'",
+            "'rate' => round((float) ($variant['rate'] ?? 0), 2)",
+            "'cost' => round((float) ($variant['cost'] ?? 0), 2)",
             "'variants_present'",
             "syncMenuItemVariants($row, $variants)",
             "DB::transaction(function () use ($row, $data, $variants)",
@@ -56,8 +60,8 @@ class MenuItemsPolishTest(unittest.TestCase):
             'Variants / side dishes',
             'name="variants_present"',
             'Name of side dish',
-            'Rate / price ({{ $priceSymbol }})',
-            'Cost ({{ $priceSymbol }})',
+            'Rate / price ({{ $priceSymbol }}) <span class="tiny muted">optional</span>',
+            'Cost ({{ $priceSymbol }}) <span class="tiny muted">optional</span>',
             'id="addMenuItemVariant"',
             'id="menuItemVariantTemplate"',
             'data-remove-variant',
@@ -85,7 +89,17 @@ class MenuItemsPolishTest(unittest.TestCase):
             "const sideIds = variants.map(v => v.id)",
             "variants.reduce((sum, v) => sum + Number(v.rate || 0), 0)",
             'data-side-variant-id=',
-            'Side dishes <span class="tiny muted">Choose any; each rate is added to the item.</span>',
+            'Side dishes <span class="tiny muted">',
+            # The side-dish step: its own popup the moment a dish with sides is tapped.
+            'id="sideDishModal"',
+            'id="sideDishContinue"',
+            "function openSideDishPicker(button, groups, variants)",
+            "if (variants.length) { openSideDishPicker(button, groups, variants); }",
+            "function pickedSideDishes(scope)",
+            "else if (groups.length) { openModifierPicker(button, groups, []); }",
+            'Continue with none if the guest does not want one.',
+            "{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}",
+
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, POS_VIEW)
@@ -96,6 +110,70 @@ class MenuItemsPolishTest(unittest.TestCase):
         self.assertNotIn("'cost' =>", POS_VIEW)
         self.assertIn('Side dishes:', KOT_LINES)
         self.assertIn('Side dishes:', POS_BILL)
+
+    def test_guest_qr_menu_asks_for_the_side_dish_too(self):
+        guest = (ROOT / "resources/views/public/qrmenu.blade.php").read_text()
+        for marker in (
+            'data-variants="',
+            "{{ $i->variants->count() === 1 ? '' : 's' }}",
+            'id="sideSheet"',
+            'id="sideContinue"',
+            "function sidesFor(item){",
+            "function openSides(item){",
+            "const key = id + '::s:';",
+            'name="items[${i}][variants][]"',
+            "if (sidesFor(item).length) openSides(item); else if (groups.length) openModifiers(item); else addItem(item);",
+            "openModifiers(item, sides)",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, guest)
+        self.assertIn("route('qrmenu.order'", guest, 'the guest sheet still posts to the public order route')
+
+    def test_side_dish_lists_are_actually_styled(self):
+        css = (ROOT / "public/css/app.css").read_text()
+        for marker in (
+            ".pos-side-dish-choices { display: grid;",
+            ".pos-side-dish-choices .check {",
+            ".pos-side-dish-choices .check:last-of-type { border-bottom: 0; }",
+            ".pos-side-dish-choices .check .tiny { margin-left: auto;",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, css)
+        self.assertEqual(css.count("{"), css.count("}"), "app.css braces stay balanced")
+
+    def test_terminal_preview_shows_the_side_dish_step_and_is_ui_only(self):
+        preview = (ROOT / "deploy/dev/previews/pos-terminal.html").read_text()
+        for marker in (
+            'UI-only preview', 'no operational records',
+            'id="sideDishModal"', 'Side dish for Grilled chicken',
+            'Continue with none if the guest does not want one.',
+            'Rate and cost are optional in the menu master',
+            'Garden salad <span class="tiny muted">included</span>',
+            'Side dishes: French fries +12.50',
+            'side dish with no rate is already included in the item price',
+            '3 sides', '2 sides',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, preview)
+        self.assertNotIn('<form method="post"', preview, 'the preview must not post to a live route')
+        self.assertNotIn('type="checkbox" checked>', preview, 'every preview control is disabled, not interactive')
+        self.assertIn('<a href="/previews">← All previews</a>', preview)
+
+        guest_preview = (ROOT / "deploy/dev/previews/qr-menu.html").read_text()
+        for marker in ('UI-only preview', 'Side dish for Grilled chicken', 'included', '3 sides',
+                       'Tick one or more, or continue with none.', 'items[n][variants][]'):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, guest_preview)
+        self.assertNotIn('<form method="post"', guest_preview, 'the guest preview must not post to a live route')
+        self.assertNotIn('type="checkbox" checked>', guest_preview)
+
+        index = (ROOT / "deploy/dev/previews/index.html").read_text()
+        self.assertIn('/__preview/pos-terminal', index)
+        self.assertIn('/__preview/qr-menu', index)
+        self.assertIn("'/qr-menu'", (ROOT / "deploy/dev/management-dashboard-preview-server.mjs").read_text())
+        server = (ROOT / "deploy/dev/management-dashboard-preview-server.mjs").read_text()
+        self.assertIn("'/pos-terminal'", server)
+        self.assertIn('deploy/dev/previews/pos-terminal.html', server)
 
     def test_search_and_validated_facets_keep_query_state_and_summarize_real_catalog(self):
         for marker in (

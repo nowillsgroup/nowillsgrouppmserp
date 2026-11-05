@@ -93,7 +93,9 @@ return [
         'Restaurant Reservations' => ['tables.view' => 'View table reservations, the floor plan & waitlist', 'tables.book' => 'Take / change / cancel table bookings, seat parties, manage the waitlist',
             'tables.manage' => 'Reservation settings, service periods, floor-plan layout & blocking tables'],
         'Transport Desk' => ['transport.view' => 'View the dispatch board, trips, fleet, papers & tariffs', 'transport.book' => 'Book, change, assign, complete & cancel guest transfers',
-            'transport.manage' => 'Vehicles, drivers, tariff card, vehicle expenses & transport settings', 'transport.drive' => 'Driver phone screen – my trips (start, on board, complete)'],
+            'transport.manage' => 'Vehicles, drivers, tariff card, vehicle expenses & transport settings', 'transport.drive' => 'Driver phone screen – my trips (start, on board, complete)',
+            'transport.track' => 'Fleet GPS tracking: live vehicle map, device signal status & position history',
+            'transport.fleet' => 'Fleet management: GPS device pairing, maintenance plans & work orders, fuel efficiency, fleet settings'],
         'Spa & Activities' => ['spa.view' => 'View spa / activity bookings', 'spa.manage' => 'Book, settle & cancel spa / activity appointments'],
         'Income Audit' => ['income_audit.view' => 'View audit days, exceptions, room counts, authorisations & audit reports', 'income_audit.audit' => 'Run the checks, resolve exceptions, sign the day as income auditor',
             'income_audit.close' => 'Financial controller / GM: close & reopen audit days, accept exceptions, approve above the authority limit, audit settings',
@@ -229,9 +231,9 @@ return [
 
     // Sidebar navigation. 'perm' is required permission; 'route' is the named route.
     'menu' => [
-        // DASHBOARD: Dashboard & Operations
-        ['label' => 'Dashboard & Operations', 'icon' => 'grid', 'section' => 'DASHBOARD', 'children' => [
-            ['label' => 'Dashboard', 'icon' => 'grid', 'route' => 'dashboard', 'perm' => 'dashboard.view'],
+        // DASHBOARD: Dashboard
+        ['label' => 'Dashboard', 'icon' => 'grid', 'section' => 'DASHBOARD', 'children' => [
+            ['label' => 'Overview', 'icon' => 'grid', 'route' => 'dashboard', 'perm' => 'dashboard.view'],
             ['label' => 'My Shift', 'icon' => 'clock', 'route' => 'my-shift', 'perm' => 'logbook.view,folio.shift,pos.order,pos.shift_view_all'],
             ['label' => 'Group Dashboard', 'icon' => 'layers', 'route' => 'group.dashboard', 'perm' => 'group.dashboard'],
             ['label' => 'Night Audit', 'icon' => 'moon', 'route' => 'nightaudit.index', 'perm' => 'nightaudit.run'],
@@ -242,9 +244,9 @@ return [
                 ['label' => 'KPI Alerts', 'route' => 'reports.alerts', 'perm' => 'reports.alerts', 'badge' => 'kpi_alerts'],
             ]],
         ]],
-        // OPERATIONS: Front Office & Guest Services
-        ['label' => 'Front Office & Guest Services', 'icon' => 'bell', 'section' => 'OPERATIONS', 'children' => [
-            ['label' => 'Front Office', 'icon' => 'bell', 'children' => [
+        // OPERATIONS: Front Office
+        ['label' => 'Front Office', 'icon' => 'bell', 'section' => 'OPERATIONS', 'children' => [
+            ['label' => 'Front Desk', 'icon' => 'bell', 'children' => [
                 ['label' => 'Room View', 'route' => 'frontdesk.rooms', 'perm' => 'frontdesk.view'],
                 ['label' => 'Tape Chart', 'route' => 'frontdesk.tapechart', 'perm' => 'frontdesk.view'],
                 ['label' => 'Walk-in Check-in', 'route' => 'frontdesk.walkin', 'perm' => 'frontdesk.checkin'],
@@ -397,8 +399,8 @@ return [
                 ['label' => 'Portal Settings', 'route' => 'organiser-admin.settings', 'perm' => 'organiser.manage'],
             ]],
         ]],
-        // FINANCE: Revenue & Financial Management
-        ['label' => 'Revenue & Financial Management', 'icon' => 'trend', 'section' => 'FINANCE', 'children' => [
+        // FINANCE: Finance
+        ['label' => 'Finance', 'icon' => 'trend', 'section' => 'FINANCE', 'children' => [
             ['label' => 'Revenue', 'icon' => 'trend', 'children' => [
                 ['label' => 'Revenue Dashboard', 'route' => 'revenue.index', 'perm' => 'revenue.view'],
                 ['label' => 'Pricing Grid', 'route' => 'revenue.pricing', 'perm' => 'revenue.view'],
@@ -599,11 +601,16 @@ return [
                 ['label' => 'Trips', 'route' => 'tr.trips', 'perm' => 'transport.view'],
                 ['label' => 'My Trips (driver)', 'route' => 'tr.my', 'perm' => 'transport.drive'],
                 ['label' => 'Fleet & Papers', 'route' => 'tr.fleet', 'perm' => 'transport.view'],
+                ['label' => 'Fleet Management', 'route' => 'tr.fleet.index', 'perm' => 'transport.view'],
+                ['label' => 'Live Vehicle Tracking', 'route' => 'tr.fleet.tracking', 'perm' => 'transport.track'],
+                ['label' => 'Maintenance & Repairs', 'route' => 'tr.fleet.maintenance', 'perm' => 'transport.fleet'],
+                ['label' => 'Fuel & Efficiency', 'route' => 'tr.fleet.fuel', 'perm' => 'transport.fleet'],
                 ['label' => 'Vehicle Expenses', 'route' => 'tr.expenses', 'perm' => 'transport.view'],
                 ['label' => 'Vehicles', 'route' => 'masters.index', 'params' => ['vehicles'], 'perm' => 'transport.manage'],
                 ['label' => 'Drivers', 'route' => 'masters.index', 'params' => ['drivers'], 'perm' => 'transport.manage'],
                 ['label' => 'Tariff Card', 'route' => 'masters.index', 'params' => ['transport-tariffs'], 'perm' => 'transport.manage'],
                 ['label' => 'Transport Settings', 'route' => 'tr.settings', 'perm' => 'transport.manage'],
+                ['label' => 'Fleet Settings', 'route' => 'tr.fleet.settings', 'perm' => 'transport.fleet'],
             ]],
             ['label' => 'Car Rental', 'icon' => 'car', 'children' => [ // v7.40 self-drive fleet and rental desk
                 ['label' => 'Rental Desk', 'route' => 'rentals.index', 'perm' => 'rentals.view'],
@@ -632,8 +639,8 @@ return [
                 ['label' => 'Treatment Rooms', 'route' => 'masters.index', 'params' => ['spa-rooms'], 'perm' => 'masters.manage'],
             ]],
         ]],
-        // PEOPLE: HR & Workforce
-        ['label' => 'HR & Workforce', 'icon' => 'users', 'section' => 'PEOPLE', 'children' => [
+        // PEOPLE: HR & Payroll
+        ['label' => 'HR & Payroll', 'icon' => 'users', 'section' => 'PEOPLE', 'children' => [
             ['label' => 'Talent Management', 'icon' => 'users', 'children' => [ // v6.9 recruitment, onboarding, appraisals, discipline, exits
                 ['label' => 'Talent Dashboard', 'route' => 'talent.index', 'perm' => 'talent.view', 'badge' => 'talent_attention'],
                 ['label' => 'Vacancies', 'route' => 'talent.vacancies', 'perm' => 'talent.view'],
@@ -645,7 +652,7 @@ return [
                 ['label' => 'Establishment', 'route' => 'talent.establishment', 'perm' => 'talent.view'],
                 ['label' => 'Talent Settings', 'route' => 'talent.settings', 'perm' => 'talent.manage'],
             ]],
-            ['label' => 'HR & Payroll', 'icon' => 'id', 'children' => [
+            ['label' => 'Workforce', 'icon' => 'id', 'children' => [
                 ['label' => 'Employees', 'route' => 'masters.index', 'params' => ['employees'], 'perm' => 'hr.manage'],
                 ['label' => 'Attendance', 'route' => 'hr.attendance', 'perm' => 'hr.manage'],
                 ['label' => 'Monthly Register', 'route' => 'hr.register', 'perm' => 'hr.manage'],
@@ -717,8 +724,8 @@ return [
                 ['label' => 'ESG Settings', 'route' => 'esg.settings', 'perm' => 'esg.manage'],
             ]],
         ]],
-        // GOVERNANCE: Administration & Configuration
-        ['label' => 'Administration & Configuration', 'icon' => 'shield', 'section' => 'GOVERNANCE', 'children' => [
+        // GOVERNANCE: Administration
+        ['label' => 'Administration', 'icon' => 'shield', 'section' => 'GOVERNANCE', 'children' => [
             ['label' => 'Masters', 'icon' => 'layers', 'children' => [
                 ['label' => 'Room Types', 'route' => 'masters.index', 'params' => ['room-types'], 'perm' => 'masters.manage'],
                 ['label' => 'Rooms', 'route' => 'masters.index', 'params' => ['rooms'], 'perm' => 'masters.manage'],
@@ -729,7 +736,7 @@ return [
                 ['label' => 'Payment Modes', 'route' => 'masters.index', 'params' => ['payment-modes'], 'perm' => 'masters.manage'],
                 ['label' => 'Item Categories', 'route' => 'masters.index', 'params' => ['item-categories'], 'perm' => 'masters.manage'],
             ]],
-            ['label' => 'Administration', 'icon' => 'shield', 'children' => [
+            ['label' => 'System Admin', 'icon' => 'shield', 'children' => [
                 ['label' => 'Users', 'route' => 'users.index', 'perm' => 'users.manage'],
                 ['label' => 'Roles & Permissions', 'route' => 'roles.index', 'perm' => 'users.manage'],
                 ['label' => 'Hotel Settings', 'route' => 'settings.index', 'perm' => 'settings.manage'],

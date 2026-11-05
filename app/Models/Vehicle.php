@@ -40,6 +40,31 @@ class Vehicle extends Model
         return $this->belongsTo(Asset::class);
     }
 
+    public function trackers()
+    {
+        return $this->hasMany(VehicleTracker::class);
+    }
+
+    public function inspections()
+    {
+        return $this->hasMany(VehicleInspection::class);
+    }
+
+    public function positions()
+    {
+        return $this->hasMany(VehiclePosition::class);
+    }
+
+    public function maintenancePlans()
+    {
+        return $this->hasMany(VehicleMaintenancePlan::class);
+    }
+
+    public function maintenanceRecords()
+    {
+        return $this->hasMany(VehicleMaintenanceRecord::class);
+    }
+
     public function label(): string
     {
         return $this->code.' · '.$this->reg_no;

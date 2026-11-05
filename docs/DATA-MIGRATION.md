@@ -155,7 +155,9 @@ balances.
   and posted transactions are not imported by these adapters.
 - `menu_items` requires every template column. `menu_category_id`, `outlet_id` and
   `kot_printer_id` are target-property ids. `variants_json` is a JSON list of
-  `{name,rate,cost}` objects (up to 30); blank preserves variants on an existing
+  `{name,rate,cost}` objects (up to 30); `rate` and `cost` are optional and may be
+  blank or omitted, which is stored as `0` (the POS reads a `0` rate as *included
+  in the item price*); blank `variants_json` preserves variants on an existing
   item and `[]` removes them. Photos, recipes, modifier groups and allergens are
   not part of this transfer. New items must be unavailable on import; enable them
   only after completing setup in the menu module. Apply requires a clean dry-run
@@ -257,7 +259,8 @@ kot_printer_id, description, is_available, variants_json.
 
 Matching: external id map → unique exact item code → menu-category + outlet +
 name → create. `variants_json` is a JSON array of `{name,rate,cost}` values,
-with at most 30 distinct variant names. Blank `variants_json` preserves variants
+with at most 30 distinct variant names; `rate` and `cost` are optional (blank or
+missing saves as `0`, i.e. included in the item price). Blank `variants_json` preserves variants
 on an existing item; `[]` explicitly removes them. The importer never changes
 images, recipes, modifier groups or allergen declarations. New rows must be
 unavailable, so complete those module workflows and enable the item from the

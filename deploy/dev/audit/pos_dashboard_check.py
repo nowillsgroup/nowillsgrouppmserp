@@ -8,6 +8,7 @@ CONTROLLER = (ROOT / "app/Http/Controllers/PosController.php").read_text()
 ROUTES = (ROOT / "routes/web.php").read_text()
 NAV = (ROOT / "resources/views/pos/_workspace-nav.blade.php").read_text()
 VIEW = (ROOT / "resources/views/pos/dashboard.blade.php").read_text()
+KPI_CHANGE = (ROOT / "resources/views/pos/_kpi-change.blade.php").read_text()
 CSS = (ROOT / "public/css/app.css").read_text()
 ICONS = (ROOT / "resources/views/partials/icons.blade.php").read_text()
 ACTIVITY_LOG_CONTROLLER = (ROOT / "app/Http/Controllers/ActivityLogController.php").read_text()
@@ -25,14 +26,42 @@ require("route('pos.dashboard'" in NAV and "route('pos.index'" in NAV,
         "workspace navigation keeps Dashboard and the existing terminal")
 require("whereBetween('business_date', $dateRange)" in CONTROLLER and "diffInDays($to) > 30" in CONTROLLER,
         "date-range reporting is bounded to 31 days")
+require("$presetDays = $request->query('range_days')" in CONTROLLER
+        and "in_array($presetDays, ['1', '7', '30'], true)" in CONTROLLER
+        and "$to->copy()->subDays((int) $presetDays - 1)" in CONTROLLER
+        and all(f'name=\"range_days\" value=\"{days}\"' in VIEW for days in ['1', '7', '30'])
+        and VIEW.count('formnovalidate') == 3
+        and 'aria-pressed=\"{{ $rangeDays === 7 ? \'true\' : \'false\' }}\"' in VIEW
+        and 'Quick date ranges ending on the selected To date' in VIEW and 'name=\"outlet\"' in VIEW
+        and "data-preview-days" in (ROOT / "deploy/dev/previews/pos-dashboard.html").read_text()
+        and "button.setAttribute('aria-pressed',String(active))" in (ROOT / "deploy/dev/previews/pos-dashboard.html").read_text()
+        and "previewPeriodDates" in (ROOT / "deploy/dev/previews/pos-dashboard.html").read_text()
+        and "previewComparisonRange" in (ROOT / "deploy/dev/previews/pos-dashboard.html").read_text(),
+        "quick one-, seven- and thirty-day ranges end on the selected date and preserve the outlet filter")
 require("$previousDateRange = [$previousFrom->toDateString(), $previousTo->toDateString()]" in CONTROLLER
-        and "'sales' => $percentChange" in CONTROLLER and "'turnaround' => $percentChange" in CONTROLLER
+        and "'sales' => $percentChange" in CONTROLLER and "'turnaround' => $turnaroundCount > 0" in CONTROLLER
         and "$previousCollections" in CONTROLLER and "$previousComplimentaryChecks" in CONTROLLER
         and "$previousSummary = $summaryQuery($previousOrders)" in CONTROLLER,
         "KPI percentage changes compare outlet-scoped values with the immediately preceding equal-length period")
 require(all(f"$kpiChanges['{metric}']" in VIEW for metric in ['sales', 'collections', 'orders', 'complimentary', 'turnaround', 'discounts'])
-        and VIEW.count('vs prior period') >= 6 and "is_null($kpiChanges['sales'])" in VIEW,
-        "all six summary cards show signed percentage changes and handle a zero comparison baseline")
+        and VIEW.count("@include('pos._kpi-change'") == 6 and "number_format(abs($change), 1)" in KPI_CHANGE
+        and "'−'" in KPI_CHANGE
+        and "vs prior" in KPI_CHANGE and "aria-hidden=\"true\"" in KPI_CHANGE
+        and "pos-dash-compare-period" in VIEW and "$previousPeriodLabel" in VIEW
+        and "class=\"sr-only\">Compared with {{ $previousPeriodLabel }}" in KPI_CHANGE,
+        "all six summary cards show compact, accessible signed-percentage comparison badges")
+require("$turnaroundCount > 0 && $previousTurnaround['count'] > 0" in CONTROLLER
+        and "'noCurrentData' => $turnaroundItemsCount === 0" in VIEW
+        and "'nullChangeLabel' => $previousTurnaroundItemsCount > 0 ? 'N/A' : 'New'" in VIEW
+        and "'previousTurnaroundItemsCount' => $previousTurnaround['count']" in CONTROLLER
+        and "'No data'" in KPI_CHANGE,
+        "turnaround changes are suppressed when either period has no served-item sample")
+require("$currencySymbol = \\App\\Support\\Tenant::hotel()?->currency_symbol" in CONTROLLER
+        and "number_format($amount / 1000" in CONTROLLER and "grid-template-columns: 56px minmax(0, 1fr)" in CSS,
+        "daily sales chart axes use the outlet tenant currency with compact scale labels")
+require("border-top: 1px solid var(--c-border)" in CSS
+        and "background: var(--c-border);" in CSS and ".pos-dash-items-table td" in CSS,
+        "POS chart grids, payment tracks and item tables follow theme color tokens")
 require("$selectedOutlet = $outletId ? $outlets->firstWhere('id', $outletId) : null;" in CONTROLLER
         and "is_string($value) ? $value : ''" in CONTROLLER,
         "outlet and date filters safely resolve against tenant-owned inputs")
@@ -108,9 +137,33 @@ require("Sales by order type" in VIEW and "Collections by payment mode" in VIEW
         and "number_format($type['checks'])" in VIEW and "number_format((float) $item->qty, 2)" in VIEW
         and "Top selling items" in VIEW and "Low selling items" in VIEW,
         "dashboard includes the requested graph and ranked-item panels")
+require("money_short($summary->total_sales ?? 0)" in VIEW and "money_short($collections)" in VIEW
+        and "money_short($summary->discounts ?? 0)" in VIEW,
+        "large currency KPI values use compact card formatting")
+require(all(definition in VIEW for definition in [
+            'Sum of settled POS bill totals after bill-level discounts',
+            'POS payments less refunds; city-ledger postings are excluded',
+            'Open, billed and settled checks; voided orders are shown separately',
+            'Unique settled checks with a complimentary bill or at least one complimentary item',
+            'Average time from item entry to serving for completed, non-cancelled items',
+            'Sum of bill-level discounts on settled POS checks',
+        ]) and VIEW.count('class=\"sr-only\">:') == 6,
+        "KPI labels explain how each dashboard measure is counted to visual and screen-reader users")
+require("'hasDailySales' => $maxDailySales > 0" in CONTROLLER and "pos-dash-chart-empty" in VIEW
+        and "No settled sales in this period" in VIEW and "@if($hasDailySales)" in VIEW
+        and "'hasOrderTypeSales' => $typeTotal > 0" in CONTROLLER
+        and "filter(fn ($type) => $type['sales'] > 0)" in CONTROLLER
+        and VIEW.index('@if($hasOrderTypeSales)') < VIEW.index('<div class=\"pos-dash-donut-wrap\"')
+        and 'pos-dash-order-type-empty\" role=\"status\"' in VIEW
+        and "Order type shares appear after bills are settled." in VIEW,
+        "empty sales periods show clear chart and order-type states without zero-value legend rows")
 require(".pos-dash-stats { display: grid; grid-template-columns: repeat(6" in CSS
         and "@media (max-width: 650px)" in CSS,
         "six summary cards collapse responsively")
+require(all(f"body.dark .stat-{metric} .pos-dash-stat-icon" in CSS for metric in ['sales', 'collections', 'orders', 'comps', 'turnaround', 'discounts'])
+        and "body.dark .pos-dash-leakage-card.increased .pos-dash-leakage-icon" in CSS
+        and "body.dark .pos-dash-leakage-card[href]:hover" in CSS,
+        "POS summary and leakage icons retain muted color contrast in dark mode")
 used = set(re.findall(r'<x-icon\s+name="([a-z-]+)"', VIEW)) | {"trash", "x", "cup", "refresh"}
 available = set(re.findall(r'<symbol\s+id="i-([^"]+)"', ICONS))
 require(used <= available, f"all dashboard icons exist ({', '.join(sorted(used))})")
