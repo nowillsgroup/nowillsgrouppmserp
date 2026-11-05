@@ -141,21 +141,49 @@
               <div class="tiny muted">Airport bypass · Police AR/1182/26</div></td>
             <td><span class="badge badge-red">Major</span></td><td class="num">GH₵ 8,000.00</td>
             <td class="small">Under investigation<div class="tiny muted">Claim filed with the insurer</div></td>
-            <td class="small"><details><summary class="tiny">Update</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+            <td class="small"><details><summary class="tiny">Update</summary><form method="post" action="#" class="form-grid" style="margin-top:.4rem;min-width:230px">
+                  <label class="tiny" for="incStatus1">New status</label>
+                  <select name="status" id="incStatus1">
+                      <option value="open">Open</option>
+                      <option value="investigating" selected>Under investigation</option>
+                      <option value="closed">Closed</option>
+                  </select>
+                  <label class="tiny" for="incNote1">Note (logged)</label>
+                  <input type="text" id="incNote1" name="note" minlength="4" maxlength="255" required placeholder="Claim filed with the insurer">
+                  <button class="btn btn-sm btn-primary">Save status</button>
+                </form></details></td></tr>
           <tr><td class="nowrap">27 Oct<div class="tiny muted">09:05</div></td>
             <td><b>PICK-1</b><div class="tiny muted">Yaw Boateng</div></td>
             <td class="small">Damage<div class="tiny muted">Cracked windscreen from a stone on the Tema motorway.</div>
               <div class="tiny muted">Tema motorway</div></td>
             <td><span class="badge badge-amber">Minor</span></td><td class="num">GH₵ 1,400.00</td>
             <td class="small">Open</td>
-            <td class="small"><details><summary class="tiny">Update</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+            <td class="small"><details><summary class="tiny">Update</summary><form method="post" action="#" class="form-grid" style="margin-top:.4rem;min-width:230px">
+                  <label class="tiny" for="incStatus2">New status</label>
+                  <select name="status" id="incStatus2">
+                      <option value="open">Open</option>
+                      <option value="investigating" selected>Under investigation</option>
+                      <option value="closed">Closed</option>
+                  </select>
+                  <label class="tiny" for="incNote2">Note (logged)</label>
+                  <input type="text" id="incNote2" name="note" minlength="4" maxlength="255" required placeholder="Claim filed with the insurer">
+                  <button class="btn btn-sm btn-primary">Save status</button>
+                </form></details></td></tr>
           <tr><td class="nowrap">14 Sep<div class="tiny muted">21:15</div></td>
             <td><b>BUS-2</b><div class="tiny muted">Kwame Mensah</div></td>
             <td class="small">Breakdown<div class="tiny muted">Alternator failed on the Kumasi road; recovered by the AA.</div>
               <div class="tiny muted">Nsawam</div></td>
             <td><span class="badge badge-amber">Minor</span></td><td class="num">—</td>
             <td class="small">Closed<div class="tiny muted">Repaired on work order WO-00402</div></td>
-            <td class="small"><details><summary class="tiny">Reopen</summary><span class="tiny muted">status + note form in the real screen</span></details></td></tr>
+            <td class="small"><details><summary class="tiny">Reopen</summary><form method="post" action="#" class="form-grid" style="margin-top:.4rem;min-width:230px">
+                  <label class="tiny" for="incStatus3">New status</label>
+                  <select name="status" id="incStatus3">
+                      <option value="open">Open</option>
+                  </select>
+                  <label class="tiny" for="incNote3">Note (logged)</label>
+                  <input type="text" id="incNote3" name="note" minlength="4" maxlength="255" required placeholder="Repaired and back in service">
+                  <button class="btn btn-sm btn-primary">Save status</button>
+                </form></details></td></tr>
         </tbody>
       </table>
       <p class="tiny muted" style="padding:.5rem .9rem .6rem">The estimate is what the property expects the incident to cost, for the insurer — it is <b>not</b> money posted.
@@ -188,7 +216,7 @@
     <div class="card-body">
       <div class="filters" style="margin-bottom:.6rem">
         <span class="small muted">All vehicles</span> · <span class="small muted">Any result</span>
-        <span class="tiny muted">(filter by vehicle and result in the real screen)</span>
+       
       </div>
       <div class="table-wrap">
         <table class="table" id="inspectionLogTable">
@@ -245,12 +273,9 @@
       <div class="card-head"><h3>How completion works</h3></div>
       <div class="card-body small muted">
         Completing a job records the odometer, rolls its linked plan forward, releases the vehicle back to available only when no other open job needs it in the workshop, and can post the invoice straight to running expenses — so the cost appears in cost per kilometre without a second entry.
-        <p class="tiny muted mt-1 m-0">Buttons are disabled in this preview.</p>
       </div>
     </div>
   </div>
-
-  <p class="tiny muted" style="margin-top:1.25rem">The real screen lives under <b>Transport › Maintenance &amp; Repairs</b>. Served by the development preview server only — no database, no writes.</p>
 </div>
 </body>
 </html>
