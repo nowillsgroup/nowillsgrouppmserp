@@ -6361,6 +6361,18 @@ body.dark a.ws-attention-row:hover{background:#193525}
   });
 
   const opening = new URLSearchParams(window.location.search);
+  // The server renders the filters from the address bar; seeding them here as well
+  // keeps a pasted link honest, and an invalid value clears the filter instead of
+  // quietly emptying the board.
+  [[status, 'status'], [type, 'type'], [floor, 'floor'], [source, 'source'], [housekeeping, 'hk']]
+    .forEach(([element, key]) => {
+      if (!element || !opening.has(key)) return;
+      const wanted = opening.get(key) || '';
+      element.value = [...element.options].some(option => option.value === wanted) ? wanted : '';
+    });
+  if (vipOnly && opening.get('vip') === '1') vipOnly.checked = true;
+  if (search && opening.get('q')) search.value = opening.get('q');
+
   let storedView = 'board';
   try { storedView = sessionStorage.getItem('wsView') === 'rack' ? 'rack' : 'board'; } catch (error) { /* private mode */ }
   if (opening.get('view') === 'rack' || opening.get('view') === 'board') storedView = opening.get('view');

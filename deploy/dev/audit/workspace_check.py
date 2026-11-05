@@ -202,6 +202,12 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('}, true);', VIEW)
         self.assertIn("copy.querySelectorAll('label[for]')", VIEW)
 
+    def test_a_filtered_board_can_be_linked(self):
+        # the server renders the filters from the address bar; the script seeds them too
+        self.assertIn("[[status, 'status'], [type, 'type'], [floor, 'floor'], [source, 'source'], [housekeeping, 'hk']]", VIEW)
+        self.assertIn("element.value = [...element.options].some(option => option.value === wanted) ? wanted : '';", VIEW)
+        self.assertIn("if (vipOnly && opening.get('vip') === '1') vipOnly.checked = true;", VIEW)
+
     def test_a_layout_can_be_linked(self):
         # a supervisor should be able to send "the rack, grouped by floor" to a colleague
         self.assertIn("syncUrlParam('view'", VIEW)

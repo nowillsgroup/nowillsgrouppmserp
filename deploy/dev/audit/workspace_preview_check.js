@@ -267,6 +267,31 @@ ok('the saved order comes back marked on its column',
   again.querySelector('.ws-rack-sort[data-ws-sort="rate"]')?.closest('th')?.getAttribute('aria-sort') === 'descending');
 reopened.window.close();
 
+// A pasted link filters the board; an invalid value clears the filter instead of
+// quietly emptying it.
+const linked = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously', pretendToBeVisual: true,
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05&status=occupied&hk=dirty',
+});
+const linkedDoc = linked.window.document;
+ok('a pasted link sets the filters',
+  linkedDoc.querySelector('#fStatus').value === 'occupied' && linkedDoc.querySelector('#fHousekeeping').value === 'dirty');
+ok('a pasted link shows its chips', linkedDoc.querySelectorAll('#wsChips .ws-chip').length === 2,
+  `${linkedDoc.querySelectorAll('#wsChips .ws-chip').length} chips`);
+ok('a pasted link filters the board',
+  [...linkedDoc.querySelectorAll('#wsGrid .ws-card')].filter(card => !card.hidden).length < linkedDoc.querySelectorAll('#wsGrid .ws-card').length);
+linked.window.close();
+
+const bogus = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously', pretendToBeVisual: true,
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05&status=banana',
+});
+const bogusDoc = bogus.window.document;
+ok('a filter value that does not exist is ignored',
+  bogusDoc.querySelector('#fStatus').value === ''
+    && [...bogusDoc.querySelectorAll('#wsGrid .ws-card')].every(card => !card.hidden));
+bogus.window.close();
+
 // No link, no session — a plain reload still reopens the layout last used.
 const remembered = new JSDOM(readFileSync(FILE, 'utf8'), {
   runScripts: 'dangerously',
