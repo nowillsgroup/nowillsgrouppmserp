@@ -14,7 +14,7 @@
  */
 importScripts('/js/offline-core.js');
 
-const CACHE = 'nowills-pms-v3';
+const CACHE = 'nowills-pms-v4';
 const STATIC = [
   '/css/app.css',
   '/css/offline.css',

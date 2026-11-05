@@ -91,6 +91,18 @@
 
   <section class="card flush">
     <div class="card-head">
+      <h3>This device</h3>
+      <button type="button" class="btn btn-sm" data-hub-health-refresh>Check again</button>
+    </div>
+    <div class="card-body">
+      <div class="offline-hub-health" data-hub-health aria-live="polite">
+        <p class="small muted mb-0">Checking what this browser can do…</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card flush">
+    <div class="card-head">
       <h3>Saved on this device</h3>
       <button type="button" class="btn btn-sm" data-outline-refresh>Refresh from the server</button>
     </div>
@@ -118,6 +130,7 @@
   const prepareBtn = root.querySelector('[data-hub-prepare]');
   const prepareNote = root.querySelector('[data-hub-prepare-note]');
   const prepareList = root.querySelector('[data-hub-prepare-list]');
+  const healthEl = root.querySelector('[data-hub-health]');
 
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const when = iso => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never yet');
@@ -148,6 +161,93 @@
 
     hintEl.hidden = problems.length === 0;
     if (problems.length) hintEl.textContent = 'A change was refused or clashed with the server and is kept here so nothing disappears: open the screen it belongs to and redo it with the current figures.';
+  }
+
+  // ── what this browser can actually do ──────────────────────────────────────
+
+  const bytes = value => {
+    if (!Number.isFinite(value) || value <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = value;
+    let unit = 0;
+    while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit += 1; }
+    return (size >= 10 || unit === 0 ? Math.round(size) : size.toFixed(1)) + ' ' + units[unit];
+  };
+
+  const healthRow = (label, value, tone, hint) =>
+    '<div class="offline-hub-health-row">' +
+      '<div><b>' + esc(label) + '</b><div class="tiny muted">' + esc(value) + (hint ? ' · ' + esc(hint) : '') + '</div></div>' +
+      '<span class="badge badge-' + tone + '">' + (tone === 'green' ? 'ready' : tone === 'amber' ? 'limited' : 'off') + '</span>' +
+    '</div>';
+
+  async function paintHealth() {
+    const rows = [];
+
+    let worker = 'Not available in this browser';
+    let workerTone = 'slate';
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && registration.active) {
+          worker = navigator.serviceWorker.controller ? 'Active and controlling this page' : 'Active — reload so it controls this page';
+          workerTone = navigator.serviceWorker.controller ? 'green' : 'amber';
+        } else {
+          worker = 'Not registered yet — reload while online';
+          workerTone = 'amber';
+        }
+      }
+    } catch (_) { worker = 'Could not be checked'; workerTone = 'amber'; }
+    rows.push(healthRow('Service worker', worker, workerTone));
+
+    let cache = 'Nothing cached yet';
+    let cacheTone = 'amber';
+    try {
+      if (window.caches) {
+        const keys = await caches.keys();
+        const name = keys.find(key => key.indexOf('nowills-pms-') === 0);
+        if (name) {
+          const entries = await (await caches.open(name)).keys();
+          cache = name + ' · ' + entries.length + ' file(s)';
+          cacheTone = entries.length > 5 ? 'green' : 'amber';
+        }
+      } else {
+        cache = 'This browser has no Cache Storage';
+        cacheTone = 'slate';
+      }
+    } catch (_) { cache = 'Could not be read'; cacheTone = 'amber'; }
+    rows.push(healthRow('Offline cache', cache, cacheTone));
+
+    let storage = 'This browser does not report storage';
+    let storageTone = 'slate';
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const estimate = await navigator.storage.estimate();
+        storage = bytes(estimate.usage) + ' used of ' + bytes(estimate.quota);
+        storageTone = estimate.quota && estimate.usage / estimate.quota > 0.9 ? 'amber' : 'green';
+      }
+    } catch (_) { storage = 'Could not be read'; storageTone = 'amber'; }
+    rows.push(healthRow('Storage', storage, storageTone));
+
+    const sync = 'SyncManager' in window;
+    rows.push(healthRow('Background sync',
+      sync ? 'Supported — the queue sends itself with no tab open'
+           : 'Not in this browser — keep a tab open, or press Sync now',
+      sync ? 'green' : 'amber'));
+
+    // How old the lists on the device are, from the same plan preparation uses.
+    try {
+      const plan = await fetch(root.dataset.preparationUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(response => (response.ok ? response.json() : null)).catch(() => null);
+      for (const slice of (plan && plan.slices) || []) {
+        if (!slice.snapshot_key) continue;
+        const saved = await window.PmsOffline.cachedSnapshot(slice.snapshot_key).catch(() => null);
+        rows.push(healthRow(slice.label + ' list',
+          saved && saved._saved_at ? 'saved ' + when(new Date(saved._saved_at).toISOString()) : 'not saved on this device yet',
+          saved && saved._saved_at ? 'green' : 'amber'));
+      }
+    } catch (_) { /* the plan is a nicety, not a requirement */ }
+
+    healthEl.innerHTML = rows.join('');
   }
 
   // ── preparing this device ──────────────────────────────────────────────────
@@ -188,6 +288,7 @@
       const saved = { at: new Date().toISOString(), business_date: plan.business_date, slices: results };
       await window.PmsOffline.local.set(PREPARED, saved);
       paintPrepared(saved);
+      paintHealth();
       const failed = results.filter(r => r.error || !r.page);
       prepareNote.textContent = failed.length
         ? failed.length + ' screen(s) could not be saved. Stay online and press Prepare now again.'
@@ -201,6 +302,8 @@
 
   prepareBtn.addEventListener('click', prepare);
   window.PmsOffline.local.get(PREPARED).then(paintPrepared).catch(() => {});
+  root.querySelector('[data-hub-health-refresh]').addEventListener('click', paintHealth);
+  paintHealth();
 
   window.PmsOffline.onChange(paint);
   root.querySelector('[data-outline-refresh]').addEventListener('click', () => window.PmsOffline.flush({ force: true }));

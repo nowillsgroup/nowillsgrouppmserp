@@ -189,7 +189,7 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertIn("Needs a person", HUB_VIEW)
 
     def test_the_service_worker_caches_only_what_it_can_serve(self):
-        self.assertIn("nowills-pms-v3", SW)
+        self.assertIn("nowills-pms-v4", SW)
         for asset in ("/js/offline-core.js", "/js/offline-pos.js", "/js/offline-frontdesk.js", "/css/offline.css"):
             with self.subTest(asset=asset):
                 self.assertIn(asset, SW)
@@ -533,6 +533,25 @@ class OfflineCoreCheck(unittest.TestCase):
 
     def test_the_housekeeping_screen_is_covered_by_a_harness(self):
         harness = ROOT / "deploy/dev/audit/offline_housekeeping_queue_check.js"
+        self.assertTrue(harness.exists())
+        result = subprocess.run(["node", str(harness)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("assertions passed", result.stdout)
+
+    def test_the_device_says_what_it_can_and_cannot_do(self):
+        self.assertIn("data-hub-health", HUB_VIEW)
+        self.assertIn("navigator.serviceWorker.getRegistration()", HUB_VIEW)
+        self.assertIn("await caches.keys()", HUB_VIEW)
+        self.assertIn("navigator.storage.estimate()", HUB_VIEW)
+        self.assertIn("'SyncManager' in window", HUB_VIEW, "Background Sync is reported, never assumed")
+        self.assertIn("cachedSnapshot(slice.snapshot_key)", HUB_VIEW, "the age of each saved list is shown")
+        self.assertIn("Not in this browser — keep a tab open", HUB_VIEW,
+                      "a browser without Background Sync is told the truth")
+        self.assertIn("data-hub-health-refresh", HUB_VIEW)
+        self.assertIn("nowills-pms-v4", SW)
+
+    def test_the_hub_is_covered_by_a_harness(self):
+        harness = ROOT / "deploy/dev/audit/offline_hub_check.js"
         self.assertTrue(harness.exists())
         result = subprocess.run(["node", str(harness)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

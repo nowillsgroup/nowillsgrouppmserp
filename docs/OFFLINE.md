@@ -140,7 +140,12 @@ be open: Safari has no Background Sync yet.
    snapshot cache the screen reads from. The list says `ready` per screen, and the
    time of the last preparation is kept so a supervisor can see how stale it is.
    Opening each screen once while online does the same thing one at a time.
-3. Leave the tab open when the internet is expected to be shaky. The strip under
+3. Read the **This device** card on the same page. It reports the service worker,
+   the cache and how many files it holds, the storage this origin is using of the
+   browser's quota, whether the browser has Background Sync at all, and how old each
+   saved list is. If a device is not really ready, that is the card that says so —
+   before the line drops, not after.
+4. Leave the tab open when the internet is expected to be shaky. The strip under
    the top bar shows offline state and how many changes are waiting.
 
 A login only ever prepares what its permissions carry: a waiter is not sent the
@@ -209,6 +214,9 @@ Who may read it: a login with `offline.desktop.view`, `frontdesk.view` or
 ```bash
 python3 deploy/dev/audit/offline_core_check.py      # structure, rules, routes, docs
 node deploy/dev/audit/offline_pos_dom_check.js      # the terminal, driven in jsdom (needs: npm i --no-save jsdom)
+node deploy/dev/audit/offline_housekeeping_queue_check.js   # housekeeping: queue, migration, checklist
+node deploy/dev/audit/offline_guest_request_queue_check.js  # guest requests: queue and migration
+node deploy/dev/audit/offline_hub_check.js                  # the hub: device health, queue, preparation
 node deploy/dev/audit/php_syntax_check.js           # PHP parses
 node deploy/dev/audit/blade_syntax_check.js         # Blade parses
 node --check public/js/offline-core.js              # queue engine parses
