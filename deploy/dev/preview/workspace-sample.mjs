@@ -98,6 +98,26 @@ function buildStay([status, person, sourceName, rate, nights, arrival, departure
   };
 }
 
+// The screens in deploy/dev/previews/assets/ stand in for the photographs each room
+// carries; the application reads the room's primary photo, then its type's.
+const ROOM_PHOTOS = {
+  '101': '/preview-assets/room-204-bed.jpg',
+  '102': '/preview-assets/room-204-bath.jpg',
+  '103': '/preview-assets/room-204-balcony.jpg',
+  '104': '/preview-assets/room-204-bed.jpg',
+  '105': '/preview-assets/room-204-bath.jpg',
+  '201': '/preview-assets/room-204-balcony.jpg',
+  '202': '/preview-assets/room-204-bed.jpg',
+  '203': '/preview-assets/room-204-bath.jpg',
+  '204': '/preview-assets/room-204-balcony.jpg',
+  '205': '/preview-assets/room-204-bed.jpg',
+  '301': '/preview-assets/room-204-bed.jpg',
+  '302': '/preview-assets/room-204-bath.jpg',
+  '303': '/preview-assets/room-204-balcony.jpg',
+  '304': '/preview-assets/room-204-bed.jpg',
+  '305': '/preview-assets/room-204-bath.jpg',
+};
+
 export function buildCards() {
   return Coll.of(CARD_SPECS.map(([roomNo, typeId, floorId, status, roomStatus, hk, staySpec]) => {
     const room = {
@@ -121,6 +141,8 @@ export function buildCards() {
       due: stay ? stay.due : null,
       rate: stay?.rate ?? roomTypeOf(typeId).base_rate,
       amenities: AMENITIES[roomTypeOf(typeId).code] ?? [],
+      // a stand-in for the room's own uploaded photo (the app reads the primary one)
+      photo: ROOM_PHOTOS[roomNo] ?? null,
       arriving_on_date: Boolean(stay && stay.status === 'reserved' && stay.arrival_date.toDateString() === BUSINESS_DATE),
     };
   }));
@@ -241,6 +263,7 @@ export function workspaceContext() {
     array_filter: (list, fn) => (list ?? []).filter(item => (typeof fn === 'function' ? fn(item) : Boolean(item))),
     range: (start, end) => Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i),
     array_unique: (list) => [...new Set(list ?? [])],
+    is_numeric: (value) => value !== null && value !== '' && !Number.isNaN(Number(value)),
     array_slice: (list, offset, length) => (list instanceof Coll ? list.items : list ?? []).slice(offset, length === undefined ? undefined : offset + length),
     isset: (...values) => values.every(value => value !== undefined && value !== null),
     implode: (glue, list) => (list instanceof Coll ? list.items : list ?? []).join(glue),

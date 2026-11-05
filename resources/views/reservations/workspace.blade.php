@@ -204,6 +204,8 @@
         $hkTone = ['dirty' => 'dirty', 'clean' => 'clean', 'inspected' => 'inspected', 'touch_up' => 'touchup'][$room->hk_status] ?? 'unknown';
         $stayGuestName = $guestDisplayName($stay);
         $stayGuestInitial = $guestInitial($stay);
+        // the room's own photo first, then its type's, then the generated block
+        $cardPhoto = $c['photo'] ?? $room->roomType?->image;
         $searchText = implode(' ', array_unique(array_map('strval', array_filter([
           $room->room_no, $room->roomType?->name, $room->roomType?->code, $room->floor?->name, $stay?->reservation?->reservation_no,
           $stay?->reservation?->group_name, $stay?->reservation?->ota_reference, $stay?->reservation?->company?->name, $roomSource,
@@ -214,30 +216,31 @@
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
       <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}">
-        <div class="ws-card-head">
-          <div class="flex gap">
-            <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
-            <div>
-              <div class="bold small">{{ $room->roomType?->name ?? '—' }}</div>
-              <div class="muted small">{{ $room->floor?->name ? 'F'.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->code : '' }}</div>
+        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Open room {{ $room->room_no }} details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:{{ $cardPhoto ? 'url('.$cardPhoto.') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
+          <div class="ws-card-head">
+            <div class="flex gap">
+              <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
+              <div>
+                <div class="bold small">{{ $room->roomType?->name ?? '—' }}</div>
+                <div class="muted small">{{ $room->floor?->name ? (is_numeric($room->floor->name) ? 'Floor '.$room->floor->name : $room->floor->name) : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->code : '' }}</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
+              @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: {{ $housekeepingLabel($room->hk_status) }}</div>@endif
+              @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
             </div>
           </div>
-          <div class="text-right">
-            <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-            @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: {{ $housekeepingLabel($room->hk_status) }}</div>@endif
-            @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
+          <div class="ws-photo-foot">
+            <span class="ws-photo-meta">
+              <span><x-icon name="home"/>{{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
+              <span><x-icon name="user"/>{{ $room->roomType?->max_adults ?? 2 }} guests</span>
+              <span><x-icon name="shield"/>{{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
+            </span>
+            <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
           </div>
         </div>
-
-        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Open room {{ $room->room_no }} details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:{{ $room->roomType?->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
-          <span class="ws-photo-tag">{{ strtoupper($room->roomType?->code ?? $room->roomType?->name ?? 'ROOM') }}</span>
-          <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
-        </div>
-        <div class="ws-room-meta small muted">
-          <span><x-icon name="home" /> {{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
-          <span><x-icon name="user"/> {{ $room->roomType?->max_adults ?? 2 }}</span>
-          <span><x-icon name="shield"/> {{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
-        </div>
+        <div class="ws-card-body">
         <div class="ws-amen">
           @foreach (array_slice($c['amenities'], 0, 10) as $a)
             <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
@@ -307,6 +310,7 @@
             </form>
           @endif
           <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· All actions</button>
+        </div>
         </div>
       </div>
     @empty
@@ -546,6 +550,11 @@
 @foreach ($cards as $c)
 @php
   $room = $c['room']; $stay = $c['stay'];
+  // the dialog is its own loop over the same cards: nothing may be assumed from
+  // the board loop above it
+  $cardPhoto = $c['photo'] ?? $room->roomType?->image;
+  $stayGuestName = $guestDisplayName($stay);
+  $stayGuestInitial = $guestInitial($stay);
   $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
   $modalGuestIsVip = (bool) ($stay?->guest?->is_vip || $stay?->reservation?->guest?->is_vip);
   $modalGuestContext = collect([
@@ -579,7 +588,7 @@
   if ($canViewHousekeeping) $facts[] = ['Current housekeeping', $housekeepingLabel($room->hk_status)];
 @endphp
 <div class="modal ws-modal" id="roomModal{{ $room->id }}" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle{{ $room->id }}" tabindex="-1"><div class="modal-box wide">
-  <div class="ws-modal-hero" style="background:{{ $room->roomType?->image ? 'url('.asset($room->roomType->image).') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ (($room->room_type_id ?? $room->id) * 47) % 360 }},32%,24%), hsl({{ (($room->room_type_id ?? $room->id) * 47 + 40) % 360 }},26%,38%))">
+  <div class="ws-modal-hero" style="background:{{ $cardPhoto ? 'url('.$cardPhoto.') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ (($room->room_type_id ?? $room->id) * 47) % 360 }},32%,24%), hsl({{ (($room->room_type_id ?? $room->id) * 47 + 40) % 360 }},26%,38%))">
     <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><x-icon name="x"/></button>
     <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">{{ $room->room_no }}</span>
@@ -1277,8 +1286,9 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;align-items:stretch}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
 .ws-card[data-status="occupied"]{--ws-status-accent:#3b82f6}
@@ -1286,18 +1296,25 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{display:flex;min-height:58px;justify-content:space-between;gap:8px;padding:10px 12px 7px}
-.ws-card-head>.flex{min-width:0;align-items:center}
+.ws-card-head{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:52%}
-.ws-card-head .badge{white-space:normal}
-.ws-room-no{font-size:22px;font-weight:800;margin:0;line-height:1.1}
+.ws-card-head .text-right{max-width:48%;flex:0 0 auto}
+.ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .badge{white-space:normal;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-room-no{font-size:28px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap}
+.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;height:136px;margin:0 12px;overflow:hidden;border-radius:10px}
-.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.08) 35%,rgba(15,23,42,.42));content:"";pointer-events:none}
+.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;margin:0;overflow:hidden;border-radius:0}
+.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
+.ws-photo-foot{position:absolute;z-index:1;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
+.ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
+.ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
 .ws-photo-link:hover{filter:saturate(1.08)}
 .ws-person-row{display:flex;flex-direction:column;gap:4px}
 .ws-person-row+.ws-person-row{margin-top:4px;padding-top:8px;border-top:1px solid #f1f5f9}
@@ -1307,17 +1324,14 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-tag{position:absolute;z-index:1;left:10px;top:8px;background:rgba(15,23,42,.74);color:#fff;font-size:9px;font-weight:750;letter-spacing:.07em;padding:3px 7px;border-radius:6px}
 .ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
-.ws-room-meta{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 2px}
-.ws-room-meta>span{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;color:#64748b;font-size:10px}
-.ws-room-meta .i{width:13px;height:13px;flex:0 0 13px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px 10px;color:#94a3b8}
+.ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
+.ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
 .ws-amen .i{width:15px;height:15px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:5px;padding:10px 12px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
+.ws-guest{flex:1;margin-top:0;padding:9px 14px 10px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
 .ws-guest>.flex{align-items:center}
 .ws-guest>.flex>div{min-width:0}
 .ws-guest>.flex .bold{overflow-wrap:anywhere}
@@ -1334,7 +1348,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 12px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:30px;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:13px;height:13px;flex:0 0 13px}
 .ws-actions .btn-ghost{border:1px solid transparent}
@@ -1451,6 +1465,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
   .ws-assign,.ws-assign-none{padding-left:0}
   .ws-person-row>.ws-assign{padding-left:7px}
   .ws-person-row>.ws-assign-none{margin-left:0;padding-left:9px}
+  .ws-photo{min-height:184px}
   .ws-extend-form{width:100%}
   .ws-extend-form input{flex:1;max-width:none}
 }
@@ -1466,7 +1481,6 @@ body.dark .ws-assign-select{background:var(--c-surface);color:var(--c-text);bord
 body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{color:var(--c-muted)}
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
-body.dark .ws-room-meta>span{background:#243229;color:#c1d2c5;border-color:var(--c-border)}
 body.dark .ws-guest.vacant{background:#18281e}
 body.dark .ws-stay,body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-nights{background:#143323;color:#86efac}
@@ -1540,7 +1554,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}

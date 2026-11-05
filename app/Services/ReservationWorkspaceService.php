@@ -237,7 +237,9 @@ class ReservationWorkspaceService
         $isFuture = $date->gt($businessDate);
         $hotelId = \App\Support\Tenant::id();
 
-        $rooms = Room::with(['roomType.amenityLinks.amenity', 'amenityLinks.amenity', 'floor'])
+        // The cards are photo-first: each room's own picture (primary first), falling
+        // back to its type's picture and then to a generated block.
+        $rooms = Room::with(['roomType.amenityLinks.amenity', 'amenityLinks.amenity', 'floor', 'images'])
             ->where('hotel_id', $hotelId)->where('is_active', true)
             ->orderBy('room_no')->get();
         $trendDates = [];
@@ -338,6 +340,7 @@ class ReservationWorkspaceService
                 'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
                 'amenities' => $amenities,
+                'photo' => $room->images->first()?->url(),
                 'arriving_on_date' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $selectedDay,
             ];
 

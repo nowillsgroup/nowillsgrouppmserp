@@ -63,8 +63,9 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;align-items:stretch}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
 .ws-card[data-status="occupied"]{--ws-status-accent:#3b82f6}
@@ -72,18 +73,25 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{display:flex;min-height:58px;justify-content:space-between;gap:8px;padding:10px 12px 7px}
-.ws-card-head>.flex{min-width:0;align-items:center}
+.ws-card-head{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:52%}
-.ws-card-head .badge{white-space:normal}
-.ws-room-no{font-size:22px;font-weight:800;margin:0;line-height:1.1}
+.ws-card-head .text-right{max-width:48%;flex:0 0 auto}
+.ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
+.ws-card-head .badge{white-space:normal;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-room-no{font-size:28px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap}
+.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;height:136px;margin:0 12px;overflow:hidden;border-radius:10px}
-.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.08) 35%,rgba(15,23,42,.42));content:"";pointer-events:none}
+.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;margin:0;overflow:hidden;border-radius:0}
+.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
+.ws-photo-foot{position:absolute;z-index:1;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
+.ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
+.ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
 .ws-photo-link:hover{filter:saturate(1.08)}
 .ws-person-row{display:flex;flex-direction:column;gap:4px}
 .ws-person-row+.ws-person-row{margin-top:4px;padding-top:8px;border-top:1px solid #f1f5f9}
@@ -93,17 +101,14 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-tag{position:absolute;z-index:1;left:10px;top:8px;background:rgba(15,23,42,.74);color:#fff;font-size:9px;font-weight:750;letter-spacing:.07em;padding:3px 7px;border-radius:6px}
 .ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
-.ws-room-meta{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 2px}
-.ws-room-meta>span{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;color:#64748b;font-size:10px}
-.ws-room-meta .i{width:13px;height:13px;flex:0 0 13px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px 10px;color:#94a3b8}
+.ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
+.ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
 .ws-amen .i{width:15px;height:15px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:5px;padding:10px 12px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
+.ws-guest{flex:1;margin-top:0;padding:9px 14px 10px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
 .ws-guest>.flex{align-items:center}
 .ws-guest>.flex>div{min-width:0}
 .ws-guest>.flex .bold{overflow-wrap:anywhere}
@@ -120,7 +125,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 12px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:30px;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:13px;height:13px;flex:0 0 13px}
 .ws-actions .btn-ghost{border:1px solid transparent}
@@ -237,6 +242,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
   .ws-assign,.ws-assign-none{padding-left:0}
   .ws-person-row>.ws-assign{padding-left:7px}
   .ws-person-row>.ws-assign-none{margin-left:0;padding-left:9px}
+  .ws-photo{min-height:184px}
   .ws-extend-form{width:100%}
   .ws-extend-form input{flex:1;max-width:none}
 }
@@ -252,7 +258,6 @@ body.dark .ws-assign-select{background:var(--c-surface);color:var(--c-text);bord
 body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{color:var(--c-muted)}
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
-body.dark .ws-room-meta>span{background:#243229;color:#c1d2c5;border-color:var(--c-border)}
 body.dark .ws-guest.vacant{background:#18281e}
 body.dark .ws-stay,body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-nights{background:#143323;color:#86efac}
@@ -326,7 +331,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
@@ -3581,30 +3586,31 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied">
+      <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Open room 101 details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading101"><span class="sr-only">Room </span>101</h2>
       <div>
       <div class="bold small">Standard Garden</div>
-      <div class="muted small">FGround · STG</div>
+      <div class="muted small">Ground · STG</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
       <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Open room 101 details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
-      <span class="ws-photo-tag">STG</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>28 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 28 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -3665,33 +3671,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="101" aria-label="More actions for room 101" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="available" data-type="4" data-floor="1" data-source="" data-hk="clean" data-vip="0" data-search="102 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Available">
+      <div class="ws-photo ws-photo-link" data-room="102" role="button" tabindex="0" aria-label="Open room 102 details" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading102"><span class="sr-only">Room </span>102</h2>
       <div>
       <div class="bold small">Standard Garden</div>
-      <div class="muted small">FGround · STG</div>
+      <div class="muted small">Ground · STG</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
       <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="102" role="button" tabindex="0" aria-label="Open room 102 details" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
-      <span class="ws-photo-tag">STG</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>28 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 28 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -3732,15 +3740,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="102" aria-label="More actions for room 102" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved">
+      <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Open room 103 details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading103"><span class="sr-only">Room </span>103</h2>
       <div>
       <div class="bold small">Standard Garden</div>
-      <div class="muted small">FGround · STG</div>
+      <div class="muted small">Ground · STG</div>
       </div>
       </div>
       <div class="text-right">
@@ -3749,16 +3759,16 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Open room 103 details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
-      <span class="ws-photo-tag">STG</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>28 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 28 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -3819,33 +3829,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="103" aria-label="More actions for room 103" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="available" data-type="9" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="104 Family Room FAM Ground Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Ground" data-status-label="Available">
+      <div class="ws-photo ws-photo-link" data-room="104" role="button" tabindex="0" aria-label="Open room 104 details" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading104"><span class="sr-only">Room </span>104</h2>
       <div>
       <div class="bold small">Family Room</div>
-      <div class="muted small">FGround · FAM</div>
+      <div class="muted small">Ground · FAM</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
       <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="104" role="button" tabindex="0" aria-label="Open room 104 details" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
-      <span class="ws-photo-tag">FAM</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>46 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 46 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 4</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -3887,33 +3899,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="104" aria-label="More actions for room 104" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="maintenance" data-type="4" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="105 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Maintenance">
+      <div class="ws-photo ws-photo-link" data-room="105" role="button" tabindex="0" aria-label="Open room 105 details" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading105"><span class="sr-only">Room </span>105</h2>
       <div>
       <div class="bold small">Standard Garden</div>
-      <div class="muted small">FGround · STG</div>
+      <div class="muted small">Ground · STG</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-amber">MAINTENANCE</span>
       <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="105" role="button" tabindex="0" aria-label="Open room 105 details" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
-      <span class="ws-photo-tag">STG</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>28 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 28 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -3945,33 +3959,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="105" aria-label="More actions for room 105" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied">
+      <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Open room 201 details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading201"><span class="sr-only">Room </span>201</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FFirst · DSV</div>
+      <div class="muted small">First · DSV</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
       <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Open room 201 details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4042,15 +4058,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="201" aria-label="More actions for room 201" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved">
+      <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Open room 202 details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading202"><span class="sr-only">Room </span>202</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FFirst · DSV</div>
+      <div class="muted small">First · DSV</div>
       </div>
       </div>
       <div class="text-right">
@@ -4059,16 +4077,16 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Open room 202 details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4139,33 +4157,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="202" aria-label="More actions for room 202" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="available" data-type="3" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Deluxe Sea View DSV First Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Available">
+      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Open room 203 details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading203"><span class="sr-only">Room </span>203</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FFirst · DSV</div>
+      <div class="muted small">First · DSV</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
       <div class="ws-hk-badge ws-hk-inspected" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Inspected</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Open room 203 details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4216,33 +4236,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="203" aria-label="More actions for room 203" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied">
+      <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Open room 204 details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading204"><span class="sr-only">Room </span>204</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FFirst · DSV</div>
+      <div class="muted small">First · DSV</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
       <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Open room 204 details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4313,33 +4335,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="204" aria-label="More actions for room 204" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="out_of_order" data-type="9" data-floor="2" data-source="" data-hk="dirty" data-vip="0" data-search="205 Family Room FAM First Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="First" data-status-label="Out of order">
+      <div class="ws-photo ws-photo-link" data-room="205" role="button" tabindex="0" aria-label="Open room 205 details" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading205"><span class="sr-only">Room </span>205</h2>
       <div>
       <div class="bold small">Family Room</div>
-      <div class="muted small">FFirst · FAM</div>
+      <div class="muted small">First · FAM</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-red">OUT OF ORDER</span>
       <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="205" role="button" tabindex="0" aria-label="Open room 205 details" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
-      <span class="ws-photo-tag">FAM</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>46 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 46 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 4</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4379,33 +4403,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="205" aria-label="More actions for room 205" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied">
+      <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Open room 301 details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading301"><span class="sr-only">Room </span>301</h2>
       <div>
       <div class="bold small">Executive Suite</div>
-      <div class="muted small">FSecond · EXS</div>
+      <div class="muted small">Second · EXS</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
       <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Open room 301 details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
-      <span class="ws-photo-tag">EXS</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>62 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>3 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 1,650.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 62 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 3</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4476,33 +4502,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="301" aria-label="More actions for room 301" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied">
+      <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Open room 302 details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading302"><span class="sr-only">Room </span>302</h2>
       <div>
       <div class="bold small">Executive Suite</div>
-      <div class="muted small">FSecond · EXS</div>
+      <div class="muted small">Second · EXS</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
       <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Open room 302 details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
-      <span class="ws-photo-tag">EXS</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>62 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>3 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 1,650.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 62 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 3</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4573,15 +4601,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="302" aria-label="More actions for room 302" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved">
+      <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Open room 303 details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading303"><span class="sr-only">Room </span>303</h2>
       <div>
       <div class="bold small">Family Room</div>
-      <div class="muted small">FSecond · FAM</div>
+      <div class="muted small">Second · FAM</div>
       </div>
       </div>
       <div class="text-right">
@@ -4590,16 +4620,16 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Open room 303 details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
-      <span class="ws-photo-tag">FAM</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>46 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 46 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 4</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4668,33 +4698,35 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="303" aria-label="More actions for room 303" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="available" data-type="3" data-floor="3" data-source="" data-hk="touch_up" data-vip="0" data-search="304 Deluxe Sea View DSV Second Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Available">
+      <div class="ws-photo ws-photo-link" data-room="304" role="button" tabindex="0" aria-label="Open room 304 details" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading304"><span class="sr-only">Room </span>304</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FSecond · DSV</div>
+      <div class="muted small">Second · DSV</div>
       </div>
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
       <div class="ws-hk-badge ws-hk-touchup" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Touch-up</div>
-            
+              
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="304" role="button" tabindex="0" aria-label="Open room 304 details" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4745,15 +4777,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="304" aria-label="More actions for room 304" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false">··· All actions</button>
       </div>
       </div>
+      </div>
     
       
       <div class="ws-card" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved">
+      <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Open room 305 details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading305"><span class="sr-only">Room </span>305</h2>
       <div>
       <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">FSecond · DSV</div>
+      <div class="muted small">Second · DSV</div>
       </div>
       </div>
       <div class="text-right">
@@ -4762,16 +4796,16 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
-
-      <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Open room 305 details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
-      <span class="ws-photo-tag">DSV</span>
+      <div class="ws-photo-foot">
+      <span class="ws-photo-meta">
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
+      </span>
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
       </div>
-      <div class="ws-room-meta small muted">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg> 38 m²</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg> 2</span>
-      <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-smoking</span>
       </div>
+      <div class="ws-card-body">
       <div class="ws-amen">
           
       <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
@@ -4833,6 +4867,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
           
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="305" aria-label="More actions for room 305" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false">··· All actions</button>
+      </div>
       </div>
       </div>
     
@@ -5343,7 +5378,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal101" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle101" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">101</span>
@@ -5363,8 +5398,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">K</span>
+      <div><div class="bold">Kwesi Mensah</div>
       <div class="muted small">Direct · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 101">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5382,7 +5417,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal102" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle102" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">102</span>
@@ -5408,7 +5443,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal103" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle103" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">103</span>
@@ -5428,8 +5463,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">A</span>
+      <div><div class="bold">Adjoa Boateng</div>
       <div class="muted small">Booking.com · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 103">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5447,7 +5482,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal104" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle104" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">104</span>
@@ -5473,7 +5508,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal105" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle105" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,24%), hsl(228,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">105</span>
@@ -5499,7 +5534,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal201" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle201" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">201</span>
@@ -5519,8 +5554,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">S</span>
+      <div><div class="bold">Sarah Osei</div>
       <div class="muted small">Expedia · United Kingdom · VIP</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 201">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5538,7 +5573,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal202" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle202" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">202</span>
@@ -5558,8 +5593,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">Y</span>
+      <div><div class="bold">Yaw Antwi</div>
       <div class="muted small">Corporate · Ashanti Gold · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 202">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5577,7 +5612,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal203" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle203" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">203</span>
@@ -5603,7 +5638,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal204" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle204" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">204</span>
@@ -5623,8 +5658,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">F</span>
+      <div><div class="bold">Fatima Alhassan</div>
       <div class="muted small">Direct · Nigeria</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 204">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5642,7 +5677,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal205" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle205" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">205</span>
@@ -5668,7 +5703,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal301" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle301" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(329,32%,24%), hsl(9,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,24%), hsl(9,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">301</span>
@@ -5690,8 +5725,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div></details>
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">M</span>
+      <div><div class="bold">Michael Addo</div>
       <div class="muted small">Travel agent · Sunseekers · Ghana · VIP</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 301">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5709,7 +5744,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal302" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle302" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(329,32%,24%), hsl(9,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,24%), hsl(9,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">302</span>
@@ -5731,8 +5766,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div></details>
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">G</span>
+      <div><div class="bold">Grace Owusu</div>
       <div class="muted small">Direct · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 302">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5750,7 +5785,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal303" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle303" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,24%), hsl(103,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">303</span>
@@ -5770,8 +5805,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">D</span>
+      <div><div class="bold">Daniel Kusi</div>
       <div class="muted small">Website · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 303">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>
@@ -5789,7 +5824,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal304" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle304" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">304</span>
@@ -5815,7 +5850,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal305" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle305" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">305</span>
@@ -5835,8 +5870,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       <div><div class="ws-rail-title">RESERVATION ON THIS DATE</div><div class="ws-resv">
-      <div class="flex gap"><span class="ws-avatar"></span>
-      <div><div class="bold"></div>
+      <div class="flex gap"><span class="ws-avatar">L</span>
+      <div><div class="bold">Linda Eshun</div>
       <div class="muted small">Booking.com · Ghana</div></div></div>
       <table class="ws-resv-t" aria-label="Stay, reservation and folio details for room 305">
       <thead class="sr-only"><tr><th scope="col">Detail</th><th scope="col">Value</th><th scope="col">Detail</th><th scope="col">Value</th></tr></thead>

@@ -70,6 +70,26 @@ ok('cards carry the names the filters and rack need',
 ok('the board says how many rooms it is showing', /15 \/ 15 rooms/.test($('#wsVisibleCount')?.textContent ?? ''),
   $('#wsVisibleCount')?.textContent);
 
+/* the card is a picture of the room, with the facts laid over it */
+ok('each card opens with the room’s picture', cards.every(card => card.firstElementChild?.classList.contains('ws-photo')));
+ok('the picture is actually a photograph', cards.filter(card => /url\(/.test(card.querySelector('.ws-photo')?.style.background ?? '')).length === cards.length,
+  `${cards.filter(card => /url\(/.test(card.querySelector('.ws-photo')?.style.background ?? '')).length} of ${cards.length}`);
+ok('the room number and status sit on the picture',
+  cards.every(card => card.querySelector('.ws-photo .ws-card-head .ws-room-no')
+    && card.querySelector('.ws-photo .ws-card-head .badge')));
+ok('the picture carries the rate and the room facts',
+  cards.every(card => card.querySelector('.ws-photo .ws-photo-rate') && card.querySelector('.ws-photo .ws-photo-meta')));
+ok('the facts under the picture are the room’s own',
+  (cards[0].querySelector('.ws-photo-meta')?.textContent ?? '').includes('m²')
+    && /guests/.test(cards[0].querySelector('.ws-photo-meta')?.textContent ?? ''),
+  cards[0].querySelector('.ws-photo-meta')?.textContent?.trim());
+ok('the body holds the amenities, the guest and the actions',
+  cards.every(card => card.querySelector('.ws-card-body .ws-amen')
+    && card.querySelector('.ws-card-body .ws-guest')
+    && card.querySelector('.ws-card-body .ws-actions')));
+ok('the board gives the cards room to breathe', /\.ws-grid\{[^}]*minmax\(min\(348px/.test($('style')?.textContent ?? ''),
+  ($('style')?.textContent ?? '').match(/\.ws-grid\{[^}]*\}/)?.[0]);
+
 /* ── the needs-attention rail ────────────────────────────────────────────── */
 const attention = $$('#wsAttention .ws-attention-row');
 ok('the rail opens with what needs acting on', attention.length === 5, `${attention.length} rows`);

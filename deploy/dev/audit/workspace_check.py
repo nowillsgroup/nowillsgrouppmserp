@@ -142,6 +142,24 @@ class WorkspaceTest(unittest.TestCase):
         for selector in ['.ws-grid[hidden]', '.ws-rack[hidden]', '.ws-group[hidden]', '.ws-rack-table tr[hidden]']:
             self.assertIn(selector, rule[0], f"{selector} would stay visible")
 
+    def test_the_card_leads_with_the_room(self):
+        # the picture is the card; the facts are laid over it
+        self.assertIn('.ws-photo{position:relative;aspect-ratio:16/10', VIEW)
+        self.assertIn("minmax(min(348px,100%),1fr)", VIEW)
+        self.assertIn("'photo' => $room->images->first()?->url()", SERVICE)
+        self.assertIn("$cardPhoto = $c['photo'] ?? $room->roomType?->image;", VIEW)
+        self.assertNotIn('ws-room-meta', VIEW)
+
+    def test_the_room_dialog_stands_on_its_own(self):
+        # the dialogs are a second loop over the same cards; anything the board loop
+        # defines has to be defined again here or the page 500s on the first dialog
+        start = VIEW.index('{{-- Room detail modals --}}')
+        end = VIEW.index("@push('scripts')")
+        block = VIEW[start:end]
+        for name in ['$cardPhoto', '$stayGuestName', '$stayGuestInitial']:
+            self.assertIn(f'{name} =', block, f'{name} is borrowed from the board loop')
+        self.assertIn("$cardPhoto ? 'url('.$cardPhoto.')", block)
+
     def test_the_keyboard_reaches_the_board(self):
         self.assertIn("if (event.key === '/')", VIEW)
         self.assertIn("event.key === 'r' || event.key === 'R'", VIEW)
