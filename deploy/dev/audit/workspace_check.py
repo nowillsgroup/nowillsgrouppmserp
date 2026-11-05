@@ -177,6 +177,12 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('`unassigned`', doc)
         self.assertIn('RoomImage::url(\'thumb\')', doc)
 
+    def test_a_single_room_says_guest(self):
+        # "1 guests" is what a hard-coded plural gives you; a single room is common
+        self.assertIn("Str::plural('guest'", VIEW)
+        self.assertEqual(VIEW.count("Str::plural('guest'"), 2, 'the card and the modal both count guests')
+        self.assertIn('nothing says "1 guests"', CHECK)
+
     def test_the_screen_says_what_it_means(self):
         # icon-only controls need a name, and every picture needs an alt
         self.assertIn('aria-label="Close room details"', VIEW)

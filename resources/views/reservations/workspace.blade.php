@@ -235,7 +235,7 @@
           <div class="ws-photo-foot">
             <span class="ws-photo-meta">
               <span><x-icon name="home"/>{{ $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—') }}</span>
-              <span><x-icon name="user"/>{{ $room->roomType?->max_adults ?? 2 }} guests</span>
+              <span><x-icon name="user"/>{{ $room->roomType?->max_adults ?? 2 }} {{ \Illuminate\Support\Str::plural('guest', $room->roomType?->max_adults ?? 2) }}</span>
               <span><x-icon name="shield"/>{{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
             </span>
             <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
@@ -580,9 +580,10 @@
   if ($stay && can_do('frontdesk.view')) $roomActions[] = ['Print Registration Card', 'print', route('frontdesk.grc', $stay)];
   if (can_do('desk.messages')) $roomActions[] = ['Guest Messages', 'message', route('desk.messages')];
   if (can_do('maintenance.manage')) $roomActions[] = ['Maintenance', 'tool', route('maintenance.index')];
+  $maxAdults = $room->roomType?->max_adults ?? 2;
   $facts = [
     ['Size', $room->roomType?->size_sqm ? rtrim(rtrim(number_format($room->roomType->size_sqm, 1), '0'), '.').' m²' : ($room->roomType?->code ?? '—')],
-    ['Max Occupancy', ($room->roomType?->max_adults ?? 2).' guests'],
+    ['Max Occupancy', $maxAdults.' '.\Illuminate\Support\Str::plural('guest', $maxAdults)],
     ['Configuration', $room->roomType?->name ?? '—'],
     ['Smoking', $room->is_smoking ? 'Smoking' : 'Non-Smoking'],
   ];

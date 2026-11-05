@@ -21,6 +21,7 @@ export const ROOM_TYPES = [
   { id: 4, name: 'Standard Garden', code: 'STG', size_sqm: 28, max_adults: 2, base_rate: 620, image: null },
   { id: 7, name: 'Executive Suite', code: 'EXS', size_sqm: 62, max_adults: 3, base_rate: 1650, image: null },
   { id: 9, name: 'Family Room', code: 'FAM', size_sqm: 46, max_adults: 4, base_rate: 1180, image: null },
+  { id: 11, name: 'Standard Single', code: 'SGL', size_sqm: 18, max_adults: 1, base_rate: 480, image: null },
 ];
 
 export const FLOORS = [{ id: 1, name: 'Ground' }, { id: 2, name: 'First' }, { id: 3, name: 'Second' }];
@@ -30,6 +31,7 @@ const AMENITIES = {
   STG: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Desk', 'Safe'],
   EXS: ['Sea view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Mini bar', 'Safe', 'Lounge', 'Coffee machine', 'Bathrobe', 'Butler service', 'Dining table', 'Hairdryer', 'Bath tub'],
   FAM: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Bunk beds', 'Safe', 'Kitchenette', 'Sofa bed', 'Desk', 'Hairdryer'],
+  SGL: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Desk', 'Safe'],
 };
 
 const guest = (first, last, nationality = 'Ghana', vip = false) => ({ first_name: first, last_name: last, nationality, is_vip: vip, phone: '+233 24 000 0000', email: `${first.toLowerCase()}@example.com` });
@@ -54,7 +56,7 @@ const CARD_SPECS = [
   ['301', 7, 3, 'occupied', 'occupied', 'clean', ['checked_in', guest('Michael', 'Addo', 'Ghana', true), 'Travel agent · Sunseekers', 1650, 5, '2026-11-01', '2026-11-06', 8250, 4100, 'RES-24088']],
   ['302', 7, 3, 'occupied', 'occupied', 'dirty', ['checked_in', guest('Grace', 'Owusu'), 'Direct', 1650, 3, '2026-11-03', '2026-11-05', 4950, 0, 'RES-24109']],
   ['303', 9, 3, 'reserved', 'vacant', 'clean', ['reserved', guest('Daniel', 'Kusi'), 'Website', 1180, 3, '2026-11-05', '2026-11-08', 3540, 3540, 'RES-24131']],
-  ['304', 3, 3, 'available', 'vacant', 'touch_up', null],
+  ['304', 11, 3, 'available', 'vacant', 'touch_up', null],
   ['305', 3, 3, 'reserved', 'vacant', 'dirty', ['reserved', guest('Linda', 'Eshun'), 'Booking.com', 950, 2, '2026-11-05', '2026-11-07', 1900, 1900, 'RES-24133']],
 ];
 
@@ -284,6 +286,16 @@ export function workspaceContext() {
     min: (...values) => Math.min(...values.flat()),
     __static: (cls, method, ...args) => {
       const name = String(cls).split('\\').pop();
+      if (name === 'Str' && method === 'plural') {
+        const [word, count] = args;
+        const text = String(word ?? '');
+        if (Number(count) === 1) return text;
+        const irregular = { person: 'people', child: 'children', stay: 'stays' };
+        if (irregular[text]) return irregular[text];
+        if (/[^aeiou]y$/.test(text)) return `${text.slice(0, -1)}ies`;
+        if (/(s|x|z|ch|sh)$/.test(text)) return `${text}es`;
+        return `${text}s`;
+      }
       if (name === 'Carbon' && method === 'parse') {
         const value = args[0];
         return value instanceof SampleDate ? value : new SampleDate(`${String(value)}T09:00:00Z`);

@@ -249,6 +249,21 @@ ok('the housekeeping badges are read out in full',
 ok('the sortable rack headers say what they sort by',
   $$('.ws-rack-sort').every(button => (button.textContent || '').trim().length > 0));
 
+/* ── the copy says the right number ──────────────────────────────────────── */
+const pluralTrap = () => {
+  const said = [doc.body.textContent, ...[...doc.querySelectorAll('[aria-label], [title]')]
+    .flatMap(node => [node.getAttribute('aria-label'), node.getAttribute('title')])].join(' ');
+  return said.match(/\b1 (guests|rooms|nights|adults|persons|photos|stays|days)\b/gi) ?? [];
+};
+ok('nothing says "1 guests"', pluralTrap().length === 0, pluralTrap().slice(0, 3).join(', '));
+
+const single = cards.find(card => (card.getAttribute('data-room') === '304')
+  || Boolean(card.querySelector('[data-room="304"]')));
+ok('a single room reads "1 guest"',
+  /\b1 guest\b/.test(single?.querySelector('.ws-photo-meta')?.textContent ?? '')
+    && !/1 guests/.test(single?.querySelector('.ws-photo-meta')?.textContent ?? ''),
+  single?.querySelector('.ws-photo-meta')?.textContent?.replace(/\s+/g, ' ').trim());
+
 /* ── the modals the board opens ──────────────────────────────────────────── */
 ok('every room has a details dialog', $$('.ws-modal').length === cards.length, `${$$('.ws-modal').length}`);
 $('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
