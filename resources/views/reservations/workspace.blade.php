@@ -1421,7 +1421,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-modal .modal-box{max-width:900px;max-height:90vh;overflow-y:auto;overscroll-behavior:contain}
 .ws-modal .modal-box.wide{width:min(920px,calc(100vw - 2rem))}
 .ws-modal .modal-body{padding:20px}
-.ws-modal-hero{position:relative;isolation:isolate;min-height:152px;overflow:hidden;padding:58px 22px 20px;color:#fff;border-radius:0}
+.ws-modal-hero{position:relative;isolation:isolate;display:flex;min-height:216px;align-items:flex-end;overflow:hidden;padding:58px 22px 20px;color:#fff;border-radius:0}
 .ws-modal-hero:before{position:absolute;z-index:0;inset:0;background:linear-gradient(90deg,rgba(6,28,17,.78),rgba(10,40,24,.38)),linear-gradient(0deg,rgba(6,28,17,.45),transparent 75%);content:"";pointer-events:none}
 .ws-modal-hero>*{position:relative;z-index:1}
 .ws-modal-x{position:absolute;z-index:2;top:10px;right:10px;color:#fff;background:rgba(7,28,17,.42);border:1px solid rgba(255,255,255,.3)}

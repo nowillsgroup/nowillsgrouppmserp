@@ -170,6 +170,13 @@ class WorkspaceTest(unittest.TestCase):
             self.assertIn(f'{name} =', block, f'{name} is borrowed from the board loop')
         self.assertIn("$cardPhoto ? 'url('.$cardPhoto.')", block)
 
+    def test_the_screen_is_documented(self):
+        doc = read("docs/WORKSPACE.md")
+        self.assertIn('reservations.workspace', doc)
+        self.assertIn('Needs attention', doc)
+        self.assertIn('`unassigned`', doc)
+        self.assertIn('RoomImage::url(\'thumb\')', doc)
+
     def test_the_keyboard_reaches_the_board(self):
         self.assertIn("if (event.key === '/')", VIEW)
         self.assertIn("event.key === 'r' || event.key === 'R'", VIEW)

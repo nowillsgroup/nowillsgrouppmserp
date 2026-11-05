@@ -41,7 +41,8 @@ The same three photographs stand in for the room pictures on the reservation
 workspace's cards; the application shows each room's own uploaded photo (its
 card-sized copy on the board, the full picture in the room dialog).
 
-The reservation workspace is generated from its own view, including the screen's
+The reservation workspace screen itself is described in `docs/WORKSPACE.md`. It is
+generated from its own view, including the screen's
 `@push('head')` stylesheet and `@push('scripts')` behaviour — the preview runs the
 application's real board, rack, filter chips, grouping and keyboard shortcuts:
 
