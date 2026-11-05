@@ -216,7 +216,8 @@
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
       <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}">
-        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:{{ $cardPhoto ? 'url('.$cardPhoto.') center/cover no-repeat, ' : '' }}linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
+        <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
+          @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
           <div class="ws-card-head">
             <div class="flex gap">
               <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
@@ -1304,7 +1305,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
 .ws-card-head .text-right{max-width:48%;flex:0 0 auto}
@@ -1315,10 +1316,11 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
 .ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0}
-.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
+.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
+.ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:1;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
 .ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
 .ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}

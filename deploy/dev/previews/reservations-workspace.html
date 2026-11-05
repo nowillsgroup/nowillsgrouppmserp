@@ -73,7 +73,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
 .ws-card-head .text-right{max-width:48%;flex:0 0 auto}
@@ -84,10 +84,11 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
 .ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0}
-.ws-photo:before{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
+.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
+.ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:1;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
 .ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
 .ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
@@ -3592,7 +3593,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Room 101, Standard Garden, occupied, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Room 101, Standard Garden, occupied, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading101"><span class="sr-only">Room </span>101</h2>
@@ -3681,7 +3683,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="available" data-type="4" data-floor="1" data-source="" data-hk="clean" data-vip="0" data-search="102 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="102" role="button" tabindex="0" aria-label="Room 102, Standard Garden, available, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="102" role="button" tabindex="0" aria-label="Room 102, Standard Garden, available, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading102"><span class="sr-only">Room </span>102</h2>
@@ -3750,7 +3753,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg">
-      <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Room 103, Standard Garden, reserved, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Room 103, Standard Garden, reserved, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading103"><span class="sr-only">Room </span>103</h2>
@@ -3839,7 +3843,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="available" data-type="9" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="104 Family Room FAM Ground Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="104" role="button" tabindex="0" aria-label="Room 104, Family Room, available, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="104" role="button" tabindex="0" aria-label="Room 104, Family Room, available, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading104"><span class="sr-only">Room </span>104</h2>
@@ -3909,7 +3914,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="maintenance" data-type="4" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="105 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Maintenance" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="105" role="button" tabindex="0" aria-label="Room 105, Standard Garden, maintenance, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="105" role="button" tabindex="0" aria-label="Room 105, Standard Garden, maintenance, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading105"><span class="sr-only">Room </span>105</h2>
@@ -3969,7 +3975,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg">
-      <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Room 201, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Room 201, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading201"><span class="sr-only">Room </span>201</h2>
@@ -4068,7 +4075,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Room 202, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Room 202, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading202"><span class="sr-only">Room </span>202</h2>
@@ -4167,7 +4175,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="available" data-type="3" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Deluxe Sea View DSV First Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Room 203, Deluxe Sea View, available, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Room 203, Deluxe Sea View, available, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading203"><span class="sr-only">Room </span>203</h2>
@@ -4246,7 +4255,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg">
-      <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Room 204, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Room 204, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading204"><span class="sr-only">Room </span>204</h2>
@@ -4345,7 +4355,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="out_of_order" data-type="9" data-floor="2" data-source="" data-hk="dirty" data-vip="0" data-search="205 Family Room FAM First Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="First" data-status-label="Out of order" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="205" role="button" tabindex="0" aria-label="Room 205, Family Room, out of order, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="205" role="button" tabindex="0" aria-label="Room 205, Family Room, out of order, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading205"><span class="sr-only">Room </span>205</h2>
@@ -4413,7 +4424,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Room 301, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Room 301, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading301"><span class="sr-only">Room </span>301</h2>
@@ -4512,7 +4524,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Room 302, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Room 302, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading302"><span class="sr-only">Room </span>302</h2>
@@ -4611,7 +4624,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg">
-      <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Room 303, Family Room, reserved, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-balcony.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Room 303, Family Room, reserved, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading303"><span class="sr-only">Room </span>303</h2>
@@ -4708,7 +4722,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="available" data-type="3" data-floor="3" data-source="" data-hk="touch_up" data-vip="0" data-search="304 Deluxe Sea View DSV Second Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg">
-      <div class="ws-photo ws-photo-link" data-room="304" role="button" tabindex="0" aria-label="Room 304, Deluxe Sea View, available, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bed.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="304" role="button" tabindex="0" aria-label="Room 304, Deluxe Sea View, available, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading304"><span class="sr-only">Room </span>304</h2>
@@ -4787,7 +4802,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       
       <div class="ws-card" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Room 305, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Room 305, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading305"><span class="sr-only">Room </span>305</h2>

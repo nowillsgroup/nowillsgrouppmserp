@@ -154,6 +154,9 @@ class WorkspaceTest(unittest.TestCase):
         # the rack shows the same picture, small enough for a table row
         self.assertIn("data-photo=\"{{ $cardPhoto }}\"", VIEW)
         self.assertIn("thumb.className = 'ws-rack-thumb'", VIEW)
+        # a real image element, so the browser can defer the ones below the fold
+        self.assertIn('<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">', VIEW)
+        self.assertIn('.ws-photo-img{position:absolute;inset:0;', VIEW)
         # a printed board stays on the page
         self.assertIn('.ws-photo{aspect-ratio:auto;min-height:104px}', VIEW)
 

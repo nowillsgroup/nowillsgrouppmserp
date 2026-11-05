@@ -72,8 +72,11 @@ ok('the board says how many rooms it is showing', /15 \/ 15 rooms/.test($('#wsVi
 
 /* the card is a picture of the room, with the facts laid over it */
 ok('each card opens with the room’s picture', cards.every(card => card.firstElementChild?.classList.contains('ws-photo')));
-ok('the picture is actually a photograph', cards.filter(card => /url\(/.test(card.querySelector('.ws-photo')?.style.background ?? '')).length === cards.length,
-  `${cards.filter(card => /url\(/.test(card.querySelector('.ws-photo')?.style.background ?? '')).length} of ${cards.length}`);
+ok('the picture is actually a photograph',
+  cards.every(card => /\/preview-assets\//.test(card.querySelector('.ws-photo-img')?.getAttribute('src') ?? '')),
+  cards[0]?.querySelector('.ws-photo-img')?.getAttribute('src'));
+ok('off-screen photographs are deferred', cards.every(card => card.querySelector('.ws-photo-img')?.getAttribute('loading') === 'lazy'));
+ok('a room with no picture still gets its block', /\.ws-photo\{[^}]*background:#eef2f0/.test($('style')?.textContent ?? ''));
 ok('the room number and status sit on the picture',
   cards.every(card => card.querySelector('.ws-photo .ws-card-head .ws-room-no')
     && card.querySelector('.ws-photo .ws-card-head .badge')));
