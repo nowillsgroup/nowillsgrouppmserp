@@ -340,7 +340,8 @@ class ReservationWorkspaceService
                 'due' => $due,
                 'rate' => $bestRate ?? (float) ($room->roomType->base_rate ?? 0),
                 'amenities' => $amenities,
-                'photo' => $room->images->first()?->url(),
+                'photo' => $room->images->first()?->url('thumb'),
+                'photo_full' => $room->images->first()?->url(),
                 'arriving_on_date' => $stay && $stay->status === 'reserved' && $stay->arrival_date?->toDateString() === $selectedDay,
             ];
 

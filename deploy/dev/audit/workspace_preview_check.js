@@ -232,6 +232,9 @@ $('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }
 $('.ws-photo-link')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 ok('opening a room shows its dialog', $$('.ws-modal.show').length === 1);
 ok('the dialog names the room', /Room|Deluxe|Standard/.test($('.ws-modal.show')?.textContent ?? ''));
+ok('the dialog shows the room’s picture', /url\(["']?\/preview-assets\//.test($('.ws-modal.show .ws-modal-hero')?.style.background ?? ''),
+  $('.ws-modal.show .ws-modal-hero')?.style.background?.slice(0, 60));
+ok('the focus ring sits inside the picture', /outline-offset:-4px/.test($('style')?.textContent ?? ''));
 
 /* ── coming back to the screen ───────────────────────────────────────────── */
 // A desk keeps its layout and its order between refreshes; the page stores both.

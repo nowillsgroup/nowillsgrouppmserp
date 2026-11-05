@@ -21,9 +21,26 @@ class RoomImage extends Model
         ];
     }
 
-    /** Web path of the stored file, for <img src>. */
-    public function url(): string
+    /** Where the card-sized copy of a stored photo lives, if the store writes one. */
+    public static function thumbPath(string $path): ?string
     {
+        return preg_match('/\.jpe?g$/i', $path) ? preg_replace('/\.jpe?g$/i', '-thumb.jpg', $path) : null;
+    }
+
+    /**
+     * Web path of the stored file. `$variant = 'thumb'` asks for the card-sized copy
+     * and falls back to the photo itself when there is none (a photo stored before
+     * thumbnails existed, or a host without GD).
+     */
+    public function url(?string $variant = null): string
+    {
+        if ($variant === 'thumb') {
+            $thumb = self::thumbPath((string) $this->path);
+            if ($thumb && is_file(public_path($thumb))) {
+                return asset($thumb);
+            }
+        }
+
         return asset($this->path);
     }
 

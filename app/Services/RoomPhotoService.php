@@ -32,6 +32,9 @@ class RoomPhotoService
     /** Longest edge kept, in pixels. */
     public const MAX_EDGE = 1600;
 
+    /** The card-sized copy: a board of eighty rooms must not fetch eighty 1600px files. */
+    public const THUMB_EDGE = 640;
+
     public const DIRECTORY = 'uploads/room-images';
 
     /** Validation rules for a room photo upload (single or multiple). */
@@ -83,6 +86,13 @@ class RoomPhotoService
             }
             $relative = self::DIRECTORY.'/'.$base.'.'.$extension;
             $file->move(public_path(self::DIRECTORY), basename($relative));
+        }
+
+        // A card-sized copy beside it, best effort: the full picture stays the file
+        // of record and everything falls back to it.
+        $thumb = RoomImage::thumbPath($relative);
+        if ($thumb) {
+            self::reencode(public_path($relative), public_path($thumb), self::THUMB_EDGE);
         }
 
         $existing = RoomImage::where('room_id', $room->id)->where('is_active', true);
@@ -145,7 +155,7 @@ class RoomPhotoService
      * background (PNG transparency would otherwise turn black). Returns false when
      * the file cannot be read here, so the caller can keep the original.
      */
-    protected static function reencode(string $source, string $destination): bool
+    protected static function reencode(string $source, string $destination, int $edge = self::MAX_EDGE): bool
     {
         if (! function_exists('imagecreatetruecolor')) {
             return false;
@@ -166,7 +176,7 @@ class RoomPhotoService
 
         $width = imagesx($image);
         $height = imagesy($image);
-        $scale = min(1, self::MAX_EDGE / max(1, max($width, $height)));
+        $scale = min(1, $edge / max(1, max($width, $height)));
         $targetW = max(1, (int) round($width * $scale));
         $targetH = max(1, (int) round($height * $scale));
 

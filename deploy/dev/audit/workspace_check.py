@@ -146,7 +146,9 @@ class WorkspaceTest(unittest.TestCase):
         # the picture is the card; the facts are laid over it
         self.assertIn('.ws-photo{position:relative;aspect-ratio:16/10', VIEW)
         self.assertIn("minmax(min(348px,100%),1fr)", VIEW)
-        self.assertIn("'photo' => $room->images->first()?->url()", SERVICE)
+        # the board fetches the card-sized copy; the dialog the picture itself
+        self.assertIn("'photo' => $room->images->first()?->url('thumb'),", SERVICE)
+        self.assertIn("'photo_full' => $room->images->first()?->url(),", SERVICE)
         self.assertIn("$cardPhoto = $c['photo'] ?? $room->roomType?->image;", VIEW)
         self.assertNotIn('ws-room-meta', VIEW)
         # the rack shows the same picture, small enough for a table row

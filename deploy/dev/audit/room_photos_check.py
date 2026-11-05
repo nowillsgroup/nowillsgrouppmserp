@@ -173,9 +173,16 @@ class RoomPhotoCreationTest(unittest.TestCase):
         self.assertIn("$path === 'photo'", INDEX)
         self.assertIn("\\App\\Services\\ReservationDeskService::photoPath($row)", INDEX)
         self.assertIn("class=\"menu-thumb\"", INDEX)
-        self.assertIn("public function url(): string", MODEL)
+        # url() also serves the card-sized copy, and falls back to the photo itself
+        self.assertIn("public function url(?string $variant = null): string", MODEL)
+        self.assertIn("if ($thumb && is_file(public_path($thumb)))", MODEL)
         self.assertIn("public function filename(): string", MODEL)
         self.assertIn("$this->hasMany(RoomImage::class)->where('is_active', true)->orderByDesc('is_primary')", ROOM)
+
+    def test_a_card_sized_copy_is_written_beside_the_photo(self):
+        self.assertIn('public const THUMB_EDGE = 640;', SERVICE)
+        self.assertIn("self::reencode(public_path($relative), public_path($thumb), self::THUMB_EDGE)", SERVICE)
+        self.assertIn("int $edge = self::MAX_EDGE): bool", SERVICE)
 
     def test_the_desk_uploads_through_the_same_store(self):
         store_image = method(DESK, "public function storeImage(Request $request)")

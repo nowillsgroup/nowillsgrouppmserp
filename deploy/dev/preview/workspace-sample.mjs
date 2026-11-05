@@ -143,6 +143,7 @@ export function buildCards() {
       amenities: AMENITIES[roomTypeOf(typeId).code] ?? [],
       // a stand-in for the room's own uploaded photo (the app reads the primary one)
       photo: ROOM_PHOTOS[roomNo] ?? null,
+      photo_full: ROOM_PHOTOS[roomNo] ?? null,
       arriving_on_date: Boolean(stay && stay.status === 'reserved' && stay.arrival_date.toDateString() === BUSINESS_DATE),
     };
   }));
