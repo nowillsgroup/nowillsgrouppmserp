@@ -1,4 +1,16 @@
-/* Nowills PMS — offline-first browser outbox (housekeeping room status slice) */
+/*
+ * Nowills PMS — housekeeping workspace, offline.
+ *
+ * Room statuses, task actions, inspections and maintenance issues are written into
+ * the shared outbox in /js/offline-core.js, and the room/task snapshot is read from
+ * the shared snapshot cache. That gives this screen the same backoff, the same
+ * Background Sync, the same retry/discard review on /offline/queue and the same
+ * one-press preparation as the restaurant, front desk and guest requests.
+ *
+ * Rows and the snapshot this file used to keep in `nowills-pms-offline` are moved
+ * onto the shared stores on first load, keeping each operation id so the server
+ * still recognises work it may already have applied.
+ */
 (function () {
   'use strict';
 
@@ -10,11 +22,9 @@
   const app = document.getElementById('offlineHousekeepingApp');
   const snapshotUrl = app?.dataset.snapshotUrl || '/offline/housekeeping/snapshot';
   const syncUrl = app?.dataset.syncUrl || '/offline/sync';
-  const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
-  const deviceKey = 'nowills-offline-device:' + hotel;
-  const device = localStorage.getItem(deviceKey) || (window.crypto?.randomUUID ? window.crypto.randomUUID() : 'device-' + Date.now() + '-' + Math.random().toString(16).slice(2));
-  localStorage.setItem(deviceKey, device);
-  let syncing = false;
+  const core = window.PmsOffline || null;
+  // The shared cache key for this screen's snapshot; preparation uses the same one.
+  const SNAPSHOT_KEY = 'housekeeping';
   let snapshot = null;
 
   const statusLabel = document.querySelector('[data-offline-label]');
@@ -57,16 +67,8 @@
     });
   }
 
-  const snapshotKey = () => hotel + ':housekeeping';
-  const readSnapshot = () => dbRequest(SNAPSHOTS, 'readonly', store => store.get(snapshotKey()));
-  const writeSnapshot = data => dbRequest(SNAPSHOTS, 'readwrite', store => store.put({ key: snapshotKey(), hotel, ...data, saved_at: new Date().toISOString() }));
   const allOutbox = async () => (await dbRequest(OUTBOX, 'readonly', store => store.getAll())).filter(row => row.hotel === hotel);
-  const saveOutbox = row => dbRequest(OUTBOX, 'readwrite', store => store.put(row));
   const deleteOutbox = id => dbRequest(OUTBOX, 'readwrite', store => store.delete(id));
-
-  function uuid() {
-    return window.crypto?.randomUUID ? window.crypto.randomUUID() : 'op-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-  }
 
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
@@ -87,8 +89,18 @@
     box._timer = setTimeout(() => { box.hidden = true; }, tone === 'error' ? 7000 : 4000);
   }
 
+  const OWN = ['housekeeping.room_status', 'housekeeping.task', 'housekeeping.maintenance'];
+
+  async function ownRows() {
+    if (!core) return [];
+    const rows = await core.pending().catch(() => []);
+    return rows.filter(row => OWN.includes(row.operation));
+  }
+
   async function updatePending() {
-    const count = (await allOutbox()).length;
+    const rows = core ? await ownRows() : await allOutbox();
+    const queued = core ? rows.filter(row => row.status === 'queued' || row.status === 'retry') : rows;
+    const count = queued.length;
     if (pendingLabel) pendingLabel.textContent = count ? ' · ' + count + ' pending' : '';
     document.body.classList.toggle('offline-has-pending', count > 0);
     return count;
@@ -109,18 +121,18 @@
     return '<span class="badge badge-' + (tones[status] || 'slate') + '">' + escapeHtml(labels[status] || status || 'Unknown') + '</span>';
   }
 
+  // The server's answer is applied to what is on screen; the saved copy in the
+  // shared cache is refreshed from the server after a sync, never guessed at here.
   function updateRoomInSnapshot(room) {
     if (!snapshot?.rooms || !room) return;
     const index = snapshot.rooms.findIndex(item => Number(item.id) === Number(room.id));
     if (index >= 0) snapshot.rooms[index] = { ...snapshot.rooms[index], ...room };
-    writeSnapshot(snapshot).catch(() => {});
   }
 
   function updateTaskInSnapshot(task) {
     if (!snapshot?.tasks || !task) return;
     const index = snapshot.tasks.findIndex(item => Number(item.id) === Number(task.id));
     if (index >= 0) snapshot.tasks[index] = { ...snapshot.tasks[index], ...task };
-    writeSnapshot(snapshot).catch(() => {});
   }
 
   function applyRoomToPage(room) {
@@ -193,108 +205,122 @@
     });
   }
 
-  async function refreshCsrf() {
-    try {
-      const response = await fetch('/housekeeping', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'text/html' } });
-      if (!response.ok) return false;
-      const html = await response.text();
-      const match = html.match(/<meta\s+name=["']csrf-token["']\s+content=["']([^"']+)/i);
-      if (match) document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', match[1]);
-      return !!match;
-    } catch (_) {
-      return false;
+  /** Send what this device holds, through the shared queue. */
+  async function syncOutbox() {
+    if (!core || !navigator.onLine) return;
+    const before = (await ownRows()).filter(row => row.status === 'queued' || row.status === 'retry').length;
+    await core.flush({ force: true });
+    const after = await ownRows();
+    const left = after.filter(row => row.status === 'queued' || row.status === 'retry').length;
+    await updatePending();
+    if (workspaceState) {
+      workspaceState.textContent = navigator.onLine
+        ? (left ? 'Online · some changes remain pending' : 'Online · ready for offline work')
+        : 'Offline · using the last saved snapshot';
     }
+    if (before && !left) notify(before + ' housekeeping change' + (before === 1 ? '' : 's') + ' synced.', 'info');
+    if (app) await fetchSnapshot();
   }
 
-  async function syncOutbox() {
-    if (syncing || !navigator.onLine) return;
-    syncing = true;
+  /**
+   * Move what the older version of this file queued in its own store onto the
+   * shared queue, keeping each operation id so the server still recognises work it
+   * may already have applied.
+   */
+  async function migrateLegacyQueue() {
+    if (!core) return 0;
+    let moved = 0;
     try {
-      let rows = await allOutbox();
-      await updatePending();
-      if (!rows.length) return;
-      if (workspaceState) workspaceState.textContent = 'Online · syncing ' + rows.length + ' change' + (rows.length === 1 ? '' : 's');
-      const send = () => fetch(syncUrl, {
-        method: 'POST', credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Offline-Device': device },
-        body: JSON.stringify({ operations: rows.map(row => ({ operation_id: row.operation_id, operation: row.operation, payload: row.payload, base_updated_at: row.base_updated_at })) }),
-      });
-      let response = await send();
-      if (response.status === 419 && await refreshCsrf()) response = await send();
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) notify('Offline changes are waiting for an authenticated session.', 'error');
-        throw new Error('Sync returned HTTP ' + response.status);
+      const rows = await allOutbox();
+      for (const row of rows) {
+        if (!OWN.includes(row.operation)) continue;
+        await core.enqueue(row.operation, row.payload, {
+          id: row.operation_id,
+          baseUpdatedAt: row.base_updated_at,
+          label: row.operation === 'housekeeping.room_status'
+            ? 'Room status · ' + (row.payload?.hk_status || '').replace('_', '-')
+            : row.operation === 'housekeeping.task'
+              ? 'Task · ' + (row.payload?.action || '')
+              : 'Maintenance · ' + (row.payload?.title || 'issue'),
+        });
+        await deleteOutbox(row.operation_id);
+        moved += 1;
       }
-      const data = await response.json();
-      let applied = 0;
-      let conflicts = 0;
-      for (const result of data.results || []) {
-        if (!result.operation_id) continue;
-        if (result.status === 'applied') applied++;
-        if (result.status === 'conflict') conflicts++;
-        if (['applied', 'conflict', 'rejected'].includes(result.status)) await deleteOutbox(result.operation_id);
-        if (result.room) applyRoomToPage(result.room);
-        if (result.task) applyTaskToPage(result.task);
-        if (result.ticket) notify('Maintenance ticket ' + result.ticket.ticket_no + ' synced.', 'info');
-        if (result.status === 'conflict') notify('A housekeeping record changed while this device was offline. Review the server status.', 'error');
-        if (result.status === 'rejected') notify(result.error || 'An offline change was rejected.', 'error');
-        if (result.status === 'retry') notify(result.error || 'The change was not confirmed and remains queued for retry.', 'error');
-      }
-      rows = await allOutbox();
-      await updatePending();
-      if (workspaceState) workspaceState.textContent = rows.length ? 'Online · some changes remain pending' : 'Online · synced ' + applied + ' change' + (applied === 1 ? '' : 's');
-      if (conflicts) notify(conflicts + ' offline change' + (conflicts === 1 ? '' : 's') + ' need review.', 'error');
-      if (app) await fetchSnapshot();
-    } catch (error) {
-      if (navigator.onLine) console.debug('Offline sync postponed:', error.message);
-    } finally {
-      syncing = false;
+    } catch (_) {
+      // A device with no legacy store simply has nothing to move.
     }
+    return moved;
   }
 
   async function queueRoomStatus(roomId, status, baseUpdatedAt) {
-    const current = await allOutbox();
-    await Promise.all(current.filter(row => row.operation === 'housekeeping.room_status' && Number(row.payload?.room_id) === Number(roomId)).map(row => deleteOutbox(row.operation_id)));
-    const row = { operation_id: uuid(), hotel, operation: 'housekeeping.room_status', payload: { room_id: Number(roomId), hk_status: status }, base_updated_at: baseUpdatedAt, created_at: new Date().toISOString() };
-    await saveOutbox(row);
+    if (!core) throw new Error('The offline queue could not be loaded on this device.');
+    // One room status per room on the device: the newest tap replaces the older one.
+    const current = await core.pending().catch(() => []);
+    await Promise.all(current
+      .filter(row => row.operation === 'housekeeping.room_status' && Number(row.payload?.room_id) === Number(roomId))
+      .map(row => core.discard(row.id)));
+    await core.enqueue('housekeeping.room_status', { room_id: Number(roomId), hk_status: status }, {
+      baseUpdatedAt,
+      label: 'Room ' + (snapshot?.rooms?.find(item => Number(item.id) === Number(roomId))?.room_no || roomId)
+        + ' → ' + String(status).replace('_', '-'),
+    });
     await updatePending();
     await syncOutbox();
   }
 
   async function queueTaskAction(taskId, action, baseUpdatedAt, checked = [], notes = null) {
-    const current = await allOutbox();
-    const pending = current.find(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId));
-    if (pending) throw new Error('This task already has a queued change. Sync it before recording another action.');
-    const row = { operation_id: uuid(), hotel, operation: 'housekeeping.task', payload: { task_id: Number(taskId), action, checked, notes }, base_updated_at: baseUpdatedAt, created_at: new Date().toISOString() };
-    await saveOutbox(row);
+    if (!core) throw new Error('The offline queue could not be loaded on this device.');
+    const current = await core.pending().catch(() => []);
+    if (current.some(row => row.operation === 'housekeeping.task' && Number(row.payload?.task_id) === Number(taskId))) {
+      throw new Error('This task already has a queued change. Sync it before recording another action.');
+    }
+    await core.enqueue('housekeeping.task', { task_id: Number(taskId), action, checked, notes }, {
+      baseUpdatedAt,
+      label: 'Task · ' + action + ' · room ' + (snapshot?.tasks?.find(item => Number(item.id) === Number(taskId))?.room_no || ''),
+    });
     await updatePending();
     await syncOutbox();
   }
 
   async function queueMaintenance(taskId, category, title, priority) {
-    const row = { operation_id: uuid(), hotel, operation: 'housekeeping.maintenance', payload: { task_id: Number(taskId), category, title, priority, description: '' }, created_at: new Date().toISOString() };
-    await saveOutbox(row);
+    if (!core) throw new Error('The offline queue could not be loaded on this device.');
+    await core.enqueue('housekeeping.maintenance', {
+      task_id: Number(taskId), category, title, priority, description: '',
+    }, { label: 'Maintenance · ' + title });
     await updatePending();
     await syncOutbox();
   }
 
   async function fetchSnapshot() {
-    if (!app) return;
+    if (!app || !core) return;
     try {
-      if (navigator.onLine) {
-        const response = await fetch(snapshotUrl, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
-        if (response.ok) {
-          snapshot = await response.json();
-          await writeSnapshot(snapshot);
-        }
-      }
-      if (!snapshot) snapshot = await readSnapshot();
+      snapshot = await core.snapshot(SNAPSHOT_KEY, snapshotUrl);
       renderWorkspace();
       if (workspaceState) workspaceState.textContent = navigator.onLine ? 'Online · ready for offline work' : 'Offline · using the last saved snapshot';
     } catch (error) {
-      snapshot = snapshot || await readSnapshot().catch(() => null);
-      renderWorkspace();
-      if (workspaceState) workspaceState.textContent = snapshot ? 'Offline · using the last saved snapshot' : 'Connect once to download room data';
+      try {
+        snapshot = await core.cachedSnapshot(SNAPSHOT_KEY);
+        renderWorkspace();
+        if (workspaceState) workspaceState.textContent = 'Offline · using the last saved snapshot';
+      } catch (_) {
+        snapshot = null;
+        renderWorkspace();
+        if (workspaceState) workspaceState.textContent = 'Connect once to download room data';
+      }
+    }
+    await applyQueued();
+  }
+
+  /** Show what the queue says about this screen's work, without inventing states. */
+  async function applyQueued() {
+    if (!core) return;
+    const rows = await ownRows();
+    const roomRows = rows.filter(row => row.operation === 'housekeeping.room_status');
+    const queued = roomRows.filter(row => row.status === 'queued' || row.status === 'retry');
+    if (queued.length && roomList) {
+      roomList.querySelectorAll('[data-room-id]').forEach(card => {
+        if (queued.some(row => Number(row.payload?.room_id) === Number(card.dataset.roomId))) card.classList.add('is-pending');
+      });
     }
   }
 
@@ -320,7 +346,9 @@
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-offline-issue]');
     if (!button) return;
-    const card = button.closest('[data-task-id]');
+    // The buttons themselves carry data-task-id, so the card is found by its class:
+    // closest('[data-task-id]') would return the button and lose the checklist and notes.
+    const card = button.closest('.offline-task-card');
     const titleInput = card?.querySelector('[data-offline-issue-title]');
     const title = titleInput?.value.trim() || '';
     if (!title) return notify('Enter a short description of the maintenance issue.', 'error');
@@ -338,7 +366,9 @@
     const task = snapshot?.tasks?.find(item => Number(item.id) === Number(button.dataset.taskId));
     if (!task || !canEdit) return;
     const action = button.dataset.offlineTaskAction;
-    const card = button.closest('[data-task-id]');
+    // The buttons themselves carry data-task-id, so the card is found by its class:
+    // closest('[data-task-id]') would return the button and lose the checklist and notes.
+    const card = button.closest('.offline-task-card');
     const checked = card ? Array.from(card.querySelectorAll('[data-offline-check]:checked')).map(input => input.value) : [];
     const notes = card?.querySelector('[data-offline-inspect-notes]')?.value.trim() || null;
     if (action === 'complete' && snapshot.checklist_required && task.task_type !== 'public_area' && checked.length < (snapshot.checklist_items || []).length) {
@@ -361,11 +391,29 @@
     }).catch(error => { Object.assign(task, previous); renderWorkspace(); notify(error?.message || 'This task change could not be saved locally.', 'error'); });
   });
 
-  window.addEventListener('online', () => { setConnectionState(); syncOutbox().then(() => fetchSnapshot()); });
+  window.addEventListener('online', () => { setConnectionState(); fetchSnapshot(); });
   window.addEventListener('offline', setConnectionState);
+
+  // The queue sends itself; this screen follows what the queue says happened.
+  if (core) {
+    core.onChange(() => { updatePending(); applyQueued(); });
+    window.addEventListener('pms-offline:applied', event => {
+      (event.detail?.applied || []).forEach(entry => {
+        if (!OWN.includes(entry.operation)) return;
+        const result = entry.result || {};
+        if (result.room) applyRoomToPage(result.room);
+        if (result.task) applyTaskToPage(result.task);
+        if (result.ticket) notify('Maintenance ticket ' + (result.ticket.ticket_no || '') + ' synced.', 'info');
+      });
+      updatePending();
+    });
+  }
+
   setConnectionState();
   updatePending();
-  if (app) fetchSnapshot();
-  syncOutbox();
-  setInterval(() => { if (navigator.onLine) syncOutbox(); }, 30000);
+  migrateLegacyQueue().then(moved => {
+    if (moved) notify(moved + ' pending change' + (moved === 1 ? ' was' : 's were') + ' moved onto the shared outbox.', 'info');
+    updatePending();
+    if (app) fetchSnapshot().then(syncOutbox);
+  });
 })();

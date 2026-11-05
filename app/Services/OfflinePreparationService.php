@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Route;
  * is never sent a snapshot their permissions do not carry — and the device only
  * fetches what it is given.
  *
- * `snapshot_key` names the key `/js/offline-core.js` uses for screens that read
- * through the shared cache. The older housekeeping and guest-request screens keep
- * their own store; for those the snapshot is still fetched, so the service worker
- * has the JSON and the screen fills its store the first time it opens offline.
+ * `snapshot_key` is the key `/js/offline-core.js` stores the snapshot under. Every
+ * slice now names one, so preparing a device fills the same cache the screen reads
+ * from and the screen opens with its list already there.
  */
 class OfflinePreparationService
 {
@@ -34,9 +33,10 @@ class OfflinePreparationService
             self::slice('frontdesk', 'Front desk', 'offline.frontdesk', 'offline.frontdesk.snapshot',
                 $user->hasPermission('frontdesk.view'), 'frontdesk'),
             self::slice('housekeeping', 'Housekeeping', 'offline.housekeeping', 'offline.housekeeping.snapshot',
-                $user->hasPermission('housekeeping.view') || $user->hasPermission('housekeeping.attendant') || $user->hasPermission('housekeeping.manage')),
+                $user->hasPermission('housekeeping.view') || $user->hasPermission('housekeeping.attendant') || $user->hasPermission('housekeeping.manage'),
+                'housekeeping'),
             self::slice('requests', 'Guest requests', 'offline.guest_requests', 'offline.guest_requests.snapshot',
-                $user->hasPermission('requests.view') || $user->hasPermission('requests.manage')),
+                $user->hasPermission('requests.view') || $user->hasPermission('requests.manage'), 'guestRequests'),
         ]));
 
         return [

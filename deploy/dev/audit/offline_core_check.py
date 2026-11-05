@@ -43,6 +43,7 @@ RECON_SERVICE = read("app/Services/OfflineReconciliationService.php")
 RECON_VIEW = read("resources/views/offline/reconciliation.blade.php")
 PREP_SERVICE = read("app/Services/OfflinePreparationService.php")
 GUEST_JS = read("public/js/offline-guest-requests.js")
+HK_JS = read("public/js/offline-sync.js")
 PREPARE_JS = CORE[CORE.index("function prepare(plan)"):CORE.index("function backoff(attempts)")]
 STAY_SERVICE = read("app/Services/StayService.php")
 FOLIO_SERVICE = read("app/Services/FolioService.php")
@@ -453,8 +454,9 @@ class OfflineCoreCheck(unittest.TestCase):
                       "a slice whose routes are gone is not offered")
         self.assertIn("array_values(array_filter([", PREP_SERVICE)
         self.assertIn("'snapshot_key' => $snapshotKey", PREP_SERVICE)
-        self.assertIn("'pos'", PREP_SERVICE)
-        self.assertIn("'frontdesk'", PREP_SERVICE)
+        for key in ("'pos'", "'frontdesk'", "'housekeeping'", "'guestRequests'"):
+            with self.subTest(key=key):
+                self.assertIn(key, PREP_SERVICE, "every slice names the cache key its screen reads")
 
     # ── one queue ──────────────────────────────────────────────────────────────
 
@@ -491,15 +493,57 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("assertions passed", result.stdout)
 
-    def test_the_outbox_says_which_screen_still_keeps_its_own_list(self):
-        self.assertIn("Room statuses are still kept by the housekeeping screen itself", QUEUE_VIEW)
-        self.assertIn("Housekeeping is the one screen left on its own older queue", DOC)
+    def test_every_slice_writes_into_the_one_queue(self):
+        self.assertIn("Every offline screen writes here", QUEUE_VIEW)
+        for screen, operation in (("POS_JS", "pos.order.create"), ("DESK_JS", "frontdesk.charge"),
+                                  ("GUEST_JS", "guest_request.create"), ("HK_JS", "housekeeping.room_status")):
+            with self.subTest(screen=screen):
+                self.assertIn(operation, globals()[screen], "the screen writes into the shared outbox")
+        self.assertIn("all write into the same outbox", DOC)
+
+    def test_the_housekeeping_screen_uses_the_shared_queue_and_cache(self):
+        self.assertIn("const core = window.PmsOffline || null;", HK_JS)
+        self.assertIn("await core.enqueue('housekeeping.room_status'", HK_JS)
+        self.assertIn("await core.enqueue('housekeeping.task'", HK_JS)
+        self.assertIn("await core.enqueue('housekeeping.maintenance'", HK_JS)
+        self.assertIn("await core.flush({ force: true });", HK_JS)
+        self.assertIn("core.snapshot(SNAPSHOT_KEY, snapshotUrl)", HK_JS)
+        self.assertIn("core.cachedSnapshot(SNAPSHOT_KEY)", HK_JS)
+        self.assertIn("const SNAPSHOT_KEY = 'housekeeping';", HK_JS)
+        self.assertNotIn("fetch(syncUrl", HK_JS)
+        self.assertNotIn("setInterval(", HK_JS)
+        self.assertNotIn("refreshCsrf", HK_JS)
+
+    def test_housekeeping_work_already_queued_survives_the_move(self):
+        self.assertIn("async function migrateLegacyQueue()", HK_JS)
+        self.assertIn("id: row.operation_id,", HK_JS)
+        self.assertIn("baseUpdatedAt: row.base_updated_at,", HK_JS,
+                      "the stale check needs the timestamp the row was captured against")
+        self.assertIn("await deleteOutbox(row.operation_id);", HK_JS)
+
+    def test_one_room_status_per_room_and_one_action_per_task(self):
+        self.assertIn("row.operation === 'housekeeping.room_status' && Number(row.payload?.room_id) === Number(roomId)", HK_JS)
+        self.assertIn(".map(row => core.discard(row.id))", HK_JS, "the newest tap replaces the older one")
+        self.assertIn("already has a queued change", HK_JS)
+
+    def test_the_card_lookup_does_not_stop_at_the_button(self):
+        self.assertNotIn("button.closest('[data-task-id]')", HK_JS,
+                         "the buttons carry data-task-id: closest() would return the button, not its card")
+        self.assertEqual(HK_JS.count("button.closest('.offline-task-card')"), 2)
+
+    def test_the_housekeeping_screen_is_covered_by_a_harness(self):
+        harness = ROOT / "deploy/dev/audit/offline_housekeeping_queue_check.js"
+        self.assertTrue(harness.exists())
+        result = subprocess.run(["node", str(harness)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("assertions passed", result.stdout)
 
     # ── it has to parse ────────────────────────────────────────────────────────
 
     def test_the_browser_files_parse(self):
         for script in ("public/js/offline-core.js", "public/js/offline-pos.js", "public/js/offline-frontdesk.js",
-                       "public/js/offline-queue.js", "public/sw.js"):
+                       "public/js/offline-queue.js", "public/js/offline-sync.js", "public/js/offline-guest-requests.js",
+                       "public/sw.js"):
             with self.subTest(script=script):
                 result = subprocess.run(["node", "--check", str(ROOT / script)], capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr[-400:])

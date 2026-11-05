@@ -146,6 +146,8 @@ window.PmsOffline = {
     return row;
   },
   pending: async () => queued.map(row => ({ ...row })),
+  snapshot: async () => JSON.parse(JSON.stringify(SNAPSHOT)),
+  cachedSnapshot: async () => ({ ...JSON.parse(JSON.stringify(SNAPSHOT)), _stale: true }),
   flush: async () => ({ sent: 0, applied: [], conflicts: [] }),
   status: () => ({ online: true, syncing: false, queued: queued.length, conflicts: 0, rejected: 0, lastSync: null }),
   onChange: fn => { onChangeListener = fn; fn(window.PmsOffline.status()); return () => {}; },

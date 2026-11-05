@@ -175,3 +175,6 @@ body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber)
 .offline-hub-prepare{display:flex;flex-direction:column;gap:.3rem}
 .offline-hub-prepare-row{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.35rem .1rem;border-bottom:1px solid var(--c-border);font-size:.82rem}
 .offline-hub-prepare-row:last-child{border-bottom:0}
+
+/* A room whose status is still queued on this device. */
+.offline-room-card.is-pending{outline:2px dashed color-mix(in srgb,var(--c-amber) 55%,transparent);outline-offset:2px}

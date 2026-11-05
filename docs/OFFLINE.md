@@ -86,8 +86,8 @@ moment a guest asks for the bill.
 |---|---|
 | `public/js/offline-core.js` | The queue: IndexedDB stores, enqueue, flush with backoff, snapshot cache, status events. Used by pages **and** by the service worker. |
 | `public/sw.js` | App shell cache, offline navigation fallback to `/offline`, Background Sync that flushes the queue with no tab open. |
-| `public/js/offline-sync.js` | Housekeeping screen logic (older: keeps its own snapshot **and** its own queue in `nowills-pms-offline`). |
-| `public/js/offline-guest-requests.js` | Guest-request form and cards; its queue is the shared one (its own snapshot store is older). |
+| `public/js/offline-sync.js` | Housekeeping workspace: room statuses, task actions, inspections and maintenance issues. |
+| `public/js/offline-guest-requests.js` | Guest-request form and cards. |
 | `public/js/offline-pos.js` | Restaurant terminal drawn from the snapshot. |
 | `public/js/offline-frontdesk.js` | Front desk: arrivals, in-house rooms, the charge form, drawn from the snapshot. |
 | `public/js/offline-queue.js` | The outbox screen: what this device holds, why the server refused it, retry and discard. |
@@ -114,14 +114,13 @@ moment a guest asks for the bill.
 Retries never re-order the queue, and a stalled operation is never deleted on its
 own — someone has to look at it.
 
-One queue, one set of rules: the restaurant, front desk and guest-request screens
-write into the same outbox, so one backoff, one Background Sync and one review
-screen cover all three. Rows the guest-request screen queued in its own older store
-are moved onto the shared queue the first time it loads, keeping the operation id
-they were stored with (so the server still recognises work it may already have
-applied). Housekeeping is the one screen left on its own older queue; moving it is
-a separate change, and until then `/offline/queue` says so rather than implying it
-shows everything. That look happens on `/offline/queue`: the server's
+One queue, one set of rules: the restaurant, front desk, housekeeping and
+guest-request screens all write into the same outbox, so one backoff, one Background
+Sync, one preparation step and one review screen cover every slice. The two screens
+that used to keep an outbox of their own (`nowills-pms-offline`) move anything they
+queued there onto the shared queue the first time they load, keeping the operation id
+and the base timestamp each row was stored with — so the server still recognises work
+it may already have applied. That look happens on `/offline/queue`: the server's
 reason is on the row, **Try again** puts one change back in the queue with its backoff
 cleared (and sends it at once), and **Discard** asks first, because the server never
 received that work and it cannot be recovered.
@@ -137,10 +136,9 @@ be open: Safari has no Background Sync yet.
 1. Sign in **while online**, on the network the device will work on.
 2. Open `/offline` and press **Prepare now**. The device asks the server which
    screens this login may work (`/offline/preparation`), then keeps each one: the
-   page itself, and its snapshot — in the shared cache for the restaurant and front
-   desk, and in the HTTP cache the service worker reads for the older housekeeping
-   and guest-request screens. The list says `ready` per screen, and the time of the
-   last preparation is kept so a supervisor can see how stale it is.
+   page itself in the service worker's cache, and its snapshot in the shared
+   snapshot cache the screen reads from. The list says `ready` per screen, and the
+   time of the last preparation is kept so a supervisor can see how stale it is.
    Opening each screen once while online does the same thing one at a time.
 3. Leave the tab open when the internet is expected to be shaky. The strip under
    the top bar shows offline state and how many changes are waiting.

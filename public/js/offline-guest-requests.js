@@ -7,6 +7,10 @@
  * restaurant and front-desk work. This file keeps only what is specific to the
  * screen: the form, the room list and the recent-request cards.
  *
+ * The room/request snapshot comes from the shared snapshot cache and the requests
+ * this device captured but has not had confirmed are kept in the queue's own
+ * key/value corner, so preparation and the queue cover this screen completely.
+ *
  * Rows queued by the older version of this file (its own `outbox` store in
  * `nowills-pms-offline`) are moved onto the shared queue on load, keeping the
  * operation id they were stored with.
@@ -47,7 +51,11 @@
   const requestCount = document.querySelector('[data-guest-request-count]');
   const snapshotKey = () => hotel + ':guest-requests';
   let snapshot = null;
+  let local = [];
   const core = window.PmsOffline || null;
+  // The shared cache key for this screen's snapshot; preparation uses the same one.
+  const SNAPSHOT_KEY = 'guestRequests';
+  const LOCAL_KEY = 'guestRequests.local';
 
   function openDb() {
     return new Promise((resolve, reject) => {
@@ -78,10 +86,13 @@
   }
 
   const readSnapshot = () => dbRequest(SNAPSHOTS, 'readonly', store => store.get(snapshotKey()));
-  const writeSnapshot = data => dbRequest(SNAPSHOTS, 'readwrite', store => store.put({ key: snapshotKey(), hotel, ...data, saved_at: new Date().toISOString() }));
   const allOutbox = async () => (await dbRequest(OUTBOX, 'readonly', store => store.getAll())).filter(row => row.hotel === hotel);
   const saveOutbox = row => dbRequest(OUTBOX, 'readwrite', store => store.put(row));
   const deleteOutbox = id => dbRequest(OUTBOX, 'readwrite', store => store.delete(id));
+
+  const readLocal = () => (core ? core.local.get(LOCAL_KEY).catch(() => null) : readSnapshot().then(row => row?.local_requests || null).catch(() => null))
+    .then(value => (Array.isArray(value) ? value : []));
+  const saveLocal = () => (core ? core.local.set(LOCAL_KEY, local.slice(0, 30)).catch(() => null) : Promise.resolve(null));
 
   function uuid() {
     return window.crypto?.randomUUID ? window.crypto.randomUUID() : 'op-' + Date.now() + '-' + Math.random().toString(16).slice(2);
@@ -175,7 +186,6 @@
 
   function recentRequests() {
     const server = snapshot?.requests || [];
-    const local = snapshot?.local_requests || [];
     const seen = new Set();
     return [...local, ...server].filter(request => {
       const key = request.id ? 'request:' + request.id : 'operation:' + request.operation_id;
@@ -219,25 +229,21 @@
 
   async function fetchSnapshot() {
     try {
-      if (navigator.onLine) {
+      if (core) {
+        snapshot = await core.snapshot(SNAPSHOT_KEY, snapshotUrl);
+      } else if (navigator.onLine) {
         const response = await fetch(snapshotUrl, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
         if (!response.ok) throw new Error('Snapshot returned HTTP ' + response.status);
-        const fresh = await response.json();
-        fresh.local_requests = snapshot?.local_requests || (await readSnapshot())?.local_requests || [];
-        snapshot = fresh;
-        await writeSnapshot(snapshot);
-      } else if (!snapshot) {
-        snapshot = await readSnapshot();
+        snapshot = await response.json();
       }
-      renderForm();
-      renderRequests();
-      setState(navigator.onLine ? 'Online · ready for offline capture' : 'Offline · using the last saved snapshot');
     } catch (error) {
-      snapshot = snapshot || await readSnapshot().catch(() => null);
-      renderForm();
-      renderRequests();
-      setState(snapshot ? 'Offline · using the last saved snapshot' : 'Connect once to download room data');
+      snapshot = core ? await core.cachedSnapshot(SNAPSHOT_KEY).catch(() => snapshot) : snapshot;
     }
+    renderForm();
+    renderRequests();
+    setState(snapshot
+      ? (navigator.onLine ? 'Online · ready for offline capture' : 'Offline · using the last saved snapshot')
+      : 'Connect once to download room data');
   }
 
   /** Send what this device holds, through the shared queue. */
@@ -268,6 +274,11 @@
         await deleteOutbox(row.operation_id);
         moved += 1;
       }
+      const legacy = await readSnapshot().catch(() => null);
+      if (legacy?.local_requests?.length && !(await readLocal()).length) {
+        local = legacy.local_requests.slice(0, 30);
+        await saveLocal();
+      }
     } catch (_) {
       // A device with no legacy store simply has nothing to move.
     }
@@ -280,16 +291,16 @@
     const rows = await core.pending().catch(() => []);
     const byId = new Map(rows.map(row => [row.id, row]));
     let changed = false;
-    (snapshot?.local_requests || []).forEach(request => {
+    local.forEach(request => {
       const row = byId.get(request.operation_id);
       const status = row ? row.status : request.request_no ? null : 'sent';
-      if (request.sync_status === status && (row?.error || null) === (request.error || null)) return;
+      if (request.sync_status === status && (request.error || null) === (row?.error || null)) return;
       request.sync_status = status;
       request.error = row ? row.error : null;
       changed = true;
     });
     if (changed) {
-      await writeSnapshot(snapshot);
+      await saveLocal();
       renderRequests();
     }
   }
@@ -321,9 +332,8 @@
       } else {
         await saveOutbox({ operation_id: operationId, hotel, operation: 'guest_request.create', payload, created_at: request.created_at });
       }
-      snapshot = snapshot || { local_requests: [] };
-      snapshot.local_requests = [request, ...(snapshot.local_requests || [])].slice(0, 30);
-      await writeSnapshot(snapshot);
+      local = [request, ...local].slice(0, 30);
+      await saveLocal();
       renderRequests();
       form.reset();
       if (quantityInput) quantityInput.value = '1';
@@ -354,11 +364,11 @@
     window.addEventListener('pms-offline:applied', event => {
       (event.detail?.applied || []).forEach(entry => {
         if (entry.operation !== 'guest_request.create') return;
-        const local = (snapshot?.local_requests || []).find(request => request.operation_id === entry.result?.operation_id
+        const captured = local.find(request => request.operation_id === entry.result?.operation_id
           || request.operation_id === entry.payload?.operation_id);
-        if (local && entry.result?.request) {
-          Object.assign(local, { request_no: entry.result.request.request_no || local.request_no, sync_status: null });
-          notify('Guest request ' + (local.request_no || 'created') + ' is on the server.', 'info');
+        if (captured && entry.result?.request) {
+          Object.assign(captured, { request_no: entry.result.request.request_no || captured.request_no, sync_status: null });
+          notify('Guest request ' + (captured.request_no || 'created') + ' is on the server.', 'info');
         }
       });
       applyQueued();
@@ -366,6 +376,7 @@
     });
   }
 
+  readLocal().then(rows => { local = rows; renderRequests(); });
   updatePending();
   migrateLegacyQueue().then(moved => {
     if (moved) notify(moved + ' queued request' + (moved === 1 ? ' was' : 's were') + ' moved onto the shared outbox.', 'info');
