@@ -37,6 +37,18 @@ room form is the upload the application has:
 | Definition (fields, columns) | the `rooms` entry of `config/masters.php`, mirrored in `deploy/dev/preview/rooms-sample.mjs`; `room_photos_check.py` fails if the two drift |
 | Photos on the sample room | three photographs in `deploy/dev/previews/assets/`, served at `/preview-assets/` |
 
+The reservation workspace is generated from its own view, including the screen's
+`@push('head')` stylesheet and `@push('scripts')` behaviour — the preview runs the
+application's real board, rack, filter chips, grouping and keyboard shortcuts:
+
+| Piece | Comes from |
+| --- | --- |
+| Room board, rack, attention rail, KPI strip, modals | `resources/views/reservations/workspace.blade.php` |
+| Screen CSS (`.ws-*`) | the view's own `@push('head')` block |
+| Board behaviour (filters, chips, grouping, rack sort, `/` `B` `R` `G`) | the view's own `@push('scripts')` block |
+| Attention list and KPI tiles | `ReservationWorkspaceController::attention()` / `kpiTiles()`, mirrored in the sample |
+| Figures | fixed sample, `deploy/dev/preview/workspace-sample.mjs` |
+
 ## Build and check
 
 ```bash
@@ -47,6 +59,11 @@ node deploy/dev/audit/dashboard_preview_check.js      # 73 assertions about the 
 node deploy/dev/build-rooms-preview.mjs                # writes previews/rooms-create.html + rooms-edit.html
 node deploy/dev/build-rooms-preview.mjs --check        # exit 1 when either file is stale
 node deploy/dev/audit/rooms_preview_check.js           # 36 assertions about the two room screens
+
+node deploy/dev/build-workspace-preview.mjs            # writes previews/reservations-workspace.html
+node deploy/dev/build-workspace-preview.mjs --check    # exit 1 when the file is stale
+node deploy/dev/audit/workspace_preview_check.js       # 52 assertions, run against the page in jsdom
+python3 deploy/dev/audit/workspace_check.py            # 18 source tests: ids, CSS, permissions, contract
 ```
 
 `--check` now compares the whole regenerated page, so editing a dashboard view
@@ -58,8 +75,11 @@ makes it fail until the preview is rebuilt.
 scope:
 
 * `@if` / `@elseif` / `@else` / `@unless`, `@foreach` / `@forelse` / `@empty`,
-  `@include`, `@php` (simple assignments only), `@push` (skipped), `@section`
-  (extracted), `{{ }}` escaped and `{!! !!}` raw;
+  `@include`, `@php` (simple assignments only), `@push` (rendered on request via
+  `renderer.push(view, 'head' | 'scripts', scope)`), `@section` (extracted),
+  `{{ }}` escaped and `{!! !!}` raw; `<style>` and `<script>` bodies are copied
+  verbatim so CSS `@media` is never mistaken for a directive;
+* `<x-icon name="{{ $icon }}"/>` interpolates its attributes, as Blade does;
 * `<x-icon>` and `<x-empty>` resolve against the page's own sprite;
 * expressions are evaluated as JavaScript after a PHP→JS pass — `$x` variables,
   `->` access, `::` static calls, `?:`, keyed arrays (`['k' => 'v']`), casts,
@@ -97,10 +117,12 @@ screen itself.
 ```bash
 PORT=4182 node deploy/dev/management-dashboard-preview-server.mjs                      # landing: fleet overview
 PREVIEW_LANDING=management-dashboard PORT=4183 node deploy/dev/management-dashboard-preview-server.mjs
+PREVIEW_LANDING=reservations-workspace PORT=4187 node deploy/dev/management-dashboard-preview-server.mjs
 ```
 
 `/management-dashboard` and `/__preview/management-dashboard` serve the dashboard
-on either instance, `/rooms-create` and `/rooms-edit` the two room screens, and
+on either instance, `/reservations-workspace` the reservation workspace,
+`/rooms-create` and `/rooms-edit` the two room screens, and
 `/previews` lists every screen. `PREVIEW_LANDING=rooms-edit` opens an instance
 straight onto the room record. The server is read-only and serves only the
 previews folder (including its `assets/` at `/preview-assets/`), `public/css/*`

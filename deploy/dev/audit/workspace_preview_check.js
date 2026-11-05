@@ -1,0 +1,182 @@
+#!/usr/bin/env node
+/*
+ * The Reservation Workspace is a working desk screen, so the preview is checked the
+ * way a receptionist uses it: read the day's numbers, filter the board, switch to the
+ * rack, group by floor, open a room. The page's own script is executed here, not just
+ * parsed, so a broken handler or a view switch that does not switch fails the check.
+ *
+ * Run: node deploy/dev/audit/workspace_preview_check.js
+ */
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const FILE = resolve(ROOT, 'deploy/dev/previews/reservations-workspace.html');
+
+let JSDOM;
+try {
+  ({ JSDOM } = await import('jsdom'));
+} catch (_) {
+  console.log('workspace preview check: SKIP (jsdom is not installed)');
+  process.exit(0);
+}
+
+let passed = 0;
+const failures = [];
+const ok = (label, condition, detail = '') => {
+  if (condition) { passed += 1; return; }
+  failures.push(detail ? `${label} — ${detail}` : label);
+};
+
+ok('the preview exists', existsSync(FILE));
+if (!existsSync(FILE)) {
+  console.log(`workspace preview check: 1 FAILED\n  ✗ ${failures[0]}`);
+  process.exit(1);
+}
+
+const dom = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously',
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05',
+  pretendToBeVisual: true,
+});
+const { window } = dom;
+const doc = window.document;
+const $ = (selector) => doc.querySelector(selector);
+const $$ = (selector) => [...doc.querySelectorAll(selector)];
+const cards = $$('#wsGrid .ws-card');
+
+/* ── the day, at a glance ─────────────────────────────────────────────────── */
+ok('the screen is titled', ($('.ws-title')?.textContent ?? '').includes('Reservation Workspace'));
+ok('the board names its date', /November 2026/.test($('.ws-date-nav')?.textContent ?? ''));
+ok('the day queues sit in the head', $$('.ws-head-stat').length === 4, `${$$('.ws-head-stat').length}`);
+ok('arrivals and departures are counted', /Arrivals/.test($('.ws-head-stats')?.textContent ?? '')
+  && /Departures/.test($('.ws-head-stats')?.textContent ?? ''));
+ok('the KPI strip renders every tile', $$('.ws-kpi').length === 9, `${$$('.ws-kpi').length}`);
+ok('each tile shows a sparkline', $$('.ws-kpi .ws-spark').length === 9);
+
+/* ── the command bar ─────────────────────────────────────────────────────── */
+ok('the command bar is above the board', Boolean($('#wsCmd')));
+ok('search, filters and layout live together', Boolean($('#wsCmd #fSearch')) && Boolean($('#wsCmd #wsTabRack')));
+ok('the board and rack are offered as two layouts', $$('[data-ws-view]').length === 2);
+ok('the board is the default layout', $('#wsGrid')?.hidden === false && $('#wsRack')?.hidden === true);
+ok('grouping is available', Boolean($('#wsGroupBy')));
+ok('the keyboard hints are shown', Boolean($('.ws-keys')));
+
+/* ── the board itself ────────────────────────────────────────────────────── */
+ok('every room has a card', cards.length === 15, `${cards.length} cards`);
+ok('cards carry the names the filters and rack need',
+  cards.every(card => card.dataset.status && card.dataset.typeName && card.dataset.floorName && card.dataset.statusLabel));
+ok('the board says how many rooms it is showing', /15 \/ 15 rooms/.test($('#wsVisibleCount')?.textContent ?? ''),
+  $('#wsVisibleCount')?.textContent);
+
+/* ── the needs-attention rail ────────────────────────────────────────────── */
+const attention = $$('#wsAttention .ws-attention-row');
+ok('the rail opens with what needs acting on', attention.length === 5, `${attention.length} rows`);
+ok('each item carries its count', attention.every(row => /^\d+$/.test(row.querySelector('.ws-attention-n')?.textContent?.trim() ?? '')));
+ok('the total is badged', ($('#wsAttention .ws-attention-count')?.textContent ?? '').trim() === '8',
+  $('#wsAttention .ws-attention-count')?.textContent);
+ok('the attention card comes before the calendar', $('#wsAttention')?.nextElementSibling
+  ? /ws-cal|ws-rail-card/.test($('#wsAttention').nextElementSibling.className) : false);
+
+/* ── filtering ───────────────────────────────────────────────────────────── */
+const statusSelect = $('#fStatus');
+statusSelect.value = 'occupied';
+statusSelect.dispatchEvent(new window.Event('change'));
+const visibleCards = cards.filter(card => !card.hidden);
+ok('filtering actually hides cards', visibleCards.length === 5, `${visibleCards.length} visible`);
+ok('filtering updates the count', /5 \/ 15 rooms/.test($('#wsVisibleCount')?.textContent ?? ''), $('#wsVisibleCount')?.textContent);
+ok('the active filter becomes a chip', $$('#wsChips .ws-chip').length === 1 && /Occupied/.test($('#wsChips')?.textContent ?? ''),
+  $('#wsChips')?.textContent);
+
+const chipButton = $('#wsChips .ws-chip button');
+chipButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('a chip can be removed', $('#fStatus')?.value === '', $('#fStatus')?.value);
+ok('removing the chip restores the board', cards.every(card => !card.hidden));
+
+/* ── search ──────────────────────────────────────────────────────────────── */
+const search = $('#fSearch');
+search.value = 'Osei';
+search.dispatchEvent(new window.Event('input'));
+ok('search narrows the board', cards.filter(card => !card.hidden).length === 1,
+  `${cards.filter(card => !card.hidden).length} visible`);
+search.value = '';
+search.dispatchEvent(new window.Event('input'));
+
+/* ── grouping ────────────────────────────────────────────────────────────── */
+const groupBy = $('#wsGroupBy');
+groupBy.value = 'floor';
+groupBy.dispatchEvent(new window.Event('change'));
+const groups = $$('#wsGrid .ws-group');
+ok('grouping by floor builds a section per floor', groups.length === 3, `${groups.length} groups`);
+ok('each group is titled', groups.every(group => (group.querySelector('.ws-group-head')?.textContent ?? '').trim().length > 0));
+ok('the group counts add up to the board', groups.reduce((total, group) => total + Number(group.querySelector('.ws-group-count')?.textContent ?? 0), 0) === cards.length);
+ok('no card is lost when grouping', $$('#wsGrid .ws-card').length === cards.length);
+
+groupBy.value = '';
+groupBy.dispatchEvent(new window.Event('change'));
+ok('turning grouping off returns the flat board', $$('#wsGrid .ws-group').length === 0);
+
+/* ── the rack ────────────────────────────────────────────────────────────── */
+$('#wsTabRack')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('the rack replaces the board', $('#wsRack')?.hidden === false && $('#wsGrid')?.hidden === true);
+const rows = $$('#wsRackBody tr');
+ok('every room has a rack row', rows.length === cards.length, `${rows.length} rows`);
+ok('the rack shows the room number', (rows[0]?.querySelector('.ws-rack-room b')?.textContent ?? '').length === 3,
+  rows[0]?.querySelector('.ws-rack-room b')?.textContent);
+ok('the rack shows status, guest, rate and an action',
+  Boolean(rows[0]?.querySelector('.badge')) && rows[0].querySelectorAll('td').length >= 7,
+  `${rows[0]?.querySelectorAll('td').length} cells`);
+ok('the rack can open a room', Boolean(rows[0]?.querySelector('.ws-room-open')));
+ok('the rack headers sort', $$('.ws-rack-sort').length === 5, `${$$('.ws-rack-sort').length}`);
+
+const rateHeader = $$('.ws-rack-sort').find(button => button.dataset.wsSort === 'rate');
+rateHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+const firstRate = Number(($$('#wsRackBody tr')[0]?.dataset.rate ?? '').replace(/[^\d.]/g, ''));
+const rates = $$('#wsRackBody tr').map(row => Number((row.dataset.rate ?? '').replace(/[^\d.]/g, '')));
+ok('sorting by rate orders the rack', firstRate === Math.min(...rates), `${firstRate} vs min ${Math.min(...rates)}`);
+
+const statusHeader = $$('.ws-rack-sort').find(button => button.dataset.wsSort === 'room');
+statusHeader?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('sorting by room starts at 101', /101/.test($$('#wsRackBody tr')[0]?.textContent ?? ''), $$('#wsRackBody tr')[0]?.textContent?.slice(0, 20));
+
+statusSelect.value = 'reserved';
+statusSelect.dispatchEvent(new window.Event('change'));
+ok('the rack obeys the same filters', $$('#wsRackBody tr').filter(row => !row.hidden).length === 4,
+  `${$$('#wsRackBody tr').filter(row => !row.hidden).length} visible rows`);
+statusSelect.value = '';
+statusSelect.dispatchEvent(new window.Event('change'));
+
+/* ── keyboard ────────────────────────────────────────────────────────────── */
+doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'b', bubbles: true }));
+ok('B returns to the board', $('#wsGrid')?.hidden === false && $('#wsRack')?.hidden === true);
+doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+ok('R opens the rack', $('#wsRack')?.hidden === false);
+doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: '/' }));
+ok('slash focuses the search', doc.activeElement === search, doc.activeElement?.id);
+doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'b' }));
+
+/* ── the screen, not a mock-up of it ─────────────────────────────────────── */
+ok('the stylesheet is linked', $$('link[rel="stylesheet"]').some(link => /app\.css/.test(link.getAttribute('href') ?? '')));
+ok('the page carries its own styles', /\.ws-rack-table\{/.test($('style')?.textContent ?? ''));
+ok('hidden rooms are really hidden by the stylesheet',
+  /\.ws-card\[hidden\]/.test($('style')?.textContent ?? ''));
+ok('the page carries its own script', /applyWsFilters/.test($('script')?.textContent ?? ''));
+ok('the sidebar is around it', Boolean($('aside.sidebar')) && Boolean($('.page-head h1')));
+ok('no preview furniture on the screen',
+  !/sample|preview|illustrative|not linked|static screen/i.test($('main')?.textContent ?? ''));
+
+/* ── the modals the board opens ──────────────────────────────────────────── */
+ok('every room has a details dialog', $$('.ws-modal').length === cards.length, `${$$('.ws-modal').length}`);
+$('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+$('.ws-photo-link')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+ok('opening a room shows its dialog', $$('.ws-modal.show').length === 1);
+ok('the dialog names the room', /Room|Deluxe|Standard/.test($('.ws-modal.show')?.textContent ?? ''));
+
+if (failures.length) {
+  console.log(`workspace preview check: ${failures.length} FAILED, ${passed} passed`);
+  failures.forEach(failure => console.log(`  ✗ ${failure}`));
+  process.exit(1);
+}
+console.log(`workspace preview check: ${passed} assertions passed`);
+window.close();

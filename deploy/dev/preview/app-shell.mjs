@@ -183,7 +183,7 @@ export function shell(navHtml, sprite, content, page = {}) {
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/offline.css">
   <link rel="stylesheet" href="/css/dashboard.css">
-</head>
+${page.head ?? ''}</head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
 ${sprite.join('\n')}
@@ -276,7 +276,7 @@ ${content}
     </main>
   </div>
 </div>
-</body>
+${page.scripts ?? ''}</body>
 </html>
 `;
 }

@@ -89,6 +89,37 @@ export class SampleDate {
   getTime() { return +this.d; }
   copy() { return new SampleDate(this.d, this.ago); }
   addDay(n = 1) { return new SampleDate(+this.d + 86400000 * n, this.ago); }
+  addMonth(n = 1) {
+    const d = new Date(this.d);
+    d.setUTCMonth(d.getUTCMonth() + n);
+    return new SampleDate(d, this.ago);
+  }
+  day(n) {
+    const d = new Date(this.d);
+    d.setUTCDate(n);
+    return new SampleDate(d, this.ago);
+  }
+  startOfMonth() {
+    const d = new Date(this.d);
+    d.setUTCDate(1);
+    return new SampleDate(d, this.ago);
+  }
+  get year() { return this.d.getUTCFullYear(); }
+  toIso8601String() { return this.d.toISOString().replace('.000Z', '+00:00'); }
+  max(other) { return +this.d >= +(other?.d ?? new Date(other)) ? this : other; }
+  min(other) { return +this.d <= +(other?.d ?? new Date(other)) ? this : other; }
+  diffInDays(other) {
+    const target = other instanceof SampleDate ? other.d : new Date(`${other}T00:00:00Z`);
+    return Math.round((+this.d - +target) / 86400000);
+  }
+  get daysInMonth() {
+    return new Date(Date.UTC(this.d.getUTCFullYear(), this.d.getUTCMonth() + 1, 0)).getUTCDate();
+  }
+  isSameDay(other) { return this.toDateString() === (other?.toDateString?.() ?? String(other)); }
+  gt(other) { return +this.d > +new Date(`${other?.toDateString?.() ?? other}T00:00:00Z`); }
+  lt(other) { return +this.d < +new Date(`${other?.toDateString?.() ?? other}T00:00:00Z`); }
+  gte(other) { return !this.lt(other); }
+  lte(other) { return !this.gt(other); }
   addDays(n) { return this.addDay(n); }
   subDay(n = 1) { return this.addDay(-n); }
   subDays(n) { return this.addDay(-n); }
@@ -102,14 +133,19 @@ export class SampleDate {
   timestamp() { return Math.floor(+this.d / 1000); }
   format(pattern) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthsLong = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const daysLong = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const two = (n) => String(n).padStart(2, '0');
     const map = {
-      D: days[this.d.getUTCDay()], d: two(this.d.getUTCDate()), j: String(this.d.getUTCDate()),
-      M: months[this.d.getUTCMonth()], m: two(this.d.getUTCMonth() + 1), Y: String(this.d.getUTCFullYear()),
+      D: days[this.d.getUTCDay()], l: daysLong[this.d.getUTCDay()],
+      d: two(this.d.getUTCDate()), j: String(this.d.getUTCDate()),
+      M: months[this.d.getUTCMonth()], F: monthsLong[this.d.getUTCMonth()],
+      m: two(this.d.getUTCMonth() + 1), n: String(this.d.getUTCMonth() + 1),
+      Y: String(this.d.getUTCFullYear()), w: String(this.d.getUTCDay()),
       H: two(this.d.getUTCHours()), i: two(this.d.getUTCMinutes()),
     };
-    return String(pattern).replace(/D|d|j|M|m|Y|H|i/g, (t) => map[t] ?? t);
+    return String(pattern).replace(/D|l|d|j|M|F|m|n|Y|w|H|i/g, (t) => map[t] ?? t);
   }
   diffForHumans() {
     if (this.ago) return this.ago;
@@ -169,6 +205,22 @@ export class BladePreview {
     const from = src.indexOf(')', src.indexOf('(', start)) + 1;
     const end = src.indexOf('@endsection', from);
     return this.renderSource(src.slice(from, end < 0 ? src.length : end), scope, `${rel}#${name}`).trim();
+  }
+
+  /** Renders every @push('name') block in a view (page styles and scripts). */
+  push(rel, name, scope) {
+    const src = fs.readFileSync(this.file(rel), 'utf8');
+    const opener = new RegExp(`@push\\(\\s*'${name}'\\s*\\)`, 'g');
+    let out = '';
+    let match;
+    while ((match = opener.exec(src))) {
+      const from = match.index + match[0].length;
+      const end = src.indexOf('@endpush', from);
+      if (end < 0) break;
+      out += this.renderSource(src.slice(from, end), scope, `${rel}#push:${name}`);
+      opener.lastIndex = end + '@endpush'.length;
+    }
+    return out.trim();
   }
 
   scopeProxy(scope) {
@@ -311,10 +363,15 @@ export class BladePreview {
     for (const m of inner.matchAll(/([:@]?[\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
       attrs[m[1].replace(/^[:@]/, '')] = { value: m[2] ?? m[3], dynamic: m[1].startsWith(':') };
     }
+    // <x-icon name="{{ $icon }}"/> — Blade interpolates attributes too
+    const interpolate = (text) => String(text).replace(/\{\{\s*([\s\S]+?)\s*\}\}/g, (whole, expr) => {
+      const value = this.evalExpr(expr, this.currentScope);
+      return value === undefined || value === null ? '' : String(value);
+    });
     const read = (key) => {
       const a = attrs[key];
       if (!a) return undefined;
-      if (!a.dynamic) return a.value;
+      if (!a.dynamic) return interpolate(a.value);
       const v = this.evalExpr(a.value, this.currentScope);
       return v === undefined ? '' : v;
     };
@@ -324,7 +381,7 @@ export class BladePreview {
       const out = [];
       for (const [key, attr] of Object.entries(attrs)) {
         if (consumed.has(key)) continue;
-        const v = attr.dynamic ? (read(key) ?? '') : attr.value;
+        const v = attr.dynamic ? (read(key) ?? '') : interpolate(attr.value);
         out.push(v === '' ? ` ${key}` : ` ${key}="${esc(v)}"`);
       }
       return out.join('');
@@ -371,6 +428,13 @@ export class BladePreview {
   }
 
   renderSource(src, scope, file = '?') {
+    const segments = splitVerbatim(src);
+    if (segments.length > 1 || (segments[0] && segments[0].raw)) {
+      return segments
+        .map(segment => (segment.raw ? segment.text : this.renderSource(segment.text, scope, file)))
+        .join('');
+    }
+
     const previous = this.currentScope;
     const outer = scope;
     let out = '';
@@ -482,6 +546,7 @@ export class BladePreview {
                 last: index === items.length - 1, count: items.length,
                 remaining: items.length - index - 1,
               };
+              if (entry.bindings) entry.bindings.forEach(([name, value]) => { local[name] = value; });
               if (entry.keyName) local[entry.keyName] = entry.key;
               if (entry.valueName) local[entry.valueName] = entry.value;
               out += this.renderSource(body, local, file);
@@ -578,12 +643,45 @@ export class BladePreview {
     else return [];
 
     const bindingText = bindings.trim();
+    const list = /^\[([\s\S]+)\]$/.exec(bindingText);
+    if (list) {
+      const names = splitTopLevel(list[1], ',').map(part => part.trim().replace(/^\$/, ''));
+      return entries.map(entry => ({
+        bindings: names.map((name, index) => [name, Array.isArray(entry) ? entry[index] : entry?.[name]]),
+      }));
+    }
     const kv = /^\$(\w+)\s*=>\s*\$(\w+)$/.exec(bindingText);
     const single = /^\$(\w+)$/.exec(bindingText);
     if (kv) return entries.map(([k, v] = []) => Array.isArray(entries[0]) ? { keyName: kv[1], key: k, valueName: kv[2], value: v } : { keyName: kv[1], key: k, valueName: kv[2], value: v });
     if (!single) return [];
     return entries.map(v => ({ valueName: single[1], value: v }));
   }
+}
+
+/** <style> and <script> bodies are copied verbatim: their @ rules are not Blade. */
+function splitVerbatim(src) {
+  const parts = [];
+  let i = 0;
+  while (i < src.length) {
+    const style = src.indexOf('<style', i);
+    const script = src.indexOf('<script', i);
+    const starts = [style, script].filter(position => position >= 0);
+    if (!starts.length) {
+      parts.push({ raw: false, text: src.slice(i) });
+      break;
+    }
+    const start = Math.min(...starts);
+    const closer = start === style ? '</style>' : '</script>';
+    const end = src.indexOf(closer, start);
+    if (end < 0) {
+      parts.push({ raw: false, text: src.slice(i) });
+      break;
+    }
+    if (start > i) parts.push({ raw: false, text: src.slice(i, start) });
+    parts.push({ raw: true, text: src.slice(start, end + closer.length) });
+    i = end + closer.length;
+  }
+  return parts;
 }
 
 /* ── scanning helpers ─────────────────────────────────────────────────────── */
@@ -754,6 +852,28 @@ function convertArrows(src) {
   }
 }
 
+/** Applies a rewrite to code only, never to the inside of a quoted string. */
+function replaceOutsideQuotes(src, regex, repl) {
+  const apply = (chunk) => chunk.replace(regex, repl);
+  let out = '';
+  let plainFrom = 0;
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch !== "'" && ch !== '"') { i++; continue; }
+    out += apply(src.slice(plainFrom, i));
+    let j = i + 1;
+    while (j < src.length) {
+      if (src[j] === '\\') { j += 2; continue; }
+      if (src[j] === ch) break;
+      j++;
+    }
+    out += src.slice(i, j + 1);
+    i = plainFrom = j + 1;
+  }
+  return out + apply(src.slice(plainFrom));
+}
+
 export function toJs(expr) {
   let s = String(expr);
   s = s.replace(/\bclone\s+/g, '');
@@ -775,7 +895,8 @@ export function toJs(expr) {
   s = s.replace(/->\s*\{\s*\$?([\w\[\]'"\.]+?)\s*\}/g, '[$1]');
   s = s.replace(/\?->/g, '?.').replace(/->/g, '.');
   s = s.replace(/\bnull\b/g, 'null').replace(/\btrue\b/g, 'true').replace(/\bfalse\b/g, 'false');
-  s = s.replace(/\band\b/g, '&&').replace(/\bor\b/g, '||');
+  s = replaceOutsideQuotes(s, /\band\b/g, '&&');
+  s = replaceOutsideQuotes(s, /\bor\b/g, '||');
   s = s.replace(/\$([A-Za-z_]\w*)/g, '$1');
   // PHP array literals: ['a' => 1] reads as an object, [1, 2] stays an array.
   return convertKeyedArrays(s);
