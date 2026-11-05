@@ -282,6 +282,24 @@ ok('a pasted link filters the board',
   [...linkedDoc.querySelectorAll('#wsGrid .ws-card')].filter(card => !card.hidden).length < linkedDoc.querySelectorAll('#wsGrid .ws-card').length);
 linked.window.close();
 
+// A link that asks for the rack, a filter and a grouping at once has to honour all three
+const compound = new JSDOM(readFileSync(FILE, 'utf8'), {
+  runScripts: 'dangerously', pretendToBeVisual: true,
+  url: 'https://preview.local/reservations/workspace?date=2026-11-05&view=rack&status=occupied&group=floor',
+});
+const compoundDoc = compound.window.document;
+const compoundRows = [...compoundDoc.querySelectorAll('#wsRackBody tr')];
+ok('a link can ask for the rack, a filter and a grouping at once',
+  compoundDoc.querySelector('#wsRack').hidden === false && compoundDoc.querySelectorAll('#wsGrid .ws-group').length === 3);
+ok('the rack obeys the filter on first paint',
+  compoundRows.filter(row => !row.hidden).length
+    === [...compoundDoc.querySelectorAll('#wsGrid .ws-card')].filter(card => !card.hidden).length,
+  `${compoundRows.filter(row => !row.hidden).length} rows`);
+ok('the group counts match the filtered board',
+  [...compoundDoc.querySelectorAll('#wsGrid .ws-group-count')].reduce((total, node) => total + Number(node.textContent), 0)
+    === [...compoundDoc.querySelectorAll('#wsGrid .ws-card')].filter(card => !card.hidden).length);
+compound.window.close();
+
 const bogus = new JSDOM(readFileSync(FILE, 'utf8'), {
   runScripts: 'dangerously', pretendToBeVisual: true,
   url: 'https://preview.local/reservations/workspace?date=2026-11-05&status=banana',
