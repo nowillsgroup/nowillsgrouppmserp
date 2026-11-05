@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression checks for reservation-detail modal semantics and controls."""
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -42,19 +43,20 @@ class ReservationDetailModalAccessibilityTest(unittest.TestCase):
         self.assertIn('{{ $m->error }}', VIEW)
 
     def test_dynamic_split_advance_fields_have_unique_associated_labels(self):
-        for control, label in (
-            ('advancePaymentMethod', 'Payment method'),
-            ('advanceAmount', 'Amount'),
-            ('advanceMomoNetwork', 'MoMo network'),
-            ('advanceMomoPhone', 'MoMo phone'),
-            ('advanceReference', 'Reference'),
-            ('advanceChequeBank', 'Bank name'),
-            ('advanceChequeNumber', 'Cheque number'),
-            ('advanceChequeBranch', 'Bank branch'),
+        """Every generated tender control has its own label; the wording may change without breaking the pairing."""
+        seen = {}
+        for control in (
+            'advancePaymentMethod', 'advanceAmount', 'advanceMomoNetwork', 'advanceMomoPhone',
+            'advanceReference', 'advanceChequeBank', 'advanceChequeNumber', 'advanceChequeBranch',
         ):
             with self.subTest(control=control):
-                self.assertIn(f'<label for="{control}${{i}}">{label}</label>', VIEW)
+                match = re.search(r'<label for="' + control + r'\$\{i\}">([^<]+)</label>', VIEW)
+                self.assertIsNotNone(match, f'{control} has a label bound to its generated id')
+                label = match.group(1).strip()
+                self.assertTrue(label, f'{control} label has readable text')
                 self.assertIn(f'id="{control}${{i}}"', VIEW)
+                self.assertNotIn(label.lower(), seen, f'{control} duplicates the label of {seen.get(label.lower())}')
+                seen[label.lower()] = control
         self.assertIn('aria-label="Remove tender ${i + 1}"', VIEW)
 
 

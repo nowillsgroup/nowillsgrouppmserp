@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         if (app()->environment('production')) {
-            throw new \\RuntimeException(
+            throw new \RuntimeException(
                 'DatabaseSeeder creates synthetic development/demo records and is disabled in production.'
             );
         }

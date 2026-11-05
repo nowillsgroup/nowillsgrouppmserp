@@ -330,7 +330,7 @@ walk($root.'/app', function ($path) {
         return; // no tenant yet: console options, login, 2FA challenge
     }
     foreach (file($path) as $i => $ln) {
-        foreach (['visibleToHotel', 'hotel_id', 'Tenant::id', 'hotel()->id', 'recipient_users'] as $ok) {
+        foreach (['visibleToHotel', 'hotel_id', 'Tenant::id', 'hotel()->id', '$this->recipient_users'] as $ok) {
             if (str_contains($ln, $ok)) {
                 continue 2;
             }
