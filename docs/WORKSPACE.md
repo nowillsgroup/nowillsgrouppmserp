@@ -110,6 +110,11 @@ something is gated separately and nothing is implied:
 A missing permission hides the control rather than disabling it, and the
 housekeeping columns disappear entirely without a housekeeping permission.
 
+`node deploy/dev/audit/permission_reference_check.js` checks every permission the
+application asks for — this screen's included — against the catalogue in
+`config/pms.php`, and checks that the standard roles in `HotelProvisioner::ROLES` only
+grant tokens (or prefixes) that exist.
+
 ## 6. Proving it
 
 ```bash
