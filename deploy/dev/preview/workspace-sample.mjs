@@ -22,6 +22,8 @@ export const ROOM_TYPES = [
   { id: 7, name: 'Executive Suite', code: 'EXS', size_sqm: 62, max_adults: 3, base_rate: 1650, image: null },
   { id: 9, name: 'Family Room', code: 'FAM', size_sqm: 46, max_adults: 4, base_rate: 1180, image: null },
   { id: 11, name: 'Standard Single', code: 'SGL', size_sqm: 18, max_adults: 1, base_rate: 480, image: null },
+  // created in Master Data, rate not entered yet — the board must not advertise GH₵ 0.00
+  { id: 12, name: 'Standard Double', code: 'SDB', size_sqm: 24, max_adults: 2, base_rate: 0, image: null },
 ];
 
 export const FLOORS = [{ id: 1, name: 'Ground' }, { id: 2, name: 'First' }, { id: 3, name: 'Second' }];
@@ -32,6 +34,7 @@ const AMENITIES = {
   EXS: ['Sea view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Mini bar', 'Safe', 'Lounge', 'Coffee machine', 'Bathrobe', 'Butler service', 'Dining table', 'Hairdryer', 'Bath tub'],
   FAM: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Bunk beds', 'Safe', 'Kitchenette', 'Sofa bed', 'Desk', 'Hairdryer'],
   SGL: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Desk', 'Safe'],
+  SDB: ['Garden view', 'Air conditioning', 'Wi-Fi', 'Smart TV', 'Desk', 'Safe'],
 };
 
 const guest = (first, last, nationality = 'Ghana', vip = false) => ({ first_name: first, last_name: last, nationality, is_vip: vip, phone: '+233 24 000 0000', email: `${first.toLowerCase()}@example.com` });
@@ -50,7 +53,7 @@ const CARD_SPECS = [
   ['105', 4, 1, 'maintenance', 'maintenance', 'dirty', null],
   ['201', 3, 2, 'occupied', 'occupied', 'clean', ['checked_in', guest('Sarah', 'Osei', 'United Kingdom', true), 'Expedia', 950, 4, '2026-11-02', '2026-11-06', 3800, 2100, 'RES-24101']],
   ['202', 3, 2, 'reserved', 'vacant', 'clean', ['reserved', guest('Yaw', 'Antwi'), 'Corporate · Ashanti Gold', 950, 1, '2026-11-05', '2026-11-06', 950, 950, 'RES-24129']],
-  ['203', 3, 2, 'available', 'vacant', 'inspected', null],
+  ['203', 12, 2, 'available', 'vacant', 'inspected', null],
   ['204', 3, 2, 'occupied', 'occupied', 'clean', ['checked_in', guest('Fatima', 'Alhassan', 'Nigeria'), 'Direct', 950, 2, '2026-11-04', '2026-11-06', 1900, 1900, 'RES-24122']],
   ['205', 9, 2, 'out_of_order', 'out_of_order', 'dirty', null],
   ['301', 7, 3, 'occupied', 'occupied', 'clean', ['checked_in', guest('Michael', 'Addo', 'Ghana', true), 'Travel agent · Sunseekers', 1650, 5, '2026-11-01', '2026-11-06', 8250, 4100, 'RES-24088']],

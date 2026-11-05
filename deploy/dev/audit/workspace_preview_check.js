@@ -264,6 +264,17 @@ ok('a single room reads "1 guest"',
     && !/1 guests/.test(single?.querySelector('.ws-photo-meta')?.textContent ?? ''),
   single?.querySelector('.ws-photo-meta')?.textContent?.replace(/\s+/g, ' ').trim());
 
+/* ── a room with no rate does not advertise a free night ─────────────────── */
+const unpriced = cards.find(card => (card.getAttribute('data-room') === '203')
+  || Boolean(card.querySelector('[data-room="203"]')));
+ok('a room whose rate is not set says so',
+  /No rate/.test(unpriced?.querySelector('.ws-photo-rate')?.textContent ?? ''),
+  unpriced?.querySelector('.ws-photo-rate')?.textContent?.trim());
+// 620.00 is a price; a zero is a zero — the character before it must not be a digit
+ok('no card advertises a night at zero',
+  $$('.ws-photo-rate').every(pill => !/[^\d.,]0\.00/.test(pill.textContent)),
+  $$('.ws-photo-rate').map(pill => pill.textContent.trim()).find(text => /[^\d.,]0\.00/.test(text)));
+
 /* ── the modals the board opens ──────────────────────────────────────────── */
 ok('every room has a details dialog', $$('.ws-modal').length === cards.length, `${$$('.ws-modal').length}`);
 $('#wsTabBoard')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));

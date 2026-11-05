@@ -238,7 +238,11 @@
               <span><x-icon name="user"/>{{ $room->roomType?->max_adults ?? 2 }} {{ \Illuminate\Support\Str::plural('guest', $room->roomType?->max_adults ?? 2) }}</span>
               <span><x-icon name="shield"/>{{ $room->is_smoking ? 'Smoking' : 'Non-smoking' }}</span>
             </span>
-            <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
+            @if (($c['rate'] ?? 0) > 0)
+              <span class="ws-photo-rate">{{ money($c['rate']) }} <small>/ night</small></span>
+            @else
+              <span class="ws-photo-rate ws-rate-unset" title="No nightly rate is set on this room type — set one in Master Data">No rate</span>
+            @endif
           </div>
         </div>
         <div class="ws-card-body">
@@ -488,7 +492,7 @@
           <span><b>{{ $guestDisplayName($s) }}</b>
           <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}
             @php $df = $departureFigures[$s->id] ?? null; $da = $df['amount'] ?? null; @endphp
-            @if ($da !== null && can_do('folio.view')) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}" title="{{ $s->status === 'checked_out' ? ($da < 0 ? 'Final folio credit' : 'Final folio balance') : ($da < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $da > 0 ? money($da).' to settle' : ($da < 0 ? money(abs($da)).' credit' : 'settled') }}</b>@endif
+            @if ($da !== null && can_do('folio.view')) · <b class="{{ $da > 0 ? 'ws-due' : 'muted' }}" title="{{ $s->status === 'checked_out' ? ($da < 0 ? 'Final folio credit' : 'Final folio balance') : ($da < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $da > 0 ? money($da).' to settle' : ($da < 0 ? money(abs($da)).' credit' : 'Settled') }}</b>@endif
             @if (! empty($df['blocked']))
               @if (can_do('folio.view'))<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ held: {{ implode(' · ', $df['blocked']) }}</span>
               @else<span class="ws-hold" title="Check-out will refuse until these are cleared">⚠ checkout blocked · {{ count($df['blocked']) }} item(s)</span>@endif
@@ -597,7 +601,7 @@
       <div><h2 id="roomModalTitle{{ $room->id }}" class="bold ws-modal-title"><span class="sr-only">Room {{ $room->room_no }}: </span>{{ $room->roomType?->name ?? 'Room details' }} · {{ $room->roomType?->code ?? '' }}</h2>
         <div class="small" style="opacity:.85">{{ $room->floor?->name ? 'Floor '.$room->floor->name : '' }}{{ $room->roomType?->code ? ' · '.$room->roomType->name : '' }}</div></div>
       <div class="text-right"><span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-        <div class="ws-photo-rate" style="position:static;margin-top:6px">{{ money($c['rate']) }} <small>/ night</small></div></div>
+        <div class="ws-photo-rate{{ ($c['rate'] ?? 0) > 0 ? '' : ' ws-rate-unset' }}" style="position:static;margin-top:6px" @if (($c['rate'] ?? 0) <= 0) title="No nightly rate is set on this room type — set one in Master Data" @endif>{{ ($c['rate'] ?? 0) > 0 ? money($c['rate']).' / night' : 'No rate set' }}</div></div>
     </div>
   </div>
   <div class="modal-body">
@@ -620,7 +624,7 @@
         <tbody>
         <tr><td class="muted">Confirmation</td><td class="bold">{{ $stay->reservation?->reservation_no ?? '—' }}</td><td class="muted">Source</td><td class="bold">{{ $stay->reservation?->businessSource?->name ?? 'Direct' }}</td></tr>
         <tr><td class="muted">Stay</td><td class="bold">{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }} → {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }} · {{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</td><td class="muted">Guests</td><td class="bold">{{ $stay->adults }} Adults · {{ $stay->children }} Children</td></tr>
-        <tr><td class="muted">Rate</td><td class="bold">{{ money($c['rate']) }}/n</td>@if (can_do('folio.view'))<td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ $c['balance'] === null ? 'No folio' : ($c['balance'] > 0 ? money($c['balance']) : ($c['balance'] < 0 ? money(abs($c['balance'])).' in credit' : 'Settled')) }}</td>@else<td colspan="2"></td>@endif</tr>
+        <tr><td class="muted">Rate</td><td class="bold">{{ ($c['rate'] ?? 0) > 0 ? money($c['rate']).'/n' : 'Not set' }}</td>@if (can_do('folio.view'))<td class="muted">Balance</td><td class="bold {{ ($c['balance'] ?? 0) > 0 ? 'ws-due' : '' }}">{{ $c['balance'] === null ? 'No folio' : ($c['balance'] > 0 ? money($c['balance']) : ($c['balance'] < 0 ? money(abs($c['balance'])).' in credit' : 'Settled')) }}</td>@else<td colspan="2"></td>@endif</tr>
         @if (can_do('folio.view') && ($c['due'] ?? null) !== null && abs(($c['due'] ?? 0) - ($c['balance'] ?? 0)) > 0.005)<tr><td class="muted">Estimated checkout</td><td class="bold ws-due" colspan="3">{{ money($c['due']) }} <span class="muted small">(includes nights and fixed charges still to post)</span></td></tr>@endif
         </tbody>
       </table>
@@ -1349,6 +1353,8 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
 .ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
+.ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
+.ws-photo-rate.ws-rate-unset small{color:#b45309}
 .ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
 .ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
 .ws-amen .i{width:15px;height:15px}

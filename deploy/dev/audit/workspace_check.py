@@ -177,6 +177,13 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('`unassigned`', doc)
         self.assertIn('RoomImage::url(\'thumb\')', doc)
 
+    def test_an_unpriced_room_says_so(self):
+        # base_rate defaults to 0; a card must not advertise GH₵ 0.00 a night
+        self.assertIn("ws-photo-rate ws-rate-unset", VIEW)
+        self.assertIn("'No rate set'", VIEW)
+        self.assertIn("money($c['rate']).'/n' : 'Not set'", VIEW)
+        self.assertIn('no card advertises a night at zero', CHECK)
+
     def test_a_single_room_says_guest(self):
         # "1 guests" is what a hard-coded plural gives you; a single room is common
         self.assertIn("Str::plural('guest'", VIEW)

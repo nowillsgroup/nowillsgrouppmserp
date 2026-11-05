@@ -104,6 +104,8 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
 .ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
+.ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
+.ws-photo-rate.ws-rate-unset small{color:#b45309}
 .ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
 .ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
 .ws-amen .i{width:15px;height:15px}
@@ -3546,7 +3548,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </select>
       <select id="fType" class="ws-select" aria-label="Filter rooms by room type"><option value="">Room Type: All</option>
-      <option value="3" >Room Type: Deluxe Sea View</option><option value="4" >Room Type: Standard Garden</option><option value="7" >Room Type: Executive Suite</option><option value="9" >Room Type: Family Room</option><option value="11" >Room Type: Standard Single</option>
+      <option value="3" >Room Type: Deluxe Sea View</option><option value="4" >Room Type: Standard Garden</option><option value="7" >Room Type: Executive Suite</option><option value="9" >Room Type: Family Room</option><option value="11" >Room Type: Standard Single</option><option value="12" >Room Type: Standard Double</option>
     
       </select>
       <select id="fFloor" class="ws-select" aria-label="Filter rooms by floor"><option value="">Floor: All</option>
@@ -3615,7 +3617,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -3705,7 +3709,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -3775,7 +3781,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -3865,7 +3873,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -3936,7 +3946,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 620.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -3997,7 +4009,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4097,7 +4111,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4174,15 +4190,15 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="available" data-type="3" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Deluxe Sea View DSV First Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
-      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Room 203, Deluxe Sea View, available, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
+      <div class="ws-card" data-status="available" data-type="12" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Standard Double SDB First Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Double" data-floor-name="First" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Room 203, Standard Double, available, GH₵ 0.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(204,32%,28%), hsl(244,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
       <div class="flex gap">
       <h2 class="ws-room-no" id="roomHeading203"><span class="sr-only">Room </span>203</h2>
       <div>
-      <div class="bold small">Deluxe Sea View</div>
-      <div class="muted small">First · DSV</div>
+      <div class="bold small">Standard Double</div>
+      <div class="muted small">First · SDB</div>
       </div>
       </div>
       <div class="text-right">
@@ -4193,17 +4209,19 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="ws-photo-foot">
       <span class="ws-photo-meta">
-      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>38 m²</span>
+      <span><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>24 m²</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
-      <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
+            
+      <span class="ws-photo-rate ws-rate-unset" title="No nightly rate is set on this room type — set one in Master Data">No rate</span>
+            
       </div>
       </div>
       <div class="ws-card-body">
       <div class="ws-amen">
           
-      <span role="img" aria-label="Sea view" title="Sea view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
+      <span role="img" aria-label="Garden view" title="Garden view"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
           
       <span role="img" aria-label="Air conditioning" title="Air conditioning"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
           
@@ -4211,27 +4229,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <span role="img" aria-label="Smart TV" title="Smart TV"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
           
-      <span role="img" aria-label="Mini bar" title="Mini bar"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
+      <span role="img" aria-label="Desk" title="Desk"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
           
       <span role="img" aria-label="Safe" title="Safe"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
           
-      <span role="img" aria-label="Balcony" title="Balcony"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
-          
-      <span role="img" aria-label="Coffee machine" title="Coffee machine"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
-          
-      <span role="img" aria-label="Bathrobe" title="Bathrobe"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
-          
-      <span role="img" aria-label="Room service" title="Room service"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg></span>
-          
-          
-      <button type="button" class="ws-amen-more" data-room="203" aria-label="Open room 203 details; 2 more amenities" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false">+2</button>
           
       </div>
 
         
       <div class="ws-guest vacant">
       <div class="muted small">VACANT · RACK RATE</div>
-      <div class="ws-vacant-rate">GH₵ 950.00 <small class="muted">/night</small></div>
+      <div class="ws-vacant-rate">GH₵ 0.00 <small class="muted">/night</small></div>
           
       <a class="btn btn-sm btn-primary ws-reserve" href="#" aria-label="Reserve room 203 for 5 November 2026">Reserve Room</a>
           
@@ -4277,7 +4285,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4377,7 +4387,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4446,7 +4458,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>3 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 1,650.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4546,7 +4560,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>3 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 1,650.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4646,7 +4662,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>4 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 1,180.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4744,7 +4762,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>1 guest</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 480.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -4812,7 +4832,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <span><svg class="i" aria-hidden="true"><use href="#i-user"/></svg>2 guests</span>
       <span><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Non-smoking</span>
       </span>
+            
       <span class="ws-photo-rate">GH₵ 950.00 <small>/ night</small></span>
+            
       </div>
       </div>
       <div class="ws-card-body">
@@ -5395,7 +5417,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle101" class="bold ws-modal-title"><span class="sr-only">Room 101: </span>Standard Garden · STG</h2>
       <div class="small" style="opacity:.85">Floor Ground · Standard Garden</div></div>
       <div class="text-right"><span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 620.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 620.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5434,7 +5456,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle102" class="bold ws-modal-title"><span class="sr-only">Room 102: </span>Standard Garden · STG</h2>
       <div class="small" style="opacity:.85">Floor Ground · Standard Garden</div></div>
       <div class="text-right"><span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 620.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 620.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5460,7 +5482,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle103" class="bold ws-modal-title"><span class="sr-only">Room 103: </span>Standard Garden · STG</h2>
       <div class="small" style="opacity:.85">Floor Ground · Standard Garden</div></div>
       <div class="text-right"><span class="badge badge-amber">RESERVED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 620.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 620.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5499,7 +5521,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle104" class="bold ws-modal-title"><span class="sr-only">Room 104: </span>Family Room · FAM</h2>
       <div class="small" style="opacity:.85">Floor Ground · Family Room</div></div>
       <div class="text-right"><span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 1,180.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 1,180.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5525,7 +5547,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle105" class="bold ws-modal-title"><span class="sr-only">Room 105: </span>Standard Garden · STG</h2>
       <div class="small" style="opacity:.85">Floor Ground · Standard Garden</div></div>
       <div class="text-right"><span class="badge badge-amber">MAINTENANCE</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 620.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 620.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5551,7 +5573,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle201" class="bold ws-modal-title"><span class="sr-only">Room 201: </span>Deluxe Sea View · DSV</h2>
       <div class="small" style="opacity:.85">Floor First · Deluxe Sea View</div></div>
       <div class="text-right"><span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 950.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 950.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5590,7 +5612,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle202" class="bold ws-modal-title"><span class="sr-only">Room 202: </span>Deluxe Sea View · DSV</h2>
       <div class="small" style="opacity:.85">Floor First · Deluxe Sea View</div></div>
       <div class="text-right"><span class="badge badge-amber">RESERVED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 950.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 950.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5622,21 +5644,21 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
 
       <div class="modal ws-modal" id="roomModal203" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle203" tabindex="-1"><div class="modal-box wide">
-      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(141,32%,24%), hsl(181,26%,38%))">
+      <div class="ws-modal-hero" style="background:url(/preview-assets/room-204-bath.jpg) center/cover no-repeat, linear-gradient(135deg, hsl(204,32%,24%), hsl(244,26%,38%))">
       <button type="button" class="btn btn-ghost btn-icon ws-modal-x" data-close aria-label="Close room details"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="ws-modal-hero-row">
       <span class="ws-room-no huge">203</span>
-      <div><h2 id="roomModalTitle203" class="bold ws-modal-title"><span class="sr-only">Room 203: </span>Deluxe Sea View · DSV</h2>
-      <div class="small" style="opacity:.85">Floor First · Deluxe Sea View</div></div>
+      <div><h2 id="roomModalTitle203" class="bold ws-modal-title"><span class="sr-only">Room 203: </span>Standard Double · SDB</h2>
+      <div class="small" style="opacity:.85">Floor First · Standard Double</div></div>
       <div class="text-right"><span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 950.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate ws-rate-unset" style="position:static;margin-top:6px"  title="No nightly rate is set on this room type — set one in Master Data" >No rate set</div></div>
       </div>
       </div>
       <div class="modal-body">
       <div class="ws-modal-grid"><div><div class="ws-rail-title">ROOM FACTS</div><div class="ws-facts">
-      <div class="ws-fact"><span class="muted small">Size</span><br><b>38 m²</b></div><div class="ws-fact"><span class="muted small">Max Occupancy</span><br><b>2 guests</b></div><div class="ws-fact"><span class="muted small">Configuration</span><br><b>Deluxe Sea View</b></div><div class="ws-fact"><span class="muted small">Smoking</span><br><b>Non-Smoking</b></div>
+      <div class="ws-fact"><span class="muted small">Size</span><br><b>24 m²</b></div><div class="ws-fact"><span class="muted small">Max Occupancy</span><br><b>2 guests</b></div><div class="ws-fact"><span class="muted small">Configuration</span><br><b>Standard Double</b></div><div class="ws-fact"><span class="muted small">Smoking</span><br><b>Non-Smoking</b></div>
       </div><div class="ws-rail-title" style="margin-top:14px">FACILITIES & AMENITIES</div><div class="ws-fac">
-      <span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Sea view</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Air conditioning</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Wi-Fi</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Smart TV</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Mini bar</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Safe</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Balcony</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Coffee machine</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Bathrobe</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Room service</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Desk</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Hairdryer</span>
+      <span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Garden view</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Air conditioning</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Wi-Fi</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Smart TV</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Desk</span><span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-wifi"/></svg> Safe</span>
       <span class="ws-fac-chip"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg> Non-Smoking</span>
       </div>
     
@@ -5655,7 +5677,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle204" class="bold ws-modal-title"><span class="sr-only">Room 204: </span>Deluxe Sea View · DSV</h2>
       <div class="small" style="opacity:.85">Floor First · Deluxe Sea View</div></div>
       <div class="text-right"><span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 950.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 950.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5694,7 +5716,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle205" class="bold ws-modal-title"><span class="sr-only">Room 205: </span>Family Room · FAM</h2>
       <div class="small" style="opacity:.85">Floor First · Family Room</div></div>
       <div class="text-right"><span class="badge badge-red">OUT OF ORDER</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 1,180.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 1,180.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5720,7 +5742,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle301" class="bold ws-modal-title"><span class="sr-only">Room 301: </span>Executive Suite · EXS</h2>
       <div class="small" style="opacity:.85">Floor Second · Executive Suite</div></div>
       <div class="text-right"><span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 1,650.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 1,650.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5761,7 +5783,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle302" class="bold ws-modal-title"><span class="sr-only">Room 302: </span>Executive Suite · EXS</h2>
       <div class="small" style="opacity:.85">Floor Second · Executive Suite</div></div>
       <div class="text-right"><span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 1,650.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 1,650.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5802,7 +5824,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle303" class="bold ws-modal-title"><span class="sr-only">Room 303: </span>Family Room · FAM</h2>
       <div class="small" style="opacity:.85">Floor Second · Family Room</div></div>
       <div class="text-right"><span class="badge badge-amber">RESERVED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 1,180.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 1,180.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5841,7 +5863,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle304" class="bold ws-modal-title"><span class="sr-only">Room 304: </span>Standard Single · SGL</h2>
       <div class="small" style="opacity:.85">Floor Second · Standard Single</div></div>
       <div class="text-right"><span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 480.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 480.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
@@ -5867,7 +5889,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div><h2 id="roomModalTitle305" class="bold ws-modal-title"><span class="sr-only">Room 305: </span>Deluxe Sea View · DSV</h2>
       <div class="small" style="opacity:.85">Floor Second · Deluxe Sea View</div></div>
       <div class="text-right"><span class="badge badge-amber">RESERVED</span>
-      <div class="ws-photo-rate" style="position:static;margin-top:6px">GH₵ 950.00 <small>/ night</small></div></div>
+      <div class="ws-photo-rate" style="position:static;margin-top:6px" >GH₵ 950.00 / night</div></div>
       </div>
       </div>
       <div class="modal-body">
