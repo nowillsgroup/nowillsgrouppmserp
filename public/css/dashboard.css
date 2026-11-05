@@ -48,7 +48,7 @@
 .dash-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
 .dash-chart-panel{min-width:0;padding:.7rem .75rem .55rem;border:1px solid var(--c-border);border-radius:11px;background:var(--c-bg)}
 .dash-chart-panel-heading{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;margin-bottom:.2rem}
-.dash-chart-panel-heading h4{margin:0;color:var(--c-text);font-size:.78rem;font-weight:750}
+.dash-chart-panel-heading h3,.dash-chart-panel-heading h4{margin:0;color:var(--c-text);font-size:.78rem;font-weight:750}
 .dash-chart-panel-heading span{color:var(--c-muted);font-size:.66rem;text-align:right}
 .dash-chart-card .bar-chart.dash-history-chart{height:156px;gap:3px;padding:7px 1px 0;border-bottom:1px solid var(--c-border)}
 .dash-chart-card .dash-history-chart .col{min-width:0}
@@ -57,7 +57,7 @@
 .dash-chart-card .dash-history-chart .b:hover{filter:brightness(1.12);transform:scaleX(1.06);transform-origin:bottom}
 .dash-chart-card .dash-history-chart .dash-occupancy-bar{background:linear-gradient(180deg,#60a5fa,#1d4ed8)}
 body.dark .dash-chart-panel{background:var(--c-bg)}
-body.dark .dash-chart-panel-heading h4{color:var(--c-text)}
+body.dark .dash-chart-panel-heading h3,body.dark .dash-chart-panel-heading h4{color:var(--c-text)}
 body.dark .dash-chart-card .dash-history-chart .dash-revenue-bar{background:linear-gradient(180deg,#4ade80,#16a34a)}
 body.dark .dash-chart-card .dash-history-chart .dash-occupancy-bar{background:linear-gradient(180deg,#93c5fd,#3b82f6)}
 .dash-stay-grid{align-items:stretch;gap:.85rem;margin-bottom:.85rem}
