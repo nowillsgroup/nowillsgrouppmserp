@@ -503,10 +503,30 @@ class FleetManagementTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, VIEWS["fuel"])
 
-    def test_workshop_and_fuel_previews_are_ui_only(self):
+    def test_fleet_previews_carry_no_preview_furniture(self):
+        # The previews exist to show the screens as they look in the application. The
+        # "UI-only preview … no operational records" banners, tooltips and title suffixes
+        # were removed at the user's request and must not creep back in.
+        pages = {
+            'overview': PREVIEW, 'maintenance': PREVIEW_MAINT, 'fuel': PREVIEW_FUEL,
+            'tracking': read('deploy/dev/previews/fleet-tracking.html'),
+            'vehicle': read('deploy/dev/previews/fleet-vehicle.html'),
+            'work-order': read('deploy/dev/previews/fleet-work-order.html'),
+            'cost-statement': PREVIEW_STATEMENT,
+        }
+        for name, body in pages.items():
+            for marker in ('UI-only preview', 'UI preview', 'Preview only', 'illustrative',
+                           'Illustrative', 'not live property data', 'No records are created',
+                           'no operational records', 'pv-banner'):
+                with self.subTest(page=name, marker=marker):
+                    self.assertNotIn(marker, body)
+            with self.subTest(page=name, provenance=True):
+                self.assertIn('<!-- ', body, 'the provenance note belongs in a comment, not on the screen')
+
+    def test_workshop_and_fuel_previews_are_static_copies(self):
         for name, body, markers in (
-            ('maintenance', PREVIEW_MAINT, ('id="workshopStats"', 'id="openJobsAgeing"', 'Days off road', 'UI-only preview')),
-            ('fuel', PREVIEW_FUEL, ('id="fuelChecks"', 'id="fuelPrice"', 'id="fuelVendors"', 'UI-only preview')),
+            ('maintenance', PREVIEW_MAINT, ('id="workshopStats"', 'id="openJobsAgeing"', 'Days off road')),
+            ('fuel', PREVIEW_FUEL, ('id="fuelChecks"', 'id="fuelPrice"', 'id="fuelVendors"')),
         ):
             for marker in markers:
                 with self.subTest(page=name, marker=marker):
@@ -667,15 +687,13 @@ class FleetManagementTest(unittest.TestCase):
         self.assertIn("route('tr.fleet.work-order.print', $r)", VIEWS["maintenance"])
         self.assertIn("route('tr.fleet.work-order.print', $job)", VIEWS["maintenance"])
         card = read("deploy/dev/previews/fleet-work-order.html")
-        for marker in ('UI-only preview', 'illustrative values, not live property data', 'No records are created',
-                       'VEHICLE WORK ORDER', 'Defects reported at inspection', 'Total posted', 'noprint'):
+        for marker in ('VEHICLE WORK ORDER', 'Defects reported at inspection', 'Total posted', 'noprint'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, card)
         self.assertIn("/__preview/fleet-work-order", read("deploy/dev/previews/index.html"))
         self.assertIn("fleet-work-order", read("deploy/dev/management-dashboard-preview-server.mjs"))
         vehicle = read("deploy/dev/previews/fleet-vehicle.html")
-        for marker in ('UI-only preview', 'illustrative values, not live property data', 'No records are created',
-                       'id="inspection"', 'Pre-trip inspection', 'GPS km', 'Speed breaches', 'Fence crossings',
+        for marker in ('id="inspection"', 'Pre-trip inspection', 'GPS km', 'Speed breaches', 'Fence crossings',
                        'Running expenses', 'GPS trail', 'jitter-filtered distance'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, vehicle)
@@ -884,7 +902,7 @@ class FleetManagementTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, STATEMENT_VIEW)
         self.assertIn("route('tr.fleet.cost-statement')", VIEWS["fuel"], 'the fuel screen links to the statement')
-        for marker in ('FLEET RUNNING-COST STATEMENT', 'No trail', 'Received by', 'UI-only preview'):
+        for marker in ('FLEET RUNNING-COST STATEMENT', 'No trail', 'Received by'):
             with self.subTest(preview=marker):
                 self.assertIn(marker, PREVIEW_STATEMENT)
         self.assertNotIn('<form method="post"', PREVIEW_STATEMENT)
@@ -1049,8 +1067,8 @@ class FleetManagementTest(unittest.TestCase):
         for match in re.finditer(r"<x-[a-z-]+[^>]*?\{\{", DASHBOARD):
             self.fail(f"dashboard.blade.php interpolates Blade inside a component attribute: {match.group(0)[:80]}")
 
-    def test_geofence_preview_is_ui_only(self):
-        for marker in ('id="geofences"', 'id="addGeofence"', 'class="fence yard"', 'class="fence restricted"', "UI-only preview"):
+    def test_geofence_preview_is_a_static_copy(self):
+        for marker in ('id="geofences"', 'id="addGeofence"', 'class="fence yard"', 'class="fence restricted"'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, PREVIEW)
         self.assertNotIn("<form method=\"post\"", PREVIEW, "previews must not post to a live route")

@@ -1,13 +1,14 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<!DOCTYPE html>
+<!-- Static preview of this screen as built, kept by hand from its Blade view so the layout
+     can be read without a database. Figures are a fixed sample; the real screen reads
+     the tenant's own records. --><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Guest QR menu · side dishes — UI-only preview</title>
+<title>Guest QR menu · side dishes</title>
 <link rel="stylesheet" href="/css/app.css">
 <style>
   :root{--pv-green:#166534;--pv-ink:#172033;--pv-muted:#64748b;--pv-line:#dce5df}
   body{margin:0;background:#eef2ef;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
   .pv-wrap{max-width:1180px;margin:0 auto;padding:clamp(14px,2vw,26px)}
-  .pv-banner{display:flex;gap:10px;margin-bottom:16px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
-  .pv-banner strong{color:#63481a}
   .pv-head{margin:0 0 14px}
   .pv-head h1{margin:0;font-size:clamp(1.3rem,2.4vw,1.75rem);letter-spacing:-.03em}
   .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
@@ -44,13 +45,6 @@
 </style>
 </head><body>
 <main class="pv-wrap">
-  <div class="pv-banner" role="note">
-    <span aria-hidden="true">⚠</span>
-    <div><strong>UI-only preview – illustrative menu, no operational records.</strong>
-      The real page reads this table's outlet menu and side dishes from the tenant database; orders it sends stay <em>pending</em> until staff accept them.
-      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-terminal">POS terminal</a></div>
-    </div>
-  </div>
 
   <div class="pv-head">
     <span class="pv-kicker">Guest QR menu · self-ordering</span>
@@ -68,28 +62,28 @@
             <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Grilled chicken</div>
               <div class="ds">Charcoal grilled, pepper sauce</div>
               <div class="pr">GH₵ 85.00 <span class="tiny muted">· 3 sides</span></div></div>
-            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled>ADD</button></div>
           </div>
           <div class="qm-item">
             <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Jollof rice &amp; chicken</div>
               <div class="ds">Smoky jollof, grilled chicken thigh</div>
               <div class="pr">GH₵ 72.00 <span class="tiny muted">· 2 sides</span></div></div>
-            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled>ADD</button></div>
           </div>
           <div class="qm-item">
             <div class="info"><div class="nm"><span class="veg-dot veg"></span> Palava sauce &amp; yam</div>
               <div class="ds">Slow-cooked greens, boiled yam</div>
               <div class="pr">GH₵ 64.00</div></div>
-            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled>ADD</button></div>
           </div>
           <div class="qm-item">
             <div class="info"><div class="nm"><span class="veg-dot non_veg"></span> Banku &amp; tilapia</div>
               <div class="ds">Grilled tilapia, ground pepper</div>
               <div class="pr">GH₵ 95.00 <span class="tiny muted">· 2 sides</span></div></div>
-            <div class="ctl"><button type="button" class="qm-add" disabled title="Preview only">ADD</button></div>
+            <div class="ctl"><button type="button" class="qm-add" disabled>ADD</button></div>
           </div>
         </div>
-        <div class="qm-bar"><div><b>3</b> item(s) · <b>GH₵ 229.50</b></div><button type="button" disabled title="Preview only">View order</button></div>
+        <div class="qm-bar"><div><b>3</b> item(s) · <b>GH₵ 229.50</b></div><button type="button" disabled>View order</button></div>
 
         <div class="qv-sheet" role="dialog" aria-modal="true" aria-labelledby="guestSideTitle">
           <div class="box">
@@ -101,7 +95,7 @@
               <label class="check"><input type="checkbox" disabled> Garden salad <span class="tiny muted">included</span></label>
               <label class="check"><input type="checkbox" disabled> Fried plantain <span class="tiny muted">+GH₵ 8.00</span></label>
             </fieldset>
-            <button type="button" class="go" disabled title="Preview only">Continue</button>
+            <button type="button" class="go" disabled>Continue</button>
           </div>
         </div>
       </div>

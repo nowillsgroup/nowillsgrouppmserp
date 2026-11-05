@@ -1,13 +1,17 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<!DOCTYPE html>
+<!-- Hand-maintained preview of the two things a waiter sees for a shift:
+     the live totals card (resources/views/department-shifts/show.blade.php) and the
+     printable sheet it opens (resources/views/department-shifts/print.blade.php via
+     layouts/print). Figures are a fixed sample: the real card reads the payments of the
+     orders linked to that waiter's open service shift. -->
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Service shift totals · screen + printed sheet — UI-only preview</title>
+<title>Service shift totals · screen + printed sheet</title>
 <link rel="stylesheet" href="/css/app.css">
 <style>
   :root{--pv-green:#166534;--pv-ink:#172033;--pv-muted:#64748b;--pv-line:#dce5df}
   body{margin:0;background:#eef2ef;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
   .pv-wrap{max-width:1400px;margin:0 auto;padding:clamp(14px,2vw,26px)}
-  .pv-banner{display:flex;gap:10px;margin-bottom:16px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
-  .pv-banner strong{color:#63481a}
   .pv-head{margin:0 0 16px}
   .pv-head h1{margin:0;font-size:clamp(1.3rem,2.4vw,1.75rem);letter-spacing:-.03em}
   .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
@@ -30,14 +34,6 @@
 </style>
 </head><body>
 <main class="pv-wrap">
-  <div class="pv-banner" role="note">
-    <span aria-hidden="true">⚠</span>
-    <div><strong>UI-only preview – illustrative figures, no operational records.</strong>
-      The real card reads the payments of the orders linked to that waiter's service shift. Print uses the report's own printable sheet, which opens from the card or the shift list.
-      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-terminal">POS terminal</a> · <a href="/qr-menu">Guest QR menu</a></div>
-    </div>
-  </div>
-
   <div class="pv-head">
     <span class="pv-kicker">My shift · Food &amp; beverage service</span>
     <h1>Live shift totals: payment methods, one total, printable</h1>
@@ -64,7 +60,7 @@
             <div class="flex justify-between items-center mt-2" style="gap:.5rem;flex-wrap:wrap">
               <div><b class="small">Payments by method</b>
                 <div class="tiny muted">What this shift collected on its own orders. Room posts settle on the guest folio, not here.</div></div>
-              <button type="button" class="btn btn-sm" disabled title="Preview only">Print totals sheet</button>
+              <button type="button" class="btn btn-sm" disabled>Print totals sheet</button>
             </div>
             <div class="table-wrap mt-1">
               <table class="table table-compact">
@@ -86,7 +82,7 @@
 
     <div>
       <p class="pv-label"><span></span>Printed sheet · what comes out of the printer</p>
-      <div class="pv-bar"><button type="button" class="btn btn-sm" disabled title="Preview only">← Back</button><button type="button" class="btn btn-sm btn-primary" disabled title="Preview only">Print</button></div>
+      <div class="pv-bar"><button type="button" class="btn btn-sm" disabled>← Back</button><button type="button" class="btn btn-sm btn-primary" disabled>Print</button></div>
       <div class="pv-sheet">
         <div class="ph">
           <div><h2>Nowills Hotel</h2><div class="pv-tiny">Airport Residential Area, Accra · Ph: 030 000 0000</div><div class="pv-tiny">TIN: C0000000000</div></div>
@@ -155,7 +151,7 @@
                 <span class="badge badge-blue" title="3 tenders">Visa / Mastercard GH₵ 754.00</span>
                 <span class="small"><b>Total, all methods: GH₵ 2,914.50</b> <span class="tiny muted">· GH₵ 571.50 posted to rooms</span></span>
               </div>
-              <button type="button" class="btn btn-sm" disabled title="Preview only">Print totals sheet</button>
+              <button type="button" class="btn btn-sm" disabled>Print totals sheet</button>
             </div>
           </div>
         </section>

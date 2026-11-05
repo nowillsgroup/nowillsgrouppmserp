@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Read-only static server for the UI-only dashboard & fleet previews.
+// Read-only static server for the preview screens (dashboard, fleet, POS, shift totals).
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
@@ -41,6 +41,12 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/fleet-cost-statement.html');
   } else if (pathname === '/fleet-tracking' || pathname === '/__preview/fleet-tracking') {
     file = resolve(ROOT, 'deploy/dev/previews/fleet-tracking.html');
+  } else if (pathname === '/pos-dashboard' || pathname === '/__preview/pos-dashboard') {
+    file = resolve(ROOT, 'deploy/dev/previews/pos-dashboard.html');
+  } else if (pathname === '/waiter-pos' || pathname === '/__preview/waiter-pos') {
+    file = resolve(ROOT, 'deploy/dev/previews/waiter-pos.html');
+  } else if (pathname === '/sidebar-navigation' || pathname === '/__preview/sidebar-navigation') {
+    file = resolve(ROOT, 'deploy/dev/previews/sidebar-navigation.html');
   } else if (pathname === '/css/fleet.css') {
     file = resolve(ROOT, 'public/css/fleet.css');
   } else if (pathname === '/css/app.css') {

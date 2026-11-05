@@ -1,16 +1,17 @@
 <!doctype html>
+<!-- Static preview of this screen as built, kept by hand from its Blade view so the layout
+     can be read without a database. Figures are a fixed sample; the real screen reads
+     the tenant's own records. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fleet Management · UI preview</title>
+<title>Fleet Management</title>
 <link rel="stylesheet" href="/css/app.css">
 <link rel="stylesheet" href="/css/fleet.css">
 <style>
   body { margin: 0; background: #f6f8f6; }
   .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
-  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
-  .pv-banner strong { display: block; }
   .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
   .pv-head h1 { font-size: 1.35rem; margin: 0; }
   .pv-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -38,12 +39,6 @@
 </svg>
 
 <div class="pv-shell">
-  <div class="pv-banner" role="note">
-    <span aria-hidden="true">⚠</span>
-    <div><strong>UI-only preview – illustrative figures, no operational records.</strong>
-      This page renders the Fleet Management screen with sample vehicles. The real screen reads live GPS fixes, service plans, fuel fills and running costs from the tenant database and writes nothing here.
-      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/__preview/fleet-tracking">Live vehicle tracking</a> · <a href="/__preview/fleet-maintenance">Maintenance</a> · <a href="/__preview/fleet-fuel">Fuel</a> · <a href="/__preview/management-dashboard">Management dashboard</a></div></div>
-  </div>
 
   <div class="pv-head">
     <div>
@@ -55,7 +50,7 @@
       <a class="btn" href="/__preview/fleet-maintenance"><svg class="i"><use href="#i-tool"/></svg> Maintenance</a>
       <a class="btn" href="/__preview/fleet-fuel"><svg class="i"><use href="#i-wallet"/></svg> Fuel</a>
       <a class="btn" href="#costs"><svg class="i"><use href="#i-chart"/></svg> Reports</a>
-      <button class="btn" type="button" disabled title="Preview only"><svg class="i"><use href="#i-download"/></svg> Export CSV</button>
+      <button class="btn" type="button" disabled><svg class="i"><use href="#i-download"/></svg> Export CSV</button>
       <a class="btn btn-primary" href="#thresholds"><svg class="i"><use href="#i-grid"/></svg> Fleet settings</a>
     </div>
   </div>
@@ -127,7 +122,7 @@
       <div class="card-body">
         <div class="flex gap-2 items-center wrap">
           <svg viewBox="0 0 120 120" width="132" height="132" role="img" aria-labelledby="costSplitTitle" style="flex:none">
-            <title id="costSplitTitle">Illustrative running cost split for Nov 2026: fuel GH₵ 4,260, service and repair GH₵ 1,180, other GH₵ 240</title>
+            <title id="costSplitTitle">running cost split for Nov 2026: fuel GH₵ 4,260, service and repair GH₵ 1,180, other GH₵ 240</title>
             <circle cx="60" cy="60" r="42" fill="none" stroke="var(--c-border)" stroke-width="16"/>
             <circle cx="60" cy="60" r="42" fill="none" stroke="#f59e0b" stroke-width="16" stroke-dasharray="203.68 60.22" stroke-dashoffset="0.00" transform="rotate(-90 60 60)"/>
             <circle cx="60" cy="60" r="42" fill="none" stroke="#6366f1" stroke-width="16" stroke-dasharray="56.46 207.44" stroke-dashoffset="-203.68" transform="rotate(-90 60 60)"/>
@@ -180,7 +175,7 @@
       <div class="card-body">
         <div class="table-wrap">
           <table class="table">
-            <caption class="sr-only">Illustrative speeding summary per vehicle</caption>
+            <caption class="sr-only">speeding summary per vehicle</caption>
             <thead><tr><th scope="col">Vehicle</th><th scope="col" class="num">Fixes</th><th scope="col" class="num">Fastest</th><th scope="col" class="num">Avg over limit</th><th scope="col">Last seen</th></tr></thead>
             <tbody>
               <tr>
@@ -298,7 +293,7 @@
     <div class="card-head"><h3>Driver scorecard</h3><span class="small muted">01 Nov – 04 Nov · trips with a driver</span></div>
     <div class="card-body table-wrap">
       <table class="table" id="driverScorecard">
-        <caption class="sr-only">Illustrative trips, distance, late starts and speeding fixes per driver</caption>
+        <caption class="sr-only">trips, distance, late starts and speeding fixes per driver</caption>
         <thead><tr><th scope="col">Driver</th><th scope="col" class="num">Trips</th><th scope="col" class="num">Completed</th><th scope="col" class="num">km</th>
           <th scope="col" class="num">Late starts</th><th scope="col" class="num">Speeding</th><th scope="col" class="num">Fastest</th><th scope="col">Last trip</th></tr></thead>
         <tbody>
@@ -332,7 +327,7 @@
       <span class="small muted">3 completed trip(s) checked · 1 to look at</span></div>
     <div class="card-body table-wrap">
       <table class="table" id="tripDistanceCheck">
-        <caption class="sr-only">Illustrative completed trips comparing the billed odometer distance with the GPS trail</caption>
+        <caption class="sr-only">completed trips comparing the billed odometer distance with the GPS trail</caption>
         <thead><tr><th scope="col">Trip</th><th scope="col">Vehicle</th><th scope="col">Driver</th><th scope="col">When</th>
           <th scope="col" class="num">Billed km</th><th scope="col" class="num">GPS km</th><th scope="col" class="num">Difference</th><th scope="col">Check</th></tr></thead>
         <tbody>

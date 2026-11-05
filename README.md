@@ -2019,7 +2019,7 @@ The transport desk already knew about cars and drivers; it could not tell you wh
 
 Permissions: `transport.view` (fleet overview), `transport.track` (live tracking and GPS activity) and `transport.fleet` (devices, maintenance, fuel, settings and both fleet reports). The Front Office Manager receives both new permissions on the next `HotelProvisioner::upgrade()`; the Transport Desk / Concierge role already covers `transport.*`. The module creates no sample positions, plans, work orders or fences – pair a device, add the yard fence and the board fills itself.
 
-**Preview:** the UI-only fleet tracking preview uses illustrative positions and fences and writes nothing.
+**Preview:** the fleet tracking preview (`/fleet-tracking` on the preview server) shows the map and fences with a fixed sample and writes nothing.
 
 **Demo:** log in as `admin` or `concierge` and open **Transport › Dispatch Board**. The data is relative to the current time:
 - INNOVA-1 is on the road for a pick-up (6E 5302, child seat fitted).

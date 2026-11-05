@@ -84,7 +84,7 @@ check('content rail animates in sync with collapse and honors reduced motion', '
 check('long menu labels stay on one line and truncate cleanly in the narrower rail', '.nav-item > a > .nav-label, .nav-item > button > .nav-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' in CSS)
 
 # Preview is navigable, read-only and linked from the ordinary dev preview router.
-check('preview clearly states it is UI-only and uses no operational records', 'UI-only preview.' in PREVIEW and 'no operational records are loaded or changed' in PREVIEW)
+check('preview shows the rail itself, with no notice about the preview on it', 'UI-only preview' not in PREVIEW and 'no operational records' not in PREVIEW and 'sidebar-preview-note' not in PREVIEW)
 check('preview loads the actual application sidebar CSS and JavaScript', 'href="/css/app.css"' in PREVIEW and 'src="/js/app.js"' in PREVIEW)
 check('expanded and collapsed preview routes are registered in the standard development router', "'/__preview/sidebar-navigation'" in SERVER and "'/__preview/sidebar-navigation-collapsed'" in SERVER and "'sidebar-navigation.html'" in SERVER)
 check('both sidebar states are linked from the development changes index', 'Sidebar Navigation UI preview' in SERVER and 'Collapsed sidebar preview' in SERVER)
