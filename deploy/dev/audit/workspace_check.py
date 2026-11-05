@@ -28,6 +28,7 @@ CONTROLLER = read("app/Http/Controllers/ReservationWorkspaceController.php")
 SERVICE = read("app/Services/ReservationWorkspaceService.php")
 VIEW = read("resources/views/reservations/workspace.blade.php")
 SAMPLE = read("deploy/dev/preview/workspace-sample.mjs")
+REPORT = read("resources/views/reservations/workspace-report.blade.php")
 BUILDER = read("deploy/dev/build-workspace-preview.mjs")
 SERVER = read("deploy/dev/management-dashboard-preview-server.mjs")
 CHECK = read("deploy/dev/audit/workspace_preview_check.js")
@@ -115,6 +116,13 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn('data-status-label=', VIEW)
 
     # ── the rail ────────────────────────────────────────────────────────────
+
+    def test_the_printed_day_carries_the_same_list(self):
+        # the day report is handed to the next shift, so it leads with the work too
+        self.assertIn("view('reservations.workspace-report', $snap + ['attention' => $this->attention($snap)])", CONTROLLER)
+        self.assertIn("$attentionItems as $item", REPORT)
+        self.assertIn("{{ $item['label'] }}", REPORT)
+        self.assertIn('Nothing outstanding', REPORT)
 
     def test_the_rail_leads_with_what_needs_acting_on(self):
         self.assertIn('id="wsAttention"', VIEW)

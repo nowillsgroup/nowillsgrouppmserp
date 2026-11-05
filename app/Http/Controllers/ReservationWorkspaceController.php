@@ -192,6 +192,8 @@ class ReservationWorkspaceController extends Controller
     {
         $snap = ReservationWorkspaceService::snapshot($this->boardDate($request));
 
-        return view('reservations.workspace-report', $snap);
+        // The printed day is handed to the next shift, so it carries the same list
+        // of outstanding work the screen leads with.
+        return view('reservations.workspace-report', $snap + ['attention' => $this->attention($snap)]);
     }
 }
