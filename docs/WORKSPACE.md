@@ -122,6 +122,8 @@ node deploy/dev/build-workspace-preview.mjs            # renders the screen from
 node deploy/dev/build-workspace-preview.mjs --check    # fails when the preview is stale
 node deploy/dev/audit/workspace_preview_check.js       # drives the rendered page in jsdom
 python3 deploy/dev/audit/workspace_check.py            # source contract: ids, CSS, permissions
+node deploy/dev/audit/css_syntax_check.js              # every stylesheet the app ships parses
+node deploy/dev/audit/permission_reference_check.js    # every permission asked for is grantable
 ```
 
 The preview is the real view — including its `@push('head')` styles and
