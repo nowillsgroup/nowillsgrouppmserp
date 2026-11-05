@@ -165,8 +165,15 @@ class ServiceShiftTotalsTest(unittest.TestCase):
 
     def test_preview_shows_the_card_and_the_printed_sheet(self):
         preview = (ROOT / "deploy/dev/previews/service-shift-totals.html").read_text()
+        # The preview shows the screen as built: no banner, badge or caption may mark it as a
+        # preview (removed at the user's request, next to the dashboard preview).
+        for marker in ('UI-only preview', 'Preview only', 'pv-banner', 'illustrative figures',
+                       'no operational records'):
+            with self.subTest(preview_chrome=marker):
+                self.assertNotIn(marker, preview)
+        self.assertIn('Hand-maintained preview of the two things a waiter sees', preview)
         for marker in (
-            'UI-only preview', 'Live shift totals',
+            'Live shift totals',
             'Payments by method', 'Total, all methods',
             'Service shift totals', 'Payments by method',
             'Total collected on this shift, all payment methods:',
