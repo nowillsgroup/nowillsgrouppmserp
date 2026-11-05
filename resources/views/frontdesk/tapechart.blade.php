@@ -6,14 +6,7 @@
   <a class="btn btn-soft" href="{{ route('frontdesk.inhouse') }}"><x-icon name="users" size="sm"/> In-house</a>
   <button class="btn" type="button" onclick="window.print()"><x-icon name="print" size="sm"/> Print</button>
 @endsection
-@section('content')
-@php
-  $windowLastDay = $to->copy()->subDay();
-  $windowLabel = $from->format('j M Y').' – '.$windowLastDay->format('j M Y');
-  $dnd = $canDrag;
-  $dayOptions = [7, 14, 21, 30];
-  if (! in_array($days, $dayOptions, true)) { $dayOptions[] = $days; sort($dayOptions); }
-@endphp
+@push('head')
 <style>
   .tape-chart-page { color:var(--c-text); }
   .tape-chart-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin:0 0 1rem; padding:1rem 1.15rem; border:1px solid #dcebe0; border-radius:14px; background:linear-gradient(115deg,#f0f8f2 0%,var(--c-surface) 72%); }
@@ -110,6 +103,16 @@
   @media(prefers-reduced-motion:reduce) { .tape-chart-table .tape-bar { scroll-behavior:auto; } }
   @media print { .tape-chart-controls,.tape-chart-help,.tape-chart-status,.tape-chart-chip,.tape-chart-unassigned,.tape-unassigned-details,.no-print { display:none!important; }.tape-chart-hero .tape-chart-window { border:0; background:none; }.tape-chart-metrics { grid-template-columns:repeat(5,1fr); }.tape-chart-scroll { max-height:none; overflow:visible; border:0; box-shadow:none; }.tape-chart-table { --tape-day-width:32px; width:100%; }.tape-chart-table .tape-room-heading,.tape-chart-table .tape-room-label { width:92px; min-width:92px; max-width:92px; }.tape-chart-table th,.tape-chart-table td { font-size:7pt; }.tape-chart-table .tape-bar { font-size:6pt; }.tape-chart-group { break-after:avoid; } }
 </style>
+@endpush
+
+@section('content')
+@php
+  $windowLastDay = $to->copy()->subDay();
+  $windowLabel = $from->format('j M Y').' – '.$windowLastDay->format('j M Y');
+  $dnd = $canDrag;
+  $dayOptions = [7, 14, 21, 30];
+  if (! in_array($days, $dayOptions, true)) { $dayOptions[] = $days; sort($dayOptions); }
+@endphp
 
 <div class="tape-chart-page">
   <section class="tape-chart-hero" aria-label="Tape chart overview">

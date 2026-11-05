@@ -23,6 +23,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/fleet-overview.html');
   } else if (pathname === '/management-dashboard' || pathname === '/__preview/management-dashboard') {
     file = resolve(ROOT, 'deploy/dev/previews/management-dashboard.html');
+  } else if (pathname === '/tape-chart' || pathname === '/__preview/tape-chart') {
+    file = resolve(ROOT, 'deploy/dev/previews/tape-chart.html');
   } else if (pathname === '/reservations-workspace' || pathname === '/__preview/reservations-workspace') {
     file = resolve(ROOT, 'deploy/dev/previews/reservations-workspace.html');
   } else if (pathname === '/rooms-create' || pathname === '/__preview/rooms-create') {

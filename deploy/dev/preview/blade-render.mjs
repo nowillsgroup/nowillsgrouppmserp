@@ -108,14 +108,18 @@ export class SampleDate {
   toIso8601String() { return this.d.toISOString().replace('.000Z', '+00:00'); }
   max(other) { return +this.d >= +(other?.d ?? new Date(other)) ? this : other; }
   min(other) { return +this.d <= +(other?.d ?? new Date(other)) ? this : other; }
-  diffInDays(other) {
+  // Carbon returns an absolute number of days unless you ask for the sign with a
+  // second argument (`diffInDays($x, false)`), which is how the views use it.
+  diffInDays(other, absolute = true) {
     const target = other instanceof SampleDate ? other.d : new Date(`${other}T00:00:00Z`);
-    return Math.round((+this.d - +target) / 86400000);
+    const value = Math.round((+this.d - +target) / 86400000);
+    return absolute === false ? value : Math.abs(value);
   }
   get daysInMonth() {
     return new Date(Date.UTC(this.d.getUTCFullYear(), this.d.getUTCMonth() + 1, 0)).getUTCDate();
   }
   isSameDay(other) { return this.toDateString() === (other?.toDateString?.() ?? String(other)); }
+  isWeekend() { const d = this.d.getUTCDay(); return d === 0 || d === 6; }
   gt(other) { return +this.d > +new Date(`${other?.toDateString?.() ?? other}T00:00:00Z`); }
   lt(other) { return +this.d < +new Date(`${other?.toDateString?.() ?? other}T00:00:00Z`); }
   gte(other) { return !this.lt(other); }
@@ -557,6 +561,32 @@ export class BladePreview {
           continue;
         }
 
+        if (word === 'for') {
+          // @for($i = 0; $i < $days; $i++) … @endfor — the counter is a normal PHP
+          // variable, so it lives in the local scope while the body renders.
+          // `@endfor` is a prefix of `@endforeach`, so the terminator needs a word
+          // boundary: matching the prefix truncated every loop that contained a
+          // @foreach and left "each" behind in the output.
+          const closeMatch = /@endfor\b/.exec(src.slice(bodyStart));
+          const close = closeMatch ? bodyStart + closeMatch.index : -1;
+          const bodySrc = src.slice(bodyStart, close < 0 ? src.length : close);
+          const [init = '', cond = '', step = ''] = arg.split(';');
+          const assigned = init.match(/\$([A-Za-z_]\w*)\s*=\s*([\s\S]+)$/);
+          if (assigned) {
+            const name = assigned[1];
+            local[name] = this.evalExpr(assigned[2], local);
+            let guard = 0;
+            while (this.bool(cond, local) && guard++ < 5000) {
+              out += this.renderSource(bodySrc, local, file);
+              const next = this.stepFor(step, name, local);
+              if (next === null) break;
+              local[name] = next;
+            }
+          }
+          i = close < 0 ? src.length : close + '@endfor'.length;
+          continue;
+        }
+
         if (word === 'class') {
           out += this.classAttr(arg, local);
           i = bodyStart;
@@ -593,6 +623,25 @@ export class BladePreview {
 
     this.currentScope = previous;
     return out;
+  }
+
+  /**
+   * The third clause of an @for loop: `$i++`, `$i+=2`, `$i = $i + 1`, `$i--`.
+   * Returns the next value, or null when the shape is not understood (the loop then
+   * stops rather than spinning).
+   */
+  stepFor(step, name, local) {
+    const text = String(step).trim();
+    const current = Number(local[name] ?? 0);
+    if (new RegExp(`^\\$?${name}\\+\\+$`).test(text) || text === `${name}++`) return current + 1;
+    if (new RegExp(`^\\$?${name}--$`).test(text) || text === `${name}--`) return current - 1;
+    const plus = text.match(/^\$?(\w+)\s*\+=\s*([\s\S]+)$/);
+    if (plus && plus[1] === name) return current + Number(this.evalExpr(plus[2], local) ?? 0);
+    const minus = text.match(/^\$?(\w+)\s*-=\s*([\s\S]+)$/);
+    if (minus && minus[1] === name) return current - Number(this.evalExpr(minus[2], local) ?? 0);
+    const assign = text.match(new RegExp(`^\\$?${name}\\s*=\\s*([\\s\\S]+)$`));
+    if (assign) return Number(this.evalExpr(assign[1], local) ?? 0);
+    return null;
   }
 
   /** Finds @elseif / @else / @endif boundaries for an @if block. */
