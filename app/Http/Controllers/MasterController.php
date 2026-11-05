@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RoomImage;
 use App\Services\ActivityLogger;
+use App\Services\RoomPhotoService;
 use App\Support\Numbering;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
@@ -125,8 +127,12 @@ class MasterController extends Controller
         if ($master === 'menu-items') {
             $row->load('variants');
         }
+        $extra = [];
+        if (! empty($def['photos'])) {
+            $extra['photos'] = $row->images()->get();
+        }
 
-        return view($view, ['def' => $def, 'row' => $row, 'options' => $this->options($def)]);
+        return view($view, ['def' => $def, 'row' => $row, 'options' => $this->options($def)] + $extra);
     }
 
     protected function validated(Request $request, array $def, ?int $id = null): array
@@ -226,6 +232,7 @@ class MasterController extends Controller
     public function store(Request $request, string $master)
     {
         $def = $this->def($master);
+        $this->validateRoomPhotos($request, $def);
         $data = $this->validated($request, $def);
         $variants = $this->validatedMenuItemVariants($request, $master);
         $row = DB::transaction(function () use ($def, $data, $variants) {
@@ -237,6 +244,7 @@ class MasterController extends Controller
             return $row;
         });
         $this->storeImages($request, $def, $row);
+        $this->storeRoomPhotos($request, $def, $row);
         ActivityLogger::log('masters', 'create', "Created {$def['title']}: ".$this->label($row), $row);
 
         return redirect()->route('masters.index', $master)->with('success', 'Saved.');
@@ -246,6 +254,7 @@ class MasterController extends Controller
     {
         $def = $this->def($master);
         $row = $def['model']::findOrFail($id);
+        $this->validateRoomPhotos($request, $def);
         $data = $this->validated($request, $def, $id);
         $variants = $this->validatedMenuItemVariants($request, $master);
         if ($row->getAttribute('system_key') && isset($data['type']) && $data['type'] !== $row->type) {
@@ -261,6 +270,7 @@ class MasterController extends Controller
             }
         });
         $this->storeImages($request, $def, $row);
+        $this->storeRoomPhotos($request, $def, $row);
         ActivityLogger::log('masters', 'update', "Updated {$def['title']}: ".$this->label($row), $row);
 
         return redirect()->route('masters.index', $master)->with('success', 'Updated.');
@@ -295,6 +305,93 @@ class MasterController extends Controller
         ActivityLogger::log('masters', 'delete', "Deleted {$def['title']}: ".$this->label($row));
 
         return back()->with('success', 'Deleted.');
+    }
+
+    /* ── room photos ───────────────────────────────────────────────────────── */
+
+    /** Masters whose records carry photos (rooms, for now). */
+    protected function photoMaster(array $def): bool
+    {
+        return ! empty($def['photos']);
+    }
+
+    /** Check the upload before the room row is written, so a bad file cannot leave a half-saved room. */
+    protected function validateRoomPhotos(Request $request, array $def): void
+    {
+        if (! $this->photoMaster($def) || ! $request->hasFile('photos')) {
+            return;
+        }
+        $request->validate(RoomPhotoService::rules(), RoomPhotoService::validationMessages(), ['photos' => 'room photos', 'photos.*' => 'room photo']);
+    }
+
+    /** Save the photos that came with the room form. */
+    protected function storeRoomPhotos(Request $request, array $def, $row): void
+    {
+        if (! $this->photoMaster($def) || ! $request->hasFile('photos')) {
+            return;
+        }
+        $caption = $request->input('photo_caption');
+        $caption = is_string($caption) ? $caption : null;
+
+        foreach ((array) $request->file('photos') as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
+                RoomPhotoService::store($row, $file, $caption);
+            }
+        }
+    }
+
+    /** Add photos to a room from its own card, after the room exists. */
+    public function storePhoto(Request $request, string $master, int $id)
+    {
+        $def = $this->def($master);
+        abort_unless($this->photoMaster($def), 404);
+        $row = $def['model']::findOrFail($id);
+
+        $request->validate(RoomPhotoService::rules(), RoomPhotoService::validationMessages(), ['photos' => 'room photos', 'photos.*' => 'room photo']);
+        $caption = $request->input('photo_caption');
+        $caption = is_string($caption) ? $caption : null;
+
+        $saved = 0;
+        foreach ((array) $request->file('photos') as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
+                RoomPhotoService::store($row, $file, $caption);
+                $saved++;
+            }
+        }
+        if ($saved === 0) {
+            return back()->with('error', 'Choose at least one photo to upload.');
+        }
+        ActivityLogger::log('masters', 'update', "Added {$saved} photo(s) to {$def['title']} ".$this->label($row), $row);
+
+        return back()->with('success', $saved === 1 ? 'Room photo saved.' : $saved.' room photos saved.');
+    }
+
+    /** Choose the picture the desk shows for this room. */
+    public function photoPrimary(string $master, int $id, int $image)
+    {
+        $def = $this->def($master);
+        abort_unless($this->photoMaster($def), 404);
+        $row = $def['model']::findOrFail($id);
+        $photo = $row->images()->findOrFail($image);
+
+        RoomPhotoService::makePrimary($photo);
+        ActivityLogger::log('masters', 'update', "Primary photo set for {$def['title']} ".$this->label($row), $row);
+
+        return back()->with('success', 'Primary photo updated.');
+    }
+
+    /** Take a photo off the room record (hidden, never deleted). */
+    public function photoHide(string $master, int $id, int $image)
+    {
+        $def = $this->def($master);
+        abort_unless($this->photoMaster($def), 404);
+        $row = $def['model']::findOrFail($id);
+        $photo = $row->images()->findOrFail($image);
+
+        RoomPhotoService::hide($photo);
+        ActivityLogger::log('masters', 'update', "Removed a photo from {$def['title']} ".$this->label($row), $row);
+
+        return back()->with('success', 'Photo removed from the room record.');
     }
 
     /** Save a menu photo as a small JPEG. Shared demo pictures are never deleted; only this hotel's own upload is. */

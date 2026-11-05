@@ -246,11 +246,26 @@ export class BladePreview {
 
   /** Runs a @php block: simple assignments only; anything structural is skipped. */
   runPhp(code, scope) {
-    if (/\b(foreach|if|else|while|switch|collect\s*\(\s*\[|function|\[\s*\]\s*=)\b/.test(code)) {
+    code = String(code).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    // Structural blocks (loops, braced conditionals, declarations) are beyond a sample.
+    if (/\b(foreach|while|switch|function|class)\s*[({]/.test(code) || /\bif\s*\([^)]*\)\s*\{/.test(code)
+        || /\b(else|elseif|endif|endforeach|endwhile)\b/.test(code)) {
       this.log.phpSkipped.push(code.trim().slice(0, 90));
       return;
     }
     for (const statement of splitTopLevel(code, ';')) {
+      // A one-line `if (...) $x = ...;` cannot be evaluated; leave it out.
+      if (/^\s*(if|elseif|else|foreach|while|switch|case|default|\}|\{)/.test(statement)) continue;
+      const list = /^\s*\[\s*((?:\$\w+\s*,?\s*)+)\]\s*=\s*([\s\S]+)$/.exec(statement);
+      if (list) {
+        const value = this.evalExpr(list[2], scope);
+        const names = list[1].split(',').map(n => n.trim().replace(/^\$/, '')).filter(Boolean);
+        if (Array.isArray(value) || (value instanceof Coll)) {
+          const items = value instanceof Coll ? value.items.map(([, v]) => v) : value;
+          names.forEach((name, index) => { scope[name] = items[index]; });
+        }
+        continue;
+      }
       const m = /^\s*\$?([A-Za-z_]\w*)\s*=\s*([\s\S]+)$/.exec(statement);
       if (!m) continue;
       const value = this.evalExpr(m[2], scope);
@@ -261,6 +276,29 @@ export class BladePreview {
   icon(name, size, extraClass = '') {
     const cls = ['i', size === 'sm' ? 'i-sm' : '', extraClass].filter(Boolean).join(' ');
     return `<svg class="${cls}" aria-hidden="true"><use href="#i-${esc(name || 'grid')}"/></svg>`;
+  }
+
+  /** @class(['is-invalid' => $errors->has('photos')]) */
+  classAttr(arg, scope) {
+    const inner = String(arg).trim().replace(/^\[/, '').replace(/\]$/, '');
+    const names = [];
+    for (const part of splitTopLevel(inner, ',')) {
+      const p = part.trim();
+      if (!p) continue;
+      const arrow = splitTopLevel(p, '=>');
+      if (arrow.length > 1) {
+        const key = arrow[0].trim().replace(/^['"]|['"]$/g, '');
+        if (this.evalExpr(arrow.slice(1).join('=>'), scope)) names.push(key);
+      } else {
+        names.push(p.replace(/^['"]|['"]$/g, ''));
+      }
+    }
+    return `class="${esc(names.join(' '))}"`;
+  }
+
+  hasError(name) {
+    const errors = this.ctx?.scope?.errors;
+    return Boolean(errors && typeof errors.has === 'function' && errors.has(name));
   }
 
   component(src, start) {
@@ -280,7 +318,50 @@ export class BladePreview {
       const v = this.evalExpr(a.value, this.currentScope);
       return v === undefined ? '' : v;
     };
+    function readExtra() {
+      const consumed = new Set(['name', 'id', 'label', 'type', 'value', 'required',
+        'options', 'placeholder', 'hint', 'class']);
+      const out = [];
+      for (const [key, attr] of Object.entries(attrs)) {
+        if (consumed.has(key)) continue;
+        const v = attr.dynamic ? (read(key) ?? '') : attr.value;
+        out.push(v === '' ? ` ${key}` : ` ${key}="${esc(v)}"`);
+      }
+      return out.join('');
+    }
     if (tag === 'icon') return { html: this.icon(read('name'), read('size'), read('class') ?? ''), end };
+    if (tag === 'field') {
+      const name = read('name') ?? '';
+      const type = read('type') ?? 'text';
+      const id = read('id') || `f_${String(name).replace(/[[\]]/g, '_')}`;
+      const label = read('label');
+      const value = read('value');
+      const required = Boolean(read('required'));
+      const placeholder = read('placeholder');
+      const hint = read('hint');
+      const extra = readExtra();
+      const val = value === undefined || value === null ? '' : value;
+      const invalid = this.hasError(name) ? ' is-invalid' : '';
+      const common = `${extra}${invalid ? ` class="${invalid.trim()}"` : ''}`;
+      let control = '';
+      if (type === 'select') {
+        const options = read('options') ?? {};
+        const rows = Object.entries(options).map(([k, v]) =>
+          `<option value="${esc(k)}"${String(val) === String(k) ? ' selected' : ''}>${esc(v)}</option>`).join('');
+        const blank = placeholder === false ? '' : `<option value="">${esc(placeholder ?? '— Select —')}</option>`;
+        control = `<select name="${esc(name)}" id="${esc(id)}"${required ? ' required' : ''}${common}>${blank}${rows}</select>`;
+      } else if (type === 'textarea') {
+        control = `<textarea name="${esc(name)}" id="${esc(id)}" placeholder="${esc(placeholder ?? '')}"${required ? ' required' : ''}${common}>${esc(val)}</textarea>`;
+      } else {
+        control = `<input type="${esc(type)}" name="${esc(name)}" id="${esc(id)}" value="${esc(val)}" placeholder="${esc(placeholder ?? '')}"${required ? ' required' : ''}${common}>`;
+      }
+      const head = label ? `<label for="${esc(id)}">${esc(label)}${required ? ' <span class="req">*</span>' : ''}</label>` : '';
+      const foot = hint ? `<span class="hint">${esc(hint)}</span>` : '';
+      return {
+        html: `<div class="field ${esc(read('class') ?? '')}">${head}${control}${foot}</div>`,
+        end,
+      };
+    }
     if (tag === 'empty') {
       const text = read('text') ?? 'No records found.';
       return { html: `<div class="empty">${this.icon(read('icon') ?? 'box')}<div>${esc(text)}</div></div>`, end };
@@ -344,9 +425,17 @@ export class BladePreview {
         }
 
         if (word === 'include') {
-          const target = this.evalExpr(arg, local);
+          const parts = splitTopLevel(arg, ',');
+          const target = this.evalExpr(parts[0] ?? arg, local);
+          let data = null;
+          if (parts.length > 1) {
+            const value = this.evalExpr(parts.slice(1).join(','), local);
+            if (value && typeof value === 'object' && !(value instanceof Coll)) data = value;
+            else if (value instanceof Coll) data = Object.fromEntries(value.items);
+          }
           if (typeof target === 'string') {
-            try { out += this.renderFile(target, local); } catch (err) { this.log.errors.push(`${file}: ${err.message}`); }
+            const scope = data ? Object.assign(Object.create(local), data) : local;
+            try { out += this.renderFile(target, scope); } catch (err) { this.log.errors.push(`${file}: ${err.message}`); }
           }
           i = bodyStart;
           continue;
@@ -400,6 +489,33 @@ export class BladePreview {
             delete local.loop;
           }
           i = end;
+          continue;
+        }
+
+        if (word === 'class') {
+          out += this.classAttr(arg, local);
+          i = bodyStart;
+          continue;
+        }
+
+        if (word === 'error') {
+          const close = src.indexOf('@enderror', bodyStart);
+          const name = this.evalExpr(arg, local);
+          if (this.hasError(name)) {
+            out += this.renderSource(src.slice(bodyStart, close < 0 ? src.length : close), local, file);
+          }
+          i = close < 0 ? src.length : close + '@enderror'.length;
+          continue;
+        }
+
+        if (word === 'checked' || word === 'selected' || word === 'disabled') {
+          if (this.evalExpr(arg, local)) out += ` ${word}`;
+          i = bodyStart;
+          continue;
+        }
+
+        if (word === 'enderror' || word === 'csrf' || word === 'method') {
+          i = bodyStart;
           continue;
         }
 
@@ -458,7 +574,7 @@ export class BladePreview {
     let entries = [];
     if (value instanceof Coll) entries = value.items;
     else if (Array.isArray(value)) entries = value;
-    else if (value && typeof value === 'object') entries = Object.values(value);
+    else if (value && typeof value === 'object') entries = Object.entries(value);
     else return [];
 
     const bindingText = bindings.trim();
@@ -654,6 +770,9 @@ export function toJs(expr) {
   s = s.replace(/\((?:float|int|string|array|bool|object)\)\s*/g, '');
   s = s.replace(/(\\?[A-Za-z_\u00c0-\uffff][\w\\]*)::([A-Z_][A-Z0-9_]*)\b(?!\s*\()/g,
     (m, cls, name) => `__const(${JSON.stringify(cls.replace(/^\\/, ''))}, ${JSON.stringify(name)})`);
+  // $row->{$name} → $row[$name], before the arrow becomes a dot
+  s = s.replace(/\?->\s*\{\s*\$?([\w\[\]'"\.]+?)\s*\}/g, '?.[$1]');
+  s = s.replace(/->\s*\{\s*\$?([\w\[\]'"\.]+?)\s*\}/g, '[$1]');
   s = s.replace(/\?->/g, '?.').replace(/->/g, '.');
   s = s.replace(/\bnull\b/g, 'null').replace(/\btrue\b/g, 'true').replace(/\bfalse\b/g, 'false');
   s = s.replace(/\band\b/g, '&&').replace(/\bor\b/g, '||');

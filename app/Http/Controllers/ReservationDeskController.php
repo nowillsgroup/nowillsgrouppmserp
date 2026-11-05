@@ -340,8 +340,7 @@ class ReservationDeskController extends Controller
 
     public function makePrimary(RoomImage $image)
     {
-        RoomImage::where('room_id', $image->room_id)->where('room_type_id', $image->room_type_id)->update(['is_primary' => false]);
-        $image->update(['is_primary' => true, 'is_active' => true]);
+        \App\Services\RoomPhotoService::makePrimary($image);
 
         return back()->with('success', 'Primary photo updated.');
     }
@@ -435,26 +434,38 @@ class ReservationDeskController extends Controller
         if (empty($data['room_id']) && empty($data['room_type_id'])) {
             return back()->with('error', 'Choose a room or a room type for the photo.');
         }
+        // A photo of a room goes through the same store the room form uses, so a
+        // picture added here and one added while the room was created behave alike.
+        if (! empty($data['room_id'])) {
+            $room = \App\Models\Room::findOrFail($data['room_id']);
+            \App\Services\RoomPhotoService::store($room, $request->file('photo'), $data['caption'] ?? null);
+
+            return back()->with('success', 'Photo saved on the room record. It is not a stock picture.');
+        }
+
+        // Type-level photos stay keyed to the room type (room_id is null).
         $dir = public_path('uploads/room-images');
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
         $ext = $request->file('photo')->extension() ?: 'jpg';
-        $name = 'room-'.($data['room_id'] ?? 't'.$data['room_type_id']).'-'.now()->format('YmdHisv').'-'.bin2hex(random_bytes(4)).'.'.$ext;
+        $name = 'room-t'.$data['room_type_id'].'-'.now()->format('YmdHisv').'-'.bin2hex(random_bytes(4)).'.'.$ext;
         $request->file('photo')->move($dir, $name);
         $path = 'uploads/room-images/'.$name;
-        $primary = ! RoomImage::where('room_id', $data['room_id'] ?? null)->where('room_type_id', $data['room_type_id'] ?? null)->where('is_active', true)->exists();
+        $primary = ! RoomImage::whereNull('room_id')->where('room_type_id', $data['room_type_id'])->where('is_active', true)->exists();
         RoomImage::create([
-            'room_id' => $data['room_id'] ?? null, 'room_type_id' => $data['room_type_id'] ?? null,
+            'room_id' => null, 'room_type_id' => $data['room_type_id'],
             'path' => $path, 'caption' => $data['caption'] ?? null, 'is_primary' => $primary, 'is_active' => true,
         ]);
 
-        return back()->with('success', 'Photo saved on the room record. It is not a stock picture.');
+        return back()->with('success', 'Photo saved on the room type. It is not a stock picture.');
     }
 
     public function destroyImage(RoomImage $image)
     {
-        $image->update(['is_active' => false]);
+        // Hidden, not deleted — and the next photo takes over as primary, exactly
+        // as when a photo is taken off the room record in Masters.
+        \App\Services\RoomPhotoService::hide($image);
 
         return back()->with('success', 'Photo hidden from the desk.');
     }

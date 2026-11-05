@@ -25,6 +25,17 @@ The pane is gone. The preview is now the dashboard:
 | Icon sprite | `resources/views/partials/icons.blade.php` |
 | Page head, top bar | `resources/views/layouts/app.blade.php` |
 | Figures | fixed sample, `deploy/dev/preview/dashboard-sample.mjs` |
+| Shell, shared by every rendered screen | `deploy/dev/preview/app-shell.mjs` |
+
+The Rooms master screens are generated the same way, so the room photo upload on a
+room form is the upload the application has:
+
+| Piece | Comes from |
+| --- | --- |
+| Room form | `resources/views/masters/form.blade.php` |
+| Photo gallery | `resources/views/masters/room-photos.blade.php` |
+| Definition (fields, columns) | the `rooms` entry of `config/masters.php`, mirrored in `deploy/dev/preview/rooms-sample.mjs`; `room_photos_check.py` fails if the two drift |
+| Photos on the sample room | three photographs in `deploy/dev/previews/assets/`, served at `/preview-assets/` |
 
 ## Build and check
 
@@ -32,6 +43,10 @@ The pane is gone. The preview is now the dashboard:
 node deploy/dev/build-dashboard-preview.mjs           # writes previews/management-dashboard.html
 node deploy/dev/build-dashboard-preview.mjs --check   # exit 1 when the file on disk is stale
 node deploy/dev/audit/dashboard_preview_check.js      # 73 assertions about the rendered screen
+
+node deploy/dev/build-rooms-preview.mjs                # writes previews/rooms-create.html + rooms-edit.html
+node deploy/dev/build-rooms-preview.mjs --check        # exit 1 when either file is stale
+node deploy/dev/audit/rooms_preview_check.js           # 36 assertions about the two room screens
 ```
 
 `--check` now compares the whole regenerated page, so editing a dashboard view
@@ -85,5 +100,8 @@ PREVIEW_LANDING=management-dashboard PORT=4183 node deploy/dev/management-dashbo
 ```
 
 `/management-dashboard` and `/__preview/management-dashboard` serve the dashboard
-on either instance; `/previews` lists every screen. The server is read-only and
-serves only the previews folder, `public/css/*` and `public/images/*`.
+on either instance, `/rooms-create` and `/rooms-edit` the two room screens, and
+`/previews` lists every screen. `PREVIEW_LANDING=rooms-edit` opens an instance
+straight onto the room record. The server is read-only and serves only the
+previews folder (including its `assets/` at `/preview-assets/`), `public/css/*`
+and `public/images/*`.
