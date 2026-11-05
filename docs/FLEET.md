@@ -325,7 +325,7 @@ and the same `transport.fleet` permission as the screen.
 ```bash
 php artisan route:list --path=tr.fleet      # 7 screens, 1 JSON feed, 1 job card, 1 printable statement, 6 CSV downloads
 php artisan route:list --path=api/fleet     # ingest + health
-python3 deploy/dev/audit/fleet_management_check.py   # 62 static checks, no database needed
+python3 deploy/dev/audit/fleet_management_check.py   # 63 static checks, no database needed
 ```
 
 The static audit reads the code only; it cannot replace one real ingest from a real device. After

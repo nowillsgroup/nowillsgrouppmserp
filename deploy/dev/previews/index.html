@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UI previews · Nowills PMS</title>
+<title>Preview screens · Nowills PMS</title>
 <link rel="stylesheet" href="/css/app.css">
 <style>
   body { margin: 0; background: #f4f7f5; color: #102b1e; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -22,9 +22,8 @@
 </head>
 <body>
 <main class="pv">
-  <h1>UI previews</h1>
-  <p class="lead">Static, read-only screens for the redesigned dashboard and the fleet management module — overview, live tracking, maintenance and fuel. Nothing here connects to a database.</p>
-  <div class="pv-note" role="note"><strong>Illustrative only.</strong> Figures, vehicles and GPS positions are sample values; these pages create no records and call no operational services.</div>
+  <h1>Preview screens</h1>
+  <p class="lead">The built screens, as they look in the application, for configuration and development reference: dashboard, POS and guest menu, shift totals, fleet management and its printed documents.</p>
 
   <div class="pv-cards">
     <a class="pv-card" href="/__preview/management-dashboard">
@@ -77,6 +76,21 @@
       <h2>Monthly cost statement</h2>
       <p>The end-of-month statement accounts ask for: running cost per vehicle, GPS distance, cost per km, fleet totals and signature lines.</p>
     </a>
+    <a class="pv-card" href="/__preview/pos-dashboard">
+      <span class="pv-tag">Restaurant POS</span>
+      <h2>POS dashboard</h2>
+      <p>Sales, collections, orders, comps and turnover for the selected period, with leakage watch and revenue control.</p>
+    </a>
+    <a class="pv-card" href="/__preview/waiter-pos">
+      <span class="pv-tag">Restaurant POS</span>
+      <h2>Waiter · table picker</h2>
+      <p>The screen a waiter lands on at shift open: free and occupied tables, covers and running order value.</p>
+    </a>
+    <a class="pv-card" href="/__preview/sidebar-navigation">
+      <span class="pv-tag">Shell</span>
+      <h2>Sidebar navigation</h2>
+      <p>The application rail with every menu label, grouped navigation, module search and the mobile drawer.</p>
+    </a>
     <a class="pv-card" href="/__preview/fleet-tracking">
       <span class="pv-tag">Fleet</span>
       <h2>Live vehicle tracking</h2>
@@ -84,7 +98,7 @@
     </a>
   </div>
 
-  <p class="pv-foot">The real screens live in the application under <code>Dashboard</code> and <code>Transport › Fleet Management</code>. Served by the development preview server only.</p>
+  <p class="pv-foot">The real screens live in the application itself, behind the permissions that filter this same menu. Served by the development preview server only.</p>
 </main>
 </body>
 </html>

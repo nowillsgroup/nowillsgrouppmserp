@@ -141,10 +141,9 @@ class MenuItemsPolishTest(unittest.TestCase):
                 self.assertIn(marker, css)
         self.assertEqual(css.count("{"), css.count("}"), "app.css braces stay balanced")
 
-    def test_terminal_preview_shows_the_side_dish_step_and_is_ui_only(self):
+    def test_terminal_preview_shows_the_side_dish_step(self):
         preview = (ROOT / "deploy/dev/previews/pos-terminal.html").read_text()
         for marker in (
-            'UI-only preview', 'no operational records',
             'id="sideDishModal"', 'Side dish for Grilled chicken',
             'Continue with none if the guest does not want one.',
             'Rate and cost are optional in the menu master',
@@ -157,10 +156,11 @@ class MenuItemsPolishTest(unittest.TestCase):
                 self.assertIn(marker, preview)
         self.assertNotIn('<form method="post"', preview, 'the preview must not post to a live route')
         self.assertNotIn('type="checkbox" checked>', preview, 'every preview control is disabled, not interactive')
-        self.assertIn('<a href="/previews">← All previews</a>', preview)
+        self.assertNotIn('UI-only preview', preview, 'the preview shows the screen, not a notice about it')
+        self.assertIn('<!-- ', preview, 'provenance stays in a comment')
 
         guest_preview = (ROOT / "deploy/dev/previews/qr-menu.html").read_text()
-        for marker in ('UI-only preview', 'Side dish for Grilled chicken', 'included', '3 sides',
+        for marker in ('Side dish for Grilled chicken', 'included', '3 sides',
                        'Tick one or more, or continue with none.', 'items[n][variants][]'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, guest_preview)

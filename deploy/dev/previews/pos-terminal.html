@@ -1,13 +1,14 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<!DOCTYPE html>
+<!-- Static preview of this screen as built, kept by hand from its Blade view so the layout
+     can be read without a database. Figures are a fixed sample; the real screen reads
+     the tenant's own records. --><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>POS terminal · order placement — UI-only preview</title>
+<title>POS terminal · order placement</title>
 <link rel="stylesheet" href="/css/app.css">
 <style>
   :root{--pv-green:#168553;--pv-ink:#172033;--pv-muted:#718096;--pv-line:#dce5df}
   body{margin:0;background:#f4f7f5;color:var(--pv-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
   .pv-wrap{max-width:1500px;margin:0 auto;padding:clamp(14px,2vw,26px)}
-  .pv-banner{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;padding:11px 14px;border:1px solid #f2d69b;border-radius:12px;background:#fffaf0;color:#7a5a1c;font-size:.82rem;line-height:1.5}
-  .pv-banner strong{color:#63481a}
   .pv-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 12px}
   .pv-head h1{margin:0;font-size:clamp(1.4rem,2.6vw,1.9rem);letter-spacing:-.03em}
   .pv-head p{margin:5px 0 0;color:var(--pv-muted);font-size:.88rem}
@@ -18,13 +19,6 @@
 </style>
 </head><body>
 <main class="pv-wrap">
-  <div class="pv-banner" role="note">
-    <span aria-hidden="true">⚠</span>
-    <div><strong>UI-only preview – illustrative menu and draft, no operational records.</strong>
-      The real screen reads the outlet's menu, prices and side dishes from the tenant database and writes nothing here.
-      <div style="margin-top:.35rem"><a href="/previews">← All previews</a> · <a href="/pos-dashboard">POS dashboard</a> · <a href="/__preview/management-dashboard">Management dashboard</a></div>
-    </div>
-  </div>
 
   <div class="pv-head">
     <div>
@@ -52,8 +46,8 @@
         <div class="pos-menu-heading"><span class="pos-eyebrow">MENU CATALOG</span><h2>Build this order</h2>
           <div class="pos-menu-subline"><span class="small muted">Choose dishes to add to the kitchen ticket.</span><span class="pos-menu-count" role="status" aria-live="polite">10 items available</span></div></div>
         <div class="pos-menu-controls">
-          <label class="pos-search"><input class="input" type="search" placeholder="Search item or code… ( / )" aria-label="Search menu items by name or code" disabled title="Preview only"></label>
-          <button type="button" class="btn btn-accent" disabled title="Preview only">Open item</button>
+          <label class="pos-search"><input class="input" type="search" placeholder="Search item or code… ( / )" aria-label="Search menu items by name or code" disabled></label>
+          <button type="button" class="btn btn-accent" disabled>Open item</button>
         </div>
       </div>
 
@@ -67,52 +61,52 @@
         </nav>
 
         <div class="pos-items" id="posItems">
-          <button type="button" class="pos-item" disabled title="Preview only" data-name="Grilled chicken">
+          <button type="button" class="pos-item" disabled data-name="Grilled chicken">
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-118</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>Grilled chicken</b><span class="p">GH₵ 85.00</span><span class="tiny muted pos-food-label">3 sides</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only" data-name="Jollof rice &amp; chicken">
+          <button type="button" class="pos-item" disabled data-name="Jollof rice &amp; chicken">
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-104</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>Jollof rice &amp; chicken</b><span class="p">GH₵ 72.00</span><span class="tiny muted pos-food-label">2 sides</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only" data-name="Banku &amp; tilapia">
+          <button type="button" class="pos-item" disabled data-name="Banku &amp; tilapia">
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-109</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>Banku &amp; tilapia</b><span class="p">GH₵ 95.00</span><span class="tiny muted pos-food-label">2 sides</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">M-121</span><span class="tiny muted pos-food-label">Veg</span></span>
             <b>Palava sauce &amp; yam</b><span class="p">GH₵ 64.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">M-127</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>Club sandwich</b><span class="p">GH₵ 58.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">S-02</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>Fried plantain</b><span class="p">GH₵ 18.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">S-03</span><span class="tiny muted pos-food-label">Veg</span></span>
             <b>Garden salad</b><span class="p">GH₵ 22.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot non_veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot non_veg" aria-hidden="true"></span><span class="tiny muted">S-01</span><span class="tiny muted pos-food-label">Non-veg</span></span>
             <b>French fries</b><span class="p">GH₵ 20.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot veg"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot veg" aria-hidden="true"></span><span class="tiny muted">D-11</span><span class="tiny muted pos-food-label">Veg</span></span>
             <b>Chocolate mousse</b><span class="p">GH₵ 32.00</span>
           </button>
-          <button type="button" class="pos-item" disabled title="Preview only">
+          <button type="button" class="pos-item" disabled>
             <span class="pos-photo pos-photo-empty"><span class="veg-dot beverage"></span></span>
             <span class="pos-meta flex items-center gap-1"><span class="veg-dot beverage" aria-hidden="true"></span><span class="tiny muted">B-04</span><span class="tiny muted pos-food-label">Drink</span></span>
             <b>Fresh orange juice</b><span class="p">GH₵ 28.00</span>
@@ -124,29 +118,29 @@
     <div class="cart">
       <div class="card pos-ticket-card">
         <div class="card-head"><div class="pos-card-title"><span class="pos-card-icon" aria-hidden="true">🔔</span><div><h3>New kitchen ticket</h3><span class="tiny muted" role="status" aria-live="polite">3 items · 2 lines</span></div></div>
-          <button type="button" class="btn btn-sm btn-ghost" disabled title="Preview only">Clear</button></div>
+          <button type="button" class="btn btn-sm btn-ghost" disabled>Clear</button></div>
 
         <div class="card-body cart-lines">
           <div class="cart-line">
             <div class="flex gap-1"><div><b class="small">Grilled chicken</b><span class="tiny muted pos-unit-rate">GH₵ 97.50 each</span>
               <div class="tiny text-green">Side dishes: French fries +12.50</div>
-              <input class="input input-sm mt-1" aria-label="Kitchen note for Grilled chicken" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
-            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>1</span><button type="button" disabled title="Preview only">+</button></span>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Grilled chicken" placeholder="Note (less spicy…)" disabled></div></div>
+            <span class="qty"><button type="button" disabled>−</button><span>1</span><button type="button" disabled>+</button></span>
             <b class="small pos-line-amount">GH₵ 97.50</b>
           </div>
 
           <div class="cart-line">
             <div class="flex gap-1"><div><b class="small">Banku &amp; tilapia</b><span class="tiny muted pos-unit-rate">GH₵ 95.00 each</span>
               <div class="tiny text-green">Side dishes: Garden salad included</div>
-              <input class="input input-sm mt-1" aria-label="Kitchen note for Banku &amp; tilapia" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
-            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>2</span><button type="button" disabled title="Preview only">+</button></span>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Banku &amp; tilapia" placeholder="Note (less spicy…)" disabled></div></div>
+            <span class="qty"><button type="button" disabled>−</button><span>2</span><button type="button" disabled>+</button></span>
             <b class="small pos-line-amount">GH₵ 190.00</b>
           </div>
 
           <div class="cart-line">
             <div class="flex gap-1"><div><b class="small">Fresh orange juice</b><span class="tiny muted pos-unit-rate">GH₵ 28.00 each</span>
-              <input class="input input-sm mt-1" aria-label="Kitchen note for Fresh orange juice" placeholder="Note (less spicy…)" disabled title="Preview only"></div></div>
-            <span class="qty"><button type="button" disabled title="Preview only">−</button><span>1</span><button type="button" disabled title="Preview only">+</button></span>
+              <input class="input input-sm mt-1" aria-label="Kitchen note for Fresh orange juice" placeholder="Note (less spicy…)" disabled></div></div>
+            <span class="qty"><button type="button" disabled>−</button><span>1</span><button type="button" disabled>+</button></span>
             <b class="small pos-line-amount">GH₵ 28.00</b>
           </div>
         </div>
@@ -154,7 +148,7 @@
         <div class="card-foot pos-ticket-footer">
           <div class="pos-ticket-total"><span class="tiny muted pos-draft-label">Draft items total</span><b class="pos-draft-total"><span>GH₵</span> <span>315.50</span></b>
             <span class="tiny muted">Auto-route to station printers</span></div>
-          <button type="button" class="btn btn-accent" disabled title="Preview only">Send KOT</button>
+          <button type="button" class="btn btn-accent" disabled>Send KOT</button>
         </div>
       </div>
 
@@ -166,7 +160,7 @@
 <div class="modal show" id="sideDishModal" role="dialog" aria-modal="true" aria-labelledby="sideDishTitle">
   <div class="modal-box" style="max-width:520px">
     <div class="modal-head"><h3 id="sideDishTitle">Side dish for Grilled chicken</h3>
-      <button type="button" class="btn btn-ghost btn-icon" disabled title="Preview only" aria-label="Close">×</button></div>
+      <button type="button" class="btn btn-ghost btn-icon" disabled aria-label="Close">×</button></div>
     <div class="modal-body">
       <p class="small muted" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
       <fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0">
@@ -178,8 +172,8 @@
       </fieldset>
       <p class="tiny muted">Rate and cost are optional in the menu master: blank means the side is included in the dish price, so the bill never invents a charge for rice or salad.</p>
     </div>
-    <div class="modal-foot"><button type="button" class="btn" disabled title="Preview only">Cancel</button>
-      <button type="button" class="btn btn-primary" disabled title="Preview only">Continue</button></div>
+    <div class="modal-foot"><button type="button" class="btn" disabled>Cancel</button>
+      <button type="button" class="btn btn-primary" disabled>Continue</button></div>
   </div>
 </div>
 </body></html>

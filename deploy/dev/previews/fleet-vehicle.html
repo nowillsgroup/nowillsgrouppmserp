@@ -1,16 +1,17 @@
 <!doctype html>
+<!-- Static preview of this screen as built, kept by hand from its Blade view so the layout
+     can be read without a database. Figures are a fixed sample; the real screen reads
+     the tenant's own records. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fleet vehicle · UI preview</title>
+<title>Fleet vehicle</title>
 <link rel="stylesheet" href="/css/app.css">
 <link rel="stylesheet" href="/css/fleet.css">
 <style>
   body { margin: 0; background: #f6f8f6; }
   .pv-shell { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
-  .pv-banner { display: flex; gap: .6rem; align-items: flex-start; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; border-radius: 10px; padding: .75rem .9rem; font-size: .85rem; margin-bottom: 1rem; }
-  .pv-banner strong { display: block; }
   .pv-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
   .pv-head h1 { font-size: 1.35rem; margin: 0; }
   .pv-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -34,12 +35,6 @@
 </svg>
 
 <div class="pv-shell">
-  <div class="pv-banner">
-    <svg class="i"><use href="#i-alert"/></svg>
-    <div><strong>UI-only preview · illustrative values, not live property data.</strong>
-      No records are created. Every figure here is a layout example; the live page reads the tenant's own vehicles, trackers, work orders and expenses.
-      <a href="/previews">All previews</a> · <a href="/__preview/fleet-maintenance">Maintenance →</a> · <a href="/__preview/fleet-tracking">Live tracking →</a></div>
-  </div>
 
   <div class="pv-head">
     <div>
@@ -217,7 +212,6 @@
     </div>
   </div>
 
-  <p class="tiny muted" style="margin:1.4rem 0 .6rem">UI-only preview · <a href="/previews">all previews</a> · <a href="/__preview/fleet-overview">fleet overview</a> · <a href="/__preview/fleet-maintenance">maintenance</a> · <a href="/__preview/fleet-fuel">fuel</a> · <a href="/__preview/fleet-tracking">live tracking</a> · <a href="/__preview/fleet-work-order">job card</a></p>
 </div>
 </body>
 </html>
