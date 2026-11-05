@@ -1354,6 +1354,11 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
 
     // ---- Offline-first workspace and authenticated browser outbox
     Route::prefix('offline')->name('offline.')->controller(Controllers\OfflineSyncController::class)->middleware('throttle:120,1')->group(function () {
+        // The hub is what the service worker falls back to, so it carries no permission of its own.
+        Route::get('/', 'hub')->name('hub');
+        // v7.78 offline ordering: menu, tables and running orders on the device, orders queued and replayed.
+        Route::get('/pos', 'posWorkspace')->middleware('perm:pos.order,pos.view')->name('pos');
+        Route::get('/pos/snapshot', 'posSnapshot')->middleware('perm:pos.order,pos.view')->name('pos.snapshot');
         Route::get('/housekeeping', 'workspace')->middleware('perm:housekeeping.view,housekeeping.attendant,housekeeping.manage')->name('housekeeping');
         Route::get('/housekeeping/snapshot', 'housekeepingSnapshot')->middleware('perm:housekeeping.view,housekeeping.attendant,housekeeping.manage')->name('housekeeping.snapshot');
         Route::get('/guest-requests', 'guestRequests')->middleware('perm:requests.view,requests.manage')->name('guest_requests');

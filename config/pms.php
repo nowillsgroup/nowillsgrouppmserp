@@ -254,6 +254,7 @@ return [
                 ['label' => 'In-House Guests', 'route' => 'frontdesk.inhouse', 'perm' => 'frontdesk.view'],
                 ['label' => 'Departures', 'route' => 'frontdesk.departures', 'perm' => 'frontdesk.view'],
                 ['label' => 'Guest Requests', 'route' => 'requests.index', 'perm' => 'requests.view', 'badge' => 'guest_requests'],
+                ['label' => 'Offline POS Terminal', 'route' => 'offline.pos', 'perm' => 'pos.order'], // v7.78 works from a saved menu snapshot
                 ['label' => 'Offline Request Capture', 'route' => 'offline.guest_requests', 'perm' => 'requests.view'],
                 ['label' => 'Desktop Sync', 'route' => 'offline.desktop.workspace', 'perm' => 'offline.desktop.view'], // v7.39
             ]],

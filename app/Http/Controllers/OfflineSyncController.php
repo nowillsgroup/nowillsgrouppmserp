@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\OfflinePosService;
 use App\Services\OfflineSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,9 +10,26 @@ use Illuminate\Http\Request;
 /** Authenticated browser outbox endpoints for replay-safe offline operations. */
 class OfflineSyncController extends Controller
 {
+    /** The offline hub: what this device can still do with no connection. */
+    public function hub()
+    {
+        return view('offline.index');
+    }
+
     public function workspace()
     {
         return view('offline.housekeeping');
+    }
+
+    /** Restaurant ordering that keeps working when the connection does not. */
+    public function posWorkspace()
+    {
+        return view('offline.pos');
+    }
+
+    public function posSnapshot(Request $request): JsonResponse
+    {
+        return response()->json(OfflinePosService::snapshot($request->user()), 200, ['Cache-Control' => 'no-store']);
     }
 
     public function housekeepingSnapshot(Request $request): JsonResponse
