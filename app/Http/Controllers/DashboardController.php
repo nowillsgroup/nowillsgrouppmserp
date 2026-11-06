@@ -42,6 +42,7 @@ class DashboardController extends Controller
         $sellable = $sellableRooms->count();
         $occupied = $sellableRooms->where('status', 'occupied')->count();
         $unavailable = $unavailableIds->count();
+        $dirty = $rooms->where('hk_status', 'dirty')->count();
         $arrivalsQuery = ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $d);
         $canSeeFrontDeskMetrics = can_do('frontdesk.view') || can_do('reservations.view');
         $arrivalCounts = $canSeeFrontDeskMetrics
@@ -190,7 +191,7 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'total' => $total, 'sellable' => $sellable, 'occupied' => $occupied, 'vacant' => $sellableRooms->where('status', 'vacant')->count(), 'unavailable' => $unavailable,
-            'dirty' => $rooms->where('hk_status', 'dirty')->count(), 'arrivals' => $arrivals, 'arrivalsCount' => $arrivalsCount,
+            'dirty' => $dirty, 'arrivals' => $arrivals, 'arrivalsCount' => $arrivalsCount,
             'departures' => $departures, 'departuresCount' => $departuresCount,
             'arrivalsCheckedIn' => $arrivalsCheckedIn, 'arrivalsExpected' => $arrivalsExpected, 'inHouseGuests' => $inHouseGuests,
             'occPct' => $occPct, 'canSeeFinance' => $canSeeFinance,

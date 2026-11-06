@@ -68,7 +68,7 @@ return new class extends Migration
                 $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
                 $table->timestamps();
                 $table->index(['hotel_id', 'is_active', 'due_date']);
-                $table->index(['vehicle_id', 'is_active', 'due_odometer']);
+                $table->index(['vehicle_id', 'is_active', 'due_odometer'], 'vmp_vehicle_active_odometer_index');
             });
         }
 

@@ -48,3 +48,6 @@ deploy/dev/previews/*-snapshot.png
 
 # Release/build archives are artifacts, not source.
 *.zip
+
+# Lock file created after web installer completes
+/storage/framework/installed.lock
