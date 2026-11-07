@@ -20,6 +20,7 @@
 @endsection
 
 @section('content')
+<div class="ws-screen">
 @php
   $businessDate = $businessDate ?? bdate()->copy()->startOfDay();
   $isToday = $date->toDateString() === $businessDate->toDateString();
@@ -550,6 +551,8 @@
     @endif
   </div>
 </div>
+
+</div>{{-- /ws-screen: the room dialogs are fixed overlays and must not inherit its containing block --}}
 
 {{-- Room detail modals --}}
 @foreach ($cards as $c)
@@ -1290,6 +1293,7 @@
 
 @push('head')
 <style>
+.ws-screen{container-type:inline-size;container-name:wsscreen}
 .ws-head{position:relative;isolation:isolate;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;overflow:hidden;margin:2px 0 12px;padding:16px 18px;border:1px solid rgba(20,83,45,.12);border-radius:14px;color:#fff;background:radial-gradient(circle at 86% 5%,rgba(191,235,201,.2),transparent 27%),linear-gradient(118deg,#103a23,#176239 66%,#247849);box-shadow:0 12px 28px rgba(20,83,45,.12)}
 .ws-head:after{position:absolute;z-index:-1;right:11%;bottom:-76px;width:200px;height:200px;border:1px solid rgba(255,255,255,.12);border-radius:50%;content:"";pointer-events:none}
 .ws-head-main{position:relative;z-index:1;flex:1;min-width:0}
@@ -1538,16 +1542,21 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile .i{width:17px;height:17px;color:#15803d}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
-@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}}
+@container wsscreen (max-width:908px){.ws-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}}
 /* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
    was still beside the board but the board was too narrow for four cards, so the row went down to three wide
-   ones and then jumped back to five the moment the window crossed 1200. The rail now steps aside at 1360,
-   where the board is already down to four — and below that the rail spreads into its own columns instead of
-   running as one tall strip under the board. */
-@media (max-width:1360px){.ws-body{grid-template-columns:1fr}
-  .ws-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;align-items:start}}
-@media (max-width:980px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:680px){
+   ones and then jumped back to five the moment the window crossed 1200. The rail steps aside where the board
+   is already down to four.
+
+   v10.16 it steps aside on the screen's width rather than the window's, and it flows DOWN its columns instead
+   of across them: the rail is ranked — what needs acting on first is first — and a row-flowed grid puts the
+   second item to the right of the first, which reads as second-best. Multi-column keeps the ranking in the
+   reading order, which is the only order this list has. */
+@container wsscreen (max-width:1068px){.ws-body{grid-template-columns:1fr}
+  .ws-rail{display:block;columns:260px;column-gap:10px}
+  .ws-rail-card{break-inside:avoid;margin:0 0 10px}}
+@container wsscreen (max-width:688px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsscreen (max-width:388px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}
   .ws-head>div:first-child{width:100%;min-width:0}
   .ws-head-side{width:100%;justify-content:flex-start}
@@ -1741,9 +1750,9 @@ body.dark .ws-keys kbd{background:#18281e;border-color:var(--c-border);color:#c1
 body.dark .ws-chip{background:#143323;border-color:#3b5946;color:#86efac}
 body.dark .ws-chip button{background:#193525;color:#86efac}
 body.dark a.ws-attention-row:hover{background:#193525}
-@media (max-width:1180px){.ws-keys{display:none}}
-@media (max-width:980px){.ws-cmd{position:static}.ws-rack-table{min-width:760px}}
-@media (max-width:680px){
+@container wsscreen (max-width:888px){.ws-keys{display:none}}
+@container wsscreen (max-width:688px){.ws-cmd{position:static}.ws-rack-table{min-width:760px}}
+@container wsscreen (max-width:388px){
   .ws-toolbar{gap:8px}
   .ws-viewswitch{flex:1}
   .ws-vs-btn{flex:1;justify-content:center}

@@ -121,11 +121,23 @@ ok('a board wide enough for more than five never settles for five fat cards',
 // v10.15 the rail steps aside where the board is already down to four, not at 1200 where it forced three,
 // and it spreads into its own columns underneath instead of running as one tall strip.
 ok('the rail steps aside before it squeezes the board into three',
-  /@media \(max-width:1360px\)\{\.ws-body\{grid-template-columns:1fr/.test(wsStyle)
-    && /@media \(max-width:1360px\)\{[\s\S]{0,200}\.ws-rail\{display:grid/.test(wsStyle),
-  wsStyle.match(/@media \(max-width:1360px\)\{[\s\S]{0,240}/)?.[0]?.replace(/\s+/g, ' '));
+  /@container wsscreen \(max-width:1068px\)\{\.ws-body\{grid-template-columns:1fr/.test(wsStyle),
+  wsStyle.match(/@container wsscreen \(max-width:1068px\)\{[\s\S]{0,160}/)?.[0]?.replace(/\s+/g, ' '));
 ok('and the board keeps every column it had while the rail is beside it',
-  /@media \(max-width:1200px\)\{\.ws-kpis/.test(wsStyle) && /\.ws-body\{display:grid;grid-template-columns:1fr 320px/.test(wsStyle));
+  /\.ws-body\{display:grid;grid-template-columns:1fr 320px/.test(wsStyle));
+// v10.16 the anchored rail is ranked: what needs acting on first is first. A row-flowed grid put the second
+// item to the RIGHT of the first, which reads as second-best; multi-column keeps the ranking in the order you
+// read. The check holds both the mechanism and the meaning.
+ok('the stacked rail keeps its ranking in the reading order',
+  /\.ws-rail\{display:block;columns:260px/.test(wsStyle)
+    && /\.ws-rail-card\{break-inside:avoid/.test(wsStyle)
+    && /@container wsscreen \(max-width:1068px\)\{[\s\S]{0,200}\.ws-rail\{display:block/.test(wsStyle),
+  wsStyle.match(/\.ws-rail\{[^}]*\}/g)?.join(' | '));
+const railOrder = $$('.ws-rail .ws-rail-card')
+  .map(card => (card.querySelector('.ws-rail-title')?.textContent ?? '').replace(/\s+/g, ' ').trim());
+ok('and the list is still ranked the way it is written, attention first',
+  /NEEDS ATTENTION/.test(railOrder[0] ?? '') && railOrder.length >= 5,
+  railOrder.slice(0, 5).join(' → '));
 ok('the card is its own container, so the action row can answer to the card',
   /\.ws-card\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-card\{[^}]*container-name:wscard/.test(wsStyle),
   wsStyle.match(/\.ws-card\{[^}]*\}/)?.[0]?.slice(0, 120));
@@ -144,6 +156,28 @@ ok('and each one is still reachable in the room dialog, as the same form',
 ok('the dialog says what that block is for',
   $$('.ws-modal .ws-modal-actions').every(block => /ROOM ACTIONS/.test(block.previousElementSibling?.textContent ?? '')),
   $$('.ws-modal .ws-modal-actions')[0]?.previousElementSibling?.textContent?.trim());
+ok('the screen itself is a container, so the header answers to it too',
+  /\.ws-screen\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-screen\{[^}]*container-name:wsscreen/.test(wsStyle),
+  wsStyle.match(/\.ws-screen\{[^}]*\}/)?.[0]);
+// a container establishes a containing block for position:fixed descendants, and every room dialog is a fixed
+// overlay: if one ever landed inside .ws-screen it would be pinned to the screen box and scroll away with it
+ok('the room dialogs sit outside the screen container, where a fixed overlay belongs',
+  $$('.ws-screen .ws-modal').length === 0 && $$('.ws-modal').length === cards.length,
+  `${$$('.ws-modal').length} dialogs, none inside .ws-screen`);
+ok('and the board, the rail and the KPI strip sit inside it',
+  $$('.ws-screen #wsGrid').length === 1 && $$('.ws-screen .ws-rail').length === 1 && $$('.ws-screen .ws-kpis').length === 1);
+ok('the KPI strip, filters, toolbar and shortcut hints switch on the screen\'s width',
+  /@container wsscreen \(max-width:908px\)\{\.ws-kpis\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:688px\)\{\.ws-kpis\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:388px\)\{\s*\.ws-head\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:388px\)\{\s*\.ws-toolbar\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:888px\)\{\.ws-keys\{display:none\}/.test(wsStyle),
+  'one width decides the whole screen');
+ok('and none of them is still counting the window',
+  !/@media \(max-width:\d+px\)\{\.ws-kpis/.test(wsStyle)
+    && !/@media \(max-width:\d+px\)\{\.ws-keys/.test(wsStyle)
+    && !/@media \(max-width:\d+px\)\{\.ws-cmd/.test(wsStyle),
+  'the screen-level breakpoints are container queries now');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',
