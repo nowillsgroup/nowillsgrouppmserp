@@ -32,6 +32,14 @@ class ProcurementController extends Controller
 
     // ─────────────── RFQs ───────────────
 
+    /**
+     * v9.27: the register of the only document where a price is decided by competition.
+     *
+     * It could say how many requests were sent and how many quotes came back. It could not say whether anybody answered
+     * — an invited supplier who opened the link and never replied is not the same as one who declined — whether the
+     * deadline had run out with no award made, or what the competition actually bought. Those three readings come from
+     * three different records: the invitation tokens, the deadline dates, and the award on each line.
+     */
     public function rfqs(Request $request)
     {
         $status = $request->status;
@@ -39,8 +47,106 @@ class ProcurementController extends Controller
             ->when($status === 'open', fn ($q) => $q->whereIn('status', Rfq::OPEN), fn ($q) => $q->when($status, fn ($w, $s) => $w->where('status', $s)))
             ->latest('id')->paginate(25)->withQueryString();
 
-        return view('procurement.rfqs', ['rfqs' => $rfqs, 'status' => $status, 'ready' => ProcurementService::readyToAward(),
-            'counts' => Rfq::selectRaw('status, COUNT(*) n')->groupBy('status')->pluck('n', 'status')]);
+        $min = ProcurementService::minQuotes();
+
+        /* ── what came back: every invitation on every request still asking for an answer ── */
+        $live = Rfq::with('invites.supplier')->withCount('quotes')->whereIn('status', ['sent', 'closed'])->get();
+        $invites = $live->flatMap(fn ($r) => $r->invites->map(fn ($i) => ['rfq' => $r, 'invite' => $i]));
+        $declined = $invites->filter(fn ($r) => $r['invite']->declined_at && ! $r['invite']->responded_at)->values();
+        $silent = $invites->filter(fn ($r) => ! $r['invite']->responded_at && ! $r['invite']->declined_at && $r['invite']->viewed_at)->values();
+        $ignored = $invites->filter(fn ($r) => ! $r['invite']->responded_at && ! $r['invite']->declined_at && ! $r['invite']->viewed_at)->values();
+        $quoted = (int) $live->sum('quotes_count');
+        $response = [
+            'requests' => $live->count(), 'invited' => $invites->count(), 'quoted' => $quoted,
+            'rate' => $invites->count() ? round($quoted / $invites->count() * 100, 1) : 0.0,
+            'declined' => $declined->count(), 'silent' => $silent->count(), 'ignored' => $ignored->count(),
+            'rows' => $silent->take(6)->map(fn ($r) => ['rfq_no' => $r['rfq']->rfq_no, 'rfq_id' => $r['rfq']->id,
+                'supplier' => $r['invite']->supplier?->name, 'viewed' => $r['invite']->viewed_at,
+                'deadline' => $r['rfq']->respond_by])->all(),
+            'declined_rows' => $declined->take(4)->map(fn ($r) => ['supplier' => $r['invite']->supplier?->name,
+                'reason' => $r['invite']->decline_reason, 'rfq_no' => $r['rfq']->rfq_no])->all(),
+        ];
+        $response['sub'] = $response['invited']
+            ? $response['quoted'].' of '.$response['invited'].' invited suppliers answered — '.$response['rate'].'%'
+            : 'no supplier has been invited to quote';
+
+        /* ── the clock: deadlines that ran out with no award made ── */
+        // the same definition the sidebar badge and the alert use, reloaded with the counts the card prints
+        $ready = ProcurementService::readyToAward()->pluck('id');
+        $ready = Rfq::withCount(['quotes', 'invites'])->whereIn('id', $ready)->orderBy('respond_by')->get();
+        $oldest = $ready->first();
+        $clock = [
+            'ready' => $ready->count(), 'min' => $min,
+            'oldest_days' => $oldest ? (int) $oldest->respond_by->diffInDays(bdate()) : 0,
+            'oldest' => $oldest,
+            'short' => $ready->filter(fn ($r) => $r->quotes_count < $min)->count(),
+            'noquotes' => $ready->filter(fn ($r) => $r->quotes_count === 0)->count(),
+            'closing' => Rfq::where('status', 'sent')->whereDate('respond_by', '>=', bdate()->toDateString())
+                ->whereDate('respond_by', '<=', bdate()->copy()->addDays(2)->toDateString())->count(),
+            'rows' => $ready->take(6)->map(fn ($r) => [
+                'id' => $r->id, 'rfq_no' => $r->rfq_no, 'title' => $r->title, 'quotes' => $r->quotes_count,
+                'invites' => (int) $r->invites_count, 'deadline' => $r->respond_by,
+                'days' => (int) $r->respond_by->diffInDays(bdate()), 'short' => $r->quotes_count < $min,
+            ])->all(),
+        ];
+        $clock['sub'] = $clock['ready']
+            ? $clock['ready'].' request'.($clock['ready'] === 1 ? '' : 's').' waiting on an award, the oldest '.$clock['oldest_days'].' days'
+            : 'nothing is waiting on an award decision';
+
+        /* ── what the competition bought, on the awards made this month ── */
+        $awarded = Rfq::with('lines.item', 'lines.awardedLine', 'quotes.lines', 'awarder', 'purchaseOrders.supplier')
+            ->where('status', 'awarded')->whereDate('awarded_at', '>=', bdate()->startOfMonth()->toDateString())->get();
+        $placed = 0.0; $cheapest = 0.0; $dearest = 0.0; $extra = 0.0; $away = 0; $justified = 0;
+        $awardRows = [];
+        foreach ($awarded as $r) {
+            $cmp = ProcurementService::comparative($r);
+            $rfqPlaced = 0.0; $rfqCheapest = 0.0; $rfqDearest = 0.0; $rfqAway = 0; $rfqExtra = 0.0;
+            foreach ($cmp['rows'] as $row) {
+                $line = $row['line'];
+                $qty = (float) $line->qty;
+                $bids = collect($row['cells'])->filter()->map(fn ($c) => (float) $c['landed']);
+                if ($bids->isNotEmpty()) {
+                    $rfqCheapest += round($qty * (float) $bids->min(), 2);
+                    $rfqDearest += round($qty * (float) $bids->max(), 2);
+                }
+                $ql = $line->awardedLine;
+                if (! $ql) {
+                    continue;
+                }
+                $amount = round($qty * $ql->landed(), 2);
+                $rfqPlaced += $amount;
+                if ($row['lowest'] !== null && (int) $row['lowest'] !== (int) $ql->id) {
+                    $rfqAway++;
+                    $rfqExtra += round($amount - $qty * (float) $row['lowestLanded'], 2);
+                    if (filled($line->award_reason)) {
+                        $justified++;
+                    }
+                }
+            }
+            $placed += $rfqPlaced; $cheapest += $rfqCheapest; $dearest += $rfqDearest; $extra += $rfqExtra; $away += $rfqAway;
+            $awardRows[] = ['id' => $r->id, 'rfq_no' => $r->rfq_no, 'title' => $r->title,
+                'supplier' => $r->purchaseOrders->first()?->supplier?->name, 'awarded_at' => $r->awarded_at,
+                'placed' => round($rfqPlaced, 2), 'cheapest' => round($rfqCheapest, 2), 'dearest' => round($rfqDearest, 2),
+                'saved' => round($rfqDearest - $rfqPlaced, 2), 'away' => $rfqAway, 'extra' => round($rfqExtra, 2),
+                'quotes' => $r->quotes?->count() ?? 0];
+        }
+        $award = ['count' => $awarded->count(), 'placed' => round($placed, 2), 'cheapest' => round($cheapest, 2),
+            'dearest' => round($dearest, 2), 'saved' => round($dearest - $placed, 2), 'away' => $away,
+            'extra' => round($extra, 2), 'justified' => $justified, 'rows' => $awardRows];
+        $award['away_sub'] = $award['away']
+            ? $award['away'].' line'.($award['away'] === 1 ? '' : 's').' went to a supplier who was not the lowest bidder — '
+                .($award['justified'] === $award['away'] ? 'each one carries a written justification'
+                    : ($award['justified'] === 0 ? 'none of them carries a written justification' : $award['justified'].' of them carry a written justification'))
+                .', and together they cost '.money($award['extra']).' more than the lowest bid'
+            : 'every line went to the lowest bidder';
+        $award['sub'] = $award['count']
+            ? money($award['saved']).' under the dearest bid, on '.money($award['placed']).' placed'
+            : 'no award has been made this month';
+        $award['tone'] = ! $award['count'] ? 'slate' : ($award['justified'] < $award['away'] ? 'red' : ($award['away'] ? 'amber' : 'green'));
+
+        return view('procurement.rfqs', ['rfqs' => $rfqs, 'status' => $status, 'ready' => $ready,
+            'counts' => Rfq::selectRaw('status, COUNT(*) n')->groupBy('status')->pluck('n', 'status'),
+            'response' => $response, 'clock' => $clock, 'award' => $award, 'min' => $min]);
     }
 
     public function create(Request $request)

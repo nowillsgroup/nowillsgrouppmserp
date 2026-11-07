@@ -4438,6 +4438,61 @@ ok('the gate did not change because the invoice did' in po_check,
 ok("/po-show-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26ax · the RFQ register: who answered, who is waiting, what competition bought ────
+rf_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/ProcurementController.php'))
+rf_fn = rf_ctrl[rf_ctrl.index('public function rfqs(Request $request)'):rf_ctrl.index('public function create(Request $request)')]
+ok("$live = Rfq::with('invites.supplier')->withCount('quotes')->whereIn('status', ['sent', 'closed'])->get();" in rf_fn,
+   'the response is counted over every request still asking for an answer, not only the page being shown')
+ok("$silent = $invites->filter(fn ($r) => ! $r['invite']->responded_at && ! $r['invite']->declined_at && $r['invite']->viewed_at)->values();" in rf_fn,
+   'a supplier who opened the request and never replied is told apart from one who declined')
+ok("$declined = $invites->filter(fn ($r) => $r['invite']->declined_at && ! $r['invite']->responded_at)->values();" in rf_fn,
+   'and a refusal is an answer, counted with the reason it gave')
+ok("'rate' => $invites->count() ? round($quoted / $invites->count() * 100, 1) : 0.0," in rf_fn,
+   'the answer rate is quotes over invitations, not a count of quotes on its own')
+ok("$ready = ProcurementService::readyToAward()->pluck('id');" in rf_fn,
+   'the queue uses the same readyToAward() definition the sidebar badge and the alert use')
+ok("$ready = Rfq::withCount(['quotes', 'invites'])->whereIn('id', $ready)->orderBy('respond_by')->get();" in rf_fn,
+   'reloaded with counts and ordered by how long each has waited, so no row queries per request')
+ok("'short' => $ready->filter(fn ($r) => $r->quotes_count < $min)->count()," in rf_fn,
+   'a request holding fewer quotes than minQuotes() is counted before an award is made')
+ok("$cmp = ProcurementService::comparative($r);" in rf_fn,
+   'the savings reading is the award screen\'s own comparison, line by line')
+ok("$rfqCheapest += round($qty * (float) $bids->min(), 2);" in rf_fn and "$rfqDearest += round($qty * (float) $bids->max(), 2);" in rf_fn,
+   'cheapest and dearest are computed for the same lines, so the two figures are comparable')
+ok("if ($row['lowest'] !== null && (int) $row['lowest'] !== (int) $ql->id) {" in rf_fn,
+   'a line that did not take the lowest bid is counted, and so is its justification')
+ok("if (filled($line->award_reason)) {" in rf_fn,
+   'the justification is read from the line the award screen writes it to')
+rf_view = read(os.path.join(ROOT, 'resources/views/procurement/rfqs.blade.php'))
+ok('id="rfqResponse"' in rf_view and 'What came back' in rf_view and 'Opened, silent' in rf_view,
+   'the page asks who answered, and separates a refusal from silence')
+ok('id="silentTable"' in rf_view and '$r[\'viewed\']' in rf_view,
+   'the silent suppliers are named with the moment they opened the request')
+ok('id="rfqClock"' in rf_view and 'Waiting on an award decision' in rf_view and 'id="clockTable"' in rf_view,
+   'the queue is a table ordered by how long each request has waited')
+ok('$clock[\'min\']' in rf_view and 'has to be justified' in rf_view,
+   'the minimum is the property\'s setting, and the page says what a short award means')
+ok('id="rfqAward"' in rf_view and 'What the competition bought' in rf_view and 'id="awardTable"' in rf_view,
+   'what the competition bought is a card with placed, cheapest, dearest and away-from-lowest')
+ok("$award['away_sub']" in rf_view,
+   'the sentence about unjustified awards is built once, in the controller')
+ok('id="rfqChain"' in rf_view and 'argued for: the requisition says what is needed' in rf_view,
+   'the page places the register where the price is decided')
+ok('id="rfqTable"' in rf_view and '$rfqs->links()' in rf_view,
+   'the paginated register itself is unchanged')
+rf_sample = read(os.path.join(ROOT, 'deploy/dev/preview/rfqs-sample.mjs'))
+ok('const awardFor = (list) => {' in rf_sample and 'const AWARDS_DRIFT = [' in rf_sample,
+   'the sample builds the award reading from whichever month the build is drawing')
+ok('export function rfqsContext({ drift = false } = {}) {' in rf_sample,
+   'and both builds render from the same sample, so only the awards differ')
+rf_check = read(os.path.join(ROOT, 'deploy/dev/audit/rfqs_preview_check.js'))
+ok('a refusal is treated as an answer' in rf_check,
+   'the check holds the card to the distinction it exists to make')
+ok('the register itself did not change' in rf_check,
+   'and holds the drift build to changing the awards and nothing else')
+ok("/rfqs-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
