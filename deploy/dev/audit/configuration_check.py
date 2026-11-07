@@ -4815,6 +4815,56 @@ ok('tv-dining' in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-previ
 ok('In-room dining on the television' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'and the gallery lists it')
 
+# ── 26ee · a side dish you sell is a side dish you cost (v9.34) ──
+pmv = read(os.path.join(ROOT, 'app/Services/PosMenuVariantService.php'))
+ok("'cost' => round((float) $variant->cost, 2)," in pmv,
+   'the bill line records the side dish\'s cost at the moment of sale, so a re-priced side never rewrites last month')
+fb = read(os.path.join(ROOT, 'app/Services/FbCostService.php'))
+ok('protected static function scanSides(string $from, string $to, ?int $outletId = null, bool $comps = false): array' in fb,
+   'the cost of every side sold is read back from the bills')
+ok("if (($side['type'] ?? null) !== 'side_dish' || ! isset($side['id'])) {" in fb,
+   'only side dishes are counted, not the options beside them')
+ok("$n = max(1, (int) ($side['qty'] ?? 1)) * (float) $line->qty;" in fb,
+   'a portion of the dish carries its side, so two portions carry two')
+ok("$fallback ??= MenuItemVariant::pluck('cost', 'id');" in fb,
+   'a line written before the cost was recorded falls back to the side\'s cost on the master today')
+ok("$rows[$id]['gp_pct'] = $row['revenue'] > 0 ? round($row['gp'] / $row['revenue'] * 100, 1) : null;" in fb.replace("$row['gp_pct']", "$rows[$id]['gp_pct']"),
+   'a side dish that earns nothing has no margin rather than a division by zero')
+ok("'rows' => $rows, 'by_item' => $byItem, 'by_day' => $byDay," in fb,
+   'the scan serves the screen, the menu engineering worksheet and the daily cost statement from one read')
+ok("$out[$d][$c]['theoretical'] += (float) $sideCost[$d][$s->menu_item_id];" in fb,
+   'the theoretical cost of the day includes the sides sold that day, because the revenue already does')
+ok("$portion = $cost !== null ? round($cost + (float) $sidePp, 2) : null;" in fb,
+   'a dish is costed with the sides it was sold with')
+ok("'cm' => $portion !== null ? round($price - $portion, 2) : null," in fb,
+   'so its contribution margin is the margin that is really left')
+ok("$sides = self::sideCostByItem($from, $to, $outletId);" in fb,
+   'and the attribution is per dish, over the same period and outlet as the worksheet')
+fbc = read(os.path.join(ROOT, 'app/Http/Controllers/FbCostController.php'))
+ok('public function sides(Request $r)' in fbc and "return view('fbc.sides', ['sides' => FC::sideDishes($from, $to, $outlet)" in fbc,
+   'the cost controller serves the side-dish screen over the period and outlet')
+ok("Route::get('/side-dishes', 'sides')->name('sides');" in read(os.path.join(ROOT, 'routes/web.php')),
+   'on its own route')
+ok("['label' => 'Side Dishes Sold', 'route' => 'fbc.sides', 'perm' => 'fbc.view']," in read(os.path.join(ROOT, 'config/pms.php')),
+   'and it sits in the F&B Cost Control menu')
+fbc_view = read(os.path.join(ROOT, 'resources/views/fbc/sides.blade.php'))
+ok('id="fbcSides"' in fbc_view and "money($r['gp'])" in fbc_view,
+   'the screen prints revenue, cost and the gross profit between them for each side dish')
+ok('route(\'masters.index\', \'menu-items\')' in fbc_view,
+   'and points at the menu master where the side\'s cost is kept')
+ok("{{ money($r->cost) }}@if($r->side_pp) <span class=\"tiny muted\">+ {{ money($r->side_pp) }} sides</span>@endif" in read(os.path.join(ROOT, 'resources/views/fbc/menu.blade.php')),
+   'the menu-engineering worksheet says when a side dish is part of the plate cost')
+ok('side dishes</a>' in read(os.path.join(ROOT, 'resources/views/fbc/index.blade.php')),
+   'the cost dashboard links to it')
+ok('fbc-sides' in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the preview server serves it')
+ok('Side dishes sold · what they earned and cost' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the gallery lists it')
+ok("ok('every row\\'s gross profit is revenue less cost'" in read(os.path.join(ROOT, 'deploy/dev/audit/fbc_sides_preview_check.js')),
+   'the preview check holds every row to its own arithmetic')
+ok("ok('the rows add up to the cost claimed'" in read(os.path.join(ROOT, 'deploy/dev/audit/fbc_sides_preview_check.js')),
+   'and the rows to the total the header claims')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

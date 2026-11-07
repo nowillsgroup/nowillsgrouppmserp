@@ -62,7 +62,7 @@
       </tbody></table></div></div>
   </div>
   <div>
-    <div class="card"><div class="card-head"><h3>Menu mix – last 28 days</h3><a class="small" href="{{ route('fbc.menu') }}">matrix</a></div><div class="card-body" id="fbcMix">
+    <div class="card"><div class="card-head"><h3>Menu mix – last 28 days</h3><span class="small"><a href="{{ route('fbc.menu') }}">matrix</a> · <a href="{{ route('fbc.sides') }}">side dishes</a></span></div><div class="card-body" id="fbcMix">
       <div class="fbc-quad">
         @foreach(\App\Services\FbCostService::CLASSES as $ck => [$cl, $tone, $act])<a class="q q-{{ $ck }}" href="{{ route('fbc.menu') }}#me-{{ $ck }}"><b>{{ $me['counts'][$ck] }}</b><span>{{ $cl }}s</span></a>@endforeach
       </div>

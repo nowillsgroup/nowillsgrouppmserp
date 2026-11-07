@@ -163,6 +163,21 @@ class FbCostController extends Controller
             'outlets' => Outlet::orderBy('name')->get(), 'categories' => MenuCategory::orderBy('sort_order')->get(), 'cfg' => FC::cfg()]);
     }
 
+    /**
+     * The side dishes sold over the period: what they earned, what they cost, what they kept (v9.34).
+     *
+     * A side dish is priced and costed on its own, so it deserves its own line rather than disappearing into the dish it
+     * was ordered with. The cost is the one in force when it was sold: a re-priced side does not rewrite last month.
+     */
+    public function sides(Request $r)
+    {
+        [$from, $to] = $this->period($r);
+        $outlet = $r->integer('outlet') ?: null;
+
+        return view('fbc.sides', ['sides' => FC::sideDishes($from, $to, $outlet), 'from' => $from, 'to' => $to,
+            'outlets' => Outlet::orderBy('name')->get(), 'outlet' => $outlet, 'cfg' => FC::cfg()]);
+    }
+
     // ------------------------------------------------------------------ cost statement
 
     public function statement(Request $r)

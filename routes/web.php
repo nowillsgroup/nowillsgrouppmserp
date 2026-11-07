@@ -2119,6 +2119,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::get('/recipes/{fbdish}', 'card')->whereNumber('fbdish')->name('card');
             Route::get('/recipes/{fbdish}/print', 'cardPrint')->whereNumber('fbdish')->name('card.print');
             Route::get('/menu-engineering', 'menu')->name('menu');
+            Route::get('/side-dishes', 'sides')->name('sides'); // v9.34 what the side dishes earned and cost
             Route::get('/statement', 'statement')->name('statement');
             Route::get('/variance', 'variance')->name('variance');
             Route::get('/pricing', 'pricing')->name('pricing');

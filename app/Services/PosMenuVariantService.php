@@ -41,6 +41,9 @@ class PosMenuVariantService
             $snapshots[] = [
                 'type' => 'side_dish', 'id' => $variant->id, 'group' => 'Side dishes',
                 'name' => $variant->name, 'price_delta' => $rate, 'qty' => $qty,
+                // v9.34 the side carries the cost in force when it was sold, so the food cost and the margin of the dish
+                // it was ordered with are not silently overstated by its own cost
+                'cost' => round((float) $variant->cost, 2),
             ];
         }
 

@@ -314,6 +314,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/guest-dining.html');
   } else if (pathname === '/tv-dining' || pathname === '/__preview/tv-dining') {
     file = resolve(ROOT, 'deploy/dev/previews/tv-dining.html');
+  } else if (pathname === '/fbc-sides' || pathname === '/__preview/fbc-sides') {
+    file = resolve(ROOT, 'deploy/dev/previews/fbc-sides.html');
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
   } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {

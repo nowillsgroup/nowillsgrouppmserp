@@ -557,6 +557,7 @@ return [
                 ['label' => 'Cost Dashboard', 'route' => 'fbc.index', 'perm' => 'fbc.view', 'badge' => 'fbc_attention'],
                 ['label' => 'Recipe Cards & Plate Cost', 'route' => 'fbc.recipes', 'perm' => 'fbc.view'],
                 ['label' => 'Menu Engineering', 'route' => 'fbc.menu', 'perm' => 'fbc.view'],
+                ['label' => 'Side Dishes Sold', 'route' => 'fbc.sides', 'perm' => 'fbc.view'], // v9.34 what the sides earned and cost
                 ['label' => 'Food & Beverage Cost', 'route' => 'fbc.statement', 'perm' => 'fbc.view'],
                 ['label' => 'Usage Variance', 'route' => 'fbc.variance', 'perm' => 'fbc.view'],
                 ['label' => 'Menu Pricing', 'route' => 'fbc.pricing', 'perm' => 'fbc.view'],
