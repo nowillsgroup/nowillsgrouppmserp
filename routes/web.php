@@ -924,7 +924,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::get('/trips/{trip}', 'show')->whereNumber('trip')->name('show');
             Route::get('/trips/{trip}/sheet', 'sheet')->whereNumber('trip')->name('sheet');
             Route::get('/trips/{trip}/options', 'options')->whereNumber('trip')->name('options');
-            Route::get('/fleet', 'fleet')->name('fleet');
+            Route::get('/fleet/papers', 'fleet')->name('fleet');
             Route::get('/expenses', 'expenses')->name('expenses');
         });
         Route::middleware('perm:transport.book')->group(function () {

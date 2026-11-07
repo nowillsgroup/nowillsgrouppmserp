@@ -34,7 +34,7 @@
     </tbody>
     <tfoot><tr><td><b>Total, all methods</b></td><td class="num">{{ money($paidIn) }}</td><td class="num">{{ money($paidOut) }}</td><td class="num">{{ money($paidNet) }}</td></tr></tfoot>
   </table></div>
-  <p class="tiny muted mt-1" id="serviceShiftPaymentNote">Total collected on this {{ $session->status === 'open' ? 'open' : 'closed' }} shift: <b>{{ money($paidNet) }}</b>@if($roomPosts > 0) · {{ money($roomPosts) }} of orders were posted to guest rooms instead of being paid here@endif. Payment reconciliation against the drawer stays on the cashier shift.</p>
+  <p class="tiny muted mt-1" id="serviceShiftPaymentNote">Total collected on this {{ $session->status === 'open' ? 'open' : 'closed' }} shift: <b>{{ money($paidNet) }}</b>@if($roomPosts > 0) · {{ money($roomPosts) }} of orders were posted to guest rooms instead of being paid here @endif. Payment reconciliation against the drawer stays on the cashier shift.</p>
   </div></div>
 </div>
 <section class="card flush mt-2"><div class="card-head"><div><h2>Orders linked to this shift</h2><div class="small muted">Orders were linked when this staff member opened them during the service session.</div></div></div><div class="card-body table-wrap"><table class="table"><thead><tr><th>Order</th><th>Outlet / table</th><th>Guest / service</th><th>Opened</th><th>Covers</th><th>Status</th><th class="num">Value</th><th></th></tr></thead><tbody>

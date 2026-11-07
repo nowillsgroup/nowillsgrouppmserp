@@ -7,7 +7,7 @@
 <div class="card" style="max-width:900px;margin-top:1rem">
   <div class="card-head">
     <h3>Room photos</h3>
-    <span class="small muted">{{ $photoCount }} on file@if($photos->where('is_primary', true)->isNotEmpty()) · 1 primary @endif</span>
+    <span class="small muted">{{ $photoCount }} on file @if($photos->where('is_primary', true)->isNotEmpty()) · 1 primary @endif</span>
   </div>
   <div class="card-body">
     @if($photoCount === 0)

@@ -51,7 +51,7 @@
     <span class="muted">·
       @if($record->plan->interval_days)every {{ (int) $record->plan->interval_days }} day(s)@endif
       @if($record->plan->interval_days && $record->plan->interval_km) / @endif
-      @if($record->plan->interval_km)every {{ number_format((int) $record->plan->interval_km) }} km@endif
+      @if($record->plan->interval_km)every {{ number_format((int) $record->plan->interval_km) }} km @endif
       @if($record->plan->due_date) · next due {{ $record->plan->due_date->format('d M Y') }}@endif
     </span>
   </div>

@@ -411,7 +411,7 @@
           <td>{{ $p->name }}<div class="tiny muted">{{ \App\Models\VehicleMaintenancePlan::CATEGORIES[$p->category] ?? $p->category }}</div></td>
           <td class="small">{{ $p->interval_days ? $p->interval_days.' days' : '' }}{{ $p->interval_days && $p->interval_km ? ' / ' : '' }}{{ $p->interval_km ? number_format($p->interval_km).' km' : '' }}</td>
           <td class="small">
-            @if($p->due_date){{ $p->due_date->format('d M Y') }}@if($p->due_date->isPast()) <span class="badge badge-red">Overdue</span>@endif@endif
+            @if($p->due_date){{ $p->due_date->format('d M Y') }}@if($p->due_date->isPast()) <span class="badge badge-red">Overdue</span>@endif @endif
             @if($p->due_odometer)<div class="tiny muted">at {{ number_format($p->due_odometer) }} km</div>@endif
           </td>
           <td class="small">{{ $p->last_completed_date?->format('d M Y') ?? '—' }}@if($p->last_completed_odometer)<div class="tiny muted">{{ number_format($p->last_completed_odometer) }} km</div>@endif</td>

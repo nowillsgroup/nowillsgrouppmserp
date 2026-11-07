@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="{{ asset('css/offline.css') }}?v={{ config('pms.version') }}">
   @stack('head')
 </head>
-<body@hasSection('waiterTerminal') class="waiter-pos-fullscreen" @endif>
+<body @hasSection('waiterTerminal') class="waiter-pos-fullscreen" @endif>
 <script>
   try {
     if (window.innerWidth > 860 && localStorage.getItem('nowills-sidebar-collapsed') === '1') document.body.classList.add('sidebar-collapsed');
