@@ -192,6 +192,19 @@ ok('and what is left of them', gbody.includes('18 seat(s) left'));
 ok('the seat entitlement is editable on the account', field('max_users')?.value === '600', field('max_users')?.value);
 ok('so is the licence renewal date', field('licence_ends_on')?.value === '2027-03-31', field('licence_ends_on')?.value);
 ok('and the account says the renewal date switches nothing off by itself', gbody.includes('Nothing switches itself off on this date'));
+ok('the module licence is on the account', gbody.includes('Module licence'));
+ok('a restricted licence says so', gbody.includes('licensed for a subset'));
+ok('every licensed module is ticked', [...gdoc.querySelectorAll('input[name="modules[]"]')].filter(i => i.checked).length === 10,
+   `${[...gdoc.querySelectorAll('input[name="modules[]"]')].filter(i => i.checked).length} ticked`);
+ok('the modules that were never bought are unticked', [...gdoc.querySelectorAll('input[name="modules[]"]')]
+   .filter(i => !i.checked).map(i => i.value).sort().join('|') === 'Car Rental|Health Club|Spa & Activities',
+   [...gdoc.querySelectorAll('input[name="modules[]"]')].filter(i => !i.checked).map(i => i.value).join(', '));
+ok('the licence form posts to its own endpoint', !!gdoc.querySelector('form[action*="licence"]'));
+ok('it says unticking a module hides and refuses its screens', gbody.includes('refuse to open'));
+ok('and that the data behind them is untouched', gbody.includes('left exactly where it is'));
+ok('ticking everything stores "everything", so later modules are not silently lost', gbody.includes('stores "everything"'));
+ok('the seat basis is a choice, not a hidden default', field('seat_basis')?.value === 'active', field('seat_basis')?.value);
+ok('and the named-user basis is spelled out', gbody.includes('every account holds a seat, switched off or not'));
 ok('what is left of the entitlement is spelled out', gbody.includes('3 left to open'));
 ok('the defaults it hands down are named as such', gbody.includes('Defaults new properties inherit'));
 ok('the defaults carried are the group\'s own', field('country')?.value === 'Ghana' && field('currency')?.value === 'GHS' && field('timezone')?.value === 'Africa/Accra');

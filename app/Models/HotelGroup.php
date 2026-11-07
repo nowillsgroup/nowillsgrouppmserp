@@ -22,6 +22,8 @@ class HotelGroup extends Model
             'max_properties' => 'integer',
             'max_users' => 'integer',
             'licence_ends_on' => 'date',
+            'licensed_modules' => 'array',
+            'seat_basis' => 'string',
         ];
     }
 
@@ -80,15 +82,33 @@ class HotelGroup extends Model
         return (int) Room::withoutGlobalScopes()->whereIn('hotel_id', $ids)->count();
     }
 
-    /** Active people in the tenant: staff of its properties, its group administrators and its grants. */
+    /**
+     * People in the tenant: staff of its properties, its group administrators and its granted people.
+     *
+     * v10.3 the counting basis is part of the licence. 'active' frees a seat the moment somebody is
+     * switched off; 'named' counts every account, because a named-user licence is bought per person
+     * rather than per person-in-work, and switching somebody off does not give the seat back.
+     */
+    public function seatBasis(): string
+    {
+        return $this->seat_basis === 'named' ? 'named' : 'active';
+    }
+
     public function userCount(): int
     {
         $ids = $this->hotels()->pluck('id');
 
-        return User::where('is_active', true)
+        return User::query()
+            ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
             ->where(function ($q) use ($ids, $this) {
                 $q->whereIn('hotel_id', $ids)->orWhere('hotel_group_id', $this->id);
             })->count();
+    }
+
+    /** The modules this tenant has bought; null means everything. */
+    public function licensedModules(): ?array
+    {
+        return is_array($this->licensed_modules) ? array_values($this->licensed_modules) : null;
     }
 
     /** v10.2 seats: a licence that names no seat cap is unlimited, exactly like the property cap. */

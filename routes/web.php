@@ -381,6 +381,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::prefix('group')->name('group.')->controller(Controllers\HotelGroupController::class)->group(function () {
         Route::get('/', 'edit')->middleware('perm:properties.manage')->name('account');
         Route::post('/', 'update')->middleware('perm:properties.manage')->name('account.update');
+        Route::post('/licence', 'licence')->middleware('perm:properties.manage')->name('licence');
         Route::post('/suspend', 'suspend')->middleware('perm:properties.manage')->name('suspend');
         Route::post('/resume', 'resume')->middleware('perm:properties.manage')->name('resume');
     });

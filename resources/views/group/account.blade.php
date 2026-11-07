@@ -52,6 +52,13 @@
         <x-field name="max_properties" label="Property entitlement" type="number" min="1" max="500" :value="$group->max_properties" hint="Blank means no cap. A new property is refused once the cap is reached." />
         <x-field name="max_users" label="Seat entitlement" type="number" min="1" max="5000" :value="$group->max_users" hint="Blank means no cap. Enforced on every screen that creates an account — this group's people and each property's users." />
         <x-field name="licence_ends_on" label="Licence renews on" type="date" :value="$group->licence_ends_on?->toDateString()" hint="Printed here for the account manager. Nothing switches itself off on this date." />
+        <div class="field"><label for="f_seat_basis">Seats are counted per</label>
+          <select id="f_seat_basis" name="seat_basis">
+            <option value="active" @selected($seatBasis === 'active')>Active account — switching somebody off frees the seat</option>
+            <option value="named" @selected($seatBasis === 'named')>Named user — every account holds a seat, switched off or not</option>
+          </select>
+          <span class="hint">A named-user licence is bought per person, so a switched-off account keeps its seat.</span>
+        </div>
         <x-field name="notes" label="Internal notes" type="textarea" :value="$group->notes" />
       </div>
       <div class="card-body">
@@ -62,6 +69,29 @@
 </div>
 </div>
 </form>
+
+<div class="card mt-2"><div class="card-head"><h3>Module licence</h3><span class="small muted">{{ $licenceRestricted ? 'This tenant is licensed for a subset' : 'Everything, including modules added later' }}</span></div>
+<div class="card-body">
+  @if(! $licenceEditable)
+    <p class="small muted">The module licence is a commercial decision taken by the platform administrator. You can see what this tenant has bought here, not change it.</p>
+    <ul class="small" style="columns:2">
+      @foreach($licence as $module => $state)
+        <li>{{ $module }} @if($state['licensed'])<span class="badge badge-green">on</span>@else<span class="badge badge-slate">not licensed</span>@endif</li>
+      @endforeach
+    </ul>
+  @else
+    <p class="small">Every module the application gates a route with is listed below. Untick one and its screens refuse to open <em>and</em> disappear from the sidebar; the data behind them is left exactly where it is, so re-licensing restores access rather than recovering anything.</p>
+    <form method="post" action="{{ route('group.licence', ['group' => $group->id]) }}">@csrf
+      <div class="flex flex-wrap gap-2" style="columns:2">
+        @foreach($licence as $module => $state)
+          <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="{{ $module }}" @checked($state['licensed'])> {{ $module }} <span class="tiny muted">{{ $state['permissions'] }} permission(s)</span></label>
+        @endforeach
+      </div>
+      <p class="tiny muted mt-1">Ticking every module stores "everything", so a module shipped by a later release is licensed without anybody revisiting this page. Unticking any module stores an explicit licence.</p>
+      <button class="btn btn-primary"><x-icon name="key" size="sm"/> Save the licence</button>
+    </form>
+  @endif
+</div></div>
 
 @if($group->overSeats())
   <div class="alert alert-warn"><x-icon name="alert"/><div><b>{{ $group->overSeats() }} seat(s) over the entitlement.</b> {{ $group->userCount() }} active people against {{ $group->max_users }} bought. Existing accounts keep working; no new account can be created until the cap is raised or somebody is switched off.</div></div>

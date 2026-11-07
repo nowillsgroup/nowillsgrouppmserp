@@ -3137,6 +3137,13 @@
       <div class="field "><label for="f_max_properties">Property entitlement</label><input type="number" name="max_properties" id="f_max_properties" value="8" placeholder="" min="1" max="500"><span class="hint">Blank means no cap. A new property is refused once the cap is reached.</span></div>
       <div class="field "><label for="f_max_users">Seat entitlement</label><input type="number" name="max_users" id="f_max_users" value="600" placeholder="" min="1" max="5000"><span class="hint">Blank means no cap. Enforced on every screen that creates an account — this group's people and each property's users.</span></div>
       <div class="field "><label for="f_licence_ends_on">Licence renews on</label><input type="date" name="licence_ends_on" id="f_licence_ends_on" value="2027-03-31" placeholder=""><span class="hint">Printed here for the account manager. Nothing switches itself off on this date.</span></div>
+      <div class="field"><label for="f_seat_basis">Seats are counted per</label>
+      <select id="f_seat_basis" name="seat_basis">
+      <option value="active"  selected>Active account — switching somebody off frees the seat</option>
+      <option value="named" >Named user — every account holds a seat, switched off or not</option>
+      </select>
+      <span class="hint">A named-user licence is bought per person, so a switched-off account keeps its seat.</span>
+      </div>
       <div class="field "><label for="f_notes">Internal notes</label><textarea name="notes" id="f_notes" placeholder=""></textarea></div>
       </div>
       <div class="card-body">
@@ -3147,6 +3154,46 @@
       </div>
       </div>
       </form>
+
+      <div class="card mt-2"><div class="card-head"><h3>Module licence</h3><span class="small muted">This tenant is licensed for a subset</span></div>
+      <div class="card-body">
+  
+      <p class="small">Every module the application gates a route with is listed below. Untick one and its screens refuse to open <em>and</em> disappear from the sidebar; the data behind them is left exactly where it is, so re-licensing restores access rather than recovering anything.</p>
+      <form method="post" action="group-licence?group=1">
+      <div class="flex flex-wrap gap-2" style="columns:2">
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Dashboard"  checked> Dashboard <span class="tiny muted">1 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Reservations"  checked> Reservations <span class="tiny muted">5 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Front Desk"  checked> Front Desk <span class="tiny muted">29 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Billing &amp; Folio"  checked> Billing &amp; Folio <span class="tiny muted">5 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="POS"  checked> POS <span class="tiny muted">5 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Housekeeping"  checked> Housekeeping <span class="tiny muted">2 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Accounts"  checked> Accounts <span class="tiny muted">9 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Reports"  checked> Reports <span class="tiny muted">4 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Administration"  checked> Administration <span class="tiny muted">6 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Security"  checked> Security <span class="tiny muted">9 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Spa &amp; Activities" > Spa &amp; Activities <span class="tiny muted">2 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Health Club" > Health Club <span class="tiny muted">4 permission(s)</span></label>
+        
+      <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="Car Rental" > Car Rental <span class="tiny muted">3 permission(s)</span></label>
+        
+      </div>
+      <p class="tiny muted mt-1">Ticking every module stores "everything", so a module shipped by a later release is licensed without anybody revisiting this page. Unticking any module stores an explicit licence.</p>
+      <button class="btn btn-primary"><svg class="i i-sm" aria-hidden="true"><use href="#i-key"/></svg> Save the licence</button>
+      </form>
+  
+      </div></div>
 
 
 

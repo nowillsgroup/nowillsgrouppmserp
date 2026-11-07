@@ -5175,6 +5175,78 @@ ok("ok('seats used are printed against the entitlement'" in read(os.path.join(RO
 ok("ok('seats are printed used against bought'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'and the group account to the same figure')
 
+# ── 30 · a licence that is a list of modules, enforced at the route (v10.3) ────────
+licence_mig = read(os.path.join(ROOT, 'database/migrations/2026_11_08_000396_group_module_licence.php'))
+ok("$t->json('licensed_modules')->nullable();" in licence_mig,
+   'the licence is a list of modules, and null means everything')
+ok("$t->string('seat_basis', 10)->default('active');" in licence_mig,
+   'how seats are counted is part of the licence, with active as the default')
+lic = read(os.path.join(ROOT, 'app/Services/LicenceService.php'))
+ok('public static function licensed(string $perm): bool' in lic,
+   'one question decides whether the tenant bought the function')
+ok("if ($licence === null) {\n            return true; // unrestricted tenant, or no tenant at all (console, queue, sign-in)" in lic,
+   'an unrestricted tenant — every existing group — is not affected by the release')
+ok('public static function moduleOf(string $perm): ?string' in lic,
+   'a permission is attributed to exactly one catalogue module')
+ok('return in_array($module, $licence, true);' in lic,
+   'and the answer is membership of the licence, nothing else')
+perm_mw = read(os.path.join(ROOT, 'app/Http/Middleware/RequirePermission.php'))
+ok('$user->hasPermission($p) && LicenceService::licensed($p)' in perm_mw,
+   'the route gate checks the person and the licence in one condition')
+ok("is not on this group\\'s licence. Ask your group administrator." in perm_mw,
+   'and says so plainly when the person would otherwise have been allowed in')
+ok(perm_mw.index('LicenceService::licensed($p)') < perm_mw.index("abort(403, 'You do not have permission"),
+   'an unlicensed module is indistinguishable from a forbidden one for somebody never allowed in')
+ok('\\App\\Services\\LicenceService::licensed($perm)' in read(os.path.join(ROOT, 'app/helpers.php')),
+   'the sidebar and the buttons ask the same question, so the screen and the URL agree')
+# every permission a route enforces must belong to a module, or it could never be licensed
+cat_block = read(os.path.join(ROOT, 'config/pms.php'))
+cat_block = cat_block[cat_block.index("'permissions' => ["):cat_block.index('// Sidebar navigation')]
+catalogue_keys = set(re.findall(r"'([a-z0-9_]+\.[a-z0-9_.]+)'\s*=>", cat_block))
+route_perm_keys = set()
+for m in re.finditer(r"perm:([a-zA-Z0-9_.,]+)", read(os.path.join(ROOT, 'routes/web.php'))):
+    for k in m.group(1).split(','):
+        route_perm_keys.add(k.strip())
+unlicensable = sorted(route_perm_keys - catalogue_keys)
+ok(not unlicensable, f'every permission a route enforces belongs to a licence module (unmapped: {", ".join(unlicensable[:6])})')
+ok(len(route_perm_keys) > 280, f'that is the whole gate, not a sample ({len(route_perm_keys)} distinct permissions on routes)')
+grp3 = read(os.path.join(ROOT, 'app/Models/HotelGroup.php'))
+ok('public function seatBasis(): string' in grp3,
+   'the counting basis is named once')
+ok("->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))" in grp3,
+   'a named-user licence keeps the seat of a switched-off account')
+ok('public function licensedModules(): ?array' in grp3,
+   'and the licence is read off the account, not guessed')
+grp_ctrl3 = read(os.path.join(ROOT, 'app/Http/Controllers/HotelGroupController.php'))
+ok('public function licence(Request $request)' in grp_ctrl3,
+   'the licence has an endpoint of its own')
+ok("abort_unless($group && $this->access->isPlatformAdmin($request->user()), 403);" in grp_ctrl3,
+   'only the platform administrator may change a licence — a tenant cannot widen its own')
+ok("$now = $chosen->count() === count($modules) ? null : $chosen->all();" in grp_ctrl3,
+   'ticking everything stores "everything", so later modules are not silently withheld')
+ok("LicenceService::forget($group->id);" in grp_ctrl3,
+   'the running request forgets the old licence at once')
+ok("PropertyEvent::record('licence_changed'" in grp_ctrl3,
+   'and the change is audited')
+ok("Route::post('/licence', 'licence')" in read(os.path.join(ROOT, 'routes/web.php')),
+   'the licence endpoint is routed inside the group account')
+ok("'group.dashboard' => 'Open the consolidated multi-property dashboard" in cat_block,
+   'the one permission that was special-cased in code is now in the catalogue, so no route is unlicensable')
+acct3 = read(os.path.join(ROOT, 'resources/views/group/account.blade.php'))
+ok('name="modules[]"' in acct3 and "route('group.licence'" in acct3,
+   'the account lists the modules and saves the licence')
+ok('$licenceEditable' in acct3,
+   'and shows a tenant administrator what was bought without letting them change it')
+ok('refuse to open' in acct3 and 'left exactly where it is' in acct3,
+   'the screen says what unticking costs and what it does not')
+ok('name="seat_basis"' in acct3,
+   'the seat basis is chosen on the account, not buried in code')
+ok('licensed_modules:' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs'))
+   and "'Spa & Activities': { permissions: 2, licensed: false }" in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the preview carries a restricted licence, so both states can be seen')
+ok("ok('the modules that were never bought are unticked'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the preview check holds the panel to exactly which modules are off')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\HotelGroup;
 use App\Models\PropertyEvent;
+use App\Services\LicenceService;
 use App\Services\PropertyAccessService;
 use App\Services\PropertyHealthService;
 use Illuminate\Http\Request;
@@ -38,6 +39,11 @@ class HotelGroupController extends Controller
             'canSuspendGroup' => $this->access->isPlatformAdmin($request->user()),
             'admins' => $group->admins()->with('role')->orderBy('name')->get(),
             'types' => PropertyController::PROPERTY_TYPES,
+            // v10.3 what the tenant bought, module by module
+            'licence' => LicenceService::stateFor($group),
+            'licenceEditable' => $this->access->isPlatformAdmin($request->user()),
+            'licenceRestricted' => $group->licensedModules() !== null,
+            'seatBasis' => $group->seatBasis(),
         ]);
     }
 
@@ -63,6 +69,7 @@ class HotelGroupController extends Controller
             'max_properties' => 'nullable|integer|min:1|max:500',
             'max_users' => 'nullable|integer|min:1|max:5000',
             'licence_ends_on' => 'nullable|date',
+            'seat_basis' => 'nullable|in:active,named',
             'notes' => 'nullable|string|max:1000',
         ]);
         $data['code'] = strtoupper($data['code']);
@@ -71,6 +78,46 @@ class HotelGroupController extends Controller
         PropertyEvent::record('group_updated', "Group {$group->name} settings updated", null, ['group' => $group->code, 'actor' => $request->user()->username]);
 
         return back()->with('success', 'Group settings saved. They apply to every property opened from now on.');
+    }
+
+    /**
+     * v10.3 the module licence. Platform administrator only: this is the commercial decision, not an
+     * operational one, and a group administrator who could widen their own licence would make it
+     * meaningless.
+     *
+     * Ticking every module stores null — "everything, including what ships next" — so a tenant that
+     * pays for the whole product is never quietly restricted by a future release.
+     */
+    public function licence(Request $request)
+    {
+        $group = $this->group($request);
+        abort_unless($group && $this->access->isPlatformAdmin($request->user()), 403);
+
+        $modules = array_keys(LicenceService::catalogue());
+        $data = $request->validate([
+            'modules' => 'nullable|array',
+            'modules.*' => 'string|in:'.implode(',', array_map(fn ($m) => str_replace(',', ' ', $m), $modules)),
+        ]);
+
+        $chosen = collect($data['modules'] ?? [])->unique()->values();
+        $unknown = $chosen->diff($modules);
+        $chosen = $chosen->diff($unknown)->values();
+
+        $now = $chosen->count() === count($modules) ? null : $chosen->all();
+        $group->forceFill(['licensed_modules' => $now])->save();
+        LicenceService::forget($group->id);
+
+        $restricted = $now === null ? 0 : count($modules) - count($now);
+
+        PropertyEvent::record('licence_changed', 'Licence for '.$group->name.' set to '
+            .($now === null ? 'every module' : count($now).' of '.count($modules).' modules')
+            .($restricted ? ' — '.$restricted.' module(s) are not on it' : ''), null, [
+                'group' => $group->code, 'licensed' => $now, 'actor' => $request->user()->username,
+            ]);
+
+        return back()->with('success', $now === null
+            ? 'Every module is licensed, including modules added by later releases.'
+            : $restricted.' module(s) are not on this licence. Their screens now refuse and disappear from the sidebar; the data behind them is untouched.');
     }
 
     /** Platform administrator only: stop the whole tenant at the account level. */

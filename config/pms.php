@@ -221,7 +221,10 @@ return [
         'Administration' => ['masters.manage' => 'Manage masters', 'users.manage' => 'Manage users & roles',
             // v10.0 multi-tenant / multi-property administration
             'properties.view' => 'See the property register, each property\'s health and who may enter it',
-            'properties.manage' => 'Open, edit, suspend, resume and retire properties, grant property access, and edit the group account', 'settings.view' => 'Read the configuration register — every module\'s settings and their values', 'settings.manage' => 'Hotel settings & the configuration export', 'logs.view' => 'View activity logs'],
+            'properties.manage' => 'Open, edit, suspend, resume and retire properties, grant property access, and edit the group account',
+            // v10.3 registered so that every permission a route enforces belongs to a licence module:
+            // this key was the only one special-cased in code and therefore the only unlicensable route.
+            'group.dashboard' => 'Open the consolidated multi-property dashboard across the group (group administrators only)', 'settings.view' => 'Read the configuration register — every module\'s settings and their values', 'settings.manage' => 'Hotel settings & the configuration export', 'logs.view' => 'View activity logs'],
         'Upselling' => ['upsell.view' => 'View upsell offers, orders, requests and conversion', 'upsell.sell' => 'Sell upsells at the desk, confirm / decline guest requests, cancel orders, e-mail offers',
             'upsell.manage' => 'Manage the offer catalogue, prices, staff incentives and upselling settings'],
         'Security' => ['security.view' => 'View visitor register, gate passes, incidents and the security dashboard',
