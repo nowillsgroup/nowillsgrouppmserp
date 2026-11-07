@@ -4865,6 +4865,38 @@ ok("ok('every row\\'s gross profit is revenue less cost'" in read(os.path.join(R
 ok("ok('the rows add up to the cost claimed'" in read(os.path.join(ROOT, 'deploy/dev/audit/fbc_sides_preview_check.js')),
    'and the rows to the total the header claims')
 
+# ── 26ff · a side dish sold with no cost is named, not left at a 100 % margin (v9.35) ──
+fbg = read(os.path.join(ROOT, 'app/Services/FbCostService.php'))
+ok('public static function sideCostGaps(): array' in fbg,
+   'the gap is a question the service can answer: which side dishes carry no cost')
+ok("MenuItemVariant::where(fn ($q) => $q->whereNull('cost')->orWhere('cost', '<=', 0))" in fbg,
+   'a missing cost and a zero cost are the same gap')
+ok("$row['no_cost'] = $row['units'] > 0 && $row['cost'] <= 0;" in fbg,
+   'every side dish sold is checked for it, portion by portion')
+ok("'no_cost' => $noCost, 'no_cost_revenue' => round($noCostRevenue, 2)];" in fbg,
+   'and the screen is handed the count and the revenue those sales stand for')
+ok("'side_no_cost' => count(self::sideCostGaps())," in fbg,
+   'the F&B dashboard is told as well, so the gap is not a page nobody opens')
+sides_view_gap = read(os.path.join(ROOT, 'resources/views/fbc/sides.blade.php'))
+ok('id="fbcSidesNoCost"' in sides_view_gap and '@php $gaps = collect($sides[\'rows\'])->where(\'no_cost\', true); @endphp' in sides_view_gap,
+   'the screen raises the gap above the figures it spoils')
+ok('<span class="badge badge-amber">no cost</span>' in sides_view_gap,
+   'and marks the row that carries it')
+ok('shows a 100 % margin that is not earned' in sides_view_gap,
+   'saying plainly what a missing cost does to the margin printed beside it')
+ok('route(\'masters.index\', \'menu-items\')' in sides_view_gap,
+   'with the way to fix it one click away')
+ok("side dish(es) carry no cost – their margin cannot be checked" in read(os.path.join(ROOT, 'resources/views/fbc/index.blade.php')),
+   'the cost dashboard says how many are missing a cost')
+ok("$al['side_no_cost']" in read(os.path.join(ROOT, 'resources/views/fbc/index.blade.php')),
+   'and the alert panel opens for it')
+ok("row(506, 'Kelewele bites', 38, 380.00, 0.00)" in read(os.path.join(ROOT, 'deploy/dev/preview/fbc-sides-sample.mjs')),
+   'the preview carries a side dish sold with no cost, so the screen can be seen doing its job')
+ok("ok('the screen raises it before the numbers'" in read(os.path.join(ROOT, 'deploy/dev/audit/fbc_sides_preview_check.js')),
+   'and the check holds the screen to raising it')
+ok('the side dish sold with no cost at all' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery says the screen names the gap')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

@@ -51,14 +51,14 @@ const stat = label => stats.find(s => s.label === label);
 ok('the screen is the side-dish report', doc.title.includes('Side dishes sold'));
 ok('the period is on the screen', doc.body.textContent.includes('2026-10-10 to 2026-11-06'));
 ok('the sidebar carries the new screen', [...doc.querySelectorAll('nav a, .nav-link-item a')].some(a => a.textContent.includes('Side Dishes Sold')));
-ok('five side dishes are listed', rows.length === 5, `${rows.length} rows`);
+ok('six side dishes are listed', rows.length === 6, `${rows.length} rows`);
 
 // ── the header ─────────────────────────────────────────────────────────────
-ok('portions sold', stat('Side dishes sold')?.value === '682', stat('Side dishes sold')?.value);
-ok('revenue', stat('Side dish revenue')?.value === 'GH₵ 8,152.00', stat('Side dish revenue')?.value);
+ok('portions sold', stat('Side dishes sold')?.value === '720', stat('Side dishes sold')?.value);
+ok('revenue', stat('Side dish revenue')?.value === 'GH₵ 8,532.00', stat('Side dish revenue')?.value);
 ok('cost', stat('Side dish cost')?.value === 'GH₵ 3,517.35', stat('Side dish cost')?.value);
-ok('gross profit', stat('Gross profit')?.value === 'GH₵ 4,634.65', stat('Gross profit')?.value);
-ok('margin', stats.find(s => s.label === 'Gross profit')?.value && doc.body.textContent.includes('56.9% margin'));
+ok('gross profit', stat('Gross profit')?.value === 'GH₵ 5,014.65', stat('Gross profit')?.value);
+ok('margin', stats.find(s => s.label === 'Gross profit')?.value && doc.body.textContent.includes('58.8% margin'));
 
 // ── the rows ───────────────────────────────────────────────────────────────
 ok('the best earner comes first', cell(rows[0], 0) === 'French fries');
@@ -74,6 +74,20 @@ ok('and still cost money', money(cell(free, 5)) === 1041.6);
 ok('so it shows a loss, not a blank', money(cell(free, 6)) === -1041.6, cell(free, 6));
 ok('and no margin is invented for it', cell(free, 7) === '—');
 
+// ── a side dish sold with no cost ──────────────────────────────────────────
+const gap = rows.find(row => cell(row, 0).startsWith('Kelewele'));
+ok('a side dish with no cost is on the screen', !!gap);
+ok('it shows the revenue it earned', money(cell(gap, 2)) === 380);
+ok('no cost behind it', money(cell(gap, 5)) === 0);
+ok('so its margin is a guess', cell(gap, 7) === '100%');
+ok('the row says why', gap.textContent.includes('no cost'));
+ok('the screen raises it before the numbers', !!doc.querySelector('#fbcSidesNoCost'));
+ok('and names the dish', doc.querySelector('#fbcSidesNoCost').textContent.includes('Kelewele bites'));
+ok('with the revenue it stands for', doc.querySelector('#fbcSidesNoCost').textContent.includes('GH₵ 380.00'));
+ok('and points at the menu master', [...doc.querySelectorAll('#fbcSidesNoCost a')].some(a => a.textContent.includes('menu master')));
+ok('the footnote says what a missing cost costs the reader',
+  doc.body.textContent.includes('shows a 100 % margin that is not earned'));
+
 // ── the arithmetic, row by row ─────────────────────────────────────────────
 const each = rows.map(row => ({ name: cell(row, 0), revenue: money(cell(row, 2)), cost: money(cell(row, 5)), gp: money(cell(row, 6)) }));
 ok('every row\'s gross profit is revenue less cost',
@@ -87,10 +101,10 @@ const totals = {
   gp: money(footer[6]),
 };
 const portions = rows.reduce((sum, row) => sum + Number(cell(row, 1).replace(/[^0-9.]/g, '')), 0);
-ok('the rows add up to the portions claimed', Math.abs(portions - totals.units) < 0.0005 && totals.units === 682, `${portions} vs ${totals.units}`);
-ok('the rows add up to the revenue claimed', Math.abs(totals.revenue - 8152) < 0.005, String(totals.revenue));
+ok('the rows add up to the portions claimed', Math.abs(portions - totals.units) < 0.0005 && totals.units === 720, `${portions} vs ${totals.units}`);
+ok('the rows add up to the revenue claimed', Math.abs(totals.revenue - 8532) < 0.005, String(totals.revenue));
 ok('the rows add up to the cost claimed', Math.abs(totals.cost - 3517.35) < 0.005, String(totals.cost));
-ok('the rows add up to the gross profit claimed', Math.abs(totals.gp - 4634.65) < 0.005, String(totals.gp));
+ok('the rows add up to the gross profit claimed', Math.abs(totals.gp - 5014.65) < 0.005, String(totals.gp));
 ok('the footer agrees with the header', stat('Side dish revenue')?.value === footer[2] && stat('Side dish cost')?.value === footer[5]);
 
 // ── what the screen says about itself ──────────────────────────────────────

@@ -9,6 +9,16 @@
   <span class="small muted">Settled bills only; complimentary bills are excluded, as they are from the menu mix.</span>
 </form></div></div>
 
+@php $gaps = collect($sides['rows'])->where('no_cost', true); @endphp
+@if($gaps->isNotEmpty())
+<div class="alert alert-warn" id="fbcSidesNoCost"><x-icon name="alert"/><div>
+  <b>{{ $gaps->count() }}</b> side dish(es) sold without a cost on the menu master – {{ number_format($gaps->sum('units')) }} portion(s) and
+  {{ money($sides['no_cost_revenue']) }} of revenue whose gross profit is a guess:
+  @foreach($gaps as $g)<b>{{ $g['name'] }}</b>{{ $loop->last ? '.' : ' · ' }}@endforeach
+  <a href="{{ route('masters.index', 'menu-items') }}">Set the cost on the menu master</a>.
+</div></div>
+@endif
+
 <div class="stats" id="fbcSideStats">
   <x-stat label="Side dishes sold" :value="number_format($sides['units'], $sides['units'] == (int) $sides['units'] ? 0 : 3)" icon="cup" tone="blue" :sub="count($sides['rows']).' different side dishes'"/>
   <x-stat label="Side dish revenue" :value="money_short($sides['revenue'])" icon="money" tone="green" sub="charged on top of the dish"/>
@@ -23,8 +33,8 @@
       <th class="num">Cost</th><th class="num">Gross profit</th><th class="num">GP %</th></tr></thead>
     <tbody>
     @forelse($sides['rows'] as $r)
-      <tr class="{{ $r['gp_pct'] !== null && $r['gp_pct'] < 50 ? 'row-amber' : '' }}">
-        <td><b>{{ $r['name'] }}</b></td>
+      <tr class="{{ ($r['gp_pct'] !== null && $r['gp_pct'] < 50) || $r['no_cost'] ? 'row-amber' : '' }}">
+        <td><b>{{ $r['name'] }}</b>@if($r['no_cost']) <span class="badge badge-amber">no cost</span>@endif</td>
         <td class="num">{{ number_format($r['units'], $r['units'] == (int) $r['units'] ? 0 : 3) }}</td>
         <td class="num">{{ money($r['revenue']) }}</td>
         <td class="num">{{ $r['share'] }}%</td>
@@ -49,6 +59,11 @@
   <p class="m-0">A side dish is priced at its own rate and costed at its own cost, both taken from the bill line at the moment of sale — a
     side re-priced today does not rewrite last month. The cost is the side dish's cost on the menu master, so keep it current:
     the food cost of the dish it was sold with, the menu-engineering margin and the theoretical cost of the day all include it.</p>
+  @if($sides['no_cost'] > 0)
+    <p class="m-0" style="margin-top:.5rem">A side dish sold with no cost shows a 100 % margin that is not earned: its cost is missing on the master,
+      so the food cost of the dish it was sold with is understated by that cost. The {{ $sides['no_cost'] }} side dish(es) marked above are worth
+      {{ money($sides['no_cost_revenue']) }} of revenue in this period.</p>
+  @endif
   @if($sides['uncosted'] > 0)
     <p class="m-0" style="margin-top:.5rem">Of the cost above, {{ money($sides['uncosted']) }} comes from bills written before the side cost was recorded on the line:
       it is the side's cost on the master today, the best figure available for those sales.</p>

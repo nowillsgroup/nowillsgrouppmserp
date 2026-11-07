@@ -11,10 +11,12 @@
  *   Extra banku       12.00 +  4.10 ×  96   revenue 1,152.00   cost   393.60   GP   758.40   65.8%
  *   Extra shito        5.00 +  1.15 × 141   revenue   705.00   cost   162.15   GP   542.85   77.0%
  *   Fried plantain    15.00 +  5.00 ×  63   revenue   945.00   cost   315.00   GP   630.00   66.7%
+ *   Kelewele bites    10.00 +   —   ×  38   revenue   380.00   cost        —   GP   380.00   100.0%  ← no cost on the master
  *   ─────────────────────────────────────────────────────────────────────────────────────────────────────
- *   total                        682        revenue 8,152.00   cost 3,517.35   GP 4,634.65   56.9%
+ *   total                        720        revenue 8,532.00   cost 3,517.35   GP 5,014.65   58.8%
  *
- * The free salad is the point of the screen: the dish it comes with earns nothing extra, and the salad still costs money.
+ * Two things this screen exists to show: the free salad, which earns nothing extra and still costs money, and the kelewele
+ * bites, sold at no cost at all — a 100 % margin that is a gap on the menu master, not a profit.
  */
 import { Coll, SampleDate } from './blade-render.mjs';
 
@@ -24,7 +26,7 @@ export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', c
 
 const row = (id, name, units, revenue, cost) => {
   const gp = Math.round((revenue - cost) * 100) / 100;
-  return { id, name, units, revenue, cost, gp, gp_pct: revenue > 0 ? Math.round(gp / revenue * 1000) / 10 : null, share: 0 };
+  return { id, name, units, revenue, cost, gp, gp_pct: revenue > 0 ? Math.round(gp / revenue * 1000) / 10 : null, share: 0, no_cost: units > 0 && cost <= 0 };
 };
 
 const ROWS = [
@@ -33,6 +35,7 @@ const ROWS = [
   row(503, 'Extra banku', 96, 1152.00, 393.60),
   row(504, 'Extra shito', 141, 705.00, 162.15),
   row(505, 'Fried plantain', 63, 945.00, 315.00),
+  row(506, 'Kelewele bites', 38, 380.00, 0.00),   // sold with no cost on the master: the gap the banner names
 ];
 
 const units = ROWS.reduce((sum, r) => sum + r.units, 0);
@@ -49,6 +52,8 @@ export const SIDES = {
   gp,
   gp_pct: revenue > 0 ? Math.round(gp / revenue * 1000) / 10 : null,
   uncosted: 0,
+  no_cost: ROWS.filter(r => r.no_cost).length,
+  no_cost_revenue: Math.round(ROWS.filter(r => r.no_cost).reduce((sum, r) => sum + r.revenue, 0) * 100) / 100,
 };
 
 export function fbcSidesContext() {

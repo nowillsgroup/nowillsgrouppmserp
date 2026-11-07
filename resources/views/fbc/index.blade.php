@@ -18,12 +18,13 @@
   <x-stat label="Dishes costed" :value="$k['costed'].' / '.$k['dishes']" icon="book" :tone="$k['over'] ? 'amber' : 'green'" :sub="$k['over'].' over target · '.$k['creep'].' cost creep'" :href="route('fbc.recipes')"/>
 </div>
 @php $al = $alerts; @endphp
-@if($al['over'] || $al['no_recipe'] || $al['creep'] || $al['zero_cost'] || $al['unapproved'] || $al['meals_missing'])
+@if($al['over'] || $al['no_recipe'] || $al['creep'] || $al['zero_cost'] || $al['side_no_cost'] || $al['unapproved'] || $al['meals_missing'])
 <div class="alert alert-warn" id="fbcAlerts"><x-icon name="alert"/><div>
   @if($al['over'])<a href="{{ route('fbc.recipes', ['status' => 'over']) }}"><b>{{ $al['over'] }}</b> dish(es) above their target cost %.</a> @endif
   @if($al['creep'])<a href="#fbcCreep"><b>{{ $al['creep'] }}</b> plate cost(s) up {{ rtrim(rtrim(number_format($cfg['creep_pct'], 1), '0'), '.') }} %+ in {{ $cfg['creep_days'] }} days.</a> @endif
   @if($al['no_recipe'])<a href="{{ route('fbc.recipes', ['status' => 'no_recipe']) }}"><b>{{ $al['no_recipe'] }}</b> dish(es) on sale without a recipe – no theoretical cost.</a> @endif
   @if($al['zero_cost'])<b>{{ $al['zero_cost'] }}</b> recipe ingredient(s) without a purchase cost. @endif
+  @if($al['side_no_cost'])<a href="{{ route('fbc.sides') }}"><b>{{ $al['side_no_cost'] }}</b> side dish(es) carry no cost – their margin cannot be checked.</a> @endif
   @if($al['unapproved'])<a href="{{ route('fbc.recipes') }}"><b>{{ $al['unapproved'] }}</b> recipe card(s) awaiting approval.</a> @endif
   @if($al['meals_missing'])<a href="{{ route('fbc.meals') }}">Yesterday's staff meals are not logged.</a> @endif
 </div></div>

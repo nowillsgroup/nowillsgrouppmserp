@@ -278,6 +278,8 @@ class FbCostService
             }
         }
 
+        $noCostRevenue = 0.0;
+        $noCost = 0;
         foreach ($rows as &$row) {
             $row['units'] = round($row['units'], 3);
             $row['revenue'] = round($row['revenue'], 2);
@@ -285,19 +287,33 @@ class FbCostService
             $row['gp'] = round($row['revenue'] - $row['cost'], 2);
             $row['gp_pct'] = $row['revenue'] > 0 ? round($row['gp'] / $row['revenue'] * 100, 1) : null;
             $row['share'] = $revenue > 0 ? round($row['revenue'] / $revenue * 100, 1) : 0.0;
+            // v9.35 sold at no cost at all: its margin is a guess until the master says what it costs
+            $row['no_cost'] = $row['units'] > 0 && $row['cost'] <= 0;
+            if ($row['no_cost']) {
+                $noCost++;
+                $noCostRevenue += $row['revenue'];
+            }
         }
         unset($row);
         usort($rows, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
 
         return self::$memo[$key] = ['rows' => $rows, 'by_item' => $byItem, 'by_day' => $byDay, 'units' => round($units, 3), 'revenue' => round($revenue, 2),
             'cost' => round($cost, 2), 'gp' => round($revenue - $cost, 2), 'gp_pct' => $revenue > 0 ? round(($revenue - $cost) / $revenue * 100, 1) : null,
-            'uncosted' => round($uncosted, 2)];
+            'uncosted' => round($uncosted, 2), 'no_cost' => $noCost, 'no_cost_revenue' => round($noCostRevenue, 2)];
     }
 
     /** The side dishes sold over the period, best earner first. */
     public static function sideDishes(string $from, string $to, ?int $outletId = null): array
     {
         return self::scanSides($from, $to, $outletId);
+    }
+
+    /** Side dishes on the menu whose cost is missing or zero — the gap the costing screen cannot fill (v9.35). */
+    public static function sideCostGaps(): array
+    {
+        return self::$memo['sidegaps'.Tenant::id()] ??= MenuItemVariant::where(fn ($q) => $q->whereNull('cost')->orWhere('cost', '<=', 0))
+            ->orderBy('name')->get(['id', 'menu_item_id', 'name', 'rate'])
+            ->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->all();
     }
 
     /** Side dish revenue and cost per menu item, so a dish is costed with the sides it was sold with. */
@@ -833,6 +849,7 @@ class FbCostService
                 'no_recipe' => $d->where('st', 'no_recipe')->where('is_available', true)->count(),
                 'creep' => $d->filter(fn ($m) => $m->creep && $m->creep['pct'] >= self::cfg()['creep_pct'])->count(),
                 'zero_cost' => InventoryItem::whereIn('id', $used)->where(fn ($q) => $q->whereNull('last_cost')->orWhere('last_cost', '<=', 0))->count(),
+                'side_no_cost' => count(self::sideCostGaps()), // v9.35 a side dish with no cost earns a margin nobody can check
                 'unapproved' => FbRecipeCard::whereNull('approved_at')->whereIn('menu_item_id', MenuItemRecipe::distinct()->pluck('menu_item_id'))->count(),
                 'meals_missing' => $mealsInUse && ! FbStaffMeal::whereDate('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
             ];
