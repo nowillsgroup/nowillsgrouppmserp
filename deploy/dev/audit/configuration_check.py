@@ -4279,6 +4279,54 @@ ok('the ageing card is down to one item' in read(os.path.join(ROOT, 'deploy/dev/
 ok("/stock-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26au · count sheet: the progress, the finding and what posting does ───────────────
+cs_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/StockTakeController.php'))
+cs_fn = cs_ctrl[cs_ctrl.index('public function show(StockTake $stocktake)'):cs_ctrl.index('public function update(')]
+ok("$blank = $lines->filter(fn ($l) => $l->counted_qty === null);" in cs_fn,
+   'a blank line is a line with no counted figure, which is not the same as a line counted at zero')
+ok("$zero = $counted->filter(fn ($l) => (float) $l->counted_qty === 0.0 && (float) $l->system_qty !== 0.0);" in cs_fn,
+   'a line counted at zero against a book quantity is the one that writes the whole quantity off')
+ok("$same = $counted->filter(fn ($l) => abs((float) $l->varianceQty()) <= 0.005);" in cs_fn,
+   'lines that agreed with the book are counted apart, because posting writes nothing for them')
+ok("$blankValue = round((float) $blank->sum(fn ($l) => (float) $l->system_qty * (float) $l->unit_cost), 2);" in cs_fn,
+   'the cost of the blank-as-zero box is the book value of the lines nobody counted')
+ok("$categories = $lines->groupBy(fn ($l) => $l->item?->category?->name ?? 'Uncategorised')" in cs_fn,
+   'progress is kept by category, because a count is done aisle by aisle')
+ok("'editable' => $stocktake->status === 'draft' && can_do('inventory.manage')" in cs_fn,
+   'whether the sheet can be edited is decided in PHP rather than in a template block')
+ok("$progress['behind'] = count($behind) > 1" in cs_fn,
+   'the categories still open are named, so the verdict points at the aisle rather than the sheet')
+cs_view = read(os.path.join(ROOT, 'resources/views/inventory/stocktake-show.blade.php'))
+ok('id="stProgress"' in cs_view and 'How far through is the count?' in cs_view and 'id="progressTable"' in cs_view,
+   'the page asks how far through the count is, and keeps it by category')
+ok('id="stProgressState"' in cs_view and "$progress['behind']" in cs_view,
+   'and names the categories that are still open')
+ok('id="stFound"' in cs_view and 'What has the count found so far?' in cs_view and 'id="foundTable"' in cs_view,
+   'what the counted lines have found is a card of its own, split by category')
+ok('id="stFoundState"' in cs_view and "$found['worst']['item']" in cs_view,
+   'the largest single line is named with both quantities, its cost and its value')
+ok('id="stWrites"' in cs_view and 'What will posting do?' in cs_view and 'id="writeTable"' in cs_view,
+   'and what posting will do is shown line by line before anything is posted')
+ok('id="stWritesState"' in cs_view and 'writes {{ money($writes[' + "'blank_value'" + ']) }} off the shelf' in cs_view,
+   'the blank-as-zero box is priced in money on the page that offers it')
+ok('data-counted=' in cs_view and 'data-value=' in cs_view,
+   'every row carries the state the readings above were taken from')
+ok('id="stSheetChain"' in cs_view and 'a line left blank is not a line counted at zero' in cs_view,
+   'the page draws the distinction the whole round turns on')
+ok('@php' not in cs_view,
+   'and decides its variables in the controller, because a template block is skipped by the renderer')
+cs_sample = read(os.path.join(ROOT, 'deploy/dev/preview/stocktake-show-sample.mjs'))
+ok('const counted = lines.filter(l => !l.blank);' in cs_sample and 'const blank = lines.filter(l => l.blank);' in cs_sample,
+   'the sample computes the readings from its own line list, the way the controller does from the sheet')
+ok('the verdict names the largest line with its quantity, its cost and its value' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktake_sheet_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the blank lines are not among the ones that will write anything' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktake_sheet_preview_check.js')),
+   'and proves a blank line is not a line counted at zero')
+ok('the drift finishes the count' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktake_sheet_preview_check.js')),
+   'the drift build proves the readings move together when the count is finished')
+ok("/stocktake-sheet-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

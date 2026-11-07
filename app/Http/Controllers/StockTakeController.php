@@ -99,11 +99,89 @@ class StockTakeController extends Controller
         return redirect()->route('stocktakes.show', $take)->with('success', "Count sheet {$take->take_no} created. Enter the physical quantities.");
     }
 
+    /**
+     * One count sheet — where the counting actually happens.
+     *
+     * v9.24 the sheet was a grid of inputs with a variance column, and the one thing that decides what posting does was
+     * invisible: a line left blank is posted with the book quantity untouched, while a line counted at zero writes the
+     * whole quantity off. They look the same in a grid. So the screen is read three ways before anything is posted —
+     * how far through the count is (by category, because a count is done aisle by aisle), what the counted lines have
+     * found so far, and what posting will do line by line, including the 16,154.00 the "blank counts as zero" box would
+     * write off in one click.
+     */
     public function show(StockTake $stocktake)
     {
         $stocktake->load('store', 'lines.item.category', 'creator', 'poster');
+        $lines = $stocktake->lines;
+        $counted = $lines->filter(fn ($l) => $l->counted_qty !== null);
+        $blank = $lines->filter(fn ($l) => $l->counted_qty === null);
+        $zero = $counted->filter(fn ($l) => (float) $l->counted_qty === 0.0 && (float) $l->system_qty !== 0.0);
+        $moved = $counted->filter(fn ($l) => abs((float) $l->varianceQty()) > 0.005);
+        $same = $counted->filter(fn ($l) => abs((float) $l->varianceQty()) <= 0.005);
+        $pct = $lines->count() ? round($counted->count() / $lines->count() * 100, 1) : null;
 
-        return view('inventory.stocktake-show', ['take' => $stocktake]);
+        $categories = $lines->groupBy(fn ($l) => $l->item?->category?->name ?? 'Uncategorised')->map(function ($set, $name) {
+            $counted = $set->filter(fn ($l) => $l->counted_qty !== null);
+            $short = round((float) $counted->sum(fn ($l) => min(0, (float) $l->varianceValue())), 2);
+            $over = round((float) $counted->sum(fn ($l) => max(0, (float) $l->varianceValue())), 2);
+
+            return ['category' => $name, 'lines' => $set->count(), 'counted' => $counted->count(),
+                'blank' => $set->count() - $counted->count(),
+                'pct' => $set->count() ? round($counted->count() / $set->count() * 100, 1) : null,
+                'short' => $short, 'over' => $over, 'net' => round($short + $over, 2)];
+        })->sortBy('category')->values();
+
+        $progress = ['lines' => $lines->count(), 'counted' => $counted->count(), 'blank' => $blank->count(),
+            'pct' => $pct, 'zero' => $zero->count(), 'same' => $same->count(), 'moved' => $moved->count(),
+            'rows' => $categories->map(fn ($c) => ['category' => $c['category'], 'lines' => $c['lines'], 'counted' => $c['counted'],
+                'blank' => $c['blank'], 'pct' => $c['pct'], 'tone' => $c['pct'] !== null && $c['pct'] < 100 ? 'text-red bold' : ''])->all(),
+            'pct_tone' => ($pct ?? 0) >= 100 ? 'green' : 'amber'];
+        $progress['sub'] = $counted->count().' counted · '.$blank->count().' blank';
+        $behind = $categories->filter(fn ($c) => $c['blank'] > 0)->pluck('category')->all();
+        $progress['behind'] = count($behind) > 1 ? implode(', ', array_slice($behind, 0, -1)).' and '.end($behind) : ($behind[0] ?? '');
+
+        $short = round((float) $counted->sum(fn ($l) => min(0, (float) $l->varianceValue())), 2);
+        $over = round((float) $counted->sum(fn ($l) => max(0, (float) $l->varianceValue())), 2);
+        $worst = $counted->filter(fn ($l) => (float) $l->varianceValue() < -0.005)->sortBy(fn ($l) => (float) $l->varianceValue())->first();
+
+        $found = ['value' => round($short + $over, 2), 'short' => $short, 'over' => $over,
+            'rows' => $categories->map(fn ($c) => ['category' => $c['category'], 'counted' => $c['counted'],
+                'short' => $c['short'], 'over' => $c['over'], 'net' => $c['net']])->all(),
+            'worst' => $worst ? ['item' => $worst->item?->name, 'unit' => $worst->item?->unit,
+                'system' => (float) $worst->system_qty, 'counted' => (float) $worst->counted_qty,
+                'qty' => abs((float) $worst->varianceQty()), 'cost' => (float) $worst->unit_cost,
+                'value' => abs((float) $worst->varianceValue())] : null];
+        $found['tone'] = $short < 0 ? 'red' : 'green';
+
+        $blankValue = round((float) $blank->sum(fn ($l) => (float) $l->system_qty * (float) $l->unit_cost), 2);
+        $zeroValue = round((float) $zero->sum(fn ($l) => (float) $l->system_qty * (float) $l->unit_cost), 2);
+        $biggestBlank = $blank->sortByDesc(fn ($l) => (float) $l->system_qty * (float) $l->unit_cost)->first();
+
+        $writes = ['moved' => $moved->count(), 'value' => round((float) $moved->sum(fn ($l) => $l->varianceValue()), 2),
+            'zero' => $zero->count(), 'zero_value' => $zeroValue, 'same' => $same->count(),
+            'blank' => $blank->count(), 'blank_value' => $blankValue,
+            'biggest_blank' => $biggestBlank ? ['item' => $biggestBlank->item?->name, 'unit' => $biggestBlank->item?->unit,
+                'qty' => (float) $biggestBlank->system_qty, 'value' => round((float) $biggestBlank->system_qty * (float) $biggestBlank->unit_cost, 2)] : null,
+            'rows' => $moved->sortByDesc(fn ($l) => abs((float) $l->varianceValue()))->take(10)->map(fn ($l) => [
+                'item' => $l->item?->name, 'unit' => $l->item?->unit, 'system' => (float) $l->system_qty,
+                'counted' => (float) $l->counted_qty, 'qty' => (float) $l->varianceQty(),
+                'value' => round((float) $l->varianceValue(), 2), 'tone' => (float) $l->varianceQty() < 0 ? 'text-red' : 'text-green'])->values()->all()];
+        $writes['tone'] = $blank->count() ? 'amber' : 'green';
+        $writes['blank_head_sub'] = $blank->count()
+            ? 'GH₵ '.number_format($blankValue, 2).' stays on the book unless the box below is ticked'
+            : 'every line carries a figure, so nothing is left unseen';
+        $writes['box_sub'] = $blank->count()
+            ? 'tick “treat blank counts as zero” and this is written off the book, sight unseen'
+            : 'with every line counted there is nothing for the box to write off';
+        $writes['blank_sub'] = $blank->count()
+            ? $blank->count().' line'.($blank->count() === 1 ? '' : 's').' with no figure — posting leaves them on the book'
+            : 'every line carries a figure, so posting covers the whole sheet';
+        $writes['zero_sub'] = $zero->count()
+            ? $zero->count().' line'.($zero->count() === 1 ? '' : 's').' counted at zero — the whole quantity is written off'
+            : 'nothing was counted at zero against a book quantity';
+
+        return view('inventory.stocktake-show', ['take' => $stocktake, 'progress' => $progress, 'found' => $found,
+            'writes' => $writes, 'editable' => $stocktake->status === 'draft' && can_do('inventory.manage')]);
     }
 
     public function update(Request $request, StockTake $stocktake)
