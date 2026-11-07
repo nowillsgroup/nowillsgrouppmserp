@@ -332,15 +332,15 @@
         <caption class="sr-only">Every room on this date: status, guest, stay, rate, housekeeping and actions. The rows are built from the room board, so both views always agree.</caption>
         <thead>
           <tr>
-            <th scope="col" aria-sort="ascending"><button type="button" class="ws-rack-sort" data-ws-sort="room">Room</button></th>
-            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="type">Type · Floor</button></th>
-            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="status">Status</button></th>
-            <th scope="col">Guest</th>
-            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="nights">Nights</button></th>
-            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="rate">Rate</button></th>
-            <th scope="col" class="num">Balance</th>
-            @if ($canViewHousekeeping)<th scope="col">HK</th>@endif
-            <th scope="col">Action</th>
+            <th scope="col" data-col="room" aria-sort="ascending"><button type="button" class="ws-rack-sort" data-ws-sort="room">Room</button></th>
+            <th scope="col" data-col="type"><button type="button" class="ws-rack-sort" data-ws-sort="type">Type · Floor</button></th>
+            <th scope="col" data-col="status"><button type="button" class="ws-rack-sort" data-ws-sort="status">Status</button></th>
+            <th scope="col" data-col="guest">Guest</th>
+            <th scope="col" data-col="nights" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="nights">Nights</button></th>
+            <th scope="col" data-col="rate" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="rate">Rate</button></th>
+            <th scope="col" data-col="balance" class="num">Balance</th>
+            @if ($canViewHousekeeping)<th scope="col" data-col="hk">HK</th>@endif
+            <th scope="col" data-col="action">Action</th>
           </tr>
         </thead>
         <tbody id="wsRackBody"></tbody>
@@ -873,7 +873,15 @@
       const nights = card.querySelector('.ws-nights')?.textContent.trim() || '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
       const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
-      const hk = (card.querySelector('.ws-hk-badge')?.textContent || '').replace(/\s+/g, ' ').trim();
+      // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
+      // from the chip's text minus that span: stripping a prefix by regex broke the moment the wording
+      // changed, and the column started reading "housekeeping: Dirty".
+      const hkBadge = card.querySelector('.ws-hk-badge');
+      const hk = hkBadge
+        ? [...hkBadge.childNodes]
+          .filter(node => !(node.nodeType === 1 && node.classList && node.classList.contains('ws-hk-prefix')))
+          .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim()
+        : '';
       const badge = card.querySelector('.ws-card-head .badge');
       const actions = card.querySelector('.ws-actions');
       const row = document.createElement('tr');
@@ -907,10 +915,14 @@
         roomWrap.appendChild(open);
       }
       roomCell.appendChild(roomWrap);
+      roomCell.dataset.col = 'room';
       row.appendChild(roomCell);
 
-      row.appendChild(rackCell(card.dataset.typeName || '—', card.dataset.floorName || ''));
+      const typeCell = rackCell(card.dataset.typeName || '—', card.dataset.floorName || '');
+      typeCell.dataset.col = 'type';
+      row.appendChild(typeCell);
       const statusCell = document.createElement('td');
+      statusCell.dataset.col = 'status';
       if (badge) statusCell.appendChild(badge.cloneNode(true));
       row.appendChild(statusCell);
 
@@ -926,30 +938,36 @@
         guestWrap.appendChild(meta);
       }
       guestCell.appendChild(guestWrap);
+      guestCell.dataset.col = 'guest';
       row.appendChild(guestCell);
 
       const nightsCell = document.createElement('td');
       nightsCell.className = 'num';
+      nightsCell.dataset.col = 'nights';
       nightsCell.textContent = nights || '—';
       row.appendChild(nightsCell);
 
       const rateCell = document.createElement('td');
       rateCell.className = 'num';
+      rateCell.dataset.col = 'rate';
       rateCell.textContent = rate.replace(/\s*\/\s*night$/i, '') || '—';
       row.appendChild(rateCell);
 
       const balanceCell = document.createElement('td');
       balanceCell.className = 'num';
+      balanceCell.dataset.col = 'balance';
       balanceCell.textContent = balance || '—';
       row.appendChild(balanceCell);
 
       if (document.getElementById('wsRack')?.dataset.hkColumn === '1') {
         const hkCell = document.createElement('td');
-        hkCell.textContent = hk ? hk.replace(/^Current\s*(HK\s*)?:?\s*/i, '') : '—';
+        hkCell.dataset.col = 'hk';
+        hkCell.textContent = hk || '—';
         row.appendChild(hkCell);
       }
 
       const actionCell = document.createElement('td');
+      actionCell.dataset.col = 'action';
       const actionWrap = document.createElement('div');
       actionWrap.className = 'ws-rack-actions';
       [...(actions?.children || [])].forEach(node => {
@@ -1440,13 +1458,18 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
-/* v10.15 a 150px card cannot hold "Reservation details", the extend form and "Mark Dirty" beside the one action
-   the desk actually takes, and letting them wrap cost the card a whole extra row. Below 200px the row keeps the
-   primary action and folds the rest into ··· All actions, which opens the room dialog where every one of them
-   is listed under Quick Links; below 200px the ··· loses its words too, so the two fit on one line. The buttons
-   that fold are still in the markup and still in the dialog — nothing is invented or lost. */
-@container wscard (max-width:199px){
-  .ws-actions .ws-act-minor{display:none}
+/* v10.17 the action row folds in three steps rather than one, because the controls are not one size.
+   Measured at their own type: the primary button is ~80px, Reservation details ~119px, Mark Dirty ~85px,
+   ··· All actions ~30px wordless, and the extend form — a 140px date field and a button — is ~200px on its
+   own. The row has 18px of padding. So:
+     · under 380px the extend form is a row of its own whatever else is there — it goes first;
+     · under 250px primary + details + Mark Dirty no longer fit one line (80+119+85+8 gaps = 292) — they go;
+     · and from 250px down the ··· loses its words, so the primary action and ··· share one line at any width.
+   A folded control is not a lost one: the room dialog carries the extend and mark-dirty forms under their own
+   ROOM ACTIONS heading, and Reservation details is in the dialog's Quick Links. */
+@container wscard (max-width:379px){.ws-actions .ws-extend-form{display:none}}
+@container wscard (max-width:249px){.ws-actions .ws-act-minor{display:none}}
+@container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
 .ws-actions .btn-ghost{border:1px solid transparent}
@@ -1751,7 +1774,19 @@ body.dark .ws-chip{background:#143323;border-color:#3b5946;color:#86efac}
 body.dark .ws-chip button{background:#193525;color:#86efac}
 body.dark a.ws-attention-row:hover{background:#193525}
 @container wsscreen (max-width:888px){.ws-keys{display:none}}
-@container wsscreen (max-width:688px){.ws-cmd{position:static}.ws-rack-table{min-width:760px}}
+@container wsscreen (max-width:688px){.ws-cmd{position:static}}
+/* v10.17 the rack is the "scan it fast" tab, and it was the one place still asking the reader to scroll
+   sideways: an 840px table inside a 600px panel. The columns now retreat in the order that costs least —
+   the floor and the nights count first, then the balance, then housekeeping, then the rate — until the rack
+   is room, state, guest and the action, which is what a room is on this screen. Nothing is dropped from the
+   page: every one of these cells is still built, still sorted, and still in the dialogs. */
+@container wsscreen (max-width:839px){
+  .ws-rack-table{min-width:0}
+  .ws-rack-table [data-col="nights"],.ws-rack-table [data-col="balance"]{display:none}}
+@container wsscreen (max-width:719px){
+  .ws-rack-table [data-col="type"],.ws-rack-table [data-col="hk"]{display:none}}
+@container wsscreen (max-width:519px){
+  .ws-rack-table [data-col="rate"]{display:none}}
 @container wsscreen (max-width:388px){
   .ws-toolbar{gap:8px}
   .ws-viewswitch{flex:1}

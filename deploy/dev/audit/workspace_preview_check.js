@@ -142,9 +142,13 @@ ok('the card is its own container, so the action row can answer to the card',
   /\.ws-card\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-card\{[^}]*container-name:wscard/.test(wsStyle),
   wsStyle.match(/\.ws-card\{[^}]*\}/)?.[0]?.slice(0, 120));
 ok('a narrow card folds its secondary actions instead of taking a second row',
-  /@container wscard \(max-width:199px\)\{\s*\.ws-actions \.ws-act-minor\{display:none\}/.test(wsStyle)
-    && /@container wscard \(max-width:199px\)\{[\s\S]{0,240}\.ws-all \.ws-act-label\{/.test(wsStyle),
-  'one row at 150px: the primary action and ···');
+  /@container wscard \(max-width:249px\)\{\.ws-actions \.ws-act-minor\{display:none\}/.test(wsStyle)
+    && /@container wscard \(max-width:379px\)\{[\s\S]{0,200}\.ws-all \.ws-act-label\{/.test(wsStyle),
+  'one row from 250px down: the primary action and ···');
+ok('and the extend form folds first, because it is the widest thing in the row',
+  /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
+    && wsStyle.indexOf('\u00b7 under 380px') > 0,
+  'a 140px date field and a button do not share a line with anything');
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
@@ -178,6 +182,28 @@ ok('and none of them is still counting the window',
     && !/@media \(max-width:\d+px\)\{\.ws-keys/.test(wsStyle)
     && !/@media \(max-width:\d+px\)\{\.ws-cmd/.test(wsStyle),
   'the screen-level breakpoints are container queries now');
+// v10.17 the rack was the last place asking a reader to scroll sideways: 840px of table in a 600px panel.
+const rackHeads = $$('.ws-rack-table thead th[data-col]').map(th => th.dataset.col);
+// the body is built by the screen's own script, so the cells are held to the same names through the script
+const rackScript = $$('script').map(s => s.textContent || '').join('\n');
+ok('every rack column is named, head and cell alike',
+  rackHeads.join(',') === 'room,type,status,guest,nights,rate,balance,hk,action'
+    && rackHeads.every(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)),
+  `${rackHeads.join(' · ')} — ${rackHeads.filter(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)).length} of ${rackHeads.length} cells tagged in the script`);
+ok('the rack reads the housekeeping state, not the sentence around it',
+  /classList\.contains\('ws-hk-prefix'\)/.test(rackScript) && !/Current\\s\*\(HK/.test(rackScript),
+  'the chip\'s prefix span is skipped rather than stripped by regex');
+ok('the rack stops pretending it has 840px of room', /\.ws-rack-table\{width:100%;min-width:840px/.test(wsStyle)
+  && /@container wsscreen \(max-width:839px\)\{\s*\.ws-rack-table\{min-width:0\}/.test(wsStyle),
+  'the floor is given up before the reader is asked to scroll');
+ok('the columns retreat in the order that costs the reader least',
+  [[839, 'nights'], [839, 'balance'], [719, 'type'], [719, 'hk'], [519, 'rate']].every(([width, col]) =>
+    new RegExp(`@container wsscreen \\(max-width:${width}px\\)\\{[\\s\\S]{0,200}\\[data-col="${col}"\\]`).test(wsStyle)),
+  'nights and balance, then type and housekeeping, then rate');
+ok('what is left is room, state, guest and the action',
+  ['room', 'status', 'guest', 'action'].every(col =>
+    !new RegExp(`\\[data-col="${col}"\\][^{}]*\\{[^}]*display:none`).test(wsStyle)),
+  'the four columns a room is on this screen are never hidden');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',
