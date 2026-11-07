@@ -434,6 +434,10 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-guest b{font-weight:700;overflow-wrap:anywhere}
 .ws-rack-guest span{color:#64748b;font-size:11px}
 .ws-rack-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+/* v10.19 the action cell is a column, not a row: at 840px and below it keeps the one action that moves the
+   room — check in, check out — and the secondary controls retreat, exactly as they do on the card. The rack's
+   own room cell already carries a Details button that opens the dialog, where ROOM ACTIONS has the rest. */
+@container wsscreen (max-width:839px){.ws-rack-table [data-col="action"] .ws-rack-extra{display:none}}
 .ws-rack-actions form{display:inline-flex;gap:4px;align-items:center;margin:0}
 .ws-rack-actions input[type="date"]{width:116px;padding:3px 4px;border:1px solid #d8e3dc;border-radius:6px;font-size:11px}
 .ws-rack-actions .btn{min-height:27px;padding:3px 7px;border-radius:6px;font-size:11px}
@@ -516,6 +520,10 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-main{grid-column:1/-1}
   .ws-head{box-shadow:none;background:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .ws-card,.ws-rack-scroll{break-inside:avoid;box-shadow:none}
+  /* v10.19 three across on paper means a group can straddle a page break: a heading at the foot of one page
+     with its rooms overleaf reads as a heading for nothing. The heading stays with what it names. */
+  .ws-group-head{break-after:avoid;break-inside:avoid}
+  .ws-group{break-inside:auto}
   .ws-rack-scroll{overflow:visible;border:0}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
@@ -6632,7 +6640,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
         // (extend, mark dirty) have to be copied with their form, or the rack would
         // silently lose every action that posts
         if (node.matches('a.btn, button.btn')) {
-          if (!node.matches('.ws-all')) actionWrap.appendChild(node.cloneNode(true));
+          if (!node.matches('.ws-all')) {
+            const copy = node.cloneNode(true);
+            // v10.19 the card folds its secondary controls below 380/250px; the rack copied them all into
+            // one cell, where they wrap into a column three lines deep. They keep their place at full width
+            // and retreat with the card's own rule — the room dialog still carries every one of them.
+            if (node.matches('.ws-act-minor')) copy.classList.add('ws-rack-extra');
+            actionWrap.appendChild(copy);
+          }
         } else if (node.matches('form')) {
           const copy = node.cloneNode(true);
           // the board keeps its ids; a second copy in the same page may not
@@ -6644,6 +6659,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             if (!label.querySelector('input,select,textarea')) label.remove();
           });
           copy.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+          copy.classList.add('ws-rack-extra');
           actionWrap.appendChild(copy);
         }
       });

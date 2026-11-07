@@ -190,6 +190,19 @@ ok('every rack column is named, head and cell alike',
   rackHeads.join(',') === 'room,type,status,guest,nights,rate,balance,hk,action'
     && rackHeads.every(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)),
   `${rackHeads.join(' · ')} — ${rackHeads.filter(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)).length} of ${rackHeads.length} cells tagged in the script`);
+// v10.19 the action cell is a column of buttons, and it was copying every control the card had folded.
+ok('the rack marks the controls it may have to give up',
+  /copy\.classList\.add\('ws-rack-extra'\);/.test(rackScript)
+    && /if \(node\.matches\('\.ws-act-minor'\)\) copy\.classList\.add\('ws-rack-extra'\);/.test(rackScript),
+  'the extend and mark-dirty forms, and the details link, travel tagged');
+ok('and a narrow rack keeps only the action that moves the room',
+  /@container wsscreen \(max-width:839px\)\{\.ws-rack-table \[data-col="action"\] \.ws-rack-extra\{display:none\}\}/.test(wsStyle)
+    && /\.ws-rack-open/.test(wsStyle),
+  'Details stays in the room cell, and the dialog carries the rest');
+ok('a group heading stays on the sheet with the rooms it names',
+  /@media print\{[\s\S]{0,1200}\.ws-group-head\{break-after:avoid;break-inside:avoid\}/.test(wsStyle)
+    && /@media print\{[\s\S]{0,1200}\.ws-group\{break-inside:auto\}/.test(wsStyle),
+  'three across on paper, so a group can straddle a page');
 ok('the rack reads the housekeeping state, not the sentence around it',
   /classList\.contains\('ws-hk-prefix'\)/.test(rackScript) && !/Current\\s\*\(HK/.test(rackScript),
   'the chip\'s prefix span is skipped rather than stripped by regex');
@@ -202,8 +215,8 @@ ok('the columns retreat in the order that costs the reader least',
   'nights and balance, then type and housekeeping, then rate');
 ok('what is left is room, state, guest and the action',
   ['room', 'status', 'guest', 'action'].every(col =>
-    !new RegExp(`\\[data-col="${col}"\\][^{}]*\\{[^}]*display:none`).test(wsStyle)),
-  'the four columns a room is on this screen are never hidden');
+    !new RegExp(`\\[data-col="${col}"\\]\\s*\\{[^}]*display:none`).test(wsStyle)),
+  'the four columns a room is on this screen are never hidden — though the action cell may shed its extras');
 // v10.18 the sort lives on columns that retreat, so the order is stated where it cannot be hidden — and the
 // statement is the control: activate to reverse, clear to return to room order.
 const sortChip = $('#wsRackSortState');
