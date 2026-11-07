@@ -14,7 +14,7 @@
 @for($d = 1; $d <= $month->daysInMonth; $d++)@php $dt = $month->copy()->day($d); $hn = $holidays[$dt->toDateString()] ?? null; @endphp<th class="{{ $hn ? 'ph' : ($dt->isWeekend() ? 'we' : '') }}" title="{{ $dt->format('D d M') }}{{ $hn ? ' · '.$hn.' (public holiday)' : '' }}">{{ $d }}<div class="tiny muted">{{ $hn ? 'PH' : substr($dt->format('D'), 0, 2) }}</div></th>@endfor
 <th title="Paid days to date">Paid</th><th title="Loss of pay days">LOP</th><th title="Public holidays in the month">PH</th><th title="Overtime hours">OT</th><th title="Hours worked on a public holiday">Hol h</th></tr></thead><tbody>
 @foreach($employees as $e)@php $row = $att[$e->id] ?? collect(); $s = $summary[$e->id]; $shift = (float) setting('payroll_shift_hours', 9); @endphp
-<tr><td class="small muted">{{ $e->emp_code }}</td><td class="bold small">{{ $e->name }}</td>
+<tr><td class="small muted">{{ $e->emp_code }}</td><td class="bold small"><a href="{{ route('hr.employee.file', $e) }}">{{ $e->name }}</a></td>
 @for($d = 1; $d <= $month->daysInMonth; $d++)@php
   $a = $row[$d] ?? null; $dt = $month->copy()->day($d);
   $pre = $e->joining_date && $dt->lt($e->joining_date);

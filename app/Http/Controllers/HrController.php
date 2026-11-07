@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\HrDocument;
 use App\Models\Setting;
 use App\Services\ActivityLogger;
+use App\Services\EmployeeSelfService;
 use App\Services\HolidayService;
 use App\Services\PayrollService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class HrController extends Controller
@@ -122,6 +126,80 @@ class HrController extends Controller
         return view('hr.register', ['employees' => $employees, 'att' => $att, 'month' => $month, 'summary' => $summary, 'until' => $until,
             'departments' => Department::pluck('name', 'id'), 'locked' => PayrollService::lockedRunFor($month->toDateString()),
             'holidays' => HolidayService::inRange($month, $end)]);
+    }
+
+    // ───────────── the employee file: photograph and papers ─────────────
+
+    /**
+     * One person's file. Until now HR could see a name in a register and nothing else — no
+     * photograph for a roster or a door pass, and no way to load a signed contract on a
+     * member of staff's behalf; only the member of staff could send paper in.
+     */
+    public function employee(Employee $employee)
+    {
+        $employee->load('department');
+        $month = bdate()->copy()->startOfMonth();
+        $attendance = Attendance::where('employee_id', $employee->id)->whereDate('date', '>=', $month->toDateString())
+            ->whereDate('date', '<=', bdate()->toDateString())->get();
+
+        return view('hr.employee', [
+            'e' => $employee,
+            'docs' => $employee->documents()->get(),
+            'kinds' => EmployeeSelfService::DOC_KINDS,
+            'photoUrl' => $employee->photoUrl(),
+            'month' => $month,
+            'monthStatus' => $attendance->countBy('status'),
+        ]);
+    }
+
+    public function savePhoto(Request $request, Employee $employee)
+    {
+        EmployeeSelfService::savePhoto($employee, $request->file('photo'), Auth::user());
+
+        return back()->with('success', "Photograph saved for {$employee->name}.");
+    }
+
+    public function removePhoto(Employee $employee)
+    {
+        EmployeeSelfService::removePhoto($employee, Auth::user());
+
+        return back()->with('success', "The photograph of {$employee->name} was removed.");
+    }
+
+    public function employeePhoto(Employee $employee)
+    {
+        abort_unless($employee->photo_path && Storage::disk('local')->exists($employee->photo_path), 404);
+
+        return Storage::disk('local')->response($employee->photo_path, null, ['Cache-Control' => 'private, max-age=300']);
+    }
+
+    public function uploadDocument(Request $request, Employee $employee)
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:200'],
+            'kind' => ['nullable', 'string'],
+            'file' => ['required', 'file'],
+        ]);
+        EmployeeSelfService::uploadOnBehalf($employee, $request->file('file'), (string) ($data['title'] ?? ''), $data['kind'] ?? null, Auth::user());
+
+        return back()->with('success', 'Document loaded into the employee file.');
+    }
+
+    public function document(HrDocument $doc)
+    {
+        abort_unless($doc->file_path && Storage::disk('local')->exists($doc->file_path), 404);
+        $name = str_replace(['/', '\\'], '-', $doc->title).'.'.pathinfo($doc->file_path, PATHINFO_EXTENSION);
+
+        return $doc->isImage()
+            ? Storage::disk('local')->response($doc->file_path, null, ['Cache-Control' => 'private, max-age=300'])
+            : Storage::disk('local')->download($doc->file_path, $name);
+    }
+
+    public function deleteDocument(HrDocument $doc)
+    {
+        EmployeeSelfService::deleteDocument($doc, Auth::user());
+
+        return back()->with('success', 'The document was removed from the file.');
     }
 
     // ───────────── v7.43 public holidays (Act 601 as amended by Act 1142) ─────────────

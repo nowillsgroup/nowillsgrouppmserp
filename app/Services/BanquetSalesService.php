@@ -89,12 +89,35 @@ class BanquetSalesService
             if ($old && $old->guaranteeLocked() && $old->guaranteed_pax !== null && ($guar === null || $guar < $old->guaranteed_pax)) {
                 throw ValidationException::withMessages(["functions.$i.guaranteed_pax" => "$name: the guarantee of {$old->guaranteed_pax} is final since ".$old->guaranteeCutoff()->format('d M').' – it can go up, not down.']);
             }
+            $barPkg = ! empty($f['banquet_bar_package_id']) ? $packages->get((int) $f['banquet_bar_package_id']) : null;
+            if (! empty($f['banquet_bar_package_id']) && ! $barPkg) {
+                throw ValidationException::withMessages(["functions.$i.banquet_bar_package_id" => "$name: unknown drinks package."]);
+            }
             $pkg = ! empty($f['banquet_package_id']) ? $packages->get((int) $f['banquet_package_id']) : null;
             if (! empty($f['banquet_package_id']) && ! $pkg) {
                 throw ValidationException::withMessages(["functions.$i.banquet_package_id" => "$name: unknown menu package."]);
             }
             if ($pkg && $pkg->min_pax && max($pax, (int) $guar) < $pkg->min_pax) {
                 throw ValidationException::withMessages(["functions.$i.banquet_package_id" => "$name: {$pkg->name} needs at least {$pkg->min_pax} guests."]);
+            }
+            if ($barPkg && $pkg && $barPkg->id === $pkg->id) {
+                throw ValidationException::withMessages(["functions.$i.banquet_bar_package_id" => "$name: the drinks package cannot be the same as the menu package."]);
+            }
+            if ($barPkg && $barPkg->min_pax && max($pax, (int) $guar) < $barPkg->min_pax) {
+                throw ValidationException::withMessages(["functions.$i.banquet_bar_package_id" => "$name: {$barPkg->name} needs at least {$barPkg->min_pax} guests."]);
+            }
+            $diets = [];
+            foreach (array_values($f['dietary'] ?? []) as $row) {
+                $diet = (string) ($row['diet'] ?? '');
+                $covers = (int) ($row['covers'] ?? 0);
+                if (! array_key_exists($diet, BanquetFunction::DIETS) || $covers <= 0) {
+                    continue;
+                }
+                $diets[] = ['diet' => $diet, 'covers' => $covers, 'dish' => mb_substr(trim((string) ($row['dish'] ?? '')), 0, 120)];
+            }
+            $dietCovers = array_sum(array_column($diets, 'covers'));
+            if ($dietCovers > max($pax, (int) $guar)) {
+                throw ValidationException::withMessages(["functions.$i.dietary" => "$name: the dietary covers ({$dietCovers}) are more than the guests you are planning for."]);
             }
             $hours = (strtotime($end) - strtotime($start)) / 3600;
             $items = [];
@@ -114,8 +137,12 @@ class BanquetSalesService
                 'setup_style' => $style, 'expected_pax' => $pax, 'guaranteed_pax' => $guar, 'banquet_package_id' => $pkg?->id,
                 'rate_per_pax' => round(isset($f['rate_per_pax']) && $f['rate_per_pax'] !== '' ? (float) $f['rate_per_pax'] : (float) $pkg?->price_per_pax, 2),
                 'fnb_tax_rate' => (float) ($pkg?->tax_rate ?? TaxService::rateFor('fnb', 0)),
+                'banquet_bar_package_id' => $barPkg?->id,
+                'bar_rate_per_pax' => round(isset($f['bar_rate_per_pax']) && $f['bar_rate_per_pax'] !== '' ? (float) $f['bar_rate_per_pax'] : (float) $barPkg?->price_per_pax, 2),
+                'bar_tax_rate' => (float) ($barPkg?->tax_rate ?? TaxService::rateFor('fnb', 0)),
                 'hall_rate' => round(isset($f['hall_rate']) && $f['hall_rate'] !== '' ? (float) $f['hall_rate'] : $hall->rentFor($hours), 2),
-                'hall_tax_rate' => (float) setting('banquet_hall_tax_rate', '21'), 'notes' => ($f['notes'] ?? null) ? mb_substr(trim($f['notes']), 0, 3000) : null, 'sort' => $i,
+                'hall_tax_rate' => (float) setting('banquet_hall_tax_rate', '21'), 'notes' => ($f['notes'] ?? null) ? mb_substr(trim($f['notes']), 0, 3000) : null,
+                'dietary' => $diets ?: null, 'sort' => $i,
             ], 'items' => $items];
         }
         if (! $rows) {
@@ -175,6 +202,53 @@ class BanquetSalesService
             ->whereHas('event', fn ($q) => $q->whereIn('status', BanquetEvent::HOLDS))
             ->when($exceptFunctionIds, fn ($q) => $q->whereNotIn('id', $exceptFunctionIds))
             ->where('start_time', '<', $en)->where('end_time', '>', $s)->get();
+    }
+
+    /**
+     * Which venues answer one enquiry: free for the slot, too small for the set-up, or held.
+     *
+     * "Held" is the answer the sales desk actually needs — the room is not free because
+     * another event has it, and the desk should see whose event and how it sits against the
+     * turn-around before it promises the date.
+     *
+     * @param  list<int>  $exceptFunctionIds  the event's own functions, when editing
+     * @return Collection<int, array{hall: BanquetHall, capacity: int, rent: float, status: string, held: ?BanquetFunction}>
+     */
+    public static function availability(string $date, string $start, string $end, int $pax, ?string $style, array $exceptFunctionIds = []): Collection
+    {
+        $hours = max(0, (self::mins($end) - self::mins($start)) / 60);
+
+        return BanquetHall::where('is_active', true)->orderBy('sort')->orderBy('name')->get()
+            ->map(function ($hall) use ($date, $start, $end, $pax, $style, $exceptFunctionIds, $hours) {
+                $capacity = $hall->capacityFor($style);
+                $held = self::clashes($hall->id, $date, $start, $end, $exceptFunctionIds)->first();
+
+                return ['hall' => $hall, 'capacity' => $capacity, 'rent' => (float) $hall->rentFor($hours), 'held' => $held,
+                    'status' => $held ? 'held' : ($capacity > 0 && $pax > $capacity ? 'small' : 'free')];
+            });
+    }
+
+    /**
+     * Every hold that could collide with a function the form is typing, for the next few months.
+     *
+     * The booking form is a page, not an API call: the desk is on the telephone and cannot wait
+     * for a round trip on every keystroke. A property's holds over a season are a small list,
+     * so the form carries them and answers the question as the date and the clock are typed.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function busy(int $days = 180, ?int $exceptEventId = null): Collection
+    {
+        return BanquetFunction::with('event')->whereDate('date', '>=', bdate()->toDateString())
+            ->whereDate('date', '<=', bdate()->copy()->addDays($days)->toDateString())
+            ->whereHas('event', fn ($q) => $q->whereIn('status', BanquetEvent::HOLDS)
+                ->when($exceptEventId, fn ($w) => $w->where('id', '!=', $exceptEventId)))
+            ->orderBy('date')->orderBy('start_time')->get()
+            ->map(fn ($f) => ['hall' => (int) $f->banquet_hall_id, 'date' => $f->date->toDateString(),
+                'start' => substr((string) $f->start_time, 0, 5), 'end' => substr((string) $f->end_time, 0, 5),
+                'event' => $f->event->event_no, 'title' => $f->event->title ?: $f->event->contact_name,
+                'status' => $f->event->status, 'fn' => $f->name])
+            ->values();
     }
 
     /** @param Collection<object> $fns candidate functions (attrs + id) of one event */
@@ -432,7 +506,7 @@ class BanquetSalesService
     /** Post every function onto the event folio and complete the event. */
     public static function bill(BanquetEvent $e): Folio
     {
-        $e->load('functions.items', 'functions.hall', 'functions.package');
+        $e->load('functions.items', 'functions.hall', 'functions.package', 'functions.barPackage');
         if (! $e->readyToBill()) {
             throw ValidationException::withMessages(['bill' => $e->billed_at ? 'Already billed.' : ($e->status !== 'definite' ? 'Only definite events are billed.' : 'Bill once the last function has taken place ('.$e->end_date?->format('d M').').')]);
         }
@@ -450,6 +524,10 @@ class BanquetSalesService
                 if ($f->fnbAmount() > 0) {
                     FolioService::charge($folio, 'banquet', "$tag – ".($f->package?->name ?? 'Food & beverage')." ({$f->billablePax()} pax × ".rtrim(rtrim(number_format($f->rate_per_pax, 2, '.', ''), '0'), '.').')',
                         $f->fnbAmount(), false, $src + ['tax_rate' => $f->fnb_tax_rate]);
+                }
+                if ($f->barAmount() > 0) {
+                    FolioService::charge($folio, 'banquet', "$tag – ".($f->barPackage?->name ?? 'Bar')." ({$f->billablePax()} pax × ".rtrim(rtrim(number_format($f->bar_rate_per_pax, 2, '.', ''), '0'), '.').')',
+                        $f->barAmount(), false, $src + ['tax_rate' => $f->bar_tax_rate]);
                 }
                 if ($f->hall_rate > 0) {
                     FolioService::charge($folio, 'banquet', "$tag – venue: {$f->hall->name}", $f->hall_rate, false, $src + ['tax_rate' => $f->hall_tax_rate]);

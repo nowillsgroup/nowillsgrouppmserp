@@ -6,6 +6,7 @@
 <span id="evStatus">{!! $e->statusBadge() !!}</span>
 <a class="btn" href="{{ route('banquet.quote', $e) }}" target="_blank" rel="noopener" id="quoteBtn" aria-label="Open {{ strtolower($quoteActionLabel) }} for {{ $e->event_no }} in a new tab"><x-icon name="receipt"/> {{ $quoteActionLabel }}</a>
 <a class="btn" href="{{ route('banquet.print', $e) }}" target="_blank" rel="noopener" id="beoBtn" aria-label="Open function sheet for {{ $e->event_no }} in a new tab"><x-icon name="print"/> BEO</a>
+<a class="btn" href="{{ route('banquet.menu', $e) }}" target="_blank" rel="noopener" id="menuBtn" aria-label="Open the kitchen menu sheet for {{ $e->event_no }} in a new tab"><x-icon name="cup"/> Kitchen menu</a>
 @if(can_do('banquet.manage'))
   @if($e->isEditable())<a class="btn" href="{{ route('banquet.edit', $e) }}" id="editEvent"><x-icon name="edit"/> Edit</a>@endif
   @if(in_array($e->status, ['enquiry', 'tentative']))
@@ -66,11 +67,13 @@
       </div>
       <table class="table mt-1 bq-charge-table"><caption class="sr-only">Estimated charges for {{ $f->name }}</caption><thead class="sr-only"><tr><th scope="col">Charge item</th><th scope="col">Net amount</th></tr></thead><tbody>
         @if($f->rate_per_pax > 0 || $f->package)<tr><th scope="row">{{ $f->package?->name ?? 'Food & beverage' }}<div class="tiny muted">{{ $f->billablePax() }} × {{ money($f->rate_per_pax, false) }} · tax {{ rtrim(rtrim(number_format($f->fnb_tax_rate, 2), '0'), '.') }}%</div></th><td class="num">{{ money($f->fnbAmount(), false) }}</td></tr>@endif
+        @if($f->barPackage)<tr><th scope="row">{{ $f->barPackage->name }}<div class="tiny muted">{{ $f->billablePax() }} × {{ money($f->bar_rate_per_pax, false) }} · drinks · tax {{ rtrim(rtrim(number_format($f->bar_tax_rate, 2), '0'), '.') }}%</div></th><td class="num">{{ money($f->barAmount(), false) }}</td></tr>@endif
         <tr><th scope="row">Venue – {{ $f->hall->name }}<div class="tiny muted">{{ $f->hours() }} h</div></th><td class="num">{{ money($f->hall_rate, false) }}</td></tr>
         @foreach($f->items as $it)<tr><th scope="row">{{ $it->description }}<div class="tiny muted">{{ rtrim(rtrim(number_format($it->qty, 2), '0'), '.') }} × {{ money($it->unit_price, false) }}{{ $it->service?->department ? ' · '.$it->service->department->name : '' }}</div></th><td class="num">{{ money($it->amount(), false) }}</td></tr>@endforeach
         <tr class="bold"><th scope="row">Function total <span class="tiny muted">(tax {{ money($f->tax(), false) }})</span></th><td class="num">{{ money($f->net(), false) }}</td></tr>
       </tbody></table>
       @if($f->package && $f->package->itemList())<div class="menu-list"><b class="tiny muted">MENU</b> {{ implode(' · ', $f->package->itemList()) }}</div>@endif
+      @if($f->barPackage && $f->barPackage->itemList())<div class="menu-list"><b class="tiny muted">BAR</b> {{ implode(' · ', $f->barPackage->itemList()) }}</div>@endif
       @if($f->notes)<div class="small mt-1" style="white-space:pre-line"><b class="tiny muted">NOTES</b> {{ $f->notes }}</div>@endif
     </div>
   </div>

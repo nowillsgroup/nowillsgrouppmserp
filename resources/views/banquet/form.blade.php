@@ -69,7 +69,7 @@
     </section>
 
     <section class="bq-function-area" id="bqFunctionPlan" aria-labelledby="bqFunctionsTitle">
-      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div>
+      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><div class="flex items-center gap-1"><a class="btn btn-sm" href="{{ route('banquet.availability', $event->event_date ? ['date' => $event->event_date->toDateString()] : []) }}" id="findVenue"><x-icon name="search"/> Find a free venue</a><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div></div>
       <div id="fnList" class="bq-function-list" role="list" aria-label="Event functions"></div>
       <button type="button" class="btn bq-add-function" id="addFn" aria-controls="fnList"><x-icon name="plus"/> Add another function</button>
     </section>
@@ -98,14 +98,21 @@
     <div class="field"><label>Name</label><input class="input" data-f="name" maxlength="120" placeholder="Reception, Day 1 plenary"></div>
     <div class="field"><label>Venue <span class="req">*</span></label><select class="input" data-f="banquet_hall_id" required><option value="">— Venue —</option>@foreach($halls as $h)<option value="{{ $h->id }}">{{ $h->name }}</option>@endforeach</select></div>
     <div class="field"><label>Date <span class="req">*</span></label><input type="date" class="input" data-f="date" required></div>
-    <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div></div>
+    <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div><span class="hint fn-avail" aria-live="polite"></span></div>
     <div class="field"><label>Set-up</label><select class="input" data-f="setup_style">@foreach(\App\Models\BanquetFunction::SETUPS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
     <div class="field"><label>Expected guests <span class="req">*</span></label><input type="number" min="1" max="10000" class="input" data-f="expected_pax" required><span class="hint fn-cap"></span></div>
     <div class="field"><label>Guaranteed guests</label><input type="number" min="1" max="10000" class="input" data-f="guaranteed_pax" placeholder="Final numbers"></div>
     <div class="field"><label>Menu package</label><select class="input" data-f="banquet_package_id"><option value="">— No F&amp;B / custom —</option>@foreach($packages->groupBy('type') as $t => $grp)<optgroup label="{{ ucfirst($t) }}">@foreach($grp as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ money($p->price_per_pax, false) }})</option>@endforeach</optgroup>@endforeach</select></div>
     <div class="field"><label>Rate per guest</label><input type="number" min="0" max="999999" step="0.01" class="input" data-f="rate_per_pax"></div>
+    <div class="field"><label>Drinks package</label><select class="input" data-f="banquet_bar_package_id"><option value="">— No drinks package —</option>@foreach($packages->groupBy('type') as $t => $grp)<optgroup label="{{ ucfirst($t) }}">@foreach($grp as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ money($p->price_per_pax, false) }})</option>@endforeach</optgroup>@endforeach</select><span class="hint fn-bar"></span></div>
+    <div class="field"><label>Drinks per guest</label><input type="number" min="0" max="999999" step="0.01" class="input" data-f="bar_rate_per_pax"><span class="hint">Charged per paying guest, beside the food.</span></div>
     <div class="field"><label>Venue rent</label><input type="number" min="0" max="99999999" step="0.01" class="input" data-f="hall_rate"><span class="hint fn-rent"></span></div>
     <div class="field span-2"><label>Kitchen / set-up notes (BEO)</label><textarea class="input" rows="2" data-f="notes" maxlength="3000"></textarea></div>
+  </div>
+  <div class="card-body bq-function-diet" style="padding-top:0">
+    <div class="flex items-center gap-1"><span class="lbl-small">Dietary &amp; allergies</span><span class="grow"></span><span class="fn-diet-count tiny muted" aria-live="polite">None recorded</span></div>
+    <table class="table fn-diets"><caption class="sr-only">Dietary needs for this function</caption><thead><tr><th scope="col" style="min-width:170px">Diet</th><th scope="col" class="num">Covers</th><th scope="col">Dish served</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody></tbody></table>
+    <div class="flex items-center gap-1 mt-1"><button type="button" class="btn btn-sm fn-adddiet"><x-icon name="plus"/> Add dietary need</button><span class="tiny muted">Counts the kitchen cooks to a different plate for — the menu sheet prints them.</span></div>
   </div>
   <div class="card-body bq-function-extras" style="padding-top:0"><div class="bq-fn-items-scroll"><table class="table fn-items"><caption class="sr-only">Optional service and equipment extras for this function</caption><thead><tr><th scope="col" style="min-width:180px">Service / equipment</th><th scope="col">Description</th><th scope="col" class="num">Qty</th><th scope="col" class="num">Price</th><th scope="col" class="num">Tax %</th><th scope="col" class="num">Amount</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody></tbody></table></div>
     <div class="flex items-center gap-1 mt-1 bq-extra-actions"><button type="button" class="btn btn-sm fn-additem"><x-icon name="plus"/> Add service</button><span class="fn-items-count tiny muted" aria-live="polite">No extras yet</span><span class="grow"></span><span class="small">Function total <b class="fn-total">0.00</b> <span class="tiny muted">+ tax</span></span></div>
@@ -120,16 +127,24 @@
   <td class="num it-amt"></td>
   <td><button type="button" class="btn btn-ghost btn-icon it-del" title="Remove service line" aria-label="Remove service line"><x-icon name="x"/></button></td>
 </tr></template>
+<template id="dietTpl"><tr class="fn-diet">
+  <td><select class="input input-sm" data-d="diet"><option value="">— Diet —</option>@foreach(\App\Models\BanquetFunction::DIETS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></td>
+  <td class="num"><input type="number" min="0" max="10000" step="1" class="input input-sm" style="width:70px" data-d="covers"></td>
+  <td><input class="input input-sm" maxlength="120" data-d="dish" placeholder="Gluten-free plate"></td>
+  <td><button type="button" class="btn btn-ghost btn-icon dt-del" title="Remove dietary need" aria-label="Remove dietary need"><x-icon name="x"/></button></td>
+</tr></template>
 <script>
 (function () {
   const HALLS = @json($hallData), PKGS = @json($pkgData), SVCS = @json($svcData), HALF = {{ $halfDayHours }}, HALLTAX = {{ $hallTax }};
+  const BUSY = @json($busy), TURN = {{ $turnaround }};
   const INIT = @json(array_values(old('functions', $functions)));
-  const list = document.getElementById('fnList'), fnTpl = document.getElementById('fnTpl').innerHTML, itTpl = document.getElementById('itemTpl').innerHTML;
+  const list = document.getElementById('fnList'), fnTpl = document.getElementById('fnTpl').innerHTML, itTpl = document.getElementById('itemTpl').innerHTML, dietTpl = document.getElementById('dietTpl').innerHTML;
   const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const num = el => parseFloat(el.value) || 0;
-  const MAX_FUNCTIONS = 30, MAX_ITEMS = 40;
-  const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
+  const MAX_FUNCTIONS = 30, MAX_ITEMS = 40, MAX_DIETS = 12;
+  const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', banquet_bar_package_id: 'Drinks package', bar_rate_per_pax: 'Drinks per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
   const itemLabels = {banquet_service_id: 'Service or equipment', description: 'Description', qty: 'Quantity', unit_price: 'Unit price', tax_rate: 'Tax rate'};
+  const dietLabels = {diet: 'Diet', covers: 'Covers', dish: 'Dish served'};
   function names(card) {
     const i = [...list.children].indexOf(card);
     card.querySelectorAll('[data-f]').forEach(el => {
@@ -150,9 +165,19 @@
       });
       row.querySelector('.it-del')?.setAttribute('aria-label', `Remove extra ${j + 1} from function ${i + 1}`);
     });
+    card.querySelectorAll('.fn-diet').forEach((row, j) => {
+      row.querySelectorAll('[data-d]').forEach(el => {
+        const key = el.dataset.d;
+        el.name = `functions[${i}][dietary][${j}][${key}]`;
+        el.id = `bq-function-${i + 1}-diet-${j + 1}-${key}`;
+        el.setAttribute('aria-label', `${dietLabels[key] || key}, function ${i + 1}, dietary need ${j + 1}`);
+      });
+      row.querySelector('.dt-del')?.setAttribute('aria-label', `Remove dietary need ${j + 1} from function ${i + 1}`);
+    });
     card.querySelector('.fn-title').textContent = card.querySelector('[data-f=name]').value || 'Function ' + (i + 1);
     card.querySelector('.fn-del')?.setAttribute('aria-label', `Remove function ${i + 1}`);
     card.querySelector('.fn-additem')?.setAttribute('aria-label', `Add service or equipment to function ${i + 1}`);
+    card.querySelector('.fn-adddiet')?.setAttribute('aria-label', `Add a dietary need to function ${i + 1}`);
   }
   function renumber() {
     [...list.children].forEach(card => { names(card); card.setAttribute('role', 'listitem'); });
@@ -174,6 +199,16 @@
       button.title = button.disabled ? `A maximum of ${MAX_ITEMS} extras can be added to one function.` : '';
     }
     if (count) count.textContent = rows === 0 ? 'No extras yet' : `${rows} / ${MAX_ITEMS} extras`;
+  }
+  const mins = t => { const [h, m] = String(t || '').split(':').map(Number); return (h * 60 + m) || 0; };
+  /** The hold this function would collide with, allowing the turn-around either side. */
+  function clash(card) {
+    const hall = card.querySelector('[data-f=banquet_hall_id]').value;
+    const date = card.querySelector('[data-f=date]').value;
+    const start = card.querySelector('[data-f=start_time]').value, end = card.querySelector('[data-f=end_time]').value;
+    if (!hall || !date || !start || !end) return null;
+    return BUSY.find(b => String(b.hall) === String(hall) && b.date === date
+      && mins(b.start) - TURN < mins(end) && mins(b.end) + TURN > mins(start)) || null;
   }
   function hours(card) {
     const s = card.querySelector('[data-f=start_time]').value, e = card.querySelector('[data-f=end_time]').value;
@@ -199,6 +234,35 @@
     row.querySelectorAll('input').forEach(el => el.addEventListener('input', calc));
     names(card); syncItemLimit(card); return row;
   }
+  function syncDietLimit(card) {
+    const rows = card.querySelectorAll('.fn-diet').length;
+    const button = card.querySelector('.fn-adddiet');
+    const count = card.querySelector('.fn-diet-count');
+    if (button) {
+      button.disabled = rows >= MAX_DIETS;
+      button.title = button.disabled ? `A maximum of ${MAX_DIETS} dietary needs can be added to one function.` : '';
+    }
+    if (count) {
+      const covers = [...card.querySelectorAll('.fn-diet [data-d=covers]')].reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
+      count.textContent = rows === 0 ? 'None recorded' : `${rows} ${rows === 1 ? 'need' : 'needs'} · ${covers} ${covers === 1 ? 'cover' : 'covers'}`;
+      count.classList.toggle('text-red', covers > Math.max(num(card.querySelector('[data-f=expected_pax]')), num(card.querySelector('[data-f=guaranteed_pax]'))));
+    }
+  }
+  function addDiet(card, d) {
+    const tbody = card.querySelector('.fn-diets tbody');
+    if (!tbody || tbody.children.length >= MAX_DIETS) { syncDietLimit(card); return null; }
+    const t = document.createElement('tbody'); t.innerHTML = dietTpl; const row = t.firstElementChild; tbody.appendChild(row);
+    if (d) { for (const k of Object.keys(dietLabels)) { const el = row.querySelector(`[data-d=${k}]`); if (el && d[k] !== null && d[k] !== undefined) el.value = d[k]; } }
+    row.querySelector('.dt-del').addEventListener('click', () => {
+      const returnFocus = row.nextElementSibling?.querySelector('[data-d=diet]')
+        || row.previousElementSibling?.querySelector('[data-d=diet]')
+        || card.querySelector('.fn-adddiet');
+      row.remove(); names(card); syncDietLimit(card); calc(); returnFocus?.focus();
+    });
+    row.querySelectorAll('input').forEach(el => el.addEventListener('input', () => { syncDietLimit(card); calc(); }));
+    row.querySelector('select')?.addEventListener('change', () => { syncDietLimit(card); calc(); });
+    names(card); syncDietLimit(card); return row;
+  }
   function addFn(f) {
     if (list.children.length >= MAX_FUNCTIONS) return null;
     const t = document.createElement('div'); t.innerHTML = fnTpl; const card = t.firstElementChild; list.appendChild(card);
@@ -207,6 +271,8 @@
     for (const k of ['id', ...Object.keys(functionLabels)]) { const el = card.querySelector(`[data-f=${k}]`); if (el && f[k] !== null && f[k] !== undefined) el.value = f[k]; }
     if (f.locked) { card.querySelector('.fn-lock').hidden = false; card.querySelector('[data-f=guaranteed_pax]').min = f.guaranteed_pax; }
     (Array.isArray(f.items) ? f.items : []).forEach(it => addItem(card, it));
+    (Array.isArray(f.dietary) ? f.dietary : []).forEach(row => addDiet(card, row));
+    card.querySelector('.fn-adddiet').addEventListener('click', () => addDiet(card, null)?.querySelector('select')?.focus());
     card.querySelector('.fn-additem').addEventListener('click', () => addItem(card, null)?.querySelector('select').focus());
     card.querySelector('.fn-del').addEventListener('click', () => {
       const returnFocus = card.nextElementSibling?.querySelector('[data-f=name]')
@@ -215,6 +281,7 @@
       (returnFocus || document.getElementById('addFn')).focus();
     });
     card.querySelector('[data-f=banquet_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=rate_per_pax]').value = p ? p.p : ''; calc(); });
+    card.querySelector('[data-f=banquet_bar_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=bar_rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelectorAll('[data-f]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { names(card); calc(); }));
     renumber(); calc(); return card;
   }
@@ -250,6 +317,25 @@
       const capHint = card.querySelector('.fn-cap');
       capHint.textContent = hall ? `${capacity} seats in this set-up` : 'Select a venue to check capacity';
       capHint.classList.toggle('text-red', !!capacityWarning);
+      const held = clash(card);
+      const availHint = card.querySelector('.fn-avail');
+      if (availHint) {
+        const hasSlot = hallSelect.value && card.querySelector('[data-f=date]').value
+          && card.querySelector('[data-f=start_time]').value && card.querySelector('[data-f=end_time]').value;
+        if (held) {
+          availHint.textContent = `${held.event} holds this venue ${held.start}–${held.end} (${held.status}) — allow ${TURN} minutes to turn the room round.`;
+          availHint.classList.remove('text-green');
+          availHint.classList.toggle('text-red', held.status === 'definite' || held.status === 'completed');
+          availHint.classList.toggle('text-amber', !(held.status === 'definite' || held.status === 'completed'));
+        } else if (hasSlot) {
+          availHint.textContent = 'Free for this slot.';
+          availHint.classList.add('text-green');
+          availHint.classList.remove('text-red', 'text-amber');
+        } else {
+          availHint.textContent = '';
+          availHint.classList.remove('text-red', 'text-amber', 'text-green');
+        }
+      }
       const hoursBooked = hours(card);
       const defaultRent = hall ? (hoursBooked > HALF && hall.full > 0 ? hall.full : hall.half) : 0;
       const rentEl = card.querySelector('[data-f=hall_rate]');
@@ -265,6 +351,16 @@
       capHint.classList.toggle('text-amber', belowPackageMinimum && !capacityWarning);
       if (belowPackageMinimum) capHint.textContent += ` · Package minimum ${pkg.min} guests`;
       const rate = rateEl.value !== '' ? num(rateEl) : (pkg ? pkg.p : 0);
+      const barId = card.querySelector('[data-f=banquet_bar_package_id]').value;
+      const barPkg = PKGS[barId];
+      const barRateEl = card.querySelector('[data-f=bar_rate_per_pax]');
+      barRateEl.placeholder = barPkg ? fmt(barPkg.p) : '0.00';
+      const barRate = barRateEl.value !== '' ? num(barRateEl) : (barPkg ? barPkg.p : 0);
+      card.querySelector('.fn-bar').textContent = barPkg
+        ? (guestsForPackage < barPkg.min ? `${barPkg.n ?? 'Drinks'} needs ${barPkg.min} guests` : (barPkg.n ?? 'Drinks package'))
+        : '';
+      card.querySelector('.fn-bar').classList.toggle('text-amber', !!barPkg && guestsForPackage < barPkg.min);
+      const barNet = barRate * billable;
       const rent = rentEl.value !== '' ? num(rentEl) : defaultRent;
       const foodNet = rate * billable;
       let extrasNet = 0, extrasTax = 0;
@@ -274,14 +370,14 @@
         extrasNet += amount;
         extrasTax += amount * num(row.querySelector('[data-i=tax_rate]')) / 100;
       });
-      const functionNet = foodNet + rent + extrasNet;
-      const functionTax = foodNet * (pkg ? pkg.t : 18) / 100 + rent * HALLTAX / 100 + extrasTax;
+      const functionNet = foodNet + barNet + rent + extrasNet;
+      const functionTax = foodNet * (pkg ? pkg.t : 18) / 100 + barNet * (barPkg ? barPkg.t : 18) / 100 + rent * HALLTAX / 100 + extrasTax;
       net += functionNet;
       tax += functionTax;
       card.querySelector('.fn-total').textContent = fmt(functionNet);
       estimates.push({
         name: card.querySelector('[data-f=name]').value || card.querySelector('.fn-title').textContent,
-        detail: `${billable || 0} guests${rate ? ` · ${fmt(rate)} per guest` : ''}`,
+        detail: `${billable || 0} guests${rate ? ` · ${fmt(rate)} food` : ''}${barRate ? ` · ${fmt(barRate)} drinks` : ''}`,
         amount: functionNet,
       });
     });

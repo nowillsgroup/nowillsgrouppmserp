@@ -1612,6 +1612,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/function-sheet', 'sheet')->middleware('perm:banquet.view')->name('sheet');
         Route::get('/settings', 'settings')->middleware('perm:banquet.setup')->name('settings');
         Route::post('/settings', 'saveSettings')->middleware('perm:banquet.setup')->name('settings.save');
+        Route::get('/availability', 'availability')->middleware('perm:banquet.view')->name('availability');
         Route::get('/create', 'create')->middleware('perm:banquet.manage')->name('create');
         Route::post('/', 'store')->middleware('perm:banquet.manage')->name('store');
         Route::get('/{event}', 'show')->middleware('perm:banquet.view')->name('show');
@@ -1627,6 +1628,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/{event}/refund', 'refund')->middleware('perm:banquet.billing')->name('refund');
         Route::post('/{event}/bill', 'bill')->middleware('perm:banquet.billing')->name('bill');
         Route::get('/{event}/print', 'print')->middleware('perm:banquet.view')->name('print');
+        Route::get('/{event}/menu', 'menu')->middleware('perm:banquet.view')->name('menu');
         Route::get('/{event}/quote', 'quote')->middleware('perm:banquet.view')->name('quote');
     });
 
@@ -1705,6 +1707,19 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/hr/settings', [Controllers\HrController::class, 'settings'])->middleware('perm:hr.manage')->name('hr.settings');
     Route::post('/hr/settings', [Controllers\HrController::class, 'saveSettings'])->middleware('perm:hr.manage')->name('hr.settings.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
+
+    // the employee file: photograph, papers, and the review of what staff send in
+    Route::controller(Controllers\HrController::class)->prefix('hr/employees')->name('hr.employee.')->group(function () {
+        Route::get('/{employee}', 'employee')->whereNumber('employee')->middleware('perm:hr.manage,hr.view,payroll.view')->name('file');
+        Route::get('/{employee}/photo', 'employeePhoto')->whereNumber('employee')->middleware('perm:hr.manage,hr.view,payroll.view')->name('photo');
+        Route::post('/{employee}/photo', 'savePhoto')->whereNumber('employee')->middleware('perm:hr.manage')->name('photo.save');
+        Route::post('/{employee}/photo/remove', 'removePhoto')->whereNumber('employee')->middleware('perm:hr.manage')->name('photo.remove');
+        Route::post('/{employee}/documents', 'uploadDocument')->whereNumber('employee')->middleware('perm:hr.manage')->name('documents.save');
+    });
+    Route::get('/hr/documents/{doc}', [Controllers\HrController::class, 'document'])->whereNumber('doc')
+        ->middleware('perm:hr.manage,hr.view,payroll.view')->name('hr.document');
+    Route::post('/hr/documents/{doc}/delete', [Controllers\HrController::class, 'deleteDocument'])->whereNumber('doc')
+        ->middleware('perm:hr.manage')->name('hr.document.delete');
     // v7.43 public holidays – the gazetted Ghana calendar behind the roster, the register, leave and payroll
     Route::get('/hr/holidays', [Controllers\HrController::class, 'holidays'])->middleware('perm:hr.manage,roster.view,payroll.view')->name('hr.holidays');
     Route::post('/hr/holidays', [Controllers\HrController::class, 'saveHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.save');
@@ -1769,6 +1784,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     });
     // v7.40 employee self-service: profile change requests, documents, announcements
     Route::prefix('me')->name('me.')->controller(Controllers\EssController::class)->middleware('perm:hr.self')->group(function () {
+        Route::get('/documents/{doc}', 'documentFile')->whereNumber('doc')->name('documents.file');
         Route::get('/profile', 'profile')->name('profile');
         Route::post('/profile', 'profileUpdate')->middleware('throttle:20,1')->name('profile.update');
         Route::get('/documents', 'documents')->name('documents');
