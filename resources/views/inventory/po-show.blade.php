@@ -18,8 +18,28 @@
   @if($po->status === 'partial')<button class="btn" data-modal="closeModal" id="shortCloseBtn">Short-close balance</button>@endif
   @if(in_array($po->status, ['draft', 'approved']))<form method="post" action="{{ route('purchases.status', $po) }}" data-confirm="Cancel this PO?">@csrf<button name="status" value="cancelled" class="btn btn-danger">Cancel</button></form>@endif
 @endif
+
+{{-- v9.26 where this document sits: nothing downstream of it can be right if it is wrong --}}
+<div class="card" id="poChain"><div class="card-body small">
+  <x-icon name="link"/> A purchase order is the only document the whole chain points at: the requisition that asked for it,
+  the goods receipt that delivered it, the supplier bill that charges for it and the payment that clears that bill all
+  carry this number. Nothing below it can be right if it is wrong — a line priced above the agreed rate is a cost nobody
+  approved, and a bill matched to an order the gate never filled is money out of the door.
+</div></div>
 @endsection
 @section('content')
+
+{{-- v9.26 the order in five figures: what was ordered, what came, what is still owed, what was charged for, and how late it is --}}
+<div class="stats wide">
+  <x-stat label="Ordered" :value="money($ordered)" icon="receipt" tone="slate"
+    :sub="count($lines).' lines into '.$po->store->name.' — VAT '.money($po->tax)" href="#poLines"/>
+  <x-stat label="Arrived" :value="money($arrived)" icon="truck" :tone="'green'" :sub="$delivery['sub']" href="#poArrival"/>
+  <x-stat label="Still owed" :value="money($outstanding['gross'])" icon="box" :tone="$outstanding['qty'] > 0 ? 'amber' : 'green'"
+    :sub="$outstanding['top'] ? $outstanding['top']['outstanding'].' of '.$outstanding['top']['item'].' not yet delivered, '.$outstanding['sub'] : $outstanding['sub']" href="#poMatch"/>
+  <x-stat label="Billed" :value="money($billed)" icon="money" :tone="$match['tone']" :sub="$match['head']" href="#poMatch"/>
+  <x-stat label="Overdue" :value="$overdueDays ? $overdueDays.' days' : 'on time'" icon="clock" :tone="$overdueDays ? 'red' : 'green'"
+    :sub="$overdueDays ? 'the supplier expected to deliver by '.dmy($po->expected_date).' — '.money($outstanding['gross']).' of the order is still out there' : 'expected '.dmy($po->expected_date)"/>
+</div>
 @if($po->status === 'draft')
 <div class="alert {{ $canApprove ? 'alert-info' : 'alert-warn' }}" id="approvalPanel"><x-icon name="shield"/><div>
   <b>Approval required: {{ \App\Services\ProcurementService::levelLabel($level) }}</b> – {{ money($po->total) }}@if($aboveN) · <span class="text-red">{{ $aboveN }} line(s) priced above the agreed supplier rate</span>@endif
@@ -27,12 +47,28 @@
 </div></div>
 @endif
 @if($po->isForeign())<div class="notice notice-info"><b>{{ $po->fxLabel() }}</b> at {{ number_format((float) $po->fx_rate, 4) }} {{ $po->fx_basis }} board of {{ $po->fx_date?->format('d M Y') }}@if($po->fx_date && $po->fx_date->toDateString() !== $po->po_date->toDateString()) <span class="badge badge-amber">carried forward</span>@endif · approval and PO comparison value <b>{{ money($po->total) }}</b> in {{ $home ?? strtoupper((string) (hotel()?->currency ?: 'GHS')) }}. Each GRN is revalued at its own receipt-date board.</div>@endif
-<div class="card"><div class="card-body grid g-3">
+<div class="card" id="poOrder">
+<div class="card-head"><h3>The order</h3>
+  <span class="muted small">{{ $po->po_no }} · {{ $po->supplier->name }} · {{ $po->store->name }} · raised {{ $po->po_date->format('d M Y') }}</span></div>
+<div class="card-body grid g-3">
   <dl class="kv"><dt>Supplier</dt><dd>{{ $po->supplier->name }}</dd><dt>Contact</dt><dd>{{ $po->supplier->contact_person }} {{ $po->supplier->phone }}</dd><dt>TIN</dt><dd>{{ $po->supplier->tax_number }}</dd>@if($po->rfq)<dt>From RFQ</dt><dd><a href="{{ route('rfq.show', $po->rfq) }}">{{ $po->rfq->rfq_no }}</a></dd>@endif</dl>
   <dl class="kv"><dt>PO date</dt><dd>{{ $po->po_date->format('d M Y') }}</dd><dt>Expected</dt><dd>{{ dmy($po->expected_date) }}@if($po->isOverdue()) <span class="badge badge-red" id="poOverdue">overdue</span>@endif</dd><dt>Store</dt><dd>{{ $po->store->name }}</dd></dl>
   <dl class="kv"><dt>Created by</dt><dd>{{ $po->creator?->name }}</dd><dt>Approved</dt><dd id="poApproved">@if($po->approved_at){{ $po->approver?->name ?? '—' }} · {{ $po->approved_at->format('d M Y') }}@if($po->approval_level) <span class="tiny muted">L{{ $po->approval_level }}</span>@endif @else — @endif</dd><dt>Received</dt><dd>{{ $po->received_at?->format('d M Y H:i') ?? ($po->status === 'partial' ? 'part delivered' : '—') }}</dd><dt>Supplier inv.</dt><dd>{{ $po->invoice_no ?? '—' }}</dd></dl>
-</div></div>
-<div class="card flush"><div class="card-body table-wrap"><table class="table" id="poItems"><thead><tr><th>#</th><th>Item</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Rejected</th><th class="num">Outstanding</th><th class="num">Rate · {{ $currency }}</th><th class="num">Agreed · {{ $home }}</th><th class="num">Tax %</th><th class="num">Amount · {{ $currency }}</th></tr></thead><tbody>
+</div>
+<div class="card-body" style="border-top:1px solid var(--line)">
+  <div class="stats" style="margin:0">
+    <x-stat label="Lines" :value="count($lines)" icon="list" tone="slate" :sub="'each one priced on the day the order was raised, not the day it arrives'"/>
+    <x-stat label="Order value" :value="money($ordered)" icon="money" tone="blue" :sub="'VAT '.money($po->tax).' on a net '.money($po->subtotal)"/>
+    <x-stat label="Above the agreed rate" :value="$rate['count']" icon="alert" :tone="$rate['count'] ? 'amber' : 'green'"
+      :sub="$rate['top'] ? $rate['top']['item'].' at '.money($rate['top']['rate'], false).' against '.money($rate['top']['list_rate'], false).' agreed — '.money($rate['over']).' over on the order' : 'every line is at or under the agreed rate'"/>
+    <x-stat label="Approved by" :value="$po->approver?->name ?? '—'" icon="shield" tone="green"
+      :sub="$po->approved_at ? $levelLabel.' · '.$po->approved_at->format('d M Y') : 'this order has not been approved'"/>
+  </div>
+</div>
+</div>
+
+{{-- v9.26 what the supplier was asked for, line by line, against what the gate actually let in --}}
+<div class="card flush" id="poLines"><div class="card-body table-wrap"><table class="table" id="poItems"><thead><tr><th>#</th><th>Item</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Rejected</th><th class="num">Outstanding</th><th class="num">Rate · {{ $currency }}</th><th class="num">Agreed · {{ $home }}</th><th class="num">Tax %</th><th class="num">Amount · {{ $currency }}</th></tr></thead><tbody>
 @foreach($po->items as $l)@php $poRate = $po->isForeign() ? (float) $l->fx_unit_rate : (float) $l->rate; $poAmount = $po->isForeign() ? (float) $l->fx_amount : (float) $l->amount; @endphp<tr>
   <td>{{ $loop->iteration }}</td><td>{{ $l->item->name }}</td><td class="num">{{ (float) $l->qty }} {{ $l->item->unit }}</td>
   <td class="num">{{ (float) $l->received_qty ?: '—' }}</td><td class="num {{ (float) $l->rejected_qty ? 'text-red' : '' }}">{{ (float) $l->rejected_qty ?: '—' }}</td>
@@ -45,8 +81,50 @@
 </tbody><tfoot><tr><td colspan="9" class="right">Subtotal · {{ $currency }}</td><td class="num">{{ $po->isForeign() ? number_format($po->fx_subtotal, 2) : money($po->subtotal) }}@if($po->isForeign())<div class="tiny muted">{{ money($po->subtotal) }} {{ $home }}</div>@endif</td></tr><tr><td colspan="9" class="right">Tax · {{ $currency }}</td><td class="num">{{ $po->isForeign() ? number_format($po->fx_tax, 2) : money($po->tax) }}@if($po->isForeign())<div class="tiny muted">{{ money($po->tax) }} {{ $home }}</div>@endif</td></tr><tr><td colspan="9" class="right bold">Total · {{ $currency }}</td><td class="num bold">{{ $po->isForeign() ? number_format($po->fx_total, 2) : money($po->total) }}@if($po->isForeign())<div class="tiny muted">{{ money($po->total) }} {{ $home }}</div>@endif</td></tr>
 @if($byGrn)<tr><td colspan="9" class="right bold">Received value · {{ $home }}</td><td class="num bold" id="poReceivedValue">{{ money($po->receivedValue()) }}@if($po->isForeign())@php [$receivedFxSub, $receivedFxTax] = $po->receivedForeignSplit(); @endphp<div class="tiny muted">{{ $po->currency }} {{ number_format($receivedFxSub + $receivedFxTax, 2) }}</div>@endif</td></tr>@endif</tfoot></table></div></div>
 
+{{-- v9.26 the three-way match this screen exists to show: ordered, arrived, charged for --}}
+<div class="card" id="poMatch">
+  <div class="card-head"><h3>What arrived, and what the supplier charged for</h3>
+    <span class="badge badge-{{ $match['tone'] }}">{{ $match['head'] }}</span></div>
+  <div class="card-body">
+    <div class="stats" style="margin:0">
+      <x-stat label="Ordered" :value="money($match['ordered'])" icon="receipt" tone="slate" :sub="'the whole order, VAT included'"/>
+      <x-stat label="Arrived" :value="money($match['arrived'])" icon="truck" tone="green"
+        :sub="$delivery['count'].' deliver'.($delivery['count'] === 1 ? 'y' : 'ies').($delivery['rejected'] > 0 ? ', '.money($delivery['rejected']).' refused at the gate' : '')"/>
+      <x-stat label="Billed" :value="money($match['billed'])" icon="money" :tone="$match['tone']"
+        :sub="$match['invoice'] ? $match['invoice'].' · '.$match['invoice_status'] : 'no supplier bill is matched to this order yet'"/>
+      <x-stat label="Difference" :value="money(abs($match['gap']))" icon="alert" :tone="$match['tone']"
+        :sub="$match['gap'] > 0.005 ? 'received and not yet invoiced' : ($match['gap'] < -0.005 ? 'invoiced and never received' : 'the bill and the gate agree to the pesewa')"/>
+    </div>
+    <p class="small" id="poMatchState" style="margin:.6rem 0 0"><x-icon name="info"/> {{ $match['sub'] }}.
+      @if($outstanding['qty'] > 0)
+        {{ $outstanding['qty'] }} units of goods are still owed on {{ $outstanding['lines'] }} line{{ $outstanding['lines'] === 1 ? '' : 's' }},
+        worth {{ money($outstanding['value']) }} before tax at the rates the order carries, {{ money($outstanding['gross']) }} with VAT.
+      @endif</p>
+    @if($match['rows'])
+    <div class="table-wrap" style="margin-top:.6rem"><table class="table table-compact" id="poOwed">
+      <thead><tr><th>Still to come</th><th class="num">Quantity</th><th class="num">Value</th></tr></thead><tbody>
+      @foreach($match['rows'] as $r)<tr data-item="{{ $r['item'] }}"><td class="bold">{{ $r['item'] }}</td>
+        <td class="num">{{ $r['qty'] }} {{ $r['unit'] }}</td><td class="num">{{ money($r['value'], false) }}</td></tr>@endforeach
+      </tbody><tfoot><tr><td class="right bold">Outstanding</td><td class="num bold">{{ $outstanding['qty'] }}</td><td class="num bold">{{ money($outstanding['value'], false) }}</td></tr></tfoot></table></div>
+    @endif
+  </div>
+</div>
+
 @if($byGrn)
-<div class="card" id="poReceipts"><div class="card-head"><h3>Goods receipts</h3><span class="small muted">{{ $po->receipts->count() }} delivery(ies)</span></div>
+<div class="card" id="poArrival">
+<div class="card-head"><h3>What came through the gate</h3>
+  <span class="muted small">{{ $delivery['count'] }} deliver{{ $delivery['count'] === 1 ? 'y' : 'ies' }} · {{ money($delivery['accepted']) }} accepted · {{ dmy($delivery['first']) }} to {{ dmy($delivery['last']) }}</span></div>
+<div class="card-body">
+  <div class="stats" style="margin:0">
+    <x-stat label="Deliveries" :value="$delivery['count']" icon="truck" tone="blue" :sub="$delivery['sub']"/>
+    <x-stat label="Accepted" :value="money($delivery['accepted'])" icon="box" tone="green" :sub="'valued at the rate each line was ordered at'"/>
+    <x-stat label="Refused" :value="money($delivery['rejected'])" icon="alert" :tone="$delivery['rejected'] > 0 ? 'amber' : 'green'"
+      :sub="$delivery['reject_sub']"/>
+    <x-stat label="Worst delay" :value="$delivery['worst_days'] ? $delivery['worst_days'].' days' : 'none'" icon="clock" :tone="$delivery['worst_days'] ? 'red' : 'green'"
+      :sub="$delivery['worst_no'] ? $delivery['worst_no'].' came after the '.dmy($po->expected_date).' expected date' : 'every delivery met the expected date'"/>
+  </div>
+</div>
+<div id="poReceipts"><div class="card-head"><h3>Goods receipts</h3><span class="small muted">{{ $po->receipts->count() }} {{ $po->receipts->count() === 1 ? 'delivery' : 'deliveries' }}</span></div>
 <div class="card-body table-wrap"><table class="table table-compact"><thead><tr><th>GRN</th><th>Date / FX board</th><th>Delivery note</th><th>Items</th><th class="num">Accepted · {{ $home }}</th><th class="num">Rejected</th><th>Received by</th><th></th></tr></thead><tbody>
 @foreach($po->receipts as $g)<tr><td class="bold">{{ $g->grn_no }}</td><td>{{ $g->date->format('d M Y') }}@if(! $g->onTime()) <span class="badge badge-amber">late</span>@endif @if($g->isForeign())<div class="tiny muted">1 {{ $g->currency }} = {{ number_format((float) $g->fx_rate, 4) }} · {{ $g->fx_basis }} board {{ $g->fx_date?->format('d M Y') }}@if($g->fx_date && $g->fx_date->toDateString() !== $g->date->toDateString()) <span class="badge badge-amber">carried forward</span>@endif</div>@endif</td><td>{{ $g->delivery_note ?: '—' }}@if($g->invoice_no)<div class="tiny muted">inv. {{ $g->invoice_no }}</div>@endif</td>
   <td class="small">@foreach($g->lines as $gl){{ $gl->item->name }} {{ (float) $gl->qty_accepted }}@if((float) $gl->qty_rejected)<span class="text-red"> (−{{ (float) $gl->qty_rejected }}: {{ $gl->reject_reason }})</span>@endif{{ $loop->last ? '' : ' · ' }}@endforeach</td>
@@ -153,4 +231,12 @@
 })();
 </script>@endpush
 @endif
+
+{{-- v9.26 where this document sits: nothing downstream of it can be right if it is wrong --}}
+<div class="card" id="poChain"><div class="card-body small">
+  <x-icon name="link"/> A purchase order is the only document the whole chain points at: the requisition that asked for it,
+  the goods receipt that delivered it, the supplier bill that charges for it and the payment that clears that bill all
+  carry this number. Nothing below it can be right if it is wrong — a line priced above the agreed rate is a cost nobody
+  approved, and a bill matched to an order the gate never filled is money out of the door.
+</div></div>
 @endsection

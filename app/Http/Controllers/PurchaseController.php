@@ -163,12 +163,107 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.show', $po)->with('success', $message);
     }
 
+    /**
+     * v9.26: the order, everything that has happened to it, and the three-way match.
+     *
+     * This screen is the one document the whole procure-to-AP chain hangs from — the requisition that asked for it, the
+     * receipts that delivered it, the supplier bill that charges for it and the payment that clears that bill all point
+     * here — and until now it could say what was ordered and what arrived, but not whether the three agreed. So the
+     * readings below are the ones a manager actually asks for: what is still owed on the order, whether the supplier
+     * billed for goods that never came, and how late the delivery is.
+     */
     public function show(PurchaseOrder $po)
     {
-        $po->load('supplier', 'store', 'items.item', 'creator', 'approver', 'receipts.lines.item', 'receipts.receiver', 'rfq');
+        $po->load('supplier', 'store', 'items.item', 'creator', 'approver', 'receipts.lines.item', 'receipts.receiver', 'rfq', 'bill');
 
-        return view('inventory.po-show', ['po' => $po, 'level' => ProcurementService::requiredLevel($po), 'blocker' => $po->status === 'draft' ? ProcurementService::approvalBlocker($po) : null,
-            'overPct' => ProcurementService::overReceiptPct()]);
+        $ordered = round((float) $po->total, 2);
+        $arrived = round($po->receivedValue(), 2);
+        $billed = $po->bill ? round((float) $po->bill->total, 2) : 0.0;
+        $today = bdate()->toDateString();
+
+        /* what each line still owes, priced the way the order priced it */
+        $lines = $po->items->map(fn ($l) => [
+            'id' => $l->id, 'item' => $l->item?->name, 'unit' => $l->item?->unit,
+            'qty' => round((float) $l->qty, 2), 'received' => round((float) $l->received_qty, 2),
+            'rejected' => round((float) $l->rejected_qty, 2), 'outstanding' => $l->outstanding(),
+            'rate' => round((float) $l->rate, 2),
+            'outstanding_value' => round($l->outstanding() * (float) $l->rate, 2),
+            'above' => $l->aboveList(), 'list_rate' => $l->list_rate === null ? null : round((float) $l->list_rate, 2),
+            'over' => $l->list_rate === null ? 0.0 : round(((float) $l->rate - (float) $l->list_rate) * (float) $l->qty, 2),
+        ])->values();
+
+        /* still owed on the order — quantity, then the money it represents before tax */
+        $owed = $lines->filter(fn ($r) => $r['outstanding'] > 0.005)->sortByDesc('outstanding_value')->values();
+        $outstanding = [
+            'qty' => round((float) $po->items->sum(fn ($l) => $l->outstanding()), 2),
+            'value' => round((float) $lines->sum(fn ($r) => $r['outstanding_value']), 2),
+            'lines' => $owed->count(), 'rows' => $owed->take(5)->all(), 'top' => $owed->first(),
+            'gross' => round($ordered - $arrived, 2),
+        ];
+        $outstanding['sub'] = $outstanding['qty'] > 0
+            ? $outstanding['lines'].' line'.($outstanding['lines'] === 1 ? '' : 's').' still to come'
+            : 'everything ordered has arrived';
+
+        /* the deliveries: when, how late, and what was refused at the gate */
+        $receipts = $po->receipts;
+        $late = $receipts->reject(fn ($g) => $g->onTime());
+        $worst = $late->sortByDesc(fn ($g) => $po->expected_date ? $po->expected_date->diffInDays($g->date) : 0)->first();
+        $delivery = [
+            'count' => $receipts->count(),
+            'late' => $late->count(),
+            'first' => $receipts->min(fn ($g) => $g->date->toDateString()),
+            'last' => $receipts->max(fn ($g) => $g->date->toDateString()),
+            'accepted' => $arrived,
+            'rejected' => round((float) $receipts->sum(fn ($g) => (float) $g->rejected_value), 2),
+            'worst_days' => $worst && $po->expected_date ? (int) $po->expected_date->diffInDays($worst->date) : 0,
+            'worst_no' => $worst?->grn_no,
+            'reasons' => $receipts->flatMap(fn ($g) => $g->lines->filter(fn ($gl) => (float) $gl->qty_rejected > 0)
+                ->map(fn ($gl) => ['item' => $gl->item?->name, 'qty' => round((float) $gl->qty_rejected, 2), 'reason' => $gl->reject_reason]))->values()->all(),
+        ];
+        $delivery['reject_sub'] = $delivery['reasons']
+            ? implode(', ', array_map(fn ($r) => $r['qty'].' of '.$r['item'].' — '.$r['reason'], $delivery['reasons']))
+            : 'nothing was refused at the gate';
+        $delivery['sub'] = $delivery['late']
+            ? $delivery['late'].' of '.$delivery['count'].' arrived after the expected date'
+            : 'every delivery came on or before the expected date';
+
+        /* the three-way match: what was ordered, what arrived, what the supplier charged for */
+        $gap = round($arrived - $billed, 2);
+        $match = [
+            'ordered' => $ordered, 'arrived' => $arrived, 'billed' => $billed, 'gap' => $gap,
+            'unbilled' => $gap > 0.005, 'overbilled' => $gap < -0.005,
+            'invoice' => $po->bill?->doc_no, 'invoice_status' => $po->bill?->status,
+            'rows' => $owed->take(6)->map(fn ($r) => ['item' => $r['item'], 'unit' => $r['unit'], 'qty' => $r['outstanding'], 'value' => $r['outstanding_value']])->all(),
+        ];
+        if ($match['overbilled']) {
+            $match['tone'] = 'red';
+            $match['head'] = 'the supplier has billed for goods that never arrived';
+            $match['sub'] = 'billed '.money(abs($gap)).' more than was received — the goods or the credit note is missing';
+        } elseif ($match['unbilled']) {
+            $match['tone'] = 'amber';
+            $match['head'] = 'goods received, not yet invoiced';
+            $match['sub'] = money($gap).' of what arrived is not on the payables ledger yet';
+        } else {
+            $match['tone'] = 'green';
+            $match['head'] = 'the bill matches what arrived';
+            $match['sub'] = 'nothing has been charged for that the store did not receive';
+        }
+
+        /* above the agreed supplier rate — the one thing on this order a buyer has to explain */
+        $above = $lines->filter(fn ($r) => $r['above'])->values();
+        $rate = ['count' => $above->count(), 'over' => round((float) $above->sum('over'), 2), 'rows' => $above->all(),
+            'top' => $above->sortByDesc('over')->first()];
+
+        /* how far past the expected date it is, and how much of the order is riding on that */
+        $overdueDays = $po->expected_date && in_array($po->status, ['approved', 'partial'], true) && $po->expected_date->toDateString() < $today
+            ? (int) $po->expected_date->diffInDays(bdate()) : 0;
+
+        $levelLabel = $po->approval_level ? ProcurementService::levelLabel($po->approval_level) : 'no approval level';
+
+        return view('inventory.po-show', ['po' => $po, 'level' => ProcurementService::requiredLevel($po), 'levelLabel' => $levelLabel, 'blocker' => $po->status === 'draft' ? ProcurementService::approvalBlocker($po) : null,
+            'overPct' => ProcurementService::overReceiptPct(), 'lines' => $lines, 'outstanding' => $outstanding,
+            'delivery' => $delivery, 'match' => $match, 'rate' => $rate, 'overdueDays' => $overdueDays,
+            'ordered' => $ordered, 'arrived' => $arrived, 'billed' => $billed]);
     }
 
     public function status(Request $request, PurchaseOrder $po)

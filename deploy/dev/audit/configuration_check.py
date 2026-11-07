@@ -4375,6 +4375,69 @@ ok('the gap card empties to a check rather than a list' in read(os.path.join(ROO
 ok("/movement-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26aw · the purchase order document: the order, the gate and the match ─────────────
+po_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/PurchaseController.php'))
+po_fn = po_ctrl[po_ctrl.index('public function show(PurchaseOrder $po)'):po_ctrl.index('public function status(')]
+ok("$po->load('supplier', 'store', 'items.item', 'creator', 'approver', 'receipts.lines.item', 'receipts.receiver', 'rfq', 'bill');" in po_fn,
+   'the order is loaded with the bill as well, because the match cannot be read without it')
+ok("$ordered = round((float) $po->total, 2);" in po_fn and "$arrived = round($po->receivedValue(), 2);" in po_fn,
+   'the match is computed from the order total and the receipts, not from a second stored figure')
+ok("$billed = $po->bill ? round((float) $po->bill->total, 2) : 0.0;" in po_fn,
+   'and from the bill relation the purchase-order list and the ageing both read')
+ok("$gap = round($arrived - $billed, 2);" in po_fn and "'overbilled' => $gap < -0.005," in po_fn,
+   'the gap is signed, so invoiced-beyond-received is a different reading from received-not-yet-invoiced')
+ok("$match['head'] = 'the bill matches what arrived';" in po_fn and "$match['head'] = 'goods received, not yet invoiced';" in po_fn,
+   'and each of the three outcomes says in words what the numbers mean')
+ok("'outstanding_value' => round($l->outstanding() * (float) $l->rate, 2)," in po_fn,
+   'what is still owed is valued at the rate the order carries, line by line')
+ok("'gross' => round($ordered - $arrived, 2)," in po_fn,
+   'the figure the header prints is the order less what arrived, which is VAT-inclusive on both sides')
+ok("'rejected' => round((float) $receipts->sum(fn ($g) => (float) $g->rejected_value), 2)," in po_fn,
+   'what the gate refused comes from the receipts, the only records that ever saw it')
+ok("$delivery['reject_sub'] =" in po_fn,
+   'and the reason is written where the refusal happened, not reconstructed in the view')
+ok("'above' => $l->aboveList(), 'list_rate' =>" in po_fn,
+   'the agreed-rate test is the model\'s own, so the order and the list screen cannot disagree')
+ok("$overdueDays = $po->expected_date && in_array($po->status, ['approved', 'partial'], true)" in po_fn,
+   'an order is only overdue while goods can still arrive')
+ok("'levelLabel' => $levelLabel," in po_fn,
+   'the level label is resolved in the controller: a static service call cannot render in the preview')
+po_view = read(os.path.join(ROOT, 'resources/views/inventory/po-show.blade.php'))
+ok('id="poOrder"' in po_view and 'The order' in po_view and 'raised {{ $po->po_date->format(' in po_view,
+   'the order is a card that names itself, its supplier, its store and the day it was raised')
+ok('label="Above the agreed rate"' in po_view and 'every line is at or under the agreed rate' in po_view,
+   'the rate card says what it is and says when there is nothing to say')
+ok('id="poLines"' in po_view and 'id="poItems"' in po_view,
+   'the line table is the order, and the readings below it read the same rows')
+ok('id="poMatch"' in po_view and 'What arrived, and what the supplier charged for' in po_view,
+   'the three-way match has a card of its own, which is the round\'s reason for existing')
+ok('id="poMatchState"' in po_view and ":sub=" not in po_view.split('id="poMatchState"')[1][:400] and '{{ $match[\'sub\'] }}' in po_view,
+   'a clean match is stated in words rather than left as a zero')
+ok('id="poOwed"' in po_view and 'Still to come' in po_view,
+   'what is still owed is a table with a total, so the header figure can be checked against it')
+ok('id="poArrival"' in po_view and 'What came through the gate' in po_view and 'label="Worst delay"' in po_view,
+   'the gate is a card: deliveries, accepted, refused with reasons, and the worst delay by receipt')
+ok('id embryo' not in po_view,
+   'no placeholder identifier survived the layout')
+ok('id="poChain"' in po_view and 'the only document the whole chain points at' in po_view,
+   'the page places the order among the documents that reference it')
+ok(_plural in po_view if (_plural := "=== 1 ? 'delivery' : 'deliveries'") else True,
+   'the receipts heading pluralises, because a count of one used to read "delivery(ies)"')
+po_sample = read(os.path.join(ROOT, 'deploy/dev/preview/po-show-sample.mjs'))
+ok('const cash = (v) =>' in po_sample and 'match.sub = `billed GH₵ ${cash(' in po_sample,
+   'the sample builds the same sentences the controller does, with the same thousands separator')
+ok('matching: true' not in po_sample,
+   'the sample carries no invented field the controller does not compute')
+po_check = read(os.path.join(ROOT, 'deploy/dev/audit/po_show_preview_check.js'))
+ok('is stated with VAT, not net' in po_check,
+   'the check holds the header to the VAT-inclusive figure, which is what the order is')
+ok('only the line priced above the agreed rate is marked' in po_check,
+   'and holds the rate card to one marked line out of four')
+ok('the gate did not change because the invoice did' in po_check,
+   'and holds the drift build to the one thing it is allowed to change')
+ok("/po-show-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
