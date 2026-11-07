@@ -293,12 +293,12 @@
           @if ($stay && $stay->status === 'reserved')
             @if ($isToday && $c['status'] === 'reserved' && $room->status === 'vacant' && ! isset($inventoryBlocks[$room->id]) && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-primary" style="background:#16a34a" href="{{ route('frontdesk.checkin', $stay) }}" aria-label="Check in room {{ $room->room_no }}"><x-icon name="login"/> Check-In</a>
             @elseif ($isToday && ($c['status'] !== 'reserved' || $room->status !== 'vacant' || isset($inventoryBlocks[$room->id])) && can_do('frontdesk.checkin'))<span class="ws-checkin-blocker">Check-in blocked: {{ $checkInBlockReason($room, $inventoryBlocks) }}</span>@endif
-            @if (can_do('reservations.view'))<a class="btn btn-sm" href="{{ route('reservations.show', $stay->reservation_id) }}" aria-label="Reservation details for room {{ $room->room_no }}{{ $stay->reservation?->reservation_no ? ', '.$stay->reservation->reservation_no : '' }}">Reservation details</a>@endif
+            @if (can_do('reservations.view'))<a class="btn btn-sm ws-act-minor" href="{{ route('reservations.show', $stay->reservation_id) }}" aria-label="Reservation details for room {{ $room->room_no }}{{ $stay->reservation?->reservation_no ? ', '.$stay->reservation->reservation_no : '' }}">Reservation details</a>@endif
           @elseif ($stay && $stay->status === 'checked_in')
             @if ($isToday && can_do('frontdesk.checkout'))<a class="btn btn-sm" style="background:#ea580c;color:#fff" href="{{ route('frontdesk.checkout', $stay) }}" aria-label="Check out room {{ $room->room_no }}"><x-icon name="logout"/> Check-Out</a>@endif
             @if ($isToday && can_do('frontdesk.roommove'))
               @php $extendTo = $stay->departure_date->copy()->addDay()->max($businessDate->copy()->addDay()); @endphp
-              <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
+              <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form ws-act-minor" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
                 @csrf
                 <label class="sr-only" for="extend-{{ $stay->id }}">New departure date for room {{ $room->room_no }}</label>
                 <input id="extend-{{ $stay->id }}" type="date" name="departure_date" min="{{ $extendTo->toDateString() }}" value="{{ $extendTo->toDateString() }}" required>
@@ -307,14 +307,14 @@
             @endif
           @endif
           @if (! $isHistory && in_array($c['status'], ['available', 'reserved'], true) && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty')
-            <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
+            <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action ws-act-minor" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
               @csrf
               <input type="hidden" name="rooms[]" value="{{ $room->id }}">
               <input type="hidden" name="hk_status" value="dirty">
               <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark Dirty</button>
             </form>
           @endif
-          <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· All actions</button>
+          <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
         </div>
         </div>
       </div>
@@ -562,6 +562,12 @@
   $stayGuestInitial = $guestInitial($stay);
   $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
   $modalGuestIsVip = (bool) ($stay?->guest?->is_vip || $stay?->reservation?->guest?->is_vip);
+  // v10.15 the card folds these two away below 200px, so the dialog carries them: same conditions, same
+  // forms. A narrow card gives up the second row; it does not give up the action.
+  $modalCanMarkDirty = ! $isHistory && in_array($c['status'], ['available', 'reserved'], true)
+      && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty';
+  $modalCanExtend = $isToday && $stay && $stay->status === 'checked_in' && can_do('frontdesk.roommove');
+  $modalExtendTo = $modalCanExtend ? $stay->departure_date->copy()->addDay()->max($businessDate->copy()->addDay()) : null;
   $modalGuestContext = collect([
       $stay?->reservation?->businessSource?->name ?: 'Direct',
       $stay?->guest?->nationality ?? $stay?->reservation?->guest?->nationality,
@@ -629,6 +635,27 @@
         </tbody>
       </table>
     </div></div>@endif</div>
+    @if ($modalCanExtend || $modalCanMarkDirty)
+    <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+    <div class="ws-modal-actions">
+      @if ($modalCanExtend)
+      <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
+        @csrf
+        <label class="sr-only" for="modal-extend-{{ $stay->id }}">New departure date for room {{ $room->room_no }}</label>
+        <input id="modal-extend-{{ $stay->id }}" type="date" name="departure_date" min="{{ $modalExtendTo->toDateString() }}" value="{{ $modalExtendTo->toDateString() }}" required>
+        <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room {{ $room->room_no }}">Extend stay</button>
+      </form>
+      @endif
+      @if ($modalCanMarkDirty)
+      <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
+        @csrf
+        <input type="hidden" name="rooms[]" value="{{ $room->id }}">
+        <input type="hidden" name="hk_status" value="dirty">
+        <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark dirty</button>
+      </form>
+      @endif
+    </div>
+    @endif
     @if (count($roomActions))<div class="ws-rail-title" style="margin-top:16px">QUICK LINKS</div><div class="ws-quick">
       @foreach ($roomActions as [$label, $icon, $url])<a class="ws-quick-tile" href="{{ $url }}"><x-icon name="{{ $icon }}"/><span>{{ $label }}</span></a>@endforeach
     </div>@else<div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>@endif
@@ -1339,7 +1366,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
    the row was density, and density is what a 2560px screen would otherwise lose. */
 @container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
@@ -1409,6 +1436,15 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
+/* v10.15 a 150px card cannot hold "Reservation details", the extend form and "Mark Dirty" beside the one action
+   the desk actually takes, and letting them wrap cost the card a whole extra row. Below 200px the row keeps the
+   primary action and folds the rest into ··· All actions, which opens the room dialog where every one of them
+   is listed under Quick Links; below 200px the ··· loses its words too, so the two fit on one line. The buttons
+   that fold are still in the markup and still in the dialog — nothing is invented or lost. */
+@container wscard (max-width:199px){
+  .ws-actions .ws-act-minor{display:none}
+  .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
+}
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -1426,6 +1462,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-empty-copy p{margin:0 0 9px}
 .ws-empty-copy p:last-child{margin-bottom:0}
 .ws-rail{display:flex;flex-direction:column;gap:10px}
+.ws-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .ws-rail-card{overflow:hidden;border-radius:12px;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rail-card .card-body{padding:14px}
 .ws-rail-title{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:10px;font-weight:800;letter-spacing:.075em;line-height:1.35;text-transform:uppercase}
@@ -1501,7 +1538,14 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile .i{width:17px;height:17px;color:#15803d}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
-@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}.ws-body{grid-template-columns:1fr}}
+@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}}
+/* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
+   was still beside the board but the board was too narrow for four cards, so the row went down to three wide
+   ones and then jumped back to five the moment the window crossed 1200. The rail now steps aside at 1360,
+   where the board is already down to four — and below that the rail spreads into its own columns instead of
+   running as one tall strip under the board. */
+@media (max-width:1360px){.ws-body{grid-template-columns:1fr}
+  .ws-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;align-items:start}}
 @media (max-width:980px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:680px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}

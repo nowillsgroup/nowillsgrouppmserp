@@ -118,6 +118,32 @@ ok('a board wide enough for more than five never settles for five fat cards',
   /@container wsboard \(min-width:1600px\)\{\.ws-grid\{grid-template-columns:repeat\(6/.test(wsStyle)
     && /@container wsboard \(min-width:1900px\)\{\.ws-grid\{grid-template-columns:repeat\(7/.test(wsStyle),
   'six from a 1600px board, seven from 1900px');
+// v10.15 the rail steps aside where the board is already down to four, not at 1200 where it forced three,
+// and it spreads into its own columns underneath instead of running as one tall strip.
+ok('the rail steps aside before it squeezes the board into three',
+  /@media \(max-width:1360px\)\{\.ws-body\{grid-template-columns:1fr/.test(wsStyle)
+    && /@media \(max-width:1360px\)\{[\s\S]{0,200}\.ws-rail\{display:grid/.test(wsStyle),
+  wsStyle.match(/@media \(max-width:1360px\)\{[\s\S]{0,240}/)?.[0]?.replace(/\s+/g, ' '));
+ok('and the board keeps every column it had while the rail is beside it',
+  /@media \(max-width:1200px\)\{\.ws-kpis/.test(wsStyle) && /\.ws-body\{display:grid;grid-template-columns:1fr 320px/.test(wsStyle));
+ok('the card is its own container, so the action row can answer to the card',
+  /\.ws-card\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-card\{[^}]*container-name:wscard/.test(wsStyle),
+  wsStyle.match(/\.ws-card\{[^}]*\}/)?.[0]?.slice(0, 120));
+ok('a narrow card folds its secondary actions instead of taking a second row',
+  /@container wscard \(max-width:199px\)\{\s*\.ws-actions \.ws-act-minor\{display:none\}/.test(wsStyle)
+    && /@container wscard \(max-width:199px\)\{[\s\S]{0,240}\.ws-all \.ws-act-label\{/.test(wsStyle),
+  'one row at 150px: the primary action and ···');
+ok('the buttons that fold are marked as secondary',
+  $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
+    && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
+  `${$$('#wsGrid .ws-card .ws-actions .ws-act-minor').length} foldable controls across ${cards.length} cards`);
+ok('and each one is still reachable in the room dialog, as the same form',
+  $$('.ws-modal .ws-modal-actions .ws-inline-action').length === $$('#wsGrid .ws-card .ws-actions .ws-inline-action').length
+    && $$('.ws-modal .ws-modal-actions .ws-extend-form').length === $$('#wsGrid .ws-card .ws-actions .ws-extend-form').length,
+  `${$$('.ws-modal .ws-modal-actions .ws-inline-action').length} mark-dirty and ${$$('.ws-modal .ws-modal-actions .ws-extend-form').length} extend forms in the dialogs`);
+ok('the dialog says what that block is for',
+  $$('.ws-modal .ws-modal-actions').every(block => /ROOM ACTIONS/.test(block.previousElementSibling?.textContent ?? '')),
+  $$('.ws-modal .ws-modal-actions')[0]?.previousElementSibling?.textContent?.trim());
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',

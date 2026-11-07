@@ -90,7 +90,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
    the row was density, and density is what a 2560px screen would otherwise lose. */
 @container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
@@ -160,6 +160,15 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
 .ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
+/* v10.15 a 150px card cannot hold "Reservation details", the extend form and "Mark Dirty" beside the one action
+   the desk actually takes, and letting them wrap cost the card a whole extra row. Below 200px the row keeps the
+   primary action and folds the rest into ··· All actions, which opens the room dialog where every one of them
+   is listed under Quick Links; below 200px the ··· loses its words too, so the two fit on one line. The buttons
+   that fold are still in the markup and still in the dialog — nothing is invented or lost. */
+@container wscard (max-width:199px){
+  .ws-actions .ws-act-minor{display:none}
+  .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
+}
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -177,6 +186,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-empty-copy p{margin:0 0 9px}
 .ws-empty-copy p:last-child{margin-bottom:0}
 .ws-rail{display:flex;flex-direction:column;gap:10px}
+.ws-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .ws-rail-card{overflow:hidden;border-radius:12px;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rail-card .card-body{padding:14px}
 .ws-rail-title{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:10px;font-weight:800;letter-spacing:.075em;line-height:1.35;text-transform:uppercase}
@@ -252,7 +262,14 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile .i{width:17px;height:17px;color:#15803d}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
-@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}.ws-body{grid-template-columns:1fr}}
+@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}}
+/* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
+   was still beside the board but the board was too narrow for four cards, so the row went down to three wide
+   ones and then jumped back to five the moment the window crossed 1200. The rail now steps aside at 1360,
+   where the board is already down to four — and below that the rail spreads into its own columns instead of
+   running as one tall strip under the board. */
+@media (max-width:1360px){.ws-body{grid-template-columns:1fr}
+  .ws-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;align-items:start}}
 @media (max-width:980px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:680px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}
@@ -3788,7 +3805,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 101"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
               
-      <form method="POST" action="#" class="ws-extend-form" data-room-no="101" data-confirm="Extend the stay in room 101 through the selected departure date? Availability and stay charges will be rechecked.">
+      <form method="POST" action="#" class="ws-extend-form ws-act-minor" data-room-no="101" data-confirm="Extend the stay in room 101 through the selected departure date? Availability and stay charges will be rechecked.">
                 
       <label class="sr-only" for="extend-241170">New departure date for room 101</label>
       <input id="extend-241170" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
@@ -3797,7 +3814,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="101" aria-label="More actions for room 101" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="101" aria-label="More actions for room 101" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -3862,14 +3879,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 102 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 102 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="102">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 102 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="102" aria-label="More actions for room 102" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="102" aria-label="More actions for room 102" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -3951,17 +3968,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 103"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
-      <a class="btn btn-sm" href="#" aria-label="Reservation details for room 103, RES-24126">Reservation details</a>
+      <a class="btn btn-sm ws-act-minor" href="#" aria-label="Reservation details for room 103, RES-24126">Reservation details</a>
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 103 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 103 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="103">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 103 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="103" aria-label="More actions for room 103" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="103" aria-label="More actions for room 103" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4034,7 +4051,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="104" aria-label="More actions for room 104" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="104" aria-label="More actions for room 104" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4097,7 +4114,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="105" aria-label="More actions for room 105" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="105" aria-label="More actions for room 105" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4190,7 +4207,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 201"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
               
-      <form method="POST" action="#" class="ws-extend-form" data-room-no="201" data-confirm="Extend the stay in room 201 through the selected departure date? Availability and stay charges will be rechecked.">
+      <form method="POST" action="#" class="ws-extend-form ws-act-minor" data-room-no="201" data-confirm="Extend the stay in room 201 through the selected departure date? Availability and stay charges will be rechecked.">
                 
       <label class="sr-only" for="extend-241010">New departure date for room 201</label>
       <input id="extend-241010" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
@@ -4199,7 +4216,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="201" aria-label="More actions for room 201" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="201" aria-label="More actions for room 201" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4291,17 +4308,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 202"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
-      <a class="btn btn-sm" href="#" aria-label="Reservation details for room 202, RES-24129">Reservation details</a>
+      <a class="btn btn-sm ws-act-minor" href="#" aria-label="Reservation details for room 202, RES-24129">Reservation details</a>
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 202 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 202 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="202">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 202 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="202" aria-label="More actions for room 202" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="202" aria-label="More actions for room 202" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4366,14 +4383,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 203 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 203 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="203">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 203 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="203" aria-label="More actions for room 203" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="203" aria-label="More actions for room 203" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4466,7 +4483,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 204"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
               
-      <form method="POST" action="#" class="ws-extend-form" data-room-no="204" data-confirm="Extend the stay in room 204 through the selected departure date? Availability and stay charges will be rechecked.">
+      <form method="POST" action="#" class="ws-extend-form ws-act-minor" data-room-no="204" data-confirm="Extend the stay in room 204 through the selected departure date? Availability and stay charges will be rechecked.">
                 
       <label class="sr-only" for="extend-241220">New departure date for room 204</label>
       <input id="extend-241220" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
@@ -4475,7 +4492,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="204" aria-label="More actions for room 204" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="204" aria-label="More actions for room 204" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4546,7 +4563,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="205" aria-label="More actions for room 205" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="205" aria-label="More actions for room 205" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4639,7 +4656,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 301"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
               
-      <form method="POST" action="#" class="ws-extend-form" data-room-no="301" data-confirm="Extend the stay in room 301 through the selected departure date? Availability and stay charges will be rechecked.">
+      <form method="POST" action="#" class="ws-extend-form ws-act-minor" data-room-no="301" data-confirm="Extend the stay in room 301 through the selected departure date? Availability and stay charges will be rechecked.">
                 
       <label class="sr-only" for="extend-240880">New departure date for room 301</label>
       <input id="extend-240880" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
@@ -4648,7 +4665,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="301" aria-label="More actions for room 301" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="301" aria-label="More actions for room 301" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4741,7 +4758,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 302"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
               
-      <form method="POST" action="#" class="ws-extend-form" data-room-no="302" data-confirm="Extend the stay in room 302 through the selected departure date? Availability and stay charges will be rechecked.">
+      <form method="POST" action="#" class="ws-extend-form ws-act-minor" data-room-no="302" data-confirm="Extend the stay in room 302 through the selected departure date? Availability and stay charges will be rechecked.">
                 
       <label class="sr-only" for="extend-241090">New departure date for room 302</label>
       <input id="extend-241090" type="date" name="departure_date" min="2026-11-06" value="2026-11-06" required>
@@ -4750,7 +4767,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
             
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="302" aria-label="More actions for room 302" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="302" aria-label="More actions for room 302" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4840,17 +4857,17 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 303"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
-      <a class="btn btn-sm" href="#" aria-label="Reservation details for room 303, RES-24131">Reservation details</a>
+      <a class="btn btn-sm ws-act-minor" href="#" aria-label="Reservation details for room 303, RES-24131">Reservation details</a>
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 303 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 303 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="303">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 303 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="303" aria-label="More actions for room 303" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="303" aria-label="More actions for room 303" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -4913,14 +4930,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
-      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 304 dirty? This updates its current housekeeping status.">
+      <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 304 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="304">
       <input type="hidden" name="hk_status" value="dirty">
       <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 304 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark Dirty</button>
       </form>
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="304" aria-label="More actions for room 304" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="304" aria-label="More actions for room 304" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -5012,10 +5029,10 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 305"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
-      <a class="btn btn-sm" href="#" aria-label="Reservation details for room 305, RES-24133">Reservation details</a>
+      <a class="btn btn-sm ws-act-minor" href="#" aria-label="Reservation details for room 305, RES-24133">Reservation details</a>
           
           
-      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="305" aria-label="More actions for room 305" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false">··· All actions</button>
+      <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="305" aria-label="More actions for room 305" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
@@ -5630,6 +5647,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      <form method="POST" action="#" class="ws-extend-form" data-room-no="101" data-confirm="Extend the stay in room 101 through the selected departure date? Availability and stay charges will be rechecked.">
+        
+      <label class="sr-only" for="modal-extend-241170">New departure date for room 101</label>
+      <input id="modal-extend-241170" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
+      <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room 101">Extend stay</button>
+      </form>
+      
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5656,6 +5687,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 102 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="102">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 102 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5695,6 +5740,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 103 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="103">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 103 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5721,6 +5780,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5747,6 +5807,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5786,6 +5847,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      <form method="POST" action="#" class="ws-extend-form" data-room-no="201" data-confirm="Extend the stay in room 201 through the selected departure date? Availability and stay charges will be rechecked.">
+        
+      <label class="sr-only" for="modal-extend-241010">New departure date for room 201</label>
+      <input id="modal-extend-241010" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
+      <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room 201">Extend stay</button>
+      </form>
+      
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5825,6 +5900,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 202 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="202">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 202 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5851,6 +5940,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 203 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="203">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 203 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5890,6 +5993,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      <form method="POST" action="#" class="ws-extend-form" data-room-no="204" data-confirm="Extend the stay in room 204 through the selected departure date? Availability and stay charges will be rechecked.">
+        
+      <label class="sr-only" for="modal-extend-241220">New departure date for room 204</label>
+      <input id="modal-extend-241220" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
+      <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room 204">Extend stay</button>
+      </form>
+      
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5916,6 +6033,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5957,6 +6075,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      <form method="POST" action="#" class="ws-extend-form" data-room-no="301" data-confirm="Extend the stay in room 301 through the selected departure date? Availability and stay charges will be rechecked.">
+        
+      <label class="sr-only" for="modal-extend-240880">New departure date for room 301</label>
+      <input id="modal-extend-240880" type="date" name="departure_date" min="2026-11-07" value="2026-11-07" required>
+      <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room 301">Extend stay</button>
+      </form>
+      
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -5998,6 +6130,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      <form method="POST" action="#" class="ws-extend-form" data-room-no="302" data-confirm="Extend the stay in room 302 through the selected departure date? Availability and stay charges will be rechecked.">
+        
+      <label class="sr-only" for="modal-extend-241090">New departure date for room 302</label>
+      <input id="modal-extend-241090" type="date" name="departure_date" min="2026-11-06" value="2026-11-06" required>
+      <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room 302">Extend stay</button>
+      </form>
+      
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -6037,6 +6183,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 303 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="303">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 303 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -6063,6 +6223,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
     
       </div>
       </div>
+    
+      <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+      <div class="ws-modal-actions">
+      
+      
+      <form method="POST" action="#" class="ws-inline-action" data-confirm="Mark room 304 dirty? This updates its current housekeeping status.">
+        
+      <input type="hidden" name="rooms[]" value="304">
+      <input type="hidden" name="hk_status" value="dirty">
+      <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room 304 dirty" title="Mark current housekeeping status dirty"><svg class="i" aria-hidden="true"><use href="#i-broom"/></svg> Mark dirty</button>
+      </form>
+      
+      </div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
@@ -6102,6 +6276,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </tbody>
       </table>
       </div></div></div>
+    
       <div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>
       </div>
       </div></div>
