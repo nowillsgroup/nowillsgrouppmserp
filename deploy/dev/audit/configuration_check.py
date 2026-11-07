@@ -4048,6 +4048,55 @@ ok('the drift leaves the queue alone' in read(os.path.join(ROOT, 'deploy/dev/aud
 ok("/requisitions-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26ap · supplier scorecard: the delivery, the money and the bid behind the score ───
+sc_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/ProcurementController.php'))
+sc_fn = sc_ctrl[sc_ctrl.index('public function scorecard('):sc_ctrl.index('public function settings(')]
+ok("$grns = GoodsReceipt::with('order', 'supplier')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get();" in sc_fn,
+   'the delivery record is taken from the goods receipts in the period, not from the orders that promised them')
+ok("'days' => $exp ? max(0, (int) round(($g->date->timestamp - $exp->timestamp) / 86400)) : 0," in sc_fn,
+   'lateness is the arrival measured against the date the order gave, in whole days, and never below zero')
+ok("$delivery = ['count' => $grns->count(), 'late' => $lateRows->count(), 'late_value' => round((float) $lateRows->sum('value'), 2)," in sc_fn,
+   'the late deliveries are counted with the money that arrived in them')
+ok("$bills = SupplierInvoice::where('type', 'invoice')->where('status', '!=', 'cancelled')" in sc_fn,
+   'the money record reads supplier bills in the same period, with debit notes and cancelled documents left out')
+ok("$open = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial', 'on_hold'])->get();" in sc_fn,
+   'what is still owed is taken from every open bill, not only the ones dated in the period')
+ok("'diff' => round(($billed[$sid] ?? 0) - ($received[$sid] ?? 0), 2)," in sc_fn,
+   'the difference is billed less received, so a supplier billed ahead reads positive and one billed behind reads negative')
+ok("$invites = RfqSupplier::with('supplier', 'rfq')->whereNotNull('invited_at')" in sc_fn,
+   'the bid record is the invitations actually sent in the period')
+ok("'silent' => $set->filter(fn ($i) => ! $i->responded_at && ! $i->declined_at" in sc_fn,
+   'silence is an invitation with neither a price nor a decline past the date it asked for')
+ok("'rate' => $bidRows->sum('invited') ? round($bidRows->sum('answered') / $bidRows->sum('invited') * 100, 1) : null," in sc_fn,
+   'the response rate is answers over invitations, and null when nobody was asked')
+ok("$bid['answered_sub'] = $bid['rate'].' % of the invitations, and '.money($bid['quoted']).' quoted';" in sc_fn,
+   'the rate and the money quoted are handed to the view as one sentence, so the screen renders no arithmetic of its own')
+ok("$delivery['late_sub'] = ($delivery['count'] === 1 ? '1 delivery' : $delivery['count'].' deliveries').' · '.money($delivery['late_value']).' arrived after the date';" in sc_fn,
+   'and the delivery count is pluralised where it is written, not in the template')
+ok("$money['owed_sub'] = ($money['open_bills'] === 1 ? '1 open bill' : $money['open_bills'].' open bills')" in sc_fn,
+   'the open bills are stated with the age of the oldest, in words rather than a bare number')
+sc_view = read(os.path.join(ROOT, 'resources/views/procurement/scorecard.blade.php'))
+ok('id="scDelivery"' in sc_view and 'Who delivers when they say they will?' in sc_view and 'id="lateTable"' in sc_view,
+   'the page asks who delivers on time, and lists the deliveries that did not')
+ok("The worst is {{ $delivery['worst']['supplier'] }}" in sc_view and "{{ $delivery['worst']['grn'] }}" in sc_view,
+   'the worst delivery is named with its supplier and its goods receipt rather than counted')
+ok('id="scMoney"' in sc_view and 'Did the supplier bill what arrived?' in sc_view and 'id="moneyTable"' in sc_view,
+   'the bill is held to the receipt, supplier by supplier')
+ok('id="scMoneyState"' in sc_view and 'data-gap=' in sc_view and 'text-red bold' in sc_view,
+   'a supplier whose bill disagrees is marked on its row, not only in the sentence above it')
+ok('id="scBid"' in sc_view and 'Who answers when we ask them to quote?' in sc_view and 'id="bidTable"' in sc_view,
+   'the response rate has the suppliers behind it, silence included')
+ok('id="scBidState"' in sc_view and 'went past the date without a price or a decline' in sc_view,
+   'the supplier who did not answer is named, with what it cost the buyer')
+ok('id="scChain"' in sc_view and 'left out of the score rather than set to zero' in sc_view,
+   'the page says a measure a supplier has no evidence for is not a zero, which is what makes the score fair')
+ok('the verdict names the worst delivery with its supplier, its order, its money and its dates' in read(os.path.join(ROOT, 'deploy/dev/audit/scorecard_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the drift leaves the delivery record alone' in read(os.path.join(ROOT, 'deploy/dev/audit/scorecard_preview_check.js')),
+   'and proves the readings are independent: a bill that disagrees does not move the goods or the score')
+ok("/scorecard-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

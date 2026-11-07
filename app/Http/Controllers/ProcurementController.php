@@ -10,6 +10,7 @@ use App\Models\RfqSupplier;
 use App\Models\Store;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\SupplierInvoice;
 use App\Models\SupplierPrice;
 use App\Services\ProcurementService;
 use Illuminate\Http\Request;
@@ -339,8 +340,91 @@ class ProcurementController extends Controller
     {
         $from = $request->from ?: bdate()->copy()->subMonths(6)->startOfMonth()->toDateString();
         $to = $request->to ?: bdate()->toDateString();
+        $rows = ProcurementService::scorecard($from, $to)->map(function ($r) {
+            $pc = fn ($v) => $v === null ? '—' : rtrim(rtrim(number_format((float) $v, 1), '0'), '.').'%';
 
-        return view('procurement.scorecard', ['rows' => ProcurementService::scorecard($from, $to), 'from' => $from, 'to' => $to]);
+            return $r + ['on_time_label' => $pc($r['on_time']), 'fill_label' => $pc($r['fill']),
+                'quality_label' => $pc($r['quality']), 'price_label' => $pc($r['price']), 'response_label' => $pc($r['response']),
+                'tone' => ['A' => 'green', 'B' => 'blue', 'C' => 'amber', 'D' => 'red'][$r['grade']] ?? 'slate'];
+        });
+
+        // v9.19 the score is one number; the three readings behind it are the ones that can be argued with
+        $grns = GoodsReceipt::with('order', 'supplier')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get();
+        $lateRows = $grns->map(function ($g) {
+            $exp = $g->order?->expected_date;
+
+            return ['supplier' => $g->supplier?->name ?? '#'.$g->supplier_id, 'grn' => $g->grn_no, 'po' => $g->order?->po_no,
+                'expected' => $exp, 'arrived' => $g->date,
+                'days' => $exp ? max(0, (int) round(($g->date->timestamp - $exp->timestamp) / 86400)) : 0,
+                'value' => round((float) $g->total, 2), 'rejected' => round((float) $g->rejected_value, 2)];
+        })->filter(fn ($r) => $r['days'] > 0)->sortByDesc('days')->values();
+        $leadDays = $grns->map(fn ($g) => $g->order ? $g->order->po_date->diffInDays($g->date) : null)->filter(fn ($v) => $v !== null);
+        $delivery = ['count' => $grns->count(), 'late' => $lateRows->count(), 'late_value' => round((float) $lateRows->sum('value'), 2),
+            'value' => round((float) $grns->sum('total'), 2), 'worst' => $lateRows->first(), 'rows' => $lateRows->take(10)->all(),
+            'lead' => $leadDays->count() ? round((float) $leadDays->avg(), 1) : null,
+            'rejected' => round((float) $grns->sum('rejected_value'), 2)];
+
+        // the money: what the shelf took in during the period, what was billed for it, and what is still owed
+        $bills = SupplierInvoice::where('type', 'invoice')->where('status', '!=', 'cancelled')
+            ->whereDate('doc_date', '>=', $from)->whereDate('doc_date', '<=', $to)->get();
+        $received = $grns->groupBy('supplier_id')->map(fn ($g) => round((float) $g->sum('total'), 2));
+        $billed = $bills->groupBy('supplier_id')->map(fn ($b) => round((float) $b->sum('total'), 2));
+        $open = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial', 'on_hold'])->get();
+        $unpaidBy = $open->groupBy('supplier_id')->map(fn ($b) => [
+            'value' => round((float) $b->sum(fn ($i) => $i->outstanding()), 2),
+            'oldest_days' => (int) ($b->max(fn ($i) => $i->daysOverdue($to)) ?? 0),
+            'count' => $b->count()]);
+        $moneyIds = collect([$received->keys(), $billed->keys(), $unpaidBy->keys()])->flatten()->unique();
+        $moneyNames = Supplier::whereIn('id', $moneyIds)->pluck('name', 'id');
+        $moneyRows = $moneyIds->map(fn ($sid) => ['supplier' => $moneyNames[$sid] ?? '#'.$sid,
+            'received' => $received[$sid] ?? 0.0, 'billed' => $billed[$sid] ?? 0.0,
+            'diff' => round(($billed[$sid] ?? 0) - ($received[$sid] ?? 0), 2),
+            'unpaid' => $unpaidBy[$sid]['value'] ?? 0.0, 'oldest_days' => $unpaidBy[$sid]['oldest_days'] ?? 0,
+            'open_bills' => $unpaidBy[$sid]['count'] ?? 0])->sortByDesc(fn ($r) => abs($r['diff']))->values();
+        $money = ['rows' => $moneyRows->take(10)->all(), 'count' => $moneyRows->count(),
+            'received' => round((float) $moneyRows->sum('received'), 2), 'billed' => round((float) $moneyRows->sum('billed'), 2),
+            'diff' => round((float) $moneyRows->sum(fn ($r) => $r['diff']), 2),
+            'gaps' => $moneyRows->filter(fn ($r) => abs($r['diff']) > 0.005)->count(),
+            'worst' => $moneyRows->sortByDesc(fn ($r) => abs($r['diff']))->first(),
+            'unpaid' => round((float) $moneyRows->sum('unpaid'), 2), 'open_bills' => (int) $moneyRows->sum('open_bills'),
+            'oldest' => $moneyRows->sortByDesc('oldest_days')->first()];
+
+        // the bid: an invitation nobody answered is the only part of the response rate that costs anything
+        $invites = RfqSupplier::with('supplier', 'rfq')->whereNotNull('invited_at')
+            ->whereBetween('invited_at', [$from.' 00:00:00', $to.' 23:59:59'])->get();
+        $quotes = RfqQuote::whereIn('rfq_id', $invites->pluck('rfq_id')->unique())->get()
+            ->keyBy(fn ($q) => $q->rfq_id.'|'.$q->supplier_id);
+        $bidRows = $invites->groupBy('supplier_id')->map(function ($set, $sid) use ($quotes) {
+            $answered = $set->filter(fn ($i) => $i->responded_at)->count();
+            $today = bdate()->toDateString();
+
+            return ['supplier' => $set->first()->supplier?->name ?? '#'.$sid, 'invited' => $set->count(), 'answered' => $answered,
+                'declined' => $set->filter(fn ($i) => $i->declined_at && ! $i->responded_at)->count(),
+                'silent' => $set->filter(fn ($i) => ! $i->responded_at && ! $i->declined_at
+                    && (! $i->rfq?->respond_by || $i->rfq->respond_by->toDateString() < $today))->count(),
+                'quoted' => round((float) $set->sum(fn ($i) => (float) ($quotes[$i->rfq_id.'|'.$i->supplier_id]->total ?? 0)), 2),
+                'rate' => $set->count() ? round($answered / $set->count() * 100, 1) : null];
+        })->sortByDesc('invited')->values();
+        $bid = ['rows' => $bidRows->take(10)->all(), 'count' => $bidRows->count(),
+            'invited' => (int) $bidRows->sum('invited'), 'answered' => (int) $bidRows->sum('answered'),
+            'silent' => (int) $bidRows->sum('silent'), 'quoted' => round((float) $bidRows->sum('quoted'), 2),
+            'rate' => $bidRows->sum('invited') ? round($bidRows->sum('answered') / $bidRows->sum('invited') * 100, 1) : null,
+            'worst' => $bidRows->sortByDesc('silent')->first(),
+            'above' => (int) $rows->sum('above_list'), 'priced' => (int) $rows->sum('priced_lines')];
+
+        $bid['answered_sub'] = $bid['rate'].' % of the invitations, and '.money($bid['quoted']).' quoted';
+        $delivery['late_sub'] = ($delivery['count'] === 1 ? '1 delivery' : $delivery['count'].' deliveries').' · '.money($delivery['late_value']).' arrived after the date';
+        $owedDays = (int) ($money['oldest']['oldest_days'] ?? 0);
+        $money['owed_sub'] = ($money['open_bills'] === 1 ? '1 open bill' : $money['open_bills'].' open bills')
+            .' · oldest '.$owedDays.' day'.($owedDays === 1 ? '' : 's').' past its date';
+
+        $scored = $rows->pluck('score')->filter(fn ($v) => $v !== null);
+        $header = ['suppliers' => $rows->count(), 'average' => $scored->count() ? round((float) $scored->avg(), 1) : null,
+            'grades' => collect(['A', 'B', 'C', 'D'])->mapWithKeys(fn ($g) => [$g => $rows->where('grade', $g)->count()])->all(),
+            'value' => round((float) $rows->sum('value'), 2)];
+
+        return view('procurement.scorecard', ['rows' => $rows, 'from' => $from, 'to' => $to,
+            'delivery' => $delivery, 'money' => $money, 'bid' => $bid, 'header' => $header]);
     }
 
     public function settings(Request $request)
