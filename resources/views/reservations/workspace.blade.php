@@ -260,18 +260,12 @@
         </div>
 
         @if ($stay)
-        <div class="ws-guest {{ $c['status'] === 'reserved' ? 'arriving' : ($c['status'] === 'occupied' ? 'inhouse' : '') }}">
-          <div class="flex gap">
-            <span class="ws-avatar">{{ $stayGuestInitial }}</span>
-            <div>
-              <div class="bold small">{{ $stayGuestName }}</div>
-              <div class="muted small">{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}</div>
-            </div>
-          </div>
-          <div class="ws-stay small">
-            <span><b>{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}</b><br><span class="muted">Arrive</span></span>
-            <span class="ws-nights">{{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</span>
-            <span><b>{{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}</b><br><span class="muted">Depart</span></span>
+        {{-- v10.22 the card says what the room is; who is in it, and from when to when, is in the dialog the card
+             opens (CURRENT RESERVATION) and in the rack. The guest's name stays in the DOM for screen readers, which
+             is why it is a sr-only span rather than a deleted line, and the rack reads it from data-guest. --}}
+        <div class="ws-guest {{ $c['status'] === 'reserved' ? 'arriving' : ($c['status'] === 'occupied' ? 'inhouse' : '') }}" data-guest="{{ $stayGuestName }}" data-nights="{{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}">
+          <div class="muted small ws-guest-src">
+            <span class="sr-only">Guest {{ $stayGuestName }}. </span>{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}
           </div>
           <div class="ws-rate-row small">
             <div><span class="muted">Nightly rate</span><br><span class="bold">{{ money($c['rate']) }}</span> <span class="muted">/n</span></div>
@@ -871,9 +865,19 @@
     [...document.querySelectorAll('#wsGrid .ws-card')].forEach(card => {
       const roomNo = (card.querySelector('.ws-room-no')?.textContent || '').trim().replace(/^Room\s+/i, '');
       const roomId = card.querySelector('[data-room]')?.dataset.room || '';
-      const guest = card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
-      const guestMeta = card.querySelector('.ws-guest .muted.small')?.textContent.trim() || '';
-      const nights = card.querySelector('.ws-nights')?.textContent.trim() || '';
+      // v10.22 the card no longer prints the guest's name or the nights, so the rack takes them from the card's
+      // data and only falls back to the markup if a card still carries it.
+      const guestBox = card.querySelector('.ws-guest');
+      const guest = guestBox?.dataset.guest || card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
+      // the card keeps the guest's name in a sr-only span for screen readers; the rack prints the name once, so
+      // the meta line is read node by node with that span left out — the same way the housekeeping chip is read.
+      const metaBox = card.querySelector('.ws-guest .muted.small');
+      const guestMeta = metaBox
+        ? [...metaBox.childNodes]
+          .filter(node => !(node.nodeType === 1 && node.classList && node.classList.contains('sr-only')))
+          .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim()
+        : '';
+      const nights = (guestBox?.dataset.nights ? guestBox.dataset.nights + 'n' : '') || card.querySelector('.ws-nights')?.textContent.trim() || '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
       const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
       // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
@@ -1498,8 +1502,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:6px;padding:6px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;font-size:10.5px;text-align:center}
-.ws-nights{font-size:9.5px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:2px 6px;color:#166534;white-space:nowrap}
+.ws-guest-src{line-height:1.35}
 .ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
@@ -1522,18 +1525,12 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 @container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
-/* v10.21 five across leaves the card about 128px of content, and the stay and rate rows were the two that did not
-   fit it. "Arrive" and "Depart" under each date doubled the stay row's height for two words that the arrow between
-   the dates already says; and "Nightly rate GH₵ 1,240.00" beside "GH₵ 3,720.00 due" broke mid-phrase at ~148px.
-   Below 200px the dates read as one line — 12 Nov · 3n · 15 Nov — and the rate and what is due each get their own
-   line. Nothing is dropped: the labels stay in the DOM for screen readers rather than being removed, and the /n
-   that follows the rate already says nightly. Above 200px, where there is room, the labels stay on show. */
+/* v10.21 five across leaves the card about 128px of content, and the rate row was one of the two that did not fit
+   it: "Nightly rate GH₵ 1,240.00" beside "GH₵ 3,720.00 due" is about 148px of text in 128px of card, so the due
+   broke away from its number mid-phrase. Below 200px the rate and what is due each get a line of their own, each a
+   whole phrase. Nothing is dropped: the label is clipped rather than removed, so a screen reader still hears
+   "Nightly rate", and the /n that follows the rate says nightly anyway. Above 200px the label stays on show. */
 @container wscard (max-width:199px){
-  .ws-stay{margin-top:5px;padding:4px 0;gap:3px;font-size:10px}
-  .ws-stay br{display:none}
-  .ws-stay .muted{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
-  .ws-stay>span:first-child:after,.ws-stay>span:last-child:before{content:"·";margin:0 1px;color:#94a3b8}
-  .ws-nights{font-size:9px;padding:1px 5px}
   .ws-rate-row{margin-top:5px;padding-top:4px;gap:1px 6px;font-size:10px;flex-wrap:wrap}
   .ws-rate-row>div>br{display:none}
   .ws-rate-row>div>span.muted:first-child{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
@@ -1683,8 +1680,7 @@ body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{c
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-guest.vacant{background:#18281e}
-body.dark .ws-stay,body.dark .ws-rate-row{border-color:var(--c-border)}
-body.dark .ws-nights{background:#143323;color:#86efac}
+body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-rail-title{border-color:var(--c-border)}
 body.dark .ws-rail-list tr+tr td{border-top-color:var(--c-border)}
 body.dark .ws-cal-day:hover:not(.today):not(.disabled){background:#193525;color:#d7f5df}
@@ -1899,6 +1895,9 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
   .ws-card-head{padding:8px 10px 0}
+  /* v10.22 the screen card stopped printing the guest's name because the dialog it opens carries it — but a sheet
+     of paper has no dialog. On paper the name comes back out of the sr-only span that kept it in the DOM. */
+  #wsGrid .ws-guest .sr-only{position:static;width:auto;height:auto;margin:0;overflow:visible;white-space:normal;clip-path:none}
   .ws-room-no{font-size:20px}
   .ws-photo-foot{padding:8px 10px}
   .ws-rack-thumb{display:none}

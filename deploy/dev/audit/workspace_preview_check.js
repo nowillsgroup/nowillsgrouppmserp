@@ -149,24 +149,33 @@ ok('and the extend form folds first, because it is the widest thing in the row',
   /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
     && wsStyle.indexOf('\u00b7 under 380px') > 0,
   'a 140px date field and a button do not share a line with anything');
-// v10.21 the stay and rate rows were the two that did not fit 128px of card.
-ok('the stay row reads as one line when the card is narrow',
-  /@container wscard \(max-width:199px\)\{[\s\S]{0,300}\.ws-stay br\{display:none\}/.test(wsStyle)
-    && /@container wscard \(max-width:199px\)\{[\s\S]{0,300}\.ws-stay>span:first-child:after/.test(wsStyle),
-  '12 Nov · 3n · 15 Nov, with the arrow the two dates needed');
-ok('and the two labels it drops from sight are kept for screen readers',
-  /@container wscard \(max-width:199px\)\{[\s\S]{0,600}\.ws-stay \.muted\{position:absolute;width:1px/.test(wsStyle),
-  'clipped, not removed: Arrive and Depart are still spoken');
+// v10.21 the rate row was one of the two that did not fit 128px of card.
 ok('the rate and what is due take a line each instead of breaking mid-phrase',
   /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row \.text-right\{flex:1 0 100%;text-align:left/.test(wsStyle)
     && /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row>div>br\{display:none\}/.test(wsStyle),
   'GH₵ 1,240.00 /n above GH₵ 3,720.00 due, neither one wrapped');
-ok('both rows still carry their whole meaning on the card',
-  $$('#wsGrid .ws-card .ws-stay').length >= 1
-    && $$('#wsGrid .ws-card .ws-stay .muted').filter(el => /Arrive|Depart/.test(el.textContent)).length
-       === $$('#wsGrid .ws-card .ws-stay').length * 2
-    && $$('#wsGrid .ws-card .ws-rate-row .text-right').length >= 1,
-  `${$$('#wsGrid .ws-card .ws-stay').length} stays keep both labels in the DOM`);
+// v10.22 the card says what the room is; who is in it, and from when to when, moved into the dialog it opens.
+ok('the card no longer prints the guest or the stay dates',
+  $$('#wsGrid .ws-card .ws-stay').length === 0
+    && $$('#wsGrid .ws-card .ws-guest .bold.small').length === 0,
+  'no name line, no arrive/depart row, and no CSS left for a row that is gone');
+ok('nor does it keep dead rules for the row it dropped',
+  !/\.ws-stay\{/.test(wsStyle) && !/\.ws-nights\{/.test(wsStyle),
+  'the .ws-stay and .ws-nights rules went with the markup');
+ok('but the guest is still named for a screen reader',
+  $$('#wsGrid .ws-card .ws-guest .sr-only').length ===
+    $$('#wsGrid .ws-card .ws-guest[data-guest]').length
+    && /Guest .+?\./.test($$('#wsGrid .ws-card .ws-guest .sr-only')[0]?.textContent ?? ''),
+  $$('#wsGrid .ws-card .ws-guest .sr-only')[0]?.textContent?.trim());
+ok('and the card carries the name and the nights as data, for whoever still needs them',
+  $$('#wsGrid .ws-card .ws-guest[data-guest]').every(el => (el.dataset.guest ?? '').length > 0
+    && /^\d+$/.test(el.dataset.nights ?? '')),
+  `${$$('#wsGrid .ws-card .ws-guest[data-guest]').length} cards carry data-guest and data-nights`);
+ok('the dialog the card opens is where the name and the dates went',
+  $$('.ws-modal .ws-resv').length === $$('#wsGrid .ws-card .ws-guest[data-guest]').length
+    && $$('.ws-modal .ws-resv').every(box => (box.querySelector('.bold')?.textContent ?? '').trim().length > 0
+      && /→/.test(box.textContent)),
+  `every dialog still states the guest and 12 Nov → 15 Nov · 3n`);
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
@@ -272,6 +281,10 @@ ok('printing gives the board its own count instead of the screen\'s',
 ok('and the sheet leaves the sort chip and the action rows off the paper',
   /@media print\{[\s\S]{0,200}\.ws-rack-sortstate\{display:none!important\}/.test(wsStyle),
   'three across, no screen controls');
+// v10.22 a sheet of paper has no dialog, so the name the card stopped printing comes back on paper
+ok('and paper puts the guest name back, because a sheet has no dialog to open',
+  /@media print\{[\s\S]{0,2000}#wsGrid \.ws-guest \.sr-only\{position:static/.test(wsStyle),
+  'the sr-only span that kept the name in the DOM is unclipped for print');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',
@@ -350,6 +363,12 @@ const rows = $$('#wsRackBody tr');
 ok('every room has a rack row', rows.length === cards.length, `${rows.length} rows`);
 ok('the rack shows the room number', (rows[0]?.querySelector('.ws-rack-room b')?.textContent ?? '').length === 3,
   rows[0]?.querySelector('.ws-rack-room b')?.textContent);
+// v10.22 the board stopped naming the guest and counting the nights; the rack is where that lives now, read from
+// the card's data rather than from markup the card no longer prints.
+ok('the rack still names the guest and counts the nights the card dropped',
+  rows.filter(r => (r.querySelector('.ws-rack-guest b')?.textContent ?? '').trim().length > 2).length >= 1
+    && rows.filter(r => /^\d+n$/.test((r.querySelector('[data-col="nights"]')?.textContent ?? '').trim())).length >= 1,
+  `${rows.filter(r => /^\d+n$/.test((r.querySelector('[data-col="nights"]')?.textContent ?? '').trim())).length} rows carry a night count`);
 ok('the rack shows status, guest, rate and an action',
   Boolean(rows[0]?.querySelector('.badge')) && rows[0].querySelectorAll('td').length >= 7,
   `${rows[0]?.querySelectorAll('td').length} cells`);
