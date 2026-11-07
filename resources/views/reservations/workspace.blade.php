@@ -1522,6 +1522,23 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 @container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
+/* v10.21 five across leaves the card about 128px of content, and the stay and rate rows were the two that did not
+   fit it. "Arrive" and "Depart" under each date doubled the stay row's height for two words that the arrow between
+   the dates already says; and "Nightly rate GH₵ 1,240.00" beside "GH₵ 3,720.00 due" broke mid-phrase at ~148px.
+   Below 200px the dates read as one line — 12 Nov · 3n · 15 Nov — and the rate and what is due each get their own
+   line. Nothing is dropped: the labels stay in the DOM for screen readers rather than being removed, and the /n
+   that follows the rate already says nightly. Above 200px, where there is room, the labels stay on show. */
+@container wscard (max-width:199px){
+  .ws-stay{margin-top:5px;padding:4px 0;gap:3px;font-size:10px}
+  .ws-stay br{display:none}
+  .ws-stay .muted{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
+  .ws-stay>span:first-child:after,.ws-stay>span:last-child:before{content:"·";margin:0 1px;color:#94a3b8}
+  .ws-nights{font-size:9px;padding:1px 5px}
+  .ws-rate-row{margin-top:5px;padding-top:4px;gap:1px 6px;font-size:10px;flex-wrap:wrap}
+  .ws-rate-row>div>br{display:none}
+  .ws-rate-row>div>span.muted:first-child{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
+  .ws-rate-row .text-right{flex:1 0 100%;text-align:left;font-size:9.5px}
+}
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}

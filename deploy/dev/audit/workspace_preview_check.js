@@ -149,6 +149,24 @@ ok('and the extend form folds first, because it is the widest thing in the row',
   /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
     && wsStyle.indexOf('\u00b7 under 380px') > 0,
   'a 140px date field and a button do not share a line with anything');
+// v10.21 the stay and rate rows were the two that did not fit 128px of card.
+ok('the stay row reads as one line when the card is narrow',
+  /@container wscard \(max-width:199px\)\{[\s\S]{0,300}\.ws-stay br\{display:none\}/.test(wsStyle)
+    && /@container wscard \(max-width:199px\)\{[\s\S]{0,300}\.ws-stay>span:first-child:after/.test(wsStyle),
+  '12 Nov · 3n · 15 Nov, with the arrow the two dates needed');
+ok('and the two labels it drops from sight are kept for screen readers',
+  /@container wscard \(max-width:199px\)\{[\s\S]{0,600}\.ws-stay \.muted\{position:absolute;width:1px/.test(wsStyle),
+  'clipped, not removed: Arrive and Depart are still spoken');
+ok('the rate and what is due take a line each instead of breaking mid-phrase',
+  /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row \.text-right\{flex:1 0 100%;text-align:left/.test(wsStyle)
+    && /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row>div>br\{display:none\}/.test(wsStyle),
+  'GH₵ 1,240.00 /n above GH₵ 3,720.00 due, neither one wrapped');
+ok('both rows still carry their whole meaning on the card',
+  $$('#wsGrid .ws-card .ws-stay').length >= 1
+    && $$('#wsGrid .ws-card .ws-stay .muted').filter(el => /Arrive|Depart/.test(el.textContent)).length
+       === $$('#wsGrid .ws-card .ws-stay').length * 2
+    && $$('#wsGrid .ws-card .ws-rate-row .text-right').length >= 1,
+  `${$$('#wsGrid .ws-card .ws-stay').length} stays keep both labels in the DOM`);
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
