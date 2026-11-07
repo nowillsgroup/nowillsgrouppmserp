@@ -86,9 +86,8 @@ ok('the facts under the picture are the room’s own',
   (cards[0].querySelector('.ws-photo-meta')?.textContent ?? '').includes('m²')
     && /guests/.test(cards[0].querySelector('.ws-photo-meta')?.textContent ?? ''),
   cards[0].querySelector('.ws-photo-meta')?.textContent?.trim());
-ok('the body holds the amenities, the guest and the actions',
+ok('the body holds the amenities and the actions',
   cards.every(card => card.querySelector('.ws-card-body .ws-amen')
-    && card.querySelector('.ws-card-body .ws-guest')
     && card.querySelector('.ws-card-body .ws-actions')));
 // v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
 // than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
@@ -149,30 +148,37 @@ ok('and the extend form folds first, because it is the widest thing in the row',
   /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
     && wsStyle.indexOf('\u00b7 under 380px') > 0,
   'a 140px date field and a button do not share a line with anything');
-// v10.21 the rate row was one of the two that did not fit 128px of card.
-ok('the rate and what is due take a line each instead of breaking mid-phrase',
-  /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row \.text-right\{flex:1 0 100%;text-align:left/.test(wsStyle)
-    && /@container wscard \(max-width:199px\)\{[\s\S]{0,900}\.ws-rate-row>div>br\{display:none\}/.test(wsStyle),
-  'GH₵ 1,240.00 /n above GH₵ 3,720.00 due, neither one wrapped');
-// v10.22 the card says what the room is; who is in it, and from when to when, moved into the dialog it opens.
-ok('the card no longer prints the guest or the stay dates',
+// v10.22 took the guest and the stay off the card; v10.23 took the provenance line and the money with it. What is
+// left on the card is the room: its photo, its state, its amenities and its actions.
+ok('the card prints no guest, no stay dates and no money',
   $$('#wsGrid .ws-card .ws-stay').length === 0
-    && $$('#wsGrid .ws-card .ws-guest .bold.small').length === 0,
-  'no name line, no arrive/depart row, and no CSS left for a row that is gone');
-ok('nor does it keep dead rules for the row it dropped',
-  !/\.ws-stay\{/.test(wsStyle) && !/\.ws-nights\{/.test(wsStyle),
-  'the .ws-stay and .ws-nights rules went with the markup');
-ok('but the guest is still named for a screen reader',
-  $$('#wsGrid .ws-card .ws-guest .sr-only').length ===
-    $$('#wsGrid .ws-card .ws-guest[data-guest]').length
-    && /Guest .+?\./.test($$('#wsGrid .ws-card .ws-guest .sr-only')[0]?.textContent ?? ''),
-  $$('#wsGrid .ws-card .ws-guest .sr-only')[0]?.textContent?.trim());
-ok('and the card carries the name and the nights as data, for whoever still needs them',
-  $$('#wsGrid .ws-card .ws-guest[data-guest]').every(el => (el.dataset.guest ?? '').length > 0
+    && $$('#wsGrid .ws-card .ws-guest .bold.small').length === 0
+    && $$('#wsGrid .ws-card .ws-rate-row').length === 0
+    && $$('#wsGrid .ws-card .ws-guest-note').every(el => el.classList.contains('sr-only')),
+  `${cards.length} cards, none printing a name, a date or a balance`);
+ok('only a room with nobody in it still says so, on the card face',
+  $$('#wsGrid .ws-card .ws-guest').every(box => box.classList.contains('vacant')),
+  `${$$('#wsGrid .ws-card .ws-guest').length} vacant blocks kept — VACANT · RACK RATE and Reserve Room`);
+ok('nor does the card keep dead rules for what it dropped',
+  !/\.ws-stay\{/.test(wsStyle) && !/\.ws-nights\{/.test(wsStyle)
+    && !/\.ws-rate-row\{/.test(wsStyle) && !/\.ws-guest-src\{/.test(wsStyle),
+  'the .ws-stay, .ws-nights, .ws-rate-row and .ws-guest-src rules all went with their markup');
+ok('and the narrow-card block that only served the rate row went too',
+  !/@container wscard \(max-width:199px\)/.test(wsStyle),
+  'one comment in its place, so the next reader knows why the 199px step is gone');
+ok('but every stay still reads out in full to a screen reader',
+  $$('#wsGrid .ws-card .ws-guest-note').length === $$('#wsGrid .ws-card[data-guest]').length
+    && $$('#wsGrid .ws-card .ws-guest-note').every(el =>
+      /Guest .+/.test(el.textContent) && /Arrive .+, depart .+/.test(el.textContent)
+      && /\d+ nights? at /.test(el.textContent)),
+  $$('#wsGrid .ws-card .ws-guest-note')[0]?.textContent?.trim());
+ok('and the card carries guest, source, nights and the money as data for whoever still needs them',
+  $$('#wsGrid .ws-card[data-guest]').every(el => (el.dataset.guest ?? '').length > 0
+    && (el.dataset.guestMeta ?? '').length > 0
     && /^\d+$/.test(el.dataset.nights ?? '')),
-  `${$$('#wsGrid .ws-card .ws-guest[data-guest]').length} cards carry data-guest and data-nights`);
-ok('the dialog the card opens is where the name and the dates went',
-  $$('.ws-modal .ws-resv').length === $$('#wsGrid .ws-card .ws-guest[data-guest]').length
+  `${$$('#wsGrid .ws-card[data-guest]').length} cards carry data-guest, data-guest-meta and data-nights`);
+ok('the dialog the card opens is where all of it went',
+  $$('.ws-modal .ws-resv').length === $$('#wsGrid .ws-card[data-guest]').length
     && $$('.ws-modal .ws-resv').every(box => (box.querySelector('.bold')?.textContent ?? '').trim().length > 0
       && /→/.test(box.textContent)),
   `every dialog still states the guest and 12 Nov → 15 Nov · 3n`);
@@ -283,8 +289,8 @@ ok('and the sheet leaves the sort chip and the action rows off the paper',
   'three across, no screen controls');
 // v10.22 a sheet of paper has no dialog, so the name the card stopped printing comes back on paper
 ok('and paper puts the guest name back, because a sheet has no dialog to open',
-  /@media print\{[\s\S]{0,2000}#wsGrid \.ws-guest \.sr-only\{position:static/.test(wsStyle),
-  'the sr-only span that kept the name in the DOM is unclipped for print');
+  /@media print\{[\s\S]{0,2000}#wsGrid \.ws-guest-note\{position:static;display:block/.test(wsStyle),
+  'the sr-only sentence is printed as a line of its own on the sheet');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',

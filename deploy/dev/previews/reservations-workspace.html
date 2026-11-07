@@ -141,18 +141,11 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-amen .i{width:13px;height:13px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
-.ws-guest>.flex{align-items:center}
-.ws-guest>.flex>div{min-width:0}
-.ws-guest>.flex .bold{overflow-wrap:anywhere}
-.ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
-.ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
+.ws-guest{margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9}
 .ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-guest-src{line-height:1.35}
-.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
@@ -174,17 +167,8 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 @container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
-/* v10.21 five across leaves the card about 128px of content, and the rate row was one of the two that did not fit
-   it: "Nightly rate GH₵ 1,240.00" beside "GH₵ 3,720.00 due" is about 148px of text in 128px of card, so the due
-   broke away from its number mid-phrase. Below 200px the rate and what is due each get a line of their own, each a
-   whole phrase. Nothing is dropped: the label is clipped rather than removed, so a screen reader still hears
-   "Nightly rate", and the /n that follows the rate says nightly anyway. Above 200px the label stays on show. */
-@container wscard (max-width:199px){
-  .ws-rate-row{margin-top:5px;padding-top:4px;gap:1px 6px;font-size:10px;flex-wrap:wrap}
-  .ws-rate-row>div>br{display:none}
-  .ws-rate-row>div>span.muted:first-child{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
-  .ws-rate-row .text-right{flex:1 0 100%;text-align:left;font-size:9.5px}
-}
+/* v10.21 put the rate and what was due on a line each below 200px; v10.23 took those rows off the card
+   altogether, so the narrow-card treatment is now the action fold above and nothing else. */
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -329,7 +313,6 @@ body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{c
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-guest.vacant{background:#18281e}
-body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-rail-title{border-color:var(--c-border)}
 body.dark .ws-rail-list tr+tr td{border-top-color:var(--c-border)}
 body.dark .ws-cal-day:hover:not(.today):not(.disabled){background:#193525;color:#d7f5df}
@@ -544,9 +527,10 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
   .ws-card-head{padding:8px 10px 0}
-  /* v10.22 the screen card stopped printing the guest's name because the dialog it opens carries it — but a sheet
-     of paper has no dialog. On paper the name comes back out of the sr-only span that kept it in the DOM. */
-  #wsGrid .ws-guest .sr-only{position:static;width:auto;height:auto;margin:0;overflow:visible;white-space:normal;clip-path:none}
+  /* v10.23 the screen card carries one sr-only sentence — guest, source, arrive, depart, nights, rate, due — and
+     nothing else about the stay. A sheet of paper has no dialog to open, so on paper that sentence is printed, and
+     it is the only place the printed board says who is in the room. */
+  #wsGrid .ws-guest-note{position:static;display:block;width:auto;height:auto;margin:0 10px 6px;overflow:visible;white-space:normal;clip-path:none;color:#64748b;font-size:10px;line-height:1.35}
   .ws-room-no{font-size:20px}
   .ws-photo-foot{padding:8px 10px}
   .ws-rack-thumb{display:none}
@@ -3795,7 +3779,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-grid" id="wsGrid" role="region" aria-label="Room board for 5 November 2026">
     
       
-      <div class="ws-card" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Kwesi Mensah" data-guest-meta="Direct · Ghana" data-nights="3" data-due="GH₵ 1,860.00 due">
       <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Room 101, Standard Garden, occupied, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -3843,20 +3827,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest inhouse" data-guest="Kwesi Mensah" data-nights="3">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Kwesi Mensah. </span>Direct · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 620.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 1,860.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Kwesi Mensah, Direct, Ghana. Arrive 03 Nov, depart 06 Nov, 3 nights at GH₵ 620.00 a night. GH₵ 1,860.00 due.</span>
         
 
       <div class="ws-actions">
@@ -3951,7 +3922,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg">
+      <div class="ws-card" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Adjoa Boateng" data-guest-meta="Booking.com · Ghana" data-nights="2" data-due="GH₵ 1,240.00 due">
       <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Room 103, Standard Garden, reserved, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -3999,20 +3970,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest arriving" data-guest="Adjoa Boateng" data-nights="2">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Adjoa Boateng. </span>Booking.com · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 620.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 1,240.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Adjoa Boateng, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 620.00 a night. GH₵ 1,240.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4171,7 +4129,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg">
+      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Sarah Osei" data-guest-meta="Expedia · VIP · United Kingdom" data-nights="4" data-due="GH₵ 3,800.00 due">
       <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Room 201, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4229,20 +4187,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest inhouse" data-guest="Sarah Osei" data-nights="4">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Sarah Osei. </span>Expedia · VIP · United Kingdom
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 950.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 3,800.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Sarah Osei, Expedia, VIP, United Kingdom. Arrive 02 Nov, depart 06 Nov, 4 nights at GH₵ 950.00 a night. GH₵ 3,800.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4265,7 +4210,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Yaw Antwi" data-guest-meta="Corporate · Ashanti Gold · Ghana" data-nights="1" data-due="GH₵ 950.00 due">
       <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Room 202, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4323,20 +4268,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest arriving" data-guest="Yaw Antwi" data-nights="1">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Yaw Antwi. </span>Corporate · Ashanti Gold · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 950.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 950.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Yaw Antwi, Corporate · Ashanti Gold, Ghana. Arrive 05 Nov, depart 06 Nov, 1 night at GH₵ 950.00 a night. GH₵ 950.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4431,7 +4363,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg">
+      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Fatima Alhassan" data-guest-meta="Direct · Nigeria" data-nights="2" data-due="GH₵ 1,900.00 due">
       <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Room 204, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4489,20 +4421,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest inhouse" data-guest="Fatima Alhassan" data-nights="2">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Fatima Alhassan. </span>Direct · Nigeria
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 950.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 1,900.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Fatima Alhassan, Direct, Nigeria. Arrive 04 Nov, depart 06 Nov, 2 nights at GH₵ 950.00 a night. GH₵ 1,900.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4596,7 +4515,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Michael Addo" data-guest-meta="Travel agent · Sunseekers · VIP · Ghana" data-nights="5" data-due="GH₵ 8,250.00 due">
       <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Room 301, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4654,20 +4573,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest inhouse" data-guest="Michael Addo" data-nights="5">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Michael Addo. </span>Travel agent · Sunseekers · VIP · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 1,650.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 8,250.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Michael Addo, Travel agent · Sunseekers, VIP, Ghana. Arrive 01 Nov, depart 06 Nov, 5 nights at GH₵ 1,650.00 a night. GH₵ 8,250.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4690,7 +4596,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Grace Owusu" data-guest-meta="Direct · Ghana" data-nights="2" data-due="GH₵ 4,950.00 due">
       <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Room 302, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4748,20 +4654,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest inhouse" data-guest="Grace Owusu" data-nights="2">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Grace Owusu. </span>Direct · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 1,650.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 4,950.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Grace Owusu, Direct, Ghana. Arrive 03 Nov, depart 05 Nov, 2 nights at GH₵ 1,650.00 a night. GH₵ 4,950.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4784,7 +4677,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg">
+      <div class="ws-card" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Daniel Kusi" data-guest-meta="Website · Ghana" data-nights="3" data-due="GH₵ 3,540.00 due">
       <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Room 303, Family Room, reserved, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -4840,20 +4733,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest arriving" data-guest="Daniel Kusi" data-nights="3">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Daniel Kusi. </span>Website · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 1,180.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 3,540.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Daniel Kusi, Website, Ghana. Arrive 05 Nov, depart 08 Nov, 3 nights at GH₵ 1,180.00 a night. GH₵ 3,540.00 due.</span>
         
 
       <div class="ws-actions">
@@ -4946,7 +4826,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-card" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Linda Eshun" data-guest-meta="Booking.com · Ghana" data-nights="2" data-due="GH₵ 1,900.00 due">
       <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Room 305, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
       <div class="ws-card-head">
@@ -5004,20 +4884,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <div class="ws-guest arriving" data-guest="Linda Eshun" data-nights="2">
-      <div class="muted small ws-guest-src">
-      <span class="sr-only">Guest Linda Eshun. </span>Booking.com · Ghana
-      </div>
-      <div class="ws-rate-row small">
-      <div><span class="muted">Nightly rate</span><br><span class="bold">GH₵ 950.00</span> <span class="muted">/n</span></div>
-            
-              
-              
-      <div class="text-right ws-due" title="Estimated checkout amount, including nights and fixed charges still to post">GH₵ 1,900.00 due</div>
-              
-            
-      </div>
-      </div>
+      <span class="ws-guest-note sr-only">Guest Linda Eshun, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 950.00 a night. GH₵ 1,900.00 due.</span>
         
 
       <div class="ws-actions">
@@ -6480,21 +6347,13 @@ body.dark a.ws-attention-row:hover{background:#193525}
     [...document.querySelectorAll('#wsGrid .ws-card')].forEach(card => {
       const roomNo = (card.querySelector('.ws-room-no')?.textContent || '').trim().replace(/^Room\s+/i, '');
       const roomId = card.querySelector('[data-room]')?.dataset.room || '';
-      // v10.22 the card no longer prints the guest's name or the nights, so the rack takes them from the card's
-      // data and only falls back to the markup if a card still carries it.
-      const guestBox = card.querySelector('.ws-guest');
-      const guest = guestBox?.dataset.guest || card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
-      // the card keeps the guest's name in a sr-only span for screen readers; the rack prints the name once, so
-      // the meta line is read node by node with that span left out — the same way the housekeeping chip is read.
-      const metaBox = card.querySelector('.ws-guest .muted.small');
-      const guestMeta = metaBox
-        ? [...metaBox.childNodes]
-          .filter(node => !(node.nodeType === 1 && node.classList && node.classList.contains('sr-only')))
-          .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim()
-        : '';
-      const nights = (guestBox?.dataset.nights ? guestBox.dataset.nights + 'n' : '') || card.querySelector('.ws-nights')?.textContent.trim() || '';
+      // v10.23 the card prints neither the guest nor the nights nor the money, so the rack takes all four from the
+      // card's data rather than from markup that is no longer there.
+      const guest = card.dataset.guest || '';
+      const guestMeta = card.dataset.guestMeta || '';
+      const nights = card.dataset.nights ? card.dataset.nights + 'n' : '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
-      const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
+      const balance = card.dataset.due || '';
       // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
       // from the chip's text minus that span: stripping a prefix by regex broke the moment the wording
       // changed, and the column started reading "housekeeping: Dirty".

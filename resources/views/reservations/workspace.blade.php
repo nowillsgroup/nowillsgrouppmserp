@@ -208,6 +208,11 @@
         $hkTone = ['dirty' => 'dirty', 'clean' => 'clean', 'inspected' => 'inspected', 'touch_up' => 'touchup'][$room->hk_status] ?? 'unknown';
         $stayGuestName = $guestDisplayName($stay);
         $stayGuestInitial = $guestInitial($stay);
+        // v10.23 the card stopped printing the money, so what is due travels to the rack as data on the card
+        $cardNights = $stay ? max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) : '';
+        $cardDue = $stay ? ($c['due'] ?? $c['balance']) : null;
+        $cardDueLabel = ($cardDue === null || ! can_do('folio.view')) ? null
+          : ($cardDue > 0 ? money($cardDue).' due' : ($cardDue < 0 ? money(abs($cardDue)).' credit' : 'Settled'));
         // the room's own photo first, then its type's, then the generated block
         $cardPhoto = $c['photo_full'] ?? $c['photo'] ?? $room->roomType?->image;
         $searchText = implode(' ', array_unique(array_map('strval', array_filter([
@@ -219,7 +224,7 @@
           implode(' ', $c['amenities']),
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}">
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif@if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
           <div class="ws-card-head">
@@ -260,23 +265,11 @@
         </div>
 
         @if ($stay)
-        {{-- v10.22 the card says what the room is; who is in it, and from when to when, is in the dialog the card
-             opens (CURRENT RESERVATION) and in the rack. The guest's name stays in the DOM for screen readers, which
-             is why it is a sr-only span rather than a deleted line, and the rack reads it from data-guest. --}}
-        <div class="ws-guest {{ $c['status'] === 'reserved' ? 'arriving' : ($c['status'] === 'occupied' ? 'inhouse' : '') }}" data-guest="{{ $stayGuestName }}" data-nights="{{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}">
-          <div class="muted small ws-guest-src">
-            <span class="sr-only">Guest {{ $stayGuestName }}. </span>{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}
-          </div>
-          <div class="ws-rate-row small">
-            <div><span class="muted">Nightly rate</span><br><span class="bold">{{ money($c['rate']) }}</span> <span class="muted">/n</span></div>
-            @if (can_do('folio.view'))
-              @php $cardDue = $c['due'] ?? $c['balance']; @endphp
-              @if ($cardDue !== null)
-              <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? ($cardDue < 0 ? 'Final folio credit' : 'Final folio balance') : ($cardDue < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $cardDue > 0 ? money($cardDue).' due' : ($cardDue < 0 ? money(abs($cardDue)).' credit' : 'Settled') }}</div>
-              @endif
-            @endif
-          </div>
-        </div>
+        {{-- v10.23 the card says what the room is and nothing else: who is in it, from when to when, and what it is
+             worth are all in the dialog the card opens — and in the rack. What stays here is one sr-only sentence,
+             so a screen reader still hears the guest, the stay and the money, and print — which has no dialog to
+             open — puts that sentence on the sheet in place of the rows the screen gave up. --}}
+        <span class="ws-guest-note sr-only">Guest {{ $stayGuestName }}{{ $roomSource ? ', '.$roomSource : '' }}{{ $isVip ? ', VIP' : '' }}{{ $stay->guest?->nationality ? ', '.$stay->guest->nationality : '' }}. Arrive {{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}, depart {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}, {{ $cardNights }} {{ $cardNights === 1 ? 'night' : 'nights' }} at {{ money($c['rate']) }} a night.@if ($cardDueLabel !== null) {{ $cardDueLabel }}.@endif</span>
         @else
         <div class="ws-guest vacant">
           <div class="muted small">{{ $c['status'] === 'occupied' ? 'OCCUPIED · NO LINKED STAY' : ($c['status'] === 'available' ? 'VACANT · RACK RATE' : 'ROOM UNAVAILABLE') }}</div>
@@ -865,21 +858,13 @@
     [...document.querySelectorAll('#wsGrid .ws-card')].forEach(card => {
       const roomNo = (card.querySelector('.ws-room-no')?.textContent || '').trim().replace(/^Room\s+/i, '');
       const roomId = card.querySelector('[data-room]')?.dataset.room || '';
-      // v10.22 the card no longer prints the guest's name or the nights, so the rack takes them from the card's
-      // data and only falls back to the markup if a card still carries it.
-      const guestBox = card.querySelector('.ws-guest');
-      const guest = guestBox?.dataset.guest || card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
-      // the card keeps the guest's name in a sr-only span for screen readers; the rack prints the name once, so
-      // the meta line is read node by node with that span left out — the same way the housekeeping chip is read.
-      const metaBox = card.querySelector('.ws-guest .muted.small');
-      const guestMeta = metaBox
-        ? [...metaBox.childNodes]
-          .filter(node => !(node.nodeType === 1 && node.classList && node.classList.contains('sr-only')))
-          .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim()
-        : '';
-      const nights = (guestBox?.dataset.nights ? guestBox.dataset.nights + 'n' : '') || card.querySelector('.ws-nights')?.textContent.trim() || '';
+      // v10.23 the card prints neither the guest nor the nights nor the money, so the rack takes all four from the
+      // card's data rather than from markup that is no longer there.
+      const guest = card.dataset.guest || '';
+      const guestMeta = card.dataset.guestMeta || '';
+      const nights = card.dataset.nights ? card.dataset.nights + 'n' : '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
-      const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
+      const balance = card.dataset.due || '';
       // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
       // from the chip's text minus that span: stripping a prefix by regex broke the moment the wording
       // changed, and the column started reading "housekeeping: Dirty".
@@ -1492,18 +1477,11 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-amen .i{width:13px;height:13px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
-.ws-guest>.flex{align-items:center}
-.ws-guest>.flex>div{min-width:0}
-.ws-guest>.flex .bold{overflow-wrap:anywhere}
-.ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
-.ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
+.ws-guest{margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9}
 .ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-guest-src{line-height:1.35}
-.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
 .ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
@@ -1525,17 +1503,8 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 @container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
-/* v10.21 five across leaves the card about 128px of content, and the rate row was one of the two that did not fit
-   it: "Nightly rate GH₵ 1,240.00" beside "GH₵ 3,720.00 due" is about 148px of text in 128px of card, so the due
-   broke away from its number mid-phrase. Below 200px the rate and what is due each get a line of their own, each a
-   whole phrase. Nothing is dropped: the label is clipped rather than removed, so a screen reader still hears
-   "Nightly rate", and the /n that follows the rate says nightly anyway. Above 200px the label stays on show. */
-@container wscard (max-width:199px){
-  .ws-rate-row{margin-top:5px;padding-top:4px;gap:1px 6px;font-size:10px;flex-wrap:wrap}
-  .ws-rate-row>div>br{display:none}
-  .ws-rate-row>div>span.muted:first-child{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;white-space:nowrap;clip-path:inset(50%);border:0}
-  .ws-rate-row .text-right{flex:1 0 100%;text-align:left;font-size:9.5px}
-}
+/* v10.21 put the rate and what was due on a line each below 200px; v10.23 took those rows off the card
+   altogether, so the narrow-card treatment is now the action fold above and nothing else. */
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -1680,7 +1649,6 @@ body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{c
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-guest.vacant{background:#18281e}
-body.dark .ws-rate-row{border-color:var(--c-border)}
 body.dark .ws-rail-title{border-color:var(--c-border)}
 body.dark .ws-rail-list tr+tr td{border-top-color:var(--c-border)}
 body.dark .ws-cal-day:hover:not(.today):not(.disabled){background:#193525;color:#d7f5df}
@@ -1895,9 +1863,10 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
   .ws-card-head{padding:8px 10px 0}
-  /* v10.22 the screen card stopped printing the guest's name because the dialog it opens carries it — but a sheet
-     of paper has no dialog. On paper the name comes back out of the sr-only span that kept it in the DOM. */
-  #wsGrid .ws-guest .sr-only{position:static;width:auto;height:auto;margin:0;overflow:visible;white-space:normal;clip-path:none}
+  /* v10.23 the screen card carries one sr-only sentence — guest, source, arrive, depart, nights, rate, due — and
+     nothing else about the stay. A sheet of paper has no dialog to open, so on paper that sentence is printed, and
+     it is the only place the printed board says who is in the room. */
+  #wsGrid .ws-guest-note{position:static;display:block;width:auto;height:auto;margin:0 10px 6px;overflow:visible;white-space:normal;clip-path:none;color:#64748b;font-size:10px;line-height:1.35}
   .ws-room-no{font-size:20px}
   .ws-photo-foot{padding:8px 10px}
   .ws-rack-thumb{display:none}
