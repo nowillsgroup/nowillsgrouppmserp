@@ -81,6 +81,16 @@ class PropertyController extends Controller
                 ]);
             }
 
+            // v10.11 the file closes the way the screen does: one total line under the rows, so the
+            // download reconciles to the header stats instead of needing a spreadsheet formula — and
+            // occupancy is the portfolio figure, because an average of five occupancies is not one.
+            $sum = $register['summary'];
+            fputcsv($out, [
+                'Portfolio total', '', '', '', '', '', '', '',
+                $sum['rooms'], $sum['occupied'], $sum['occ'], $sum['in_house'], $sum['staff'], '', '', '',
+                $sum['closed'].' of '.$sum['properties'].' licensed for nothing',
+            ]);
+
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv']);
     }

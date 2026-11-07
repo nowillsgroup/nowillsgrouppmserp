@@ -101,6 +101,9 @@ ok('the slice counts the properties you may open, shut one included', sliceText(
 ok('so the shut property has a slice of its own to explain itself in', slices.some(a => /^Kumasi 1$/.test(sliceText(a))));
 ok('the chips are kept off the print sheet', doc.querySelector('[data-testid="report-slices"]').classList.contains('no-print'));
 
+// v10.11 a slice is part of what a view or a schedule remembers, so "all" must be able to say "none"
+ok('the all-properties chip clears the slice explicitly, empty rather than absent',
+  /slice=&value=$/.test(slices[0].getAttribute('href') || ''), slices[0].getAttribute('href'));
 if (failures.length) {
   console.error(`Consolidated report preview check: ${failures.length} failed, ${passed} passed`);
   for (const failure of failures) console.error(`  ✗ ${failure}`);

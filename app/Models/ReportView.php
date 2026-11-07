@@ -14,7 +14,8 @@ class ReportView extends Model
 
     protected function casts(): array
     {
-        return ['date_from' => 'date', 'date_to' => 'date', 'columns' => 'array', 'is_shared' => 'boolean', 'is_pinned' => 'boolean', 'last_opened_at' => 'datetime'];
+        return ['date_from' => 'date', 'date_to' => 'date', 'columns' => 'array', 'params' => 'array',
+            'is_shared' => 'boolean', 'is_pinned' => 'boolean', 'last_opened_at' => 'datetime'];
     }
 
     public function user()
@@ -30,6 +31,14 @@ class ReportView extends Model
     public function title(): string
     {
         return \App\Http\Controllers\ReportController::REPORTS[$this->report_key][1] ?? $this->report_key;
+    }
+
+    /** v10.11 the slice this view opens on, or null when it opens on everything. */
+    public function scopeLabel(): ?string
+    {
+        $value = $this->params['value'] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public function url(): string

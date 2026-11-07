@@ -25,7 +25,9 @@
   <tbody>@forelse($views as $v) @php $mine = $v->user_id === $me->id; [$vf, $vt] = $RS::resolve($v->range, $v->date_from, $v->date_to); @endphp
     <tr data-view="{{ $v->id }}">
       <td class="bold"><a href="{{ $v->url() }}">{{ $v->name }}</a>@if($v->is_pinned && $mine) <span class="badge badge-purple">pinned</span>@endif @if($v->is_shared) <span class="badge badge-blue">shared</span>@endif</td>
-      <td class="small">{{ $v->title() }}<div class="tiny muted">{{ \App\Http\Controllers\ReportController::REPORTS[$v->report_key][0] ?? '' }}</div></td>
+      <td class="small">{{ $v->title() }}<div class="tiny muted">{{ \App\Http\Controllers\ReportController::REPORTS[$v->report_key][0] ?? '' }}</div>
+        {{-- v10.11 a view of a slice says so here, so two views of the same report are told apart --}}
+        @if($v->scopeLabel())<div class="tiny" data-testid="view-scope"><x-icon name="list"/> <b>{{ $v->scopeLabel() }}</b> only</div>@endif</td>
       <td class="small">{{ $RS::RANGES[$v->range] ?? $v->range }}<div class="tiny muted">{{ $RS::rangeLabel($v->report_key, 'custom', $vf, $vt) }}</div></td>
       <td class="small">{{ $v->columns ? count($v->columns).' column(s)' : 'All columns' }}@if($v->filter)<div class="tiny muted">rows containing “{{ $v->filter }}”</div>@endif</td>
       <td class="small">{{ $mine ? 'Me' : $v->user?->name }}</td>

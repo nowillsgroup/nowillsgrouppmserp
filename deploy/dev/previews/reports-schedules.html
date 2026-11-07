@@ -3111,10 +3111,12 @@
       <summary class="card-head" style="cursor:pointer"><h3><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> New scheduled report</h3><span class="small muted">the report runs with the owner's permissions</span></summary>
       <div class="card-body">
       <form method="post" action="/reports/schedules"> 
+    
+    
       <div class="form-grid">
       <div class="field"><label for="s_name">Name</label><input id="s_name" name="name" maxlength="120" value="" placeholder="e.g. Morning flash for the GM"></div>
       <div class="field"><label for="s_view">Saved view <span class="muted tiny">(optional)</span></label><select id="s_view" name="report_view_id"><option value="">— pick a report instead —</option>
-      <option value="12" >Today at the desk · Arrivals Today</option><option value="24" >Month-to-date takings · POS Sales by Outlet</option><option value="21" >Weekend F&amp;B mix · POS Sales by Outlet</option></select></div>
+      <option value="12" >Today at the desk · Arrivals Today</option><option value="24" >Month-to-date takings · POS Sales by Outlet</option><option value="21" >Weekend F&amp;B mix · POS Sales by Outlet</option><option value="31" >Takoradi month to date · Consolidated Operating Summary</option></select></div>
       <div class="field"><label for="s_report">Report</label><select id="s_report" name="report_key"><option value="allotment_utilisation" >Allotment Utilisation</option><option value="ap_ageing" >AP Ageing (Suppliers)</option><option value="ap_register" >AP Register</option><option value="ar_ageing" >AR Ageing (City Ledger)</option><option value="arrivals_today" >Arrivals Today</option><option value="balance_sheet" >Balance Sheet</option><option value="bank_recon" >Bank Reconciliation</option><option value="cash_position" >Cash Position</option><option value="group_operating_summary" >Consolidated Operating Summary</option><option value="departures_today" >Departures Today</option><option value="flash"  selected>Flash Report (Day / MTD / YTD)</option><option value="rm_forecast" >Forecast Occupancy</option><option value="foreign_guests" >Form C (Foreign Guests)</option><option value="hotel_groups" >Hotel Group Register</option><option value="hotel_kpis" >Hotel KPIs by Month</option><option value="hk_board" >Housekeeping Board</option><option value="in_house" >In-house Guest List</option><option value="hse_incidents" >Incidents &amp; Accidents</option><option value="pos_items" >Item Sales Mix</option><option value="journal_register" >Journal Register</option><option value="kpi_scorecard" >KPI Scorecard</option><option value="laundry_linen" >Linen Movement</option><option value="management_pack" >Management Pack</option><option value="menu_margin" >Menu Margins</option><option value="momo_settlement" >Mobile Money Settlement</option><option value="no_shows" >No-shows</option><option value="fire_permits" >Permits &amp; Certificates</option><option value="rm_pickup" >Pickup &amp; Pace</option><option value="pos_sales" >POS Sales by Outlet</option><option value="gl_pnl" >Profit &amp; Loss</option><option value="rate_check" >Rate Check</option><option value="channel_parity" >Rate Parity</option><option value="hk_credits" >Room Attendant Credits</option><option value="occupancy" >Rooms Occupancy</option><option value="pos_shift" >Shift Totals</option><option value="trial_balance" >Trial Balance</option><option value="pos_voids" >Voids &amp; Discounts</option></select></div>
       <div class="field"><label for="s_range">Period</label><select id="s_range" name="range"> <option value="today" >Today</option> <option value="yesterday"  selected>Yesterday</option> <option value="last_7" >Last 7 days</option> <option value="last_30" >Last 30 days</option> <option value="mtd" >Month to date</option> <option value="last_month" >Last month</option> <option value="ytd" >Year to date</option></select><small class="muted">"As on" reports use the period's end date. A saved view keeps its own period.</small></div>
       <div class="field"><label for="s_freq">Send</label><select id="s_freq" name="frequency" data-freq><option value="daily"  selected>Daily</option><option value="weekly" >Weekly</option><option value="monthly" >Monthly</option><option value="after_audit" >After the night audit</option></select></div>
@@ -3137,19 +3139,21 @@
 
       <div data-tabwrap>
       <div class="tabs" data-tabs>
-      <button class="active" data-tab="t-schedules">Schedules (3)</button>
+      <button class="active" data-tab="t-schedules">Schedules (4)</button>
       <button data-tab="t-log">Delivery log</button>
   
       </div>
 
       <div class="tab-pane active" id="t-schedules"><div class="card flush">
-      <div class="card-head"><h3>3 schedule(s)</h3><input class="input input-sm no-print" placeholder="Search schedules…" aria-label="Search scheduled reports" data-filter-table="#schedTable" style="max-width:230px"></div>
+      <div class="card-head"><h3>4 schedule(s)</h3><input class="input input-sm no-print" placeholder="Search schedules…" aria-label="Search scheduled reports" data-filter-table="#schedTable" style="max-width:230px"></div>
       <div class="card-body table-wrap"><table class="table" id="schedTable">
       <thead><tr><th>Schedule</th><th>Report &amp; period</th><th>When</th><th>Recipients</th><th>Owner</th><th>Last run</th><th>Next run</th><th></th></tr></thead>
       <tbody> 
       <tr data-schedule="5" class="">
       <td class="bold">Morning flash for the GM  </td>
-      <td class="small">Flash Report (Day / MTD / YTD)<div class="tiny muted">Yesterday · Table in the e-mail + CSV attachment</div></td>
+      <td class="small">Flash Report (Day / MTD / YTD)<div class="tiny muted">Yesterday · Table in the e-mail + CSV attachment</div>
+        
+      </td>
       <td class="small">Daily at 07:00</td>
       <td class="small" title="ama.mensah@nowills.com.gh, gm@nowills.com.gh">2 recipient(s)</td>
       <td class="small">Ama Mensah</td>
@@ -3168,7 +3172,9 @@
    
       <tr data-schedule="9" class="">
       <td class="bold">Month-end accounts pack  <span class="badge badge-red" title="SMTP 550: mailbox unavailable for k.owusu@nowills.com.gh">2 failure(s)</span></td>
-      <td class="small">Trial Balance<div class="tiny muted">view “Month-end accounts” · Last month · CSV attachment only</div></td>
+      <td class="small">Trial Balance<div class="tiny muted">view “Month-end accounts” · Last month · CSV attachment only</div>
+        
+      </td>
       <td class="small">Monthly on the 1st at 06:00</td>
       <td class="small" title="k.owusu@nowills.com.gh, owner@nowills.com.gh">2 recipient(s)<div class="tiny muted">incl. external</div></td>
       <td class="small">Kojo Owusu</td>
@@ -3182,7 +3188,9 @@
    
       <tr data-schedule="11" class="muted">
       <td class="bold">Weekend F&amp;B mix <span class="badge badge-slate">paused</span> </td>
-      <td class="small">POS Sales by Outlet<div class="tiny muted">view “Weekend F&amp;B mix” · Last 7 days · Table in the e-mail</div></td>
+      <td class="small">POS Sales by Outlet<div class="tiny muted">view “Weekend F&amp;B mix” · Last 7 days · Table in the e-mail</div>
+        
+      </td>
       <td class="small">Weekly on Friday at 08:00</td>
       <td class="small" title="ama.mensah@nowills.com.gh">1 recipient(s)</td>
       <td class="small">Ama Mensah</td>
@@ -3196,6 +3204,27 @@
       <form method="post" action="/reports/schedules/11" style="display:inline" data-confirm="Delete the schedule “Weekend F&amp;B mix”?"> <button class="btn btn-sm btn-ghost" title="Delete"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></form>
         
       <a class="btn btn-sm btn-ghost" href="/reports/schedules?schedule=11#t-log" title="History"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></a>
+      </td>
+      </tr>
+   
+      <tr data-schedule="12" class="">
+      <td class="bold">Takoradi every morning  </td>
+      <td class="small">Consolidated Operating Summary<div class="tiny muted">Month to date · Table in the e-mail + CSV attachment</div>
+        
+      <div class="tiny" data-testid="schedule-scope"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg> Scope: <b>Takoradi</b> <span class="muted">(city)</span></div></td>
+      <td class="small">Daily at 06:30</td>
+      <td class="small" title="gm@nowills.com.gh">1 recipient(s)</td>
+      <td class="small">Ama Mensah</td>
+      <td class="small">06 Nov 06:30 <span class="badge badge-green">sent</span> </td>
+      <td class="small">Sat 07 Nov 06:30</td>
+      <td class="nowrap right">
+        
+      <form method="post" action="/reports/schedules/12/run" style="display:inline"><button class="btn btn-sm btn-primary" title="Run and e-mail now"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg> Send now</button></form>
+      <form method="post" action="/reports/schedules/12/toggle" style="display:inline"><button class="btn btn-sm">Pause</button></form>
+      <a class="btn btn-sm btn-ghost" href="/reports/schedules?edit=12#scheduleForm" title="Edit"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg></a>
+      <form method="post" action="/reports/schedules/12" style="display:inline" data-confirm="Delete the schedule “Takoradi every morning”?"> <button class="btn btn-sm btn-ghost" title="Delete"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg></button></form>
+        
+      <a class="btn btn-sm btn-ghost" href="/reports/schedules?schedule=12#t-log" title="History"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></a>
       </td>
       </tr>
       </tbody>

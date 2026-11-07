@@ -755,6 +755,42 @@ class ReportController extends Controller
     ];
 
     /** The icon each report area shows in the library, and how a period reads. */
+    /**
+     * v10.11 the report parameters a view or a schedule may remember. A whitelist, because a saved
+     * view posts a form and the last thing this engine needs is a form deciding what a report reads.
+     */
+    public const REPORT_PARAMS = ['slice', 'value'];
+
+    /** The parameters of the run in progress — set by the screen (from the URL or a view) or a schedule. */
+    protected array $params = [];
+
+    /** Run the next report with these parameters (a slice, a scope) instead of the URL's. */
+    public function withParams(array $params): static
+    {
+        $this->params = array_filter($params, fn ($v) => is_string($v) && $v !== '');
+
+        return $this;
+    }
+
+    /** One parameter of this run: what the caller set, else what the URL asked for. */
+    protected function param(string $key): ?string
+    {
+        $value = $this->params[$key] ?? request()->query($key);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** The parameters a form may hand us, kept to the whitelist and dropped when empty. */
+    public static function paramsFrom(array $input): ?array
+    {
+        $params = array_filter(
+            array_intersect_key($input, array_flip(self::REPORT_PARAMS)),
+            fn ($v) => is_string($v) && $v !== ''
+        );
+
+        return $params ?: null;
+    }
+
     public const GROUP_ICONS = [
         'Accounts' => 'wallet', 'Banquet & Events' => 'cup', 'Billing' => 'receipt', 'Budget & Planning' => 'chart',
         'Central Reservations' => 'phone', 'Channel Manager' => 'layers', 'Compliance & HSE' => 'shield',
@@ -841,6 +877,11 @@ class ReportController extends Controller
         if ($from->diffInDays($to) > 366) {
             $from = $to->copy()->subDays(366);
         }
+        // v10.11 a view remembers what the report was showing, not only when. The URL wins when it
+        // names a parameter, so clicking another slice chip is not overridden by the view underneath.
+        $requested = array_intersect_key($request->query(), array_flip(self::REPORT_PARAMS));
+        $this->withParams(array_merge($activeView?->params ?? [], $requested));
+
         $data = $this->{'r_'.$report}($from, $to) + ['money' => [], 'sum' => []];
         $data['rows'] = collect($data['rows'])->values();
         $allCols = $data['cols'];
@@ -7414,8 +7455,10 @@ class ReportController extends Controller
         // v10.10 the portfolio can be sliced: a region or a brand wants its own line of this report, and
         // asking for "all of it" was the only thing the screen could do. The slice is a query parameter,
         // so a slice is a URL — bookmarked, printed and scheduled like any other state of a report.
-        $dimension = (string) request()->query('slice');
-        $value = (string) request()->query('value');
+        // Read through param(), so the same slice works from the URL, from a saved view and from a
+        // schedule that has no browser at all.
+        $dimension = (string) $this->param('slice');
+        $value = (string) $this->param('value');
         $slice = in_array($dimension, ['brand', 'city'], true) && $value !== '' ? [$dimension, $value] : null;
         $portfolio = $hotels;
 
@@ -7423,7 +7466,9 @@ class ReportController extends Controller
             $hotels = $hotels->filter(fn ($h) => (string) ($slice[0] === 'brand' ? $h->brand : $h->city) === $slice[1])->values();
         }
 
-        $choices = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => null, 'value' => null]),
+        // Both keys are always written, empty for "all": an empty parameter is how a sliced view is
+        // told "no slice", where a missing one would leave the view's own slice in force.
+        $choices = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => '', 'value' => '']),
             'count' => $portfolio->count(), 'active' => $slice === null]];
 
         foreach (['brand' => 'Brand', 'city' => 'City'] as $field => $label) {

@@ -5592,6 +5592,50 @@ ok("['group_operating_summary', 'Consolidated Operating Summary'" in read(os.pat
    and "slice=brand&value=The%20Grove" in read(os.path.join(ROOT, 'deploy/dev/preview/reports-sample.mjs')),
    'the preview shows the slices, so the control is seen and not only described')
 
+# ── 38. a saved view remembers its slice, and the file closes like the screen (v10.11) ──────────
+mig410 = read(os.path.join(ROOT, 'database/migrations/2026_11_08_000398_report_scope_params.php'))
+schedule_svc = read(os.path.join(ROOT, 'app/Services/ReportScheduleService.php'))
+view_model = read(os.path.join(ROOT, 'app/Models/ReportView.php'))
+sched_model = read(os.path.join(ROOT, 'app/Models/ReportSchedule.php'))
+sched_view = read(os.path.join(ROOT, 'resources/views/reports/schedules.blade.php'))
+library_view = read(os.path.join(ROOT, 'resources/views/reports/library.blade.php'))
+
+ok("$t->json('params')->nullable();" in mig410 and "hasColumn('report_views', 'params')" in mig410
+   and "hasColumn('report_schedules', 'params')" in mig410 and 'dropColumn' in mig410,
+   'a saved view and a schedule can both remember a report parameter — the shape of a slice stays the report\'s business')
+ok("'params' => 'array'" in view_model and "'params' => 'array'" in sched_model,
+   'both models read it back as an array, so no view has to decode JSON by hand')
+ok("public const REPORT_PARAMS = ['slice', 'value'];" in report_ctrl
+   and 'public static function paramsFrom(array $input): ?array' in report_ctrl,
+   'the parameters a form may set are a whitelist: a posted field cannot decide what a report reads')
+ok("'params' => ReportController::paramsFrom($d)," in schedule_svc,
+   'saving a view stores the slice the reader was looking at')
+ok("'params' => $view ? $view->params : ReportController::paramsFrom($d)," in schedule_svc,
+   'a schedule reports on what its view reports on, or on the slice it was made from')
+ok('self::generate($s->report_key, $from, $to, $s->params ?? [])' in schedule_svc
+   and '$s?->params ?? []' in schedule_svc,
+   'and the parameters travel with the run — including the run that has no browser at all')
+ok('public function withParams(array $params): static' in report_ctrl
+   and 'protected function param(string $key): ?string' in report_ctrl
+   and '(string) $this->param(\'slice\')' in report_ctrl,
+   'the report reads its slice through one door, so URL, view and schedule cannot disagree')
+ok("$requested = array_intersect_key($request->query(), array_flip(self::REPORT_PARAMS));" in report_ctrl
+   and '$this->withParams(array_merge($activeView?->params ?? [], $requested));' in report_ctrl,
+   'and a parameter the URL names wins over the view underneath — even when it names it empty, which is how "all properties" is said')
+ok("request()->fullUrlWithQuery(['slice' => '', 'value' => ''])" in report_ctrl,
+   'the all-properties chip therefore writes both keys empty instead of dropping them')
+ok('public function scopeLabel(): ?string' in sched_model and 'public function scopeLabel(): ?string' in view_model,
+   'what a view or a schedule reports on is a question for the model, not an array read in a blade')
+ok('$s->scopeLabel()' in sched_view and '$v->scopeLabel()' in library_view,
+   'and both screens say it, so two views of the same report are told apart')
+ok("'Slice: '" not in sched_view and 'Scope: <b>' in sched_view,
+   'the schedules screen prints the scope beside the report name')
+ok("fputcsv($out, [\n                'Portfolio total'" in prop_ctrl2
+   and "$sum['occ']" in prop_ctrl2,
+   'the register file closes with a total line, and its occupancy is the portfolio figure rather than an average')
+
+split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]

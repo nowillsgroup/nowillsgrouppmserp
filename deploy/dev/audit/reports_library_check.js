@@ -413,19 +413,20 @@ ok('my reports names itself', /My Reports/.test(vdoc.title), vdoc.title);
 ok('no blade directive is left on my reports', !/@(endphp|endforeach|endsection|endforelse)\b/.test(viewsHtml));
 
 const vstats = vsa('.stats .stat').map(stat => stat.textContent.replace(/\s+/g, ' ').trim());
-ok('my reports counts what I can open', /^3\s*Saved views I can open/.test(vstats[0]), vstats[0]);
-ok('my reports splits mine from shared', /2 mine · 1 shared with me/.test(vstats[0]), vstats[0]);
+ok('my reports counts what I can open', /^4\s*Saved views I can open/.test(vstats[0]), vstats[0]);
+ok('my reports splits mine from shared', /3 mine · 1 shared with me/.test(vstats[0]), vstats[0]);
 ok('my reports counts what is pinned', /^1\s*Pinned to my dashboard/.test(vstats[1]), vstats[1]);
-ok('my reports counts the schedules I own', /^2\s*Schedules I own/.test(vstats[2]) && /1 paused/.test(vstats[2]), vstats[2]);
+ok('my reports counts the schedules I own', /^3\s*Schedules I own/.test(vstats[2]) && /1 paused/.test(vstats[2]), vstats[2]);
 ok('my reports links the alerts waiting', /KPI alerts to acknowledge/.test(vstats[3] ?? '') && vsa('.stats .stat a.cover').some(link => /alerts$/.test(link.getAttribute('href') ?? '')));
 
 const viewRows = vsa('#viewsTable tbody tr');
-ok('every saved view is a row', viewRows.length === 3, `${viewRows.length} rows`);
+ok('every saved view is a row', viewRows.length === 4, `${viewRows.length} rows`);
 ok('the views can be searched', /Search saved views/.test(vs('[data-filter-table="#viewsTable"]')?.getAttribute('aria-label') ?? ''));
 ok('a view row opens its report', viewRows.every(row => /^\/reports\/[\w_]+\?view=\d+$/.test(row.querySelector('a')?.getAttribute('href') ?? '')));
 ok('a pinned view is marked', /pinned/.test(viewRows[0].textContent));
 ok('a shared view is marked', viewRows.filter(row => /shared/.test(row.textContent)).length === 2);
 ok('a view says whose it is', /Me/.test(viewRows[0].textContent) && /Kojo Owusu/.test(viewRows[2].textContent));
+ok('a saved view says the slice it opens on', /Takoradi/.test(viewRows[3].textContent) && /only/.test(viewRows[3].textContent), viewRows[3].textContent.replace(/\s+/g, ' ').slice(0, 90));
 ok('a view says the period it covers', /Today/.test(viewRows[0].textContent) && /06 Nov 2026/.test(viewRows[0].textContent), viewRows[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 90));
 ok('a view says which columns it keeps', /4 column\(s\)/.test(viewRows[1].textContent) && /rows containing/.test(viewRows[1].textContent));
 ok('a view says how often it is opened', /148/.test(viewRows[0].textContent) && /20 minutes ago/.test(viewRows[0].textContent));
@@ -434,7 +435,7 @@ ok('my own views can be pinned or deleted', viewRows[0].querySelectorAll('form')
 ok('someone else\'s view is not mine to pin or delete', viewRows[2].querySelectorAll('form').length === 0);
 
 const schedRows = vsa('table')[1].querySelectorAll('tbody tr');
-ok('the reports e-mailed on my behalf are listed', schedRows.length === 2, `${schedRows.length} rows`);
+ok('the reports e-mailed on my behalf are listed', schedRows.length === 3, `${schedRows.length} rows`);
 ok('a schedule says when it runs', /Daily at 07:00/.test(schedRows[0].textContent));
 ok('a schedule shows its last run and status', /sent/.test(schedRows[0].textContent) && /failed/.test(schedRows[1].textContent));
 ok('a paused schedule says so', /paused/.test(schedRows[1].textContent));
@@ -461,15 +462,18 @@ ok('scheduled reports counts what failed', /^2\s*Failed runs/.test(sstats[2]) &&
 const banner = ss('[data-testid="failing-banner"]');
 ok('the failing schedule is on the screen', Boolean(banner) && /1 schedule failing/.test(banner.textContent));
 ok('the failing banner opens the failed deliveries', /\?status=failed#t-log/.test(ss('[data-testid="failing-banner"] a')?.getAttribute('href') ?? ''));
-ok('the tabs count the schedules', /Schedules \(3\)/.test(stext('[data-tabs]')) && /Delivery log/.test(stext('[data-tabs]')));
+ok('the tabs count the schedules', /Schedules \(4\)/.test(stext('[data-tabs]')) && /Delivery log/.test(stext('[data-tabs]')));
 
 const schedTableRows = ssa('#schedTable tbody tr');
-ok('every schedule is a row', schedTableRows.length === 3, `${schedTableRows.length} rows`);
+ok('every schedule is a row', schedTableRows.length === 4, `${schedTableRows.length} rows`);
 ok('a schedule says what it sends and how', /Morning flash for the GM/.test(schedTableRows[0].textContent) && /Table in the e-mail \+ CSV attachment/.test(schedTableRows[0].textContent));
 ok('a schedule says when it runs', /Daily at 07:00/.test(schedTableRows[0].textContent));
 ok('a schedule says who receives it', /2 recipient\(s\)/.test(schedTableRows[0].textContent));
 ok('a failing schedule shows its error', /SMTP 550/.test(schedTableRows[1].textContent) && /2 failure\(s\)/.test(schedTableRows[1].textContent));
 ok('a paused schedule says so', /paused/.test(schedTableRows[2].textContent));
+// v10.11 a schedule remembers the slice it was made from
+ok('a schedule says what it reports on when that is a slice', /Scope: Takoradi/.test(schedTableRows[3].textContent), schedTableRows[3].textContent.replace(/\s+/g, ' ').slice(0, 90));
+ok('a schedule that reports on everything says nothing extra', !/Scope:/.test(schedTableRows[0].textContent));
 ok('a schedule can be sent now', ssa('#schedTable form').some(form => /run$/.test(form.getAttribute('action') ?? '')));
 ok('a schedule can be paused or resumed', ssa('#schedTable form').some(form => /toggle$/.test(form.getAttribute('action') ?? '')));
 ok('the schedules can be searched', /Search scheduled reports/.test(ss('[data-filter-table="#schedTable"]')?.getAttribute('aria-label') ?? ''));

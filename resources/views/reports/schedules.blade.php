@@ -38,6 +38,11 @@
   <summary class="card-head" style="cursor:pointer"><h3><x-icon name="{{ $e ? 'edit' : 'plus' }}"/> {{ $e ? 'Edit schedule “'.$e->name.'”' : 'New scheduled report' }}</h3><span class="small muted">the report runs with the owner's permissions{{ $allowed ? ' · recipients limited to '.$allowed : '' }}</span></summary>
   <div class="card-body">
   <form method="post" action="{{ $e ? route('reports.schedules.update', $e) : route('reports.schedules.store') }}">@csrf @if($e) @method('PUT') @endif
+    {{-- v10.11 a schedule made from a sliced report keeps the slice; with a saved view, the view's own
+         parameters win, because the schedule reports on what its view reports on. --}}
+    @foreach(\App\Http\Controllers\ReportController::REPORT_PARAMS as $rp)
+      @if(request()->query($rp))<input type="hidden" name="{{ $rp }}" value="{{ request()->query($rp) }}">@endif
+    @endforeach
     <div class="form-grid">
       <div class="field"><label for="s_name">Name</label><input id="s_name" name="name" maxlength="120" value="{{ $f('name') }}" placeholder="e.g. Morning flash for the GM"></div>
       <div class="field"><label for="s_view">Saved view <span class="muted tiny">(optional)</span></label><select id="s_view" name="report_view_id"><option value="">— pick a report instead —</option>
@@ -76,7 +81,9 @@
   <tbody>@forelse($schedules as $s) @php $can = $s->user_id === $me->id || can_do('settings.manage'); $rc = count($s->emails()); @endphp
     <tr data-schedule="{{ $s->id }}" class="{{ $s->is_active ? '' : 'muted' }}">
       <td class="bold">{{ $s->name }} @if(! $s->is_active)<span class="badge badge-slate">paused</span>@endif @if($s->fail_count)<span class="badge badge-red" title="{{ $s->last_error }}">{{ $s->fail_count }} failure(s)</span>@endif</td>
-      <td class="small">{{ $s->title() }}<div class="tiny muted">{{ $s->view ? 'view “'.$s->view->name.'” · ' : '' }}{{ $RS::RANGES[$s->range] ?? $s->range }} · {{ $S::FORMATS[$s->format] ?? $s->format }}</div></td>
+      <td class="small">{{ $s->title() }}<div class="tiny muted">{{ $s->view ? 'view “'.$s->view->name.'” · ' : '' }}{{ $RS::RANGES[$s->range] ?? $s->range }} · {{ $S::FORMATS[$s->format] ?? $s->format }}</div>
+        {{-- v10.11 what the schedule actually reports on, when that is not the whole portfolio --}}
+        @if($s->scopeLabel())<div class="tiny" data-testid="schedule-scope"><x-icon name="list"/> Scope: <b>{{ $s->scopeLabel() }}</b> <span class="muted">({{ $s->params['slice'] ?? '' }})</span></div>@endif</td>
       <td class="small">{{ $s->when() }}</td>
       <td class="small" title="{{ implode(', ', $s->emails()) }}">{{ $rc }} recipient(s)@if($s->recipient_emails)<div class="tiny muted">incl. external</div>@endif</td>
       <td class="small">{{ $s->user?->name }}</td>

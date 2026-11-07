@@ -5,7 +5,7 @@
 <a class="btn" href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}"><x-icon name="download"/> Excel / CSV</a>
 <button class="btn" onclick="window.print()"><x-icon name="print"/> Print</button>
 <button class="btn" type="button" data-modal="save-view"><x-icon name="star"/> Save view</button>
-@if(can_do('reports.schedule'))<a class="btn" href="{{ route('reports.schedules', ['new' => $report] + ($activeView ? ['view' => $activeView->id] : [])) }}"><x-icon name="mail"/> Schedule</a>@endif
+@if(can_do('reports.schedule'))<a class="btn" href="{{ route('reports.schedules', ['new' => $report] + ($activeView ? ['view' => $activeView->id] : []) + (request()->query('value') ? ['slice' => request()->query('slice'), 'value' => request()->query('value')] : [])) }}"><x-icon name="mail"/> Schedule{{ request()->query('value') ? ' this slice' : '' }}</a>@endif
 @endsection
 @section('content')
 @php $cols = $data['cols']; $rows = $data['rows']; $money = $data['money']; $sum = $data['sum'];
@@ -151,6 +151,11 @@
   <div class="modal-head"><h3>{{ $ev ? 'Edit view “'.$ev->name.'”' : 'Save this report as a view' }}</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body">
     <input type="hidden" name="report_key" value="{{ $report }}">
+    {{-- v10.11 the view keeps the slice the reader is looking at: a saved view that forgets it opens
+         on the whole portfolio, which is a different report. --}}
+    @foreach(\App\Http\Controllers\ReportController::REPORT_PARAMS as $rp)
+      @if(request()->query($rp))<input type="hidden" name="{{ $rp }}" value="{{ request()->query($rp) }}">@endif
+    @endforeach
     <input type="hidden" name="date_from" value="{{ $ev?->date_from?->toDateString() ?? $from->toDateString() }}"><input type="hidden" name="date_to" value="{{ $ev?->date_to?->toDateString() ?? $to->toDateString() }}">
     <div class="form-grid">
       <div class="field"><label>Name</label><input class="input" name="name" required maxlength="120" value="{{ $ev?->name }}" placeholder="e.g. {{ $title }} – {{ $RS::RANGES[$range] ?? 'custom' }}"></div>

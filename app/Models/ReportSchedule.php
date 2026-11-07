@@ -20,7 +20,7 @@ class ReportSchedule extends Model
 
     protected function casts(): array
     {
-        return ['columns' => 'array', 'recipient_users' => 'array', 'skip_empty' => 'boolean', 'is_active' => 'boolean',
+        return ['columns' => 'array', 'params' => 'array', 'recipient_users' => 'array', 'skip_empty' => 'boolean', 'is_active' => 'boolean',
             'next_run_at' => 'datetime', 'last_run_at' => 'datetime'];
     }
 
@@ -42,6 +42,18 @@ class ReportSchedule extends Model
     public function title(): string
     {
         return \App\Http\Controllers\ReportController::REPORTS[$this->report_key][1] ?? $this->report_key;
+    }
+
+    /**
+     * v10.11 the slice this schedule reports on, or null when it reports on everything. A method
+     * rather than an array read in the view, because "what does this schedule actually report on?"
+     * is a question about the model, and the view should not have to know how a slice is stored.
+     */
+    public function scopeLabel(): ?string
+    {
+        $value = $this->params['value'] ?? null;
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public function when(): string

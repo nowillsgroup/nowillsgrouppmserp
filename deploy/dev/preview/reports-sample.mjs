@@ -406,7 +406,7 @@ export function reportsConsolidatedContext() {
         // v10.10 the report can be sliced by brand and by city; the slices are links, so each one is a
         // URL that can be bookmarked, printed and scheduled like any other state of the report.
         choices: [
-          { label: 'All properties', url: '/reports/group_operating_summary', count: 5, active: true },
+          { label: 'All properties', url: '/reports/group_operating_summary?slice=&value=', count: 5, active: true },
           { label: 'The Grove', url: '/reports/group_operating_summary?slice=brand&value=The%20Grove', count: 2, active: false },
           { label: 'Nowills', url: '/reports/group_operating_summary?slice=brand&value=Nowills', count: 2, active: false },
           { label: 'Accra', url: '/reports/group_operating_summary?slice=city&value=Accra', count: 1, active: false },
@@ -445,6 +445,8 @@ export function reportsSavedViewsContext() {
     ...data,
     title: () => (GROUPS.flatMap(group => group[2]).find(entry => entry[0] === data.report_key)?.[1] ?? data.report_key),
     url: () => `/reports/${data.report_key}?view=${data.id}`,
+    // v10.11 the model method the view calls, mirrored on the fixture
+    scopeLabel: () => data.params?.value ?? null,
   });
 
   const views = Coll.of([
@@ -462,6 +464,13 @@ export function reportsSavedViewsContext() {
       id: 21, name: 'Weekend F&B mix', report_key: 'pos_sales', range: 'last_7', user_id: 4,
       columns: null, filter: null, opens: 12, last_opened_at: opened('2026-11-02T09:15:00Z', '4 days ago'),
       is_pinned: false, is_shared: true, user: { name: 'Kojo Owusu' },
+    }),
+    // v10.11 a view that remembers its slice, beside two ordinary ones
+    view({
+      id: 31, name: 'Takoradi month to date', report_key: 'group_operating_summary', range: 'mtd', user_id: ME.id,
+      columns: null, filter: null, params: { slice: 'city', value: 'Takoradi' },
+      opens: 22, last_opened_at: opened('2026-11-05T08:10:00Z', 'yesterday'),
+      is_pinned: false, is_shared: false, user: { name: ME.name },
     }),
   ]);
 
@@ -481,6 +490,12 @@ export function reportsSavedViewsContext() {
       id: 9, name: 'Month-end accounts pack', report_key: 'trial_balance', frequency: 'monthly', whenText: 'Monthly on the 1st at 06:00',
       is_active: false, last_run_at: opened('2026-11-01T06:00:00Z'), last_status: 'failed',
       next_run_at: null,
+    }),
+    schedule({
+      id: 11, name: 'Takoradi every morning', report_key: 'group_operating_summary', frequency: 'daily', whenText: 'Daily at 06:30',
+      params: { slice: 'city', value: 'Takoradi' },
+      is_active: true, last_run_at: opened('2026-11-06T06:30:00Z'), last_status: 'sent',
+      next_run_at: opened('2026-11-07T06:30:00Z'),
     }),
   ]);
 
@@ -545,7 +560,7 @@ export function reportsSchedulesContext() {
       frequency: 'daily', is_active: true, fail_count: 0, last_error: null,
       last_run_at: at('2026-11-06T07:00:00Z'), last_status: 'sent', next_run_at: at('2026-11-07T07:00:00Z'),
       user: { name: ME.name }, view: null, recipient_emails: null,
-      title: () => titleOf('flash'), when: () => 'Daily at 07:00',
+      title: () => titleOf('flash'), when: () => 'Daily at 07:00', scopeLabel: () => null,
       emails: () => [`${ME.name.toLowerCase().replace(' ', '.')}@nowills.com.gh`, 'gm@nowills.com.gh'],
     },
     {
@@ -553,7 +568,7 @@ export function reportsSchedulesContext() {
       frequency: 'monthly', is_active: true, fail_count: 2, last_error: 'SMTP 550: mailbox unavailable for k.owusu@nowills.com.gh',
       last_run_at: at('2026-11-01T06:00:00Z'), last_status: 'failed', next_run_at: at('2026-12-01T06:00:00Z'),
       user: { name: 'Kojo Owusu' }, view: { name: 'Month-end accounts' }, recipient_emails: 'owner@nowills.com.gh',
-      title: () => titleOf('trial_balance'), when: () => 'Monthly on the 1st at 06:00',
+      title: () => titleOf('trial_balance'), when: () => 'Monthly on the 1st at 06:00', scopeLabel: () => null,
       emails: () => ['k.owusu@nowills.com.gh', 'owner@nowills.com.gh'],
     },
     {
@@ -561,8 +576,18 @@ export function reportsSchedulesContext() {
       frequency: 'weekly', is_active: false, fail_count: 0, last_error: null,
       last_run_at: at('2026-10-31T08:00:00Z'), last_status: 'sent', next_run_at: null,
       user: { name: ME.name }, view: { name: 'Weekend F&B mix' }, recipient_emails: null,
-      title: () => titleOf('pos_sales'), when: () => 'Weekly on Friday at 08:00',
+      title: () => titleOf('pos_sales'), when: () => 'Weekly on Friday at 08:00', scopeLabel: () => null,
       emails: () => [`${ME.name.toLowerCase().replace(' ', '.')}@nowills.com.gh`],
+    },
+    {
+      // v10.11 a schedule that reports on a slice, not on the whole group
+      id: 12, name: 'Takoradi every morning', report_key: 'group_operating_summary', range: 'mtd', format: 'both', user_id: ME.id,
+      frequency: 'daily', is_active: true, fail_count: 0, last_error: null,
+      last_run_at: at('2026-11-06T06:30:00Z'), last_status: 'sent', next_run_at: at('2026-11-07T06:30:00Z'),
+      user: { name: ME.name }, view: null, recipient_emails: null, params: { slice: 'city', value: 'Takoradi' },
+      title: () => titleOf('group_operating_summary'), when: () => 'Daily at 06:30',
+      scopeLabel: () => 'Takoradi',
+      emails: () => ['gm@nowills.com.gh'],
     },
   ]);
 
