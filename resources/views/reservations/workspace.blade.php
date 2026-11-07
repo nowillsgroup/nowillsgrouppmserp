@@ -209,6 +209,10 @@
         $stayGuestName = $guestDisplayName($stay);
         $stayGuestInitial = $guestInitial($stay);
         // v10.23 the card stopped printing the money, so what is due travels to the rack as data on the card
+        // v10.26 the amenity icons live in a rail down the left of the photo: four slots, and the fourth becomes the
+        // count when there are more than four, so the number is honest at every card width.
+        $railAmenities = array_slice($c['amenities'], 0, count($c['amenities']) > 4 ? 3 : 4);
+        $railMore = count($c['amenities']) - count($railAmenities);
         $cardNights = $stay ? max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) : '';
         $cardDue = $stay ? ($c['due'] ?? $c['balance']) : null;
         $cardDueLabel = ($cardDue === null || ! can_do('folio.view')) ? null
@@ -227,6 +231,20 @@
       <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif@if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
+          {{-- v10.26 the facilities read down the left edge of the picture instead of as a row of glyphs under it:
+               a column costs the card no height at all, and four names is what a 104px photo can carry without
+               turning into a texture. The fourth slot becomes the count when there are more, and it opens the
+               dialog, which names every one of them. --}}
+          @if ($railAmenities)
+          <div class="ws-amen-rail">
+            @foreach ($railAmenities as $a)
+            <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
+            @endforeach
+            @if ($railMore > 0)
+            <button type="button" class="ws-amen-more" data-room="{{ $room->id }}" aria-label="Open room {{ $room->room_no }} details; {{ $railMore }} more {{ $railMore === 1 ? 'amenity' : 'amenities' }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">+{{ $railMore }}</button>
+            @endif
+          </div>
+          @endif
           <div class="ws-card-head">
             <div class="flex gap">
               <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
@@ -1319,7 +1337,7 @@
       first.focus();
     }
   }
-  document.querySelectorAll('.ws-all, .ws-photo-link').forEach(trigger => {
+  document.querySelectorAll('.ws-all, .ws-photo-link, .ws-amen-more').forEach(trigger => {
     trigger.addEventListener('click', () => openRoomModal(trigger.dataset.room, trigger));
     if (trigger.classList.contains('ws-photo-link')) trigger.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -1431,10 +1449,16 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:6px;padding:8px 9px 0;min-height:0;color:#fff}
+.ws-amen-rail{position:absolute;z-index:2;top:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 3px;background:linear-gradient(90deg,rgba(15,23,42,.58),rgba(15,23,42,.26) 70%,rgba(15,23,42,0))}
+.ws-amen-rail>span{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:0 0 16px;border-radius:50%;background:rgba(15,23,42,.42);color:#fff}
+.ws-amen-rail .i{width:11px;height:11px}
+.ws-amen-rail .ws-amen-more{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:0 0 16px;padding:0;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(255,255,255,.92);color:#14532d;font-size:8px;font-weight:800;line-height:1;cursor:pointer}
+.ws-amen-rail .ws-amen-more:hover{background:#fff}
+/* the rail owns 22px of the photo's left edge, so the head and the foot start to the right of it */
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:6px;padding:8px 9px 0 24px;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:50%;flex:0 0 auto}
+.ws-card-head .text-right{max-width:44%;flex:0 0 auto}
 /* v10.25 at five across the type name had 51px beside a badge allowed 54% of the card, so "Deluxe Sea View" wrapped
    to three lines and pushed the room number out of line with its neighbours. One line each, cut with an ellipsis:
    the card is a way of finding the room, and the dialog names the type in full. */
@@ -1453,7 +1477,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:6px;padding:7px 9px}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:6px;padding:7px 9px 7px 24px}
 .ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 7px;color:rgba(255,255,255,.94);font-size:9.5px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
 .ws-photo-meta .i{width:12px;height:12px;flex:0 0 12px;color:rgba(255,255,255,.88)}
@@ -1492,6 +1516,16 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
      · and from 250px down the ··· loses its words, so the primary action and ··· share one line at any width.
    A folded control is not a lost one: the room dialog carries the extend and mark-dirty forms under their own
    ROOM ACTIONS heading, and Reservation details is in the dialog's Quick Links. */
+/* v10.26 the rail takes 22px off the left of the photo and the badge asks for up to 44% of the card, which between
+   them left the room number 30px of the 36px it needs at five across. The badge gives two points back and the head
+   tightens its own edges, so "101" stays whole and the type name is what gets the ellipsis. */
+@container wscard (max-width:199px){
+  .ws-card-head{padding-left:22px;padding-right:7px}
+  .ws-card-head .text-right{max-width:40%}
+  .ws-amen-rail>span,.ws-amen-rail .ws-amen-more{width:15px;height:15px;flex-basis:15px}
+  .ws-amen-rail .i{width:10px;height:10px}
+  .ws-photo-foot{padding-left:22px}
+}
 @container wscard (max-width:379px){.ws-actions .ws-extend-form{display:none}}
 @container wscard (max-width:249px){.ws-actions .ws-act-minor{display:none}}
 @container wscard (max-width:379px){
@@ -1855,7 +1889,10 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-rack-scroll{overflow:visible;border:0}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
-  .ws-card-head{padding:8px 10px 0}
+  .ws-card-head{padding:8px 10px 0 24px}
+  .ws-amen-rail{padding-left:2px;background:#f1f5f9}
+  .ws-amen-rail>span{background:#e2e8f0;color:#334155}
+  .ws-amen-rail .ws-amen-more{background:#fff;border-color:#cbd5e1;color:#14532d}
   /* v10.23 the screen card carries one sr-only sentence — guest, source, arrive, depart, nights, rate, due — and
      nothing else about the stay. A sheet of paper has no dialog to open, so on paper that sentence is printed, and
      it is the only place the printed board says who is in the room. */

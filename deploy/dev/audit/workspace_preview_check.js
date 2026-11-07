@@ -178,8 +178,8 @@ ok('nor does the card keep dead rules for what it dropped',
     && !/\.ws-rate-row\{/.test(wsStyle) && !/\.ws-guest-src\{/.test(wsStyle),
   'the .ws-stay, .ws-nights, .ws-rate-row and .ws-guest-src rules all went with their markup');
 ok('and the narrow-card block that only served the rate row went too',
-  !/@container wscard \(max-width:199px\)/.test(wsStyle),
-  'one comment in its place, so the next reader knows why the 199px step is gone');
+  !/@container wscard \(max-width:199px\)\{[\s\S]{0,600}\.ws-rate-row/.test(wsStyle),
+  'the 199px step that survives is the one that makes room for the rail, and it says so');
 ok('but every stay still reads out in full to a screen reader',
   $$('#wsGrid .ws-card[data-guest] .ws-guest-note').length === $$('#wsGrid .ws-card[data-guest]').length
     && $$('#wsGrid .ws-card[data-guest] .ws-guest-note').every(el =>
@@ -205,9 +205,34 @@ ok('cards are as tall as what they hold, not as tall as the tallest in the row',
     && /\.ws-card-body\{[^}]*\}/.test(wsStyle)
     && !/\.ws-card-body\{[^}]*flex:1/.test(wsStyle),
   'no stretched card, no gap under the photo');
-ok('and the amenity icons are not left behind as dead weight',
-  $$('#wsGrid .ws-card .ws-amen').length === 0 && !/\.ws-amen\{/.test(wsStyle),
-  'the strip and its rules are gone; the dialog still lists every amenity');
+// v10.26 the facilities came back, but as a column down the left of the photograph rather than a row under it: a
+// column costs the card no height, and height is the one thing this board cannot spare.
+ok('the facilities are a column on the photo, not a row under it',
+  $$('#wsGrid .ws-card .ws-photo .ws-amen-rail').length === cards.length
+    && $$('#wsGrid .ws-card .ws-amen').length === 0,
+  `${$$('#wsGrid .ws-card .ws-photo .ws-amen-rail').length} rails, one per card, none in the body`);
+ok('and it is drawn downward, tight against the left edge',
+  /\.ws-amen-rail\{[^}]*position:absolute/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*left:0/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*flex-direction:column/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*justify-content:center/.test(wsStyle),
+  wsStyle.match(/\.ws-amen-rail\{[^}]*\}/)?.[0]?.slice(0, 110));
+ok('four names fit a 104px photo, and the count is honest when there are more',
+  $$('#wsGrid .ws-amen-rail').every(rail => rail.children.length <= 4)
+    // a rail that reports a remainder shows three names and the count; a rail that reports none shows all it has
+    && $$('#wsGrid .ws-amen-rail').every(rail => {
+      const count = rail.querySelector('.ws-amen-more');
+      const shown = rail.querySelectorAll('span[role="img"]').length;
+      return count ? shown === 3 : shown >= 1 && shown <= 4;
+    })
+    && $$('#wsGrid .ws-amen-rail .ws-amen-more').every(button =>
+      Number(button.textContent.replace(/\D/g, ''))
+        === Number((button.getAttribute('aria-label') ?? '').match(/(\d+) more/)?.[1] ?? -1))
+    && $$('#wsGrid .ws-amen-rail span[role="img"]').every(span => (span.getAttribute('title') ?? '').length > 0),
+  `${$$('#wsGrid .ws-amen-rail span[role="img"]').length} names and ${$$('#wsGrid .ws-amen-rail .ws-amen-more').length} counts across ${cards.length} cards`);
+ok('and the count opens the dialog that lists them all',
+  $$('#wsGrid .ws-amen-rail .ws-amen-more').every(button => /roomModal\d+/.test(button.getAttribute('aria-controls') ?? '')),
+  "the same trigger the photo and the ··· use");
 ok('the dialog names every amenity the card used to draw in icons',
   $$('.ws-modal .ws-fac-chip').length > 0,
   `${$$('.ws-modal .ws-fac-chip').length} facility chips across the dialogs`);
