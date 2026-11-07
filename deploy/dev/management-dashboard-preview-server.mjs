@@ -67,6 +67,10 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/configuration-register.html');
   } else if (pathname === '/briefing-banquet' || pathname === '/__preview/briefing-banquet') {
     file = resolve(ROOT, 'deploy/dev/previews/briefing-banquet.html');
+  } else if (pathname === '/banquet-form' || pathname === '/__preview/banquet-form') {
+    file = resolve(ROOT, 'deploy/dev/previews/banquet-form.html');
+  } else if (pathname === '/banquet-form-edit' || pathname === '/__preview/banquet-form-edit') {
+    file = resolve(ROOT, 'deploy/dev/previews/banquet-form-edit.html');
   } else if (pathname === '/briefing-it' || pathname === '/__preview/briefing-it') {
     file = resolve(ROOT, 'deploy/dev/previews/briefing-it.html');
   } else if (pathname === '/briefing-sales' || pathname === '/__preview/briefing-sales') {
