@@ -5076,7 +5076,7 @@ ok("Route::prefix('group/people')->name('group.people.')" in read(os.path.join(R
    'the people routes are declared once, under one name prefix')
 ok("$this->people->create($group, $data, $request->user());" in ctrl,
    'the controller creates through the service, where the rules live')
-ok("$this->people->setActive($group, $user, $active, $request->user());" in ctrl,
+ok("$this->people->setActive($group, $user, $active, $request->user(), $request->boolean('revoke_grants'));" in ctrl,
    'and switches a person off through the service too')
 ok("protected function grantsByUser(HotelGroup $group, array $userIds): array" in ctrl,
    'the list says which other properties each person may enter')
@@ -5109,6 +5109,71 @@ ok("ok('the extra properties they may enter are named'" in read(os.path.join(ROO
    'the preview check holds the people list to the grants it claims')
 ok("ok('and that a group administrator does not" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'and the handover card to what it promises about administrators')
+
+# ── 29 · seats, and a switch-off that really takes the access back (v10.2) ────────
+seat_mig = read(os.path.join(ROOT, 'database/migrations/2026_11_08_000395_group_seat_entitlement.php'))
+ok("$t->unsignedInteger('max_users')->nullable();" in seat_mig,
+   'the licence caps people as well as properties')
+ok("$t->date('licence_ends_on')->nullable();" in seat_mig,
+   'and can record when it renews, without pretending that date switches anything off')
+grp = read(os.path.join(ROOT, 'app/Models/HotelGroup.php'))
+ok('public function userCount(): int' in grp and '->whereIn(\'hotel_id\', $ids)->orWhere(\'hotel_group_id\', $this->id)' in grp,
+   'seats are counted over the tenant: home staff, group administrators and granted people')
+ok('public function canAddUser(): bool' in grp and 'if ($this->max_users === null)' in grp,
+   'a licence that names no seat cap is unlimited')
+ok('public function overSeats(): int' in grp,
+   'and being over the cap is a number the screen can print rather than a silence')
+ok('public function remainingSeats(): ?int' in grp,
+   'what is left is answered too')
+people2 = read(os.path.join(ROOT, 'app/Services/GroupPeopleService.php'))
+ok("if (! $group->canAddUser()) {" in people2,
+   'the group people screen refuses a person past the cap')
+ok('public function setActive(HotelGroup $group, User $target, bool $active, User $actor, bool $revokeGrants = false): array' in people2,
+   'switching somebody off can also take their access back')
+ok("$revoked = $this->properties->revokeAllGrants($target, $actor, 'account switched off');" in people2,
+   'which is the v10.1 gap closed: a switched-off account does not keep its properties on the books')
+props2 = read(os.path.join(ROOT, 'app/Services/PropertyService.php'))
+ok('public function revokeAllGrants(User $target, User $actor, string $why = \'\'): int' in props2,
+   'every grant is revoked property by property')
+ok("PropertyEvent::record('access_revoked'" in props2,
+   'and the property that loses the reader records who took the right away')
+ok("if (! empty($data['admin_username']) && ! $group->canAddUser()) {" in props2,
+   'a new property\'s first administrator is a seat like any other, checked before anything is provisioned')
+user_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/UserController.php'))
+ok('if ($group && ! $group->canAddUser()) {' in user_ctrl,
+   'a property\'s own staff screen answers to the same cap, so the cap cannot be walked around')
+ok('$user->hotel_group_id = hotel()?->hotel_group_id; // v10.2 a new account belongs to the tenant, not to nothing' in user_ctrl,
+   'and an account created there belongs to the tenant, so the seat count and the group screens see it')
+grp_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/HotelGroupController.php'))
+ok("'max_users' => 'nullable|integer|min:1|max:5000'," in grp_ctrl,
+   'the account can be told how many seats it has bought')
+ok("'licence_ends_on' => 'nullable|date'," in grp_ctrl,
+   'and when the licence renews')
+acct_view = read(os.path.join(ROOT, 'resources/views/group/account.blade.php'))
+ok('label="Seats"' in acct_view,
+   'the account prints seats used against seats bought')
+ok('$group->overSeats()' in acct_view and 'no new account can be created until the cap is raised' in acct_view,
+   'and says plainly what being over the cap does')
+ok('Nothing switches itself off on this date' in acct_view,
+   'the renewal date is not dressed up as an enforcement')
+ppl_view = read(os.path.join(ROOT, 'resources/views/group/people.blade.php'))
+ok('Switch off &amp; revoke' in ppl_view,
+   'the people list offers the revoke-on-disable decision as its own button')
+ok('name="revoke_grants" value="1"' in ppl_view,
+   'and posts it as a flag the service acts on')
+ok('$activePeople' in ppl_view,
+   'the header says how many active people stand against the cap')
+ok("'activePeople' => $group->userCount()," in read(os.path.join(ROOT, 'app/Http/Controllers/GroupPeopleController.php')),
+   'the controller hands the screen that number')
+ok("$request->boolean('revoke_grants')" in read(os.path.join(ROOT, 'app/Http/Controllers/GroupPeopleController.php')),
+   'and the toggle passes it to the service')
+grp_sample = read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs'))
+ok('max_users: 600' in grp_sample and 'remainingSeats: () => 18' in grp_sample,
+   'the preview carries a tenant with 18 seats left, so the cap can be seen')
+ok("ok('seats used are printed against the entitlement'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the preview check holds the people screen to it')
+ok("ok('seats are printed used against bought'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the group account to the same figure')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,

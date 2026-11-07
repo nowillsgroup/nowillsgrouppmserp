@@ -167,6 +167,13 @@ ok('the add form asks for a home property', !!pdoc.querySelector('form[action*="
 ok('and a role grouped by the property it belongs to', [...pdoc.querySelectorAll('optgroup')].length === 4);
 ok('the extra-property grants are checkboxes, one per property', [...pdoc.querySelectorAll('input[name="grants[]"]')].length === 4);
 ok('a group administrator may be minted by a platform administrator', !!pdoc.querySelector('input[name="is_group_admin"]'));
+ok('seats used are printed against the entitlement', pbody.includes('600 seat(s)'));
+ok('the active headcount is printed beside it', pbody.includes('582 active'));
+ok('switching a person off offers to take their grants back too', pbody.includes('Switch off & revoke'));
+ok('each active person gets both switch-off decisions, and a switched-off person gets neither',
+   [...pdoc.querySelectorAll('button[name="revoke_grants"]')].length === 8
+   && ![...pdoc.querySelectorAll('.table tbody tr')].find(tr => tr.textContent.includes('Yaw Osei'))?.querySelector('button[name="revoke_grants"]'),
+   `${[...pdoc.querySelectorAll('button[name="revoke_grants"]')].length} buttons`);
 
 /* ── the group account ─────────────────────────────────────────────────────── */
 const ga = new JSDOM(read('deploy/dev/previews/group-account.html'), { url: 'https://preview.local/group' });
@@ -180,6 +187,11 @@ ok('the group account is titled as the tenant account', gdoc.title.includes('Gro
 ok('its code is editable in place', field('code')?.value === 'NWGROUP', field('code')?.value);
 ok('its brand and management company are on the page', field('brand')?.value === 'Nowills Collection' && field('management_company')?.value === 'Nowills Hospitality Ltd');
 ok('the entitlement is shown as a number of properties', gstat('Entitlement')?.value === '8', gstat('Entitlement')?.value);
+ok('seats are printed used against bought', gstat('Seats')?.value === '582 / 600', gstat('Seats')?.value);
+ok('and what is left of them', gbody.includes('18 seat(s) left'));
+ok('the seat entitlement is editable on the account', field('max_users')?.value === '600', field('max_users')?.value);
+ok('so is the licence renewal date', field('licence_ends_on')?.value === '2027-03-31', field('licence_ends_on')?.value);
+ok('and the account says the renewal date switches nothing off by itself', gbody.includes('Nothing switches itself off on this date'));
 ok('what is left of the entitlement is spelled out', gbody.includes('3 left to open'));
 ok('the defaults it hands down are named as such', gbody.includes('Defaults new properties inherit'));
 ok('the defaults carried are the group\'s own', field('country')?.value === 'Ghana' && field('currency')?.value === 'GHS' && field('timezone')?.value === 'Africa/Accra');

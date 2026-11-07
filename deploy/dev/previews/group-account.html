@@ -3096,6 +3096,13 @@
   
       </div>
 
+  
+      <div class="stat tone-teal">
+      <div class="ico"><svg class="i" aria-hidden="true"><use href="#i-key"/></svg></div>
+      <div><div class="v">582 / 600</div><div class="l">Seats</div><div class="tiny muted">18 seat(s) left</div></div>
+  
+      </div>
+
       </div>
 
       <form method="post" action="group-account-update?group=1">
@@ -3128,6 +3135,8 @@
       <div class="field "><label for="f_timezone">Time zone</label><input type="text" name="timezone" id="f_timezone" value="Africa/Accra" placeholder=""><span class="hint">e.g. Africa/Accra.</span></div>
       <div class="field "><label for="f_default_property_type">Default property type</label><select name="default_property_type" id="f_default_property_type"><option value="">— Select —</option><option value="hotel" selected>Hotel</option><option value="resort">Resort</option><option value="guest_house">Guest house</option><option value="service_apartment">Serviced apartment</option><option value="restaurant">Restaurant</option><option value="cafe">Café</option></select></div>
       <div class="field "><label for="f_max_properties">Property entitlement</label><input type="number" name="max_properties" id="f_max_properties" value="8" placeholder="" min="1" max="500"><span class="hint">Blank means no cap. A new property is refused once the cap is reached.</span></div>
+      <div class="field "><label for="f_max_users">Seat entitlement</label><input type="number" name="max_users" id="f_max_users" value="600" placeholder="" min="1" max="5000"><span class="hint">Blank means no cap. Enforced on every screen that creates an account — this group's people and each property's users.</span></div>
+      <div class="field "><label for="f_licence_ends_on">Licence renews on</label><input type="date" name="licence_ends_on" id="f_licence_ends_on" value="2027-03-31" placeholder=""><span class="hint">Printed here for the account manager. Nothing switches itself off on this date.</span></div>
       <div class="field "><label for="f_notes">Internal notes</label><textarea name="notes" id="f_notes" placeholder=""></textarea></div>
       </div>
       <div class="card-body">
@@ -3138,6 +3147,8 @@
       </div>
       </div>
       </form>
+
+
 
       <div class="card mt-2"><div class="card-head"><h3>Tenant status</h3></div>
       <div class="card-body">

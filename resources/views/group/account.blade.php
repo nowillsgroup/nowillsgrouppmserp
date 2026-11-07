@@ -17,6 +17,7 @@
   <x-stat label="Entitlement" :value="$group->max_properties ?? 'Unlimited'" icon="key" tone="purple" :sub="$group->remainingProperties() === null ? 'No cap on properties' : $group->remainingProperties().' left to open'" />
   <x-stat label="Rooms" :value="number_format($summary['rooms'])" icon="bed" tone="teal" :sub="$summary['occ'].'% occupied group-wide'" />
   <x-stat label="People" :value="number_format($summary['staff'])" icon="users" tone="green" :sub="$admins->count().' group administrator(s)'" />
+  <x-stat label="Seats" :value="number_format($group->userCount()).($group->max_users ? ' / '.number_format($group->max_users) : '')" icon="key" :tone="$group->overSeats() ? 'red' : 'teal'" :sub="$group->max_users === null ? 'No seat cap' : ($group->overSeats() ? 'Over by '.$group->overSeats().' — new accounts are refused' : $group->remainingSeats().' seat(s) left')" />
 </div>
 
 <form method="post" action="{{ route('group.account.update', ['group' => $group->id]) }}">
@@ -49,6 +50,8 @@
         <x-field name="timezone" label="Time zone" :value="$group->timezone" hint="e.g. Africa/Accra." />
         <x-field name="default_property_type" label="Default property type" type="select" :options="$types" :value="$group->default_property_type" />
         <x-field name="max_properties" label="Property entitlement" type="number" min="1" max="500" :value="$group->max_properties" hint="Blank means no cap. A new property is refused once the cap is reached." />
+        <x-field name="max_users" label="Seat entitlement" type="number" min="1" max="5000" :value="$group->max_users" hint="Blank means no cap. Enforced on every screen that creates an account — this group's people and each property's users." />
+        <x-field name="licence_ends_on" label="Licence renews on" type="date" :value="$group->licence_ends_on?->toDateString()" hint="Printed here for the account manager. Nothing switches itself off on this date." />
         <x-field name="notes" label="Internal notes" type="textarea" :value="$group->notes" />
       </div>
       <div class="card-body">
@@ -59,6 +62,10 @@
 </div>
 </div>
 </form>
+
+@if($group->overSeats())
+  <div class="alert alert-warn"><x-icon name="alert"/><div><b>{{ $group->overSeats() }} seat(s) over the entitlement.</b> {{ $group->userCount() }} active people against {{ $group->max_users }} bought. Existing accounts keep working; no new account can be created until the cap is raised or somebody is switched off.</div></div>
+@endif
 
 <div class="card mt-2"><div class="card-head"><h3>Tenant status</h3></div>
       <div class="card-body">

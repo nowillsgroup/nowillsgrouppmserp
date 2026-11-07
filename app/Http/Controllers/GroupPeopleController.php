@@ -49,6 +49,7 @@ class GroupPeopleController extends Controller
             'canStaff' => $this->access->isPlatformAdmin($request->user()) || $this->access->isGroupAdminOf($request->user(), $group),
             'canMintAdmins' => $this->access->isPlatformAdmin($request->user()),
             'groupAdmins' => $group->admins()->where('is_active', true)->count(),
+            'activePeople' => $group->userCount(),
         ]);
     }
 
@@ -104,11 +105,14 @@ class GroupPeopleController extends Controller
         abort_unless($group && (int) ($user->hotel_group_id ?? $user->hotel?->hotel_group_id) === (int) $group->id, 403);
 
         $active = ! $user->is_active;
-        $this->people->setActive($group, $user, $active, $request->user());
+        $result = $this->people->setActive($group, $user, $active, $request->user(), $request->boolean('revoke_grants'));
 
-        return back()->with('success', $active
-            ? "{$user->name} can sign in again."
-            : "{$user->name} is switched off. Their history stays; they cannot enter any property.");
+        if ($active) {
+            return back()->with('success', "{$user->name} can sign in again.");
+        }
+
+        return back()->with('success', "{$user->name} is switched off. Their history stays; they cannot enter any property."
+            .($result['revoked'] ? ' '.$result['revoked'].' cross-property grant(s) were taken back.' : ' Their property grants were kept — re-enabling them would restore those properties.'));
     }
 
     /** Home group of the person the acting user may staff. */

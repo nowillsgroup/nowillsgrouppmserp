@@ -61,6 +61,8 @@ class HotelGroupController extends Controller
             'timezone' => 'nullable|string|max:50',
             'default_property_type' => 'nullable|in:'.implode(',', array_keys(PropertyController::PROPERTY_TYPES)),
             'max_properties' => 'nullable|integer|min:1|max:500',
+            'max_users' => 'nullable|integer|min:1|max:5000',
+            'licence_ends_on' => 'nullable|date',
             'notes' => 'nullable|string|max:1000',
         ]);
         $data['code'] = strtoupper($data['code']);

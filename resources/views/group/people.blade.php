@@ -2,7 +2,7 @@
 @section('title', 'Group people')
 @section('crumbs')<a href="{{ route('properties.index') }}">Properties</a> / <a href="{{ route('group.account', ['group' => $group->id]) }}">{{ $group->name }}</a> / People@endsection
 @section('actions')
-  <span class="small muted">{{ $people->count() }} of {{ $people->count() }} shown · {{ $groupAdmins }} active group administrator(s)</span>
+  <span class="small muted">{{ $people->count() }} shown · {{ $activePeople }} active of {{ $group->max_users ? number_format($group->max_users).' seat(s)' : 'no seat cap' }} · {{ $groupAdmins }} group administrator(s)</span>
   <a class="btn" href="{{ route('group.account', ['group' => $group->id]) }}"><x-icon name="layers" size="sm"/> Group account</a>
 @endsection
 @section('content')
@@ -44,8 +44,13 @@
         <td>@if($p->is_active)<span class="badge badge-green">Active</span>@else<span class="badge badge-slate">Switched off</span>@endif</td>
         <td class="right" style="white-space:nowrap">
           @if($canStaff)
-            <form method="post" action="{{ route('group.people.toggle', $p) }}" style="display:inline" onsubmit="return confirm('{{ $p->is_active ? 'Switch '.$p->username.' off? They lose access to every property.' : 'Let '.$p->username.' sign in again?' }}')">@csrf
-              <button class="btn btn-sm btn-ghost">{{ $p->is_active ? 'Switch off' : 'Re-enable' }}</button>
+            <form method="post" action="{{ route('group.people.toggle', $p) }}" style="display:inline">@csrf
+              @if($p->is_active)
+                <button class="btn btn-sm btn-ghost" name="revoke_grants" value="" onclick="return confirm('Switch {{ $p->username }} off? They lose access to every property; their grants are kept for a later return.')">Switch off</button>
+                <button class="btn btn-sm btn-ghost" name="revoke_grants" value="1" onclick="return confirm('Switch {{ $p->username }} off AND take back their cross-property grants? Re-enabling them later would not restore any property.')">Switch off &amp; revoke</button>
+              @else
+                <button class="btn btn-sm btn-ghost" onclick="return confirm('Let {{ $p->username }} sign in again?')">Re-enable</button>
+              @endif
             </form>
           @endif
           @if($p->hotel)<a class="btn btn-sm" href="{{ route('properties.show', $p->hotel) }}">Home property</a>@endif

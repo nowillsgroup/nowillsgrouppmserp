@@ -70,6 +70,10 @@ class GroupPeopleService
             }
         }
 
+        if (! $group->canAddUser()) {
+            throw ValidationException::withMessages(['name' => 'This group has used all '.$group->max_users.' of its seats ('.$group->userCount().' active people). Raise the seat entitlement, or switch somebody off, before adding another person.']);
+        }
+
         $extra = $this->validateGrants($group, $home, $data['grants'] ?? []);
 
         return DB::transaction(function () use ($group, $home, $data, $actor, $roleId, $extra) {
@@ -153,8 +157,18 @@ class GroupPeopleService
         return $target;
     }
 
-    /** Switch somebody off — or back on. Access follows is_active everywhere: SetTenant, the switcher and the register. */
-    public function setActive(HotelGroup $group, User $target, bool $active, User $actor): User
+    /**
+     * Switch somebody off — or back on. Access follows is_active everywhere: SetTenant, the switcher
+     * and the register.
+     *
+     * v10.2 $revokeGrants closes the gap v10.1 left open: switching a person off stopped them signing
+     * in but left every cross-property grant on the books, so re-enabling the account silently
+     * restored access to properties nobody had reconsidered. With the flag, the grants are taken back
+     * as well, each one recorded on the property that loses the reader.
+     *
+     * @return array{user: User, revoked: int}
+     */
+    public function setActive(HotelGroup $group, User $target, bool $active, User $actor, bool $revokeGrants = false): array
     {
         $this->authoriseStaffing($group, $actor);
 
@@ -165,12 +179,18 @@ class GroupPeopleService
             throw ValidationException::withMessages(['user' => 'This is the last active group administrator. Make somebody else one first.']);
         }
 
+        $revoked = 0;
+        if (! $active && $revokeGrants) {
+            $revoked = $this->properties->revokeAllGrants($target, $actor, 'account switched off');
+        }
+
         $target->forceFill(['is_active' => $active])->save();
         PropertyEvent::record($active ? 'person_enabled' : 'person_disabled',
-            ($active ? 'Re-enabled ' : 'Switched off ').$target->name.' ('.$target->username.') in '.$group->name,
-            $target->hotel, ['user' => $target->username, 'actor' => $actor->username]);
+            ($active ? 'Re-enabled ' : 'Switched off ').$target->name.' ('.$target->username.') in '.$group->name
+            .($revoked ? ' and revoked '.$revoked.' cross-property grant(s)' : ''),
+            $target->hotel, ['user' => $target->username, 'actor' => $actor->username, 'grants_revoked' => $revoked]);
 
-        return $target;
+        return ['user' => $target, 'revoked' => $revoked];
     }
 
     public function activeGroupAdmins(HotelGroup $group): int

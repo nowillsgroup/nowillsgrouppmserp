@@ -3062,7 +3062,7 @@
           <h1>Group people</h1>
         </div>
         <div class="actions">
-        <span class="small muted">5 of 5 shown · 1 active group administrator(s)</span>
+        <span class="small muted">5 shown · 582 active of 600 seat(s) · 1 group administrator(s)</span>
         <a class="btn" href="group-account?group=1"><svg class="i i-sm" aria-hidden="true"><use href="#i-layers"/></svg> Group account</a>
         </div>
       </div>
@@ -3099,8 +3099,11 @@
       <td><span class="badge badge-green">Active</span></td>
       <td class="right" style="white-space:nowrap">
           
-      <form method="post" action="group-people-toggle-1" style="display:inline" onsubmit="return confirm('Switch aserwaa off? They lose access to every property.')">
-      <button class="btn btn-sm btn-ghost">Switch off</button>
+      <form method="post" action="group-people-toggle-1" style="display:inline">
+              
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="" onclick="return confirm('Switch aserwaa off? They lose access to every property; their grants are kept for a later return.')">Switch off</button>
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="1" onclick="return confirm('Switch aserwaa off AND take back their cross-property grants? Re-enabling them later would not restore any property.')">Switch off &amp; revoke</button>
+              
       </form>
           
       <a class="btn btn-sm" href="properties-show-1">Home property</a>
@@ -3121,8 +3124,11 @@
       <td><span class="badge badge-green">Active</span></td>
       <td class="right" style="white-space:nowrap">
           
-      <form method="post" action="group-people-toggle-2" style="display:inline" onsubmit="return confirm('Switch kboateng off? They lose access to every property.')">
-      <button class="btn btn-sm btn-ghost">Switch off</button>
+      <form method="post" action="group-people-toggle-2" style="display:inline">
+              
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="" onclick="return confirm('Switch kboateng off? They lose access to every property; their grants are kept for a later return.')">Switch off</button>
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="1" onclick="return confirm('Switch kboateng off AND take back their cross-property grants? Re-enabling them later would not restore any property.')">Switch off &amp; revoke</button>
+              
       </form>
           
       <a class="btn btn-sm" href="properties-show-2">Home property</a>
@@ -3143,8 +3149,11 @@
       <td><span class="badge badge-green">Active</span></td>
       <td class="right" style="white-space:nowrap">
           
-      <form method="post" action="group-people-toggle-3" style="display:inline" onsubmit="return confirm('Switch emensah off? They lose access to every property.')">
-      <button class="btn btn-sm btn-ghost">Switch off</button>
+      <form method="post" action="group-people-toggle-3" style="display:inline">
+              
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="" onclick="return confirm('Switch emensah off? They lose access to every property; their grants are kept for a later return.')">Switch off</button>
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="1" onclick="return confirm('Switch emensah off AND take back their cross-property grants? Re-enabling them later would not restore any property.')">Switch off &amp; revoke</button>
+              
       </form>
           
       <a class="btn btn-sm" href="properties-show-1">Home property</a>
@@ -3165,8 +3174,10 @@
       <td><span class="badge badge-slate">Switched off</span></td>
       <td class="right" style="white-space:nowrap">
           
-      <form method="post" action="group-people-toggle-4" style="display:inline" onsubmit="return confirm('Let yosei sign in again?')">
-      <button class="btn btn-sm btn-ghost">Re-enable</button>
+      <form method="post" action="group-people-toggle-4" style="display:inline">
+              
+      <button class="btn btn-sm btn-ghost" onclick="return confirm('Let yosei sign in again?')">Re-enable</button>
+              
       </form>
           
       <a class="btn btn-sm" href="properties-show-3">Home property</a>
@@ -3187,8 +3198,11 @@
       <td><span class="badge badge-green">Active</span></td>
       <td class="right" style="white-space:nowrap">
           
-      <form method="post" action="group-people-toggle-5" style="display:inline" onsubmit="return confirm('Switch anyarko off? They lose access to every property.')">
-      <button class="btn btn-sm btn-ghost">Switch off</button>
+      <form method="post" action="group-people-toggle-5" style="display:inline">
+              
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="" onclick="return confirm('Switch anyarko off? They lose access to every property; their grants are kept for a later return.')">Switch off</button>
+      <button class="btn btn-sm btn-ghost" name="revoke_grants" value="1" onclick="return confirm('Switch anyarko off AND take back their cross-property grants? Re-enabling them later would not restore any property.')">Switch off &amp; revoke</button>
+              
       </form>
           
       <a class="btn btn-sm" href="properties-show-4">Home property</a>

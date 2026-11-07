@@ -44,6 +44,12 @@ class PropertyService
             throw ValidationException::withMessages(['group' => 'The group entitlement allows '.$group->max_properties.' properties and they are all used. Archive a property or raise the entitlement first.']);
         }
 
+        // v10.2 the first administrator is a seat like any other, and it is checked before anything is
+        // provisioned — a tenant at its seat cap raises the cap or frees a seat first.
+        if (! empty($data['admin_username']) && ! $group->canAddUser()) {
+            throw ValidationException::withMessages(['admin_username' => 'The group has used all '.$group->max_users.' of its seats. Raise the seat entitlement or switch a person off before opening a property with its own administrator.']);
+        }
+
         $wantsLive = ($data['status'] ?? 'draft') === 'active';
 
         return DB::transaction(function () use ($group, $data, $actor, $wantsLive) {
@@ -249,6 +255,32 @@ class PropertyService
         }
         $hotel->propertyUsers()->detach($target->id);
         PropertyEvent::record('access_revoked', "Removed {$target->username}'s access to {$hotel->name}", $hotel, ['user' => $target->username, 'actor' => $actor->username]);
+    }
+
+    /**
+     * v10.2 take back every cross-property grant one person holds, property by property.
+     *
+     * Switched off with this flag, a person cannot sign in *and* has nothing left to come back to if
+     * they are re-enabled later. Each revocation is written to the property it was taken from, so the
+     * property that loses a reader can say who took the right away and when.
+     */
+    public function revokeAllGrants(User $target, User $actor, string $why = ''): int
+    {
+        $granted = $target->propertyGrants()->get();
+        $count = 0;
+        foreach ($granted as $property) {
+            $hotel = Hotel::find($property->id);
+            if (! $hotel) {
+                continue;
+            }
+            DB::table('property_user')->where('user_id', $target->id)->where('hotel_id', $hotel->id)->delete();
+            PropertyEvent::record('access_revoked', "Removed {$target->username}'s access to {$hotel->name}".($why ? ": {$why}" : ''), $hotel, [
+                'user' => $target->username, 'actor' => $actor->username, 'reason' => $why ?: null,
+            ]);
+            $count++;
+        }
+
+        return $count;
     }
 
     /** Mark that a user actually entered the property through this grant. */

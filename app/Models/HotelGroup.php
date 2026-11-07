@@ -20,6 +20,8 @@ class HotelGroup extends Model
             'is_active' => 'boolean',
             'suspended_at' => 'datetime',
             'max_properties' => 'integer',
+            'max_users' => 'integer',
+            'licence_ends_on' => 'date',
         ];
     }
 
@@ -76,6 +78,49 @@ class HotelGroup extends Model
 
         // rooms carries hotel_id itself, so this is a straight aggregate, not a tenant-scoped query.
         return (int) Room::withoutGlobalScopes()->whereIn('hotel_id', $ids)->count();
+    }
+
+    /** Active people in the tenant: staff of its properties, its group administrators and its grants. */
+    public function userCount(): int
+    {
+        $ids = $this->hotels()->pluck('id');
+
+        return User::where('is_active', true)
+            ->where(function ($q) use ($ids, $this) {
+                $q->whereIn('hotel_id', $ids)->orWhere('hotel_group_id', $this->id);
+            })->count();
+    }
+
+    /** v10.2 seats: a licence that names no seat cap is unlimited, exactly like the property cap. */
+    public function canAddUser(): bool
+    {
+        if ($this->isSuspended()) {
+            return false;
+        }
+        if ($this->max_users === null) {
+            return true;
+        }
+
+        return $this->userCount() < $this->max_users;
+    }
+
+    public function remainingSeats(): ?int
+    {
+        if ($this->max_users === null) {
+            return null;
+        }
+
+        return max(0, $this->max_users - $this->userCount());
+    }
+
+    /** Seats used beyond what was bought — shown rather than hidden when a cap is lowered. */
+    public function overSeats(): int
+    {
+        if ($this->max_users === null) {
+            return 0;
+        }
+
+        return max(0, $this->userCount() - $this->max_users);
     }
 
     /** Whether one more property fits inside the entitlement. Null cap = unlimited. */

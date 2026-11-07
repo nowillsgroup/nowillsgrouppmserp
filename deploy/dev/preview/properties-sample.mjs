@@ -25,13 +25,18 @@ const GROUP = {
   id: 1, code: 'NWGROUP', name: 'Nowills Group', legal_name: 'Nowills Group Holdings Ltd',
   brand: 'Nowills Collection', management_company: 'Nowills Hospitality Ltd',
   country: 'Ghana', currency: 'GHS', timezone: 'Africa/Accra', default_property_type: 'hotel',
-  max_properties: 8, status: 'active', is_active: true, suspended_at: null,
+  max_properties: 8, max_users: 600, licence_ends_on: day('2027-03-31'), status: 'active', is_active: true, suspended_at: null,
   contact_name: 'Ama Serwaa', contact_email: 'portfolio@nowillsgroup.com', contact_phone: '+233 24 000 0000',
   description: 'Owner-operator of beach resorts, city hotels and a lodge across Ghana.',
   notes: null,
   statusLabel: () => 'Active',
   isSuspended: () => false,
   remainingProperties: () => 3,
+  // v10.2 seats: 582 active people against 600 bought
+  userCount: () => 582,
+  remainingSeats: () => 18,
+  overSeats: () => 0,
+  canAddUser: () => true,
 };
 
 const property = (o) => ({
@@ -259,6 +264,7 @@ export function groupPeopleContext() {
       canStaff: true,
       canMintAdmins: true,
       groupAdmins: 1,
+      activePeople: 582,
       currentHotel: PROPERTIES[0],
     },
   };
