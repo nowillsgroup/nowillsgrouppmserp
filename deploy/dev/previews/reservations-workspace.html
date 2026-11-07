@@ -65,13 +65,31 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
 .ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
 /* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
-   to a row meant scrolling past two thirds of it to find the one dirty room. Five across from 1400px, where
-   the board is wide enough to hold five cards of ~150px, then four, three, two and one. Each card was cut to
-   that size in the same round — a five-across grid of full-size cards would only have made shorter ones. */
+   to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
+   two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
+   cards only makes shorter ones.
+
+   v10.14 the count is the board's own width, not the window's. The sidebar takes 244px and the needs-attention
+   rail another 332px, so a perfectly ordinary 1500px window leaves a 908px board — wide enough for five cards
+   of 180px, which the old viewport query still called four, and a 1250px window left three. The ladder below
+   is a fallback for browsers without container queries; where they are understood the same ladder is re-run
+   against .ws-main's width, which is the only number that decides how wide a card actually is.
+
+   The thresholds are card widths written backwards: five across needs a board of 800px to leave each card
+   150px ((800 − 4×12) / 5), four needs 640, three 480, two 320. So a 1500px window — a 908px board once the
+   sidebar and the rail have had theirs — holds five cards of 172px, and five is what it shows. */
 @media (max-width:1399px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:1023px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:767px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:479px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:799px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:639px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:479px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:319px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+/* a board wider than five cards of 190px gets a sixth and a seventh rather than five fat ones: the point of
+   the row was density, and density is what a 2560px screen would otherwise lose. */
+@container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
 .ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
@@ -84,20 +102,16 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:9px 10px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:48%;flex:0 0 auto}
+.ws-card-head .text-right{max-width:54%;flex:0 0 auto}
 .ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .badge{white-space:normal;padding:2px 5px;font-size:9px;letter-spacing:.2px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
 .ws-room-no{font-size:21px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;letter-spacing:.2px;background:#fef3c7;color:#b45309;padding:2px 4px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
-/* five across is from 1400px up, and at ~150px a card carries the room, its state, its guest and its money.
-   The words in the housekeeping chip and the smoking rule are the first things to go — both are in the room
-   dialog, and the phrase stays in the accessibility tree rather than being deleted from the card. */
-@media (min-width:1400px){
-  .ws-hk-prefix{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
-  .ws-photo-meta>span:nth-child(3){display:none}
-}
+.ws-hk-badge{display:inline-block;max-width:100%;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;box-shadow:0 1px 6px rgba(15,23,42,.24)}
+/* v10.14 the chip wraps rather than shedding the words "Current HK:" and the smoking rule stays on the card.
+   v10.13 hid both at the five-across width to buy the fifth column; the board now knows its own width, so the
+   card no longer has to buy anything — a two-line chip is cheaper than a card that withholds what it knows. */
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
 .ws-photo{position:relative;aspect-ratio:16/11;min-height:104px;max-height:172px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
@@ -344,7 +358,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-chip button{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:#dcfce7;color:#166534;font-size:12px;line-height:1;cursor:pointer}
 .ws-chip button:hover{background:#bbf7d0}
 .ws-chip button:focus-visible{outline:2px solid #15803d;outline-offset:1px}
-.ws-main{min-width:0}
+.ws-main{min-width:0;container-type:inline-size;container-name:wsboard}
 .ws-group{grid-column:1/-1}
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
@@ -354,6 +368,12 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 @media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:479px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:799px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:639px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:479px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:319px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (min-width:1600px){.ws-group-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container wsboard (min-width:1900px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}

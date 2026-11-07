@@ -103,23 +103,40 @@ ok('the grid steps down to four, three, two and one as the screen narrows',
     new RegExp(`@media \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle)),
   [[1399, 4], [1023, 3], [767, 2], [479, 1]]
     .map(([w, c]) => `${w}px→${c}`).join(' · '));
-ok('and the widest band asks the card to give something up for the fifth column',
-  /\.ws-photo-meta>span:nth-child\(3\)\{display:none\}/.test(wsStyle)
-    && wsStyle.indexOf('@media (min-width:1400px){') < wsStyle.indexOf('.ws-photo-meta>span:nth-child(3)'),
-  'the smoking rule moves into the room dialog at five across');
+// v10.14 the column count follows the board, not the window: the sidebar and the rail take 576px between them,
+// so a 1500px window holds a 908px board and the viewport query used to call that four.
+ok('the board is a query container, so the count is its own width',
+  /\.ws-main\{[^}]*container-type:inline-size/.test(wsStyle)
+    && /\.ws-main\{[^}]*container-name:wsboard/.test(wsStyle),
+  wsStyle.match(/\.ws-main\{[^}]*\}/)?.[0]);
+ok('the ladder is re-run against the board\'s width, after the viewport fallback',
+  [[799, 4], [639, 3], [479, 2], [319, 1]].every(([width, count]) =>
+    new RegExp(`@container wsboard \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle))
+    && wsStyle.lastIndexOf('@container wsboard (max-width:799px)') > wsStyle.indexOf('@media (max-width:1399px){.ws-grid'),
+  [[799, 4], [639, 3], [479, 2], [319, 1]].map(([w, c]) => `${w}px→${c}`).join(' · '));
+ok('a board wide enough for more than five never settles for five fat cards',
+  /@container wsboard \(min-width:1600px\)\{\.ws-grid\{grid-template-columns:repeat\(6/.test(wsStyle)
+    && /@container wsboard \(min-width:1900px\)\{\.ws-grid\{grid-template-columns:repeat\(7/.test(wsStyle),
+  'six from a 1600px board, seven from 1900px');
+ok('the grouped board answers to the same container',
+  /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
+ok('nothing on the card face is hidden to buy the fifth column',
+  /\.ws-photo-meta>span:nth-child\(3\)\{display:none\}/.test(wsStyle) === false
+    && /\.ws-hk-prefix\{position:absolute/.test(wsStyle) === false,
+  'the smoking rule and the housekeeping words are on the narrow card too');
+ok('the housekeeping chip wraps rather than dropping its words',
+  /\.ws-hk-badge\{[^}]*white-space:normal/.test(wsStyle)
+    && cards.every(card => /Current\s*HK|housekeeping/.test(card.querySelector('.ws-hk-badge')?.textContent ?? '')),
+  cards[0]?.querySelector('.ws-hk-badge')?.textContent?.trim());
 ok('the card itself was cut to that size, not just squeezed',
   /\.ws-photo\{[^}]*aspect-ratio:16\/11[^}]*min-height:104px/.test(wsStyle)
     && /\.ws-room-no\{font-size:21px/.test(wsStyle)
     && /\.ws-avatar\{width:28px/.test(wsStyle)
     && /\.ws-actions \.btn\{[^}]*font-size:10px/.test(wsStyle),
   [wsStyle.match(/\.ws-photo\{[^}]*\}/)?.[0], wsStyle.match(/\.ws-room-no\{[^}]*\}/)?.[0]].join(' | '));
-ok('at five across the housekeeping chip keeps its state and gives up the words',
+ok('the housekeeping chip still names what it is talking about',
   cards.every(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')),
-  `${cards.filter(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')).length}/${cards.length} chips carry a prefix`);
-ok('the prefix is hidden from the eye but not from a screen reader',
-  /\.ws-hk-prefix\{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset\(50%\)\}/.test(wsStyle)
-    && wsStyle.indexOf('@media (min-width:1400px){') < wsStyle.indexOf('.ws-hk-prefix{position:absolute'),
-  'clip-path at five across, nothing at wider cards');
+  `${cards.filter(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')).length}/${cards.length} chips carry the words`);
 
 /* ── the needs-attention rail ────────────────────────────────────────────── */
 const attention = $$('#wsAttention .ws-attention-row');
