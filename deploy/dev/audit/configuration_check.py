@@ -4185,6 +4185,54 @@ ok("/stocktakes-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.htm
 ok("'POST', '/stock-takes'" not in st_view and "$takes->total()" in st_view,
    'the sheet count comes from the paginator, so the header and the list cannot disagree')
 
+# ── 26as · stock ledger: the flow, the balance and the gaps ───────────────────────────
+lg_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/InventoryController.php'))
+lg_fn = lg_ctrl[lg_ctrl.index('public function ledger(Request $request)'):lg_ctrl.rindex('}')]
+ok("$money = fn ($m) => abs((float) $m->qty * (float) $m->rate);" in lg_fn,
+   'every movement is valued the same way — quantity at the rate the line carries — so no total can be built twice')
+ok("'rows' => $window->groupBy('type')->map(function ($set, $type) use ($label, $money) {" in lg_fn,
+   'the flow is grouped by type, because a receipt and an issue are not the same kind of movement')
+ok("'value_in' => round($ins->sum($money), 2), 'value_out' => round($outs->sum($money), 2)," in lg_fn,
+   'what came in and what went out are kept apart before they are netted')
+ok("$flow['biggest'] = $biggest ? ['date' => $biggest->date," in lg_fn,
+   'and the largest single line is kept as a line, with its quantity and its money')
+ok("$opening = $filter(StockMovement::whereDate('date', '<', $from))" in lg_fn,
+   'the balance is rolled forward from the movements dated before the window, not from a stored opening figure')
+ok("'tone' => $closing < 0 ? 'text-red bold' : ''" in lg_fn,
+   'an item that closes below zero is marked where the arithmetic is, so the template holds no comparison')
+ok("$gaps = $window->filter(fn ($m) => (float) $m->qty < 0 && blank($m->reference) && blank($m->department));" in lg_fn,
+   'a gap is a movement out that names neither a reference nor a department — stock nothing can be asked about')
+ok("'share' => $flow['value_out'] > 0 ? round($gaps->sum($money) / $flow['value_out'] * 100, 1) : null," in lg_fn,
+   'and it is measured against the value that left, which is the number the gap has to be read against')
+ok("$balance['below_sub'] = $balance['below']" in lg_fn,
+   'the header wording is written in PHP, where a comparison belongs')
+lg_view = read(os.path.join(ROOT, 'resources/views/inventory/ledger.blade.php'))
+ok('id="ldFlow"' in lg_view and 'What moved, and what was it worth?' in lg_view and 'id="flowTable"' in lg_view,
+   'the page asks what moved and what it was worth, and foots the answer by type')
+ok('id="ldFlowState"' in lg_view and "The largest single line is the {{ $flow['biggest']['qty_label'] }}" in lg_view,
+   'the largest line is named with its quantity, its money and the store it went into')
+ok('id="ldBalance"' in lg_view and 'Does the window add up?' in lg_view and 'id="balanceTable"' in lg_view,
+   'whether the window adds up is a card of its own, item by item from opening to closing')
+ok('id="ldBalanceState"' in lg_view and 'Stock cannot leave a store it was never in' in lg_view,
+   'and an item below zero is explained rather than flagged')
+ok('id="ldGaps"' in lg_view and 'What has no document behind it?' in lg_view and 'id="gapTable"' in lg_view,
+   'what has no document behind it sits beside the totals, with the remark each one carries')
+ok('id="ledgerTable"' in lg_view and 'data-qty=' in lg_view and 'data-type=' in lg_view,
+   'the movements list is unchanged and carries the rows the readings were taken from')
+ok('id="ldChain"' in lg_view and 'Every other inventory document ends here' in lg_view,
+   'the page says what ends on the ledger, which is the point of the round')
+lg_sample = read(os.path.join(ROOT, 'deploy/dev/preview/ledger-sample.mjs'))
+ok("const money = (m) => Math.abs(Number(m.qty) * Number(m.rate));" in lg_sample and 'const flowRows =' in lg_sample,
+   'the sample computes the readings from its own movement list, the way the controller does from the rows')
+ok('the verdict names the largest line with its quantity, its money and the store' in read(os.path.join(ROOT, 'deploy/dev/audit/ledger_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('opening plus in less out is closing on every row' in read(os.path.join(ROOT, 'deploy/dev/audit/ledger_preview_check.js')),
+   'and re-adds the table’s own rows rather than trusting the summary')
+ok('nothing else about the shelf changes' in read(os.path.join(ROOT, 'deploy/dev/audit/ledger_preview_check.js')),
+   'the drift build proves the readings are independent: a receipt clears one row and leaves the rest alone')
+ok("/ledger-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
