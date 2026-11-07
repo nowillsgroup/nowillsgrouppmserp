@@ -3901,6 +3901,54 @@ ok('the drift does not touch the ageing' in read(os.path.join(ROOT, 'deploy/dev/
 ok("/ap-payments-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26am. goods receipts: a delivery is a claim on the ledger, read back three ways ──────
+# The register used to print what arrived and nothing else. Every next question is about a document it does not hold: the
+# purchase order's bill (the relation ApService::unbilledReceipts() already tests when it builds the bill screen's
+# "goods received, not yet invoiced" list), the order's expected date, and the stock movement the receipt itself wrote.
+# v9.16 reads all three back and says so on the screen, so an unbilled delivery, a late one and one that never reached
+# the shelf stop being invisible.
+proc_controller = read(os.path.join(ROOT, 'app/Http/Controllers/ProcurementController.php'))
+grn_fn = proc_controller.split('public function grns(Request $request)', 1)[-1][:9000]
+ok("$billed = fn ($q) => $q->whereIn('status', ['open', 'partial', 'paid']);" in grn_fn,
+   'a bill counts only once it is on the ledger — a draft has not posted and a cancelled one has come off again')
+ok("$grns = GoodsReceipt::with('order.bill', 'supplier', 'store', 'receiver')->withSum('lines as rejected_qty', 'qty_rejected')" in grn_fn,
+   'the page loads the order and its bill with each receipt rather than asking per row')
+ok("->when($request->boolean('waiting'), fn ($q) => $q->whereHas('order', fn ($w) => $w->whereDoesntHave('bill', $billed)))" in grn_fn,
+   'and the unbilled receipts are a filter of their own, not a note in a paragraph')
+ok("$g->bill = $g->order?->bill;" in grn_fn and "$g->waiting_days = $g->bill ? null : $ageOf($g->date);" in grn_fn,
+   'each row carries the bill it reached, or how long it has been waiting for one')
+ok("$g->stocked = abs($g->stock_value - (float) $g->subtotal) <= 0.005;" in grn_fn,
+   'the shelf is checked against the goods value the receipt itself recorded, to the cent')
+ok("$settled = GoodsReceipt::with('order.bill', 'supplier')->where('subtotal', '>', 0)" in grn_fn,
+   'the other side of the bill card is the receipts that did reach a bill')
+ok("$lateRows = $period->reject(fn ($g) => $g->onTime())->map(function ($g) {" in grn_fn,
+   'lateness is the model’s own onTime(), not a second rule written in the controller')
+ok("$movedPeriod = StockMovement::whereIn('reference', $period->pluck('grn_no'))->where('type', 'purchase')" in grn_fn,
+   'the stock movements are found by the GRN number the receipt wrote, and only purchase movements count')
+ok("'largest' => $stockRows->sortByDesc('value')->first()];" in grn_fn,
+   'a clean shelf still names the largest receipt, so the card is evidence and not a tick')
+grn_view = read(os.path.join(ROOT, 'resources/views/procurement/grns.blade.php'))
+ok('id="grnBilling"' in grn_view and 'Has every receipt reached a bill?' in grn_view and 'id="billingGap"' in grn_view,
+   'the page asks whether the receipt reached a bill and lists the ones that did not')
+ok('The longest wait in the last ninety days was' in grn_view and 'id="grnBillingState"' in grn_view,
+   'and a clean bill card names the receipt that waited longest instead of only printing a number')
+ok('id="grnDelivery"' in grn_view and 'Did the goods come when the purchase order said?' in grn_view and 'id="lateGap"' in grn_view,
+   'the delivery is held to the date the purchase order named')
+ok('id="grnStock"' in grn_view and 'Is the accepted goods actually in stock?' in grn_view and 'id="stockGap"' in grn_view,
+   'and the accepted goods are held to the stock movements behind them')
+ok('data-billed="{{ $g->bill ? 1 : 0 }}" data-stocked="{{ $g->stocked ? 1 : 0 }}"' in grn_view,
+   'each row states both readings as data, so a filtered list cannot disagree with the cards')
+ok("{{ $g->waiting_days ? 'waiting '.$g->waiting_days.' d' : 'no bill yet' }}" in grn_view and '<th>Bill</th><th>Stock</th>' in grn_view,
+   'the row itself prints the wait and the shelf, so the register can be read without the cards')
+ok('id="grnChain"' in grn_view and 'goods received, not yet invoiced' in grn_view and 'Waiting for a bill only' in grn_view,
+   'the chain from receipt to bill to payment is spelled out, and the unbilled receipts can be filtered out of it')
+ok('the clean verdict names the receipt that waited longest, not a bare number' in read(os.path.join(ROOT, 'deploy/dev/audit/grns_preview_check.js')),
+   'the preview check holds the clean verdict to a named receipt, not a figure')
+ok('the drift does not touch the delivery card' in read(os.path.join(ROOT, 'deploy/dev/audit/grns_preview_check.js')),
+   'and proves the three readings are independent: the drift breaks two and leaves the third alone')
+ok("/grns-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

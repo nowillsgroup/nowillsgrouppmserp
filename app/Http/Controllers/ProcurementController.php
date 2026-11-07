@@ -8,6 +8,7 @@ use App\Models\Rfq;
 use App\Models\RfqQuote;
 use App\Models\RfqSupplier;
 use App\Models\Store;
+use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\SupplierPrice;
 use App\Services\ProcurementService;
@@ -233,17 +234,104 @@ class ProcurementController extends Controller
 
     // ─────────────── goods receipts & scorecard ───────────────
 
+    /**
+     * v9.16 Goods received, and whether the money behind them has reached the ledger.
+     *
+     * A goods receipt note is a claim on Accounts Payable from the moment the goods are accepted: the supplier will
+     * invoice it, and ApService::unbilledReceipts() already asks that question at purchase-order level for the bill
+     * screen. The register could say what arrived, but not whether that value had reached a bill, whether the delivery
+     * came when its PO said it would, or whether the accepted goods had actually landed in stock. Each of those is read
+     * back from the documents here rather than restated: the bill is the PO's own bill relation (the same one the
+     * unbilled list tests), lateness is the PO's expected date against the receipt date, and stock is the movement the
+     * receipt wrote, matched by its GRN number.
+     */
     public function grns(Request $request)
     {
         $from = $request->from ?: bdate()->copy()->startOfMonth()->toDateString();
         $to = $request->to ?: bdate()->toDateString();
-        $grns = GoodsReceipt::with('order', 'supplier', 'store', 'receiver')->withSum('lines as rejected_qty', 'qty_rejected')
+        $asOf = bdate()->toDateString();
+        $today = bdate()->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - \Carbon\Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : 0;
+        // a bill is only a bill once it is on the ledger: a draft has not been posted, and a cancelled one is off it again
+        $billed = fn ($q) => $q->whereIn('status', ['open', 'partial', 'paid']);
+
+        $grns = GoodsReceipt::with('order.bill', 'supplier', 'store', 'receiver')->withSum('lines as rejected_qty', 'qty_rejected')
             ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->boolean('rejections'), fn ($q) => $q->where('rejected_value', '>', 0))
+            ->when($request->boolean('waiting'), fn ($q) => $q->whereHas('order', fn ($w) => $w->whereDoesntHave('bill', $billed)))
             ->latest('date')->latest('id')->paginate(30)->withQueryString();
 
+        // what the shelf actually received, per GRN, at the rate the line was booked at (qty × rate, the net goods value)
+        $moved = StockMovement::whereIn('reference', $grns->getCollection()->pluck('grn_no'))->where('type', 'purchase')
+            ->selectRaw('reference, SUM(qty * rate) v')->groupBy('reference')->pluck('v', 'reference');
+        $grns->getCollection()->transform(function ($g) use ($moved, $ageOf, $billed) {
+            $g->bill = $g->order?->bill;
+            $g->waiting_days = $g->bill ? null : $ageOf($g->date);
+            $g->stock_value = round((float) ($moved[$g->grn_no] ?? 0), 2);
+            $g->stocked = abs($g->stock_value - (float) $g->subtotal) <= 0.005;
+
+            return $g;
+        });
+
+        // 1. the bill: every receipt on record, not only this window — an unbilled delivery must not vanish when the month turns
+        $stuck = GoodsReceipt::with('supplier', 'store')->where('subtotal', '>', 0)
+            ->whereHas('order', fn ($q) => $q->whereDoesntHave('bill', $billed))->orderBy('date')->orderBy('id')->get()
+            ->map(fn ($g) => ['grn_no' => $g->grn_no, 'supplier' => $g->supplier?->name, 'store' => $g->store?->name,
+                'date' => $g->date, 'days' => $ageOf($g->date), 'value' => round((float) $g->subtotal, 2)])->values();
+        // and the other side of it, for the day nothing is waiting: how long the receipts that did reach a bill had to wait
+        $settled = GoodsReceipt::with('order.bill', 'supplier')->where('subtotal', '>', 0)
+            ->whereDate('date', '>=', bdate()->copy()->subDays(90)->toDateString())
+            ->whereHas('order', fn ($q) => $q->whereHas('bill', $billed))->get()
+            ->map(function ($g) {
+                $bill = $g->order?->bill;
+                $wait = $bill?->doc_date ? max(0, (int) round((\Carbon\Carbon::parse($bill->doc_date)->startOfDay()->timestamp
+                    - \Carbon\Carbon::parse($g->date)->startOfDay()->timestamp) / 86400)) : null;
+
+                return ['grn_no' => $g->grn_no, 'supplier' => $g->supplier?->name, 'date' => $g->date,
+                    'value' => round((float) $g->subtotal, 2), 'bill' => $bill?->doc_no, 'bill_date' => $bill?->doc_date, 'wait' => $wait];
+            });
+        $slowest = $settled->whereNotNull('wait')->sortByDesc('wait')->first();
+        $oldest = $stuck->sortByDesc('days')->first();
+        $billing = ['waiting' => $stuck->count(), 'waiting_value' => round((float) $stuck->sum('value'), 2),
+            'oldest' => (int) ($stuck->max('days') ?? 0), 'oldest_row' => $oldest,
+            'billed' => $settled->count(), 'billed_value' => round((float) $settled->sum('value'), 2), 'slowest' => $slowest,
+            'rows' => $stuck->sortByDesc('days')->take(10)->values()->all()];
+
+        // 2. the delivery: did it come when the purchase order said it would? measured on the goods value, not the tax
+        $period = GoodsReceipt::with('order', 'supplier', 'store')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+            ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))->where('subtotal', '>', 0)->get();
+        $lateRows = $period->reject(fn ($g) => $g->onTime())->map(function ($g) {
+            $exp = $g->order?->expected_date;
+
+            return ['grn_no' => $g->grn_no, 'supplier' => $g->supplier?->name, 'date' => $g->date, 'expected' => $exp,
+                'days' => $exp ? max(0, (int) round((\Carbon\Carbon::parse($g->date)->startOfDay()->timestamp
+                    - \Carbon\Carbon::parse($exp)->startOfDay()->timestamp) / 86400)) : 0,
+                'value' => round((float) $g->subtotal, 2)];
+        })->sortByDesc('days')->values();
+        $goods = round((float) $period->sum('subtotal'), 2);
+        $late = ['receipts' => $period->count(), 'value' => $goods,
+            'late' => $lateRows->count(), 'late_value' => round((float) $lateRows->sum('value'), 2),
+            'share' => $goods > 0 ? (int) round(100 * $lateRows->sum('value') / $goods) : 0,
+            'worst' => $lateRows->first(), 'rows' => $lateRows->take(10)->all()];
+
+        // 3. the shelf: the accepted lines must be the stock movements the receipt wrote, GRN by GRN
+        $movedPeriod = StockMovement::whereIn('reference', $period->pluck('grn_no'))->where('type', 'purchase')
+            ->selectRaw('reference, SUM(qty * rate) v')->groupBy('reference')->pluck('v', 'reference');
+        $stockRows = $period->map(fn ($g) => ['grn_no' => $g->grn_no, 'supplier' => $g->supplier?->name, 'store' => $g->store?->name,
+            'date' => $g->date, 'value' => round((float) $g->subtotal, 2),
+            'moved' => round((float) ($movedPeriod[$g->grn_no] ?? 0), 2)])
+            ->map(fn ($r) => $r + ['diff' => round($r['value'] - $r['moved'], 2)])->values();
+        $gaps = $stockRows->filter(fn ($r) => abs($r['diff']) > 0.005)->values();
+        $stock = ['receipts' => $stockRows->count(), 'goods' => round((float) $stockRows->sum('value'), 2),
+            'moved' => round((float) $stockRows->sum('moved'), 2), 'diff' => round((float) $stockRows->sum('diff'), 2),
+            'breaks' => $gaps->count(), 'rows' => $gaps->take(10)->all(),
+            'largest' => $stockRows->sortByDesc('value')->first()];
+
+        $overdue = ProcurementService::overdueDeliveries();
+        $late['overdue'] = $overdue->count();
+
         return view('procurement.grns', ['grns' => $grns, 'from' => $from, 'to' => $to, 'suppliers' => Supplier::orderBy('name')->pluck('name', 'id'),
-            'overdue' => ProcurementService::overdueDeliveries(),
+            'overdue' => $overdue, 'as_of' => $asOf, 'billing' => $billing, 'late' => $late, 'stock' => $stock,
             'tot' => GoodsReceipt::whereBetween('date', [$from, $to])->selectRaw('COUNT(*) n, SUM(total) v, SUM(rejected_value) r')->first()]);
     }
 
