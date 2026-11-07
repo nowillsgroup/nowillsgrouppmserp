@@ -4589,6 +4589,72 @@ ok('the sides ride on the line' in pt_check and 'the total is now 347.00' in pt_
 ok('href="/__preview/pos-terminal"' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the terminal is reachable from the preview gallery')
 
+# ── 26ba · a side dish that is required, on every screen that rings the dish up ──────
+mig_side = read(os.path.join(ROOT, 'database/migrations/2026_11_08_000350_add_side_dish_required_to_menu_items.php'))
+ok("$table->boolean('side_dish_required')->default(false)" in mig_side,
+   'the rule is a column on the dish, and every existing dish keeps asking without insisting')
+ok("'side_dish_required' => 'boolean'" in read(os.path.join(ROOT, 'app/Models/MenuItem.php')),
+   'the model casts it, so a screen reads a flag and not a 0/1 string')
+mi_form = read(os.path.join(ROOT, 'resources/views/masters/menu-item-form.blade.php'))
+ok('name="side_dish_required" value="1"' in mi_form and 'name="side_dish_required" value="0"' in mi_form,
+   'it is set on the dish, beside the side dishes, with the unchecked case posted explicitly')
+ok('A side dish must be chosen with this dish' in mi_form,
+   'and the form says what the flag will do')
+ok('@error(\'side_dish_required\')' in mi_form,
+   'the reason a save was refused is shown against the field it belongs to')
+mc = read(os.path.join(ROOT, 'app/Http/Controllers/MasterController.php'))
+ok('protected function applySideDishRule($row, Request $request, string $master): void' in mc,
+   'the save path applies the rule in one place')
+ok("if ($required && $row->variants()->count() === 0)" in mc,
+   'a dish that offers no side dish cannot insist on one — the rule would be unsatisfiable')
+ok(mc.count('$this->applySideDishRule($row, $request, $master);') == 2,
+   'both create and update apply it, inside the transaction that writes the dish')
+ok("if ($m->side_dish_required && empty($line['variants']))" in read(os.path.join(ROOT, 'app/Http/Controllers/PosController.php')),
+   'the terminal sends a line without the side and the server refuses it, whoever made the request')
+ok("if ($m->side_dish_required && empty($line['variants']))" in read(os.path.join(ROOT, 'app/Http/Controllers/QrMenuController.php')),
+   'the guest phone is held to the same rule')
+pt_view2 = read(os.path.join(ROOT, 'resources/views/pos/terminal.blade.php'))
+ok('data-sides-required="{{ $i->side_dish_required ? \'1\' : \'\' }}"' in pt_view2,
+   'the terminal tile carries the flag to the picker')
+ok("{{ $i->side_dish_required ? ' · required' : '' }}" in pt_view2,
+   'and says so on the tile, before the waiter taps it')
+ok("if (sideDishRequired && !picked.length) {" in pt_view2,
+   'Continue with none is refused where the dish insists')
+ok("if (sideDishNeeded(modifierButton) && !selectedVariants.length) {" in pt_view2,
+   'and the options step cannot undo it by unticking what was chosen')
+qr_view = read(os.path.join(ROOT, 'resources/views/public/qrmenu.blade.php'))
+ok("data-sides-required=\"{{ $i->side_dish_required ? '1' : '' }}\"" in qr_view,
+   'the guest menu carries it too')
+ok('if (sidesRequired(item) && !sides.length) {' in qr_view and 'if (sidesRequired(modifierTarget) && !chosenSides.length) {' in qr_view,
+   'and refuses the same two ways')
+ok("'side_required' => (bool) $item->side_dish_required," in read(os.path.join(ROOT, 'app/Services/OfflinePosService.php')),
+   'the offline snapshot ships the flag, so a device with no connection knows the rule')
+off_js = read(os.path.join(ROOT, 'public/js/offline-pos.js'))
+ok("'<input type=\"checkbox\" name=\"offlineSide\"" in off_js,
+   'the offline sheet ticks sides rather than picking one of one — the terminal and the QR menu always did')
+ok('function pickedSides()' in off_js and 'return ids.indexOf(Number(side.id)) !== -1;' in off_js,
+   'and every side ticked travels with the line')
+ok('if (el.sidesSkip) el.sidesSkip.hidden = required;' in off_js,
+   'a required side hides continue-with-none instead of accepting it')
+ok('if (state.sideItem.side_required === true && !sides.length) {' in off_js,
+   'and adding it with no side is refused on the device, before anything is queued')
+ok('sideRequired: true' in read(os.path.join(ROOT, 'deploy/dev/preview/pos-terminal-sample.mjs')),
+   'the terminal preview shows a dish that insists, beside dishes that do not')
+pt_check2 = read(os.path.join(ROOT, 'deploy/dev/audit/pos_terminal_preview_check.js'))
+ok("ok('Continue with none is refused'" in pt_check2 and "ok('unticking the side in the options step is refused'" in pt_check2,
+   'and the preview check taps both refusals')
+ok("ok('both sides are named, the free one as included'" in pt_check2,
+   'holding the sheet to the line it builds and the price it makes')
+ok("ok('the tile says the side is required'" in read(os.path.join(ROOT, 'deploy/dev/audit/offline_pos_dom_check.js')),
+   'the offline terminal is checked the same way, through the shipped script')
+ok('whose side is required will not be added without one' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery says what the screen now proves')
+ok('sides are ticked, and a dish that insists on one' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the offline card says the same of the sheet on a device with no connection')
+ok("sheet.querySelectorAll('input[type=\"checkbox\"]').forEach(box => { box.checked = true; });"
+   in read(os.path.join(ROOT, 'deploy/dev/build-offline-pos-preview.js')),
+   'the offline preview is built by ticking two sides, so the screenshot shows a line carrying both')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

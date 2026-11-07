@@ -158,19 +158,43 @@ const modifierInputs = $$('#cartLines input[name*="[modifiers][]"]').map(input =
 ok('the portion is posted as items[0][modifiers][]', modifierInputs.join(',') === 'items[0][modifiers][]=12', modifierInputs.join(','));
 ok('the dish badge counts one on the tile', text($('[data-item-count="502"]')) === '1');
 
-/* 4 ─ a dish with sides and no options skips straight to the cart ──────────── */
-tile('Grilled Tilapia & Banku').click();
-ok('the side picker opens for it too', $('#sideDishModal').classList.contains('show'));
+/* 4 ─ a dish whose side dish is required cannot be added without one ────────── */
+const tilapia = tile('Grilled Tilapia & Banku');
+ok('the dish that insists says so on its tile', /3 sides · required/.test(text(tilapia)), text(tilapia));
+ok('a dish that does not insist says nothing', !/required/.test(text(tile('Jollof Rice (Special)'))));
+ok('the rule is on the tile, not just in the words', tilapia.dataset.sidesRequired === '1'
+  && tile('Jollof Rice (Special)').dataset.sidesRequired === '');
+
+tilapia.click();
+const sideSheet = $('#sideDishModal');
+ok('the side picker opens for it too', sideSheet.classList.contains('show'));
 ok('titled for that dish', text($('#sideDishTitle')) === 'Side dish for Grilled Tilapia & Banku');
-const tilapiaBoxes = $$('#sideDishChoices input[type=checkbox]');
+ok('the sheet says the side is not optional', /must be served with a side dish/i.test(text($('#sideDishNote'))));
+ok('no warning until it is needed', $('#sideDishWarn').hidden);
 ok('an included side reads so', /included/.test(text($('#sideDishChoices'))));
+
+$('#sideDishContinue').click();
+ok('Continue with none is refused', sideSheet.classList.contains('show'), 'the sheet closed anyway');
+ok('and the sheet says why', !$('#sideDishWarn').hidden);
+ok('nothing was added while it insisted', cartLines().length === 1 && text($('#cartTotal')) === '110.00');
+
+const tilapiaBoxes = $$('#sideDishChoices input[type=checkbox]');
+tilapiaBoxes.find(box => box.dataset.sideVariantName === 'Garden salad').checked = true;
 tilapiaBoxes.find(box => box.dataset.sideVariantName === 'Extra banku').checked = true;
 $('#sideDishContinue').click();
+ok('with a side ticked the sheet closes', !sideSheet.classList.contains('show'));
 ok('Continue adds it without an options step', !$('#modifierModal').classList.contains('show'));
 ok('two lines now', cartLines().length === 2);
-ok('85.00 + 12.00 = 97.00', /GH₵ 97\.00 each/.test(cartLines()[1]), cartLines()[1]);
-ok('its side is named on the line', /Side dishes: Extra banku \+12\.00/.test(cartLines()[1]));
+ok('85.00 + 0.00 + 12.00 = 97.00', /GH₵ 97\.00 each/.test(cartLines()[1]), cartLines()[1]);
+ok('both sides are named, the free one as included',
+  /Side dishes: Garden salad included · Extra banku \+12\.00/.test(cartLines()[1]), cartLines()[1]);
+ok('both side ids are posted', $$('#cartLines input[name*="items[1][variants]"]').map(input => input.value).join(',') === '1,2');
 ok('total 207.00', text($('#cartTotal')) === '207.00');
+
+tile('Grilled Tilapia & Banku').click();
+ok('reopening the picker clears the warning', $('#sideDishWarn').hidden && sideSheet.classList.contains('show'));
+$$('#sideDishModal [data-close]')[0].click();
+ok('closing the sheet adds nothing', !sideSheet.classList.contains('show') && cartLines().length === 2);
 
 /* 5 ─ a dish with neither ──────────────────────────────────────────────────── */
 tile('Club Beer 330ml').click();
@@ -186,6 +210,31 @@ ok('a second Jollof is 220.00 on the line', /GH₵ 220\.00/.test(text($$('#cartL
 ok('and the sides are still on it', /Side dishes: Grilled chicken \+25\.00 · Extra shito \+5\.00/.test(text($$('#cartLines .cart-line').find(row => /Jollof/.test(text(row))))));
 ok('the total is now 347.00', text($('#cartTotal')) === '347.00');
 ok('the cart count reads two of it', /4 items · 3 lines/.test(text($('#cartItemCount'))), text($('#cartItemCount')));
+
+/* 7 ─ the options step cannot undo the rule ─────────────────────────────────── */
+tile('Grilled Chicken & Chips').click();
+ok('a dish with both a required side and a spice level asks for the side first',
+  $('#sideDishModal').classList.contains('show') && /must be served with a side dish/i.test(text($('#sideDishNote'))));
+$$('#sideDishChoices input[type=checkbox]').find(box => box.dataset.sideVariantName === 'Extra chips').checked = true;
+$('#sideDishContinue').click();
+ok('then it asks for the spice level', $('#modifierModal').classList.contains('show'));
+const spiceBoxes = $$('#modifierChoices input[data-modifier-name]');
+const sideBoxesInOptions = $$('#modifierChoices input[data-side-variant-id]');
+ok('the side arrives ticked there', sideBoxesInOptions.filter(box => box.checked).length === 1);
+spiceBoxes.find(box => box.dataset.modifierName === 'Hot').checked = true;
+const beforeRefusal = cartLines().length;
+sideBoxesInOptions.forEach(box => { box.checked = false; });
+$('#modifierAdd').click();
+ok('unticking the side in the options step is refused', cartLines().length === beforeRefusal
+  && $('#modifierModal').classList.contains('show'));
+ok('and says so', /side dish/.test(alerts[alerts.length - 1] || ''), alerts.join(' | '));
+sideBoxesInOptions.find(box => box.dataset.sideVariantName === 'Extra chips').checked = true;
+$('#modifierAdd').click();
+ok('ticking it again adds the dish', cartLines().length === beforeRefusal + 1 && !$('#modifierModal').classList.contains('show'));
+ok('78.00 + 10.00 = 88.00 on the line', /GH₵ 88\.00 each/.test(cartLines()[beforeRefusal]), cartLines()[beforeRefusal]);
+ok('with its side and its spice', /Side dishes: Extra chips \+10\.00/.test(cartLines()[beforeRefusal])
+  && /Hot/.test(cartLines()[beforeRefusal]));
+ok('total 435.00', text($('#cartTotal')) === '435.00');
 
 ok('the page ran without a script error', errors.length === 0, errors.join(' | '));
 

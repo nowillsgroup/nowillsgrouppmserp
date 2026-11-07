@@ -555,6 +555,11 @@ class PosController extends Controller
             if (! $m->is_available || ($m->outlet_id && (int) $m->outlet_id !== (int) $order->outlet_id)) {
                 throw ValidationException::withMessages(["items.{$k}.id" => "{$m->name} is not available at this outlet."]);
             }
+            // v9.30 the dish can insist on its side dish: the terminal asks for it, and a line that leaves it out is
+            // refused here, because a request is not always made by our own screen.
+            if ($m->side_dish_required && empty($line['variants'])) {
+                throw ValidationException::withMessages(["items.{$k}.variants" => "{$m->name}: choose the side dish that comes with it."]);
+            }
             $flags[$k] = $guest ? \App\Services\AllergenService::flagText(\App\Services\AllergenService::conflicts($m, $guest)) : null;
             if ($flags[$k] && empty($line['allergy_ack'])) {
                 throw ValidationException::withMessages(['items' => "{$m->name}: {$flags[$k]} – the guest declared this allergy. Check with the chef, then confirm the item to send it."]);

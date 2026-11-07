@@ -113,6 +113,8 @@ class OfflinePosService
                 'sides' => $item->variants->map(fn ($variant) => [
                     'id' => $variant->id, 'name' => $variant->name, 'rate' => (float) $variant->rate,
                 ])->values()->all(),
+                // v9.30 the dish cannot be rung up without one of its side dishes; the device asks, and refuses
+                'side_required' => (bool) $item->side_dish_required,
             ])->values()->all(),
             'orders' => $running->map(fn (PosOrder $order) => self::shape($order))->values()->all(),
             // Room service must name the room it is billed to; a room number is all the

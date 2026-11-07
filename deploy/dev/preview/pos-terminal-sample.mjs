@@ -6,10 +6,12 @@
  * tapping one opens "Side dish for <dish>" before the dish ever reaches the cart. Two of those four also carry option
  * groups (a portion, a spice level), so the whole chain is on the page: dish → side dish → options → order line.
  *
- *   • Grilled Tilapia & Banku — three sides, one of them included, two charged; no option groups.
+ *   • Grilled Tilapia & Banku — three sides, one of them included, two charged; no option groups, and the side is
+ *     required, which is what "Continue with none" is not allowed to answer.
  *   • Jollof Rice (Special)  — three sides and a required portion group (Regular / Large +15.00).
  *   • Banku & Okro Stew      — two chargeable sides.
- *   • Grilled Chicken & Chips— three sides and a required spice level, which is the dish already on the check.
+ *   • Grilled Chicken & Chips— three sides, a required spice level, and a required side; it is the dish already on the
+ *     check, sent with its chips, and the one that proves the rule survives the options step.
  *
  * The running order carries two lines — a served Club Beer and a Grilled Chicken & Chips already sent with "Extra chips"
  * — so the "Side dishes: …" line can be seen on a real order line as well as in the draft ticket.
@@ -44,6 +46,7 @@ const group = (id, name, min, max, required, options) => ({
 const item = (o) => ({
   id: o.id, name: o.name, code: o.code, price: o.price, menu_category_id: o.cat, food_type: o.food,
   is_available: true, outlet_id: null, image_path: null, tax_rate: 15,
+  side_dish_required: o.sideRequired === true,
   variants: new Coll(o.sides || []),
   modifierGroups: new Coll(o.groups || []),
   category: CATS.find(c => c.id === o.cat),
@@ -51,14 +54,18 @@ const item = (o) => ({
 });
 
 const ITEMS = [
-  item({ id: 501, name: 'Grilled Tilapia & Banku', code: 'GTB', price: 85.00, cat: 1, food: 'non_veg',
+  // the one dish whose side dish is not optional: the kitchen plates it with a side, so the till will not ring it up
+  // without one — "Continue with none" is not an answer here
+  item({ id: 501, name: 'Grilled Tilapia & Banku', code: 'GTB', price: 85.00, cat: 1, food: 'non_veg', sideRequired: true,
     sides: [side(1, 'Garden salad', 0), side(2, 'Extra banku', 12.00), side(3, 'Fried plantain', 10.00)] }),
   item({ id: 502, name: 'Jollof Rice (Special)', code: 'JRS', price: 65.00, cat: 1, food: 'non_veg',
     sides: [side(4, 'Grilled chicken', 25.00), side(5, 'Fried fish', 30.00), side(6, 'Extra shito', 5.00)],
     groups: [group(1, 'Portion', 1, 1, true, [[11, 'Regular', 0], [12, 'Large', 15.00]])] }),
   item({ id: 503, name: 'Banku & Okro Stew', code: 'BOS', price: 58.00, cat: 1, food: 'non_veg',
     sides: [side(7, 'Extra fish', 28.00), side(8, 'Extra okro', 8.00)] }),
-  item({ id: 504, name: 'Grilled Chicken & Chips', code: 'GCC', price: 78.00, cat: 2, food: 'non_veg',
+  // the dish already on the check, and the one with both a required side and an option group: the rule has to survive
+  // the options step too, where the sides can still be unticked
+  item({ id: 504, name: 'Grilled Chicken & Chips', code: 'GCC', price: 78.00, cat: 2, food: 'non_veg', sideRequired: true,
     sides: [side(9, 'Coleslaw', 0), side(10, 'Extra chips', 10.00), side(11, 'Fried plantain', 8.00)],
     groups: [group(2, 'Spice level', 1, 1, true, [[21, 'Mild', 0], [22, 'Medium', 0], [23, 'Hot', 0]])] }),
   item({ id: 505, name: 'Kelewele', code: 'KLW', price: 20.00, cat: 2, food: 'veg' }),

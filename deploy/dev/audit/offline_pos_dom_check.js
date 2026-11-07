@@ -71,8 +71,12 @@ const FIXTURE = {
   ] }],
   categories: [{ id: 1, name: 'Mains' }],
   items: [
-    { id: 101, name: 'Grilled chicken', category_id: 1, price: 60, tax_rate: 15, sides: [{ id: 501, name: 'French fries', rate: 12.5 }] },
+    { id: 101, name: 'Grilled chicken', category_id: 1, price: 60, tax_rate: 15,
+      sides: [{ id: 501, name: 'French fries', rate: 12.5 }, { id: 502, name: 'Garden salad', rate: 0 }] },
     { id: 102, name: 'Jollof rice', category_id: 1, price: 45, tax_rate: 15, sides: [] },
+    // v9.30 the dish whose side dish is not optional, with a side that costs nothing
+    { id: 103, name: 'Banku & okro', category_id: 1, price: 40, tax_rate: 15, side_required: true,
+      sides: [{ id: 503, name: 'Pepper sauce', rate: 0 }, { id: 504, name: 'Extra okro', rate: 6 }] },
   ],
   orders: [],
   stays: [{ id: 9, room_no: '204' }],
@@ -112,7 +116,7 @@ console.log('offline POS terminal (jsdom)');
 const tables = document.querySelectorAll('[data-pos-tables] .offline-pos-table');
 ok('the tables in the snapshot are drawn', tables.length === 2, `found ${tables.length}`);
 const items = document.querySelectorAll('[data-pos-items] .offline-pos-item');
-ok('the menu is drawn for the first category', items.length === 2, `found ${items.length}`);
+ok('the menu is drawn for the first category', items.length === 3, `found ${items.length}`);
 ok('the room list carries the in-house room', document.querySelector('[data-pos-stay]').options.length === 2);
 ok('the status line says the device is offline', /Offline/i.test(document.querySelector('[data-pos-state]').textContent));
 
@@ -137,14 +141,44 @@ ok('a dish with sides opens the side sheet', !sheet.hidden);
 ok('the side sheet names a side dish and its rate', /French fries/.test(sheet.textContent) && /12\.50/.test(sheet.textContent));
 ok('nothing is added to the ticket before the side is chosen', document.querySelectorAll('[data-pos-draft] .offline-pos-line').length === 1);
 
-const radio = sheet.querySelector('input[type="radio"]');
-radio.checked = true;
+// Sides are ticked, not chosen one of one: a dish can carry a charged side AND a free one.
+const sideBoxes = sheet.querySelectorAll('input[type="checkbox"]');
+ok('the sides in the sheet are checkboxes, one per side', sideBoxes.length === 2, `found ${sideBoxes.length}`);
+sideBoxes.forEach(box => { box.checked = true; });
 click(document.querySelector('[data-pos-sides-add]'));
 await settle();
 lines = document.querySelectorAll('[data-pos-draft] .offline-pos-line');
 ok('the side dish completes the line', lines.length === 2, `lines: ${lines.length}`);
-ok('the side-dish rate is on the ticket', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 117.50',
+ok('both sides are named on the line, the free one as included',
+  /French fries \+12\.50/.test(lines[1].textContent) && /Garden salad included/.test(lines[1].textContent),
+  lines[1].textContent);
+ok('one charged side and one free side: 45.00 + 60.00 + 12.50 + 0.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 117.50',
   document.querySelector('[data-pos-draft-total]').textContent);
+
+// ── a dish whose side dish is required ──────────────────────────────────────
+const requiredTile = document.querySelectorAll('[data-pos-items] .offline-pos-item')[2];
+ok('the tile says the side is required', /side required/.test(requiredTile.textContent), requiredTile.textContent);
+click(requiredTile);
+await settle();
+ok('it opens the same sheet', !sheet.hidden);
+ok('continue-with-none is not offered', document.querySelector('[data-pos-sides-skip]').hidden);
+ok('the sheet says the side is not optional', /must be served with a side dish/i.test(sheet.textContent));
+click(document.querySelector('[data-pos-sides-add]'));
+await settle();
+ok('adding it with no side is refused', !sheet.hidden && document.querySelectorAll('[data-pos-draft] .offline-pos-line').length === 2);
+ok('and the sheet says why', !document.querySelector('[data-pos-sides-warn]').hidden);
+sheet.querySelectorAll('input[type="checkbox"]')[0].checked = true;
+click(document.querySelector('[data-pos-sides-add]'));
+await settle();
+lines = document.querySelectorAll('[data-pos-draft] .offline-pos-line');
+ok('with a side ticked it joins the ticket', lines.length === 3 && sheet.hidden);
+ok('the included side adds nothing: 117.50 + 40.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 157.50',
+  document.querySelector('[data-pos-draft-total]').textContent);
+// this dish was only here to prove the rule; take it off again
+click(document.querySelectorAll('[data-pos-draft] [data-line-remove]')[2]);
+await settle();
+ok('the ticket is back to the two dishes it was', document.querySelectorAll('[data-pos-draft] .offline-pos-line').length === 2
+  && document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 117.50');
 
 // ── sending queues the intent, not a network call ────────────────────────────
 click(document.querySelector('[data-pos-send]'));
@@ -159,7 +193,7 @@ ok('the order carries the business date the device was working', create.payload.
 ok('the ticket follows the same reference', kot.operation === 'pos.order.kot' && kot.payload.local_ref === create.payload.local_ref);
 ok('the ticket carries both dishes', (kot.payload.lines || []).length === 2, JSON.stringify(kot.payload.lines));
 const chicken = (kot.payload.lines || []).find(line => line.menu_item_id === 101);
-ok('the chosen side dish travels with its dish', chicken && JSON.stringify(chicken.variants) === '[501]', JSON.stringify(chicken));
+ok('the chosen side dishes travel with their dish', chicken && JSON.stringify(chicken.variants) === '[501,502]', JSON.stringify(chicken));
 ok('the ticket names quantities', (kot.payload.lines || []).every(line => line.qty >= 0.5));
 
 // ── the queue is on screen ───────────────────────────────────────────────────

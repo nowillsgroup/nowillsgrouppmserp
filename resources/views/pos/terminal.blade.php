@@ -75,11 +75,11 @@
       <div class="pos-items" id="posItems">
       @foreach($items as $i)
         @php $al = $allergenMap[$i->id] ?? ['contains' => [], 'may' => []]; $hit = array_intersect(array_merge($al['contains'], $al['may']), $guestAll); @endphp
-        <button type="button" class="pos-item{{ $hit ? ' allergy-hit' : '' }}" title="Add {{ $i->name }} to the order" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-cat="{{ $i->menu_category_id }}" data-code="{{ strtolower($i->code) }}" data-img="{{ $i->imageUrl() }}" data-printer="{{ $printerMap[$i->id] ?? '' }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-modifiers="{{ json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()) }}" data-variants="{{ json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()) }}">
+        <button type="button" class="pos-item{{ $hit ? ' allergy-hit' : '' }}" title="Add {{ $i->name }} to the order" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-cat="{{ $i->menu_category_id }}" data-code="{{ strtolower($i->code) }}" data-img="{{ $i->imageUrl() }}" data-printer="{{ $printerMap[$i->id] ?? '' }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-sides-required="{{ $i->side_dish_required ? '1' : '' }}" data-modifiers="{{ json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()) }}" data-variants="{{ json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()) }}">
           <span class="pos-photo{{ $i->imageUrl() ? '' : ' pos-photo-empty' }}">@if($i->imageUrl())<img src="{{ $i->imageUrl() }}" alt="">@else<span class="veg-dot {{ $i->food_type }}"></span>@endif</span>
           <span class="pos-item-count hidden" data-item-count="{{ $i->id }}" aria-hidden="true">0</span>
           <span class="pos-meta flex items-center gap-1"><span class="veg-dot {{ $i->food_type }}" aria-hidden="true"></span><span class="tiny muted">{{ $i->code }}</span><span class="tiny muted pos-food-label">{{ ['veg' => 'Veg', 'non_veg' => 'Non-veg', 'egg' => 'Egg', 'beverage' => 'Drink'][$i->food_type] ?? ucfirst($i->food_type) }}</span>@if($al['contains'])<span class="allergen-codes" title="Contains: {{ $A::names($al['contains']) }}">Contains: {{ implode(' ', array_map([$A, 'code'], $al['contains'])) }}</span>@endif @if($al['may'])<span class="allergen-codes allergen-may" title="May contain: {{ $A::names($al['may']) }}">May: {{ implode(' ', array_map([$A, 'code'], $al['may'])) }}</span>@endif</span>
-          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span>@if($i->variants->isNotEmpty())<span class="tiny muted pos-food-label">{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}</span>@endif</button>
+          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span>@if($i->variants->isNotEmpty())<span class="tiny muted pos-food-label">{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}{{ $i->side_dish_required ? ' · required' : '' }}</span>@endif</button>
       @endforeach
         <div id="menuEmpty" class="pos-menu-empty hidden"><x-icon name="search"/><b>No matching menu items</b><span>Try another item name, code, or category.</span><button type="button" class="btn btn-sm btn-ghost" id="clearMenuFilters">Clear filters</button></div>
       </div>
@@ -370,7 +370,8 @@
 <div class="modal" id="sideDishModal"><div class="modal-box" style="max-width:520px">
   <div class="modal-head"><h3 id="sideDishTitle">Choose a side dish</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body">
-    <p class="small muted" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+    <p class="small muted" id="sideDishNote" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+    <p class="small text-red bold" id="sideDishWarn" role="alert" hidden>This dish cannot be rung up without a side dish — tick at least one.</p>
     <div id="sideDishChoices"></div>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn btn-primary" id="sideDishContinue">Continue</button></div>
@@ -493,7 +494,9 @@ function addMenuItem(button, modifiers = [], variants = []) {
   button.classList.add('pos-item-added');
   window.setTimeout(() => button.classList.remove('pos-item-added'), 480);
 }
-let sideDishButton = null, sideDishGroups = [], sideDishChoiceList = [];
+let sideDishButton = null, sideDishGroups = [], sideDishChoiceList = [], sideDishRequired = false;
+/** A dish whose side dish is required (v9.30) — the flag comes from the tile, the server enforces the same rule. */
+function sideDishNeeded(button) { return !!button && button.dataset.sidesRequired === '1'; }
 /** What the waiter ticked in a side-dish block — one reader for both pickers. */
 function pickedSideDishes(scope) {
   return [...document.querySelectorAll(scope + ' [data-side-variant-id]:checked')].map(input => ({
@@ -505,6 +508,15 @@ function openSideDishPicker(button, groups, variants) {
   sideDishButton = button;
   sideDishGroups = groups || [];
   sideDishChoiceList = variants || [];
+  sideDishRequired = sideDishNeeded(button);
+  const warn = document.getElementById('sideDishWarn');
+  if (warn) warn.hidden = true;
+  const note = document.getElementById('sideDishNote');
+  if (note) {
+    note.innerHTML = sideDishRequired
+      ? 'This dish <b>must be served with a side dish</b>. Tick what the guest wants and continue — the kitchen cannot plate it without one.'
+      : 'This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.';
+  }
   const title = document.getElementById('sideDishTitle');
   if (title) title.textContent = 'Side dish for ' + button.dataset.name;
   const box = document.getElementById('sideDishChoices');
@@ -515,7 +527,15 @@ function openSideDishPicker(button, groups, variants) {
 }
 document.getElementById('sideDishContinue')?.addEventListener('click', () => {
   const picked = pickedSideDishes('#sideDishChoices');
+  if (sideDishRequired && !picked.length) {
+    const warn = document.getElementById('sideDishWarn');
+    if (warn) warn.hidden = false;
+    document.getElementById('sideDishModal')?.classList.add('pos-side-dish-missed');
+    document.querySelector('#sideDishChoices input')?.focus();
+    return;
+  }
   document.getElementById('sideDishModal')?.classList.remove('show');
+  document.getElementById('sideDishModal')?.classList.remove('pos-side-dish-missed');
   if (!sideDishButton) return;
   const button = sideDishButton;
   if (sideDishGroups.length) {
@@ -543,6 +563,10 @@ document.getElementById('modifierAdd')?.addEventListener('click', () => {
     if (count < Number(group.min) || count > Number(group.max)) { alert(`Choose between ${group.min} and ${group.max} option(s) for ${group.name}.`); return; }
   }
   const selectedVariants = pickedSideDishes('#modifierChoices');
+  if (sideDishNeeded(modifierButton) && !selectedVariants.length) {
+    alert('This dish must be served with a side dish. Tick at least one before adding it.');
+    return;
+  }
   const selectedModifiers = selected.map(input => ({ id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup) }));
   addMenuItem(modifierButton, selectedModifiers, selectedVariants);
   document.getElementById('modifierModal').classList.remove('show');

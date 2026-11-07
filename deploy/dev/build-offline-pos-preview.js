@@ -102,7 +102,8 @@ await settle();
 click(document.querySelectorAll('[data-pos-items] .offline-pos-item')[0]);
 await settle();
 const sheet = document.querySelector('[data-pos-sides]');
-sheet.querySelector('input[type="radio"]').checked = true;
+// v9.30 the sheet ticks sides, so the dish can carry a charged one and a free one together
+sheet.querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = true; });
 click(document.querySelector('[data-pos-sides-add]'));
 await settle();
 

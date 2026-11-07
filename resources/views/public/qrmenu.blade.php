@@ -51,7 +51,7 @@ body{background:#f6f7fb;padding-bottom:6rem}
 <section class="qm-cat" id="cat{{ $c->id }}"><h2>{{ $c->name }}</h2>
 @foreach($items->where('menu_category_id', $c->id) as $i)
   @php $al = $allergenMap[$i->id] ?? ['contains' => [], 'may' => []]; @endphp
-  <div class="qm-item" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-variants="{{ json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()) }}" data-modifiers="{{ json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()) }}">
+  <div class="qm-item" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-sides-required="{{ $i->side_dish_required ? '1' : '' }}" data-variants="{{ json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()) }}" data-modifiers="{{ json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()) }}">
     @if($i->imageUrl())<img class="qm-photo" src="{{ $i->imageUrl() }}" alt="{{ $i->name }}">@endif
     <div class="info"><div class="nm"><span class="veg-dot {{ $i->food_type }}"></span> {{ $i->name }}</div>@if($i->description)<div class="ds">{{ $i->description }}</div>@endif
       @if($al['contains'] || $al['may'])<div>@foreach($al['contains'] as $k)<span class="al" data-al="{{ $k }}">{{ \App\Services\AllergenService::short($k) }}</span>@endforeach @foreach($al['may'] as $k)<span class="al" data-al="{{ $k }}">may contain {{ strtolower(\App\Services\AllergenService::short($k)) }}</span>@endforeach</div>@endif
@@ -71,6 +71,8 @@ body{background:#f6f7fb;padding-bottom:6rem}
 
 <div class="qm-sheet" id="sideSheet" onclick="if(event.target===this)closeSides()"><div class="box">
   <div class="flex justify-between items-center"><h3 id="sideTitle">Choose a side dish</h3><button type="button" class="btn btn-ghost btn-icon" onclick="closeSides()" aria-label="Close"><x-icon name="x"/></button></div>
+  <p class="small muted" id="sideNote"></p>
+  <p class="small bold" id="sideWarn" style="color:#b91c1c" role="alert" hidden>This dish must be served with a side dish — tick at least one.</p>
   <div id="sideChoices"></div>
   <button type="button" class="btn btn-primary btn-block mt-1" id="sideContinue">Continue</button>
 </div></div>
@@ -134,12 +136,23 @@ function pickedSides(scope){
 function openSides(item){
   modifierTarget = item; modifierSides = sidesFor(item);
   document.getElementById('sideTitle').textContent = 'Side dish for ' + item.dataset.name;
+  const note = document.getElementById('sideNote'), warn = document.getElementById('sideWarn');
+  if (warn) warn.hidden = true;
+  if (note) note.innerHTML = sidesRequired(item)
+    ? 'This dish <b>must be served with a side dish</b>. Tick what you would like and continue.'
+    : 'This dish comes with a side. Tick what you would like — a side that shows no price is already included.';
   document.getElementById('sideChoices').innerHTML = sideChoicesHtml(modifierSides);
   document.getElementById('sideSheet').classList.add('show');
 }
+/** The dish insists on its side dish (v9.30): the tile says so and the server holds the line too. */
+function sidesRequired(item){ return !!item && item.dataset.sidesRequired === '1'; }
 function closeSides(){ document.getElementById('sideSheet').classList.remove('show'); }
 document.getElementById('sideContinue').addEventListener('click', () => {
   const item = modifierTarget, sides = pickedSides('#sideChoices');
+  if (sidesRequired(item) && !sides.length) {
+    document.getElementById('sideWarn').hidden = false;
+    return;
+  }
   closeSides();
   if (groupsFor(item).length) openModifiers(item, sides);
   else if (item) addItem(item, [], sides);
@@ -157,7 +170,12 @@ document.getElementById('modifierAdd').addEventListener('click', () => {
     const count = selected.filter(input => Number(input.dataset.modifierGroup) === Number(group.id)).length;
     if (count < Number(group.min) || count > Number(group.max)) { alert(`Choose between ${group.min} and ${group.max} option(s) for ${group.name}.`); return; }
   }
-  addItem(modifierTarget, selected.map(input => ({id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup)})), pickedSides('#modifierChoices'));
+  const chosenSides = pickedSides('#modifierChoices');
+  if (sidesRequired(modifierTarget) && !chosenSides.length) {
+    alert('This dish must be served with a side dish. Tick at least one before adding it.');
+    return;
+  }
+  addItem(modifierTarget, selected.map(input => ({id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup)})), chosenSides);
   closeModifiers();
 });
 function draw(){

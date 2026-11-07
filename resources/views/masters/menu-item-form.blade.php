@@ -85,6 +85,12 @@
       <p id="menuItemVariantsEmpty" class="small muted menu-item-variants-empty" @if(count($variantRows)) hidden @endif>No side dish variants added. You can save this item without variants.</p>
       <button type="button" class="btn btn-sm menu-item-variant-add" id="addMenuItemVariant"><x-icon name="plus" size="sm"/> Add side dish variant</button>
       @if($errors->has('variants'))<span class="err">{{ $errors->first('variants') }}</span>@endif
+      <label class="check menu-item-side-required">
+        <input type="hidden" name="side_dish_required" value="0">
+        <input type="checkbox" name="side_dish_required" value="1" @checked(old('side_dish_required', $row->side_dish_required ?? false))>
+        <span><b>A side dish must be chosen with this dish</b> <span class="tiny muted">— the waiter, the guest's phone and the offline terminal all refuse to ring it up without one, and the server refuses a line that leaves it out. Only a dish that offers side dishes can insist on one.</span></span>
+      </label>
+      @error('side_dish_required')<span class="err">{{ $message }}</span>@enderror
       <template id="menuItemVariantTemplate">
         <div class="menu-item-variant-row" data-variant-row role="group" aria-label="Side dish variant __INDEX_LABEL__">
           <div class="field"><label for="variant-__INDEX__-name">Name of side dish</label><input id="variant-__INDEX__-name" name="variants[__INDEX__][name]" maxlength="100" autocomplete="off" data-variant-name></div>

@@ -50,6 +50,8 @@
     queueCount: root.querySelector('[data-pos-queue-count]'),
     sides: document.querySelector('[data-pos-sides]'),
     sidesTitle: document.querySelector('[data-pos-sides-title]'),
+    sidesNote: document.querySelector('[data-pos-sides-note]'),
+    sidesWarn: document.querySelector('[data-pos-sides-warn]'),
     sidesList: document.querySelector('[data-pos-sides-list]'),
     sidesAdd: document.querySelector('[data-pos-sides-add]'),
     sidesSkip: document.querySelector('[data-pos-sides-skip]'),
@@ -250,7 +252,9 @@
       return '<button type="button" class="offline-pos-item" data-item="' + item.id + '">' +
         '<span class="offline-pos-item-name">' + esc(item.name) + '</span>' +
         '<span class="offline-pos-item-meta">' + money(item.price) +
-        ((item.sides || []).length ? ' · <span class="offline-pos-item-side">sides</span>' : '') + '</span>' +
+        ((item.sides || []).length
+          ? ' · <span class="offline-pos-item-side">' + (item.side_required ? 'side required' : (item.sides.length === 1 ? '1 side' : item.sides.length + ' sides')) + '</span>'
+          : '') + '</span>' +
         '</button>';
     }).join('');
     el.itemsEmpty.hidden = items.length > 0;
@@ -267,7 +271,9 @@
     el.draft.innerHTML = lines.map(function (line, index) {
       return '<div class="offline-pos-line">' +
         '<div><b>' + esc(line.name) + '</b>' +
-        (line.sides && line.sides.length ? '<div class="tiny muted">' + esc(line.sides.map(function (s) { return s.name; }).join(', ')) + '</div>' : '') +
+        (line.sides && line.sides.length ? '<div class="tiny muted">Side dishes: ' + esc(line.sides.map(function (s) {
+          return s.name + (Number(s.rate) > 0 ? ' +' + Number(s.rate).toFixed(2) : ' included');
+        }).join(' · ')) + '</div>' : '') +
         (line.notes ? '<div class="tiny muted">' + esc(line.notes) + '</div>' : '') +
         '</div>' +
         '<div class="offline-pos-qty">' +
@@ -349,19 +355,40 @@
     return null;
   }
 
+  /**
+   * The side sheet. Sides are ticked, not chosen one of one (v9.30): a dish can carry a salad AND an extra banku, and
+   * the till has to add both rates. A dish whose side dish is required hides "continue with none" rather than accepting
+   * an answer the kitchen cannot plate.
+   */
   function openSideSheet(item) {
     state.sideItem = item;
     el.sidesTitle.textContent = 'Side dish for ' + item.name;
+    var required = item.side_required === true;
     el.sidesList.innerHTML = (item.sides || []).map(function (side) {
       return '<label class="offline-pos-side">' +
-        '<input type="radio" name="offlineSide" value="' + side.id + '">' +
+        '<input type="checkbox" name="offlineSide" value="' + side.id + '" data-side-id="' + side.id + '">' +
         '<span>' + esc(side.name) + '</span>' +
         '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
       '</label>';
     }).join('');
+    if (el.sidesNote) {
+      el.sidesNote.textContent = required
+        ? 'This dish must be served with a side dish. Tick what the guest wants — the kitchen cannot plate it without one.'
+        : 'This dish comes with a side. Tick one or more, or continue without if the guest does not want one.';
+    }
+    if (el.sidesWarn) el.sidesWarn.hidden = true;
+    if (el.sidesSkip) el.sidesSkip.hidden = required;
     el.sides.hidden = false;
     var first = el.sidesList.querySelector('input');
     if (first) first.focus();
+  }
+
+  /** Every side ticked in the sheet, as the line stores them. */
+  function pickedSides() {
+    var ids = [].slice.call(el.sidesList.querySelectorAll('input:checked')).map(function (input) { return Number(input.value); });
+    return (state.sideItem && state.sideItem.sides ? state.sideItem.sides : []).filter(function (side) {
+      return ids.indexOf(Number(side.id)) !== -1;
+    });
   }
 
   function closeSideSheet() {
@@ -549,13 +576,23 @@
 
   el.sidesAdd.addEventListener('click', function () {
     if (!state.sideItem) return;
-    var chosen = el.sidesList.querySelector('input:checked');
-    var sides = chosen ? (state.sideItem.sides || []).filter(function (side) { return Number(side.id) === Number(chosen.value); }) : [];
+    var sides = pickedSides();
+    if (state.sideItem.side_required === true && !sides.length) {
+      if (el.sidesWarn) el.sidesWarn.hidden = false;
+      var firstInput = el.sidesList.querySelector('input');
+      if (firstInput) firstInput.focus();
+      return;
+    }
     addLine(state.sideItem, sides);
     closeSideSheet();
   });
   el.sidesSkip.addEventListener('click', function () {
-    if (state.sideItem) addLine(state.sideItem, []);
+    if (!state.sideItem) return;
+    if (state.sideItem.side_required === true) {
+      if (el.sidesWarn) el.sidesWarn.hidden = false;
+      return;
+    }
+    addLine(state.sideItem, []);
     closeSideSheet();
   });
   el.sidesCancel.addEventListener('click', closeSideSheet);
