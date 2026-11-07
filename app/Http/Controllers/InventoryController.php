@@ -13,23 +13,95 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryController extends Controller
 {
+    /**
+     * Stock on hand — what is standing on the shelf tonight, and what it is worth.
+     *
+     * v9.23 the screen listed quantities per store and a value column, which answers "how many" and never "how much of
+     * this is real money, where is it sitting, and what has stopped moving". The three readings are computed from the
+     * same movement sums the table is built from: the shelf (items, value, the largest holding), where the value sits
+     * (store by store, and how concentrated it is in a few items), and what has not moved in ninety days — the capital
+     * a store is holding for no reason.
+     */
     public function index(Request $request)
     {
         $stores = Store::orderBy('name')->get();
-        $stock = StockMovement::select('inventory_item_id', 'store_id', DB::raw('SUM(qty) as qty'))->groupBy('inventory_item_id', 'store_id')->get()->groupBy('inventory_item_id');
+        $stock = StockMovement::select('inventory_item_id', 'store_id', DB::raw('SUM(qty) as qty'), DB::raw('MAX(date) as last_on'))
+            ->groupBy('inventory_item_id', 'store_id')->get()->groupBy('inventory_item_id');
         $items = InventoryItem::with('category')->where('is_active', true)
             ->when($request->category, fn ($q, $c) => $q->where('item_category_id', $c))
             ->when($request->q, fn ($q, $t) => $q->where('name', 'like', "%$t%"))->orderBy('name')->get()
-            ->each(function ($i) use ($stock) {
-                $i->by_store = ($stock[$i->id] ?? collect())->pluck('qty', 'store_id');
+            ->each(function ($i) use ($stock, $stores) {
+                $rows = $stock[$i->id] ?? collect();
+                $i->by_store = $rows->pluck('qty', 'store_id');
                 $i->total = (float) $i->by_store->sum();
+                $i->last_moved = $rows->max('last_on') ? \Illuminate\Support\Carbon::parse($rows->max('last_on')) : null;
+                $i->days_still = $i->last_moved ? (int) $i->last_moved->diffInDays(bdate()->startOfDay()) : null;
+                $i->value = round($i->total * (float) $i->last_cost, 2);
+                $i->total_label = rtrim(rtrim(number_format($i->total, 2), '0'), '.');
+                $i->cells = $stores->mapWithKeys(fn ($s) => [$s->id => ($v = (float) ($i->by_store[$s->id] ?? 0))
+                    ? rtrim(rtrim(number_format($v, 2), '0'), '.') : '—'])->all();
             });
         if ($request->boolean('low')) {
             $items = $items->filter(fn ($i) => $i->total <= $i->reorder_level);
         }
 
+        $held = $items->filter(fn ($i) => abs($i->total) > 0.004);
+        $value = round((float) $items->sum(fn ($i) => $i->value), 2);
+        $top = $held->sortByDesc(fn ($i) => $i->value)->first();
+
+        $shelf = [
+            'items' => $held->count(), 'value' => $value,
+            'stores' => $stores->filter(fn ($s) => $items->sum(fn ($i) => abs((float) ($i->by_store[$s->id] ?? 0))) > 0)->count(),
+            'negative' => $held->filter(fn ($i) => $i->total < 0)->count(),
+            'zero' => $items->filter(fn ($i) => abs($i->total) <= 0.004)->count(),
+            'top' => $top ? ['item' => $top->name, 'unit' => $top->unit, 'qty' => $top->total, 'qty_label' => number_format($top->total), 'value' => $top->value,
+                'share' => $value > 0 ? round($top->value / $value * 100, 1) : null,
+                'store' => $stores->firstWhere('id', $top->by_store->search($top->by_store->max()))?->name] : null,
+            'sub' => $held->count().' item'.($held->count() === 1 ? '' : 's').' with stock, '.$items->filter(fn ($i) => abs($i->total) <= 0.004)->count().' at zero',
+        ];
+        $shelf['zero_sub'] = $shelf['zero'].' active item'.($shelf['zero'] === 1 ? '' : 's').' at zero, and left out of this count';
+        $shelf['rows'] = $held->sortByDesc(fn ($i) => $i->value)->take(8)->map(fn ($i) => ['item' => $i->name, 'unit' => $i->unit,
+            'qty' => number_format($i->total), 'value' => $i->value, 'category' => $i->category?->name,
+            'share' => $value > 0 ? round($i->value / $value * 100, 1) : null])->values()->all();
+        $topThree = $held->sortByDesc(fn ($i) => $i->value)->take(3)->sum(fn ($i) => $i->value);
+        $shelf['top_three'] = $value > 0 ? round($topThree / $value * 100, 1) : null;
+
+        $whereRows = $stores->map(function ($s) use ($items, $value) {
+            $in = $items->filter(fn ($i) => abs((float) ($i->by_store[$s->id] ?? 0)) > 0.004);
+            $worth = round((float) $in->sum(fn ($i) => (float) ($i->by_store[$s->id] ?? 0) * (float) $i->last_cost), 2);
+
+            return ['id' => $s->id, 'store' => $s->name, 'items' => $in->count(), 'value' => $worth,
+                'share' => $value > 0 ? round($worth / $value * 100, 1) : null,
+                'tone' => $worth < 0 ? 'text-red' : ''];
+        })->filter(fn ($r) => $r['items'] > 0)->sortByDesc('value')->values();
+
+        $where = ['rows' => $whereRows->all(), 'top' => $whereRows->first(),
+            'multi' => $items->filter(fn ($i) => $i->by_store->filter(fn ($q) => abs((float) $q) > 0.004)->count() > 1)->count()];
+        $where['sub'] = $whereRows->count().' store'.($whereRows->count() === 1 ? '' : 's').' holding stock · '
+            .$where['multi'].' items are split across more than one';
+        $where['split_sub'] = $where['multi'].' item'.($where['multi'] === 1 ? '' : 's')
+            .' are held in more than one store, and count twice against the same purchase';
+
+        $asleep = $held->filter(fn ($i) => $i->days_still === null || $i->days_still >= 90)->sortByDesc(fn ($i) => $i->value);
+        $asleepValue = round((float) $asleep->sum(fn ($i) => $i->value), 2);
+        $still = [
+            'count' => $asleep->count(), 'value' => $asleepValue,
+            'share' => $value > 0 ? round($asleepValue / $value * 100, 1) : null,
+            'never' => $held->filter(fn ($i) => $i->days_still === null)->count(),
+            'oldest' => ($o = $asleep->sortByDesc(fn ($i) => $i->days_still ?? PHP_INT_MAX)->first()) ? ['item' => $o->name,
+                'unit' => $o->unit, 'qty' => number_format($o->total), 'value' => $o->value, 'days' => $o->days_still,
+                'last' => $o->last_moved] : null,
+            'rows' => $asleep->take(10)->map(fn ($i) => ['item' => $i->name, 'unit' => $i->unit, 'qty' => number_format($i->total),
+                'value' => $i->value, 'store' => $i->by_store->filter(fn ($q) => abs((float) $q) > 0.004)->keys()->first(),
+                'date' => $i->last_moved, 'days' => $i->days_still])->values()->all(),
+        ];
+        $still['tone'] = $asleep->count() ? 'amber' : 'green';
+        $still['share_label'] = $still['share'].' % of the value on the shelf';
+        $still['sub'] = $asleep->count().' item'.($asleep->count() === 1 ? '' : 's').' untouched for ninety days';
+        $still['asleep_sub'] = 'on the shelf and not drawn from since '.bdate()->copy()->subDays(90)->format('d M Y');
+
         return view('inventory.index', ['items' => $items, 'stores' => $stores, 'categories' => ItemCategory::pluck('name', 'id'),
-            'value' => $items->sum(fn ($i) => $i->total * $i->last_cost)]);
+            'value' => $value, 'shelf' => $shelf, 'where' => $where, 'still' => $still]);
     }
 
     public function movement()

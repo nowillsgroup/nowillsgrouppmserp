@@ -4233,6 +4233,52 @@ ok('nothing else about the shelf changes' in read(os.path.join(ROOT, 'deploy/dev
 ok("/ledger-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26at · stock on hand: the shelf, the split and the age ────────────────────────────
+sh_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/InventoryController.php'))
+sh_fn = sh_ctrl[sh_ctrl.index('public function index(Request $request)'):sh_ctrl.index('public function movement()')]
+ok("DB::raw('MAX(date) as last_on')" in sh_fn,
+   'the last movement comes from the same grouped sum the quantities do, so a date and a quantity cannot disagree')
+ok("$i->days_still = $i->last_moved ? (int) $i->last_moved->diffInDays(bdate()->startOfDay()) : null;" in sh_fn,
+   'how long an item has stood still is days since its last movement, and null leaves it open rather than zero')
+ok("$asleep = $held->filter(fn ($i) => $i->days_still === null || $i->days_still >= 90)" in sh_fn,
+   'an item is asleep at ninety days or more, and an item that never moved counts as asleep')
+ok("$i->cells = $stores->mapWithKeys(fn ($s) => [$s->id => ($v = (float) ($i->by_store[$s->id] ?? 0))" in sh_fn,
+   'the per-store cells are formatted where the arithmetic is, so the template prints digits and does no assignment')
+ok("$topThree = $held->sortByDesc(fn ($i) => $i->value)->take(3)->sum(fn ($i) => $i->value);" in sh_fn,
+   'the concentration is the three largest lines against the whole shelf, because that is the risk a store carries')
+ok("$worth = round((float) $in->sum(fn ($i) => (float) ($i->by_store[$s->id] ?? 0) * (float) $i->last_cost), 2);" in sh_fn,
+   'a store is valued on the quantity it actually holds, at the cost the item carries')
+ok("'multi' => $items->filter(fn ($i) => $i->by_store->filter(fn ($q) => abs((float) $q) > 0.004)->count() > 1)->count()];" in sh_fn,
+   'items held in more than one store are counted, because a transfer is cheaper than a purchase')
+ok("$shelf['zero_sub'] = $shelf['zero'].' active item'" in sh_fn,
+   'the wording is pluralised in PHP, where a comparison belongs')
+sh_view = read(os.path.join(ROOT, 'resources/views/inventory/index.blade.php'))
+ok('id="shShelf"' in sh_view and 'What is on the shelf tonight?' in sh_view and 'id="shelfTable"' in sh_view,
+   'the page asks what is on the shelf, and lists the holdings by value')
+ok('id="shShelfState"' in sh_view and 'Units are not added across items' in sh_view,
+   'and says why only money can be totalled across a store')
+ok('id="shWhere"' in sh_view and 'Where does the value sit?' in sh_view and 'id="storeTable"' in sh_view,
+   'where the value sits is a card of its own, store by store')
+ok('id="shStill"' in sh_view and 'What has stopped moving?' in sh_view and 'id="stillTable"' in sh_view,
+   'and what has stopped moving sits beside it, aged rather than merely counted')
+ok('id="shStillState"' in sh_view and 'Nothing here is a re-order problem; it is the opposite one' in sh_view,
+   'the card says what the re-order screen would never show, which is the point of the round')
+ok('id="stockTable"' in sh_view and 'data-total=' in sh_view and 'data-days=' in sh_view,
+   'the shelf list keeps a column per store and carries the rows the readings were taken from')
+ok('id="shChain"' in sh_view and 'Stock on hand is where the other four screens meet' in sh_view,
+   'the page says what meets here, which is the point of the round')
+sh_sample = read(os.path.join(ROOT, 'deploy/dev/preview/stock-sample.mjs'))
+ok('const pct = (v, of) =>' in sh_sample and 'const held = items.filter' in sh_sample,
+   'the sample computes the readings from its own item table, the way the controller does from the movement sums')
+ok('the verdict names the largest holding with its store and its share' in read(os.path.join(ROOT, 'deploy/dev/audit/stock_on_hand_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the store values add back to the shelf total' in read(os.path.join(ROOT, 'deploy/dev/audit/stock_on_hand_preview_check.js')),
+   'and adds the store card back up rather than trusting it')
+ok('the ageing card is down to one item' in read(os.path.join(ROOT, 'deploy/dev/audit/stock_on_hand_preview_check.js')),
+   'the drift build proves the readings are independent: a tidy-up empties the ageing card and nothing else')
+ok("/stock-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
