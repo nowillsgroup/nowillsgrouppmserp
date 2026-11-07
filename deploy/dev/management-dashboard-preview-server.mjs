@@ -248,6 +248,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/requisitions.html');
   } else if (pathname === '/requisitions-drift' || pathname === '/__preview/requisitions-drift') {
     file = resolve(ROOT, 'deploy/dev/previews/requisitions-drift.html');
+  } else if (pathname === '/rfq-show' || pathname === '/rfqs/55' || pathname === '/__preview/rfq-show') {
+    file = resolve(ROOT, 'deploy/dev/previews/rfq-show.html');
   } else if (pathname === '/rfqs' || pathname === '/__preview/rfqs') {
     file = resolve(ROOT, 'deploy/dev/previews/rfqs.html');
   } else if (pathname === '/rfqs-drift' || pathname === '/__preview/rfqs-drift') {

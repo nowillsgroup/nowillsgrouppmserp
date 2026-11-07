@@ -15,10 +15,23 @@
   @if($rfq->status === 'draft')<a class="btn" href="{{ route('rfq.edit', $rfq) }}"><x-icon name="edit"/> Edit</a>
     <form method="post" action="{{ route('rfq.send', $rfq) }}">@csrf<button class="btn btn-primary" id="rfqSend"><x-icon name="mail"/> Send to suppliers</button></form>@endif
   @if($rfq->status === 'sent')<form method="post" action="{{ route('rfq.close', $rfq) }}" data-confirm="Stop accepting quotations?">@csrf<button class="btn" id="rfqClose">Close quotations</button></form>@endif
-  @if(in_array($rfq->status, \App\Models\Rfq::OPEN))<button class="btn btn-danger" data-modal="rfqCancel">Cancel</button>@endif
+  @if(in_array($rfq->status, $openStatuses))<button class="btn btn-danger" data-modal="rfqCancel">Cancel</button>@endif
 @endif
 @endsection
 @section('content')
+
+{{-- v9.28 the request in five figures: what came in, what the best of it costs, what the lines cost last time, and what cannot be taken --}}
+<div class="stats wide">
+  <x-stat label="Quotes in" :value="$head['quotes']" icon="message" :tone="$head['quotes'] >= $minQuotes ? 'green' : 'amber'" :sub="$head['sub'].($head['quotes'] < $minQuotes ? ' — below the '.$minQuotes.' this property asks for' : '')" href="#comparative"/>
+  <x-stat label="Lowest landed" :value="money($head['low'])" icon="money" tone="blue"
+    :sub="$head['lowest'] ? $head['lowest']->supplier?->name.' — the whole request at the lowest rate offered line by line' : 'no bid to compare'" href="#comparative"/>
+  <x-stat label="Last paid" :value="money($head['at_stake'])" icon="receipt" tone="slate"
+    :sub="$head['saving'] > 0 ? 'these lines at the rates last paid — the cheapest bid saves '.money($head['saving']) : 'these lines at the rates last paid, and no bid beats them'"/>
+  <x-stat label="Cannot be taken" :value="$head['late'] + $head['expired']" icon="alert" :tone="$head['blocked_tone']"
+    :sub="$head['blocked_sub']" href="#rfqPromise"/>
+  <x-stat label="Needed by" :value="dmy($rfq->needed_by)" icon="clock" :tone="$head['needed_tone']" :sub="$head['needed_sub']"/>
+</div>
+
 <div class="card"><div class="card-body grid g-3">
   <dl class="kv"><dt>Store</dt><dd>{{ $rfq->store->name }}</dd><dt>Raised</dt><dd>{{ $rfq->rfq_date->format('d M Y') }} · {{ $rfq->creator?->name }}</dd></dl>
   <dl class="kv"><dt>Quotes due</dt><dd>{{ $rfq->respond_by->format('D d M Y') }}@if($rfq->status === 'sent') {!! $rfq->deadlinePassed() ? '<span class="badge badge-amber">passed</span>' : '<span class="badge badge-blue">open</span>' !!}@endif</dd><dt>Needed by</dt><dd>{{ dmy($rfq->needed_by) }}</dd></dl>
@@ -81,6 +94,42 @@
 @elseif($rfq->status !== 'draft')
 <div class="card"><div class="card-body"><x-empty text="No quotations yet. Suppliers quote through their private link; paper or e-mailed quotes can be keyed in with “Enter quote”." icon="mail"/></div></div>
 @endif
+
+@if($promise->count())
+{{-- v9.28 the same three suppliers read on the axes the price table cannot show: when it lands, on what terms, and for how long the price holds --}}
+<div class="card" id="rfqPromise">
+  <div class="card-head"><h3>What each supplier is promising</h3>
+    <span class="badge badge-{{ $head['tone'] }}">{{ $head['late'] + $head['expired'] ? 'not every bid can be taken' : 'every bid can be taken' }}</span></div>
+  <div class="card-body">
+    <div class="table-wrap"><table class="table table-compact" id="promiseTable">
+      <thead><tr><th>Supplier</th><th class="num">Quote</th><th class="num">Lines</th><th class="num">Delivery</th><th>Arrives</th><th class="num">Terms</th><th>Valid until</th><th class="num">Score</th></tr></thead><tbody>
+      @foreach($promise as $p)<tr data-supplier="{{ $p['supplier'] }}" data-late="{{ $p['late'] ? 'yes' : 'no' }}" data-expired="{{ $p['expired'] ? 'yes' : 'no' }}">
+        <td class="bold">{{ $p['supplier'] }}</td>
+        <td class="num">{{ money($p['total'], false) }}</td>
+        <td class="num">{{ $p['lines'] }} / {{ $p['of'] }}@if($p['partial']) <span class="badge badge-amber">part</span>@endif</td>
+        <td class="num">{{ $p['delivery_days'] !== null ? $p['delivery_days'].' days' : '—' }}</td>
+        <td class="small {{ $p['late'] ? 'text-red bold' : '' }}">{{ $p['arrives'] ? $p['arrives']->format('d M Y') : '—' }}@if($p['late']) <span class="badge badge-red">{{ $p['late_days'] }} days late</span>@endif</td>
+        <td class="num">{{ $p['terms_days'] !== null ? $p['terms_days'].' days' : '—' }}</td>
+        <td class="small {{ $p['expired'] ? 'text-red bold' : '' }}">{{ dmy($p['valid_until']) }}@if($p['expired']) <span class="badge badge-red">expired</span>@elseif($p['expires_in'] !== null && $p['expires_in'] <= 3) <span class="badge badge-amber">expires in {{ $p['expires_in'] }} day{{ $p['expires_in'] === 1 ? '' : 's' }}</span>@endif</td>
+        <td class="num">@if($p['score'] !== null)<b>{{ $p['grade'] }}</b> {{ $p['score'] }}@else — @endif</td></tr>@endforeach
+      </tbody></table></div>
+    <p class="small" id="rfqPromiseState" style="margin:.6rem 0 0"><x-icon name="info"/> {{ $head['verdict'] }}</p>
+    <p class="small muted" style="margin:.3rem 0 0">
+      Delivery is counted from today, {{ dmy(bdate()) }}, not from the date the quote was given, because that is when the
+      order would be placed. A quote whose validity has run out is not a cheap quote any more — it is a starting point for
+      a phone call, and the award screen will still let it be chosen, which is why it is marked here.
+    </p>
+  </div>
+</div>
+@endif
+
+{{-- v9.28 where this document sits --}}
+<div class="card" id="rfqChain"><div class="card-body small">
+  <x-icon name="link"/> The comparative statement decides who raises the purchase order, and everything after it — the
+  order, the goods receipt, the supplier bill — inherits that choice. Price is the axis the table ranks on because it is
+  the only one that can be compared line by line; delivery, terms and the life of the quote are the axes that decide
+  whether the cheapest line can actually be taken, and they are the ones a buyer is held to when the goods do not arrive.
+</div></div>
 
 @if($awarded)
 <div class="card" id="rfqPos"><div class="card-head"><h3>Purchase orders raised</h3></div><div class="card-body table-wrap"><table class="table table-compact"><tbody>

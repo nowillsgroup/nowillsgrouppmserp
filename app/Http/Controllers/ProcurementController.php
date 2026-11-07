@@ -205,13 +205,100 @@ class ProcurementController extends Controller
         return $this->attempt(fn () => redirect()->route('rfq.show', ProcurementService::saveRfq($data, $rfq))->with('success', 'RFQ updated.'), '');
     }
 
+    /**
+     * v9.28: the screen where the award is made.
+     *
+     * The comparative statement already ranks the bids on landed price, line by line, which is the only fair way to
+     * compare them. What it cannot say is whether the bid it ranks first can actually be taken: a quote that arrives
+     * after the date the store needs the goods, or whose validity ran out while the request sat waiting, is not cheaper
+     * than the next one — it is simply not available. So each quote is read on three axes it does not print of its own
+     * accord — the date it lands by, the terms it asks for, and the day its price stops being an offer — and set against
+     * the rates the property last paid for the same lines.
+     */
     public function show(Rfq $rfq)
     {
         $rfq->load('lines.item', 'invites.supplier', 'store', 'creator', 'awarder', 'purchaseOrders.supplier', 'lines.awardedLine.quote.supplier');
         $cmp = ProcurementService::comparative($rfq);
+        $today = bdate();
+        $needed = $rfq->needed_by;
+
+        /* what each supplier is promising, beside what each is charging */
+        $promise = $cmp['quotes']->map(function ($q) use ($rfq, $cmp, $today, $needed) {
+            $days = $q->delivery_days === null ? null : (int) $q->delivery_days;
+            $arrives = $days === null ? null : $today->copy()->addDays($days);
+            $lateDays = ($arrives && $needed && $arrives->toDateString() > $needed->toDateString())
+                ? (int) round((strtotime($arrives->toDateString()) - strtotime($needed->toDateString())) / 86400) : 0;
+            $score = $cmp['scores'][$q->supplier_id] ?? null;
+
+            return [
+                'id' => $q->id, 'supplier' => $q->supplier?->name, 'total' => round((float) $q->total, 2),
+                'lines' => $q->lines->count(), 'of' => $rfq->lines->count(),
+                'partial' => $q->lines->contains(fn ($l) => $l->qty_offered !== null),
+                'delivery_days' => $days, 'arrives' => $arrives, 'late' => $lateDays > 0, 'late_days' => $lateDays,
+                'terms_days' => $q->payment_terms_days === null ? null : (int) $q->payment_terms_days,
+                'valid_until' => $q->valid_until,
+                'expired' => $q->valid_until && $q->valid_until->toDateString() < $today->toDateString(),
+                'expires_in' => $q->valid_until ? (int) round((strtotime($q->valid_until->toDateString()) - strtotime($today->toDateString())) / 86400) : null,
+                'grade' => $score['grade'] ?? null, 'score' => $score['score'] ?? null,
+            ];
+        })->values();
+
+        $late = $promise->filter(fn ($p) => $p['late'])->values();
+        $expired = $promise->filter(fn ($p) => $p['expired'])->values();
+        $usable = $promise->reject(fn ($p) => $p['late'] || $p['expired'])->values();
+
+        /* what the request is worth: the rates last paid for the same lines, and the saving the statement computes */
+        $atStake = 0.0;
+        foreach ($cmp['rows'] as $row) {
+            if ($row['last'] !== null) {
+                $atStake += round((float) $row['last'] * (float) $row['line']->qty, 2);
+            }
+        }
+        $head = [
+            'quotes' => $cmp['quotes']->count(), 'invited' => $rfq->invites->count(),
+            'low' => $cmp['lowTotal'], 'lowest' => $cmp['quotes']->first(),
+            'at_stake' => round($atStake, 2), 'saving' => round((float) collect($cmp['rows'])->sum('saving'), 2),
+            'late' => $late->count(), 'expired' => $expired->count(),
+            'pick' => $usable->first(), 'worst' => $usable->last(),
+            'days_left' => $needed ? (int) round((strtotime($needed->toDateString()) - strtotime($today->toDateString())) / 86400) : null,
+        ];
+        /* written here rather than in the attribute: a + and a ternary in one :sub is beyond the renderer's expression subset */
+        $blocked = collect([
+            $head['late'] ? $head['late'].' arrive'.($head['late'] === 1 ? 's' : '').' after the store needs it' : null,
+            $head['expired'] ? $head['expired'].' quote'.($head['expired'] === 1 ? '' : 's').' expired before the award' : null,
+        ])->filter()->implode(' · ');
+        $head['blocked_sub'] = $blocked !== '' ? $blocked : 'every bid can still be taken';
+        $head['blocked_tone'] = $head['late'] + $head['expired'] ? 'red' : 'green';
+        $head['needed_tone'] = $head['days_left'] !== null && $head['days_left'] < 0 ? 'red' : 'slate';
+        $head['needed_sub'] = $head['days_left'] === null
+            ? 'the store has not given a date'
+            : ($head['days_left'] < 0
+                ? abs($head['days_left']).' days past — the goods are already late'
+                : $head['days_left'].' day'.($head['days_left'] === 1 ? '' : 's').' left for the goods to arrive');
+        $head['sub'] = $rfq->invites->count()
+            ? $head['quotes'].' of '.$rfq->invites->count().' invited suppliers quoted'
+            : 'no supplier has been invited to quote';
+
+        /* the verdict: the cheapest bid is not the answer if it cannot be delivered */
+        if (! $head['quotes']) {
+            $head['verdict'] = 'No quotation has been received, so there is nothing to compare yet.';
+            $head['tone'] = 'slate';
+        } elseif ($head['pick'] && $head['lowest'] && $head['pick']['id'] !== $head['lowest']->id) {
+            $cheapest = $promise->firstWhere('id', $head['lowest']->id);
+            $head['verdict'] = 'The cheapest bid is '.$cheapest['supplier'].' at '.money($cheapest['total']).', but it '
+                .($cheapest['late'] ? 'lands '.$cheapest['late_days'].' day'.($cheapest['late_days'] === 1 ? '' : 's').' after the store needs it' : 'is no longer valid')
+                .'. '.$head['pick']['supplier'].' is '.money($head['pick']['total'] - $cheapest['total']).' dearer and can be delivered on time.';
+            $head['tone'] = 'amber';
+        } else {
+            $head['verdict'] = $head['lowest']
+                ? 'The cheapest bid can also be delivered: '.$promise->firstWhere('id', $head['lowest']->id)['supplier'].' at '.money($head['lowest']->total).', landing before the store needs it.'
+                : 'No quotation can be delivered by the date the store needs it.';
+            $head['tone'] = 'green';
+        }
 
         return view('procurement.rfq-show', ['rfq' => $rfq, 'cmp' => $cmp, 'minQuotes' => ProcurementService::minQuotes(),
-            'others' => Supplier::where('is_active', true)->whereNotIn('id', $rfq->invites->pluck('supplier_id'))->orderBy('name')->pluck('name', 'id')]);
+            'others' => Supplier::where('is_active', true)->whereNotIn('id', $rfq->invites->pluck('supplier_id'))->orderBy('name')->pluck('name', 'id'),
+            'promise' => $promise, 'head' => $head, 'openStatuses' => $rfq::OPEN]);
     }
 
     public function send(Rfq $rfq)

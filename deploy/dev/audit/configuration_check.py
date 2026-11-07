@@ -4493,6 +4493,52 @@ ok('the register itself did not change' in rf_check,
 ok("/rfqs-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26ay · the RFQ award screen: price, promise and the verdict ───────────────────────
+ra_fn = rf_ctrl[rf_ctrl.index('public function show(Rfq $rfq)'):rf_ctrl.index('public function send(Rfq $rfq)')]
+ok("$cmp = ProcurementService::comparative($rfq);" in ra_fn,
+   'the award screen reads the same comparison service the award itself uses')
+ok("$arrives = $days === null ? null : $today->copy()->addDays($days);" in ra_fn,
+   'delivery is counted from the day the order would be placed, not from the day the quote was given')
+ok("'late' => $lateDays > 0, 'late_days' => $lateDays," in ra_fn,
+   'a bid that lands after needed_by is marked late, with the distance in days')
+ok("'expired' => $q->valid_until && $q->valid_until->toDateString() < $today->toDateString()," in ra_fn,
+   'a quote whose validity has run out is marked expired rather than shown as a live price')
+ok("$usable = $promise->reject(fn ($p) => $p['late'] || $p['expired'])->values();" in ra_fn,
+   'the bid the verdict names is the cheapest one that is both valid and deliverable')
+ok("$head['verdict'] = 'The cheapest bid is '." in ra_fn,
+   'and the verdict says so in words, naming both bids and the difference between them')
+ok("$head['blocked_sub'] =" in ra_fn,
+   'the header sentence is written in PHP: a + and a ternary in one :sub is beyond the renderer')
+ok("'openStatuses' => $rfq::OPEN" in ra_fn,
+   'the model\'s own OPEN constant is handed to the view, because a static constant cannot render in a preview')
+rf_show_view = read(os.path.join(ROOT, 'resources/views/procurement/rfq-show.blade.php'))
+ok('in_array($rfq->status, $openStatuses)' in rf_show_view,
+   'and the cancel button tests that constant instead of resolving the class in the template')
+ok('id="rfqPromise"' in rf_show_view and 'What each supplier is promising' in rf_show_view and 'id="promiseTable"' in rf_show_view,
+   'the promise reading is a card of its own, one row per supplier')
+ok('$p[\'late_days\']' in rf_show_view and '$p[\'expires_in\']' in rf_show_view,
+   'late delivery and imminent expiry are printed beside the row they belong to')
+ok('id="rfqPromiseState"' in rf_show_view and '$head[\'verdict\']' in rf_show_view,
+   'and the verdict is stated once, under the table it comes from')
+ok('Delivery is counted from today' in rf_show_view,
+   'the card says which day the delivery is counted from, because that is the whole reading')
+ok('id="rfqChain"' in rf_show_view and 'decides who raises the purchase order' in rf_show_view,
+   'the page places the award among the documents it decides')
+ok('id="comparative"' in rf_show_view and 'id="awardForm"' in rf_show_view,
+   'the statement and the award form are untouched by the round that reads them')
+ra_sample = read(os.path.join(ROOT, 'deploy/dev/preview/rfq-show-sample.mjs'))
+ok('Math.round(spec.rates[i] * 1.15 * 10000) / 10000' in ra_sample,
+   'the sample keeps landed rates at the four places the service keeps them, so line totals can carry cents')
+ok('const CMP_ROWS = LINES.map((l, i) => {' in ra_sample and 'lowest: low.ql.id' in ra_sample,
+   'and builds the comparative rows the way comparative() builds them, lowest bid and all')
+ra_check = read(os.path.join(ROOT, 'deploy/dev/audit/rfq_show_preview_check.js'))
+ok('the cheapest bid is the one that arrives late' in ra_check,
+   'the check holds the promise card to the one row that makes the round worth doing')
+ok('the comparative statement, which this round must not have broken' in ra_check,
+   'and holds the round to leaving the statement and its award form intact')
+ok("/rfq-show" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the award screen is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
