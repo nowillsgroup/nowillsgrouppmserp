@@ -208,6 +208,15 @@
         $hkTone = ['dirty' => 'dirty', 'clean' => 'clean', 'inspected' => 'inspected', 'touch_up' => 'touchup'][$room->hk_status] ?? 'unknown';
         $stayGuestName = $guestDisplayName($stay);
         $stayGuestInitial = $guestInitial($stay);
+        // v10.23 the card stopped printing the money, so what is due travels to the rack as data on the card
+        // v10.26 the amenity icons live in a rail down the left of the photo: four slots, and the fourth becomes the
+        // count when there are more than four, so the number is honest at every card width.
+        $railAmenities = array_slice($c['amenities'], 0, count($c['amenities']) > 4 ? 3 : 4);
+        $railMore = count($c['amenities']) - count($railAmenities);
+        $cardNights = $stay ? max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) : '';
+        $cardDue = $stay ? ($c['due'] ?? $c['balance']) : null;
+        $cardDueLabel = ($cardDue === null || ! can_do('folio.view')) ? null
+          : ($cardDue > 0 ? money($cardDue).' due' : ($cardDue < 0 ? money(abs($cardDue)).' credit' : 'Settled'));
         // the room's own photo first, then its type's, then the generated block
         $cardPhoto = $c['photo_full'] ?? $c['photo'] ?? $room->roomType?->image;
         $searchText = implode(' ', array_unique(array_map('strval', array_filter([
@@ -219,9 +228,23 @@
           implode(' ', $c['amenities']),
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}">
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif@if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
+          {{-- v10.26 the facilities read down the left edge of the picture instead of as a row of glyphs under it:
+               a column costs the card no height at all, and four names is what a 104px photo can carry without
+               turning into a texture. The fourth slot becomes the count when there are more, and it opens the
+               dialog, which names every one of them. --}}
+          @if ($railAmenities)
+          <div class="ws-amen-rail">
+            @foreach ($railAmenities as $a)
+            <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
+            @endforeach
+            @if ($railMore > 0)
+            <button type="button" class="ws-amen-more" data-room="{{ $room->id }}" aria-label="Open room {{ $room->room_no }} details; {{ $railMore }} more {{ $railMore === 1 ? 'amenity' : 'amenities' }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">+{{ $railMore }}</button>
+            @endif
+          </div>
+          @endif
           <div class="ws-card-head">
             <div class="flex gap">
               <h2 class="ws-room-no" id="roomHeading{{ $room->id }}"><span class="sr-only">Room </span>{{ $room->room_no }}</h2>
@@ -250,47 +273,20 @@
           </div>
         </div>
         <div class="ws-card-body">
-        <div class="ws-amen">
-          @foreach (array_slice($c['amenities'], 0, 10) as $a)
-            <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
-          @endforeach
-          @if (count($c['amenities']) > 10)
-            <button type="button" class="ws-amen-more" data-room="{{ $room->id }}" aria-label="Open room {{ $room->room_no }} details; {{ count($c['amenities']) - 10 }} more amenities" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">+{{ count($c['amenities']) - 10 }}</button>
-          @endif
-        </div>
 
         @if ($stay)
-        <div class="ws-guest {{ $c['status'] === 'reserved' ? 'arriving' : ($c['status'] === 'occupied' ? 'inhouse' : '') }}">
-          <div class="flex gap">
-            <span class="ws-avatar">{{ $stayGuestInitial }}</span>
-            <div>
-              <div class="bold small">{{ $stayGuestName }}</div>
-              <div class="muted small">{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}</div>
-            </div>
-          </div>
-          <div class="ws-stay small">
-            <span><b>{{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}</b><br><span class="muted">Arrive</span></span>
-            <span class="ws-nights">{{ max(1, \Illuminate\Support\Carbon::parse($stay->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($stay->departure_date))) }}n</span>
-            <span><b>{{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}</b><br><span class="muted">Depart</span></span>
-          </div>
-          <div class="ws-rate-row small">
-            <div><span class="muted">Nightly rate</span><br><span class="bold">{{ money($c['rate']) }}</span> <span class="muted">/n</span></div>
-            @if (can_do('folio.view'))
-              @php $cardDue = $c['due'] ?? $c['balance']; @endphp
-              @if ($cardDue !== null)
-              <div class="text-right {{ $cardDue > 0 ? 'ws-due' : 'muted' }}" title="{{ $stay->status === 'checked_out' ? ($cardDue < 0 ? 'Final folio credit' : 'Final folio balance') : ($cardDue < 0 ? 'Estimated checkout credit, including nights and fixed charges still to post' : 'Estimated checkout amount, including nights and fixed charges still to post') }}">{{ $cardDue > 0 ? money($cardDue).' due' : ($cardDue < 0 ? money(abs($cardDue)).' credit' : 'Settled') }}</div>
-              @endif
-            @endif
-          </div>
-        </div>
+        {{-- v10.23 the card says what the room is and nothing else: who is in it, from when to when, and what it is
+             worth are all in the dialog the card opens — and in the rack. What stays here is one sr-only sentence,
+             so a screen reader still hears the guest, the stay and the money, and print — which has no dialog to
+             open — puts that sentence on the sheet in place of the rows the screen gave up. --}}
+        <span class="ws-guest-note sr-only">Guest {{ $stayGuestName }}{{ $roomSource ? ', '.$roomSource : '' }}{{ $isVip ? ', VIP' : '' }}{{ $stay->guest?->nationality ? ', '.$stay->guest->nationality : '' }}. Arrive {{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}, depart {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}, {{ $cardNights }} {{ $cardNights === 1 ? 'night' : 'nights' }} at {{ money($c['rate']) }} a night.@if ($cardDueLabel !== null) {{ $cardDueLabel }}.@endif</span>
         @else
-        <div class="ws-guest vacant">
-          <div class="muted small">{{ $c['status'] === 'occupied' ? 'OCCUPIED · NO LINKED STAY' : ($c['status'] === 'available' ? 'VACANT · RACK RATE' : 'ROOM UNAVAILABLE') }}</div>
-          <div class="ws-vacant-rate">{{ money($c['rate']) }} <small class="muted">/night</small></div>
-          @if ($c['status'] === 'available' && ! $isHistory && can_do('reservations.create'))
-            <a class="btn btn-sm btn-primary ws-reserve" href="{{ route('reservations.create', ['room' => $room->id, 'arrival' => $date->toDateString(), 'departure' => $date->copy()->addDay()->toDateString()]) }}" aria-label="Reserve room {{ $room->room_no }} for {{ $date->format('j F Y') }}">Reserve Room</a>
-          @endif
-        </div>
+        {{-- v10.25 an empty room used to get a block of its own — VACANT · RACK RATE, the rate again at 18px, and a
+             Reserve Room button — which made every vacant card taller than its neighbours and left the occupied ones
+             stretching to match. The state is the badge, the rate is the chip in the photo, and reserving is an
+             action, so it belongs in the action row with the others. What remains here is the sentence a screen
+             reader and the printed sheet use. --}}
+        <span class="ws-guest-note sr-only">{{ $c['status'] === 'occupied' ? 'Occupied, with no linked stay on this date.' : ($c['status'] === 'available' ? 'Available, no guest on this date, '.money($c['rate']).' a night.' : 'Not sellable on this date.') }}</span>
         @endif
 
         <div class="ws-actions">
@@ -317,6 +313,9 @@
               <input type="hidden" name="hk_status" value="dirty">
               <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark Dirty</button>
             </form>
+          @endif
+          @if (! $stay && $c['status'] === 'available' && ! $isHistory && can_do('reservations.create'))
+            <a class="btn btn-sm btn-primary ws-reserve" href="{{ route('reservations.create', ['room' => $room->id, 'arrival' => $date->toDateString(), 'departure' => $date->copy()->addDay()->toDateString()]) }}" aria-label="Reserve room {{ $room->room_no }} for {{ $date->format('j F Y') }}">Reserve</a>
           @endif
           <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
         </div>
@@ -871,11 +870,13 @@
     [...document.querySelectorAll('#wsGrid .ws-card')].forEach(card => {
       const roomNo = (card.querySelector('.ws-room-no')?.textContent || '').trim().replace(/^Room\s+/i, '');
       const roomId = card.querySelector('[data-room]')?.dataset.room || '';
-      const guest = card.querySelector('.ws-guest .bold.small')?.textContent.trim() || '';
-      const guestMeta = card.querySelector('.ws-guest .muted.small')?.textContent.trim() || '';
-      const nights = card.querySelector('.ws-nights')?.textContent.trim() || '';
+      // v10.23 the card prints neither the guest nor the nights nor the money, so the rack takes all four from the
+      // card's data rather than from markup that is no longer there.
+      const guest = card.dataset.guest || '';
+      const guestMeta = card.dataset.guestMeta || '';
+      const nights = card.dataset.nights ? card.dataset.nights + 'n' : '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
-      const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
+      const balance = card.dataset.due || '';
       // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
       // from the chip's text minus that span: stripping a prefix by regex broke the moment the wording
       // changed, and the column started reading "housekeeping: Dirty".
@@ -1411,7 +1412,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
 /* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
    to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
    two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
@@ -1438,8 +1439,9 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
    the row was density, and density is what a 2560px screen would otherwise lose. */
 @container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
-.ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:box-shadow .16s ease,border-color .16s ease,transform .16s ease}
+.ws-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.10);transform:translateY(-1px)}
+.ws-card:focus-within{outline:2px solid #86c79b;outline-offset:2px}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
 .ws-card[data-status="occupied"]{--ws-status-accent:#3b82f6}
@@ -1447,13 +1449,23 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:9px 10px 0;min-height:0;color:#fff}
+.ws-amen-rail{position:absolute;z-index:2;top:0;bottom:0;left:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 3px;background:linear-gradient(90deg,rgba(15,23,42,.58),rgba(15,23,42,.26) 70%,rgba(15,23,42,0))}
+.ws-amen-rail>span{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:0 0 16px;border-radius:50%;background:rgba(15,23,42,.42);color:#fff}
+.ws-amen-rail .i{width:11px;height:11px}
+.ws-amen-rail .ws-amen-more{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:0 0 16px;padding:0;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(255,255,255,.92);color:#14532d;font-size:8px;font-weight:800;line-height:1;cursor:pointer}
+.ws-amen-rail .ws-amen-more:hover{background:#fff}
+/* the rail owns 22px of the photo's left edge, so the head and the foot start to the right of it */
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:6px;padding:8px 9px 0 24px;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:54%;flex:0 0 auto}
+.ws-card-head .text-right{max-width:44%;flex:0 0 auto}
+/* v10.25 at five across the type name had 51px beside a badge allowed 54% of the card, so "Deluxe Sea View" wrapped
+   to three lines and pushed the room number out of line with its neighbours. One line each, cut with an ellipsis:
+   the card is a way of finding the room, and the dialog names the type in full. */
+.ws-card-head .bold.small,.ws-card-head .muted.small{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
-.ws-card-head .badge{white-space:normal;padding:2px 5px;font-size:9px;letter-spacing:.2px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-card-head .badge{white-space:normal;padding:1px 5px;font-size:8.5px;letter-spacing:.3px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
 .ws-room-no{font-size:21px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;letter-spacing:.2px;background:#fef3c7;color:#b45309;padding:2px 4px;border-radius:5px}
 .ws-hk-badge{display:inline-block;max-width:100%;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;box-shadow:0 1px 6px rgba(15,23,42,.24)}
@@ -1465,10 +1477,10 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:7px;padding:8px 10px}
-.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 8px;color:rgba(255,255,255,.94);font-size:10px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:6px;padding:7px 9px 7px 24px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 7px;color:rgba(255,255,255,.94);font-size:9.5px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
-.ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
+.ws-photo-meta .i{width:12px;height:12px;flex:0 0 12px;color:rgba(255,255,255,.88)}
 .ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
 .ws-photo-link:hover{filter:saturate(1.08)}
 .ws-person-row{display:flex;flex-direction:column;gap:4px}
@@ -1479,34 +1491,21 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:3px 7px;border:1px solid rgba(255,255,255,.65);border-radius:7px;font-size:11.5px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
+.ws-photo-rate{position:absolute;z-index:1;right:8px;bottom:7px;background:rgba(255,255,255,.97);color:#14532d;font-weight:800;padding:2px 6px;border:1px solid rgba(255,255,255,.7);border-radius:6px;font-size:11px;font-variant-numeric:tabular-nums;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
 .ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
 .ws-photo-rate.ws-rate-unset small{color:#b45309}
-.ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px 6px;color:#94a3b8}
-.ws-amen .i{width:13px;height:13px}
-.ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
-.ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
-.ws-guest>.flex{align-items:center}
-.ws-guest>.flex>div{min-width:0}
-.ws-guest>.flex .bold{overflow-wrap:anywhere}
-.ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
-.ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
-.ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
+.ws-card-body{display:flex;flex-direction:column;padding-bottom:0}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:6px;padding:6px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;font-size:10.5px;text-align:center}
-.ws-nights{font-size:9.5px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:2px 6px;color:#166534;white-space:nowrap}
-.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
-.ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
-.ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
-.ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
+/* v10.25 Reserve sits where the other primary actions sit — first in the row — and ··· keeps the far edge. Two auto
+   margins in one row would have split the free space and left the button floating in the middle. */
+.ws-reserve{margin-left:0}
+.ws-actions{display:flex;align-items:center;gap:5px;min-height:34px;margin-top:auto;padding:5px 8px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions .btn{display:inline-flex;min-height:26px;align-items:center;justify-content:center;gap:4px;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:650;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
 /* v10.17 the action row folds in three steps rather than one, because the controls are not one size.
    Measured at their own type: the primary button is ~80px, Reservation details ~119px, Mark Dirty ~85px,
@@ -1517,11 +1516,23 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
      · and from 250px down the ··· loses its words, so the primary action and ··· share one line at any width.
    A folded control is not a lost one: the room dialog carries the extend and mark-dirty forms under their own
    ROOM ACTIONS heading, and Reservation details is in the dialog's Quick Links. */
+/* v10.26 the rail takes 22px off the left of the photo and the badge asks for up to 44% of the card, which between
+   them left the room number 30px of the 36px it needs at five across. The badge gives two points back and the head
+   tightens its own edges, so "101" stays whole and the type name is what gets the ellipsis. */
+@container wscard (max-width:199px){
+  .ws-card-head{padding-left:22px;padding-right:7px}
+  .ws-card-head .text-right{max-width:40%}
+  .ws-amen-rail>span,.ws-amen-rail .ws-amen-more{width:15px;height:15px;flex-basis:15px}
+  .ws-amen-rail .i{width:10px;height:10px}
+  .ws-photo-foot{padding-left:22px}
+}
 @container wscard (max-width:379px){.ws-actions .ws-extend-form{display:none}}
 @container wscard (max-width:249px){.ws-actions .ws-act-minor{display:none}}
 @container wscard (max-width:379px){
   .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
 }
+/* v10.21 put the rate and what was due on a line each below 200px; v10.23 took those rows off the card
+   altogether, so the narrow-card treatment is now the action fold above and nothing else. */
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -1666,8 +1677,6 @@ body.dark .ws-kpi-label,body.dark .ws-rail-title,body.dark .ws-date-jump-label{c
 body.dark .ws-empty .card-body{background:linear-gradient(135deg,var(--c-surface),#18281e)}
 body.dark .ws-empty-icon{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-guest.vacant{background:#18281e}
-body.dark .ws-stay,body.dark .ws-rate-row{border-color:var(--c-border)}
-body.dark .ws-nights{background:#143323;color:#86efac}
 body.dark .ws-rail-title{border-color:var(--c-border)}
 body.dark .ws-rail-list tr+tr td{border-top-color:var(--c-border)}
 body.dark .ws-cal-day:hover:not(.today):not(.disabled){background:#193525;color:#d7f5df}
@@ -1701,7 +1710,6 @@ body.dark .ws-actions .ws-all:hover{background:#234630;color:#d7f5df}
 body.dark .ws-extend-form input{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
 body.dark .ws-fac-more{color:#86efac}
 body.dark .ws-fac-more summary:focus-visible{outline-color:#86efac}
-body.dark .ws-amen-more{background:#193525;border-color:#3b5946;color:#86efac}
 body.dark .ws-vip-filter{border-color:var(--c-border)}
 body.dark .ws-cal-day.disabled{color:#94a3b8}
 /* ────────────────────────────────────────────────────────────────────────
@@ -1738,7 +1746,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
 @media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1881,7 +1889,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-rack-scroll{overflow:visible;border:0}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
-  .ws-card-head{padding:8px 10px 0}
+  .ws-card-head{padding:8px 10px 0 24px}
+  .ws-amen-rail{padding-left:2px;background:#f1f5f9}
+  .ws-amen-rail>span{background:#e2e8f0;color:#334155}
+  .ws-amen-rail .ws-amen-more{background:#fff;border-color:#cbd5e1;color:#14532d}
+  /* v10.23 the screen card carries one sr-only sentence — guest, source, arrive, depart, nights, rate, due — and
+     nothing else about the stay. A sheet of paper has no dialog to open, so on paper that sentence is printed, and
+     it is the only place the printed board says who is in the room. */
+  #wsGrid .ws-guest-note{position:static;display:block;width:auto;height:auto;margin:0 10px 6px;overflow:visible;white-space:normal;clip-path:none;color:#64748b;font-size:10px;line-height:1.35}
   .ws-room-no{font-size:20px}
   .ws-photo-foot{padding:8px 10px}
   .ws-rack-thumb{display:none}

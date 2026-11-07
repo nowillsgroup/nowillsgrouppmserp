@@ -86,10 +86,9 @@ ok('the facts under the picture are the room’s own',
   (cards[0].querySelector('.ws-photo-meta')?.textContent ?? '').includes('m²')
     && /guests/.test(cards[0].querySelector('.ws-photo-meta')?.textContent ?? ''),
   cards[0].querySelector('.ws-photo-meta')?.textContent?.trim());
-ok('the body holds the amenities, the guest and the actions',
-  cards.every(card => card.querySelector('.ws-card-body .ws-amen')
-    && card.querySelector('.ws-card-body .ws-guest')
-    && card.querySelector('.ws-card-body .ws-actions')));
+ok('the body holds the action row and nothing else',
+  cards.every(card => card.querySelector('.ws-card-body .ws-actions'))
+    && $$('#wsGrid .ws-card .ws-amen').length === 0);
 // v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
 // than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
 // squeezing five into a phone.
@@ -149,6 +148,109 @@ ok('and the extend form folds first, because it is the widest thing in the row',
   /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
     && wsStyle.indexOf('\u00b7 under 380px') > 0,
   'a 140px date field and a button do not share a line with anything');
+// v10.22 took the guest and the stay off the card; v10.23 took the provenance line and the money with it; v10.24
+// took the amenity icons. What is left on the card is the room's picture and the one action that moves it.
+ok('the card prints no guest, no stay dates and no money',
+  $$('#wsGrid .ws-card .ws-stay').length === 0
+    && $$('#wsGrid .ws-card .ws-guest .bold.small').length === 0
+    && $$('#wsGrid .ws-card .ws-rate-row').length === 0
+    && $$('#wsGrid .ws-card .ws-guest-note').every(el => el.classList.contains('sr-only')),
+  `${cards.length} cards, none printing a name, a date or a balance`);
+// v10.25 a vacant room used to get a block of its own — VACANT · RACK RATE, the rate again at 18px, Reservice Room —
+// which made every vacant card taller than its neighbours. State is the badge, the rate is the photo chip, and
+// reserving is an action: it sits in the action row with the others, and every card is now the same two parts.
+ok('every card is the same two parts, whatever state it is in',
+  $$('#wsGrid .ws-card').every(card => card.children.length === 2
+    && card.children[0].classList.contains('ws-photo')
+    && card.children[1].classList.contains('ws-card-body'))
+    && $$('#wsGrid .ws-card .ws-guest').length === 0,
+  `${new Set($$('#wsGrid .ws-card').map(card => card.children.length)).size} shape(s) across ${cards.length} cards`);
+ok('an empty room offers its reservation as an action, not as a block',
+  $$('#wsGrid .ws-card[data-status="available"] .ws-actions .ws-reserve').length
+    === $$('#wsGrid .ws-card[data-status="available"]').length,
+  `${$$('#wsGrid .ws-card .ws-actions .ws-reserve').length} Reserve actions, none of them a block`);
+ok('and what the room is, is still in the sentence a screen reader and the sheet get',
+  $$('#wsGrid .ws-card .ws-guest-note').length === cards.length
+    && /Available, no guest on this date/.test($$('#wsGrid .ws-card[data-status="available"] .ws-guest-note')[0]?.textContent ?? ''),
+  $$('#wsGrid .ws-card[data-status="available"] .ws-guest-note')[0]?.textContent?.trim());
+ok('nor does the card keep dead rules for what it dropped',
+  !/\.ws-stay\{/.test(wsStyle) && !/\.ws-nights\{/.test(wsStyle)
+    && !/\.ws-rate-row\{/.test(wsStyle) && !/\.ws-guest-src\{/.test(wsStyle),
+  'the .ws-stay, .ws-nights, .ws-rate-row and .ws-guest-src rules all went with their markup');
+ok('and the narrow-card block that only served the rate row went too',
+  !/@container wscard \(max-width:199px\)\{[\s\S]{0,600}\.ws-rate-row/.test(wsStyle),
+  'the 199px step that survives is the one that makes room for the rail, and it says so');
+ok('but every stay still reads out in full to a screen reader',
+  $$('#wsGrid .ws-card[data-guest] .ws-guest-note').length === $$('#wsGrid .ws-card[data-guest]').length
+    && $$('#wsGrid .ws-card[data-guest] .ws-guest-note').every(el =>
+      /Guest .+/.test(el.textContent) && /Arrive .+, depart .+/.test(el.textContent)
+      && /\d+ nights? at /.test(el.textContent)),
+  $$('#wsGrid .ws-card .ws-guest-note')[0]?.textContent?.trim());
+ok('and the card carries guest, source, nights and the money as data for whoever still needs them',
+  $$('#wsGrid .ws-card[data-guest]').every(el => (el.dataset.guest ?? '').length > 0
+    && (el.dataset.guestMeta ?? '').length > 0
+    && /^\d+$/.test(el.dataset.nights ?? '')),
+  `${$$('#wsGrid .ws-card[data-guest]').length} cards carry data-guest, data-guest-meta and data-nights`);
+ok('the dialog the card opens is where all of it went',
+  $$('.ws-modal .ws-resv').length === $$('#wsGrid .ws-card[data-guest]').length
+    && $$('.ws-modal .ws-resv').every(box => (box.querySelector('.bold')?.textContent ?? '').trim().length > 0
+      && /→/.test(box.textContent)),
+  `every dialog still states the guest and 12 Nov → 15 Nov · 3n`);
+// v10.24 with the stay block and the amenity strip gone there was nothing left to absorb the slack a stretched card
+// was given, so the card grew a band of white between its photo and its action row. The grid sizes cards to their
+// contents now, and the body no longer claims the slack.
+ok('cards are as tall as what they hold, not as tall as the tallest in the row',
+  /\.ws-grid\{[^}]*align-items:start/.test(wsStyle)
+    && /\.ws-group-grid\{[^}]*align-items:start/.test(wsStyle)
+    && /\.ws-card-body\{[^}]*\}/.test(wsStyle)
+    && !/\.ws-card-body\{[^}]*flex:1/.test(wsStyle),
+  'no stretched card, no gap under the photo');
+// v10.26 the facilities came back, but as a column down the left of the photograph rather than a row under it: a
+// column costs the card no height, and height is the one thing this board cannot spare.
+ok('the facilities are a column on the photo, not a row under it',
+  $$('#wsGrid .ws-card .ws-photo .ws-amen-rail').length === cards.length
+    && $$('#wsGrid .ws-card .ws-amen').length === 0,
+  `${$$('#wsGrid .ws-card .ws-photo .ws-amen-rail').length} rails, one per card, none in the body`);
+ok('and it is drawn downward, tight against the left edge',
+  /\.ws-amen-rail\{[^}]*position:absolute/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*left:0/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*flex-direction:column/.test(wsStyle)
+    && /\.ws-amen-rail\{[^}]*justify-content:center/.test(wsStyle),
+  wsStyle.match(/\.ws-amen-rail\{[^}]*\}/)?.[0]?.slice(0, 110));
+ok('four names fit a 104px photo, and the count is honest when there are more',
+  $$('#wsGrid .ws-amen-rail').every(rail => rail.children.length <= 4)
+    // a rail that reports a remainder shows three names and the count; a rail that reports none shows all it has
+    && $$('#wsGrid .ws-amen-rail').every(rail => {
+      const count = rail.querySelector('.ws-amen-more');
+      const shown = rail.querySelectorAll('span[role="img"]').length;
+      return count ? shown === 3 : shown >= 1 && shown <= 4;
+    })
+    && $$('#wsGrid .ws-amen-rail .ws-amen-more').every(button =>
+      Number(button.textContent.replace(/\D/g, ''))
+        === Number((button.getAttribute('aria-label') ?? '').match(/(\d+) more/)?.[1] ?? -1))
+    && $$('#wsGrid .ws-amen-rail span[role="img"]').every(span => (span.getAttribute('title') ?? '').length > 0),
+  `${$$('#wsGrid .ws-amen-rail span[role="img"]').length} names and ${$$('#wsGrid .ws-amen-rail .ws-amen-more').length} counts across ${cards.length} cards`);
+ok('and the count opens the dialog that lists them all',
+  $$('#wsGrid .ws-amen-rail .ws-amen-more').every(button => /roomModal\d+/.test(button.getAttribute('aria-controls') ?? '')),
+  "the same trigger the photo and the ··· use");
+ok('the dialog names every amenity the card used to draw in icons',
+  $$('.ws-modal .ws-fac-chip').length > 0,
+  `${$$('.ws-modal .ws-fac-chip').length} facility chips across the dialogs`);
+// v10.25 the polish pass: one line per head row, one action-bar height, one corner radius, and a keyboard ring.
+ok('the head cuts a long type name with an ellipsis instead of wrapping it',
+  /\.ws-card-head \.bold\.small,\.ws-card-head \.muted\.small\{[^}]*white-space:nowrap\}?[^}]*text-overflow:ellipsis/.test(wsStyle)
+    || (/\.ws-card-head \.bold\.small,\.ws-card-head \.muted\.small\{/.test(wsStyle)
+      && /text-overflow:ellipsis/.test(wsStyle.match(/\.ws-card-head \.bold\.small[^{]*\{[^}]*\}/)?.[0] ?? '')),
+  wsStyle.match(/\.ws-card-head \.bold\.small[^{]*\{[^}]*\}/)?.[0]);
+ok('the action bar is one height on every card',
+  /\.ws-actions\{[^}]*min-height:34px/.test(wsStyle)
+    && /\.ws-actions \.btn\{[^}]*min-height:26px/.test(wsStyle),
+  'a card with one action and a card with four are the same height');
+ok('and the card answers the keyboard, not only the mouse',
+  /\.ws-card:focus-within\{outline:2px solid/.test(wsStyle)
+    && /\.ws-card:hover\{[^}]*transform:translateY\(-1px\)/.test(wsStyle)
+    && /\.ws-card\{[^}]*border-radius:12px/.test(wsStyle),
+  'focus ring, a 1px lift on hover, and one corner radius for the whole board');
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
@@ -254,6 +356,10 @@ ok('printing gives the board its own count instead of the screen\'s',
 ok('and the sheet leaves the sort chip and the action rows off the paper',
   /@media print\{[\s\S]{0,200}\.ws-rack-sortstate\{display:none!important\}/.test(wsStyle),
   'three across, no screen controls');
+// v10.22 a sheet of paper has no dialog, so the name the card stopped printing comes back on paper
+ok('and paper puts the guest name back, because a sheet has no dialog to open',
+  /@media print\{[\s\S]{0,2000}#wsGrid \.ws-guest-note\{position:static;display:block/.test(wsStyle),
+  'the sr-only sentence is printed as a line of its own on the sheet');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',
@@ -332,6 +438,12 @@ const rows = $$('#wsRackBody tr');
 ok('every room has a rack row', rows.length === cards.length, `${rows.length} rows`);
 ok('the rack shows the room number', (rows[0]?.querySelector('.ws-rack-room b')?.textContent ?? '').length === 3,
   rows[0]?.querySelector('.ws-rack-room b')?.textContent);
+// v10.22 the board stopped naming the guest and counting the nights; the rack is where that lives now, read from
+// the card's data rather than from markup the card no longer prints.
+ok('the rack still names the guest and counts the nights the card dropped',
+  rows.filter(r => (r.querySelector('.ws-rack-guest b')?.textContent ?? '').trim().length > 2).length >= 1
+    && rows.filter(r => /^\d+n$/.test((r.querySelector('[data-col="nights"]')?.textContent ?? '').trim())).length >= 1,
+  `${rows.filter(r => /^\d+n$/.test((r.querySelector('[data-col="nights"]')?.textContent ?? '').trim())).length} rows carry a night count`);
 ok('the rack shows status, guest, rate and an action',
   Boolean(rows[0]?.querySelector('.badge')) && rows[0].querySelectorAll('td').length >= 7,
   `${rows[0]?.querySelectorAll('td').length} cells`);
