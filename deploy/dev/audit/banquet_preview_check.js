@@ -162,6 +162,42 @@ ok('a quantity priced line adds to the estimate',
     return Number(amount.replace(/[^\d.]/g, '')) === 420;
   })());
 
+/* ── dietary needs, recorded per function ────────────────────────────────── */
+ok('a new function starts with no dietary needs to its name',
+  /None recorded/.test(fn.querySelector('.fn-diet-count')?.textContent ?? ''),
+  fn.querySelector('.fn-diet-count')?.textContent);
+ok('adding a dietary need is one row, named the way the request is read',
+  (() => {
+    fn.querySelector('.fn-adddiet').click();
+    const row = fn.querySelector('.fn-diet');
+    if (!row) return false;
+    return row.querySelector('[data-d=diet]').name === 'functions[0][dietary][0][diet]'
+      && row.querySelector('[data-d=covers]').name === 'functions[0][dietary][0][covers]'
+      && row.querySelector('[data-d=dish]').name === 'functions[0][dietary][0][dish]';
+  })(),
+  fn.querySelector('.fn-diet [data-d=diet]')?.name);
+ok('the diet list is the six the sheet prints',
+  fn.querySelectorAll('.fn-diet [data-d=diet] option').length === 7,
+  String(fn.querySelectorAll('.fn-diet [data-d=diet] option').length));
+ok('the chip counts the covers as they are typed',
+  (() => {
+    const row = fn.querySelector('.fn-diet');
+    const select = row.querySelector('[data-d=diet]');
+    const covers = row.querySelector('[data-d=covers]');
+    select.value = 'coeliac';
+    create.fire(select, 'change');
+    covers.value = '4';
+    create.fire(covers);
+    return /1 need · 4 covers/.test(fn.querySelector('.fn-diet-count')?.textContent ?? '');
+  })(),
+  fn.querySelector('.fn-diet-count')?.textContent);
+ok('a dietary row can be taken back off the function',
+  (() => {
+    fn.querySelector('.fn-diet .dt-del').click();
+    return fn.querySelectorAll('.fn-diet').length === 0
+      && /None recorded/.test(fn.querySelector('.fn-diet-count')?.textContent ?? '');
+  })());
+
 /* ── the edit screen ─────────────────────────────────────────────────────── */
 ok('editing drops the enquiry-only controls', edit.$$('.bq-form-steps a').length === 0);
 ok('and the tab names the event being edited', /Edit BQT-26041/.test(edit.doc.title), edit.doc.title);
@@ -178,6 +214,22 @@ ok('each function opens on its own venue, set-up and guest count',
 ok('the extras the client asked for are on the function',
   edit.$$('#fnList .fn-item').length === 5,
   `${edit.$$('#fnList .fn-item').length} extra lines`);
+ok('the dietary needs saved on a function come back on the form',
+  (() => {
+    const reception = edit.$$('#fnList .fn-card')[1];
+    const rows = [...reception.querySelectorAll('.fn-diet')].map(row => [
+      row.querySelector('[data-d=diet]').value,
+      row.querySelector('[data-d=covers]').value,
+    ].join(':'));
+    return rows.join(' ') === 'vegetarian:12 coeliac:2 nut_allergy:1';
+  })(),
+  [...(edit.$$('#fnList .fn-card')[1]?.querySelectorAll('.fn-diet [data-d=diet]') ?? [])].map(el => el.value).join(','));
+ok('and the function says how many covers need a different plate',
+  /3 needs · 15 covers/.test(edit.$$('#fnList .fn-card')[1].querySelector('.fn-diet-count')?.textContent ?? ''),
+  edit.$$('#fnList .fn-card')[1].querySelector('.fn-diet-count')?.textContent);
+ok('a function with no dietary needs says so rather than showing a blank row',
+  edit.$$('#fnList .fn-card')[0].querySelectorAll('.fn-diet').length === 0
+  && /None recorded/.test(edit.$$('#fnList .fn-card')[0].querySelector('.fn-diet-count')?.textContent ?? ''));
 ok('a final guarantee is shown as final, and cannot be lowered',
   (() => {
     const locked = edit.$$('.fn-lock').filter(chip => !chip.hidden);

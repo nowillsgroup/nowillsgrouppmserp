@@ -133,7 +133,7 @@ class BanquetController extends Controller
         $e = new BanquetEvent(['event_type' => 'wedding', 'status' => 'enquiry', 'sales_user_id' => auth()->id(), 'source' => 'phone']);
         $fn = [['id' => null, 'name' => '', 'banquet_hall_id' => (int) $request->input('hall') ?: null, 'date' => $request->input('date', bdate()->copy()->addDays(14)->toDateString()),
             'start_time' => '19:00', 'end_time' => '23:00', 'setup_style' => 'banquet', 'expected_pax' => null, 'guaranteed_pax' => null, 'banquet_package_id' => null,
-            'rate_per_pax' => null, 'hall_rate' => null, 'notes' => null, 'items' => []]];
+            'rate_per_pax' => null, 'hall_rate' => null, 'notes' => null, 'dietary' => [], 'items' => []]];
 
         return view('banquet.form', $this->formData($e, $fn));
     }
@@ -155,6 +155,8 @@ class BanquetController extends Controller
             'functions.*.expected_pax' => 'required|integer|min:1|max:10000', 'functions.*.guaranteed_pax' => 'nullable|integer|min:1|max:10000',
             'functions.*.banquet_package_id' => 'nullable|integer|owned:banquet_packages', 'functions.*.rate_per_pax' => 'nullable|numeric|min:0|max:999999',
             'functions.*.hall_rate' => 'nullable|numeric|min:0|max:99999999', 'functions.*.notes' => 'nullable|string|max:3000',
+            'functions.*.dietary' => 'nullable|array|max:12', 'functions.*.dietary.*.diet' => 'nullable|in:'.implode(',', array_keys(BanquetFunction::DIETS)),
+            'functions.*.dietary.*.covers' => 'nullable|integer|min:0|max:10000', 'functions.*.dietary.*.dish' => 'nullable|string|max:120',
             'functions.*.items' => 'nullable|array|max:40', 'functions.*.items.*.banquet_service_id' => 'nullable|integer|owned:banquet_services',
             'functions.*.items.*.description' => 'nullable|string|max:150', 'functions.*.items.*.qty' => 'nullable|numeric|min:0|max:100000',
             'functions.*.items.*.unit_price' => 'nullable|numeric|min:0|max:99999999', 'functions.*.items.*.tax_rate' => 'nullable|numeric|min:0|max:50',
@@ -189,6 +191,7 @@ class BanquetController extends Controller
         $fns = $event->functions()->with('items')->get()->map(fn ($f) => ['id' => $f->id, 'name' => $f->name, 'banquet_hall_id' => $f->banquet_hall_id, 'date' => $f->date->toDateString(),
             'start_time' => substr($f->start_time, 0, 5), 'end_time' => substr($f->end_time, 0, 5), 'setup_style' => $f->setup_style, 'expected_pax' => $f->expected_pax,
             'guaranteed_pax' => $f->guaranteed_pax, 'banquet_package_id' => $f->banquet_package_id, 'rate_per_pax' => $f->rate_per_pax, 'hall_rate' => $f->hall_rate, 'notes' => $f->notes,
+            'dietary' => $f->dietary ?? [],
             'locked' => $f->guaranteeLocked() && $f->guaranteed_pax !== null,
             'items' => $f->items->map(fn ($i) => ['banquet_service_id' => $i->banquet_service_id, 'description' => $i->description, 'qty' => $i->qty, 'unit_price' => $i->unit_price, 'tax_rate' => $i->tax_rate])->all()])->all();
 

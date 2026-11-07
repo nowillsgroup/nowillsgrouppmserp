@@ -96,6 +96,19 @@ class BanquetSalesService
             if ($pkg && $pkg->min_pax && max($pax, (int) $guar) < $pkg->min_pax) {
                 throw ValidationException::withMessages(["functions.$i.banquet_package_id" => "$name: {$pkg->name} needs at least {$pkg->min_pax} guests."]);
             }
+            $diets = [];
+            foreach (array_values($f['dietary'] ?? []) as $row) {
+                $diet = (string) ($row['diet'] ?? '');
+                $covers = (int) ($row['covers'] ?? 0);
+                if (! array_key_exists($diet, BanquetFunction::DIETS) || $covers <= 0) {
+                    continue;
+                }
+                $diets[] = ['diet' => $diet, 'covers' => $covers, 'dish' => mb_substr(trim((string) ($row['dish'] ?? '')), 0, 120)];
+            }
+            $dietCovers = array_sum(array_column($diets, 'covers'));
+            if ($dietCovers > max($pax, (int) $guar)) {
+                throw ValidationException::withMessages(["functions.$i.dietary" => "$name: the dietary covers ({$dietCovers}) are more than the guests you are planning for."]);
+            }
             $hours = (strtotime($end) - strtotime($start)) / 3600;
             $items = [];
             foreach (array_values($f['items'] ?? []) as $it) {
@@ -115,7 +128,8 @@ class BanquetSalesService
                 'rate_per_pax' => round(isset($f['rate_per_pax']) && $f['rate_per_pax'] !== '' ? (float) $f['rate_per_pax'] : (float) $pkg?->price_per_pax, 2),
                 'fnb_tax_rate' => (float) ($pkg?->tax_rate ?? TaxService::rateFor('fnb', 0)),
                 'hall_rate' => round(isset($f['hall_rate']) && $f['hall_rate'] !== '' ? (float) $f['hall_rate'] : $hall->rentFor($hours), 2),
-                'hall_tax_rate' => (float) setting('banquet_hall_tax_rate', '21'), 'notes' => ($f['notes'] ?? null) ? mb_substr(trim($f['notes']), 0, 3000) : null, 'sort' => $i,
+                'hall_tax_rate' => (float) setting('banquet_hall_tax_rate', '21'), 'notes' => ($f['notes'] ?? null) ? mb_substr(trim($f['notes']), 0, 3000) : null,
+                'dietary' => $diets ?: null, 'sort' => $i,
             ], 'items' => $items];
         }
         if (! $rows) {

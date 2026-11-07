@@ -27,6 +27,9 @@
     </div>
     <div class="dept">
       <div><span class="lbl">Kitchen – menu</span>@if($f->package)<b>{{ $f->package->name }}</b>@if($f->package->itemList())<ul style="margin:2px 0 0;padding-left:18px">@foreach($f->package->itemList() as $i)<li>{{ $i }}</li>@endforeach</ul>@endif @elseif($f->rate_per_pax > 0) Custom menu – see notes @else No F&amp;B @endif</div>
+      @if(count($f->dietaryLines()))
+        <div><span class="lbl">Dietary – {{ $f->dietaryCovers() }} of {{ $f->billablePax() }} covers</span>@foreach($f->dietaryLines() as $diet)<b>{{ $diet['covers'] }} × {{ $diet['label'] }}</b>{{ $diet['dish'] ? ' — '.$diet['dish'] : '' }}<br>@endforeach</div>
+      @endif
       <div><span class="lbl">Notes – kitchen / service / set-up</span><div class="pre">{{ $f->notes ?: '—' }}</div></div>
       @foreach($f->items->groupBy(fn ($i) => $i->service?->department?->name ?? 'Banquet operations') as $dept => $items)
         <div><span class="lbl">{{ $dept }}</span>@foreach($items as $i){{ rtrim(rtrim(number_format($i->qty, 2), '0'), '.') }} × {{ $i->description }}<br>@endforeach</div>

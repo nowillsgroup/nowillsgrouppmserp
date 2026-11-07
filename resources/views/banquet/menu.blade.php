@@ -103,17 +103,26 @@
 
           <div class="menu-card">
             <span class="lbl">Dietary &amp; allergies</span>
-            @if($e->requirements)
-              <div class="pre muted">{{ $e->requirements }}</div>
+            @if(count($f->dietaryLines()))
+              <table class="menu-diet"><thead><tr><th>Diet</th><th class="r">Covers</th><th>Dish served</th></tr></thead><tbody>
+                @foreach($f->dietaryLines() as $line)
+                  <tr><td><b>{{ $line['label'] }}</b></td><td class="r"><b>{{ number_format($line['covers']) }}</b></td><td>{{ $line['dish'] ?: 'To be agreed' }}</td></tr>
+                @endforeach
+              </tbody></table>
+              <p class="note">{{ number_format($f->dietaryCovers()) }} of the {{ number_format($f->billablePax()) }} covers need a separate plate. Counts taken with the client and held on the booking.</p>
             @else
-              <p class="menu-empty">The booking carries no client requirements. Confirm dietary needs with the host before service.</p>
+              @if($e->requirements)
+                <div class="pre muted">{{ $e->requirements }}</div>
+              @else
+                <p class="menu-empty">The booking carries no client requirements. Confirm dietary needs with the host before service.</p>
+              @endif
+              <table class="menu-diet"><thead><tr><th>Diet</th><th class="r">Covers</th><th>Dish served</th></tr></thead><tbody>
+                @foreach(\App\Models\BanquetFunction::DIETS as $dietKey => $dietLabel)
+                  <tr><td>{{ $dietLabel }}</td><td class="r"><span class="menu-fill"></span></td><td><span class="menu-fill menu-fill-wide"></span></td></tr>
+                @endforeach
+              </tbody></table>
+              <p class="note">No dietary counts are held on this function. Take them from the client's requirements above, add them on the booking and write them in before service.</p>
             @endif
-            <table class="menu-diet"><thead><tr><th>Diet</th><th class="r">Covers</th><th>Dish served</th></tr></thead><tbody>
-              @foreach(['Vegetarian', 'Vegan', 'Gluten-free', 'Nut allergy', 'Other'] as $diet)
-                <tr><td>{{ $diet }}</td><td class="r"><span class="menu-fill"></span></td><td><span class="menu-fill menu-fill-wide"></span></td></tr>
-              @endforeach
-            </tbody></table>
-            <p class="note">Dietary counts are not held on the booking. Take them from the client's requirements above, confirm with the banquet manager and write them in before service.</p>
           </div>
 
           <div class="menu-card menu-wide">

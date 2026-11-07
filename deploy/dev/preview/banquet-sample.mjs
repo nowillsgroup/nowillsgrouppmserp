@@ -128,6 +128,8 @@ export const SERVICES = [
   { id: 32, name: 'Cloakroom attendant', category: 'other', price: 260, unit: 'staff', tax_rate: 15, sort: 12 },
 ];
 
+export const DIETS = { vegetarian: 'Vegetarian', vegan: 'Vegan', gluten_free: 'Gluten-free', coeliac: 'Coeliac', nut_allergy: 'Nut allergy', other: 'Other' };
+
 export const SERVICE_CATEGORIES = { av: 'Audio-visual', decor: 'Décor & flowers', entertainment: 'Entertainment', equipment: 'Equipment & furniture', staffing: 'Staffing', other: 'Other' };
 
 const CAPACITY_KEYS = Object.keys(SETUPS);
@@ -179,7 +181,7 @@ const FUNCTION_SPECS = {
     id: null, name: '', banquet_hall_id: null, date: '2026-11-19',
     start_time: '19:00', end_time: '23:00', setup_style: 'banquet',
     expected_pax: null, guaranteed_pax: null, banquet_package_id: null,
-    rate_per_pax: null, hall_rate: null, notes: null, items: [], locked: false,
+    rate_per_pax: null, hall_rate: null, notes: null, dietary: [], items: [], locked: false,
   }],
   edit: () => [
     {
@@ -189,6 +191,7 @@ const FUNCTION_SPECS = {
       rate_per_pax: 0, hall_rate: 4200, notes: 'Elders seated at the front; two chairs for the officiants. '
         + 'Family provides the drinks — no corkage to be charged. Guarantee closed three days out.',
       locked: true,
+      dietary: [],
       items: [
         { banquet_service_id: 21, description: 'PA system + 2 microphones', qty: 1, unit_price: 1800, tax_rate: 15 },
         { banquet_service_id: 29, description: 'Chiavari chair', qty: 156, unit_price: 35, tax_rate: 15 },
@@ -201,6 +204,11 @@ const FUNCTION_SPECS = {
       rate_per_pax: 320, hall_rate: 11000, notes: 'Head table for 12 on the dais. Band to finish by 23:00 per the '
         + 'house rule; 600-standing for the cocktail hour before dinner.',
       locked: false,
+      dietary: [
+        { diet: 'vegetarian', covers: 12, dish: 'Vegetable jollof with grilled plantain' },
+        { diet: 'coeliac', covers: 2, dish: 'Grilled fish, gluten-free plate' },
+        { diet: 'nut_allergy', covers: 1, dish: 'No satay — plain grilled chicken' },
+      ],
       items: [
         { banquet_service_id: 23, description: 'Stage lighting package', qty: 1, unit_price: 2400, tax_rate: 15 },
         { banquet_service_id: 24, description: 'Table centrepieces', qty: 18, unit_price: 120, tax_rate: 15 },
@@ -292,6 +300,7 @@ export function banquetContext(mode = 'new') {
       if (owner === 'BanquetEvent' && name === 'SOURCES') return SOURCES;
       if (owner === 'BanquetEvent' && name === 'STATUSES') return STATUSES;
       if (owner === 'BanquetFunction' && name === 'SETUPS') return SETUPS;
+      if (owner === 'BanquetFunction' && name === 'DIETS') return DIETS;
       return [];
     },
     Math, Number, String, Boolean, Array, Object, Date, JSON, RegExp,

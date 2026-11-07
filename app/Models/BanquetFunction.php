@@ -12,11 +12,16 @@ class BanquetFunction extends Model
 
     public const SETUPS = ['theatre' => 'Theatre', 'classroom' => 'Classroom', 'banquet' => 'Banquet (rounds)', 'ushape' => 'U-shape', 'cocktail' => 'Cocktail / standing', 'boardroom' => 'Boardroom'];
 
+    /** The dietary needs a function can carry, each with a count of covers. */
+    public const DIETS = ['vegetarian' => 'Vegetarian', 'vegan' => 'Vegan', 'gluten_free' => 'Gluten-free',
+        'coeliac' => 'Coeliac', 'nut_allergy' => 'Nut allergy', 'other' => 'Other'];
+
     protected $guarded = ['id', 'hotel_id'];
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'rate_per_pax' => 'float', 'hall_rate' => 'float', 'fnb_tax_rate' => 'float', 'hall_tax_rate' => 'float'];
+        return ['date' => 'date', 'rate_per_pax' => 'float', 'hall_rate' => 'float', 'fnb_tax_rate' => 'float', 'hall_tax_rate' => 'float',
+            'dietary' => 'array'];
     }
 
     public function event()
@@ -40,6 +45,32 @@ class BanquetFunction extends Model
     }
 
     /** Pax the client pays for: the guarantee (or the estimate before one is given), or more if more turned up. */
+    /**
+     * The dietary rows to print, labelled, with anything unrecognised or empty dropped.
+     *
+     * @return list<array{label: string, covers: int, dish: string}>
+     */
+    public function dietaryLines(): array
+    {
+        $out = [];
+        foreach ((array) ($this->dietary ?? []) as $row) {
+            $key = (string) ($row['diet'] ?? '');
+            $covers = (int) ($row['covers'] ?? 0);
+            if (! array_key_exists($key, self::DIETS) || $covers <= 0) {
+                continue;
+            }
+            $out[] = ['label' => self::DIETS[$key], 'covers' => $covers, 'dish' => trim((string) ($row['dish'] ?? ''))];
+        }
+
+        return $out;
+    }
+
+    /** Covers the kitchen is cooking to a different plate for. */
+    public function dietaryCovers(): int
+    {
+        return array_sum(array_column($this->dietaryLines(), 'covers'));
+    }
+
     public function billablePax(): int
     {
         return max((int) ($this->guaranteed_pax ?? $this->expected_pax), (int) ($this->actual_pax ?? 0));

@@ -124,17 +124,41 @@ ok('the reception prints the kitchen notes',
 ok('the ceremony prints its own notes',
   /The family provides the drinks/.test(text('.menu-card.menu-wide', ceremony)));
 
-/* ── dietary: the gap, told honestly ─────────────────────────────────────── */
+/* ── dietary: recorded counts where they exist, the gap where they do not ── */
+const dietRows = card => $$('.menu-diet tbody tr', card).map(tr => [...tr.cells].map(td => td.textContent.trim()));
+/** the dietary card, not the menu card — both are .menu-card */
+const dietCard = card => [...card.querySelectorAll('.menu-card')].find(el => /Dietary/.test(el.textContent));
 ok('every function carries a dietary block', $$('.menu-diet').length === 2);
-ok('the dietary grid has five rows per function', $$('.menu-diet tbody tr', reception).length === 5,
-  String($$('.menu-diet tbody tr', reception).length));
-ok('the grid is there to be written in, not filled in for the cook',
-  $$('.menu-fill', reception).length === 10, String($$('.menu-fill', reception).length));
-ok('the client requirements are printed verbatim',
-  /Two guests are coeliac and one is wheelchair-dependent/.test(text('.menu-card .pre', reception)));
-ok('the sheet admits the counts are not held on the booking',
-  /Dietary counts are not held on the booking/.test(bodyText));
-ok('and tells the cook who to ask', /confirm with the banquet manager/.test(bodyText));
+ok('the reception prints one row per recorded diet', dietRows(reception).length === 3,
+  String(dietRows(reception).length));
+ok('the vegetarian covers and the vegetarian plate are both printed',
+  dietRows(reception)[0]?.join(' · ') === 'Vegetarian · 12 · Vegetable jollof with grilled plantain',
+  dietRows(reception)[0]?.join(' · '));
+ok('a coeliac count is printed with its gluten-free plate',
+  dietRows(reception)[1]?.join(' · ') === 'Coeliac · 2 · Grilled fish, gluten-free plate',
+  dietRows(reception)[1]?.join(' · '));
+ok('the nut allergy is printed with what replaces the dish',
+  dietRows(reception)[2]?.join(' · ') === 'Nut allergy · 1 · No satay — plain grilled chicken',
+  dietRows(reception)[2]?.join(' · '));
+ok('the sheet totals the separate plates against the covers',
+  /15 of the 180 covers need a separate plate/.test(dietCard(reception)?.textContent ?? ''),
+  (dietCard(reception)?.textContent ?? '').slice(0, 160));
+ok('a function with counts gets no blank grid to fill in',
+  $$('.menu-fill', reception).length === 0, String($$('.menu-fill', reception).length));
+ok('the ceremony, with no counts, still gets the grid',
+  dietRows(ceremony).length === 6 && $$('.menu-fill', ceremony).length === 12,
+  `${dietRows(ceremony).length} rows / ${$$('.menu-fill', ceremony).length} blanks`);
+ok('the blank grid offers exactly the diets the booking can record',
+  dietRows(ceremony).map(row => row[0]).join(',') === 'Vegetarian,Vegan,Gluten-free,Coeliac,Nut allergy,Other',
+  dietRows(ceremony).map(row => row[0]).join(','));
+ok('the ceremony says plainly that nothing was recorded',
+  /No dietary counts are held on this function/.test(dietCard(ceremony)?.textContent ?? ''),
+  (dietCard(ceremony)?.textContent ?? '').slice(0, 140));
+ok('and tells the reader where to record them', /add them on the booking/.test(bodyText));
+ok('the client requirements are still printed where nothing is recorded',
+  /Two guests are coeliac and one is wheelchair-dependent/.test(dietCard(ceremony)?.textContent ?? ''));
+ok('the old blanket admission is gone now that counts are held',
+  !/Dietary counts are not held on the booking/.test(bodyText));
 
 /* ── nothing comes off the paper unsigned ────────────────────────────────── */
 ok('each function has a receipt line for the kitchen', $$('.menu-received').length === 2);

@@ -24,6 +24,8 @@ const day = iso => new SampleDate(`${iso}T09:00:00Z`);
 const hall = id => HALLS.find(h => h.id === id);
 
 /** BanquetPackage::itemList() over the package's one-dish-per-line items column. */
+const DIETS = { vegetarian: 'Vegetarian', vegan: 'Vegan', gluten_free: 'Gluten-free', coeliac: 'Coeliac', nut_allergy: 'Nut allergy', other: 'Other' };
+
 const pkg = id => {
   const row = PACKAGES.find(p => p.id === id);
   return row ? { id: row.id, name: row.name, type: row.type, itemList: () => [...(row.items ?? [])] } : null;
@@ -44,6 +46,11 @@ const fn = (spec) => ({
   // last day the guarantee can still be lowered — banquet_guarantee_days, 3
   guaranteeCutoff: () => day(spec.date).addDay(-3),
   items: Coll.of(spec.items ?? []),
+  // BanquetFunction::dietaryLines() / dietaryCovers() over the dietary JSON column
+  dietaryLines: () => (spec.dietary ?? [])
+    .filter(row => DIETS[row.diet] && Number(row.covers) > 0)
+    .map(row => ({ label: DIETS[row.diet], covers: Number(row.covers), dish: String(row.dish ?? '') })),
+  dietaryCovers: () => (spec.dietary ?? []).reduce((sum, row) => sum + (DIETS[row.diet] && Number(row.covers) > 0 ? Number(row.covers) : 0), 0),
 });
 
 export const FUNCTIONS = [
@@ -51,7 +58,7 @@ export const FUNCTIONS = [
     id: 4101, name: 'Traditional ceremony', banquet_hall_id: 3, date: '2026-12-12',
     start_time: '14:00', end_time: '17:00', setup_style: 'theatre',
     expected_pax: 150, guaranteed_pax: 150, actual_pax: null,
-    banquet_package_id: null, rate_per_pax: 0,
+    banquet_package_id: null, rate_per_pax: 0, dietary: [],
     notes: 'Elders seated at the front; two chairs for the officiants. The family provides the drinks — no corkage '
       + 'to be charged. No food service: water and kola on the head table only. Venue turns around to the '
       + 'reception in 60 minutes from 17:00.',
@@ -62,6 +69,11 @@ export const FUNCTIONS = [
     start_time: '19:00', end_time: '23:30', setup_style: 'banquet',
     expected_pax: 180, guaranteed_pax: 180, actual_pax: null,
     banquet_package_id: 11, rate_per_pax: 320,
+    dietary: [
+      { diet: 'vegetarian', covers: 12, dish: 'Vegetable jollof with grilled plantain' },
+      { diet: 'coeliac', covers: 2, dish: 'Grilled fish, gluten-free plate' },
+      { diet: 'nut_allergy', covers: 1, dish: 'No satay — plain grilled chicken' },
+    ],
     notes: 'Head table for 12 on the dais. Buffet open at 19:45, cleared by 21:15 — the band plays through the '
       + 'dessert course, finishing 23:00. Two coeliac guests and one wheelchair user are on the reception; keep a '
       + 'clear route to the head table. The family brings the cake — plate it, do not portion it on the buffet.',
@@ -116,6 +128,7 @@ export function menuContext({ focus = 0 } = {}) {
       if (owner === 'BanquetEvent' && name === 'TYPES') {
         return { wedding: 'Wedding', reception: 'Reception', conference: 'Conference', gala: 'Gala dinner', other: 'Other' };
       }
+      if (owner === 'BanquetFunction' && name === 'DIETS') return DIETS;
       if (owner === 'BanquetFunction' && name === 'SETUPS') {
         return { theatre: 'Theatre', banquet: 'Banquet rounds', classroom: 'Classroom', ushape: 'U-shape', cocktail: 'Cocktail', boardroom: 'Boardroom' };
       }
