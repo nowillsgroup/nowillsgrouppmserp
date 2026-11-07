@@ -16,19 +16,25 @@
 </div>
 
 <div class="card flush" id="viewsCard"><div class="card-head"><h3><x-icon name="star"/> Saved views</h3>
-  <form class="flex gap-1" method="get" action="{{ route('reports.index') }}"><span class="small muted">Open any report and press <b>Save view</b> to add one.</span></form></div>
-<div class="card-body table-wrap"><table class="table">
+  <div class="flex gap-1">
+    <input class="input input-sm no-print" placeholder="Search views…" aria-label="Search saved views" data-filter-table="#viewsTable" style="max-width:220px">
+    <span class="small muted">Open any report and press <b>Save view</b> to add one.</span>
+  </div></div>
+<div class="card-body table-wrap"><table class="table" id="viewsTable">
   <thead><tr><th>View</th><th>Report</th><th>Period</th><th>Columns / filter</th><th>Owner</th><th class="num">Opened</th><th></th></tr></thead>
   <tbody>@forelse($views as $v) @php $mine = $v->user_id === $me->id; [$vf, $vt] = $RS::resolve($v->range, $v->date_from, $v->date_to); @endphp
     <tr data-view="{{ $v->id }}">
       <td class="bold"><a href="{{ $v->url() }}">{{ $v->name }}</a>@if($v->is_pinned && $mine) <span class="badge badge-purple">pinned</span>@endif @if($v->is_shared) <span class="badge badge-blue">shared</span>@endif</td>
-      <td class="small">{{ $v->title() }}<div class="tiny muted">{{ \App\Http\Controllers\ReportController::REPORTS[$v->report_key][0] ?? '' }}</div></td>
+      <td class="small">{{ $v->title() }}<div class="tiny muted">{{ \App\Http\Controllers\ReportController::REPORTS[$v->report_key][0] ?? '' }}</div>
+        {{-- v10.11 a view of a slice says so here, so two views of the same report are told apart --}}
+        @if($v->scopeLabel())<div class="tiny" data-testid="view-scope"><x-icon name="list"/> <b>{{ $v->scopeLabel() }}</b> only</div>@endif</td>
       <td class="small">{{ $RS::RANGES[$v->range] ?? $v->range }}<div class="tiny muted">{{ $RS::rangeLabel($v->report_key, 'custom', $vf, $vt) }}</div></td>
       <td class="small">{{ $v->columns ? count($v->columns).' column(s)' : 'All columns' }}@if($v->filter)<div class="tiny muted">rows containing “{{ $v->filter }}”</div>@endif</td>
       <td class="small">{{ $mine ? 'Me' : $v->user?->name }}</td>
       <td class="num small">{{ $v->opens }}<div class="tiny muted">{{ $v->last_opened_at?->diffForHumans() }}</div></td>
       <td class="nowrap right">
         <a class="btn btn-sm btn-primary" href="{{ $v->url() }}"><x-icon name="eye"/> Open</a>
+        @if(can_do('reports.schedule'))<a class="btn btn-sm btn-ghost" href="{{ route('reports.schedules', ['view' => $v->id]) }}#scheduleForm" title="E-mail this view on a schedule"><x-icon name="mail"/></a>@endif
         @if($mine)
           <form method="post" action="{{ route('reports.views.pin', $v) }}" style="display:inline">@csrf<button class="btn btn-sm" title="{{ $v->is_pinned ? 'Unpin from' : 'Pin to' }} dashboard">{{ $v->is_pinned ? 'Unpin' : 'Pin' }}</button></form>
           <form method="post" action="{{ route('reports.views.destroy', $v) }}" style="display:inline" data-confirm="Delete the view “{{ $v->name }}”?">@csrf @method('DELETE')<button class="btn btn-sm btn-ghost" title="Delete"><x-icon name="trash"/></button></form>
@@ -36,7 +42,9 @@
       </td>
     </tr>
   @empty
-    <tr><td colspan="7"><x-empty text="No saved views yet – open a report, set the period and columns, then press Save view." icon="star"/></td></tr>
+    <tr><td colspan="7"><x-empty text="No saved views yet – open a report, set the period and columns, then press Save view." icon="star">
+      <div class="flex gap-1 mt-1" style="justify-content:center"><a class="btn btn-sm btn-primary" href="{{ route('reports.index') }}">Browse the report library</a></div>
+    </x-empty></td></tr>
   @endforelse</tbody>
 </table></div></div>
 
@@ -49,7 +57,9 @@
       <td class="small">{{ $s->next_run_at?->format('D d M H:i') ?? ($s->frequency === 'after_audit' && $s->is_active ? 'next night audit' : '—') }}</td>
       <td>{!! $s->is_active ? '<span class="badge badge-green">active</span>' : '<span class="badge badge-slate">paused</span>' !!}</td></tr>
   @empty
-    <tr><td colspan="6"><x-empty text="You have no scheduled reports." icon="mail"/></td></tr>
+    <tr><td colspan="6"><x-empty text="You have no scheduled reports." icon="mail">
+      @if(can_do('reports.schedule'))<div class="flex gap-1 mt-1" style="justify-content:center"><a class="btn btn-sm" href="{{ route('reports.schedules', ['new' => 'flash']) }}">Schedule a report</a></div>@endif
+    </x-empty></td></tr>
   @endforelse</tbody>
 </table></div></div>
 @endsection

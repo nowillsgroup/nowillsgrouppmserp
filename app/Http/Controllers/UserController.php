@@ -53,8 +53,14 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate($this->rules());
+        // v10.2 seats are a group entitlement, so the property's own staff screen answers to the same cap
+        $group = hotel()?->group;
+        if ($group && ! $group->canAddUser()) {
+            return back()->withInput()->withErrors(['username' => 'This group has used all '.$group->max_users.' of its seats. Raise the seat entitlement or switch a person off before adding another account.']);
+        }
         $user = new User(collect($data)->only(['name', 'username', 'email', 'phone', 'role_id', 'password'])->all());
         $user->hotel_id = Tenant::id();
+        $user->hotel_group_id = hotel()?->hotel_group_id; // v10.2 a new account belongs to the tenant, not to nothing
         $user->is_active = $request->boolean('is_active', true);
         $user->is_super_admin = $request->user()->is_super_admin && $request->boolean('is_super_admin');
         $user->save();

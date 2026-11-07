@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Hotel;
 use App\Models\OrganiserUser;
+use App\Services\LicenceService;
 use App\Services\OrganiserService;
 use App\Support\Tenant;
 use Closure;
@@ -26,6 +27,9 @@ class OrganiserAuth
             return redirect()->route('organiser.login')->withErrors(['email' => $s ? 'Please sign in again.' : 'Please sign in to the organiser portal.']);
         }
         Tenant::set($hotel);
+        // v10.5 the portal is a licensed module, not only a set of pages: without it the organiser's
+        // guarantee, change, cancel and payment POSTs are refused too, not just the screens.
+        abort_unless(LicenceService::allowsModule('Organiser Portal', $hotel), 404);
         config(['app.timezone' => $hotel->timezone]);
         date_default_timezone_set($hotel->timezone ?: 'UTC');
 

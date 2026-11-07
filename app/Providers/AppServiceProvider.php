@@ -45,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
             $registerSqliteFunctions(\Illuminate\Support\Facades\DB::connection());
         }
 
+        // configuration: every write of a setting records what it was before, so a change
+        // can be explained months later without reading the database by hand
+        Models\Setting::observe(\App\Observers\SettingValueObserver::class);
+
         // v4.0 webhooks: business events → outbox (after commit)
         foreach ([Models\Reservation::class, Models\ReservationRoom::class, Models\Room::class, Models\FolioTransaction::class, Models\NightAudit::class] as $m) {
             $m::observe(\App\Observers\WebhookObserver::class);

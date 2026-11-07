@@ -74,7 +74,7 @@
   @if(can_do('ap.approve'))
   <form method="post" action="{{ route('ap.wht.settings') }}" id="whtSettings" class="form-grid">@csrf
     <label class="check span-2"><input type="checkbox" name="wht_enabled" value="1" @checked($cfg['wht_enabled'] === '1')> Withhold tax on supplier payments</label>
-    <div class="field"><label for="f_wht_threshold">Annual threshold per supplier (goods, works, services)</label><input type="number" step="0.01" min="0" name="wht_threshold" id="f_wht_threshold" value="{{ $cfg['wht_threshold'] }}" required></div>
+    <div class="field"><label for="f_wht_threshold">Annual threshold per supplier (goods, works, services) — 0 to 10,000,000</label><input type="number" step="0.01" min="0" max="10000000" name="wht_threshold" id="f_wht_threshold" value="{{ $cfg['wht_threshold'] }}" required></div>
     <div class="field"><label for="f_wvat_rate">Withholding VAT rate %</label><input type="number" step="0.01" min="0" max="20" name="wvat_rate" id="f_wvat_rate" value="{{ $cfg['wvat_rate'] }}" required></div>
     <label class="check span-2"><input type="checkbox" name="wvat_agent" value="1" @checked($cfg['wvat_agent'] === '1')> The hotel is an appointed withholding VAT agent (withhold {{ $cfg['wvat_rate'] }}% of the taxable value on standard-rated supplies)</label>
     <div class="span-2"><button class="btn btn-primary">Save</button></div>

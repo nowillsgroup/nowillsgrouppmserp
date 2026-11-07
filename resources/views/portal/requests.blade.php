@@ -23,7 +23,7 @@
       <div class="gp-chips mb-1">@foreach($c['items'] as $it)<label class="gp-chip"><input type="radio" name="item" value="{{ $it }}" required @checked(old('category') === $key && old('item') === $it)>{{ $it }}</label>@endforeach</div>
     @endif
     @if($key === 'laundry' && isset($laundry))
-      <p class="small muted m-0 mb-1">Back in {{ $laundry['hours']['normal'] }} h, or {{ $laundry['hours']['express'] }} h with express (+{{ rtrim(rtrim(number_format($laundry['express'], 2), '0'), '.') }} %). Charged to your room on delivery, plus tax.</p>
+      <p class="small muted m-0 mb-1">Back in {{ $laundry['hours']['normal'] }} h, or {{ $laundry['hours']['express'] }} h with express (+{{ rtrim(rtrim(number_format($laundry['express'], 2), '0'), '.') }} %). {{ $laundry['tax']['rate'] > 0 ? $laundry['tax']['label'].' ('.$laundry['tax']['rate'].' %) applies and is shown on the bill' : 'Charged to your room on delivery' }}; it can also be paid at the desk when it comes back.</p>
       <details class="mb-1" id="laundryPrices"><summary class="small" style="cursor:pointer;color:#166534">See the laundry price list</summary>
         <table class="gp-table small mt-1"><thead><tr><th style="text-align:left">Item</th><th>Wash</th><th>Dry clean</th><th>Press</th></tr></thead><tbody>
         @foreach($laundry['prices'] as $rows)@foreach($rows as $it)<tr><td>{{ $it->name }}</td>@foreach(['wash', 'dryclean', 'press'] as $sk)<td style="text-align:right">{{ $it->rate($sk) === null ? '–' : money($it->rate($sk), false) }}</td>@endforeach</tr>@endforeach @endforeach
@@ -51,7 +51,7 @@
 @if(isset($laundry) && $laundry['orders']->count())
 <div class="gp-card mt-1" id="myLaundry"><h3>My laundry</h3>
 @foreach($laundry['orders'] as $lo)
-  <div class="gp-row"><div><b>{{ $lo->order_no }}</b>{{ $lo->speed === 'express' ? ' · express' : '' }}<div class="tiny muted">{{ $lo->pieces ? $lo->pieces.' pcs' : 'Being counted' }}{{ (float) $lo->total ? ' · '.money($lo->total).' + tax' : '' }}</div>
+  <div class="gp-row"><div><b>{{ $lo->order_no }}</b>{{ $lo->speed === 'express' ? ' · express' : '' }}<div class="tiny muted">{{ $lo->pieces ? $lo->pieces.' pcs' : 'Being counted' }}@if((float) $lo->total)@php $q = \App\Services\LaundryService::quote($lo); @endphp{{ ' \u00b7 '.money($q['total']) }}{{ $q['rate'] > 0 ? ' incl. tax' : '' }}@endif</div>
     <div class="tiny muted">{{ $lo->status === 'delivered' ? 'Delivered '.$lo->delivered_at?->format('d M H:i') : 'Expected back '.$lo->promised_at?->format('D d M, H:i') }}</div></div>
     <span class="badge badge-{{ \App\Models\LaundryOrder::TONES[$lo->status] }}">{{ $lo->statusLabel() }}</span></div>
 @endforeach

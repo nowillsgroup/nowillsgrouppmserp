@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PropertyAccessService;
 use App\Services\ShiftService;
 use App\Models\ActivityLog;
 use App\Models\BanquetEvent;
@@ -265,6 +266,7 @@ use App\Models\YieldRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Config-driven report engine. Every report returns columns + rows and is
@@ -481,7 +483,11 @@ class ReportController extends Controller
         'club_ticket_types' => ['Health Club & Spa', 'Club Ticket Type Register', 'Every club ticket type with category, price and active', 'none', 'club.view'],
         'spa_revenue' => ['Health Club & Spa', 'Spa & Activity Revenue', 'Appointments and revenue by service and therapist', 'range'],
         'ffe_reserve' => ['Hotel Group & Owner Reporting', 'FF&E Reserve Ledger & Capex', 'Reserve opening balance, contributions, interest, capex drawdowns and adjustments with a running balance, and each capital project\'s budget and spend', 'range', 'owner.view'],
-        'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'Every management group with affiliated hotel count', 'none', 'hotels.view'],
+        'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'The groups behind the properties you may open, each with its property and room counts and how many of its properties are licensed for nothing', 'none', 'hotels.view'],
+        // v10.9 the consolidated view could not leave the screen: no print through the report engine,
+        // no CSV, no schedule. This is that view as a report, read by the same service the dashboard
+        // reads, with the same rule: a property licensed for nothing is out of the totals and named.
+        'group_operating_summary' => ['Hotel Group & Owner Reporting', 'Consolidated Operating Summary', 'Every property you may open, each on its own business date: sellable rooms, occupancy, in-house guests, arrivals and departures, revenue today and month to date, ADR and collections, and how each is licensed — a property licensed for nothing is left out of the totals and named beneath them', 'none', 'hotels.view'],
         'hotel_kpis' => ['Hotel Group & Owner Reporting', 'Hotel KPIs by Month', 'Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied room, GOP and EBITDA margins, labour cost % and F&B cost %', 'range', 'owner.view'],
         'management_agreements' => ['Hotel Group & Owner Reporting', 'Management Agreement Register', 'Every hotel management agreement with fee structure', 'none', 'hotels.view'],
         'management_fees' => ['Hotel Group & Owner Reporting', 'Management Fee Calculation', 'Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the owner\'s priority, incentive fee, status and payment', 'range', 'owner.view'],
@@ -549,7 +555,7 @@ class ReportController extends Controller
         'linen_par' => ['Laundry & Linen', 'Linen Stock & Par', 'Every linen type by location (clean, floors, soiled, at laundry) against par, with shortfall and stock value', 'none', 'laundry.view'],
         'sop_acknowledgement' => ['Learning & Development', 'SOP Sign-off Status', 'Every published SOP that staff must sign: version, effective date, review due, staff in scope, signed, outstanding and who has not signed', 'none', 'learning.view'],
         'sop_acknowledgements' => ['Learning & Development', 'SOP Acknowledgement Register', 'Every employee acknowledgement of a SOP', 'none', 'training.view'],
-        'sop_documents' => ['Learning & Development', 'SOP Document Register', 'Every SOP document', 'none', 'training.view'],
+        'sop_documents' => ['Learning & Development', 'SOP Document Register', 'Every SOP document, its version, owner and next review date', 'none', 'training.view'],
         'sop_versions' => ['Learning & Development', 'SOP Version Register', 'Every version of a SOP', 'none', 'training.view'],
         'training_compliance' => ['Learning & Development', 'Training Matrix Compliance', 'Every employee against the training their department / job title requires: current, expiring, expired, overdue, new-starter due and compliance %', 'none', 'learning.view'],
         'training_courses' => ['Learning & Development', 'Training Course Register', 'Every training course with hours and active', 'none', 'training.view'],
@@ -682,13 +688,13 @@ class ReportController extends Controller
         'esg_initiatives' => ['Sustainability & ESG', 'Green Initiative Register', 'Every initiative: category, owner, status, capital cost, annual saving, simple payback, energy / water / waste / carbon savings, approver and completion', 'none', 'esg.view'],
         'esg_laundry_months' => ['Sustainability & ESG', 'ESG Laundry Month Register', 'Monthly laundry consumption', 'none', 'esg.view'],
         'esg_local_spend' => ['Sustainability & ESG', 'Local Sourcing Spend', 'Supplier bills in the period by supplier (net of debit notes, before tax) with the local flag and the share of spend with local suppliers', 'range', 'esg.view'],
-        'esg_policies' => ['Sustainability & ESG', 'ESG Policy Register', 'Every ESG policy', 'none', 'esg.view'],
+        'esg_policies' => ['Sustainability & ESG', 'ESG Policy Register', 'Every ESG policy with its owner, review date and approval status', 'none', 'esg.view'],
         'esg_refrigerants' => ['Sustainability & ESG', 'F-gas (Refrigerant) Log', 'Refrigerant added and recovered in the period by system: gas, GWP, work done, technician and certificate, kg CO₂e, with the annual leak rate per system', 'range', 'esg.view'],
-        'esg_targets' => ['Sustainability & ESG', 'ESG Target Register', 'Every ESG target', 'none', 'esg.view'],
+        'esg_targets' => ['Sustainability & ESG', 'ESG Target Register', 'Every ESG target with its baseline, target year and progress to date', 'none', 'esg.view'],
         'esg_waste' => ['Sustainability & ESG', 'Waste Register & Diversion', 'Waste consignments in the period: stream, disposal route, weight, department, contractor, waste transfer note, cost and income, kg CO₂e, with the diversion rate and kg per occupied room', 'range', 'esg.view'],
         'api_idempotency_keys' => ['System & Administration', 'API Idempotency Key Register', 'Every API idempotency key recorded', 'none', 'system.view'],
         'data_migration_batches' => ['System & Administration', 'Data Migration Batch Register', 'Every data migration batch with row counts', 'none', 'system.view'],
-        'data_migration_rows' => ['System & Administration', 'Data Migration Row Register', 'Every migrated row', 'none', 'system.view'],
+        'data_migration_rows' => ['System & Administration', 'Data Migration Row Register', 'Every migrated row, the batch it came from and whether it was accepted or skipped', 'none', 'system.view'],
         'log_entry_comments' => ['System & Administration', 'Log Entry Comment Register', 'Every comment added to an activity log entry', 'none', 'system.view'],
         'log_entry_reads' => ['System & Administration', 'Log Entry Read Register', 'Every time a user read an activity log entry', 'none', 'system.view'],
         'offline_sync_operations' => ['System & Administration', 'Offline Sync Operation Register', 'Every offline sync operation with payload and result', 'none', 'system.view'],
@@ -748,11 +754,105 @@ class ReportController extends Controller
         'upsell_revenue' => ['Front Office', 'Upsell Revenue by Offer', 'Per offer: confirmed orders and revenue split by channel (pre-arrival, desk, in-house portal), average sale, share of upsell revenue, plus declined and cancelled orders', 'range', 'upsell.view'],
     ];
 
-    public function index()
+    /** The icon each report area shows in the library, and how a period reads. */
+    /**
+     * v10.11 the report parameters a view or a schedule may remember. A whitelist, because a saved
+     * view posts a form and the last thing this engine needs is a form deciding what a report reads.
+     *
+     * v10.12 `by` joins the slice, and `budget`/`month` join both: the Budget vs Actual screen has always
+     * linked to its own Print / CSV with the budget and month it was showing, and those two were read
+     * straight off the request — so the link worked and the saved view and the scheduled run quietly
+     * reported on a different month. A parameter a screen can show is a parameter the engine must read
+     * through the same door, or the file is not the screen.
+     */
+    public const REPORT_PARAMS = ['slice', 'value', 'by', 'budget', 'month'];
+
+    /** The parameters of the run in progress — set by the screen (from the URL or a view) or a schedule. */
+    protected array $params = [];
+
+    /** Run the next report with these parameters (a slice, a scope) instead of the URL's. */
+    public function withParams(array $params): static
+    {
+        $this->params = array_filter($params, fn ($v) => is_string($v) && $v !== '');
+
+        return $this;
+    }
+
+    /** One parameter of this run: what the caller set, else what the URL asked for. */
+    protected function param(string $key): ?string
+    {
+        $value = $this->params[$key] ?? request()->query($key);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** The parameters a form may hand us, kept to the whitelist and dropped when empty. */
+    public static function paramsFrom(array $input): ?array
+    {
+        $params = array_filter(
+            array_intersect_key($input, array_flip(self::REPORT_PARAMS)),
+            fn ($v) => is_string($v) && $v !== ''
+        );
+
+        return $params ?: null;
+    }
+
+    public const GROUP_ICONS = [
+        'Accounts' => 'wallet', 'Banquet & Events' => 'cup', 'Billing' => 'receipt', 'Budget & Planning' => 'chart',
+        'Central Reservations' => 'phone', 'Channel Manager' => 'layers', 'Compliance & HSE' => 'shield',
+        'Concierge & Activities' => 'plane', 'Front Office' => 'bed', 'F&B & POS' => 'coffee',
+        'Feedback & Reputation' => 'star', 'Fixed Assets & Engineering' => 'tool', 'Food Safety' => 'thermo',
+        'Foreign Guests & Forex' => 'globe', 'General Ledger' => 'book', 'Guest Messaging' => 'message',
+        'HR & People' => 'users', 'Health Club & Spa' => 'spa', 'Hotel Group & Owner Reporting' => 'building',
+        'Hotel Interfaces' => 'link', 'Housekeeping' => 'broom', 'IPTV & Guest Technology' => 'wifi',
+        'Inventory & Purchasing' => 'box', 'Laundry & Linen' => 'shirt', 'Learning & Development' => 'check',
+        'Management & MIS' => 'trend', 'Marketing & CRM' => 'mail', 'Treasury & Payments' => 'money',
+        'Sales & Business Development' => 'trend', 'Partner & Organiser Portals' => 'external', 'Payroll' => 'id',
+        'Property & Utilities' => 'house', 'Quality Assurance' => 'check', 'Revenue Management' => 'chart',
+        'Security' => 'lock', 'Self-Service Kiosk' => 'qr', 'Sustainability & ESG' => 'tree',
+        'System & Administration' => 'settings', 'Talent Management' => 'user', 'Tax & Statutory' => 'receipt',
+        'Transport & Parking' => 'car',
+    ];
+
+    public const MODE_LABELS = ['range' => 'Period', 'date' => 'As on date', 'none' => 'Live'];
+
+    /**
+     * The report library.
+     *
+     * Half a thousand reports live behind this page, so it is built as a catalogue
+     * rather than a link list: every report keeps its area, its one-line promise and
+     * the period it answers on, and the page carries the saved views the reader can
+     * open. Only reports the reader may open are listed.
+     */
+    public function index(Request $request)
     {
         $visible = collect(self::REPORTS)->filter(fn ($r) => can_do($r[4] ?? 'reports.view'));
 
-        return view('reports.index', ['groups' => $visible->groupBy(fn ($r) => $r[0], true)]);
+        $groups = $visible->groupBy(fn ($r) => $r[0], true)
+            ->map(fn ($reports, $group) => [
+                'name' => $group,
+                'icon' => self::GROUP_ICONS[$group] ?? 'chart',
+                'reports' => $reports->map(fn ($r, $slug) => [
+                    'slug' => $slug,
+                    'title' => $r[1],
+                    'desc' => $r[2],
+                    'mode' => self::MODE_LABELS[$r[3] ?? 'range'] ?? 'Period',
+                ])->values()->all(),
+            ])
+            ->sortKeys();
+
+        $u = $request->user();
+        $views = \App\Services\ReportScheduleService::viewsFor($u);
+
+        return view('reports.index', [
+            'groups' => $groups,
+            'total' => $visible->count(),
+            'views' => $views,
+            'pinned' => $views->where('is_pinned', true)->where('user_id', $u->id)->values(),
+            'mine' => $views->where('user_id', $u->id)->count(),
+            'shared' => $views->where('user_id', '!=', $u->id)->count(),
+            'schedules' => can_do('reports.schedule') ? \App\Models\ReportSchedule::where('user_id', $u->id)->count() : null,
+        ]);
     }
 
     public function show(Request $request, string $report)
@@ -783,6 +883,11 @@ class ReportController extends Controller
         if ($from->diffInDays($to) > 366) {
             $from = $to->copy()->subDays(366);
         }
+        // v10.11 a view remembers what the report was showing, not only when. The URL wins when it
+        // names a parameter, so clicking another slice chip is not overridden by the view underneath.
+        $requested = array_intersect_key($request->query(), array_flip(self::REPORT_PARAMS));
+        $this->withParams(array_merge($activeView?->params ?? [], $requested));
+
         $data = $this->{'r_'.$report}($from, $to) + ['money' => [], 'sum' => []];
         $data['rows'] = collect($data['rows'])->values();
         $allCols = $data['cols'];
@@ -798,7 +903,8 @@ class ReportController extends Controller
                     fputcsv($out, array_map(fn ($k) => $this->csvSafe($row[$k] ?? ''), array_keys($data['cols'])));
                 }
                 fclose($out);
-            }, $report.'_'.$from->format('Ymd').'_'.$to->format('Ymd').'.csv', ['Content-Type' => 'text/csv']);
+            // an "as on" report is one day, so its file is named for that day, not a span
+            }, $report.'_'.($mode === 'date' ? $to->format('Ymd') : $from->format('Ymd').'_'.$to->format('Ymd')).'.csv', ['Content-Type' => 'text/csv']);
         }
 
         $views = \App\Services\ReportScheduleService::viewsFor($request->user(), $report);
@@ -1864,7 +1970,7 @@ class ReportController extends Controller
     /** the budget a report is about: ?budget= (approved, this hotel) or the active budget of the date's fiscal year */
     protected function reportBudget(Carbon $to, string $kind = 'budget'): ?\App\Models\Budget
     {
-        $id = (int) request('budget');
+        $id = (int) $this->param('budget');
         if ($id && ($b = \App\Models\Budget::where('status', 'approved')->find($id))) {
             return $b;
         }
@@ -1887,8 +1993,10 @@ class ReportController extends Controller
         }
         $B = \App\Services\BudgetService::class;
         $month = $B::fyFor($to) === $b->fiscal_year ? $B::monthIndex($to) : 12;
-        if (request('month')) {
-            $month = min(12, max(1, (int) request('month')));
+        // Read through param(), so the month the screen was showing is the month the file, the saved view
+        // and the scheduled run all report on.
+        if ($this->param('month') !== null) {
+            $month = min(12, max(1, (int) $this->param('month')));
         }
         $d = $B::bva($b, $month, $B::active($b->fiscal_year, 'forecast'));
         $fmt = fn ($r, $sec, $code = '') => ['section' => $sec, 'code' => $code, 'account' => $r['name'], 'actual' => $r['actual'], 'budget' => $r['budget'], 'var' => $r['var'],
@@ -7339,22 +7447,211 @@ class ReportController extends Controller
         return ['cols' => ['name' => 'Name', 'plan' => 'Plan', 'price' => 'Price', 'valid_days' => 'Valid Days', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price'], 'note' => 'Club ticket type catalog.'];
     }
 
+    protected function r_group_operating_summary($from, $to): array
+    {
+        // The period arguments are not used: every property is read on its OWN business date, and a
+        // report that silently picked one date for four properties on four different dates would be
+        // the kind of number that is argued about a month later. The header says so instead.
+        $user = Auth::user();
+        $hotels = $user
+            ? app(PropertyAccessService::class)->accessible($user)
+            // A scheduled run has no reader: it serves one tenant, so that tenant's group is the
+            // portfolio it reports on.
+            : collect([\App\Support\Tenant::hotel()])->filter()
+                ->flatMap(fn ($h) => $h->group ? $h->group->hotels()->notArchived()->get() : [$h]);
+
+        // v10.10 the portfolio can be sliced: a region or a brand wants its own line of this report, and
+        // asking for "all of it" was the only thing the screen could do. The slice is a query parameter,
+        // so a slice is a URL — bookmarked, printed and scheduled like any other state of a report.
+        // Read through param(), so the same slice works from the URL, from a saved view and from a
+        // schedule that has no browser at all.
+        $dimension = (string) $this->param('slice');
+        $value = (string) $this->param('value');
+        $slice = in_array($dimension, ['brand', 'city'], true) && $value !== '' ? [$dimension, $value] : null;
+        $portfolio = $hotels;
+
+        if ($slice) {
+            $hotels = $hotels->filter(fn ($h) => (string) ($slice[0] === 'brand' ? $h->brand : $h->city) === $slice[1])->values();
+        }
+
+        // v10.12 two questions, two rows of chips: which properties ("Show") and whether they are
+        // compared side by side or listed one by one ("Compare"). A slice answers "one of these"; a
+        // grouping answers "these beside each other", which is the question a portfolio is read for.
+        $by = in_array((string) $this->param('by'), ['brand', 'city'], true) ? (string) $this->param('by') : null;
+
+        // Both keys are always written, empty for "all": an empty parameter is how a sliced view is
+        // told "no slice", where a missing one would leave the view's own slice in force.
+        $show = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => '', 'value' => '']),
+            'count' => $portfolio->count(), 'active' => $slice === null]];
+
+        foreach (['brand' => 'Brand', 'city' => 'City'] as $field => $label) {
+            foreach ($portfolio->pluck($field)->filter()->unique()->sort()->values() as $name) {
+                $show[] = ['label' => (string) $name, 'url' => request()->fullUrlWithQuery(['slice' => $field, 'value' => $name]),
+                    'count' => $portfolio->filter(fn ($h) => (string) $h->{$field} === (string) $name)->count(),
+                    'active' => $slice === [$field, (string) $name]];
+            }
+        }
+
+        $compare = [
+            ['label' => 'One by one', 'url' => request()->fullUrlWithQuery(['by' => '']), 'count' => $hotels->count(), 'active' => $by === null],
+            ['label' => 'By brand', 'url' => request()->fullUrlWithQuery(['by' => 'brand']), 'count' => $hotels->pluck('brand')->filter()->unique()->count(), 'active' => $by === 'brand'],
+            ['label' => 'By city', 'url' => request()->fullUrlWithQuery(['by' => 'city']), 'count' => $hotels->pluck('city')->filter()->unique()->count(), 'active' => $by === 'city'],
+        ];
+
+        $choices = [['label' => 'Show', 'choices' => $show], ['label' => 'Compare', 'choices' => $compare]];
+
+        $metrics = app(\App\Services\GroupMetricsService::class);
+        $rows = collect();
+        $closed = [];
+
+        foreach ($hotels as $hotel) {
+            // Same rule as the dashboard: a property nobody can post in is not added to the group's
+            // occupancy or revenue. It is named underneath instead, because a reader who counted the
+            // properties in the group would otherwise find one missing with no explanation.
+            if ($hotel->licenceIsEmpty()) {
+                $closed[] = $hotel;
+
+                continue;
+            }
+
+            $m = $metrics->row($hotel);
+            $rows->push([
+                // carried for the comparison, not printed one by one: the columns decide what shows
+                '_brand' => (string) $hotel->brand, '_city' => (string) $hotel->city,
+                'property' => $hotel->name, 'code' => $hotel->code, 'status' => $hotel->statusLabel(),
+                'date' => $m['business_date']->format('d-m-Y'),
+                'rooms' => $m['rooms'], 'occupied' => $m['occupied'], 'occ' => number_format($m['occ'], 1).'%',
+                'in_house' => $m['in_house'], 'arrivals' => $m['arrivals'], 'departures' => $m['departures'],
+                'rev_today' => (float) $m['rev_today'], 'adr' => (float) $m['adr'], 'rev_mtd' => (float) $m['rev_mtd'],
+                'collections' => (float) $m['collections'], 'open_pos' => $m['open_pos'],
+                'licence' => $metrics->licenceLabel($hotel),
+            ]);
+        }
+
+        // v10.12 the comparison: the same figures gathered by brand or by city, so two of them can be
+        // read against each other instead of one at a time. Occupancy and ADR are recomputed from the
+        // parts, never averaged — an average of four occupancies is a number about nothing.
+        if ($by !== null) {
+            $rows = $rows->groupBy(fn ($r) => (string) ($r['_'.$by] ?? '') ?: 'Unassigned '.$by)
+                ->map(function ($group, $name) use ($rows) {
+                    $rooms = (int) $group->sum('rooms');
+                    $occupied = (int) $group->sum('occupied');
+                    $revMtd = (float) $group->sum('rev_mtd');
+                    $roomRevToday = $group->sum(fn ($r) => $r['adr'] * $r['occupied']);
+
+                    return [
+                        'group' => $name, 'properties' => $group->count(),
+                        'rooms' => $rooms, 'occupied' => $occupied,
+                        'occ' => number_format($rooms ? $occupied * 100 / $rooms : 0, 1).'%',
+                        'in_house' => (int) $group->sum('in_house'), 'arrivals' => (int) $group->sum('arrivals'),
+                        'departures' => (int) $group->sum('departures'),
+                        'rev_today' => (float) $group->sum('rev_today'),
+                        'adr' => (float) ($occupied ? $roomRevToday / $occupied : 0),
+                        'rev_mtd' => $revMtd,
+                        // a share of the group's month, so "which brand carries the portfolio" is a column
+                        'share' => number_format($rows->sum('rev_mtd') ? $revMtd * 100 / $rows->sum('rev_mtd') : 0, 1).'%',
+                        'collections' => (float) $group->sum('collections'),
+                        'open_pos' => (int) $group->sum('open_pos'),
+                    ];
+                })->sortByDesc('rev_mtd')->values();
+
+            return [
+                'cols' => [
+                    'group' => $by === 'brand' ? 'Brand' : 'City', 'properties' => 'Properties',
+                    'rooms' => 'Sellable', 'occupied' => 'Occupied', 'occ' => 'Occupancy',
+                    'in_house' => 'In-house', 'arrivals' => 'Arr', 'departures' => 'Dep',
+                    'rev_today' => 'Revenue today', 'adr' => 'ADR', 'rev_mtd' => 'Revenue MTD', 'share' => 'Share of MTD',
+                    'collections' => 'Collections', 'open_pos' => 'Open POS',
+                ],
+                'rows' => $rows,
+                'money' => ['rev_today', 'adr', 'rev_mtd', 'collections'],
+                // 'share' is deliberately not summed: percentages do not add up to a portfolio
+                'sum' => ['properties', 'rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+                'summary' => [
+                    'Places compared' => (string) $rows->count(),
+                    'Properties trading' => (string) $rows->sum('properties'),
+                    'Group occupancy' => number_format($rows->sum('rooms') ? $rows->sum('occupied') * 100 / $rows->sum('rooms') : 0, 1).'%',
+                    'Revenue MTD' => (float) $rows->sum('rev_mtd'),
+                    'Properties shut' => (string) count($closed),
+                ],
+                'choices' => $choices,
+                'note' => 'The properties you may open, gathered by '.$by.' and each read on its own business date.'
+                    .($slice ? ' Within '.$slice[1].' only.' : '')
+                    .($closed === [] ? '' : ' Not in these totals, because nobody can post there: '
+                        .implode(', ', array_map(fn ($h) => $h->name.' ('.$h->code.')', $closed)).'.'),
+            ];
+        }
+
+        $rooms = (int) $rows->sum('rooms');
+        $occupied = (int) $rows->sum('occupied');
+
+        return [
+            'cols' => [
+                'property' => 'Property', 'code' => 'Code', 'status' => 'Status', 'date' => 'Business date',
+                'rooms' => 'Sellable', 'occupied' => 'Occupied', 'occ' => 'Occupancy',
+                'in_house' => 'In-house', 'arrivals' => 'Arr', 'departures' => 'Dep',
+                'rev_today' => 'Revenue today', 'adr' => 'ADR', 'rev_mtd' => 'Revenue MTD',
+                'collections' => 'Collections', 'open_pos' => 'Open POS', 'licence' => 'Licence',
+            ],
+            'rows' => $rows,
+            // Occupancy and ADR are ratios: a total of them would be a number nobody can act on.
+            'money' => ['rev_today', 'adr', 'rev_mtd', 'collections'],
+            'sum' => ['rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+            'summary' => [
+                'Properties trading' => (string) $rows->count(),
+                'Group occupancy' => number_format($rooms ? $occupied * 100 / $rooms : 0, 1).'%',
+                'Revenue today' => (float) $rows->sum('rev_today'),
+                'Revenue MTD' => (float) $rows->sum('rev_mtd'),
+                'Properties shut' => (string) count($closed),
+            ],
+            'choices' => $choices,
+            'note' => 'Each property is read on its own business date, in its own books.'
+                .($slice ? ' Showing '.$slice[1].' — '.$hotels->count().' of '.$portfolio->count()
+                    .' properties you may open; the chip above puts the rest back in.' : '')
+                .($closed === [] ? '' : ' Not in these totals, because nobody can post there: '
+                    .implode(', ', array_map(fn ($h) => $h->name.' ('.$h->code.')', $closed))
+                    .'. Its history is untouched — licensing a module again puts it straight back in this report.'),
+        ];
+    }
+
     protected function r_hotel_groups($from, $to): array
     {
-        $rows = HotelGroup::with('managementCompany')->get()->map(fn ($r) => [
-            'name' => $r->name, 'code' => $r->code, 'mc' => optional($r->managementCompany)->name,
-            'hotels' => $r->hotel_count, 'rooms' => $r->total_rooms, 'contact' => $r->contact_email,
-            'status' => $r->status, 'description' => $r->description,
-        ]);
-        return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Hotels', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register.'];
+        // v10.0 reads the group account's real columns (identity, entitlement, live property count)
+        // rather than the non-existent managementCompany relation and aggregates it used to guess at.
+        //
+        // v10.7 the group IS the tenant boundary, so "every management group" was every tenant's
+        // group: a property administrator holding hotels.view could read the names, room counts and
+        // property counts of other companies running this software. The register now lists the groups
+        // the reader can actually reach — the ones behind the properties they may open — and a
+        // platform administrator, who may open them all, still sees them all.
+        $user = Auth::user();
+        $groupIds = $user
+            ? app(PropertyAccessService::class)->accessible($user)->pluck('hotel_group_id')->filter()->unique()->values()
+            // A scheduled run has no signed-in reader: it serves one tenant, set before the report
+            // runs, so that tenant's own group is the only group it may name.
+            : collect([\App\Support\Tenant::hotel()?->hotel_group_id])->filter()->unique()->values();
+
+        $rows = HotelGroup::whereIn('id', $groupIds->all())->orderBy('name')->get()->map(function ($r) {
+            $properties = $r->hotels()->notArchived()->get();
+            return [
+                'name' => $r->name, 'code' => $r->code, 'mc' => $r->managementCompanyName(),
+                'hotels' => $properties->count(),
+                'closed' => $properties->filter(fn ($h) => $h->licenceIsEmpty())->count(),
+                'rooms' => $r->roomCount(), 'contact' => $r->contact_email,
+                'status' => $r->statusLabel(), 'description' => $r->description,
+            ];
+        });
+        return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Properties', 'closed' => 'Nothing licensed', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register — the groups behind the properties you may open. \'Nothing licensed\' counts properties whose module licence is empty: they still belong to the group, but nobody can post in them.'];
     }
 
     protected function r_management_agreements($from, $to): array
     {
-        $rows = ManagementAgreement::with('hotel.hotelGroup.managementCompany')->get()->map(fn ($r) => [
-            'hotel' => optional($r->hotel)->name, 'group' => optional($r->hotelGroup)->name,
-            'mc' => optional($r->managementCompany)->name, 'start' => $r->agreement_start,
-            'end' => $r->agreement_end, 'fee_pct' => $r->management_fee_pct,
+        // v10.0 the register reads the agreement's own dates and fee column, and the group through
+        // the hotel's group relation, instead of four attributes that do not exist.
+        $rows = ManagementAgreement::with('hotel.group')->get()->map(fn ($r) => [
+            'hotel' => optional($r->hotel)->name, 'group' => optional(optional($r->hotel)->group)->name,
+            'mc' => optional(optional($r->hotel)->group)->managementCompanyName(), 'start' => $r->effective_from,
+            'end' => $r->ends_on, 'fee_pct' => $r->base_fee_pct,
             'status' => $r->status, 'notes' => $r->notes,
         ]);
         return ['cols' => ['hotel' => 'Hotel', 'group' => 'Group', 'mc' => 'Management Co', 'start' => 'Start', 'end' => 'End', 'fee_pct' => 'Fee %', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Management agreement register.'];

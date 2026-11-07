@@ -244,10 +244,11 @@ class ExpenseClaimService
             return null;
         }
         $claimable = setting('gl_input_tax', '1') === '1';
+        $dept = $c->employee?->department_id;   // v8.1 – the claimant's cost centre
         $lines = [];
         foreach ($c->lines->groupBy('expense_head_id') as $head => $g) {
             $vat = $claimable ? (float) $g->sum('vat_amount') : 0.0;
-            $lines[] = [(int) $head, round((float) $g->sum('amount') - $vat, 2), $g->pluck('description')->take(3)->implode('; ')];
+            $lines[] = [(int) $head, round((float) $g->sum('amount') - $vat, 2), $g->pluck('description')->take(3)->implode('; '), $dept];
         }
         if ($claimable && ($v = round((float) $c->lines->sum('vat_amount'), 2)) > 0) {
             $lines[] = [AccountHead::sys('input_tax'), $v, 'Input VAT, NHIL & GETFund'];

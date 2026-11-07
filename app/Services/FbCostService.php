@@ -12,6 +12,7 @@ use App\Models\ItemCategory;
 use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\MenuItemRecipe;
+use App\Models\MenuItemVariant;
 use App\Models\Outlet;
 use App\Models\Setting;
 use App\Models\StockMovement;
@@ -207,6 +208,118 @@ class FbCostService
     public static function portionCost(int $menuItemId): float
     {
         return self::costs()[$menuItemId] ?? 0.0;
+    }
+
+    // ------------------------------------------------------------------ side dishes sold
+
+    /**
+     * Every side dish sold on a settled bill, read from the line's own snapshot (v9.34).
+     *
+     * A side dish is priced at its own rate and costed at its own cost, both taken from the moment of sale — a re-priced
+     * side must not rewrite last month. Lines written before v9.34 carry no cost beside the side, and fall back to the
+     * side dish's cost on the master today. Complimentary bills are left out, exactly as the menu mix leaves them out.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, by_item: array<int, array<string, float>>, units: float, revenue: float, cost: float, uncosted: float}
+     */
+    protected static function scanSides(string $from, string $to, ?int $outletId = null, bool $comps = false): array
+    {
+        $key = 'sides'.$from.$to.($outletId ?? '').($comps ? 'c' : '');
+        if (isset(self::$memo[$key])) {
+            return self::$memo[$key];
+        }
+        $fallback = null; // read once, and only if a line predates the cost in the snapshot
+        $rows = [];
+        $byItem = [];
+        $byDay = [];
+        $units = $revenue = $cost = $uncosted = 0.0;
+
+        $lines = DB::table('pos_order_items as i')->join('pos_orders as o', 'o.id', '=', 'i.pos_order_id')
+            ->where('o.hotel_id', Tenant::id())->where('o.status', 'settled')->whereNull('o.merged_into_id')
+            ->where('o.settlement', $comps ? '=' : '!=', 'complimentary')
+            ->whereBetween('o.business_date', [$from, $to])
+            ->where('i.is_cancelled', false)->where('i.is_pending', false)->whereNotNull('i.modifiers')
+            ->when($outletId, fn ($q) => $q->where('o.outlet_id', $outletId))
+            ->select('o.business_date', 'i.menu_item_id', 'i.qty', 'i.modifiers')->cursor();
+
+        foreach ($lines as $line) {
+            $sides = json_decode((string) $line->modifiers, true);
+            if (! is_array($sides)) {
+                continue;
+            }
+            foreach ($sides as $side) {
+                if (($side['type'] ?? null) !== 'side_dish' || ! isset($side['id'])) {
+                    continue;
+                }
+                $id = (int) $side['id'];
+                $n = max(1, (int) ($side['qty'] ?? 1)) * (float) $line->qty;   // a portion of the dish carries its side
+                $rate = (float) ($side['price_delta'] ?? 0);
+                if (! array_key_exists('cost', $side)) {
+                    $fallback ??= MenuItemVariant::pluck('cost', 'id');
+                }
+                $has = array_key_exists('cost', $side);
+                $unit = $has ? (float) $side['cost'] : (float) ($fallback[$id] ?? 0);
+
+                $rows[$id] ??= ['id' => $id, 'name' => (string) ($side['name'] ?? 'Side dish'), 'units' => 0.0, 'revenue' => 0.0, 'cost' => 0.0];
+                $rows[$id]['units'] += $n;
+                $rows[$id]['revenue'] += $rate * $n;
+                $rows[$id]['cost'] += $unit * $n;
+                $units += $n;
+                $revenue += $rate * $n;
+                $cost += $unit * $n;
+                if (! $has) {
+                    $uncosted += $unit * $n;
+                }
+                if ($line->menu_item_id) {
+                    $byItem[(int) $line->menu_item_id]['cost'] = ($byItem[(int) $line->menu_item_id]['cost'] ?? 0) + $unit * $n;
+                    $byItem[(int) $line->menu_item_id]['revenue'] = ($byItem[(int) $line->menu_item_id]['revenue'] ?? 0) + $rate * $n;
+                    $day = Carbon::parse($line->business_date)->toDateString();
+                    $byDay[$day][(int) $line->menu_item_id] = ($byDay[$day][(int) $line->menu_item_id] ?? 0) + $unit * $n;
+                }
+            }
+        }
+
+        $noCostRevenue = 0.0;
+        $noCost = 0;
+        foreach ($rows as &$row) {
+            $row['units'] = round($row['units'], 3);
+            $row['revenue'] = round($row['revenue'], 2);
+            $row['cost'] = round($row['cost'], 2);
+            $row['gp'] = round($row['revenue'] - $row['cost'], 2);
+            $row['gp_pct'] = $row['revenue'] > 0 ? round($row['gp'] / $row['revenue'] * 100, 1) : null;
+            $row['share'] = $revenue > 0 ? round($row['revenue'] / $revenue * 100, 1) : 0.0;
+            // v9.35 sold at no cost at all: its margin is a guess until the master says what it costs
+            $row['no_cost'] = $row['units'] > 0 && $row['cost'] <= 0;
+            if ($row['no_cost']) {
+                $noCost++;
+                $noCostRevenue += $row['revenue'];
+            }
+        }
+        unset($row);
+        usort($rows, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
+
+        return self::$memo[$key] = ['rows' => $rows, 'by_item' => $byItem, 'by_day' => $byDay, 'units' => round($units, 3), 'revenue' => round($revenue, 2),
+            'cost' => round($cost, 2), 'gp' => round($revenue - $cost, 2), 'gp_pct' => $revenue > 0 ? round(($revenue - $cost) / $revenue * 100, 1) : null,
+            'uncosted' => round($uncosted, 2), 'no_cost' => $noCost, 'no_cost_revenue' => round($noCostRevenue, 2)];
+    }
+
+    /** The side dishes sold over the period, best earner first. */
+    public static function sideDishes(string $from, string $to, ?int $outletId = null): array
+    {
+        return self::scanSides($from, $to, $outletId);
+    }
+
+    /** Side dishes on the menu whose cost is missing or zero — the gap the costing screen cannot fill (v9.35). */
+    public static function sideCostGaps(): array
+    {
+        return self::$memo['sidegaps'.Tenant::id()] ??= MenuItemVariant::where(fn ($q) => $q->whereNull('cost')->orWhere('cost', '<=', 0))
+            ->orderBy('name')->get(['id', 'menu_item_id', 'name', 'rate'])
+            ->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->all();
+    }
+
+    /** Side dish revenue and cost per menu item, so a dish is costed with the sides it was sold with. */
+    public static function sideCostByItem(string $from, string $to, ?int $outletId = null): array
+    {
+        return self::scanSides($from, $to, $outletId)['by_item'];
     }
 
     public static function classOf(MenuItem $m): string
@@ -415,16 +528,22 @@ class FbCostService
             ->when($categoryId, fn ($q) => $q->where('menu_category_id', $categoryId))
             ->where(fn ($q) => $q->where('is_available', true)->orWhereIn('id', $sold->keys()))
             ->orderBy('name')->get();
-        $rows = $items->map(function ($m) use ($sold, $costs) {
+        // v9.34 the sides sold with a dish are part of what the dish earned and part of what it cost
+        $sides = self::sideCostByItem($from, $to, $outletId);
+        $rows = $items->map(function ($m) use ($sold, $costs, $sides) {
             $s = $sold[$m->id] ?? null;
             $n = (float) ($s->qty ?? 0);
             $rev = (float) ($s->revenue ?? 0);
             $price = $n > 0 ? $rev / $n : (float) $m->price;
             $cost = $costs[$m->id] ?? null;
+            $sideCost = round((float) ($sides[$m->id]['cost'] ?? 0), 2);
+            $sidePp = $cost !== null && $n > 0 ? round($sideCost / $n, 2) : null;
+            $portion = $cost !== null ? round($cost + (float) $sidePp, 2) : null;
 
             return (object) ['item' => $m, 'n' => $n, 'revenue' => round($rev, 2), 'price' => round($price, 2), 'cost' => $cost,
-                'cm' => $cost !== null ? round($price - $cost, 2) : null, 'total_cm' => $cost !== null ? round(($price - $cost) * $n, 2) : null,
-                'total_cost' => $cost !== null ? round($cost * $n, 2) : null];
+                'side_cost' => $sideCost, 'side_revenue' => round((float) ($sides[$m->id]['revenue'] ?? 0), 2), 'side_pp' => $sidePp, 'portion' => $portion,
+                'cm' => $portion !== null ? round($price - $portion, 2) : null, 'total_cm' => $portion !== null ? round(($price - $portion) * $n, 2) : null,
+                'total_cost' => $portion !== null ? round($portion * $n, 2) : null];
         });
         $costed = $rows->filter(fn ($r) => $r->cost !== null)->values();
         $N = $costed->sum('n');
@@ -468,6 +587,9 @@ class FbCostService
         $blank = fn () => ['revenue' => 0.0, 'theoretical' => 0.0, 'uncosted_revenue' => 0.0, 'consumption' => 0.0, 'issues' => 0.0, 'waste' => 0.0, 'other_waste' => 0.0,
             'adjustments' => 0.0, 'staff_meals' => 0.0, 'comps' => 0.0];
         $out = [];
+        // v9.34 a side dish carries no recipe but it does carry a cost: the line's revenue already includes its rate, so
+        // the theoretical cost of the day has to include its cost, in the class of the dish it was sold with
+        $sideCost = self::scanSides($from, $to)['by_day'];
         foreach (self::salesByDay($from, $to) as $s) {
             $d = Carbon::parse($s->business_date)->toDateString();
             $c = $cls[$s->menu_item_id] ?? 'food';
@@ -479,6 +601,9 @@ class FbCostService
             foreach ($byClass[$s->menu_item_id] ?? [] as $ic => $v) { // theoretical by ingredient class
                 $out[$d][$ic] ??= $blank();
                 $out[$d][$ic]['theoretical'] += (float) $s->qty * $v;
+            }
+            if (! empty($sideCost[$d][$s->menu_item_id])) {
+                $out[$d][$c]['theoretical'] += (float) $sideCost[$d][$s->menu_item_id];
             }
         }
         foreach (self::salesByDay($from, $to, true) as $s) {
@@ -724,6 +849,7 @@ class FbCostService
                 'no_recipe' => $d->where('st', 'no_recipe')->where('is_available', true)->count(),
                 'creep' => $d->filter(fn ($m) => $m->creep && $m->creep['pct'] >= self::cfg()['creep_pct'])->count(),
                 'zero_cost' => InventoryItem::whereIn('id', $used)->where(fn ($q) => $q->whereNull('last_cost')->orWhere('last_cost', '<=', 0))->count(),
+                'side_no_cost' => count(self::sideCostGaps()), // v9.35 a side dish with no cost earns a margin nobody can check
                 'unapproved' => FbRecipeCard::whereNull('approved_at')->whereIn('menu_item_id', MenuItemRecipe::distinct()->pluck('menu_item_id'))->count(),
                 'meals_missing' => $mealsInUse && ! FbStaffMeal::whereDate('business_date', bdate()->copy()->subDay()->toDateString())->exists() ? 1 : 0,
             ];

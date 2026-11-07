@@ -23,6 +23,16 @@
   <x-stat label="Checked for" :value="$date->format('d M Y')" icon="calendar" tone="slate" sub="last audited business date"/>
 </div>
 
+@if($open)
+<div class="card rpt-banner is-amber no-print" role="status" data-testid="open-banner">
+  <div class="card-body flex gap-1 wrap" style="align-items:center">
+    <x-icon name="alert"/>
+    <b>{{ $open }} alert event{{ $open === 1 ? '' : 's' }} waiting for acknowledgement.</b>
+    <span class="small muted">Each one is a figure that crossed its threshold on an audited day.</span>
+  </div>
+</div>
+@endif
+
 <div class="card flush" id="eventsCard"><div class="card-head"><h3><x-icon name="alert"/> Alert events</h3>
   <div class="flex gap-1"><a class="btn btn-sm {{ request('show') !== 'all' ? 'btn-primary' : 'btn-soft' }}" href="{{ route('reports.alerts') }}">Unacknowledged</a><a class="btn btn-sm {{ request('show') === 'all' ? 'btn-primary' : 'btn-soft' }}" href="{{ route('reports.alerts', ['show' => 'all']) }}">All</a></div></div>
 <div class="card-body table-wrap"><table class="table">
@@ -42,8 +52,10 @@
 </table></div></div>
 {{ $events->links() }}
 
-<div class="card flush" id="alertsCard"><div class="card-head"><h3><x-icon name="bell"/> Alert rules</h3><span class="small muted">checked automatically after every night audit</span></div>
-<div class="card-body table-wrap"><table class="table">
+<div class="card flush" id="alertsCard"><div class="card-head"><h3><x-icon name="bell"/> Alert rules</h3>
+  <div class="flex gap-1"><span class="small muted">checked automatically after every night audit</span>
+    <input class="input input-sm no-print" placeholder="Search alerts…" aria-label="Search KPI alerts" data-filter-table="#alertsTable" style="max-width:210px"></div></div>
+<div class="card-body table-wrap"><table class="table" id="alertsTable">
   <thead><tr><th>Alert</th><th>Rule</th><th>Severity</th><th>Notify</th><th class="num">Last value</th><th>Last triggered</th><th></th></tr></thead>
   <tbody>@forelse($alerts as $a) @php $fmt = $K::METRICS[$a->metric][1] ?? 'int'; $bad = $a->last_value !== null && $K::breached($a, (float) $a->last_value); @endphp
     <tr data-alert="{{ $a->id }}" class="{{ $a->is_active ? '' : 'muted' }}">
@@ -59,7 +71,9 @@
         <form method="post" action="{{ route('reports.alerts.destroy', $a) }}" style="display:inline" data-confirm="Delete the alert “{{ $a->name }}” and its history?">@csrf @method('DELETE')<button class="btn btn-sm btn-ghost" title="Delete"><x-icon name="trash"/></button></form>
       </td></tr>
   @empty
-    <tr><td colspan="7"><x-empty text="No KPI alerts yet." icon="bell"/></td></tr>
+    <tr><td colspan="7"><x-empty text="No KPI alerts yet." icon="bell">
+      <div class="flex gap-1 mt-1" style="justify-content:center"><a class="btn btn-sm btn-primary" href="#alertForm">Create the first alert</a></div>
+    </x-empty></td></tr>
   @endforelse</tbody>
 </table></div></div>
 

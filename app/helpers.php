@@ -64,9 +64,13 @@ if (! function_exists('setting')) {
 }
 
 if (! function_exists('can_do')) {
+    /**
+     * v10.3 the sidebar and every button ask this, so an unlicensed module disappears from the screen
+     * as well as returning 403 when its URL is typed — the two answers come from one place.
+     */
     function can_do(string $perm): bool
     {
-        return (bool) auth()->user()?->hasPermission($perm);
+        return (bool) auth()->user()?->hasPermission($perm) && \App\Services\LicenceService::licensed($perm);
     }
 }
 

@@ -7,6 +7,15 @@
     <div class="field"><label for="pCat">Category</label><select name="category" id="pCat">@foreach($CP::CATEGORIES as $k => $l)<option value="{{ $k }}" @selected(old('category', $p?->category ?? 'ffe') === $k)>{{ $l }}</option>@endforeach</select></div>
     <div class="field"><label for="pFund">Funded by</label><select name="funding" id="pFund">@foreach($CP::FUNDING as $k => $l)<option value="{{ $k }}" @selected(old('funding', $p?->funding ?? 'reserve') === $k)>{{ $l }}</option>@endforeach</select></div>
     <div class="field"><label for="pBudget">Budget (GH₵)</label><input type="number" step="0.01" min="1" name="budget" id="pBudget" value="{{ old('budget', $p ? (float) $p->budget : '') }}" required></div>
+    {{-- v8.5 – the capital asset account the project will be capitalised to; this is how the year's capital plan counts it --}}
+    <div class="field"><label for="pHead">Capital asset account</label>
+      <select name="capital_head_id" id="pHead">
+        <option value="">— not decided yet —</option>
+        @foreach(\App\Services\BudgetService::capitalAccounts() as $h)
+          <option value="{{ $h->id }}" @selected((int) old('capital_head_id', $p?->capital_head_id) === (int) $h->id)>{{ $h->label }}</option>
+        @endforeach
+      </select>
+      <div class="tiny muted">the account the capital plan is held by – until it is set, no plan counts this project</div></div>
     <div class="field"><label for="pDept">Department</label><select name="usali_dept" id="pDept"><option value="">—</option>@foreach($U::payrollDepts() as $k => $l)<option value="{{ $k }}" @selected(old('usali_dept', $p?->usali_dept) === $k)>{{ $l }}</option>@endforeach</select></div>
     <div class="field"><label for="pNeed">Needed by</label><input type="date" name="needed_by" id="pNeed" value="{{ old('needed_by', $p?->needed_by?->toDateString()) }}"></div>
     <div class="field span-all"><label for="pJust">Justification for the owner</label><textarea name="justification" id="pJust" rows="4" maxlength="4000" placeholder="Why it is needed, what happens if deferred, quotes obtained, expected savings / revenue">{{ old('justification', $p?->justification) }}</textarea></div>

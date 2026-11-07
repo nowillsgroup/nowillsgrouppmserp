@@ -7,7 +7,7 @@
 @endsection
 @section('content')
 <div class="card flush"><div class="card-body table-wrap"><table class="table">
-  <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Pax</th><th class="num">Price ({{ \App\Services\TaxService::pricesInclusive() ? 'incl' : 'excl' }}. tax)</th><th>Tickets</th><th>Order</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Pax</th><th class="num">Price ({{ \App\Services\TaxService::pricesInclusive() ? 'incl' : 'excl' }}. tax)</th><th class="num">Guest pays</th><th>Tickets</th><th>Order</th><th>Status</th><th></th></tr></thead>
   <tbody>@forelse($rows as $t)
     <tr class="{{ $t->is_active ? '' : 'muted' }}">
       <td class="bold">{{ $t->code }}</td>
@@ -15,13 +15,14 @@
       <td><span class="badge badge-{{ $t->category === 'access' ? 'green' : ($t->category === 'rental' ? 'blue' : 'purple') }}">{{ \App\Models\ClubTicketType::CATEGORIES[$t->category] }}</span></td>
       <td class="small">{{ \App\Models\ClubTicketType::PAX_TYPES[$t->pax_type] }}</td>
       <td class="num bold">{{ money($t->price, false) }}</td>
+      <td class="num">{{ money(\App\Services\TaxService::pricesInclusive() ? $t->price : $t->price * (1 + (($t->tax_rate ?? $rate) / 100)), false) }}</td>
       <td class="small">{{ $t->issues_pass ? 'issues entry tickets' : 'no ticket' }}</td>
       <td class="num">{{ $t->sort }}</td>
       <td><span class="badge badge-{{ $t->is_active ? 'green' : 'slate' }}">{{ $t->is_active ? 'On sale' : 'Off sale' }}</span></td>
       <td class="num"><button class="btn btn-sm btn-ghost" data-modal="typeModal" data-title="Edit {{ $t->name }}" data-action="{{ route('recreation.types.update', $t) }}"
         data-fields="{{ collect(['code' => $t->code, 'name' => $t->name, 'category' => $t->category, 'pax_type' => $t->pax_type, 'price' => $t->price, 'tax_rate' => $t->tax_rate, 'issues_pass' => $t->issues_pass ? 1 : 0, 'is_active' => $t->is_active ? 1 : 0, 'sort' => $t->sort])->toJson() }}">Edit</button></td>
     </tr>
-  @empty <tr><td colspan="9"><x-empty text="No ticket types yet." icon="receipt"/></td></tr> @endforelse</tbody>
+  @empty <tr><td colspan="10"><x-empty text="No ticket types yet." icon="receipt"/></td></tr> @endforelse</tbody>
 </table></div></div>
 
 <div class="modal" id="typeModal"><div class="modal-box" style="max-width:560px"><form method="post" action="{{ route('recreation.types.store') }}" data-reset id="typeForm">@csrf

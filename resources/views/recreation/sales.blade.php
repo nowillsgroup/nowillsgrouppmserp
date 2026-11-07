@@ -2,6 +2,7 @@
 @section('title', 'Ticket Sales')
 @section('crumbs') <a href="{{ route('club.index') }}">Wellness &amp; Recreation</a> / Ticket sales @endsection
 @section('actions')
+<a class="btn" href="{{ route('recreation.day', array_filter(['date' => $date])) }}"><x-icon name="chart"/> Day report</a>
 <a class="btn btn-primary" href="{{ route('recreation.outlet') }}"><x-icon name="plus"/> Open the outlet</a>
 @endsection
 @section('content')
@@ -16,7 +17,7 @@
   <x-stat label="Tickets issued" :value="$sumTickets" icon="users" tone="purple" sub="entry credentials"/>
 </div>
 <div class="card flush"><div class="card-body table-wrap"><table class="table">
-  <thead><tr><th>Sale</th><th>When</th><th>Guest</th><th>Items</th><th>Tickets</th><th>Settled</th><th class="num">Total</th><th></th></tr></thead>
+  <thead><tr><th>Sale</th><th>When</th><th>Guest</th><th>Items</th><th>Tickets</th><th>Settled</th><th>Shift</th><th class="num">Total</th><th></th></tr></thead>
   <tbody>@forelse($rows as $s)
     <tr class="{{ $s->isVoid() ? 'muted' : '' }}">
       <td class="bold">{{ $s->sale_no }}</td>
@@ -24,14 +25,17 @@
       <td>{{ $s->guest_name ?: '—' }}@if($s->phone)<div class="tiny muted">{{ $s->phone }}</div>@endif @if($s->host)<div class="tiny muted">guest of {{ $s->host->name }}</div>@endif</td>
       <td class="small">{{ $s->items->sum('qty') }} ×<div class="tiny muted">{{ $s->items->pluck('description')->take(2)->implode(', ') }}{{ $s->items->count() > 2 ? '…' : '' }}</div></td>
       <td class="num">{{ $s->passes->sum(fn ($p) => $p->adults + $p->children) }}</td>
-      <td class="small">{{ $s->stay ? 'Room '.$s->stay->room?->room_no : $s->payments->pluck('paymentMode.name')->filter()->implode(' + ') }}@if($s->reference)<div class="tiny muted">{{ $s->reference }}</div>@endif</td>
+      <td class="small">{{ $s->stay ? 'Room '.$s->stay->room?->room_no : $s->payments->pluck('paymentMode.name')->filter()->implode(' + ') }}
+        @if($s->reference)<div class="tiny muted">{{ $s->reference }}</div>@endif
+        @if($s->payments->pluck('receiver.name')->filter()->unique()->count())<div class="tiny muted">taken by {{ $s->payments->pluck('receiver.name')->filter()->unique()->implode(', ') }}</div>@endif</td>
+      <td class="small">{{ $s->shift ? $s->shift->shift.' ' : '—' }}@if($s->shift)<div class="tiny muted">{{ $s->shift->opened_at->format('H:i') }} start</div>@endif</td>
       <td class="num bold">{{ money($s->total, false) }}</td>
       <td class="num">
         <a class="btn btn-sm btn-ghost" href="{{ route('recreation.receipt', $s) }}" target="_blank">Receipt</a>
         @if(! $s->isVoid() && can_do('club.manage'))<button class="btn btn-sm btn-ghost" data-modal="voidModal" data-title="Void {{ $s->sale_no }}" data-action="{{ route('recreation.void', $s) }}">Void</button>@endif
       </td>
     </tr>
-  @empty <tr><td colspan="8"><x-empty text="No ticket sales yet — open the outlet and ring one up." icon="receipt"/></td></tr> @endforelse</tbody>
+  @empty <tr><td colspan="9"><x-empty text="No ticket sales yet — open the outlet and ring one up." icon="receipt"/></td></tr> @endforelse</tbody>
 </table></div></div>
 {{ $rows->links() }}
 

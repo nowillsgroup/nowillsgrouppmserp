@@ -80,6 +80,9 @@ class LoyaltyService
         if ($points < self::minRedeem()) {
             throw new RuntimeException('Minimum redemption is '.self::minRedeem().' points.');
         }
+        if (self::pointValue() <= 0) {
+            throw new RuntimeException('A point is currently worth nothing — set the point value on Settings before redeeming.');
+        }
 
         return DB::transaction(function () use ($folio, $points) {
             $guest = Guest::lockForUpdate()->findOrFail($folio->guest_id);

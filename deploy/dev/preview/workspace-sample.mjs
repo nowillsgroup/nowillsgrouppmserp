@@ -7,7 +7,7 @@
  * controller's attention/kpiTiles arrays, so the screen composes exactly as it does
  * in the application — only the property and the numbers are fixed.
  */
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 const BUSINESS_DATE = '2026-11-05';
 const day = iso => new SampleDate(`${iso}T09:00:00Z`);
@@ -259,9 +259,7 @@ export function workspaceContext() {
     request: () => ({ except: () => ({}), only: () => ({}), query: (key, fallback) => fallback, has: () => false }),
     collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
     count: (value) => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-    empty: (value) => value === undefined || value === null || value === false || value === 0 || value === ''
-      || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty())
-      || (typeof value === 'object' && !(value instanceof Coll) && !Object.keys(value).length),
+    empty: phpEmpty,
     in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
     array_flip: (obj) => Object.fromEntries(Object.entries(obj ?? {}).map(([key, value]) => [value, key])),
     array_merge: (...parts) => Object.assign({}, ...parts.map(part => part ?? {})),

@@ -474,7 +474,14 @@ class ClubController extends Controller
 
     public function settings(Request $request)
     {
-        $rules = collect(ClubService::SETTINGS)->mapWithKeys(fn ($s, $k) => [$k => 'required|numeric|min:0|max:100000'])->all();
+        // the screen prints a band per field: cedis to two decimals from 0, whole hours from 1 (the
+        // service never checks a visit out sooner), and every other count as a whole number from 0
+        $money = ['club_daypass_adult', 'club_daypass_child', 'club_guestpass'];
+        $rules = collect(ClubService::SETTINGS)->mapWithKeys(fn ($s, $k) => [$k => match (true) {
+            in_array($k, $money, true) => 'required|numeric|min:0|max:100000',
+            $k === 'club_checkout_hours' => 'required|integer|min:1|max:100000',
+            default => 'required|integer|min:0|max:100000',
+        }])->all();
         $d = $request->validate($rules);
         foreach ($d as $k => $v) {
             Setting::updateOrCreate(['key' => $k], ['value' => (string) (float) $v == (string) (int) $v ? (string) (int) $v : (string) $v]);

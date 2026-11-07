@@ -48,6 +48,12 @@ class ClubTicketSale extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** The outlet shift this sale was rung up on (null for sales taken before shifts existed). */
+    public function shift()
+    {
+        return $this->belongsTo(DepartmentShiftSession::class, 'department_shift_session_id');
+    }
+
     public function isVoid(): bool
     {
         return $this->status === 'void';

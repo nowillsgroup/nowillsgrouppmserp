@@ -28,5 +28,5 @@
 <p>The report is attached as a CSV file ({{ $rows->count() }} rows).</p>
 @endif
 @if(!empty($data['note']))<p style="font-size:12px;color:#64748b">{{ $data['note'] }}</p>@endif
-<p style="font-size:12px;color:#64748b;margin-top:14px">Scheduled by {{ $schedule->user?->name }} · {{ $schedule->when() }}. <a href="{{ route('reports.show', $schedule->report_key) }}">Open in Nowills PMS</a>. To stop receiving it, ask the owner or an administrator (Reports › Scheduled reports).</p>
+<p style="font-size:12px;color:#64748b;margin-top:14px">Scheduled by {{ $schedule->user?->name }} · {{ $schedule->when() }}. <a href="{{ isset(\App\Http\Controllers\ReportController::REPORTS[$schedule->report_key]) ? route('reports.show', $schedule->report_key) : route('reports.index') }}">Open in Nowills PMS</a>. To stop receiving it, ask the owner or an administrator (Reports › Scheduled reports).</p>
 @endsection

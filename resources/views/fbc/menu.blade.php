@@ -53,12 +53,12 @@
     </div></div>@endforeach
   </div>
 </div>
-<div class="card flush"><div class="card-head"><h3>Menu engineering worksheet</h3><span class="small muted">{{ \Carbon\Carbon::parse($from)->format('d M') }} – {{ \Carbon\Carbon::parse($to)->format('d M Y') }}</span></div>
+<div class="card flush"><div class="card-head"><h3>Menu engineering worksheet</h3><span class="small muted">{{ \Carbon\Carbon::parse($from)->format('d M') }} – {{ \Carbon\Carbon::parse($to)->format('d M Y') }} · <a href="{{ route('fbc.sides', ['from' => $from, 'to' => $to]) }}">side dishes</a></span></div>
 <div class="card-body table-wrap"><table class="table table-compact" id="fbcMeTable">
   <thead><tr><th>Menu item</th><th class="num">Sold</th><th class="num">Mix %</th><th class="num">Avg price</th><th class="num">Plate cost</th><th class="num">CM</th><th class="num">Revenue</th><th class="num">Total cost</th><th class="num">Total CM</th><th>Popularity</th><th>CM</th><th>Class</th></tr></thead><tbody>
   @forelse($me['rows'] as $r)<tr>
     <td><a href="{{ route('fbc.card', $r->item) }}"><b>{{ $r->item->name }}</b></a><div class="tiny muted">{{ $r->item->category?->name }}</div></td>
-    <td class="num">{{ number_format($r->n) }}</td><td class="num">{{ $r->mix }}%</td><td class="num">{{ money($r->price) }}</td><td class="num">{{ money($r->cost) }}</td>
+    <td class="num">{{ number_format($r->n) }}</td><td class="num">{{ $r->mix }}%</td><td class="num">{{ money($r->price) }}</td><td class="num">{{ money($r->cost) }}@if($r->side_pp) <span class="tiny muted">+ {{ money($r->side_pp) }} sides</span>@endif</td>
     <td class="num"><b>{{ money($r->cm) }}</b></td><td class="num">{{ money($r->revenue) }}</td><td class="num">{{ money($r->total_cost) }}</td><td class="num">{{ money($r->total_cm) }}</td>
     <td class="small">{{ $r->mix >= $me['threshold'] && $r->n > 0 ? 'High' : 'Low' }}</td><td class="small">{{ $r->cm >= $me['avg_cm'] ? 'High' : 'Low' }}</td>
     <td><span class="badge badge-{{ $C[$r->cls][1] }}">{{ $C[$r->cls][0] }}</span></td></tr>

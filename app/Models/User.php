@@ -40,6 +40,10 @@ class User extends Authenticatable
 
     protected ?array $permissionCache = null;
 
+    protected ?int $permissionCacheRole = null;
+
+    protected ?\Illuminate\Support\Collection $grantedPropertyIds = null;
+
     protected function casts(): array
     {
         return [
@@ -70,13 +74,65 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    /** v10.0 explicit multi-property grants (beyond the user's own property and group administration). */
+    public function propertyGrants()
+    {
+        return $this->belongsToMany(Hotel::class, 'property_user')
+            ->withPivot(['role_id', 'is_default', 'granted_by', 'last_used_at'])->withTimestamps();
+    }
+
+    public function grantedPropertyIds(): \Illuminate\Support\Collection
+    {
+        if ($this->grantedPropertyIds === null) {
+            $this->grantedPropertyIds = \Illuminate\Support\Facades\Schema::hasTable('property_user')
+                ? \Illuminate\Support\Facades\DB::table('property_user')->where('user_id', $this->id)->pluck('hotel_id')->map(fn ($id) => (int) $id)
+                : collect();
+        }
+
+        return $this->grantedPropertyIds;
+    }
+
+    /**
+     * v10.0 the role that governs the property the user is standing in: their own role at their own
+     * property, the role granted with the property for anybody else, and the base role when a grant
+     * carries no override.
+     */
+    public function effectiveRoleId(?int $hotelId = null): ?int
+    {
+        $hotelId ??= \App\Support\Tenant::id();
+        if (! $hotelId) {
+            return $this->role_id;
+        }
+        if ((int) $this->hotel_id === (int) $hotelId) {
+            return $this->role_id;
+        }
+        $pivot = $this->propertyGrants()->where('hotels.id', $hotelId)->first();
+        if ($pivot && $pivot->pivot->role_id) {
+            return (int) $pivot->pivot->role_id;
+        }
+
+        return $this->role_id;
+    }
+
+    public function effectiveRole(?int $hotelId = null): ?Role
+    {
+        $id = $this->effectiveRoleId($hotelId);
+        if (! $id) {
+            return $this->relationLoaded('role') ? $this->role : $this->role()->first();
+        }
+
+        return $id === (int) $this->role_id ? ($this->relationLoaded('role') ? $this->role : $this->role()->first()) : Role::find($id);
+    }
+
     public function permissionKeys(): array
     {
-        if ($this->permissionCache === null) {
-            $this->permissionCache = $this->role_id
+        $roleId = $this->effectiveRoleId();
+        if ($this->permissionCache === null || $this->permissionCacheRole !== $roleId) {
+            $this->permissionCache = $roleId
                 ? Permission::query()->join('permission_role', 'permissions.id', '=', 'permission_role.permission_id')
-                    ->where('permission_role.role_id', $this->role_id)->pluck('key')->all()
+                    ->where('permission_role.role_id', $roleId)->pluck('key')->all()
                 : [];
+            $this->permissionCacheRole = $roleId;
         }
 
         return $this->permissionCache;
@@ -95,14 +151,45 @@ class User extends Authenticatable
         return in_array($key, $this->permissionKeys(), true);
     }
 
-    /** Hotels this user may switch into. */
+    /**
+     * Hotels this user may switch into. v10.0 defers to PropertyAccessService so the switcher,
+     * SetTenant and switchHotel() can never disagree; only live properties are offered.
+     */
     public function accessibleHotels()
     {
-        if ($this->is_group_admin && $this->hotel_group_id) {
-            return Hotel::where('hotel_group_id', $this->hotel_group_id)->where('is_active', true)->orderBy('name')->get();
+        return app(\App\Services\PropertyAccessService::class)->operable($this);
+    }
+
+    /** Every property the user may see in the administration register, including drafts and suspended ones. */
+    public function accessibleProperties()
+    {
+        return app(\App\Services\PropertyAccessService::class)->accessible($this);
+    }
+
+    public function canEnterProperty(Hotel $hotel, bool $forSetup = false): bool
+    {
+        return app(\App\Services\PropertyAccessService::class)->canEnter($this, $hotel, $forSetup);
+    }
+
+    public function canAdministerProperty(Hotel $hotel): bool
+    {
+        return app(\App\Services\PropertyAccessService::class)->canAdminister($this, $hotel);
+    }
+
+    /**
+     * True when the user governs the group account itself. A property administrator is a super admin
+     * *inside their property* and nothing more: they may never edit the group, its defaults or a
+     * sibling property, or v10.0 would hand the portfolio to every hotel manager.
+     */
+    public function governsGroup(?int $groupId = null): bool
+    {
+        if ($this->is_super_admin && ! $this->hotel_group_id) {
+            return true; // platform administrator: no group of their own
         }
 
-        return Hotel::whereKey($this->hotel_id)->get();
+        $groupId ??= $this->hotel_group_id;
+
+        return (bool) $this->is_group_admin && $groupId && (int) $this->hotel_group_id === (int) $groupId;
     }
 
     public function hasTwoFactor(): bool

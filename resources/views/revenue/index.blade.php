@@ -111,7 +111,7 @@ body.dark .rvd-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d543
     </div></section>
   </div>
 
-  <section class="card rvd-table-card" aria-labelledby="rvdTableTitle"><div class="card-head rvd-table-head"><div><h3 id="rvdTableTitle">Forecast &amp; pickup by night</h3><p>Pickup shows rooms gained since yesterday or the prior week{{ $lastSnapshot ? ' · last snapshot '.dmy($lastSnapshot) : '' }}.</p></div><span class="rvd-chart-range"><x-icon name="calendar"/> {{ $days }} nights</span></div>
+  <section class="card rvd-table-card" aria-labelledby="rvdTableTitle"><div class="card-head rvd-table-head"><div><h3 id="rvdTableTitle">Forecast &amp; pickup by night</h3><p>Pickup shows rooms gained since yesterday or the prior week{{ $lastSnapshot ? ' · last snapshot '.dmy($lastSnapshot) : '' }}.@if(count($pickup1Values) < $n || count($pickup7Values) < $n) A pickup total marked <b>*</b> covers only the nights that have a snapshot, not the whole window.@endif</p></div><span class="rvd-chart-range"><x-icon name="calendar"/> {{ $days }} nights</span></div>
     <div class="rvd-table-scroll" role="region" aria-label="Scrollable nightly forecast and pickup table" tabindex="0"><table class="table table-compact rvd-table">
       <thead><tr><th scope="col">Date</th><th scope="col" class="center">Lead</th><th scope="col" class="num">Booked</th><th scope="col" class="num">Held</th><th scope="col" class="num">Occ %</th><th scope="col" class="num">ADR</th><th scope="col" class="num">Revenue</th><th scope="col" class="num" title="Rooms picked up since yesterday">Pickup 1d</th><th scope="col" class="num" title="Rooms picked up in the last 7 days">Pickup 7d</th><th scope="col" class="num">Forecast</th><th scope="col" class="num">Fcst revenue</th><th scope="col"><span class="rvd-sr-only">Actions</span></th></tr></thead>
       <tbody>
@@ -127,7 +127,12 @@ body.dark .rvd-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d543
       </tbody>
       @if($n)
         <tfoot><tr><td colspan="2">Total</td><td class="num">{{ array_sum(array_column($rows, 'rooms')) }}</td><td class="num">{{ array_sum(array_column($rows, 'held')) }}</td><td></td><td></td><td class="num">{{ money(array_sum(array_column($rows, 'revenue'))) }}</td>
-          <td class="num">{{ count($pickup1Values) ? array_sum($pickup1Values) : '—' }}</td><td class="num">{{ count($pickup7Values) ? array_sum($pickup7Values) : '—' }}</td><td class="num">{{ array_sum(array_column($rows, 'fc_rooms')) }}</td><td class="num">{{ money(array_sum(array_column($rows, 'fc_revenue'))) }}</td><td></td></tr></tfoot>
+          @php
+            // A total over a column where some nights have no snapshot is a total over fewer
+            // nights than the row beside it. It is marked rather than silently short.
+            $pk1 = count($pickup1Values); $pk7 = count($pickup7Values);
+          @endphp
+          <td class="num" title="{{ $pk1 ? 'Rooms picked up across '.$pk1.' of '.$n.' nights with a snapshot' : 'No snapshot in this window' }}">{{ $pk1 ? array_sum($pickup1Values) : '—' }}@if($pk1 && $pk1 < $n)<b>*</b>@endif</td><td class="num" title="{{ $pk7 ? 'Rooms picked up across '.$pk7.' of '.$n.' nights with a snapshot' : 'No snapshot in this window' }}">{{ $pk7 ? array_sum($pickup7Values) : '—' }}@if($pk7 && $pk7 < $n)<b>*</b>@endif</td><td class="num">{{ array_sum(array_column($rows, 'fc_rooms')) }}</td><td class="num">{{ money(array_sum(array_column($rows, 'fc_revenue'))) }}</td><td></td></tr></tfoot>
       @endif
     </table></div>
   </section>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Services\ActivityLogger;
 use App\Models\Lease;
 use App\Models\LeaseCharge;
 use App\Models\LeaseInspection;
@@ -98,6 +99,7 @@ class LeaseController extends Controller
             Setting::updateOrCreate(['key' => $k], ['value' => (string) $v]);
         }
         Setting::$version++;
+        ActivityLogger::log('leases', 'settings', 'Lease settings updated: '.collect($d)->map(fn ($v, $k) => $k.' '.money((float) $v))->implode(', '));
 
         return back()->with('success', 'Lease settings saved.');
     }

@@ -11,11 +11,13 @@ use App\Models\RatePlan;
 use App\Models\Reservation;
 use App\Models\ReservationRoom;
 use App\Models\Room;
+use App\Models\RoomOutage;
 use App\Models\RoomType;
 use App\Services\ActivityLogger;
 use App\Services\AvailabilityService;
-use App\Services\CreditService;
+use App\Services\CityLedgerService;
 use App\Services\FolioService;
+use App\Services\LeaseService;
 use App\Services\StayService;
 use App\Support\Numbering;
 use Illuminate\Http\Request;
@@ -114,6 +116,111 @@ class FrontDeskController extends Controller
             ->orderBy('arrival_date')->orderBy('room_id')->orderBy('id')->get();
         $unassigned = $stays->whereNull('room_id')->where('status', 'reserved')->sortBy('arrival_date')->values();
 
+        // One line under the day columns: the rooms sold on each night and what that is
+        // as a share of the rooms that can be sold. A room that is out of order is not
+        // for sale, so it must not sit in the denominator — counting it would understate
+        // occupancy on every night of the window.
+        $sellable = $rooms->filter(fn ($room) => ! in_array($room->status, ['out_of_order', 'out_of_service'], true))->count();
+
+        // Rooms taken off the market for a stretch of nights — a maintenance block, a
+        // leased apartment — cannot be sold on those nights, so they leave the
+        // denominator there instead of silently inflating it. The chart draws them too.
+        $offMarket = $rooms->filter(fn ($room) => in_array($room->status, ['out_of_order', 'out_of_service'], true))
+            ->pluck('id')->flip()->map(fn () => true)->all();
+        $outages = RoomOutage::covering($from, $to)->whereIn('room_id', $rooms->pluck('id'))->with('room:id,room_no')->get();
+        $leases = LeaseService::roomBlocks($from, $to);
+        $blocksByRoom = [];
+        $blockedNights = [];
+        $blockNotes = [];
+        foreach ($outages as $outage) {
+            if (isset($offMarket[$outage->room_id])) {
+                continue; // already out of the denominator every night
+            }
+            $blockReason = RoomOutage::REASONS[$outage->reason] ?? $outage->reason;
+            $blocksByRoom[$outage->room_id][] = [
+                'from' => $outage->starts_on,
+                'to' => $outage->ends_on,
+                'title' => 'Room '.($outage->room?->room_no ?? $outage->room_id).' blocked '.
+                    $outage->starts_on->format('d M').' – '.$outage->ends_on->format('d M').
+                    ' ('.$blockReason.')',
+                'short' => $blockReason,
+            ];
+            $blockNotes[] = 'room '.($outage->room?->room_no ?? $outage->room_id).' is blocked '.
+                $outage->starts_on->format('j M').' – '.$outage->ends_on->format('j M').' ('.mb_strtolower($blockReason).')';
+        }
+        foreach ($leases as $lease) {
+            if (isset($offMarket[$lease['room_id']])) {
+                continue;
+            }
+            $blocksByRoom[$lease['room_id']][] = [
+                'from' => Carbon::parse($lease['from']),
+                'to' => Carbon::parse($lease['to']),
+                'title' => 'Room '.($rooms->firstWhere('id', $lease['room_id'])?->room_no ?? $lease['room_id']).
+                    ' let as an apartment '.$lease['from'].' – '.$lease['to'],
+                'short' => 'Leased',
+            ];
+            $blockNotes[] = 'room '.($rooms->firstWhere('id', $lease['room_id'])?->room_no ?? $lease['room_id']).
+                ' is let as an apartment from '.Carbon::parse($lease['from'])->format('j M').' to '.
+                Carbon::parse($lease['to'])->format('j M');
+        }
+        foreach ($blocksByRoom as $roomId => $roomBlocks) {
+            for ($i = 0; $i < $days; $i++) {
+                $night = $from->copy()->addDays($i)->toDateString();
+                foreach ($roomBlocks as $block) {
+                    if ($block['from']->toDateString() <= $night && $block['to']->toDateString() > $night) {
+                        // one flat key per room-night: the view only ever asks "is this cell off the market?"
+                        $blockedNights[$roomId.'|'.$night] = true;
+                    }
+                }
+            }
+        }
+
+        $dailyTotals = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = $from->copy()->addDays($i);
+            $night = $day->toDateString();
+            $sold = $stays->filter(fn ($stay) => $stay->room_id
+                && in_array($stay->status, ['reserved', 'checked_in'], true)
+                // a tentative hold is not a sold room; it stays visible on the chart
+                && $stay->reservation?->status !== 'tentative'
+                && $stay->arrival_date->lte($day)
+                && $stay->departure_date->gt($day))->count();
+            $blocked = count(array_filter(array_keys($blockedNights), fn ($key) => str_ends_with($key, '|'.$night)));
+            $sellableTonight = max(0, $sellable - $blocked);
+            $dailyTotals[] = [
+                'day' => $night,
+                'label' => $day->format('l, j F Y'),
+                'short' => $day->format('j F'),
+                'occupied' => $sold,
+                'sellable' => $sellableTonight,
+                'blocked' => $blocked,
+                'pct' => $sellableTonight > 0 ? (int) round($sold / $sellableTonight * 100) : 0,
+            ];
+        }
+
+        // The window in one line: what the whole period sold, how full it ran and which
+        // night filled most. Average occupancy is room-nights over sellable room-nights,
+        // not the mean of the nightly percentages — those differ once a night is lost.
+        $roomNights = array_sum(array_column($dailyTotals, 'occupied'));
+        $sellableNights = array_sum(array_column($dailyTotals, 'sellable'));
+        $peak = $dailyTotals === [] ? null : collect($dailyTotals)->sortByDesc('occupied')->first();
+        $excludedRooms = $rooms->filter(fn ($room) => in_array($room->status, ['out_of_order', 'out_of_service'], true))
+            ->map(fn ($room) => [
+                'room_no' => $room->room_no,
+                'reason' => $room->status === 'out_of_order' ? 'out of order' : 'out of service',
+            ])->values()->all();
+        $totalsSummary = [
+            'roomNights' => $roomNights,
+            'sellableNights' => $sellableNights,
+            'sellable' => $sellable,
+            'active' => $rooms->count(),
+            'excluded' => $excludedRooms,
+            'blockedNights' => array_sum(array_column($dailyTotals, 'blocked')),
+            'blockNotes' => $blockNotes,
+            'avgPct' => $sellableNights > 0 ? (int) round($roomNights / $sellableNights * 100) : 0,
+            'peak' => $peak,
+        ];
+
         return view('frontdesk.tapechart', [
             'from' => $from,
             'to' => $to,
@@ -122,6 +229,11 @@ class FrontDeskController extends Controller
             'rooms' => $rooms->groupBy(fn ($room) => $room->roomType?->name ?? 'Unassigned room type'),
             'byRoom' => $stays->whereNotNull('room_id')->groupBy('room_id'),
             'unassigned' => $unassigned,
+            'dailyTotals' => $dailyTotals,
+            'totalsSummary' => $totalsSummary,
+            'blocksByRoom' => $blocksByRoom,
+            'blockedNights' => $blockedNights,
+            'hasDayUse' => $stays->contains(fn ($stay) => $stay->is_day_use),
             'canDrag' => $canDrag,
             'canMoveInHouse' => $canMoveInHouse,
             'canViewReservation' => $canViewReservation,
@@ -347,41 +459,12 @@ class FrontDeskController extends Controller
     {
         abort_unless(can_do('frontdesk.checkin') && can_do('credit.manage'), 403);
 
-        $data = $request->validate([
-            'name' => 'required|string|max:255', 'type' => 'required|in:corporate,travel_agent',
-            'contact_person' => 'nullable|string|max:255', 'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:150', 'address' => 'nullable|string|max:255', 'city' => 'nullable|string|max:80',
-            'credit_limit' => 'required|numeric|min:0|max:999999999999.99', 'credit_days' => 'required|integer|min:0|max:365',
-        ]);
-        $data['name'] = trim($data['name']);
-        if (Company::whereRaw('LOWER(name) = ?', [mb_strtolower($data['name'])])->exists()) {
-            throw ValidationException::withMessages(['name' => 'A company with this name already exists. Select it from Company / account instead.']);
-        }
+        $company = CityLedgerService::createFromDesk(
+            $request->validate(CityLedgerService::rules()),
+            'Walk-in check-in'
+        );
 
-        $company = DB::transaction(function () use ($data): Company {
-            $company = Company::create([
-                'name' => $data['name'], 'type' => $data['type'], 'contact_person' => $data['contact_person'] ?? null,
-                'phone' => $data['phone'] ?? null, 'email' => $data['email'] ?? null, 'address' => $data['address'] ?? null,
-                'city' => $data['city'] ?? null, 'credit_limit' => 0, 'credit_days' => 30,
-                'direct_billing' => false, 'credit_status' => 'open', 'is_active' => true, 'tier' => 'standard', 'sales_status' => 'active',
-            ]);
-            CreditService::setTerms(
-                $company,
-                (float) $data['credit_limit'],
-                (int) $data['credit_days'],
-                true,
-                'Initial City Ledger setup from Walk-in check-in'
-            );
-            $company->refresh();
-            ActivityLogger::log('credit', 'city_ledger_create', "City-ledger company {$company->name} created from Walk-in check-in", $company);
-
-            return $company;
-        });
-
-        return response()->json(['company' => [
-            'id' => $company->id, 'name' => $company->name, 'direct_billing' => (bool) $company->direct_billing,
-            'credit_limit' => (float) $company->credit_limit, 'credit_days' => (int) $company->credit_days,
-        ]], 201);
+        return response()->json(['company' => CityLedgerService::payload($company)], 201);
     }
 
     public function storeWalkIn(Request $request)
@@ -393,7 +476,11 @@ class FrontDeskController extends Controller
             'guest.city' => 'nullable|string|max:80', 'guest.id_type' => 'required|string|max:30', 'guest.id_number' => 'required|string|max:60',
             'guest.gender' => 'nullable|string|max:10', 'guest.dob' => 'nullable|date', 'guest.address' => 'nullable|string|max:255',
             'guest.passport_no' => 'nullable|string|max:40', 'guest.visa_expiry' => 'nullable|date', 'guest_id' => 'nullable|integer',
-            'room_id' => 'required|integer|owned:rooms', 'nights' => 'required|integer|min:1|max:90',
+            'room_id' => 'required|integer|owned:rooms',
+            'stay_type' => 'required|in:overnight,day_use',
+            'nights' => 'required_if:stay_type,overnight|nullable|integer|min:1|max:90',
+            'day_use_hours' => 'required_if:stay_type,day_use|nullable|integer|min:1|max:24',
+            'day_use_until' => 'nullable|date_format:H:i',
             'rate_plan_id' => 'nullable|integer|owned:rate_plans', 'rate' => 'required|numeric|min:0',
             'adults' => 'required|integer|min:1|max:10', 'children' => 'nullable|integer|min:0|max:10',
             'business_source_id' => 'nullable|integer|owned:business_sources', 'company_id' => 'nullable|integer|owned:companies',
@@ -415,13 +502,33 @@ class FrontDeskController extends Controller
         }
         $advanceLines = $this->advancePaymentLines($data);
         $room = Room::findOrFail($data['room_id']);
+        // Day use: the guest takes the room for a few hours today and leaves it free
+        // for the night, so arrival and departure are the same business date.
+        $dayUse = ($data['stay_type'] ?? 'overnight') === 'day_use';
+        if ($dayUse && empty($data['day_use_until'])) {
+            // The desk names a number of hours; the record keeps the hour the room runs
+            // until, which is what the rosters, the tape chart and the folio read.
+            $data['day_use_until'] = now()->addHours((int) ($data['day_use_hours'] ?? 4))->format('H:i');
+        }
+        // A day use is sold by the hour, exactly as the booking desk sells it: the desk
+        // names the hours and the rate per hour, and the room is charged for the hours
+        // bought — once, with no night in the sum.
+        $hours = $dayUse ? (int) ($data['day_use_hours'] ?? 0) : 0;
+        $hourly = $dayUse ? (float) $data['rate'] : 0.0;
+        $dayCharge = $dayUse ? round($hours * $hourly, 2) : (float) $data['rate'];
         $arr = bdate();
-        $dep = bdate()->addDays((int) $data['nights']);
-        if ($room->status !== 'vacant' || AvailabilityService::blockingStays($arr, $dep)->where('room_id', $room->id)->exists()) {
-            throw ValidationException::withMessages(['room_id' => "Room {$room->room_no} is not available for {$data['nights']} night(s)."]);
+        $dep = $dayUse ? $arr->copy() : bdate()->addDays((int) $data['nights']);
+        // A day use still has to leave the room sellable tonight — it may be let again.
+        $checkedThrough = $dayUse ? $arr->copy()->addDay() : $dep;
+        if ($room->status !== 'vacant'
+            || AvailabilityService::blockingStays($arr, $checkedThrough)->where('room_id', $room->id)->exists()
+            || ! AvailabilityService::roomAvailableForReservation($room->id, $arr, $checkedThrough)) {
+            throw ValidationException::withMessages(['room_id' => $dayUse
+                ? "Room {$room->room_no} cannot be used for today's day use: it is not vacant, is blocked, or is needed tonight."
+                : "Room {$room->room_no} is not available for {$data['nights']} night(s)."]);
         }
 
-        $stay = DB::transaction(function () use ($data, $room, $arr, $dep, $advanceLines) {
+        $stay = DB::transaction(function () use ($data, $room, $arr, $dep, $advanceLines, $dayUse, $hours, $hourly, $dayCharge) {
             $guest = ! empty($data['guest_id']) ? Guest::findOrFail($data['guest_id']) : (Guest::whereNull('privacy_status')->where('phone', $data['guest']['phone'])->where('first_name', $data['guest']['first_name'])->first() ?? new Guest);
             if ($guest->isPrivacyLocked()) {
                 $guest = new Guest; // erased / restricted profiles are never reused – a returning guest gets a fresh profile
@@ -443,8 +550,10 @@ class FrontDeskController extends Controller
             $extra = max(0, $data['adults'] - $type->base_occupancy) * (float) ($plan->extra_adult_rate ?? $type->extra_adult_rate);
             $stay = $res->rooms()->create([
                 'room_type_id' => $room->room_type_id, 'room_id' => $room->id, 'rate_plan_id' => $plan?->id, 'guest_id' => $guest->id,
-                'arrival_date' => $arr, 'departure_date' => $dep, 'rate' => $data['rate'], 'adults' => $data['adults'],
+                'arrival_date' => $arr, 'departure_date' => $dep, 'rate' => $dayCharge, 'adults' => $data['adults'],
                 'children' => $data['children'] ?? 0, 'extra_charge' => $extra, 'status' => 'reserved',
+                'is_day_use' => $dayUse, 'day_use_until' => $dayUse ? $data['day_use_until'] : null,
+                'day_use_hours' => $dayUse ? $hours : null, 'day_use_rate' => $dayUse ? $hourly : null,
             ]);
             $stay = StayService::checkIn($stay, $room->id);
             foreach ($advanceLines as $line) {
@@ -456,7 +565,11 @@ class FrontDeskController extends Controller
             return $stay;
         });
 
-        return $this->checkInSuccessRedirect($stay->reservation_id, "Walk-in checked in to room {$room->room_no}.");
+        $message = $dayUse
+            ? 'Day-use checked in to room '.$room->room_no." for {$hours} hour(s) at ".money($hourly)." an hour (".money($dayCharge)."), until {$data['day_use_until']}."
+            : "Walk-in checked in to room {$room->room_no}.";
+
+        return $this->checkInSuccessRedirect($stay->reservation_id, $message);
     }
 
     /** Send check-in staff to a page their role can actually open after success. */
@@ -841,6 +954,22 @@ class FrontDeskController extends Controller
     {
         $stay->load('reservation.guest.documents', 'reservation.company', 'reservation.source', 'room', 'roomType', 'ratePlan');
 
-        return view('frontdesk.grc', ['stay' => $stay, 'g' => $stay->reservation->guest]);
+        // The signed card is a private file: read it here, as a data URI, so the print
+        // view never touches the storage disk and the signature cannot be hot-linked.
+        $signature = null;
+        if ($stay->grc_signature_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($stay->grc_signature_path)) {
+            $signature = 'data:image/png;base64,'.base64_encode(\Illuminate\Support\Facades\Storage::disk('local')->get($stay->grc_signature_path));
+        }
+
+        // The card lists documents by their human labels, so the view never reaches into
+        // the model's type map.
+        $documentTypes = $stay->reservation->guest->documents
+            ->map(fn ($document) => \App\Models\GuestDocument::TYPES[$document->type] ?? $document->type)
+            ->unique()->values()->all();
+
+        return view('frontdesk.grc', [
+            'stay' => $stay, 'g' => $stay->reservation->guest,
+            'signature' => $signature, 'documentTypes' => $documentTypes,
+        ]);
     }
 }

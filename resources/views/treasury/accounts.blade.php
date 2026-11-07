@@ -35,8 +35,8 @@
 <div class="card" id="settingsCard"><div class="card-head"><h3><x-icon name="tool"/> Treasury settings</h3></div><div class="card-body">
   <form method="post" action="{{ route('treasury.settings') }}" id="treasurySettings">@csrf
     <div class="form-grid">
-      <div class="field"><label for="tsThr">Approval needed from (GH₵)</label><input type="number" step="0.01" min="0" name="approval_threshold" id="tsThr" value="{{ $cfg['treasury_approval_threshold'] }}" required></div>
-      <div class="field"><label for="tsFloat">Cash float kept when banking</label><input type="number" step="0.01" min="0" name="cash_float" id="tsFloat" value="{{ $cfg['treasury_cash_float'] }}" required></div>
+      <div class="field"><label for="tsThr">Approval needed from (GH₵) <span class="tiny muted">— 0 to 10,000,000</span></label><input type="number" step="0.01" min="0" max="10000000" name="approval_threshold" id="tsThr" value="{{ $cfg['treasury_approval_threshold'] }}" required></div>
+      <div class="field"><label for="tsFloat">Cash float kept when banking <span class="tiny muted">— 0 to 1,000,000</span></label><input type="number" step="0.01" min="0" max="1000000" name="cash_float" id="tsFloat" value="{{ $cfg['treasury_cash_float'] }}" required></div>
       <div class="field"><label for="tsPay">Payday (day of month)</label><input type="number" min="1" max="28" name="payday" id="tsPay" value="{{ $cfg['treasury_payday'] }}" required></div>
       <div class="field"><label for="tsClear">Cheques clear after (days)</label><input type="number" min="0" max="10" name="clear_days" id="tsClear" value="{{ $cfg['treasury_clear_days'] }}" required></div>
       <div class="field"><label for="tsCol">Overdue receivables collected in week 1 (%)</label><input type="number" min="0" max="100" name="collect_pct" id="tsCol" value="{{ $cfg['treasury_collect_pct'] }}" required></div>

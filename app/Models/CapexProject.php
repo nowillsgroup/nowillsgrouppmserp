@@ -35,6 +35,18 @@ class CapexProject extends Model
         return $this->hasMany(FfeEntry::class);
     }
 
+    /** v8.5 – the capital asset account this project will be capitalised to, which is how a plan counts it */
+    public function capitalHead()
+    {
+        return $this->belongsTo(AccountHead::class, 'capital_head_id');
+    }
+
+    /** what is still to be spent on an approved project: its budget less what has been spent against it */
+    public function openCommitment(): float
+    {
+        return round(max(0, (float) $this->budget - $this->spent()), 2);
+    }
+
     public function requester()
     {
         return $this->belongsTo(User::class, 'requested_by');

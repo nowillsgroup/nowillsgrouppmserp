@@ -5,6 +5,8 @@ namespace App\Http\Middleware;
 use App\Models\Hotel;
 use App\Models\User;
 use App\Services\ApiService;
+use App\Services\LicenceService;
+use App\Support\LicenceSurfaces;
 use App\Support\Tenant;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +71,12 @@ class ApiAuthenticate
         Tenant::set($hotel);
         if (! ApiService::cfg()['enabled']) {
             return self::error('api_disabled', 'The hotel has switched the API off.', 503);
+        }
+        // v10.4: the key has just named the property, so the licence can be asked. A tenant without
+        // Housekeeping cannot read /rooms through the API even though its key is perfectly valid.
+        $module = LicenceSurfaces::apiModule('/'.$request->path());
+        if (! LicenceService::allowsModule($module, $hotel)) {
+            return self::error('module_not_licensed', 'The hotel is not licensed for '.$module.' – ask the group administrator.', 403);
         }
         $state = $client->state();
         if ($state !== 'active') {

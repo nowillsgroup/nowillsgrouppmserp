@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Hotel;
 use App\Models\PartnerUser;
+use App\Services\LicenceService;
 use App\Services\PartnerService;
 use App\Support\Tenant;
 use Closure;
@@ -26,6 +27,9 @@ class PartnerAuth
             return redirect()->route('partner.login')->withErrors(['email' => $s ? 'Please sign in again.' : 'Please sign in to the partner portal.']);
         }
         Tenant::set($hotel);
+        // v10.5 the portal is a licensed module, not only a set of pages: without it the partner's
+        // booking, amendment, cancellation and payment POSTs are refused too, not just the screens.
+        abort_unless(LicenceService::allowsModule('Partner Portal', $hotel), 404);
         config(['app.timezone' => $hotel->timezone]);
         date_default_timezone_set($hotel->timezone ?: 'UTC');
 

@@ -42,9 +42,18 @@
 </tbody></table></div></div>
 <div>
   @if(can_do('laundry.manage'))
-  <div class="card"><div class="card-head"><h3>Par levels</h3></div><div class="card-body">
-    <form method="post" action="{{ route('linen.levels.save') }}" class="flex gap-1 items-end">@csrf<div class="field m-0" style="flex:1"><label>Sets per room</label><input type="number" name="linen_par_levels" class="input" min="1" max="10" step="0.5" value="{{ $levels }}"></div><button class="btn btn-primary">Save</button></form>
-    <p class="small muted mb-0">Industry practice is 3–5 par: one in the room, one in the laundry, one clean in the linen room, plus spare.</p>
+  <div class="card"><div class="card-head"><h3>Par levels &amp; the laundry supplier</h3></div><div class="card-body">
+    <form method="post" action="{{ route('linen.levels.save') }}" class="grid g-2" style="align-items:end">@csrf
+      <div class="field m-0"><label>Sets per room</label><input type="number" name="linen_par_levels" class="input" min="1" max="10" step="0.5" value="{{ $levels }}"></div>
+      <div class="field m-0"><label>Default laundry supplier</label>
+        <select name="linen_default_supplier_id" class="input">
+          <option value="">— not set —</option>
+          @foreach($suppliers as $sid => $sname)<option value="{{ $sid }}" @selected((string) $defaultSupplier === (string) $sid)>{{ $sname }}</option>@endforeach
+        </select>
+      </div>
+      <div class="span-all"><button class="btn btn-primary">Save</button></div>
+    </form>
+    <p class="small muted mb-0">Industry practice is 3–5 par: one in the room, one in the laundry, one clean in the linen room, plus spare. The default supplier is who a new laundry batch is addressed to.</p>
     <button class="btn btn-sm mt-1" data-modal="typeModal" data-fid="" data-fcode="" data-fname="" data-fper_room="0" data-fpar_override="" data-funit_cost="" data-fwash_rate=""><x-icon name="plus"/> Add linen type</button>
   </div></div>
   @endif

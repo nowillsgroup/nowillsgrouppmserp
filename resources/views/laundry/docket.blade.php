@@ -16,7 +16,8 @@ table{width:100%;border-collapse:collapse;margin-top:8px}td,th{padding:3px 0;bor
 @forelse($o->lines as $l)<tr><td>{{ $l->item_name }}@if($l->remark)<div class="m">{{ $l->remark }}</div>@endif</td><td>{{ \App\Models\LaundryItem::SERVICES[$l->service] ?? $l->service }}</td><td class="r">{{ $l->qty }}</td><td class="r">{{ money($l->amount, false) }}</td></tr>
 @empty<tr><td colspan="4">{{ $o->bag_pieces ? $o->bag_pieces.' pcs – to be itemised' : 'To be itemised' }}</td></tr>@endforelse
 </tbody></table>
-@if($o->pieces)<p class="r"><span class="m">{{ $o->pieces }} pcs{{ (float) $o->express_charge ? ' · express '.money($o->express_charge, false) : '' }}</span><br><span class="big">{{ money($o->total) }}</span> <span class="m">+ tax</span></p>@endif
+@if($o->pieces)<p class="r"><span class="m">{{ $o->pieces }} pcs{{ (float) $o->express_charge ? ' · express '.money($o->express_charge, false) : '' }}</span><br><span class="big">{{ money($quote['total']) }}</span>
+<span class="m">{{ $quote['inclusive'] ? 'tax included' : '+ '.\App\Services\LaundryService::taxLabel($o->total).' '.money($quote['tax'], false) }}</span></p>@endif
 @if($o->notes)<p class="m">Notes: {{ $o->notes }}</p>@endif
 <p class="m">The hotel is not responsible for colour fastness, shrinkage or items left in pockets.</p>
 </body></html>

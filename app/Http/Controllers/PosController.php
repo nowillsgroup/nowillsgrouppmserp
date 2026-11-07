@@ -555,6 +555,11 @@ class PosController extends Controller
             if (! $m->is_available || ($m->outlet_id && (int) $m->outlet_id !== (int) $order->outlet_id)) {
                 throw ValidationException::withMessages(["items.{$k}.id" => "{$m->name} is not available at this outlet."]);
             }
+            // v9.30 the dish can insist on its side dish: the terminal asks for it, and a line that leaves it out is
+            // refused here, because a request is not always made by our own screen.
+            if ($m->side_dish_required && empty($line['variants'])) {
+                throw ValidationException::withMessages(["items.{$k}.variants" => "{$m->name}: choose the side dish that comes with it."]);
+            }
             $flags[$k] = $guest ? \App\Services\AllergenService::flagText(\App\Services\AllergenService::conflicts($m, $guest)) : null;
             if ($flags[$k] && empty($line['allergy_ack'])) {
                 throw ValidationException::withMessages(['items' => "{$m->name}: {$flags[$k]} – the guest declared this allergy. Check with the chef, then confirm the item to send it."]);
@@ -1367,7 +1372,9 @@ class PosController extends Controller
                     'id' => $item->id, 'name' => $item->item_name, 'qty' => (float) $item->qty,
                     'status' => $item->is_pending ? 'pending' : $item->kitchen_status,
                     'ready_at' => $item->ready_at?->toIso8601String() ?? ($item->kitchen_status === 'ready' ? $item->updated_at?->toIso8601String() : null),
-                    'notes' => $item->notes, 'modifiers' => collect($item->modifiers ?? [])->pluck('name')->values()->all(),
+                    'notes' => $item->notes,
+                    // a doubled side dish shows its count on the board too (v9.31), not just here
+                    'modifiers' => collect($item->modifiers ?? [])->map(fn ($m) => $m['name'].(((int) ($m['qty'] ?? 1)) > 1 ? ' ×'.(int) $m['qty'] : ''))->values()->all(),
                     'serve_url' => route('pos.item.served', [$order, $item], false),
                 ])->values()->all(),
             ];

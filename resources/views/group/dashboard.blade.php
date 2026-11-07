@@ -1,7 +1,15 @@
 @extends('layouts.app')
 @section('title', 'Group Dashboard')
 @section('crumbs') {{ $group?->name ?? 'Hotel group' }} / Consolidated view @endsection
-@section('actions')<span class="small muted">{{ $rows->count() }} properties · live</span>@endsection
+@section('actions')
+  <span class="small muted">{{ $rows->count() }} properties · live</span>
+  {{-- v10.12 the dashboard's figures, in the engine that prints, exports and schedules them: a group
+       administrator reading this page should not have to go looking for the report afterwards. --}}
+  @if(can_do('reports.view'))
+    <a class="btn" href="{{ route('reports.show', 'group_operating_summary') }}"><x-icon name="download" size="sm"/> Consolidated report</a>
+    <a class="btn btn-ghost" href="{{ route('reports.show', ['group_operating_summary', 'by' => 'brand']) }}"><x-icon name="layers" size="sm"/> Compare brands</a>
+  @endif
+@endsection
 @section('content')
 <div class="stats">
   <x-stat label="Group occupancy" :value="$totals['occ'].'%'" icon="bed" tone="blue" :sub="$totals['occupied'].' of '.$totals['rooms'].' sellable rooms'"/>
@@ -9,6 +17,17 @@
   <x-stat label="Revenue MTD" :value="money($totals['rev_mtd'])" icon="wallet" tone="purple" :sub="'Rooms '.money($totals['room_rev_mtd'])"/>
   <x-stat label="In-house guests" :value="number_format($totals['in_house'])" icon="users" tone="teal" :sub="$totals['arrivals'].' arrivals · '.$totals['departures'].' departures'"/>
 </div>
+
+@if($closed->isNotEmpty())
+  <div class="alert alert-warn"><x-icon name="alert" /><div>
+    <b>{{ $closed->count() }} property{{ $closed->count() === 1 ? ' is' : 'ies are' }} licensed for no modules and {{ $closed->count() === 1 ? 'is' : 'are' }} not in these numbers.</b>
+    @foreach($closed as $c){{ $c->name }}@if(! $loop->last), @endif @endforeach
+    — nobody can post there, and counting its rooms would flatten the group's occupancy. Its history is untouched: licensing a module again puts it straight back in this view.
+    @if(can_do('properties.view'))
+      <div class="tiny muted" style="margin-top:4px"><a href="{{ route('properties.index') }}">Open the property register</a> to see what each property runs.</div>
+    @endif
+  </div></div>
+@endif
 
 <div class="card flush"><div class="card-head"><h3>Properties</h3><span class="small muted">Each property uses its own business date</span></div>
   <div class="card-body table-wrap"><table class="table">
@@ -37,10 +56,11 @@
   </table></div></div>
 
   <div class="card mt-2"><div class="card-head"><h3>Group revenue – last 14 days</h3></div><div class="card-body">
-    @php $max = max(1, max($trend ?: [0])); @endphp
+    {{-- One expression per bar, no @php temporaries: the same rule the preview renderer can read,
+         so the chart in the preview is the chart the application draws. --}}
     <div class="bar-chart" style="max-width:900px">
-      @for($i = 0; $i < 14; $i++) @php $v = $trend[$i] ?? 0; @endphp
-        <div class="col"><div class="b" style="height: {{ max(2, $v / $max * 100) }}%" data-v="{{ money($v) }}"></div><small>{{ $i === 13 ? 'Today' : '-'.(13 - $i) }}</small></div>
+      @for($i = 0; $i < 14; $i++)
+        <div class="col"><div class="b" style="height: {{ round(max(2, ($trend[$i] ?? 0) * 100 / max(1, max($trend ?: [0]))), 1) }}%" data-v="{{ money($trend[$i] ?? 0) }}"></div><small>{{ $i === 13 ? 'Today' : '-'.(13 - $i) }}</small></div>
       @endfor
     </div>
     <p class="tiny muted mt-1">Net revenue (room + F&amp;B + other, before tax). Days are relative to each property's business date. Amounts assume a common currency.</p>

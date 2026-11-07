@@ -16,6 +16,15 @@
   .walkin-page { --walkin-green:#17623b; --walkin-soft:#eff7f0; }
   .walkin-hero { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1rem; padding:1.1rem 1.25rem; border:1px solid var(--c-border); border-radius:var(--radius); background:linear-gradient(115deg,var(--walkin-soft),var(--c-surface) 72%); }
   .walkin-eyebrow { margin:0 0 .2rem; color:var(--walkin-green); font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+  .walkin-toggle { display:inline-flex; gap:.25rem; padding:.2rem; border:1px solid var(--c-border-strong); border-radius:999px; background:var(--c-surface); }
+  .walkin-toggle-opt { position:relative; cursor:pointer; }
+  .walkin-toggle-opt input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+  .walkin-toggle-opt span { display:block; padding:.32rem 1.15rem; border-radius:999px; font-size:.83rem; font-weight:600; color:var(--c-text-2); }
+  .walkin-toggle-opt:has(input:checked) span { background:var(--walkin-green); color:#fff; }
+  .walkin-toggle-opt:has(input:focus-visible) span { outline:2px solid var(--walkin-green); outline-offset:2px; }
+  body.dark .walkin-toggle { border-color:#2f4538; background:#16211b; }
+  body.dark .walkin-toggle-opt span { color:#c7d6cc; }
+  body.dark .walkin-toggle-opt:has(input:checked) span { background:#2f7d52; color:#fff; }
   .walkin-hero h1 { margin:0; color:var(--c-text); font-size:1.35rem; line-height:1.25; }
   .walkin-hero p { margin:.3rem 0 0; color:var(--c-text-2); font-size:.83rem; }
   .walkin-hero-meta { display:flex; flex-wrap:wrap; gap:.45rem; justify-content:flex-end; }
@@ -126,8 +135,39 @@
                 @if($rooms->isEmpty())<span class="err">No vacant rooms are available for the current business-date arrival. Check room readiness and inventory before starting a walk-in.</span>@else<span class="walkin-room-note">Clean and inspected rooms are marked ready. Other housekeeping states require confirmation with Housekeeping before arrival.</span>@endif
                 <div class="walkin-room-preview" id="walkinRoomPreview" aria-live="polite">Select a vacant room to see its room and housekeeping details.</div>
               </div>
-              <x-field name="nights" label="Nights" type="number" min="1" max="90" value="1" required/>
+              <div class="field span-2">
+                <label id="stayTypeLabel">Stay <span class="req">*</span></label>
+                <div class="walkin-toggle" role="radiogroup" aria-labelledby="stayTypeLabel">
+                  <label class="walkin-toggle-opt">
+                    <input type="radio" name="stay_type" value="overnight" id="stayTypeOvernight" @checked(old('stay_type', 'day_use') === 'overnight')>
+                    <span>Night</span>
+                  </label>
+                  <label class="walkin-toggle-opt">
+                    <input type="radio" name="stay_type" value="day_use" id="stayTypeDayUse" @checked(old('stay_type', 'day_use') === 'day_use')>
+                    <span>Day</span>
+                  </label>
+                </div>
+                @error('stay_type')<span class="err">{{ $message }}</span>@enderror
+              </div>
+              {{-- The night count stays on the form whichever stay type is chosen; a day use
+                   only explains that today's room is charged once, not per night. --}}
+              <div class="field" id="walkinNightsField">
+                <label for="f_nights">Nights <span class="req">*</span></label>
+                <input type="number" name="nights" id="f_nights" min="1" max="90" value="{{ old('nights', 1) }}">
+                @error('nights')<span class="err">{{ $message }}</span>@enderror
+              </div>
               <div class="field"><label for="depDate">Scheduled departure</label><input id="depDate" readonly aria-live="polite"></div>
+              {{-- Day: how many hours the room is needed for. The record keeps the hour it runs
+                   until, which is what the rosters and the folio read. --}}
+              <div class="field" id="walkinDayUseField" @if(old('stay_type', 'day_use') === 'overnight') hidden @endif>
+                <label for="f_day_use_hours">Hours <span class="req">*</span></label>
+                <select name="day_use_hours" id="f_day_use_hours" class="@error('day_use_hours') is-invalid @enderror">
+                  @foreach([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as $hours)
+                    <option value="{{ $hours }}" @selected((int) old('day_use_hours', 4) === $hours)>{{ $hours }} {{ $hours === 1 ? 'hour' : 'hours' }}</option>
+                  @endforeach
+                </select>
+                @error('day_use_hours')<span class="err">{{ $message }}</span>@enderror
+              </div>
               <x-field name="rate_plan_id" label="Rate plan" type="select" :options="[]" placeholder="Rack rate"/>
               <x-field name="rate" label="Rate / night" type="number" step="0.01" min="0" required/>
               <x-field name="adults" label="Adults" type="number" min="1" max="10" value="1" required/>
@@ -200,32 +240,10 @@
     </div>
   </form>
 
-  @if(can_do('credit.manage'))
-    <div class="modal" id="walkinCompanyCreateModal" role="dialog" aria-modal="true" aria-labelledby="walkinCompanyModalTitle">
-      <div class="modal-box" style="max-width:42rem">
-        <form method="post" action="{{ route('frontdesk.walkin.company.store') }}" id="walkinCompanyCreateForm" data-reset data-no-lock>
-          @csrf
-          <div class="modal-head"><h2 id="walkinCompanyModalTitle">Create City Ledger / Company</h2><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><x-icon name="x"/></button></div>
-          <div class="modal-body">
-            <div class="alert alert-warn" id="walkinCompanyCreateErrors" role="alert" hidden></div>
-            <div class="form-grid">
-              <x-field name="name" label="Company / account name" maxlength="255" required class="span-all" placeholder="e.g. Acme Ghana Ltd"/>
-              <x-field name="type" label="Account type" type="select" :options="['corporate' => 'Corporate','travel_agent' => 'Travel agent / tour operator']" :value="'corporate'" :placeholder="false"/>
-              <x-field name="contact_person" label="Primary contact" maxlength="255"/>
-              <x-field name="phone" label="Phone" maxlength="30" placeholder="+233 …"/>
-              <x-field name="email" label="Email" type="email" maxlength="150"/>
-              <x-field name="city" label="City" maxlength="80" :value="'Accra'"/>
-              <x-field name="address" label="Address" maxlength="255" class="span-all"/>
-              <x-field name="credit_limit" label="Credit limit" type="number" min="0" step="0.01" value="0" required/>
-              <x-field name="credit_days" label="Payment terms (days)" type="number" min="0" max="365" value="30" required/>
-              <p class="hint span-all">This creates an active direct-billing account. A credit limit of 0 means no limit. The saved account will appear in Finance → City Ledger and be selected for this walk-in.</p>
-            </div>
-          </div>
-          <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn btn-primary" id="walkinCompanyCreateSave">Save City Ledger / Company</button></div>
-        </form>
-      </div>
-    </div>
-  @endif
+  @include('reservations._city-ledger-create', [
+    'prefix' => 'walkinCompanyCreate',
+    'action' => route('frontdesk.walkin.company.store'),
+  ])
 </div>
 @endsection
 @push('scripts')
@@ -242,6 +260,22 @@
   const plan = document.getElementById('f_rate_plan_id');
   const rate = document.getElementById('f_rate');
   const nights = document.getElementById('f_nights');
+  const stayTypeInputs = [...document.querySelectorAll('input[name="stay_type"]')];
+  const dayUseField = document.getElementById('walkinDayUseField');
+  const dayUseHours = document.getElementById('f_day_use_hours');
+  const rateFieldLabel = rate?.closest('.field')?.querySelector('label') ?? null;
+  const summaryRateLabel = document.getElementById('walkinSummaryRate')?.previousElementSibling ?? null;
+  const isDayUse = () => stayTypeInputs.some(input => input.checked && input.value === 'day_use');
+  const dayUseHoursCount = () => {
+    const hours = Number.parseInt(dayUseHours?.value ?? '', 10);
+
+    return Number.isFinite(hours) && hours > 0 ? hours : 4;
+  };
+  const dayUseHoursText = () => `${dayUseHoursCount()} ${dayUseHoursCount() === 1 ? 'hour' : 'hours'}`;
+  // A day use is sold by the hour: the rate on the form is what an hour costs and the
+  // charge is the hours bought times that rate — one charge, no night in the sum.
+  const dayHourlyRate = () => Math.max(0, Number.parseFloat(rate?.value) || 0);
+  const dayUseCharge = () => dayHourlyRate() * dayUseHoursCount();
   const adults = document.getElementById('f_adults');
   const company = document.getElementById('f_company_id');
   const billingNote = document.getElementById('walkinBillingNote');
@@ -249,7 +283,7 @@
   const rateNote = document.getElementById('walkinRateNote');
   const rateRefresh = document.getElementById('walkinRateRefresh');
   const requestUrl = @json(route('reservations.api.rates'));
-  document.addEventListener('walkin-company-created', event => {
+  document.addEventListener('city-ledger-created', event => {
     const account = event.detail;
     if (!company || !account?.id) return;
     companyBilling[String(account.id)] = Boolean(account.direct_billing);
@@ -341,18 +375,53 @@
 
   const updateSummary = () => {
     const roomOption = chosenRoom();
+    const dayUse = isDayUse();
     const count = Math.max(1, Number.parseInt(nights.value, 10) || 1);
     const nightly = Math.max(0, Number.parseFloat(rate.value) || 0);
     const roomName = roomOption?.value ? roomOption.textContent.trim() : 'Not selected';
     const departure = dateFromBusinessDay(businessDate);
     departure.setDate(departure.getDate() + count);
-    document.getElementById('depDate').value = departure.toLocaleDateString(undefined, {day:'2-digit', month:'short', year:'numeric'});
+    // A day use is over today: there is no night to count and one charge to make.
+    document.getElementById('depDate').value = dayUse
+      ? `Same day · ${dayUseHoursText()}`
+      : departure.toLocaleDateString(undefined, {day:'2-digit', month:'short', year:'numeric'});
     document.getElementById('walkinSummaryRoom').textContent = roomName;
-    document.getElementById('walkinSummaryRate').textContent = roomOption?.value ? moneyText(nightly) : '—';
-    document.getElementById('walkinSummaryNights').textContent = `${count} night${count === 1 ? '' : 's'}`;
-    const estimate = rateQuoteTotal !== null && !manualRate ? rateQuoteTotal : nightly * count;
+    document.getElementById('walkinSummaryRate').textContent = roomOption?.value ? moneyText(dayUse ? dayHourlyRate() : nightly) : '—';
+    document.getElementById('walkinSummaryNights').textContent = dayUse
+      ? `Day use · ${dayUseHoursText()}`
+      : `${count} night${count === 1 ? '' : 's'}`;
+    const estimate = dayUse ? dayUseCharge() : (rateQuoteTotal !== null && !manualRate ? rateQuoteTotal : nightly * count);
     document.getElementById('est').textContent = roomOption?.value ? moneyText(estimate) : '—';
   };
+
+  // Day use: no nights to enter, a time the room is needed until, and one charge
+  // at the agreed day-use rate — never a silent multiple of the nightly rate.
+  const applyStayType = (options = {}) => {
+    const dayUse = isDayUse();
+    // The night count is never taken off the form: the desk keeps it in front of them
+    // whichever stay type is chosen, so a booking line can always record its nights.
+    if (nights && !Number.parseInt(nights.value, 10)) nights.value = '1';
+    if (dayUseField) dayUseField.hidden = !dayUse;
+    // Folded away is not the same as switched off: a hidden select still posts and can
+    // still be tabbed into, so a night stay sends no hours at all.
+    if (dayUseHours) dayUseHours.disabled = !dayUse;
+    if (rateFieldLabel) rateFieldLabel.firstChild.textContent = dayUse ? 'Rate / hour ' : 'Rate / night ';
+    if (summaryRateLabel) summaryRateLabel.textContent = dayUse ? 'Rate / hour' : 'Rate / night';
+    if (dayUse && !options.initial && !manualRate) {
+      // The nightly quote is not the day-use price: clear it so the desk names one.
+      rate.value = '';
+      rate.title = '';
+      rate.style.borderColor = '';
+      rateQuoteTotal = null;
+      setRateNote('Day use selected. No night is sold — enter the rate per hour; the guest is charged for the hours bought.', 'manual');
+    }
+    if (!dayUse && !options.initial) refreshRateForContext('stay type');
+    updateSummary();
+  };
+  stayTypeInputs.forEach(input => input.addEventListener('change', () => applyStayType()));
+  // The hours are what the guest is charged for, so changing them re-prices the
+  // estimate; the departure line follows the same count.
+  dayUseHours?.addEventListener('change', updateSummary);
 
   const updateRoomPreview = () => {
     const option = chosenRoom();
@@ -394,6 +463,10 @@
   const fetchSeasonRate = () => {
     const option = chosenRoom();
     if (!option?.dataset.type || plan.value || manualRate) return;
+    if (isDayUse()) {
+      setRateNote(`Day use is charged once. The room's nightly rate is ${moneyText(option.dataset.rate)} — enter the agreed day-use charge.`, 'manual');
+      return;
+    }
     if (!canQuoteRates) {
       setRateNote('Contract rate refresh is not available to this role. Confirm or enter the agreed nightly rate.', 'manual');
       return;
@@ -487,6 +560,13 @@
   });
   const refreshRateForContext = context => {
     rateQuoteTotal = null;
+    if (isDayUse()) {
+      // The nightly quote has nothing to say about an hourly rate.
+      if (rateRefresh) rateRefresh.disabled = true;
+      updateSummary();
+      setRateNote('A day use is priced by the hour — enter the rate per hour. There is no nightly rate to refresh.', 'manual');
+      return;
+    }
     updateSummary();
     if (manualRate) {
       setRateNote(`The manually entered nightly rate was kept after the ${context} change. Review the amount before check-in.`, 'manual');
@@ -542,12 +622,13 @@
     ].filter(Boolean).join(' ') || 'this guest';
     const roomName = chosenRoom()?.textContent.trim() || 'the selected room';
     const stayLength = Math.max(1, Number.parseInt(nights.value, 10) || 1);
+    const stayWords = isDayUse() ? `a day use of ${dayUseHoursText()}` : `${stayLength} night(s)`;
     const estimated = document.getElementById('est').textContent;
     const deposit = document.getElementById('walkinDepositSummary').textContent;
     const housekeeping = chosenRoom()?.dataset.hk || 'unknown';
     const readinessWarning = ['clean', 'inspected'].includes(housekeeping) ? ''
       : ` WARNING: housekeeping is ${housekeeping.replaceAll('_', ' ')}. Confirm room readiness with Housekeeping before arrival.`;
-    const message = `Check in ${guestName} to ${roomName} for ${stayLength} night(s)? Estimated room charges: ${estimated}. Deposit: ${deposit}.${readinessWarning} This creates or reuses the guest profile, checks the guest in and records any deposit.`;
+    const message = `Check in ${guestName} to ${roomName} for ${stayWords}? Estimated room charges: ${estimated}. Deposit: ${deposit}.${readinessWarning} This creates or reuses the guest profile, checks the guest in and records any deposit.`;
     if (!window.confirm(message)) event.preventDefault();
   });
   document.getElementById('walkinAdvanceSplit')?.addEventListener('click', event => {
@@ -555,63 +636,10 @@
   });
 
   updateBillingNote();
+  applyStayType({ initial: true });
   if (room.value) room.dispatchEvent(new Event('change'));
   else { roomInitialized = true; updateRoomPreview(); updateSummary(); }
   updateDepositSummary();
 })();
 </script>
-@if(can_do('credit.manage'))
-<script>
-(() => {
-  const form = document.getElementById('walkinCompanyCreateForm');
-  const modal = document.getElementById('walkinCompanyCreateModal');
-  const errors = document.getElementById('walkinCompanyCreateErrors');
-  const save = document.getElementById('walkinCompanyCreateSave');
-  if (!form || !modal || !errors || !save) return;
-
-  const showErrors = messages => {
-    const list = document.createElement('ul');
-    list.style.margin = '.25rem 0 0';
-    list.style.paddingLeft = '1.1rem';
-    messages.forEach(message => {
-      const item = document.createElement('li');
-      item.textContent = message;
-      list.appendChild(item);
-    });
-    errors.replaceChildren(document.createTextNode('Please review the company details.'), list);
-    errors.hidden = false;
-  };
-
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    errors.hidden = true;
-    errors.replaceChildren();
-    save.disabled = true;
-    save.textContent = 'Saving…';
-    try {
-      const response = await fetch(form.action, {
-        method: 'POST',
-        headers: {'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest'},
-        body: new FormData(form),
-        credentials: 'same-origin',
-      });
-      const payload = await response.json().catch(() => null);
-      if (response.status === 422 && payload?.errors) {
-        showErrors(Object.values(payload.errors).flat());
-        return;
-      }
-      if (!response.ok || !payload?.company) throw new Error('The City Ledger / Company could not be saved. Please try again.');
-      document.dispatchEvent(new CustomEvent('walkin-company-created', {detail:payload.company}));
-      form.reset();
-      modal.classList.remove('show');
-    } catch (error) {
-      showErrors([error instanceof Error ? error.message : 'The City Ledger / Company could not be saved. Please try again.']);
-    } finally {
-      save.disabled = false;
-      save.textContent = 'Save City Ledger / Company';
-    }
-  });
-})();
-</script>
-@endif
 @endpush

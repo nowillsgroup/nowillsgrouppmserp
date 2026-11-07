@@ -51,7 +51,7 @@
         <dl class="kv">
           <dt>Arrival</dt><dd><time datetime="{{ $r->arrival_date->toDateString() }}">{{ $r->arrival_date->format('D, d M Y') }}</time> {{ $r->eta ? '· ETA '.substr($r->eta,0,5) : '' }}</dd>
           <dt>Departure</dt><dd><time datetime="{{ $r->departure_date->toDateString() }}">{{ $r->departure_date->format('D, d M Y') }}</time></dd>
-          <dt>Nights</dt><dd>{{ $r->nights }}</dd>
+          <dt>Nights</dt><dd>@if($r->isDayUse())Day use{{ $r->rooms->first()?->dayUseHoursLabel() ? ' · '.$r->rooms->first()->dayUseHoursLabel() : '' }}{{ $r->rooms->first()?->dayUseUntilLabel() ? ' · '.$r->rooms->first()->dayUseUntilLabel() : '' }}@else{{ $r->nights }}@endif</dd>
           <dt>Pax</dt><dd>{{ $r->adults }} Adults, {{ $r->children }} Children</dd>
           <dt>Booking type</dt><dd>{{ ucfirst($r->booking_type) }} {{ $r->group_name ? '– '.$r->group_name : '' }}</dd>@if($r->room_block_id && $r->block)<dt>Group block</dt><dd><a href="{{ route('blocks.show', $r->block) }}">{{ $r->block->block_no }}</a></dd>@endif
         </dl>
@@ -95,7 +95,7 @@
             <tr>
               <td class="bold">{{ $s->room?->room_no ?? '—' }}</td>
               <td>{{ $s->roomType->name }}<div class="tiny muted">{{ $s->ratePlan?->name ?? 'Rack rate' }}</div></td>
-              <td class="small nowrap"><time datetime="{{ $s->arrival_date->toDateString() }}">{{ $s->arrival_date->format('d M Y') }}</time> → <time datetime="{{ $s->departure_date->toDateString() }}">{{ $s->departure_date->format('d M Y') }}</time> ({{ $s->nights }}N)</td>
+              <td class="small nowrap"><time datetime="{{ $s->arrival_date->toDateString() }}">{{ $s->arrival_date->format('d M Y') }}</time> → <time datetime="{{ $s->departure_date->toDateString() }}">{{ $s->departure_date->format('d M Y') }}</time> @if($s->is_day_use)<span class="badge badge-blue" title="Day use — the room is free again tonight">Day use{{ $s->dayUseHoursLabel() ? ' · '.$s->dayUseHoursLabel() : '' }} {{ $s->dayUseUntilLabel() ?? '' }}</span>@else ({{ $s->nights }}N)@endif</td>
               <td>{{ $s->adults }}/{{ $s->children }}</td>
               <td class="num">{{ money($s->rate) }}@if($s->extra_charge > 0)<div class="tiny muted">+{{ money($s->extra_charge) }} extra</div>@endif</td>
               <td>{!! status_badge($s->status) !!}</td>

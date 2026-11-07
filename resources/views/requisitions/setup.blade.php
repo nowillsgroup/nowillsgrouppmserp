@@ -15,7 +15,7 @@
 </div>
 <div class="grid g-2-1">
 <div class="card flush"><div class="card-head"><h3>Departments</h3><span class="tiny muted">{{ bdate()->format('F Y') }}</span></div><div class="card-body table-wrap"><table class="table" id="deptTable">
-<thead><tr><th>Department</th><th>Head (approver)</th><th>Cost account</th><th>Delivers to</th><th class="num">Budget</th><th style="min-width:180px">This month</th>@if(can_do('requisitions.manage'))<th></th>@endif</tr></thead><tbody>
+<thead><tr><th>Department</th><th>Head (approver)</th><th>Cost account</th><th>Delivers to</th><th class="num">Monthly allowance</th><th style="min-width:180px">This month</th>@if(can_do('requisitions.manage'))<th></th>@endif</tr></thead><tbody>
 @foreach($departments as $d)
 @php $b = $d->budget_status; @endphp
 <tr>
@@ -23,7 +23,8 @@
   <td class="small">{{ $d->hod?->name ?? '—' }}</td>
   <td class="small">{{ $d->expenseHead ? $d->expenseHead->code.' '.$d->expenseHead->name : '— store default' }}</td>
   <td class="small">{{ $d->defaultStore?->name ?? 'Expensed on issue' }}</td>
-  <td class="num">{{ $b['budget'] !== null ? money($b['budget'], false) : '—' }}</td>
+  <td class="num">{{ $b['budget'] !== null ? money($b['budget'], false) : '—' }}
+    @if($b['source'] === 'budget')<div class="tiny muted" title="{{ $b['source_note'] }}">from its budget</div>@elseif($b['source'] === 'setup')<div class="tiny muted">figure below</div>@endif</td>
   <td>@if($b['budget'] !== null)
     <div class="budget-bar sm"><span class="bb-used" style="width:{{ min(100, $b['issued'] / $b['budget'] * 100) }}%"></span><span class="bb-this {{ $b['left'] < 0 ? 'over' : '' }}" style="width:{{ max(0, min(100, $b['used'] / $b['budget'] * 100) - min(100, $b['issued'] / $b['budget'] * 100)) }}%"></span></div>
     <div class="tiny {{ $b['left'] < 0 ? 'text-red' : 'muted' }}">{{ $b['pct'] }} % · {{ $b['left'] < 0 ? 'over by '.money(-$b['left'], false) : money($b['left'], false).' left' }}</div>
@@ -48,7 +49,10 @@
     <p class="m-0 mb-1"><b>Head (approver)</b> – only this user (or someone with setup rights) approves the department's requisitions. With no head set, anyone with approval rights can. Nobody approves their own.</p>
     <p class="m-0 mb-1"><b>Cost account</b> – where direct issues are expensed in the general ledger. Blank = by store type (F&amp;B / guest supplies / general stores).</p>
     <p class="m-0 mb-1"><b>Delivers to</b> – the department's own store. Requisitions default to a transfer into it (no expense until it is used there).</p>
-    <p class="m-0"><b>Budget</b> – monthly value of stock issued to the department. Approvals count what is issued this month plus what is approved but not yet issued.</p>
+    <p class="m-0 mb-1"><b>Monthly allowance</b> – monthly value of stock issued to the department. Approvals count what is issued this month plus what is approved but not yet issued.</p>
+    <p class="m-0">The allowance comes from the department's own budget (its stores cost account for that month of the fiscal year) whenever one is approved.
+      Only when the department has no budget does the single <b>monthly stores budget</b> entered here apply – the table says which of the two is in force, and
+      <a href="{{ route('budgets.costcentres') }}">Cost centres</a> shows the plans side by side.</p>
   </div></div>
 </div>
 </div>

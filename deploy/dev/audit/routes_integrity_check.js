@@ -167,7 +167,7 @@ function groupConfig(steps) {
   for (const step of [...steps].reverse()) {
     if (step.method === 'prefix') cfg.prefix += '/' + (literal(step.args[0]) || '');
     if (step.method === 'name') cfg.name += literal(step.args[0]) || '';
-    if (step.method === 'middleware') cfg.middleware.push(...step.args.map(a => literal(a) || 'expr'));
+    if (step.method === 'middleware') cfg.middleware.push(...step.args.flatMap(a => literalList(a) || [literal(a) || 'expr']));
     if (step.method === 'controller') {
       const nm = className(step.args[0]);
       if (nm) cfg.controller = nm;
@@ -190,9 +190,14 @@ function auditFile(relFile) {
     const steps = (isCall(node) || isStatic(node)) ? chain(node) : null;
     if (steps && steps.length) {
       const outer = steps[0];
-      if (outer.method === 'group') {
+      // The group step is the one that carries the closure — `Route::group(…)` (the closure is the
+      // first arg) or `Route::middleware(…)->prefix(…)->group(fn)` (the closure is the last step's
+      // first arg). Matching only `steps[0]` silently dropped the middleware of every group declared
+      // middleware-first, which made signed-in screens look public.
+      const groupStep = steps.find(st => st.method === 'group' && st.root === 'Route') || (outer.method === 'group' ? outer : null);
+      if (groupStep) {
         const cfg = groupConfig(steps);
-        visit((outer.args || [])[0], {
+        visit((groupStep.args || [])[0], {
           prefix: (ctx.prefix + cfg.prefix).replace(/\/+/g, '/'),
           name: ctx.name + cfg.name,
           middleware: [...ctx.middleware, ...cfg.middleware],
@@ -214,7 +219,7 @@ function auditFile(relFile) {
         const trailing = { name: '', middleware: [] };
         for (const step of steps.slice(0, verbIdx)) {
           if (step.method === 'name') trailing.name += literal(step.args[0]) || '';
-          if (step.method === 'middleware') trailing.middleware.push(...step.args.map(a => literal(a) || 'expr'));
+          if (step.method === 'middleware') trailing.middleware.push(...step.args.flatMap(a => literalList(a) || [literal(a) || 'expr']));
         }
         const ctxPrefix = (ctx.prefix + inner.prefix).replace(/\/+/g, '/');
         const ctxName = ctx.name + inner.name;
@@ -270,13 +275,20 @@ function auditFile(relFile) {
             }
           }
           if (singleton) verbs = api ? ['show', 'update', 'destroy'] : ['show', 'edit', 'update'];
+          // `Route::resource(…)->middleware('perm:…')` gates every generated action; the chain is
+          // walked in reverse, so the calls that follow `resource` sit before it.
+          const trailingMw = [];
+          for (const step of steps) {
+            if (step === resource) break;
+            if (step.method === 'middleware') trailingMw.push(...step.args.flatMap(a => literalList(a) || [literal(a) || 'expr']));
+          }
           for (const name of verbs) {
             routes.push({
               file: relFile,
               verb: ['index', 'show', 'create', 'edit'].includes(name) ? 'get' : (name === 'destroy' ? 'delete' : (name === 'update' ? 'put' : 'post')),
               uri: uriOf(ctx.prefix, base, name),
               name: ctx.name + base + '.' + name,
-              middleware: [...ctx.middleware],
+              middleware: [...ctx.middleware, ...trailingMw],
               controller: null,
               action: { type: 'resource', class: cls ? normalise(cls, uses) : null, method: name },
               line: node.loc && node.loc.start ? node.loc.start.line : null,
@@ -334,6 +346,36 @@ for (const r of all) {
   const authed = r.middleware.some(m => /^auth|^tenant|^twofactor/.test(m));
   if (!hasPerm && authed) authedNoPerm.push(`${r.verb.toUpperCase()} ${r.uri}  [${r.middleware.join(', ')}]`);
   else if (!hasPerm) noPermission.push(`${r.verb.toUpperCase()} ${r.uri}`);
+}
+
+if (process.env.DUMP_PERMS) {
+  // Lets the configuration register prove every module's declared permission is the
+  // one the route actually enforces (and find the screens that have a settings route
+  // but no permission gate at all).
+  const lines = all.filter(r => r.name && r.action).map(r => {
+    const gate = (r.middleware || []).find(m => /^perm:|^can:/.test(m)) || '';
+
+    return [r.name, gate, r.verb.toUpperCase(), r.uri].join('\t');
+  });
+  fs.writeFileSync(process.env.DUMP_PERMS, lines.sort().join('\n') + '\n');
+  console.log(`route permissions written to ${process.env.DUMP_PERMS} (${lines.length})`);
+}
+
+if (process.env.DUMP_PUBLIC) {
+  // Lets the licensing audit prove every genuinely public (unauthenticated) surface is
+  // classified in config/licence.php, and that nothing classified has gone away.
+  const rows = all.filter(r => !r.middleware.some(m => /^auth|^tenant|^twofactor/.test(m)) && !r.middleware.some(m => /^perm:|^can:|role:|permission:/.test(m)))
+    .map(r => [r.verb.toUpperCase(), '/' + String(r.uri).replace(/^\//, '')].join('\t'));
+  fs.writeFileSync(process.env.DUMP_PUBLIC, [...new Set(rows)].sort().join('\n') + '\n');
+  console.log(`public routes written to ${process.env.DUMP_PUBLIC} (${new Set(rows).size})`);
+}
+
+if (process.env.DUMP_AUTH) {
+  // Lets the licensing audit prove the guest-surface guard can never catch a signed-in screen.
+  const rows = all.filter(r => r.middleware.some(m => /^auth|^tenant/.test(m)))
+    .map(r => [r.verb.toUpperCase(), '/' + String(r.uri).replace(/^\//, '')].join('\t'));
+  fs.writeFileSync(process.env.DUMP_AUTH, [...new Set(rows)].sort().join('\n') + '\n');
+  console.log(`signed-in routes written to ${process.env.DUMP_AUTH} (${new Set(rows).size})`);
 }
 
 if (process.env.DUMP_NAMES) {

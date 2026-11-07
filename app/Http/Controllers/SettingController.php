@@ -15,6 +15,20 @@ use Illuminate\Support\Facades\DB;
 
 class SettingController extends Controller
 {
+    /**
+     * The band each number on the settings form actually runs within. The screen prints these and
+     * the save refuses anything outside them, so a manager cannot store a value the services then
+     * silently clamp: a point worth nothing burned a guest's balance for GH₵ 0.00, and a spend of
+     * 0 per point was quietly read as 1.
+     */
+    public const BOUNDS = [
+        'ap_tolerance_pct' => ['0', '100'],
+        'ap_tolerance_abs' => ['0', '1000000'],
+        'loyalty_point_value' => ['0.01', '1000'],
+        'loyalty_spend_per_point' => ['1', '100000'],
+        'loyalty_min_redeem' => ['1', '1000000'],
+    ];
+
     public const KEYS = [
         'booking_engine_enabled' => ['Online booking engine enabled', 'bool'],
         'feedback_enabled' => ['Public guest feedback form enabled', 'bool'],
@@ -85,6 +99,21 @@ class SettingController extends Controller
         ]);
     }
 
+    /** A rule per number on the form: never negative, and inside its printed band where it has one. */
+    public static function numberRules(): array
+    {
+        $rules = [];
+        foreach (self::KEYS as $key => [$label, $type]) {
+            if ($type !== 'number') {
+                continue;
+            }
+            [$min, $max] = self::BOUNDS[$key] ?? ['0', null];
+            $rules["settings.{$key}"] = 'nullable|numeric|min:'.$min.($max === null ? '' : '|max:'.$max);
+        }
+
+        return $rules;
+    }
+
     public function update(Request $request)
     {
         $hotel = hotel();
@@ -100,7 +129,7 @@ class SettingController extends Controller
             'vat_supply_kind' => 'required|in:services,goods,both', 'vat_registered_at' => 'nullable|date',
             'vat_registered' => 'nullable|boolean', 'supports_e_invoicing' => 'nullable|boolean',
             'settings' => 'array', 'settings.*' => 'nullable|string|max:5000',
-        ]);
+        ] + self::numberRules());
         if ($request->hasFile('logo')) {
             $dir = public_path('uploads/logos');
             is_dir($dir) || mkdir($dir, 0755, true);
@@ -121,6 +150,10 @@ class SettingController extends Controller
         $data['vat_registered_at'] = $data['vat_registered'] ? ($data['vat_registered_at'] ?: null) : null;
         $hotel->update($data);
         GstService::flushRegistration();
+        // this one form saves every hotel setting, and the trail is the only place a reader
+        // can see *which* of them a save touched — so say so instead of "Updated hotel settings"
+        $before = Setting::whereIn('key', array_keys(self::KEYS))->pluck('value', 'key');
+        $changed = [];
         foreach (self::KEYS as $key => [$label, $type]) {
             if ($type === 'select' && ! array_key_exists($settings[$key] ?? '', self::KEYS[$key][3])) {
                 $settings[$key] = self::KEYS[$key][2];
@@ -149,8 +182,13 @@ class SettingController extends Controller
             }
             $val = $type === 'bool' ? (! empty($settings[$key]) ? '1' : '0') : ($settings[$key] ?? null);
             Setting::updateOrCreate(['key' => $key], ['value' => $val]);
+            if ((string) ($before[$key] ?? '') !== (string) ($val ?? '')) {
+                $changed[] = $label;
+            }
         }
-        ActivityLogger::log('settings', 'update', 'Updated hotel settings');
+        ActivityLogger::log('settings', 'update', 'Updated hotel settings'.($changed
+            ? ': '.implode(', ', array_slice($changed, 0, 8)).(count($changed) > 8 ? ' and '.(count($changed) - 8).' more' : '')
+            : ''));
         if ($wasRegistered !== (bool) $hotel->vat_registered) {
             // a statutory status change deserves its own line: it decides whether this property may submit to the VSDC
             ActivityLogger::log('gst', 'vat_registration', ($hotel->vat_registered ? 'Recorded as VAT-registered' : 'Recorded as NOT VAT-registered')
@@ -170,18 +208,10 @@ class SettingController extends Controller
             'code' => 'required|alpha_dash|max:30|unique:hotels,code', 'name' => 'required|string|max:255', 'property_type' => 'required|in:hotel,resort,guest_house,restaurant,cafe,service_apartment',
             'city' => 'nullable|string|max:255', 'admin_username' => 'required|alpha_dash|max:60', 'admin_password' => 'required|string|min:8',
         ]);
-        $current = hotel();
-        $hotel = DB::transaction(function () use ($data, $user, $current) {
-            $hotel = Hotel::create(['hotel_group_id' => $user->hotel_group_id, 'code' => strtoupper($data['code']), 'name' => $data['name'], 'property_type' => $data['property_type'], 'city' => $data['city'] ?? null,
-                'country' => $current->country, 'currency' => $current->currency, 'currency_symbol' => $current->currency_symbol, 'timezone' => $current->timezone, 'business_date' => now()->toDateString()]);
-            HotelProvisioner::provision($hotel);
-            $admin = new User(['name' => 'Administrator', 'username' => $data['admin_username'], 'password' => $data['admin_password'], 'is_active' => true]);
-            $admin->hotel_id = $hotel->id;
-            $admin->is_super_admin = true;
-            $admin->save();
-
-            return $hotel;
-        });
+        // v10.0 the settings shortcut creates a *draft* property through the same service the
+        // property module uses, so the group entitlement, the inherited defaults and the audit
+        // trail apply whichever screen the property is opened from.
+        $hotel = app(\App\Services\PropertyService::class)->create($user->group, $data + ['status' => 'draft', 'business_date' => now()->toDateString()], $user);
         ActivityLogger::log('settings', 'add_property', "Added property {$hotel->name} ({$hotel->code})", $hotel);
 
         return back()->with('success', "Property {$hotel->name} created. Use Switch Hotel to open it.");

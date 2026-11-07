@@ -65,6 +65,44 @@ class CloseService
 
     public const DEFAULTS = ['close_due_days' => '10', 'close_auto_post' => '1'];
 
+    /** The manual checklist's caps. `saveSettings()` used to truncate to these silently: a 16th line
+     *  disappeared and an over-long task lost its tail with the save still reporting success. The
+     *  controller now refuses a checklist that breaks them, and the screen prints them. */
+    public const MANUAL_MAX_ROWS = 15;
+    public const MANUAL_AREA_MAX = 30;
+    public const MANUAL_TASK_MAX = 150;
+
+    /** "Area | Task" per line → [[area, task], …], trimmed, blanks dropped. No truncation. */
+    public static function parseManual(string $raw): array
+    {
+        return collect(preg_split('/\r?\n/', $raw))->map(fn ($l) => trim($l))->filter()
+            ->map(fn ($l) => str_contains($l, '|') ? array_map('trim', explode('|', $l, 2)) : ['General', $l])
+            ->map(fn ($r) => [$r[0] ?: 'General', $r[1] ?? ''])
+            ->values()->all();
+    }
+
+    /** What is wrong with a checklist, in words naming the line. Empty = it can be saved as typed. */
+    public static function manualProblems(string $raw): array
+    {
+        $rows = self::parseManual($raw);
+        $problems = [];
+        if (count($rows) > self::MANUAL_MAX_ROWS) {
+            $problems[] = 'The checklist holds at most '.self::MANUAL_MAX_ROWS.' tasks; '.count($rows).' were entered — tasks '
+                .(self::MANUAL_MAX_ROWS + 1).' onwards would have been dropped.';
+        }
+        foreach ($rows as $i => $r) {
+            if (mb_strlen($r[0]) > self::MANUAL_AREA_MAX) {
+                $problems[] = 'Line '.($i + 1).': the area “'.mb_substr($r[0], 0, self::MANUAL_AREA_MAX).'…” is '
+                    .mb_strlen($r[0]).' characters — the limit is '.self::MANUAL_AREA_MAX.'.';
+            }
+            if (mb_strlen($r[1]) > self::MANUAL_TASK_MAX) {
+                $problems[] = 'Line '.($i + 1).': the task is '.mb_strlen($r[1]).' characters — the limit is '.self::MANUAL_TASK_MAX.'.';
+            }
+        }
+
+        return $problems;
+    }
+
     // ───────────────────────── settings & calendar ─────────────────────────
 
     public static function cfg(): array
@@ -86,9 +124,9 @@ class CloseService
             $map['close_start'] = $d['start'];
         }
         if (isset($d['manual'])) {
-            $rows = collect(preg_split('/\r?\n/', (string) $d['manual']))->map(fn ($l) => trim($l))->filter()->take(15)
-                ->map(fn ($l) => str_contains($l, '|') ? array_map('trim', explode('|', $l, 2)) : ['General', $l])
-                ->map(fn ($r) => [mb_substr($r[0] ?: 'General', 0, 30), mb_substr($r[1], 0, 150)])->values()->all();
+            $rows = collect(self::parseManual((string) $d['manual']))
+                ->map(fn ($r) => [mb_substr($r[0], 0, self::MANUAL_AREA_MAX), mb_substr($r[1], 0, self::MANUAL_TASK_MAX)])
+                ->all();
             $map['close_manual_tasks'] = json_encode($rows ?: self::DEFAULT_MANUAL);
         }
         foreach ($map as $k => $v) {

@@ -135,7 +135,9 @@ class StayService
                 'room_id' => $room->id, 'status' => 'checked_in', 'arrival_date' => bdate()->toDateString(),
                 'checked_in_at' => now(), 'checked_in_by' => auth()->id(),
             ]);
-            if ($stay->departure_date->lte(bdate())) {
+            if ($stay->departure_date->lte(bdate()) && ! $stay->isDayUse()) {
+                // An overnight stay that arrives today departs tomorrow. A day-use stay
+                // does not: it is over the same day and owes one day-use charge.
                 $stay->update(['departure_date' => bdate()->addDay()->toDateString()]);
             }
             $room->update(['status' => 'occupied']);
@@ -177,7 +179,8 @@ class StayService
         $rate = (float) $stay->rate;
         $tax = TaxService::roomTax($rate);
         $roomNo = $stay->room?->room_no;
-        $tx = FolioService::charge($folio, 'room', "Room Tariff - Room {$roomNo} ({$night->format('d M')})", $rate, false,
+        $tariff = $stay->isDayUse() ? 'Day Use Tariff' : 'Room Tariff';
+        $tx = FolioService::charge($folio, 'room', "{$tariff} - Room {$roomNo} ({$night->format('d M')})", $rate, false,
             ['tax_amount' => $tax['amount'], 'tax_rate' => $tax['rate'], 'source_type' => 'night', 'reference' => $key]);
         if ((float) $stay->extra_charge > 0) {
             FolioService::charge($folio, 'extra_bed', "Extra Person Charge ({$night->format('d M')})", (float) $stay->extra_charge, false,
@@ -476,7 +479,12 @@ class StayService
             if ($folio && $folio->status === 'open') {
                 FolioService::close($folio);
             }
-            $stay->update(['status' => 'checked_out', 'checked_out_at' => now(), 'checked_out_by' => auth()->id(), 'departure_date' => bdate()->max($stay->arrival_date->copy()->addDay())->toDateString()]);
+            // An early departure is pulled back to today — but a day use never had a
+            // night to give back, so its departure stays on the day it arrived.
+            $actualDeparture = $stay->isDayUse()
+                ? $stay->arrival_date->toDateString()
+                : bdate()->max($stay->arrival_date->copy()->addDay())->toDateString();
+            $stay->update(['status' => 'checked_out', 'checked_out_at' => now(), 'checked_out_by' => auth()->id(), 'departure_date' => $actualDeparture]);
             $stay->room?->update(['status' => 'vacant', 'hk_status' => 'dirty']);
             $stay->reservation->syncStatus();
             CommissionService::accrue($stay->fresh(['reservation.company']));

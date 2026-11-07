@@ -1,5 +1,6 @@
 {{-- Price-list grid: qty per item × service. Vars: $items (grouped by category), $current [item][service] => qty, $remarks [item] => text, $expressPct, $readonly --}}
-<div class="table-wrap"><table class="table table-compact laundry-grid" id="laundryGrid" data-express="{{ $expressPct }}">
+<div class="table-wrap"><table class="table table-compact laundry-grid" id="laundryGrid" data-express="{{ $expressPct }}"
+  data-tax-rate="{{ $tax['rate'] ?? 0 }}" data-tax-inclusive="{{ ! empty($tax['inclusive']) ? 1 : 0 }}" data-tax-label="{{ $tax['label'] ?? '' }}">
 <thead><tr><th>Item</th>@foreach(\App\Models\LaundryItem::SERVICES as $sk => $sl)<th class="num" style="width:130px">{{ $sl }}</th>@endforeach<th>Remark (stain, damage…)</th></tr></thead>
 <tbody>
 @foreach($items as $cat => $rows)
@@ -13,7 +14,7 @@
 @endforeach
 @endforeach
 </tbody>
-<tfoot><tr><td class="right">Total</td><td colspan="3" class="num"><span id="lgPcs">0</span> pcs · <b id="lgSub">0.00</b><span id="lgExp" class="muted"></span></td><td class="small muted">Tax is added when it's posted to the bill.</td></tr></tfoot>
+<tfoot><tr><td class="right">Total</td><td colspan="3" class="num"><span id="lgPcs">0</span> pcs · <b id="lgSub">0.00</b><span id="lgExp" class="muted"></span><span id="lgTax" class="muted"></span></td><td class="small muted">The tax line is carried on the bill.</td></tr></tfoot>
 </table></div>
 <script>
 (() => {
@@ -24,9 +25,21 @@
     grid.querySelectorAll('.lg-qty').forEach(i => { const q = parseInt(i.value || 0, 10) || 0; pcs += q; sub += q * parseFloat(i.dataset.rate); });
     const sp = document.querySelector('[name=speed]:checked') || document.querySelector('select[name=speed]');
     const exp = sp && sp.value === 'express' ? Math.round(sub * parseFloat(grid.dataset.express)) / 100 : 0;
+    const rate = parseFloat(grid.dataset.taxRate || 0);
+    const inclusive = grid.dataset.taxInclusive === '1';
+    const listed = sub + exp;
+    const net = inclusive && rate > 0 ? listed / (1 + rate / 100) : listed;
+    const tax = inclusive && rate > 0 ? listed - net : listed * rate / 100;
+    const payable = inclusive && rate > 0 ? listed : listed + tax;
     document.getElementById('lgPcs').textContent = pcs;
-    document.getElementById('lgSub').textContent = fmt(sub + exp);
+    document.getElementById('lgSub').textContent = fmt(listed) + (rate <= 0 ? '' : inclusive ? ' incl. tax' : '');
     document.getElementById('lgExp').textContent = exp ? ' (incl. express ' + fmt(exp) + ')' : '';
+    const taxLine = document.getElementById('lgTax');
+    if (taxLine) {
+      taxLine.textContent = rate <= 0
+        ? ' · no laundry tax set'
+        : ' · ' + grid.dataset.taxLabel + ' ' + (inclusive ? 'already included: ' : '') + fmt(tax) + ' → payable ' + fmt(payable);
+    }
   };
   document.addEventListener('input', e => { if (e.target.matches('.lg-qty')) calc(); });
   document.addEventListener('change', e => { if (e.target.name === 'speed') calc(); });

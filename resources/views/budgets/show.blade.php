@@ -11,7 +11,13 @@
 @endif
 @if($b->status === 'submitted' && can_do('budget.approve'))
   <button class="btn btn-warning" data-modal="returnModal" id="returnBtn"><x-icon name="swap"/> Return</button>
-  <button class="btn btn-success" data-modal="approveModal" id="approveBtn"><x-icon name="check"/> Approve</button>
+  @if($approval['mine'])
+    {{-- v8.3 – the second signature must come from someone else, so the screen offers none: the server refuses it too.
+         This holds even if the threshold has been lowered since, because the signature on the version is what counts. --}}
+    <button class="btn btn-success" id="approveBtn" disabled title="You have already signed this version – someone else must give the other signature"><x-icon name="check"/> {{ $approval['needed'] === 2 ? 'Awaiting second approver' : 'Awaiting another approver' }}</button>
+  @else
+    <button class="btn btn-success" data-modal="approveModal" id="approveBtn"><x-icon name="check"/> {{ $approval['needed'] === 2 && $approval['signed'] === 1 ? 'Second approval' : 'Approve' }}</button>
+  @endif
 @endif
 @if($b->status === 'approved')
   @if($b->kind === 'budget' && can_do('budget.manage') && count($closedMonths))<button class="btn" data-modal="forecastModal" id="forecastBtn"><x-icon name="refresh"/> Re-forecast</button>@endif
@@ -23,43 +29,189 @@
 @endsection
 @section('content')
 @php
+  // v8.3 – the column totals and the two derived rows come from BudgetService::gridTotals(), computed once and
+  // checkable, not added up in the template.
   $secLabels = \App\Services\BudgetService::SECTIONS;
   $n = fn ($v) => money($v, false);
   $raw = fn ($v) => (float) $v == round((float) $v) ? (string) (int) round((float) $v) : number_format((float) $v, 2, '.', '');
-  $colTot = [];
-  foreach ($lines as $sec => $ls) { foreach (range(1, 12) as $m) { $colTot[$sec][$m] = $ls->sum(fn ($l) => $l->month($m)); } }
-  $sumSec = fn (array $secs, int $m) => array_sum(array_map(fn ($s) => $colTot[$s][$m] ?? 0, $secs));
 @endphp
 
 @if($b->isDraft() && $b->return_note)
 <div class="alert alert-warn" id="returnNote"><x-icon name="alert"/><div><b>Returned for changes:</b> {{ $b->return_note }}</div></div>
 @endif
 @if($b->status === 'submitted')
-<div class="alert alert-info"><x-icon name="clock"/><div>Submitted by <b>{{ $b->submitter?->name }}</b> {{ $b->submitted_at?->diffForHumans() }} – waiting for approval by another user (four-eyes).</div></div>
+<div class="alert alert-info" id="approvalNote"><x-icon name="clock"/><div>Submitted by <b>{{ $b->submitter?->name }}</b> {{ $b->submitted_at?->diffForHumans() }} –
+  @if($approval['needed'] === 2 && $approval['first'])
+    <b>{{ $approval['first']->name }}</b> gave the first approval on {{ $approval['first_at']?->format('d M Y H:i') }}. This version is {{ money($approval['size']) }}, over the
+    {{ money($approval['threshold']) }} threshold, so <b>a second approver</b> must sign before it counts – four-eyes applies to both signatures.
+  @elseif($approval['needed'] === 2)
+    waiting for approval by another user (four-eyes). It is {{ money($approval['size']) }}, over the {{ money($approval['threshold']) }} threshold, so <b>two</b> approvers must sign, one after the other.
+  @else
+    waiting for approval by another user (four-eyes). At {{ money($approval['size']) }} it is below the {{ $approval['threshold'] > 0 ? money($approval['threshold']) : money(0) }} threshold, so one approval is enough.
+  @endif</div></div>
+@endif
+@if($b->department_id)
+<div class="alert alert-info" id="ccNote"><x-icon name="users"/><div>This version plans the cost centre <b>{{ $b->costCentreLabel() }}</b>. Rooms statistics stay on the whole-hotel budget, so they are not shown here – the ledger actuals compared with it are only the lines tagged to this department.</div></div>
+@endif
+@if($b->isCapital())
+<div class="alert alert-info" id="capexNote"><x-icon name="wallet"/><div>This is the <b>capital plan</b> for {{ $b->fyLabel() }}: money committed to <b>assets</b>, not to the profit and loss.
+  A capital purchase buys something the hotel keeps, so it is not an expense of the year and no figure here enters revenue, expenses or net profit.
+  A supplier bill coded to one of these capital asset heads is measured against this plan; an operating cost can never be coded here.</div></div>
 @endif
 @if($b->kind === 'forecast' && count($locked))
 <div class="alert alert-info"><x-icon name="lock"/><div>Months up to <b>{{ $b->actuals_through->format('M Y') }}</b> hold posted actuals from the general ledger and are locked. Re-estimate the remaining months.</div></div>
 @endif
 
 <div class="stats">
+  @if($b->isCapital())
+  <x-stat label="Capital budget" :value="money($totals['capital'])" icon="wallet" tone="blue" :sub="$b->fyLabel().' · '.$b->kindLabel()"/>
+  <x-stat label="Spent to date" :value="money($capital['actual'])" icon="trend" :tone="$capital['plan'] > 0 && $capital['actual'] > $capital['plan'] ? 'red' : 'slate'"
+    :sub="$capital['pct'] === null ? 'no plan to measure' : $capital['pct'].' % of the plan for the year'"/>
+  <x-stat label="Committed" :value="money($capital['committed'])" icon="clock" :tone="$capital['committed'] > 0 ? 'amber' : 'slate'"
+    :sub="$capital['committed'] > 0 ? 'approved projects, not yet spent'.($funding['short'] > 0 ? ' · '.money($funding['short']).' of it has no cover' : '') : 'no approved project promises money'"/>
+  <x-stat label="Remaining" :value="money(abs($capital['remaining']))" icon="chart" :tone="$capital['remaining'] < 0 ? 'red' : 'green'"
+    :sub="$capital['remaining'] < 0 ? 'over the plan once commitments are counted' : 'still to commit'"/>
+  @else
   <x-stat label="Revenue" :value="money($totals['income'])" icon="trend" tone="blue" :sub="$b->fyLabel().' · '.$b->kindLabel()"/>
   <x-stat label="Expenses" :value="money($totals['expense'])" icon="wallet" tone="slate"/>
   <x-stat label="Net profit" :value="money($totals['net'])" icon="chart" :tone="$totals['net'] < 0 ? 'red' : 'green'" :sub="$totals['income'] ? round($totals['net'] * 100 / $totals['income'], 1).' % margin' : null"/>
-  <x-stat label="Status" :value="$b->statusLabel()" icon="check" :tone="$b->statusTone() === 'slate' ? 'slate' : ($b->statusTone() === 'amber' ? 'amber' : 'green')" :sub="$b->is_active ? 'Active version' : ($b->approver ? 'approved by '.$b->approver->name : 'prepared by '.($b->creator?->name ?? '—'))"/>
+  @endif
+  <x-stat label="Status" :value="$b->statusLabel()" icon="check" :tone="$b->statusTone() === 'slate' ? 'slate' : ($b->statusTone() === 'amber' ? 'amber' : 'green')" {{-- v8.3 – a version with one of two signatures is not "approved by" anyone yet --}}
+  :sub="$b->is_active ? 'Active version' : ($b->status === 'submitted' && $b->approver ? 'first approval by '.$b->approver->name.($approval['needed'] === 2 ? ' · second needed' : '') : ($b->status === 'approved' && $b->approver ? 'approved by '.$b->approver->name : 'prepared by '.($b->creator?->name ?? '—')))"/>
 </div>
 
 <div data-tabwrap>
 <div class="tabs" data-tabs>
-  <button class="active" data-tab="grid">Monthly budget</button>
-  <button data-tab="stats">Rooms statistics</button>
+  <button class="active" data-tab="grid">{{ $b->isCapital() ? 'Capital by month' : 'Monthly budget' }}</button>
+  @unless($b->department_id || $b->isCapital())<button data-tab="stats">Rooms statistics</button>@endunless
   <button data-tab="history">History ({{ $b->events->count() }})</button>
 </div>
 
 <div class="tab-pane active" id="grid">
+@if($b->isCapital())
+<div class="card" id="capitalSpendCard"><div class="card-head"><h3>Plan against capital spend</h3>
+  <span class="muted small">spent = capital asset accounts debited this fiscal year ({{ $capital['through'] ? 'through fiscal month '.$capital['through'].' of 12' : 'no closed month yet' }}); committed = approved capital projects not yet spent</span></div>
+  <div class="card-body table-wrap"><table class="table table-compact" id="capitalTable">
+    <thead><tr><th>Code</th><th>Capital asset account</th><th class="num">Plan for the year</th><th class="num">Plan to date</th><th class="num">Spent to date</th><th class="num">Committed</th><th class="num">Remaining</th><th class="num">% of plan</th></tr></thead>
+    <tbody>
+    @forelse($capital['rows'] as $r)
+      <tr data-acct="{{ $r['account']->code }}">
+        <td class="muted small">{{ $r['account']->code }}</td>
+        <td>{{ $r['account']->name }}</td>
+        <td class="num">{{ money($r['plan'], false) }}</td>
+        <td class="num muted">{{ money($r['to_date'], false) }}</td>
+        <td class="num">{{ money($r['actual'], false) }}</td>
+        <td class="num">{{ $r['committed'] ? money($r['committed'], false) : '—' }}
+          @if(! empty($r['projects']))<div class="tiny muted">{{ implode(', ', array_column($r['projects'], 'number')) }}</div>@endif</td>
+        <td class="num {{ $r['remaining'] < 0 ? 'text-red' : '' }}">{{ money(abs($r['remaining']), false) }} {{ $r['remaining'] < 0 ? 'over' : 'left' }}</td>
+        <td class="num">{{ $r['pct'] === null ? '—' : $r['pct'].' %' }}</td>
+      </tr>
+    @empty
+      <tr><td colspan="8"><x-empty icon="wallet" text="No capital asset account carries a plan, any spend or an approved project this year."/></td></tr>
+    @endforelse
+    </tbody>
+    <tfoot><tr class="bold-row"><td></td><td>Total capital</td>
+      <td class="num">{{ money($capital['plan'], false) }}</td><td class="num">{{ money($capital['to_date'], false) }}</td>
+      <td class="num">{{ money($capital['actual'], false) }}</td>
+      <td class="num">{{ money($capital['committed'], false) }}</td>
+      <td class="num {{ $capital['remaining'] < 0 ? 'text-red' : '' }}">{{ money(abs($capital['remaining']), false) }} {{ $capital['remaining'] < 0 ? 'over' : 'left' }}</td>
+      <td class="num">{{ $capital['pct'] === null ? '—' : $capital['pct'].' %' }}</td></tr></tfoot>
+  </table></div>
+  @php $allProjects = collect($capital['rows'])->flatMap(fn ($r) => $r['projects'])->values(); @endphp
+  @if($allProjects->count())
+  <div class="card-body" style="border-top:1px solid var(--c-border)">
+    <h4 style="margin-bottom:.4rem">Approved capital projects drawing on this plan</h4>
+    <div class="table-wrap"><table class="table table-compact" id="capitalProjects">
+      <thead><tr><th>Project</th><th>What it buys</th><th class="num">Approved budget</th><th class="num">Spent</th><th class="num">Still to spend</th></tr></thead>
+      <tbody>
+      @foreach($allProjects as $proj)
+        <tr data-project="{{ $proj['number'] }}"><td class="bold">{{ $proj['number'] }}</td><td>{{ $proj['title'] }}</td>
+          <td class="num">{{ money($proj['budget'], false) }}</td><td class="num">{{ money($proj['spent'], false) }}</td>
+          <td class="num">{{ money($proj['open'], false) }}</td></tr>
+      @endforeach
+      </tbody>
+    </table></div>
+    <p class="tiny muted">A project counts here because it is approved and capitalised to one of these accounts; the money it has
+      already spent is in the ledger and so is counted once, as spent. Completing or cancelling a project releases what is left.</p>
+  </div>
+  @endif
+  <div class="card-body" id="capitalDue" style="border-top:1px solid var(--c-border)">
+    <h4 style="margin-bottom:.15rem">When it falls due</h4>
+    <p class="tiny muted" style="margin-bottom:.5rem">The money those projects have promised, in the fiscal month each one
+      says it is needed. A project sits in one month only — its date — so moving the date moves the money; nothing is
+      spread across the year on a guess.</p>
+    <div style="display:flex;gap:5px;align-items:stretch" id="capitalDueStrip">
+      @foreach($timeline['months'] as $tm)
+        <div class="due-cell{{ $tm['late'] ? ' late' : '' }}{{ $tm['past'] ? ' past' : '' }}" data-month="{{ $tm['label'] }}"
+             data-open="{{ $tm['open'] }}" title="{{ $tm['open'] > 0 ? implode(', ', array_column($tm['projects'], 'number')) : 'nothing falls due' }}"
+             style="flex:1;min-width:0;text-align:center;padding:4px 2px;border:1px solid var(--c-border);border-radius:6px;{{ $tm['past'] ? 'background:var(--c-bg)' : '' }}">
+          <div class="tiny muted" style="white-space:nowrap">{{ $tm['label'] }}</div>
+          <div style="height:44px;display:flex;align-items:flex-end;justify-content:center">
+            <div class="due-bar" style="width:64%;height:{{ $tm['height'] }}%;border-radius:3px 3px 0 0;background:{{ $tm['late'] ? 'var(--c-red)' : 'var(--c-blue)' }}"></div>
+          </div>
+          <div class="tiny {{ $tm['open'] > 0 ? 'bold' : 'muted' }}">{{ $tm['open'] > 0 ? money($tm['open'], false) : '—' }}</div>
+        </div>
+      @endforeach
+    </div>
+    @if($timeline['overdue']['open'] > 0)
+      <p class="small" id="capitalOverdue" style="margin:.55rem 0 0"><x-icon name="alert"/>
+        <b>{{ money($timeline['overdue']['open']) }}</b> is still promised by {{ implode(', ', array_column($timeline['overdue']['projects'], 'number')) }}
+        and its date has passed — a commitment the year's cash plan has already got wrong. Spend it, move the date, or complete the project.</p>
+    @endif
+    @if($timeline['undated']['open'] > 0)
+      <p class="small" id="capitalUndated" style="margin:.55rem 0 0"><x-icon name="clock"/>
+        <b>{{ money($timeline['undated']['open']) }}</b> has no date yet ({{ implode(', ', array_column($timeline['undated']['projects'], 'number')) }}).
+        It is counted in the plan but in no month, so the strip understates every month it may land in.</p>
+    @else
+      <p class="tiny muted" id="capitalDated" style="margin:.55rem 0 0">Every approved project carries a date, so the strip accounts for
+        all {{ money($timeline['total']) }} of the money promised.</p>
+    @endif
+  </div>
+</div>
+
+<div class="card" id="capitalFunding"><div class="card-head"><h3>Can it be paid?</h3>
+  <span class="muted small">each open commitment has one funding source; only the FF&amp;E reserve is a balance this hotel holds</span></div>
+  <div class="card-body table-wrap"><table class="table table-compact" id="fundingTable">
+    <thead><tr><th>Funding source</th><th class="num">Promised</th><th>Available now</th><th class="num">Short</th><th>Projects</th></tr></thead>
+    <tbody>
+    @foreach($funding['rows'] as $fr)
+      <tr data-source="{{ $fr['key'] }}" class="{{ ($fr['short'] ?? 0) > 0 ? 'text-red' : '' }}">
+        <td class="bold">{{ $fr['label'] }}</td>
+        <td class="num">{{ $fr['open'] > 0 ? money($fr['open'], false) : '—' }}</td>
+        <td>@if($fr['cover'] !== null){{ money($fr['cover']) }} accrued @if($fr['cash'] !== null)<span class="tiny muted">· {{ money($fr['cash']) }} in cash</span>@endif @else<span class="small muted">{{ $fr['note'] }}</span>@endif</td>
+        <td class="num">{{ $fr['short'] === null ? '—' : money($fr['short'], false) }}</td>
+        <td class="small">{{ empty($fr['projects']) ? '—' : implode(', ', array_column($fr['projects'], 'number')) }}</td>
+      </tr>
+    @endforeach
+    </tbody>
+    <tfoot><tr class="bold-row"><td>Total promised</td><td class="num">{{ money($funding['open'], false) }}</td>
+      <td class="small">{{ $funding['untracked'] > 0 ? money($funding['untracked']).' comes from a source with no balance to read' : 'all of it comes from a balance the hotel holds' }}</td>
+      <td class="num {{ $funding['short'] > 0 ? 'text-red' : '' }}">{{ money($funding['short'], false) }}</td><td></td></tr></tfoot>
+  </table></div>
+  <div class="card-body" style="border-top:1px solid var(--c-border)">
+    @if($funding['short'] > 0)
+      <p class="small" id="fundingShort" style="margin:0"><x-icon name="alert"/>
+        <b>{{ money($funding['short']) }}</b> of the money promised from the FF&amp;E reserve is more than the reserve holds.
+        @if($funding['cash'] !== null)It holds <b>{{ money($funding['cash']) }}</b> in cash, so even the cash does not cover what the
+        reserve has already promised.@endif
+        Fund the reserve, move the project to a later year, or ask the owner for a capital call.</p>
+    @elseif($funding['accrued'] !== null)
+      <p class="small" id="fundingCovered" style="margin:0"><x-icon name="check"/>The reserve holds
+        {{ money($funding['accrued']) }} accrued@if($funding['cash'] !== null) and {{ money($funding['cash']) }} in cash@endif, which covers
+        everything promised from it.</p>
+    @endif
+    @if($funding['untracked'] > 0)
+      <p class="small" id="fundingUntracked" style="margin:{{ $funding['short'] > 0 || $funding['accrued'] !== null ? '.45rem' : '0' }} 0 0"><x-icon name="info"/>
+        <b>{{ money($funding['untracked']) }}</b> is promised from the owner or from operating cash. There is no balance here to read
+        against it: the screen says who owes the money, not that it has been found.</p>
+    @endif
+  </div>
+</div>
+@endif
 <form method="post" action="{{ route('budgets.grid', $b) }}" id="gridForm">@csrf
 <div class="card flush">
   <div class="card-head"><h3>{{ $b->name }}</h3>
-    <span class="muted small">Amounts in {{ hotel()->currency_symbol }} · income positive, expenses positive@if($canEdit) · Tab across the months; use ⋯ on a row to spread an annual total@endif</span>
+    <span class="muted small">Amounts in {{ hotel()->currency_symbol }} · {{ $b->isCapital() ? 'money committed to assets, positive; it never enters the profit and loss' : 'income positive, expenses positive' }}@if($canEdit) · Tab across the months; use ⋯ on a row to spread an annual total@endif</span>
     @if($canEdit)<button class="btn btn-primary btn-sm ml-auto" id="saveGridBtn"><x-icon name="check" size="sm"/> Save changes</button>@endif
   </div>
   <div class="card-body table-wrap"><table class="table table-compact bg-grid" id="budgetGrid">
@@ -90,23 +242,26 @@
         </tr>
       @endforeach
       <tr class="bold-row sec-total" data-sectotal="{{ $sec }}"><td></td><td>Total {{ strtolower($label) }}</td>
-        @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($colTot[$sec][$m]) }}</td>@endforeach
-        <td class="num" data-m="t">{{ $n(array_sum($colTot[$sec])) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
-      @if($sec === 'opex')
+        @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($grid['cols'][$sec][$m] ?? 0) }}</td>@endforeach
+        <td class="num" data-m="t">{{ $n($grid['cols'][$sec]['t'] ?? 0) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
+      @if($sec === 'opex' && ! $b->isCapital())
         <tr class="bold-row derived" data-derived="gop"><td></td><td>Gross operating profit (GOP)</td>
-          @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($sumSec(['revenue'], $m) - $sumSec(['direct', 'opex'], $m)) }}</td>@endforeach
-          <td class="num" data-m="t">{{ $n(array_sum(array_map(fn ($m) => $sumSec(['revenue'], $m) - $sumSec(['direct', 'opex'], $m), range(1, 12)))) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
+          @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($grid['gop'][$m] ?? 0) }}</td>@endforeach
+          <td class="num" data-m="t">{{ $n($grid['gop']['t'] ?? 0) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
       @endif
     @endforeach
+    @unless($b->isCapital())
     <tr class="bold-row derived" data-derived="net" style="border-top:2px solid var(--c-border)"><td></td><td>Net profit</td>
-      @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($sumSec(['revenue', 'other_income'], $m) - $sumSec(['direct', 'opex', 'nonop'], $m)) }}</td>@endforeach
-      <td class="num" data-m="t">{{ $n($totals['net']) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
+      @foreach(range(1, 12) as $m)<td class="num" data-m="{{ $m }}">{{ $n($grid['net'][$m] ?? 0) }}</td>@endforeach
+      <td class="num" data-m="t">{{ $n($grid['net']['t'] ?? 0) }}</td><td colspan="{{ 2 + ($canEdit ? 1 : 0) }}"></td></tr>
+    @endunless
     </tbody>
   </table></div>
 </div>
 </form>
 </div>
 
+@unless($b->department_id)
 <div class="tab-pane" id="stats">
 <form method="post" action="{{ route('budgets.stats', $b) }}" id="statsForm">@csrf
 <div class="card flush">
@@ -140,13 +295,14 @@
 </div>
 </form>
 </div>
+@endunless
 
 <div class="tab-pane" id="history">
 <div class="grid g-2">
 <div class="card"><div class="card-head"><h3>Audit trail</h3></div><div class="card-body">
   <ul class="timeline" id="budgetEvents">
   @foreach($b->events->sortByDesc('id') as $e)
-    <li><b>{{ ucfirst($e->action) }}</b> · {{ $e->user?->name ?? 'system' }} <span class="muted small">{{ $e->created_at?->format('d M Y H:i') }}</span>@if($e->note)<div class="small muted">{{ $e->note }}</div>@endif</li>
+    <li><b>{{ \App\Models\BudgetEvent::label($e->action) }}</b> · {{ $e->user?->name ?? 'system' }} <span class="muted small">{{ $e->created_at?->format('d M Y H:i') }}</span>@if($e->note)<div class="small muted">{{ $e->note }}</div>@endif</li>
   @endforeach
   </ul>
 </div></div>
@@ -157,7 +313,13 @@
     <div class="kv"><span>Built from</span><b>{{ \App\Models\Budget::METHODS[$b->method] ?? $b->method }}@if($b->parent) – {{ $b->parent->budget_no }}@endif</b></div>
     <div class="kv"><span>Growth</span><b>{{ sprintf('revenue %+.1f %% · expenses %+.1f %%', $b->growth_income, $b->growth_expense) }}</b></div>
     <div class="kv"><span>Prepared by</span><b>{{ $b->creator?->name ?? '—' }}</b></div>
-    <div class="kv"><span>Approved by</span><b>{{ $b->approver?->name ?? '—' }}@if($b->approved_at) · {{ $b->approved_at->format('d M Y') }}@endif</b></div>
+    <div class="kv"><span>Approved by</span><b>{{ $b->approver?->name ?? '—' }}@if($b->approved_at) · {{ $b->approved_at->format('d M Y') }}@endif @if($approval['needed'] === 2)<span class="tiny muted">(first)</span>@endif</b></div>
+    @if($approval['needed'] === 2 || $b->second_approved_by)
+    <div class="kv"><span>Second approval</span><b>{{ $b->secondApprover?->name ?? ($b->status === 'submitted' ? 'awaiting the second approver' : '—') }}@if($b->second_approved_at) · {{ $b->second_approved_at->format('d M Y') }}@endif</b></div>
+    @endif
+    @if($approval['threshold'] > 0)
+    <div class="kv"><span>Approval threshold</span><b>{{ money($approval['threshold']) }} – {{ $approval['size'] >= $approval['threshold'] ? 'two approvers' : 'one approver' }}</b></div>
+    @endif
   </div>
   @if($b->notes)<p class="small mt-2"><b>Assumptions:</b> {{ $b->notes }}</p>@endif
   @if($forecasts->count())<h4 class="mt-2">Re-forecasts</h4><ul class="small">@foreach($forecasts as $f)<li><a href="{{ route('budgets.show', $f) }}">{{ $f->budget_no }} – {{ $f->name }}</a> <span class="badge badge-{{ $f->statusTone() }}">{{ $f->statusLabel() }}</span>@if($f->is_active) <span class="badge badge-green">Active</span>@endif</li>@endforeach</ul>@endif
@@ -204,11 +366,17 @@
 <div class="modal" id="approveModal"><div class="modal-box" style="max-width:480px"><form method="post" action="{{ route('budgets.approve', $b) }}" id="approveForm">@csrf
   <div class="modal-head"><h3>Approve {{ $b->budget_no }}</h3><button type="button" class="btn btn-sm" data-close><x-icon name="x"/></button></div>
   <div class="modal-body"><div class="form-grid">
+    @if($approval['needed'] === 2)
+    <div class="alert {{ $approval['signed'] === 1 ? 'alert-success' : 'alert-warn' }} span-all" id="twoApproverNote" style="margin:0"><x-icon name="users"/><div>
+      This version is <b>{{ money($approval['size']) }}</b>, at or above the <b>{{ money($approval['threshold']) }}</b> threshold, so it needs <b>two approvers</b>.
+      @if($approval['signed'] === 1) Your approval is the <b>second and final</b> one – it goes live straight away. @else Your approval is the <b>first</b>; a second approver must then sign before it counts. @endif
+    </div></div>
+    @endif
     <x-field name="note" label="Note (optional)" class="span-all"/>
     <input type="hidden" name="activate" value="0">
     <label class="flex span-all" style="gap:.4rem;align-items:center"><input type="checkbox" name="activate" value="1" checked> Make it the active {{ strtolower($b->kindLabel()) }} for {{ $b->fyLabel() }}</label>
   </div></div>
-  <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-success" id="confirmApprove">Approve</button></div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-success" id="confirmApprove">{{ $approval['needed'] === 2 && $approval['signed'] === 1 ? 'Give the second approval' : 'Approve' }}</button></div>
 </form></div></div>
 <div class="modal" id="returnModal"><div class="modal-box" style="max-width:480px"><form method="post" action="{{ route('budgets.return', $b) }}" id="returnForm">@csrf
   <div class="modal-head"><h3>Return for changes</h3><button type="button" class="btn btn-sm" data-close><x-icon name="x"/></button></div>

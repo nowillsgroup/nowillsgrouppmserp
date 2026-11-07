@@ -1006,7 +1006,14 @@ class BankRecService
         $out = ['reference' => 0, 'amount' => 0, 'group' => 0];
 
         DB::transaction(function () use ($s, $win, &$out) {
-            $pool = self::candidates($s->account_head_id, $s->period_to->copy()->addDays($win)->toDateString())->keyBy('id');
+            // The candidate pool is the account's book entries within the window of THIS statement's
+            // period. It used to run back to the account's very first statement, and the pass below
+            // matched on amount + reference with no date test at all: a line could be paired with a
+            // book entry a year earlier whose reference merely repeated, while the brief promised that
+            // auto-matching runs within ±0–31 days of the statement line.
+            $poolStart = $s->period_from->copy()->subDays($win)->toDateString();
+            $pool = self::candidates($s->account_head_id, $s->period_to->copy()->addDays($win)->toDateString())
+                ->filter(fn ($g) => $g->date->toDateString() >= $poolStart)->keyBy('id');
             $open = $s->lines()->where('status', 'unmatched')->get();
 
             // 1. same amount and the statement reference found in the journal reference / narration / memo
@@ -1014,7 +1021,10 @@ class BankRecService
                 if (! ($ref = self::refKey($line->reference))) {
                     continue;
                 }
-                $hit = $pool->first(function ($g) use ($line, $ref) {
+                $hit = $pool->first(function ($g) use ($line, $ref, $win) {
+                    if (abs($g->date->diffInDays($line->date, false)) > $win) {
+                        return false; // the same window every other pass works to
+                    }
                     $hay = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $g->journal->reference.' '.$g->journal->narration.' '.$g->memo));
 
                     return abs(self::signed($g) - (float) $line->amount) < 0.005 && str_contains($hay, $ref);

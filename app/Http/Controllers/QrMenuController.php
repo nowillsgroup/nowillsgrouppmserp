@@ -89,6 +89,9 @@ class QrMenuController extends Controller
                 if (! $m || ($m->outlet_id && (int) $m->outlet_id !== (int) $table->outlet_id)) {
                     throw ValidationException::withMessages(["items.{$index}.id" => 'One of the selected dishes is no longer available.']);
                 }
+                if ($m->side_dish_required && empty($line['variants'])) { // v9.30 the dish insists on its side dish
+                    throw ValidationException::withMessages(["items.{$index}.variants" => "{$m->name}: choose the side dish that comes with it."]);
+                }
                 [$modifierSnapshots, $modifierAmount] = PosModifierService::snapshot($m, $line['modifiers'] ?? [], $index);
                 // Side dishes ride with the add-ons so the kitchen, the KOT and the bill read one list;
                 // a side dish with no rate adds nothing, i.e. it is included in the item price.

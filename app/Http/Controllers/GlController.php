@@ -28,6 +28,7 @@ class GlController extends Controller
             'cutoff' => $cutoff, 'syncedAt' => setting('gl_synced_at'), 'lock' => LedgerService::lockDate(),
             'glErrors' => json_decode(setting('gl_last_errors') ?: '[]', true) ?: [],
             'controls' => $cutoff ? LedgerService::controls($cutoff) : [],
+            'controlSummary' => $cutoff ? LedgerService::controlSummary($cutoff) : null,   // v9.6 how many of them agree
             'journalCount' => GlJournal::count(), 'nextCutoff' => LedgerService::cutoff(),
         ]);
     }
@@ -54,9 +55,27 @@ class GlController extends Controller
 
     public function show(GlJournal $journal)
     {
-        $journal->load('lines.account', 'creator', 'reversalOf', 'reversedBy');
+        $journal->load('lines.account', 'lines.department', 'creator', 'reversedBy', 'reversalOf', 'department');
 
-        return view('gl.show', ['j' => $journal, 'minDate' => $this->minDate()]);
+        return view('gl.show', [
+            'j' => $journal, 'minDate' => $this->minDate(),
+            'departments' => \App\Models\Department::orderBy('name')->get()->mapWithKeys(fn ($d) => [$d->id => $d->label()])->all(),
+            'unallocated' => $journal->lines->filter(fn ($l) => $l->department_id === null && $l->account && $l->account->type === 'expense')->count(),
+        ]);
+    }
+
+    /** v8.1 – put the lines of a posted journal against cost centres; the money does not move. */
+    public function allocate(Request $request, GlJournal $journal)
+    {
+        $request->validate(['d' => 'nullable|array', 'd.*' => 'nullable|integer|owned:departments', 'why' => 'nullable|string|max:120']);
+        $map = array_map(fn ($v) => $v === null || $v === '' ? null : (int) $v, (array) $request->input('d', []));
+        try {
+            $n = LedgerService::allocate($journal, $map, $request->input('why'));
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', $n ? "Cost centres set on {$n} line(s) of {$journal->journal_no}." : 'Nothing changed.');
     }
 
     protected function minDate(): string
@@ -73,6 +92,8 @@ class GlController extends Controller
         return view('gl.create', [
             'accounts' => AccountHead::where('is_active', true)->orderBy('code')->get(),
             'minDate' => $this->minDate(), 'maxDate' => bdate()->toDateString(), 'copy' => $copy,
+            'departments' => \App\Models\Department::orderBy('name')->get()->mapWithKeys(fn ($d) => [$d->id => $d->label()])->all(),   // v8.1
+            'requireCc' => \App\Services\BudgetService::cfg()['cost_centre_required'],
         ]);
     }
 
@@ -86,7 +107,11 @@ class GlController extends Controller
             'lines.*.debit' => 'nullable|numeric|min:0|max:999999999',
             'lines.*.credit' => 'nullable|numeric|min:0|max:999999999',
             'lines.*.memo' => 'nullable|string|max:150',
+            'lines.*.department_id' => 'nullable|integer|owned:departments',   // v8.1 – the cost centre
         ], ['date.after_or_equal' => 'The period up to '.LedgerService::lockDate().' is locked.']);
+
+        $expense = AccountHead::where('type', 'expense')->pluck('code', 'id');
+        $ccRequired = \App\Services\BudgetService::cfg()['cost_centre_required'];
 
         $lines = [];
         foreach ($data['lines'] as $i => $l) {
@@ -101,7 +126,12 @@ class GlController extends Controller
             if (($dr > 0) === ($cr > 0)) {
                 return back()->withInput()->withErrors(["lines.$i.debit" => 'Line '.($i + 1).': enter either a debit or a credit amount.']);
             }
-            $lines[] = [(int) $l['account_head_id'], $dr - $cr, $l['memo'] ?? null];
+            $dept = ! empty($l['department_id']) ? (int) $l['department_id'] : null;
+            if ($ccRequired && $dept === null && isset($expense[(int) $l['account_head_id']])) {
+                return back()->withInput()->withErrors(["lines.$i.department_id" => 'Line '.($i + 1).': choose the cost centre this expense belongs to. '
+                    .'Budget settings ask for one on every expense line.']);
+            }
+            $lines[] = [(int) $l['account_head_id'], $dr - $cr, $l['memo'] ?? null, $dept];
         }
         if (count($lines) < 2) {
             return back()->withInput()->withErrors(['lines' => 'A journal needs at least two lines.']);

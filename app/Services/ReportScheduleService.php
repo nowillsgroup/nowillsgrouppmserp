@@ -146,7 +146,7 @@ class ReportScheduleService
     }
 
     /** Run a report exactly as the report screen does (same clamping) – the caller has checked permission. */
-    public static function generate(string $key, Carbon $from, Carbon $to): array
+    public static function generate(string $key, Carbon $from, Carbon $to, array $params = []): array
     {
         self::report($key);
         if (self::mode($key) === 'date') {
@@ -159,6 +159,7 @@ class ReportScheduleService
             $from = $to->copy()->subDays(366);
         }
         $ctl = app(ReportController::class);
+        $ctl->withParams($params);
         $m = new \ReflectionMethod($ctl, 'r_'.$key);
         $data = $m->invoke($ctl, $from, $to) + ['money' => [], 'sum' => [], 'summary' => [], 'note' => null];
         $data['rows'] = collect($data['rows'])->values();
@@ -264,6 +265,9 @@ class ReportScheduleService
         $data = ['name' => mb_substr($name, 0, 120), 'range' => $range,
             'date_from' => $range === 'custom' ? ($d['date_from'] ?? null) : null, 'date_to' => $range === 'custom' ? ($d['date_to'] ?? $d['date_from'] ?? null) : null,
             'columns' => $cols, 'filter' => mb_substr(trim((string) ($d['filter'] ?? '')), 0, 100) ?: null,
+            // v10.11 a slice is part of what a view remembers: the form posts it when the report
+            // offers slices, and an edit that posts none clears it rather than leaving a stale one.
+            'params' => ReportController::paramsFrom($d),
             'is_shared' => $shared, 'is_pinned' => (bool) ($d['is_pinned'] ?? false)];
         if ($range === 'custom' && ! $data['date_from']) {
             throw new RuntimeException('Fixed dates need a from date.');
@@ -360,6 +364,10 @@ class ReportScheduleService
         $data = ['name' => mb_substr(trim($d['name'] ?? '') ?: (ReportController::REPORTS[$key][1]), 0, 120),
             'report_view_id' => $view?->id, 'report_key' => $key, 'range' => $range,
             'columns' => $view ? $view->columns : (array_values(array_filter((array) ($d['columns'] ?? []), 'is_string')) ?: null),
+            // The schedule reports on what its view reports on; without a view it carries whatever the
+            // form posted. A scheduled "Takoradi, daily" that e-mails the whole group is a wrong number
+            // in an inbox, which is worse than no number at all.
+            'params' => $view ? $view->params : ReportController::paramsFrom($d),
             'frequency' => $freq, 'weekday' => $weekday, 'month_day' => $mday, 'send_time' => $time,
             'format' => isset(ReportSchedule::FORMATS[$d['format'] ?? '']) ? $d['format'] : 'both',
             'recipient_users' => $users->pluck('id')->all(), 'recipient_emails' => implode(', ', $emails) ?: null,
@@ -435,7 +443,9 @@ class ReportScheduleService
             Auth::setUser($owner); // the report runs with the owner's rights
             $view = $s->view;
             [$from, $to] = self::resolve($s->range, $view?->date_from, $view?->date_to);
-            $data = self::shape(self::generate($s->report_key, $from, $to), $s->columns, $view?->filter);
+            // v10.11 the schedule's own parameters travel with the run, so a scheduled slice reports on
+            // the slice it was named for and not on the whole portfolio.
+            $data = self::shape(self::generate($s->report_key, $from, $to, $s->params ?? []), $s->columns, $view?->filter);
             [$from, $to] = [$data['from'], $data['to']];
             $d->fill(['period_from' => $from->toDateString(), 'period_to' => $to->toDateString(), 'rows' => $data['rows']->count()]);
             $emails = $s->emails();
@@ -515,7 +525,7 @@ class ReportScheduleService
             throw new RuntimeException('You do not have access to this report.');
         }
         $s = $d->schedule;
-        $data = self::generate($d->report_key, $d->period_from ?? bdate()->copy(), $d->period_to ?? bdate()->copy());
+        $data = self::generate($d->report_key, $d->period_from ?? bdate()->copy(), $d->period_to ?? bdate()->copy(), $s?->params ?? []);
 
         return self::shape($data, $s?->columns, $s?->view?->filter);
     }

@@ -326,7 +326,7 @@ class TreasuryController extends Controller
 
     public function settings(Request $r)
     {
-        $d = $r->validate(['approval_threshold' => 'required|numeric|min:0', 'cash_float' => 'required|numeric|min:0', 'payday' => 'required|integer|min:1|max:28',
+        $d = $r->validate(['approval_threshold' => 'required|numeric|min:0|max:10000000', 'cash_float' => 'required|numeric|min:0|max:1000000', 'payday' => 'required|integer|min:1|max:28',
             'collect_pct' => 'required|integer|min:0|max:100', 'arrival_pct' => 'required|integer|min:0|max:100', 'clear_days' => 'required|integer|min:0|max:10']);
         TS::saveSettings($d);
 

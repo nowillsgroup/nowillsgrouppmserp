@@ -75,11 +75,11 @@
       <div class="pos-items" id="posItems">
       @foreach($items as $i)
         @php $al = $allergenMap[$i->id] ?? ['contains' => [], 'may' => []]; $hit = array_intersect(array_merge($al['contains'], $al['may']), $guestAll); @endphp
-        <button type="button" class="pos-item{{ $hit ? ' allergy-hit' : '' }}" title="Add {{ $i->name }} to the order" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-cat="{{ $i->menu_category_id }}" data-code="{{ strtolower($i->code) }}" data-img="{{ $i->imageUrl() }}" data-printer="{{ $printerMap[$i->id] ?? '' }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-modifiers="{{ e(json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values())) }}" data-variants="{{ e(json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values())) }}">
+        <button type="button" class="pos-item{{ $hit ? ' allergy-hit' : '' }}" title="Add {{ $i->name }} to the order" data-id="{{ $i->id }}" data-name="{{ $i->name }}" data-price="{{ $i->price }}" data-cat="{{ $i->menu_category_id }}" data-code="{{ strtolower($i->code) }}" data-img="{{ $i->imageUrl() }}" data-printer="{{ $printerMap[$i->id] ?? '' }}" data-allergens="{{ implode(',', $al['contains']) }}" data-may="{{ implode(',', $al['may']) }}" data-sides-required="{{ $i->side_dish_required ? '1' : '' }}" data-modifiers="{{ json_encode($i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections, 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()) }}" data-variants="{{ json_encode($i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()) }}">
           <span class="pos-photo{{ $i->imageUrl() ? '' : ' pos-photo-empty' }}">@if($i->imageUrl())<img src="{{ $i->imageUrl() }}" alt="">@else<span class="veg-dot {{ $i->food_type }}"></span>@endif</span>
           <span class="pos-item-count hidden" data-item-count="{{ $i->id }}" aria-hidden="true">0</span>
           <span class="pos-meta flex items-center gap-1"><span class="veg-dot {{ $i->food_type }}" aria-hidden="true"></span><span class="tiny muted">{{ $i->code }}</span><span class="tiny muted pos-food-label">{{ ['veg' => 'Veg', 'non_veg' => 'Non-veg', 'egg' => 'Egg', 'beverage' => 'Drink'][$i->food_type] ?? ucfirst($i->food_type) }}</span>@if($al['contains'])<span class="allergen-codes" title="Contains: {{ $A::names($al['contains']) }}">Contains: {{ implode(' ', array_map([$A, 'code'], $al['contains'])) }}</span>@endif @if($al['may'])<span class="allergen-codes allergen-may" title="May contain: {{ $A::names($al['may']) }}">May: {{ implode(' ', array_map([$A, 'code'], $al['may'])) }}</span>@endif</span>
-          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span>@if($i->variants->isNotEmpty())<span class="tiny muted pos-food-label">{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}</span>@endif</button>
+          <b>{{ $i->name }}</b><span class="p">{{ money($i->price) }}</span>@if($i->variants->isNotEmpty())<span class="tiny muted pos-food-label">{{ $i->variants->count() }} side{{ $i->variants->count() === 1 ? '' : 's' }}{{ $i->side_dish_required ? ' · required' : '' }}</span>@endif</button>
       @endforeach
         <div id="menuEmpty" class="pos-menu-empty hidden"><x-icon name="search"/><b>No matching menu items</b><span>Try another item name, code, or category.</span><button type="button" class="btn btn-sm btn-ghost" id="clearMenuFilters">Clear filters</button></div>
       </div>
@@ -149,7 +149,7 @@
           </div>
           @foreach($lines as $l)
             <div class="cart-line" style="{{ $l->is_cancelled ? 'text-decoration:line-through;opacity:.5' : '' }}">
-              <div><b class="small">{{ $l->item_name }}</b> @if($l->is_open)<span class="badge badge-amber">SPECIAL</span>@endif @if(!$l->is_cancelled && in_array($order->status,['open','billed']))<span class="badge badge-{{ ['new'=>'blue','preparing'=>'amber','ready'=>'green','served'=>'slate','held'=>'slate'][$l->kitchen_status] ?? 'slate' }}" style="font-size:.62rem" title="Kitchen status">{{ $l->kitchen_status === 'held' ? 'HOLD' : $l->kitchen_status }}</span>@if($l->kitchen_status === 'held' && can_do('pos.order'))<form method="post" action="{{ route('pos.fire', $order) }}" class="inline">@csrf<input type="hidden" name="item_id" value="{{ $l->id }}"><button class="btn btn-sm btn-accent" style="padding:0 .35rem;font-size:.7rem" title="Tell the kitchen to start this dish">Fire</button></form>@endif @if($l->kitchen_status === 'ready' && can_do('pos.order'))<form method="post" action="{{ route('pos.item.served', [$order, $l]) }}" class="inline">@csrf<button class="btn btn-sm btn-ghost" style="padding:0 .3rem;font-size:.7rem" title="Mark served">✓ served</button></form>@endif @endif<div class="tiny muted">{{ (float)$l->qty }} × {{ money($l->rate, false) }} @if($l->is_open){{ $l->kitchen_station }} @endif {{ $l->notes }}</div>@if($l->modifiers)<div class="tiny text-blue">{{ collect($l->modifiers)->map(fn ($m) => ((($m['type'] ?? null) === 'side_dish') ? 'Side dish: ' : '').$m['name'].((float)($m['price_delta'] ?? 0) != 0 ? ' '.((float)$m['price_delta'] > 0 ? '+' : '').money($m['price_delta'], false) : ''))->implode(' · ') }}</div>@endif
+              <div><b class="small">{{ $l->item_name }}</b> @if($l->is_open)<span class="badge badge-amber">SPECIAL</span>@endif @if(!$l->is_cancelled && in_array($order->status,['open','billed']))<span class="badge badge-{{ ['new'=>'blue','preparing'=>'amber','ready'=>'green','served'=>'slate','held'=>'slate'][$l->kitchen_status] ?? 'slate' }}" style="font-size:.62rem" title="Kitchen status">{{ $l->kitchen_status === 'held' ? 'HOLD' : $l->kitchen_status }}</span>@if($l->kitchen_status === 'held' && can_do('pos.order'))<form method="post" action="{{ route('pos.fire', $order) }}" class="inline">@csrf<input type="hidden" name="item_id" value="{{ $l->id }}"><button class="btn btn-sm btn-accent" style="padding:0 .35rem;font-size:.7rem" title="Tell the kitchen to start this dish">Fire</button></form>@endif @if($l->kitchen_status === 'ready' && can_do('pos.order'))<form method="post" action="{{ route('pos.item.served', [$order, $l]) }}" class="inline">@csrf<button class="btn btn-sm btn-ghost" style="padding:0 .3rem;font-size:.7rem" title="Mark served">✓ served</button></form>@endif @endif<div class="tiny muted">{{ (float)$l->qty }} × {{ money($l->rate, false) }} @if($l->is_open){{ $l->kitchen_station }} @endif {{ $l->notes }}</div>@if($l->modifiers)<div class="tiny text-blue">{{ collect($l->modifiers)->map(fn ($m) => ((($m['type'] ?? null) === 'side_dish') ? 'Side dish: ' : '').$m['name'].(((int)($m['qty'] ?? 1)) > 1 ? ' ×'.(int)$m['qty'] : '').((float)($m['price_delta'] ?? 0) != 0 ? ' '.((float)$m['price_delta'] > 0 ? '+' : '').money($m['price_delta'], false) : ''))->implode(' · ') }}</div>@endif
                 @if($l->is_complimentary)<div class="tiny"><span class="badge badge-purple">COMP</span> {{ $l->comp_reason }}</div>@endif
                 @if($l->allergy_flag && ! $l->is_cancelled)<div class="tiny text-red bold" data-allergy-flag>⚠ {{ $l->allergy_flag }}</div>@endif</div>
               <b class="small">{{ $l->is_complimentary ? 'COMP' : money($l->amount, false) }}</b>
@@ -370,7 +370,8 @@
 <div class="modal" id="sideDishModal"><div class="modal-box" style="max-width:520px">
   <div class="modal-head"><h3 id="sideDishTitle">Choose a side dish</h3><button type="button" class="btn btn-ghost btn-icon" data-close><x-icon name="x"/></button></div>
   <div class="modal-body">
-    <p class="small muted" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+    <p class="small muted" id="sideDishNote" style="margin-top:0">This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.</p>
+    <p class="small text-red bold" id="sideDishWarn" role="alert" hidden>This dish cannot be rung up without a side dish — tick at least one.</p>
     <div id="sideDishChoices"></div>
   </div>
   <div class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn btn-primary" id="sideDishContinue">Continue</button></div>
@@ -406,9 +407,9 @@ function render(){ if (!lines) return; const ids = Object.keys(cart); let tot = 
       oi++;
     } else {
       const modifierInputs = (c.modifiers || []).map(m => `<input type="hidden" name="items[${mi}][modifiers][]" value="${m.id}">`).join('');
-      const variantInputs = (c.variants || []).map(v => `<input type="hidden" name="items[${mi}][variants][]" value="${v.id}">`).join('');
+      const variantInputs = (c.variants || []).flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id)).map(id => `<input type="hidden" name="items[${mi}][variants][]" value="${id}">`).join('');
       const modifierText = (c.modifiers || []).length ? `<div class="tiny text-blue">${c.modifiers.map(m => esc(m.name) + (Number(m.price_delta) ? ' ' + (Number(m.price_delta) > 0 ? '+' : '') + Number(m.price_delta).toFixed(2) : '')).join(' · ')}</div>` : '';
-      const variantText = (c.variants || []).length ? `<div class="tiny text-green">Side dishes: ${c.variants.map(v => esc(v.name) + (Number(v.rate) ? ' +' + Number(v.rate).toFixed(2) : ' included')).join(' · ')}</div>` : '';
+      const variantText = (c.variants || []).length ? `<div class="tiny text-green">Side dishes: ${c.variants.map(v => esc(v.name) + (Math.max(1, Number(v.qty) || 1) > 1 ? ' ×' + Math.max(1, Number(v.qty)) : '') + (Number(v.rate) ? ' +' + (Number(v.rate) * Math.max(1, Number(v.qty) || 1)).toFixed(2) : ' included')).join(' · ')}</div>` : '';
       fields = `${modifierText}${variantText}<input class="input input-sm mt-1" aria-label="Kitchen note for ${esc(c.name)}" placeholder="Note (less spicy…)" name="items[${mi}][notes]" value="${esc(c.notes||'')}" oninput="cart['${id}'].notes=this.value"><input type="hidden" name="items[${mi}][id]" value="${esc(c.menu_id || id)}"><input type="hidden" name="items[${mi}][qty]" value="${c.qty}">${modifierInputs}${variantInputs}${c.flag ? `<input type="hidden" name="items[${mi}][allergy_ack]" value="1"><div class="tiny text-red bold">⚠ ${esc(c.flag)} – confirmed</div>` : ''}<label class="check tiny"><input type="checkbox" aria-label="Hold ${esc(c.name)} for later" ${c.hold ? 'checked' : ''} onchange="cart['${id}'].hold=this.checked;render()"> Hold</label>${c.hold ? `<input type="hidden" name="items[${mi}][hold]" value="1">` : ''}`;
       mi++;
     }
@@ -480,10 +481,12 @@ function addMenuItem(button, modifiers = [], variants = []) {
     if (!confirm(`⚠ ${button.dataset.name}: ${flag}.\n\nThe guest declared this allergy. Only add it if the chef has confirmed a safe version. Add it anyway?`)) return;
   }
   const ids = modifiers.map(m => m.id).sort((a, b) => a - b);
-  const sideIds = variants.map(v => v.id).sort((a, b) => a - b);
+  // a side ordered twice is the same id twice: that is the line's identity as well as its price
+  const sideIds = variants.flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id)).sort((a, b) => a - b);
   const key = button.dataset.id + ':' + ids.join(',') + ':s:' + sideIds.join(',');
   if (!cart[key]) {
-    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0) + variants.reduce((sum, v) => sum + Number(v.rate || 0), 0);
+    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0)
+      + variants.reduce((sum, v) => sum + Number(v.rate || 0) * Math.max(1, Number(v.qty) || 1), 0);
     cart[key] = { menu_id: button.dataset.id, name: button.dataset.name, price: +button.dataset.price + delta, qty: 0, flag, modifiers, variants, printer: button.dataset.printer || '', img: button.dataset.img || '' };
   }
   cart[key].qty++;
@@ -493,29 +496,66 @@ function addMenuItem(button, modifiers = [], variants = []) {
   button.classList.add('pos-item-added');
   window.setTimeout(() => button.classList.remove('pos-item-added'), 480);
 }
-let sideDishButton = null, sideDishGroups = [], sideDishChoiceList = [];
+let sideDishButton = null, sideDishGroups = [], sideDishChoiceList = [], sideDishRequired = false;
+/** A dish whose side dish is required (v9.30) — the flag comes from the tile, the server enforces the same rule. */
+function sideDishNeeded(button) { return !!button && button.dataset.sidesRequired === '1'; }
 /** What the waiter ticked in a side-dish block — one reader for both pickers. */
+/**
+ * One side dish in a picker: a tick, the rate, and a count (v9.31). A double portion is the same side twice — the
+ * count is what the server prices, and it is posted as the id repeated, so nothing new has to be understood by it.
+ */
+function sideChoiceRow(variant, checked) {
+  return `<div class="pos-side-row"><label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"${checked ? ' checked' : ''}> <span>${esc(variant.name)}</span> <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label><span class="pos-side-qty"><button type="button" data-side-step="-1" aria-label="One fewer ${esc(variant.name)}">−</button><b data-side-count>1</b><button type="button" data-side-step="1" aria-label="One more ${esc(variant.name)}">+</button></span></div>`;
+}
 function pickedSideDishes(scope) {
   return [...document.querySelectorAll(scope + ' [data-side-variant-id]:checked')].map(input => ({
     id: Number(input.dataset.sideVariantId), name: input.dataset.sideVariantName, rate: Number(input.dataset.sideVariantRate),
+    qty: Math.max(1, Math.min(9, Number(input.closest('.pos-side-row')?.querySelector('[data-side-count]')?.textContent) || 1)),
   }));
+}
+/** The − / + beside a side: ticking it first, then counting it. A count never drops below one while it is ticked. */
+function stepSide(button) {
+  const row = button.closest('.pos-side-row');
+  if (!row) return;
+  const box = row.querySelector('[data-side-variant-id]');
+  const count = row.querySelector('[data-side-count]');
+  if (box && !box.checked) box.checked = true;
+  const next = Math.max(1, Math.min(9, (Number(count?.textContent) || 1) + Number(button.dataset.sideStep)));
+  if (count) count.textContent = String(next);
 }
 /** A dish that comes with a side always asks for it first, so nobody has to guess in the kitchen. */
 function openSideDishPicker(button, groups, variants) {
   sideDishButton = button;
   sideDishGroups = groups || [];
   sideDishChoiceList = variants || [];
+  sideDishRequired = sideDishNeeded(button);
+  const warn = document.getElementById('sideDishWarn');
+  if (warn) warn.hidden = true;
+  const note = document.getElementById('sideDishNote');
+  if (note) {
+    note.innerHTML = sideDishRequired
+      ? 'This dish <b>must be served with a side dish</b>. Tick what the guest wants and continue — the kitchen cannot plate it without one.'
+      : 'This dish comes with a side. Tick what the guest wants — a side dish with no rate is already included in the item price. Continue with none if the guest does not want one.';
+  }
   const title = document.getElementById('sideDishTitle');
   if (title) title.textContent = 'Side dish for ' + button.dataset.name;
   const box = document.getElementById('sideDishChoices');
   if (box) {
-    box.innerHTML = `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0"><legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>${sideDishChoiceList.map(variant => `<label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"> ${esc(variant.name)} <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`;
+    box.innerHTML = `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0"><legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>${sideDishChoiceList.map(variant => sideChoiceRow(variant, false)).join('')}</fieldset>`;
   }
   document.getElementById('sideDishModal')?.classList.add('show');
 }
 document.getElementById('sideDishContinue')?.addEventListener('click', () => {
   const picked = pickedSideDishes('#sideDishChoices');
+  if (sideDishRequired && !picked.length) {
+    const warn = document.getElementById('sideDishWarn');
+    if (warn) warn.hidden = false;
+    document.getElementById('sideDishModal')?.classList.add('pos-side-dish-missed');
+    document.querySelector('#sideDishChoices input')?.focus();
+    return;
+  }
   document.getElementById('sideDishModal')?.classList.remove('show');
+  document.getElementById('sideDishModal')?.classList.remove('pos-side-dish-missed');
   if (!sideDishButton) return;
   const button = sideDishButton;
   if (sideDishGroups.length) {
@@ -531,7 +571,7 @@ function openModifierPicker(button, groups, variants = [], preselected = []) {
   modifierVariants = variants;
   document.getElementById('modifierTitle').textContent = 'Options for ' + button.dataset.name;
   const preselectedIds = preselected.map(v => Number(v.id));
-  const sideDishChoices = variants.length ? `<fieldset class="field pos-side-dish-choices"><legend class="bold small">Side dishes <span class="tiny muted">${preselectedIds.length ? 'Chosen above — change if needed.' : 'Choose any; each rate is added to the item.'}</span></legend>${variants.map(variant => `<label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"${preselectedIds.includes(Number(variant.id)) ? ' checked' : ''}> ${esc(variant.name)} <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>` : '';
+  const sideDishChoices = variants.length ? `<fieldset class="field pos-side-dish-choices"><legend class="bold small">Side dishes <span class="tiny muted">${preselectedIds.length ? 'Chosen above — change if needed.' : 'Choose any; each rate is added to the item.'}</span></legend>${variants.map(variant => sideChoiceRow(variant, preselectedIds.includes(Number(variant.id)))).join('')}</fieldset>` : '';
   const modifierChoices = groups.map(group => `<fieldset class="field" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">${esc(group.name)} <span class="tiny muted">${group.min}–${group.max}${group.required ? ' · required' : ''}</span></legend>${group.options.map(option => `<label class="check"><input type="checkbox" data-modifier-group="${group.id}" data-modifier-id="${option.id}" data-modifier-name="${esc(option.name)}" data-price-delta="${option.price_delta}" value="${option.id}"> ${esc(option.name)} <span class="tiny muted">${Number(option.price_delta) ? (Number(option.price_delta) > 0 ? '+' : '') + Number(option.price_delta).toFixed(2) : 'included'}</span></label>`).join('')}</fieldset>`).join('');
   document.getElementById('modifierChoices').innerHTML = sideDishChoices + modifierChoices;
   document.getElementById('modifierModal').classList.add('show');
@@ -543,9 +583,21 @@ document.getElementById('modifierAdd')?.addEventListener('click', () => {
     if (count < Number(group.min) || count > Number(group.max)) { alert(`Choose between ${group.min} and ${group.max} option(s) for ${group.name}.`); return; }
   }
   const selectedVariants = pickedSideDishes('#modifierChoices');
+  if (sideDishNeeded(modifierButton) && !selectedVariants.length) {
+    alert('This dish must be served with a side dish. Tick at least one before adding it.');
+    return;
+  }
   const selectedModifiers = selected.map(input => ({ id: Number(input.dataset.modifierId), name: input.dataset.modifierName, price_delta: Number(input.dataset.priceDelta), group_id: Number(input.dataset.modifierGroup) }));
   addMenuItem(modifierButton, selectedModifiers, selectedVariants);
   document.getElementById('modifierModal').classList.remove('show');
+});
+/** The − / + beside a side dish: counting it never closes the picker it sits in. */
+document.addEventListener('click', event => {
+  const step = event.target.closest('[data-side-step]');
+  if (!step) return;
+  event.preventDefault();
+  event.stopPropagation();
+  stepSide(step);
 });
 document.querySelectorAll('.pos-item').forEach(button => button.addEventListener('click', () => {
   let groups = [], variants = [];

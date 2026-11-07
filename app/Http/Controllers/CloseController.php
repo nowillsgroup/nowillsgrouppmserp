@@ -186,6 +186,12 @@ class CloseController extends Controller
     public function settings(Request $request)
     {
         $d = $request->validate(['due_days' => 'required|integer|min:1|max:60', 'auto_post' => 'nullable|boolean', 'start' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'], 'manual' => 'nullable|string|max:3000']);
+        // The checklist is stored to a fixed shape (15 tasks, area 30, task 150). Refuse what does not
+        // fit instead of dropping the extra lines: a save that reports success must keep what was typed.
+        $problems = CS::manualProblems((string) ($d['manual'] ?? ''));
+        if ($problems) {
+            return back()->withInput()->withErrors(['manual' => implode(' ', $problems)]);
+        }
         CS::saveSettings($d, $request->user());
 
         return back()->with('success', 'Period close settings saved.');

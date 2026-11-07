@@ -144,6 +144,10 @@ class ShiftService
         PosOrder::where('settled_by', $shift->user_id)->whereBetween('settled_at', [$from, $to])->where('status', 'settled')->where('settlement', 'payment')
             ->when($ledgerOrderIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $ledgerOrderIds))
             ->get(['id', 'total', 'payment_mode_id'])->each(fn ($o) => $add($o->payment_mode_id, (float) $o->total, 0));
+        // Recreation outlet: tickets and rentals sold across the counter are this cashier's money too.
+        foreach (\App\Services\RecreationShiftService::cashierTakings((int) $shift->user_id, \Illuminate\Support\Carbon::parse($from), \Illuminate\Support\Carbon::parse($to)) as $modeId => $amount) {
+            $add($modeId, (float) $amount, 0);
+        }
         CashierMovement::where('cashier_shift_id', $shift->id)->whereBetween('created_at', [$from, $to])
             ->get(['kind', 'amount'])->each(fn ($m) => $add(null, $m->kind === 'cash_in' ? (float) $m->amount : 0, $m->kind === 'cash_out' ? (float) $m->amount : 0));
         // v3.4 forex desk: cedis paid out for foreign currency leave the drawer; the currency taken in is handed over with the shift

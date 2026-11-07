@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        // v10.4: a guest surface of a module the group is not licensed for answers 404 before the
+        // controller runs. Global (not on the route) so a public route added later is covered by
+        // config/licence.php alone — and so nothing has to remember to attach it.
+        $middleware->append(\App\Http\Middleware\LicenceSurface::class);
         $middleware->alias([
             'tenant' => \App\Http\Middleware\SetTenant::class,
             'perm' => \App\Http\Middleware\RequirePermission::class,
@@ -63,6 +67,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => $err('server_error', 'Something went wrong on our side – quote the request_id to the hotel.', 500),
             };
         });
+        // v10.6 a licensed refusal explains itself: which module, which property, and whether the
+        // group still holds it — the two fixes belong to two different people.
+        $exceptions->render(function (\App\Exceptions\ModuleNotLicensed $e, Request $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->view('errors.licence', [
+                'module' => $e->module,
+                'property' => $e->property,
+                'groupHoldsIt' => $e->groupHoldsIt,
+                'permission' => $e->permission,
+            ], 403);
+        });
+
         // Business-rule violations become friendly flash messages
         $exceptions->render(function (\RuntimeException $e, Request $request) {
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {

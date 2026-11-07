@@ -106,6 +106,13 @@ body.is-offline .offline-indicator{border-color:color-mix(in srgb,var(--c-amber)
 .offline-pos-side{display:flex;align-items:center;gap:.55rem;padding:.5rem .35rem;border-bottom:1px solid var(--c-border);cursor:pointer;font-size:.86rem}
 .offline-pos-side:last-child{border-bottom:0}
 .offline-pos-side .tiny{margin-left:auto;color:var(--c-text-2)}
+/* a side ordered more than once (v9.31): its count sits at the end of the row */
+.offline-pos-side-row{display:flex;align-items:center;gap:.4rem;border-bottom:1px solid var(--c-border)}
+.offline-pos-side-row:last-child{border-bottom:0}
+.offline-pos-side-row .offline-pos-side{flex:1;min-width:0;border-bottom:0}
+.offline-pos-side-qty{display:inline-flex;align-items:center;gap:.18rem;flex:none}
+.offline-pos-side-qty button{width:26px;height:26px;padding:0;border:1px solid var(--c-border);border-radius:7px;background:var(--c-surface,#fff);color:inherit;font-weight:800;line-height:1;cursor:pointer}
+.offline-pos-side-qty b{min-width:1.05rem;text-align:center;font-size:.82rem;font-variant-numeric:tabular-nums}
 
 /* The offline hub the service worker falls back to. */
 .offline-hub-card{display:block;text-decoration:none;color:inherit;transition:border-color .15s ease,box-shadow .15s ease}

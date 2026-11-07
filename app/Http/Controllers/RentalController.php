@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\CarRental;
 use App\Models\RentalVehicle;
+use App\Models\Setting;
+use App\Services\ActivityLogger;
 use App\Services\RentalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +25,44 @@ class RentalController extends Controller
                 ->whereHas('room', fn ($q) => $q->where('hotel_id', Auth::user()->hotel_id))
                 ->where('status', 'checked_in')->orderBy('arrival_date')->limit(50)->get(),
         ]);
+    }
+
+    /**
+     * Car Rental › Settings — the rate card the return desk applies.
+     *
+     * These were constants in RentalService. A flat tank refill, an overdue hour and a
+     * kilometre beyond the allowance are commercial decisions the property changes on its
+     * own schedule, so they live beside the desk that charges them. The columns are the
+     * same numbers the service falls back to, so a property that saves nothing here keeps
+     * exactly the behaviour it had.
+     */
+    public function settings()
+    {
+        return view('rentals.settings', [
+            'c' => [
+                'rental_free_km' => (string) RentalService::freeKmPerDay(),
+                'rental_fuel_price' => (string) RentalService::fuelPricePerTank(),
+                'rental_late_per_hour' => (string) RentalService::latePerHour(),
+                'rental_mileage_per_km' => (string) RentalService::mileagePerKm(),
+            ],
+        ]);
+    }
+
+    public function saveSettings(Request $request)
+    {
+        $data = $request->validate([
+            'rental_free_km' => 'required|integer|min:0|max:2000',
+            'rental_fuel_price' => 'required|numeric|min:0|max:100000',
+            'rental_late_per_hour' => 'required|numeric|min:0|max:100000',
+            'rental_mileage_per_km' => 'required|numeric|min:0|max:1000',
+        ]);
+
+        foreach ($data as $key => $value) {
+            Setting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
+        }
+        ActivityLogger::log('settings', 'rentals', 'Updated the car rental rate card');
+
+        return redirect()->route('rentals.settings')->with('success', 'Rental settings saved.');
     }
 
     public function fleet()

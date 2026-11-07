@@ -19,7 +19,7 @@
   <x-stat label="Revenue {{ bdate()->year }}" :value="money_short($ytd['revenue'])" icon="money" tone="green" :sub="$ly['revenue'] > 0 ? 'LY '.money_short($ly['revenue']) : 'no production last year'"/>
   <x-stat label="Room nights" :value="number_format($ytd['nights'])" icon="moon" tone="blue" :sub="$ytd['bookings'].' bookings'.($p->target_nights ? ' · target '.number_format($p->target_nights) : '')"/>
   <x-stat label="Target achieved" :value="($ytd['revenue_pct'] ?? $ytd['nights_pct']) !== null ? ($ytd['revenue_pct'] ?? $ytd['nights_pct']).'%' : '—'" icon="trend" tone="purple" :sub="(float) $p->target_revenue ? 'of '.money_short($p->target_revenue) : ''"/>
-  <x-stat label="Estimated commission" :value="money_short($ytd['commission'])" icon="wallet" tone="amber" :sub="$p->commission_pct !== null ? rtrim(rtrim($p->commission_pct, '0'), '.').'% of credited room value · estimate only' : 'no commission agreement'/>
+  <x-stat label="Estimated commission" :value="money_short($ytd['commission'])" icon="wallet" tone="amber" :sub="$p->commission_pct !== null ? rtrim(rtrim($p->commission_pct, '0'), '.').'% of credited room value · estimate only' : 'no commission agreement'"/>
 </div>
 <div class="g-2-1 mt-1">
   <div>

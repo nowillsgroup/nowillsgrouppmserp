@@ -16,7 +16,7 @@
   <thead><tr><th>Pass</th><th>Date</th><th>Visitor</th><th class="num">Pax</th><th>Settled</th><th class="num">Total</th><th></th></tr></thead>
   <tbody>@forelse($rows as $p)
     <tr data-pass="{{ $p->pass_no }}" class="{{ $p->cancelled_at ? 'muted' : '' }}"><td class="bold">{{ $p->pass_no }}</td><td class="small">{{ dmy($p->date) }}</td>
-      <td>{{ $p->name }}<div class="tiny muted">{{ \App\Models\ClubDayPass::KINDS[$p->kind] }}{{ $p->host ? ' of '.$p->host->name : '' }}{{ $p->phone ? ' · '.$p->phone : '' }}</div>@if($p->cancelled_at)<div class="tiny text-red">cancelled: {{ $p->cancel_reason }}</div>@endif</td>
+      <td>{{ $p->name }}<div class="tiny muted">{{ \App\Models\ClubDayPass::KINDS[$p->kind] }}{{ $p->host ? ' of '.$p->host->name : '' }}{{ $p->phone ? ' · '.$p->phone : '' }}</div>@if($p->cancelled_at)<div class="tiny text-red">cancelled: {{ $p->cancel_reason }}</div>@elseif($p->redeemed_at)<div class="tiny text-green">admitted {{ $p->redeemed_at->format('H:i') }}{{ $p->redeemer ? ' by '.$p->redeemer->name : '' }}</div>@endif</td>
       <td class="num">{{ $p->adults }}{{ $p->children ? '+'.$p->children : '' }}</td>
       <td class="small">{{ $p->stay ? 'Room '.$p->stay->room?->room_no : ($p->payments->isNotEmpty() ? 'Split: '.$p->payments->map(fn ($pay) => $pay->paymentMode?->name)->filter()->unique()->join(' + ') : $p->paymentMode?->name) }}{{ $p->reference ? ' · '.$p->reference : '' }}
         @if($p->payments->isNotEmpty())<div class="tiny muted">{{ $p->payments->map(fn ($pay) => money($pay->amount).' · '.($pay->paymentMode?->name ?? '—').($pay->momo_network ? ' · '.$pay->momo_network : '').($pay->momo_phone ? ' · '.$pay->momo_phone : '').($pay->reference ? ' · '.$pay->reference : ''))->join(' / ') }}</div>@endif

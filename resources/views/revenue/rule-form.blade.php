@@ -45,7 +45,7 @@ body.dark .rvrf-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d54
         </div></section>
 
         <section class="card rvrf-card" aria-labelledby="rvrfAdjustmentTitle"><div class="card-head rvrf-card-head"><div><h3 id="rvrfAdjustmentTitle">Rate adjustment</h3><p class="tiny muted">The adjustment is applied after earlier matching rules.</p></div></div><div class="card-body rvrf-form-grid">
-          <div class="field rvrf-span-all"><label class="rvrf-field-label" for="rvrfAdjustType">Adjustment type <span class="req">*</span></label><div class="rvrf-adjust-row"><select id="rvrfAdjustType" class="rvrf-select @error('adjust_type') is-invalid @enderror" name="adjust_type" required aria-describedby="rvrfAdjustHint"><option value="percent" @selected(old('adjust_type', $rule->adjust_type) === 'percent')>Percent of current rate (%)</option><option value="amount" @selected(old('adjust_type', $rule->adjust_type) === 'amount')>Fixed currency amount</option></select><input type="number" step="0.01" name="adjust_value" value="{{ old('adjust_value', $rule->adjust_value !== null ? (float) $rule->adjust_value : '') }}" required placeholder="e.g. 15 or -10" class="@error('adjust_value') is-invalid @enderror" aria-label="Rate adjustment value" aria-describedby="rvrfAdjustHint"></div><span class="rvrf-hint" id="rvrfAdjustHint">Positive raises the current price; negative lowers it. Percent changes are limited to −90% through +300%.</span>@error('adjust_type')<span class="rvrf-error">{{ $message }}</span>@enderror @error('adjust_value')<span class="rvrf-error">{{ $message }}</span>@enderror</div>
+          <div class="field rvrf-span-all"><label class="rvrf-field-label" for="rvrfAdjustType">Adjustment type <span class="req">*</span></label><div class="rvrf-adjust-row"><select id="rvrfAdjustType" class="rvrf-select @error('adjust_type') is-invalid @enderror" name="adjust_type" required aria-describedby="rvrfAdjustHint"><option value="percent" @selected(old('adjust_type', $rule->adjust_type) === 'percent')>Percent of current rate (%)</option><option value="amount" @selected(old('adjust_type', $rule->adjust_type) === 'amount')>Fixed currency amount</option></select><input type="number" step="0.01" name="adjust_value" value="{{ old('adjust_value', $rule->adjust_value !== null ? (float) $rule->adjust_value : '') }}" required placeholder="e.g. 15 or -10" class="@error('adjust_value') is-invalid @enderror" aria-label="Rate adjustment value" aria-describedby="rvrfAdjustHint"></div><span class="rvrf-hint" id="rvrfAdjustHint">Positive raises the current price; negative lowers it. Percent changes are limited to −90% through +300%, fixed amounts to ±9,999,999.</span>@error('adjust_type')<span class="rvrf-error">{{ $message }}</span>@enderror @error('adjust_value')<span class="rvrf-error">{{ $message }}</span>@enderror</div>
           <x-field name="min_stay" label="Minimum stay while active (nights)" type="number" min="2" max="14" :value="$rule->min_stay" hint="Optional restriction; leave blank for no minimum-stay change."/>
           <div class="rvrf-span-all rvrf-note"><x-icon name="trend"/> Matching rules stack in priority order. The final recommendation is rounded to your configured increment and kept within the room type’s floor and ceiling. Fixed-price dates are not adjusted.</div>
         </div></section>
@@ -67,6 +67,18 @@ body.dark .rvrf-hero{background:linear-gradient(118deg,#0d2718,#143d25 68%,#1d54
 @push('scripts')
 <script>
 (() => {
+  // the box refuses what the controller refuses: -90..300 for a percent, ±9,999,999 for an amount
+  const type = document.getElementById('rvrfAdjustType');
+  const value = document.querySelector('[name=adjust_value]');
+  const clampToType = () => {
+    if (!type || !value) return;
+    const pct = type.value !== 'amount';
+    value.min = pct ? '-90' : '-9999999';
+    value.max = pct ? '300' : '9999999';
+    value.step = '0.01';
+  };
+  type?.addEventListener('change', clampToType);
+  clampToType();
   const days = [...document.querySelectorAll('.rvrf-day-check')];
   document.getElementById('rvrfAllDays')?.addEventListener('click', () => days.forEach(day => { day.checked = true; }));
   document.getElementById('rvrfClearDays')?.addEventListener('click', () => days.forEach(day => { day.checked = false; }));

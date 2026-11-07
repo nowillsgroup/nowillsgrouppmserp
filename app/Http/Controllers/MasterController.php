@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Generic CRUD for master data defined in config/masters.php.
@@ -229,17 +230,41 @@ class MasterController extends Controller
         }
     }
 
+    /**
+     * A dish may insist on its side dish (v9.30).
+     *
+     * The flag lives beside the variants because that is where the rule is decided. A dish that offers no side dish
+     * cannot require one — that would be a rule nobody can satisfy, and the waiter would be stuck on a picker with
+     * nothing in it — so the save is refused instead, naming the reason.
+     */
+    protected function applySideDishRule($row, Request $request, string $master): void
+    {
+        if ($master !== 'menu-items' || ! $request->has('variants_present')) {
+            return;
+        }
+
+        $required = $request->boolean('side_dish_required');
+        if ($required && $row->variants()->count() === 0) {
+            throw ValidationException::withMessages([
+                'side_dish_required' => 'Add at least one side dish before making it required — a dish cannot insist on a side dish it does not offer.',
+            ]);
+        }
+
+        $row->forceFill(['side_dish_required' => $required])->save();
+    }
+
     public function store(Request $request, string $master)
     {
         $def = $this->def($master);
         $this->validateRoomPhotos($request, $def);
         $data = $this->validated($request, $def);
         $variants = $this->validatedMenuItemVariants($request, $master);
-        $row = DB::transaction(function () use ($def, $data, $variants) {
+        $row = DB::transaction(function () use ($def, $data, $variants, $request, $master) {
             $row = $def['model']::create($data);
             if ($variants !== null) {
                 $this->syncMenuItemVariants($row, $variants);
             }
+            $this->applySideDishRule($row, $request, $master);
 
             return $row;
         });
@@ -263,11 +288,12 @@ class MasterController extends Controller
         if ($row->getAttribute('system_key') && array_key_exists('is_active', $data) && ! $data['is_active']) {
             return back()->withInput()->with('error', 'System accounts cannot be deactivated.');
         }
-        DB::transaction(function () use ($row, $data, $variants) {
+        DB::transaction(function () use ($row, $data, $variants, $request, $master) {
             $row->update($data);
             if ($variants !== null) {
                 $this->syncMenuItemVariants($row, $variants);
             }
+            $this->applySideDishRule($row, $request, $master);
         });
         $this->storeImages($request, $def, $row);
         $this->storeRoomPhotos($request, $def, $row);

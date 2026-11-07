@@ -18,6 +18,11 @@ class DepartmentShiftSession extends Model
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
             'close_snapshot' => 'array',
+            'opening_float' => 'decimal:2',
+            'expected_cash' => 'decimal:2',
+            'counted_cash' => 'decimal:2',
+            'variance' => 'decimal:2',
+            'counted_denominations' => 'array',
         ];
     }
 

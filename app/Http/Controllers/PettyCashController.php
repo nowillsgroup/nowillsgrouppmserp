@@ -9,12 +9,15 @@ use App\Models\PaymentMode;
 use App\Models\PettyCount;
 use App\Models\PettyFloat;
 use App\Models\PettyReplenishment;
+use App\Models\GlJournal;
 use App\Models\PettyTxn;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\PettyCashService as Petty;
+use App\Services\TreasuryService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -44,12 +47,89 @@ class PettyCashController extends Controller
         ];
     }
 
-    public function index()
+    /**
+     * v9.13 Petty cash, held to the tin.
+     *
+     * A float is the one account in the hotel that a person carries in their hand, so the question is never "what is the
+     * balance" but "does the balance still describe the tin". Two controls answer it, and neither can be satisfied by
+     * reading a status column:
+     *
+     *   • the ledger against the tin — the float account in the general ledger posts at the night audit, so a movement
+     *     dated after the last close stands as an explained difference; anything else is money the books cannot see;
+     *   • the receipt against the spend — every voucher over the receipt threshold must carry a receipt or say why not,
+     *     and until v9.13 the screen only showed a tiny link when one happened to be there.
+     *
+     * The register ages both: how long since the tin was counted, and how long since the float was last topped up.
+     */
+    public function index(Request $request)
     {
         $floats = Petty::floats();
+        $stats = $floats->mapWithKeys(fn ($f) => [$f->id => Petty::stats($f)]);
+        $today = bdate()->copy()->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : null;
+
+        // a gl journal is what makes a movement visible to the books; a reversed one no longer is
+        $postedIds = GlJournal::where('source_type', 'petty')->whereNull('reversed_by_id')->whereNull('reversal_of_id')
+            ->pluck('source_key')->map(fn ($k) => (int) $k)->all();
+        $postedIds = array_flip($postedIds);
+
+        $register = $floats->map(function (PettyFloat $f) use ($stats, $ageOf, $postedIds) {
+            $st = $stats[$f->id];
+            $unrepl = Petty::unreplenished($f);
+            $tin = round((float) $st['balance'], 2);
+            $ledger = $f->account_head_id ? TreasuryService::balance((int) $f->account_head_id) : null;
+            // the movements dated after the last night audit: they are in the tin and not yet in the books
+            $waiting = round((float) PettyTxn::where('petty_float_id', $f->id)->where('status', 'posted')->get(['id', 'effect'])
+                ->reject(fn ($t) => isset($postedIds[(int) $t->id]))->sum('effect'), 2);
+            $oldest = $unrepl->sortBy(fn ($t) => $t->date->timestamp)->first();
+
+            return [
+                'float' => $f, 'tin' => $tin, 'ledger' => $ledger, 'waiting' => $waiting,
+                'unexplained' => $ledger === null ? 0.0 : round($tin - (float) $ledger - $waiting, 2),
+                'imprest' => round((float) $f->imprest_amount, 2), 'ious' => $st['ious'], 'ious_count' => $st['ious_count'],
+                'overdue' => $st['overdue_ious'], 'spend' => round((float) $unrepl->sum('effect'), 2),
+                'top_up' => $st['top_up'], 'pct' => $st['pct'], 'pending' => $st['pending'], 'low' => $st['low'],
+                'count_age' => $ageOf($st['last_count']?->date), 'count_due' => (bool) $st['count_due'],
+                'spend_age' => $ageOf($oldest?->date), 'active' => (bool) $f->is_active,
+                'tone' => ! $f->is_active ? 'slate' : ($st['low'] || $st['overdue_ious'] ? 'red' : ($st['pending'] > 0 || $st['count_due'] ? 'amber' : 'green')),
+            ];
+        });
+
+        $tie = ['tin' => round((float) $register->sum('tin'), 2), 'ledger' => round((float) $register->sum('ledger'), 2),
+            'waiting' => round((float) $register->sum('waiting'), 2), 'unexplained' => round((float) $register->sum('unexplained'), 2),
+            'floats' => $register->count(), 'active' => $register->where('active', true)->count(),
+            'with_gap' => $register->filter(fn ($r) => abs($r['unexplained']) >= 0.005)->values()];
+        $tie['gap'] = round($tie['tin'] - $tie['ledger'], 2);
+
+        // v9.13 the receipt control: every spend over the threshold needs a receipt, or a sentence saying why there is none
+        $threshold = (float) Petty::cfg('petty_receipt_threshold');
+        $evidence = PettyTxn::with('float', 'head', 'employee')->whereIn('type', ['expense', 'settle'])->whereIn('status', ['posted', 'pending'])
+            ->where(fn ($q) => $q->where(fn ($w) => $w->where('type', 'expense')->where('amount', '>', $threshold))
+                ->orWhere(fn ($w) => $w->where('type', 'settle')->where('spent', '>', $threshold)))
+            ->orderByDesc('date')->orderByDesc('id')->get()
+            ->map(fn ($t) => ['date' => $t->date->toDateString(), 'age' => $ageOf($t->date), 'float' => $t->float?->name ?? '—',
+                'txn_no' => $t->txn_no, 'payee' => $t->party() ?? '—', 'head' => $t->head?->label,
+                'amount' => round((float) ($t->type === 'settle' ? $t->spent : $t->amount), 2),
+                'evidence' => $t->receipt_path ? 'receipt' : (trim((string) $t->no_receipt_reason) !== '' ? 'reason' : 'none'),
+                'reason' => $t->no_receipt_reason, 'status' => $t->status, 'receipt' => (bool) $t->receipt_path]);
+
+        $missingRows = $evidence->where('evidence', 'none')->values();
+        $missingRows = $missingRows->map(fn ($r) => ['float' => $r['float'], 'txn_no' => $r['txn_no'], 'payee' => $r['payee'],
+            'amount' => $r['amount'], 'age' => $r['age']])->all();
+        $receipt = ['threshold' => $threshold, 'needing' => $evidence->count(),
+            'with' => $evidence->where('evidence', 'receipt')->count(), 'stated' => $evidence->where('evidence', 'reason')->count(),
+            'missing' => count($missingRows), 'amount' => round((float) $evidence->sum('amount'), 2),
+            'with_amount' => round((float) $evidence->where('evidence', 'receipt')->sum('amount'), 2),
+            'missing_amount' => round((float) $evidence->where('evidence', 'none')->sum('amount'), 2),
+            'oldest' => $evidence->max('age'), 'missing_rows' => $missingRows];
+
+        $page = max(1, $request->integer('evidence', 1));
+        $perPage = 8;
+        $pager = new LengthAwarePaginator($evidence->forPage($page, $perPage)->values()->all(), $evidence->count(), $perPage, $page,
+            ['path' => route('petty.index'), 'query' => $request->query()]);
 
         return view('petty.index', $this->lookups() + [
-            'floats' => $floats, 'stats' => $floats->mapWithKeys(fn ($f) => [$f->id => Petty::stats($f)]),
+            'floats' => $floats, 'stats' => $stats, 'register' => $register, 'tie' => $tie, 'receipt' => $receipt, 'evidence' => $pager,
             'approvals' => Petty::approvals(),
             'overdue' => PettyTxn::with('float', 'employee')->where('type', 'advance')->where('status', 'posted')->whereNull('settled_at')->whereDate('due_date', '<', bdate()->toDateString())->orderBy('due_date')->get(),
             'cfg' => collect(Petty::DEFAULTS)->map(fn ($v, $k) => Petty::cfg($k))->all(),

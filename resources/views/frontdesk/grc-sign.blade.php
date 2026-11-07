@@ -7,10 +7,10 @@
 @endsection
 @section('content')
 @php
-  $address = collect([$g->address, $g->city, $g->state, $g->country, $g->pincode])->filter(fn ($part) => filled($part))->implode(', ');
+  $address = collect([$g->address, $g->city, $g->state, $g->country, $g->pincode])->filter()->implode(', ');
   $documents = $g->documents ?? collect();
-  $signatureAvailable = $stay->grc_signature_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($stay->grc_signature_path);
-  $canViewSignature = can_do('frontdesk.view');
+  $boards = ['EP' => 'Room only', 'CP' => 'Bed & breakfast', 'MAP' => 'Half board', 'AP' => 'Full board'];
+  $board = $boards[$stay->ratePlan?->meal_plan ?? 'EP'] ?? ($stay->ratePlan?->meal_plan ?? 'EP');
 @endphp
 @push('head')
 <style>
@@ -68,6 +68,7 @@
     </div>
     <div class="egrc-hero-meta" aria-label="Stay status">
       <span class="egrc-chip">{{ $stay->room?->room_no ?? 'Room unassigned' }} · {{ $stay->roomType?->name ?? 'Room type not set' }}</span>
+      @if($stay->is_day_use)<span class="egrc-chip">Day use · released {{ substr((string) $stay->day_use_until, 0, 5) }}</span>@endif
       <span class="egrc-chip">{{ strtoupper(str_replace('_', ' ', $stay->status)) }}</span>
       @if($stay->grc_signed_at)<span class="egrc-sign-state signed">Signed {{ $stay->grc_signed_at->format('d M Y · H:i') }}</span>@else<span class="egrc-sign-state pending">Signature pending</span>@endif
     </div>
@@ -101,10 +102,11 @@
             <div class="egrc-fact"><dt>Reservation</dt><dd>{{ $stay->reservation->reservation_no }}</dd></div>
             <div class="egrc-fact"><dt>Room</dt><dd>{{ $stay->room?->room_no ?? 'Unassigned' }} · {{ $stay->roomType?->name ?? 'Room type not set' }}</dd></div>
             <div class="egrc-fact"><dt>Arrival</dt><dd>{{ $stay->checked_in_at?->format('d M Y · H:i') ?? $stay->arrival_date->format('d M Y') }}</dd></div>
-            <div class="egrc-fact"><dt>Departure</dt><dd>{{ $stay->departure_date->format('d M Y') }}</dd></div>
-            <div class="egrc-fact"><dt>Length of stay</dt><dd>{{ $stay->arrival_date->diffInDays($stay->departure_date) }} night(s)</dd></div>
+            {{-- A day use sells hours: the guest must not sign that they took a night. --}}
+            <div class="egrc-fact"><dt>{{ $stay->is_day_use ? 'Room released' : 'Departure' }}</dt><dd>{{ $stay->is_day_use ? substr((string) $stay->day_use_until, 0, 5) : $stay->departure_date->format('d M Y') }}</dd></div>
+            <div class="egrc-fact"><dt>Length of stay</dt><dd>{{ $stay->is_day_use ? 'Day use · charged once' : $stay->arrival_date->diffInDays($stay->departure_date).' night(s)' }}</dd></div>
             <div class="egrc-fact"><dt>Party</dt><dd>{{ $stay->adults }} adult(s) · {{ $stay->children }} child(ren)</dd></div>
-            <div class="egrc-fact"><dt>Room rate</dt><dd>{{ money($stay->rate) }} / night · {{ $stay->ratePlan?->meal_plan ?? 'EP' }}</dd></div>
+            <div class="egrc-fact"><dt>{{ $stay->is_day_use ? 'Day-use charge' : 'Room rate' }}</dt><dd>{{ money($stay->rate) }}{{ $stay->is_day_use ? '' : ' / night · '.$board }}</dd></div>
             <div class="egrc-fact"><dt>Company</dt><dd class="{{ $stay->reservation->company?->name ? '' : 'empty' }}">{{ $stay->reservation->company?->name ?? 'Not provided' }}</dd></div>
             <div class="egrc-fact wide"><dt>Purpose of visit</dt><dd class="{{ $stay->reservation->purpose ? '' : 'empty' }}">{{ $stay->reservation->purpose ?: 'Not provided' }}</dd></div>
           </dl>

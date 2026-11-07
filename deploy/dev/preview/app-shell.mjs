@@ -119,11 +119,24 @@ export function spriteSymbols() {
   return [...src.matchAll(/<symbol id="i-[a-z0-9-]+"[\s\S]*?<\/symbol>/g)].map(m => m[0].trim());
 }
 
+/** Does this item survive the sidebar's tests? Mirrors Blade's recursive $canSee. */
+function visibleInNav(item, state) {
+  if (item.employee === true) return false;
+  if ((state.hide || new Set()).has(item.label)) return false;
+  const children = item.children || [];
+  return children.length ? children.some(child => visibleInNav(child, state)) : true;
+}
+
 /** Mirrors resources/views/partials/sidebar-nav.blade.php. */
 export function renderNav(items, depth = 0, parentKey = '', state = { lastSection: null, activeKey: 'dashboard-overview' }) {
   let html = '';
   for (const item of items) {
     if (item.employee === true) continue; // only linked staff see these; the preview user is not linked
+    // v10.7 the sidebar now drops an item whose module the licence in force does not allow — and a
+    // heading whose children are all dropped goes with them, exactly as the Blade $canSee does — so a
+    // preview of a property that switched a module off must drop the same items (see sidebar-nav).
+    if ((state.hide || new Set()).has(item.label)) continue;
+    if ((item.children || []).length && !item.children.some(child => visibleInNav(child, state))) continue;
     const key = [parentKey, slug(item.label)].filter(Boolean).join('.');
     const children = item.children || [];
     const isGroup = children.length > 0;
@@ -276,13 +289,40 @@ ${content}
     </main>
   </div>
 </div>
-${page.scripts ?? ''}</body>
+${page.scripts ?? ''}
+<script>
+// The application's modal plumbing (public/js/app.js): a button that opens nothing
+// would hide a bug, so the rendered shell answers [data-modal] the same way.
+document.addEventListener('click', e => {
+  const opener = e.target.closest('[data-modal]');
+  if (opener) {
+    e.preventDefault();
+    const modal = document.getElementById(opener.dataset.modal);
+    if (modal) {
+      modal.classList.add('show');
+      const resetting = modal.querySelector('form[data-reset]');
+      if (resetting) resetting.reset();
+      const field = modal.querySelector('input:not([type=hidden]),select,textarea');
+      if (field) setTimeout(() => field.focus(), 50);
+    }
+  }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) {
+    e.target.closest('.modal')?.classList.remove('show');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show'));
+});
+</script>
+</body>
 </html>
 `;
 }
 
 /** The sidebar exactly as the layout renders it, plus the parsed menu. */
-export function nav() {
+export function nav(options = {}) {
   const menu = menuFromConfig();
-  return { menu, navHtml: renderNav(menu) };
+  const state = { lastSection: null, activeKey: 'dashboard-overview', hide: new Set(options.hide || []) };
+  return { menu, navHtml: renderNav(menu, 0, '', state) };
 }

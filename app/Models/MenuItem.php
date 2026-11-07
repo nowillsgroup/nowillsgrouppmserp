@@ -17,6 +17,7 @@ class MenuItem extends Model
     {
         return [
             'is_available' => 'boolean',
+            'side_dish_required' => 'boolean', // v9.30 the dish cannot be rung up without one of its side dishes
             'price' => 'decimal:2',
             'allergens' => 'array', 'may_contain' => 'array', 'allergens_verified_at' => 'datetime', // v5.0
         ];

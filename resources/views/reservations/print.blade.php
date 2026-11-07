@@ -112,7 +112,7 @@
     <dl class="bc-details">
       <dt>Arrival</dt><dd>{{ $r->arrival_date?->format('D, d M Y') ?? '—' }} · Check-in {{ $arrivalTime }}</dd>
       <dt>Departure</dt><dd>{{ $r->departure_date?->format('D, d M Y') ?? '—' }} · Check-out {{ $departureTime }}</dd>
-      <dt>Nights</dt><dd>{{ $r->nights }}</dd>
+      <dt>Nights</dt><dd>@if($r->isDayUse())Day use{{ $r->rooms->first()?->dayUseHoursLabel() ? ' · '.$r->rooms->first()->dayUseHoursLabel() : '' }} · no night sold @else{{ $r->nights }}@endif</dd>
       <dt>Guests</dt><dd>{{ $r->adults }} adults{{ $r->children ? ', '.$r->children.' children' : '' }}</dd>
     </dl>
   </section>
@@ -133,7 +133,7 @@
           <td><span class="room-name">{{ $stay->roomType?->name ?? 'Room stay' }}</span><br><span class="small text-2">{{ $stay->room ? 'Room '.$stay->room->room_no : 'Room not yet assigned' }}</span></td>
           <td>{{ $stay->ratePlan?->meal_plan ?? 'EP' }}</td>
           <td>{{ $stay->adults }} adults{{ $stay->children ? ', '.$stay->children.' children' : '' }}</td>
-          <td class="num">{{ money($nightlyRate) }}</td><td class="num">{{ $stay->nights }}</td><td class="num">{{ money($stayTotal) }}</td>
+          <td class="num">{{ money($nightlyRate) }}</td><td class="num">{{ $stay->is_day_use ? 'Day use' : $stay->nights }}</td><td class="num">{{ money($stayTotal) }}</td>
         </tr>
       @empty
         <tr><td colspan="7" class="text-2">No active room stays are listed for this reservation.</td></tr>

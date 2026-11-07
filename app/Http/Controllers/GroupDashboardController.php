@@ -2,15 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FolioTransaction;
-use App\Models\PosOrder;
-use App\Models\ReservationRoom;
-use App\Models\Room;
-use App\Services\AvailabilityService;
+use App\Services\GroupMetricsService;
 use App\Support\Tenant;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Consolidated multi-property dashboard for group administrators.
@@ -24,10 +18,21 @@ class GroupDashboardController extends Controller
         $current = Tenant::hotel();
         $rows = [];
         $trend = [];
+        $closed = [];
+        $metrics = app(GroupMetricsService::class);
         try {
             foreach ($user->accessibleHotels() as $hotel) {
-                Tenant::set($hotel);
-                $rows[] = $this->metrics($hotel, $trend);
+                // v10.7 a property licensed for no modules is shut: nobody can work in it and nothing
+                // new can be posted there. Its rooms must not sit in the group's occupancy denominator
+                // and its stale month-to-date must not be added to revenue as though it were trading,
+                // so it is left out of the consolidated numbers — and named underneath them.
+                if ($hotel->licenceIsEmpty()) {
+                    $closed[] = $hotel;
+                    continue;
+                }
+                // v10.9 the arithmetic lives in GroupMetricsService, because the consolidated report
+                // reads the same figures and two copies would drift.
+                $rows[] = $metrics->row($hotel, $trend);
             }
         } finally {
             Tenant::set($current);
@@ -39,6 +44,7 @@ class GroupDashboardController extends Controller
 
         return view('group.dashboard', [
             'rows' => $rows, 'trend' => $trend,
+            'closed' => collect($closed),
             'group' => $user->group,
             'totals' => [
                 'rooms' => $rooms, 'occupied' => $occupied, 'occ' => $rooms ? round($occupied * 100 / $rooms, 1) : 0,
@@ -47,56 +53,5 @@ class GroupDashboardController extends Controller
                 'collections' => $rows->sum('collections'), 'open_pos' => $rows->sum('open_pos'),
             ],
         ]);
-    }
-
-    protected function revenue(string $from, string $to): array
-    {
-        $tx = FolioTransaction::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('is_void', false)->where('type', 'charge')
-            ->selectRaw("business_date, SUM(CASE WHEN category IN ('room','extra_bed') THEN amount ELSE 0 END) AS room, SUM(CASE WHEN category NOT IN ('room','extra_bed') THEN amount ELSE 0 END) AS other")
-            ->groupBy('business_date')->get()->keyBy(fn ($r) => Carbon::parse($r->business_date)->toDateString());
-        $pos = PosOrder::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->where('status', 'settled')->where('settlement', 'payment')
-            ->selectRaw('business_date, SUM(total - tax) AS net')->groupBy('business_date')->get()->keyBy(fn ($r) => Carbon::parse($r->business_date)->toDateString());
-        $out = [];
-        foreach ($tx->keys()->merge($pos->keys())->unique() as $d) {
-            $out[$d] = ['room' => (float) ($tx[$d]->room ?? 0), 'other' => (float) ($tx[$d]->other ?? 0) + (float) ($pos[$d]->net ?? 0)];
-        }
-
-        return $out;
-    }
-
-    protected function metrics($hotel, array &$trend): array
-    {
-        $bd = $hotel->business_date->copy();
-        $d = $bd->toDateString();
-        $rooms = Room::where('is_active', true)->get(['id', 'status', 'hk_status']);
-        $totalRooms = $rooms->count();
-        $sellable = AvailabilityService::sellableRoomCounts($bd, 1, $rooms)[$d] ?? 0;
-        $occupied = $rooms->where('status', 'occupied')->count();
-        $rev = $this->revenue($bd->copy()->startOfMonth()->min($bd->copy()->subDays(13))->toDateString(), $d);
-        $mtdFrom = $bd->copy()->startOfMonth()->toDateString();
-        $mtd = collect($rev)->filter(fn ($v, $k) => $k >= $mtdFrom);
-        foreach ($rev as $day => $v) {
-            // align trend by "days before business date" so properties with different dates line up
-            $offset = Carbon::parse($day)->diffInDays($bd);
-            if ($offset < 14) {
-                $trend[13 - $offset] = ($trend[13 - $offset] ?? 0) + $v['room'] + $v['other'];
-            }
-        }
-        $payments = FolioTransaction::whereDate('business_date', $d)->where('is_void', false)->where('type', 'payment')->where('category', '!=', 'city_ledger')->sum('amount')
-            + PosOrder::whereDate('business_date', $d)->where('status', 'settled')->where('settlement', 'payment')->sum('total');
-
-        return [
-            'hotel' => $hotel, 'business_date' => $bd,
-            'rooms' => $sellable, 'total_rooms' => $totalRooms, 'occupied' => $occupied, 'occ' => $sellable ? round($occupied * 100 / $sellable, 1) : 0,
-            'ooo' => $rooms->whereIn('status', ['out_of_order', 'out_of_service'])->count(), 'dirty' => $rooms->where('hk_status', 'dirty')->count(),
-            'in_house' => (int) ReservationRoom::where('status', 'checked_in')->sum(DB::raw('adults + children')),
-            'arrivals' => ReservationRoom::where('status', 'reserved')->whereDate('arrival_date', $d)->count(),
-            'departures' => ReservationRoom::where('status', 'checked_in')->whereDate('departure_date', '<=', $d)->count(),
-            'rev_today' => ($rev[$d]['room'] ?? 0) + ($rev[$d]['other'] ?? 0),
-            'rev_mtd' => $mtd->sum(fn ($v) => $v['room'] + $v['other']), 'room_rev_mtd' => $mtd->sum('room'),
-            'adr' => $occupied ? ($rev[$d]['room'] ?? 0) / $occupied : 0,
-            'collections' => (float) $payments,
-            'open_pos' => PosOrder::whereIn('status', ['open', 'billed'])->count(),
-        ];
     }
 }

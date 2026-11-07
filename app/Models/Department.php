@@ -15,7 +15,25 @@ class Department extends Model
 
     protected function casts(): array
     {
-        return ['monthly_budget' => 'float'];
+        return ['monthly_budget' => 'float', 'is_cost_centre' => 'boolean'];
+    }
+
+    /** v8.1 – the code printed next to the name in the ledger and the cost-centre reports. */
+    public function label(): string
+    {
+        return trim(($this->code ? $this->code.' · ' : '').$this->name);
+    }
+
+    /** budget versions of this department (NULL on the version = the whole hotel) */
+    public function budgets()
+    {
+        return $this->hasMany(Budget::class);
+    }
+
+    /** ledger lines tagged to this department */
+    public function glLines()
+    {
+        return $this->hasMany(GlLine::class);
     }
 
     public function hod()

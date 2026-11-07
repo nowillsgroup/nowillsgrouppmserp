@@ -215,7 +215,9 @@ class OwnerController extends Controller
     protected function projectRules(): array
     {
         return ['title' => 'required|string|max:150', 'category' => ['required', Rule::in(array_keys(CapexProject::CATEGORIES))], 'funding' => ['required', Rule::in(array_keys(CapexProject::FUNDING))],
-            'usali_dept' => ['nullable', Rule::in(array_keys(US::payrollDepts()))], 'budget' => 'required|numeric|min:1', 'justification' => 'nullable|string|max:4000', 'needed_by' => 'nullable|date'];
+            'usali_dept' => ['nullable', Rule::in(array_keys(US::payrollDepts()))], 'budget' => 'required|numeric|min:1', 'justification' => 'nullable|string|max:4000', 'needed_by' => 'nullable|date',
+            // v8.5 – the capital asset account the project will be capitalised to; the service refuses one that is not a capital head
+            'capital_head_id' => 'nullable|integer|owned:account_heads'];
     }
 
     public function capexStore(Request $r)
@@ -234,10 +236,13 @@ class OwnerController extends Controller
 
     public function capexShow(CapexProject $capex)
     {
-        $capex->load('assets', 'entries.asset', 'requester', 'decider');
+        $capex->load('assets', 'entries.asset', 'requester', 'decider', 'capitalHead');
         $linkable = Asset::whereNull('capex_project_id')->where('status', '!=', 'disposed')->orderByDesc('purchase_date')->limit(200)->get(['id', 'asset_no', 'name', 'cost', 'purchase_date']);
 
-        return view('owner.capex', ['p' => $capex, 'linkable' => $linkable, 'reserve' => OS::reserveBalance()]);
+        return view('owner.capex', ['p' => $capex, 'linkable' => $linkable, 'reserve' => OS::reserveBalance(),
+            // v8.5 – the capital heads a project can be capitalised to, and where this one stands against the plan for its head
+            'capitalHeads' => \App\Services\BudgetService::capitalAccounts(),
+            'headPosition' => $capex->capital_head_id ? \App\Services\BudgetService::headPosition($capex->capital_head_id) : null]);
     }
 
     public function capexUpdate(Request $r, CapexProject $capex)

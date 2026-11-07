@@ -108,13 +108,14 @@
       @php $thisV = in_array($r->status, ['submitted', 'draft']) ? $reqValue : 0; $usedPct = min(100, $budget['used'] / $budget['budget'] * 100); $thisPct = max(0, min(100, ($budget['used'] + $thisV) / $budget['budget'] * 100) - $usedPct); @endphp
       <div class="budget-bar"><span class="bb-used" style="width:{{ $usedPct }}%"></span><span class="bb-this {{ $budget['used'] + $thisV > $budget['budget'] ? 'over' : '' }}" style="width:{{ $thisPct }}%"></span></div>
       <ul class="list" id="budgetList">
-        <li><span>Monthly budget</span><b>{{ money($budget['budget'], false) }}</b></li>
+        <li><span>Monthly allowance</span><b>{{ money($budget['budget'], false) }}</b></li>
         <li><span>Issued this month</span><b>{{ money($budget['issued'], false) }}</b></li>
         <li><span>Committed{{ $r->status === 'submitted' ? ' (other requisitions)' : '' }}</span><b>{{ money($budget['committed'], false) }}</b></li>
         @if($thisV)<li><span>This requisition</span><b>{{ money($thisV, false) }}</b></li>@endif
         @php $left = $budget['budget'] - $budget['used'] - $thisV; @endphp
         <li><span>{{ $left < 0 ? 'Over budget by' : 'Left' }}</span><b class="{{ $left < 0 ? 'text-red' : 'text-green' }}">{{ money(abs($left), false) }}</b></li>
       </ul>
+      @if(! empty($budget['source_note']))<p class="tiny muted m-0">From {{ $budget['source_note'] }}.</p>@endif
     @else<p class="small muted m-0">No monthly stores budget set. Issued this month: {{ money($budget['issued']) }}.</p>@endif
   </div></div>
   <div class="card"><div class="card-head"><h3>History</h3></div><div class="card-body">

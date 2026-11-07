@@ -103,7 +103,8 @@ class KioskService
         $welcome = trim((string) ($d['kiosk_welcome'] ?? ''));
         $terms = trim((string) ($d['kiosk_terms'] ?? ''));
         self::need($terms !== '', 'Enter the registration terms the guest signs.');
-        $vals = ['kiosk_checkin_from' => $d['kiosk_checkin_from'], 'kiosk_deposit' => $d['kiosk_deposit'], 'kiosk_room_ready' => $d['kiosk_room_ready'],
+        $vals = ['kiosk_breakfast' => mb_substr(trim((string) ($d['kiosk_breakfast'] ?? '')), 0, 200),
+            'kiosk_checkin_from' => $d['kiosk_checkin_from'], 'kiosk_deposit' => $d['kiosk_deposit'], 'kiosk_room_ready' => $d['kiosk_room_ready'],
             'kiosk_incidentals' => (string) round((float) $d['kiosk_incidentals'], 2), 'kiosk_welcome' => mb_substr($welcome, 0, 200) ?: self::DEFAULTS['kiosk_welcome'], 'kiosk_terms' => mb_substr($terms, 0, 1500)];
         foreach (['kiosk_max_keys', 'kiosk_walkin_nights', 'kiosk_walkin_adults', 'kiosk_idle', 'kiosk_pay_minutes'] as $k) {
             $vals[$k] = (string) (int) $d[$k];

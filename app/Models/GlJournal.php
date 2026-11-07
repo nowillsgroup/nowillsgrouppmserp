@@ -31,6 +31,12 @@ class GlJournal extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** v8.1 – header cost centre, inherited by every line that does not name its own */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
     public function reversalOf()
     {
         return $this->belongsTo(self::class, 'reversal_of_id');

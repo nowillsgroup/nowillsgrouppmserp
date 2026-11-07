@@ -86,9 +86,10 @@
     if (b.budget === null) { el.innerHTML = '<p class="small m-0">No monthly stores budget set for this department.</p><p class="tiny muted m-0 mt-1">Issued this month ' + fmt(b.issued) + ' · committed ' + fmt(b.committed) + '</p>'; return; }
     const after = b.used + t, over = after > b.budget + 0.005, usedPct = Math.min(100, b.used / b.budget * 100), thisPct = Math.max(0, Math.min(100, after / b.budget * 100) - usedPct);
     el.innerHTML = '<div class="budget-bar"><span class="bb-used" style="width:' + usedPct + '%"></span><span class="bb-this' + (over ? ' over' : '') + '" style="width:' + thisPct + '%"></span></div>'
-      + '<ul class="list"><li><span>Monthly budget</span><b>' + fmt(b.budget) + '</b></li><li><span>Issued this month</span><b>' + fmt(b.issued) + '</b></li><li><span>Committed (approved, not issued)</span><b>' + fmt(b.committed) + '</b></li>'
+      + '<ul class="list"><li><span>Monthly allowance</span><b>' + fmt(b.budget) + '</b></li><li><span>Issued this month</span><b>' + fmt(b.issued) + '</b></li><li><span>Committed (approved, not issued)</span><b>' + fmt(b.committed) + '</b></li>'
       + '<li><span>This requisition</span><b>' + fmt(t) + '</b></li><li><span>' + (over ? 'Over budget by' : 'Left after this') + '</span><b class="' + (over ? 'text-red' : 'text-green') + '">' + fmt(Math.abs(b.budget - after)) + '</b></li></ul>'
-      + (over ? '<p class="tiny text-red m-0">The approver will have to approve it over budget, with a reason.</p>' : '');
+      + (over ? '<p class="tiny text-red m-0">The approver will have to approve it over budget, with a reason.</p>' : '')
+      + (b.source_note ? '<p class="tiny muted m-0">From ' + b.source_note + '.</p>' : '');
   }
   function all() { tb.querySelectorAll('tr').forEach(refresh); total(); document.getElementById('lineTable').classList.toggle('no-to', !toSel.value); par(); }
   function par() {

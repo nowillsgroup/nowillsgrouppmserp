@@ -70,10 +70,12 @@
   <div class="card mt-1"><div class="card-head"><h3><x-icon name="tool"/> Settings</h3></div><div class="card-body">
     <form method="post" action="{{ route('close.settings') }}" id="closeSettings">@csrf
       <div class="form-grid">
-        <div class="field"><label for="csDue">Close due (days after month end)</label><input type="number" min="1" max="60" name="due_days" id="csDue" value="{{ $cfg['due_days'] }}" required></div>
+        <div class="field"><label for="csDue">Close due (days after month end) <span class="tiny muted">— 1 to 60</span></label><span class="tiny muted">1–60 days</span> <input type="number" min="1" max="60" name="due_days" id="csDue" value="{{ $cfg['due_days'] }}" required></div>
+        @error('due_days')<span class="err">{{ $message }}</span>@enderror
         <div class="field"><label for="csStart">First managed period</label><input type="month" name="start" id="csStart" value="{{ $cfg['start'] }}" @disabled($canClose) title="{{ $canClose ? 'Fixed once a period has been closed' : '' }}"></div>
         <div class="field span-all"><label class="check"><input type="checkbox" name="auto_post" value="1" @checked($cfg['auto_post'])> <span>Post schedules &amp; recurring journals automatically when the night audit closes the month</span></label></div>
-        <div class="field span-all"><label for="csManual">Manual checklist tasks <span class="tiny muted">(one per line – “Area | Task”)</span></label><textarea name="manual" id="csManual" rows="4">{{ collect($cfg['manual'])->map(fn ($r) => $r[0].' | '.$r[1])->implode("\n") }}</textarea></div>
+        <div class="field span-all"><label for="csManual">Manual checklist tasks <span class="tiny muted">(one per line – “Area | Task”; at most {{ \App\Services\CloseService::MANUAL_MAX_ROWS }} tasks, area {{ \App\Services\CloseService::MANUAL_AREA_MAX }} and task {{ \App\Services\CloseService::MANUAL_TASK_MAX }} characters — a longer list is refused, not trimmed)</span></label><textarea name="manual" id="csManual" rows="4" maxlength="3000">{{ collect($cfg['manual'])->map(fn ($r) => $r[0].' | '.$r[1])->implode("\n") }}</textarea>
+          @error('manual')<span class="err span-all" id="csManualErr">{{ $message }}</span>@enderror</div>
       </div>
       <div class="right mt-1"><button class="btn btn-primary btn-sm">Save settings</button></div>
     </form>

@@ -28,6 +28,14 @@
     </div></div>
 
     <div class="card mt-1"><div class="card-head"><h3><x-icon name="qr"/> GRA E-VAT</h3></div><div class="card-body form-grid">
+      {{-- EInvoiceService::driver() answers 'sandbox' unless 'gra' is stored, and sandbox stamps are
+           generated on this server: the e-invoices screen says so, this screen — where the choice is
+           made — used to say nothing, so a property could believe it was filing with GRA. --}}
+      @if($s['gst_einvoice_enabled'] !== '1')
+        <div class="alert alert-info span-all" role="note" id="evatOffNote"><x-icon name="alert"/><div>E-VAT is <b>off</b>: nothing below is in use — no invoice or credit note is stamped, and the connection and credentials are stored but never called.</div></div>
+      @elseif($s['gst_einvoice_driver'] === 'sandbox')
+        <div class="alert alert-warn span-all" role="note" id="evatSandboxNote"><x-icon name="alert"/><div><b>Sandbox connection.</b> SDC IDs, receipt numbers, signatures and QR codes are generated on this server and are <b>not</b> reported to GRA. Invoices are stamped as if they were, so switch the connection to the GRA E-VAT API before these stamps are relied on.</div></div>
+      @endif
       <label class="check span-all"><input type="checkbox" name="gst_einvoice_enabled" value="1" @checked(old('gst_einvoice_enabled', $s['gst_einvoice_enabled']) == '1')> Submit every tax invoice and credit note to the GRA Virtual Sales Data Controller (VSDC)</label>
       @error('gst_einvoice_enabled')<span class="err span-all">{{ $message }}</span>@enderror
       <label class="check span-all"><input type="checkbox" name="gst_einvoice_auto" value="1" @checked(old('gst_einvoice_auto', $s['gst_einvoice_auto']) == '1')> Stamp automatically when an invoice is settled / a credit note is issued</label>

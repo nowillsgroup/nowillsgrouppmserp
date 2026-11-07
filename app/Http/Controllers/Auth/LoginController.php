@@ -110,12 +110,17 @@ class LoginController extends Controller
     public function switchHotel(Request $request)
     {
         $id = (int) $request->input('hotel_id');
-        abort_unless($request->user()->accessibleHotels()->contains('id', $id), 403);
-        $request->session()->put('hotel_id', $id);
-        Tenant::set(Hotel::find($id));
-        ActivityLogger::log('auth', 'switch_hotel', 'Switched to '.Tenant::hotel()->name);
+        $user = $request->user();
+        $hotel = Hotel::find($id);
+        // v10.0 one rule for the switcher, the middleware and the property screens.
+        abort_unless($hotel && app(\App\Services\PropertyAccessService::class)->canEnter($user, $hotel), 403);
 
-        return redirect()->to(self::home($request->user()))->with('success', 'Switched to '.Tenant::hotel()->name);
+        $request->session()->put('hotel_id', $hotel->id);
+        Tenant::set($hotel);
+        app(\App\Services\PropertyService::class)->touchGrant($hotel, $user);
+        ActivityLogger::log('auth', 'switch_hotel', 'Switched to '.$hotel->name);
+
+        return redirect()->to(self::home($user))->with('success', 'Switched to '.$hotel->name);
     }
 
     public function logout(Request $request)

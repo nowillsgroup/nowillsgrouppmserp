@@ -50,6 +50,8 @@
     queueCount: root.querySelector('[data-pos-queue-count]'),
     sides: document.querySelector('[data-pos-sides]'),
     sidesTitle: document.querySelector('[data-pos-sides-title]'),
+    sidesNote: document.querySelector('[data-pos-sides-note]'),
+    sidesWarn: document.querySelector('[data-pos-sides-warn]'),
     sidesList: document.querySelector('[data-pos-sides-list]'),
     sidesAdd: document.querySelector('[data-pos-sides-add]'),
     sidesSkip: document.querySelector('[data-pos-sides-skip]'),
@@ -250,7 +252,9 @@
       return '<button type="button" class="offline-pos-item" data-item="' + item.id + '">' +
         '<span class="offline-pos-item-name">' + esc(item.name) + '</span>' +
         '<span class="offline-pos-item-meta">' + money(item.price) +
-        ((item.sides || []).length ? ' · <span class="offline-pos-item-side">sides</span>' : '') + '</span>' +
+        ((item.sides || []).length
+          ? ' · <span class="offline-pos-item-side">' + (item.side_required ? 'side required' : (item.sides.length === 1 ? '1 side' : item.sides.length + ' sides')) + '</span>'
+          : '') + '</span>' +
         '</button>';
     }).join('');
     el.itemsEmpty.hidden = items.length > 0;
@@ -267,7 +271,10 @@
     el.draft.innerHTML = lines.map(function (line, index) {
       return '<div class="offline-pos-line">' +
         '<div><b>' + esc(line.name) + '</b>' +
-        (line.sides && line.sides.length ? '<div class="tiny muted">' + esc(line.sides.map(function (s) { return s.name; }).join(', ')) + '</div>' : '') +
+        (line.sides && line.sides.length ? '<div class="tiny muted">Side dishes: ' + esc(line.sides.map(function (s) {
+          var qty = Math.max(1, Number(s.qty) || 1);
+          return s.name + (qty > 1 ? ' ×' + qty : '') + (Number(s.rate) > 0 ? ' +' + (Number(s.rate) * qty).toFixed(2) : ' included');
+        }).join(' · ')) + '</div>' : '') +
         (line.notes ? '<div class="tiny muted">' + esc(line.notes) + '</div>' : '') +
         '</div>' +
         '<div class="offline-pos-qty">' +
@@ -317,10 +324,16 @@
 
   function addLine(item, sides) {
     var order = activeLocalOrder() || openLocalOrder(currentTableId());
-    var sideTotal = (sides || []).reduce(function (sum, side) { return sum + Number(side.rate || 0); }, 0);
+    var units = (sides || []).reduce(function (all, side) {
+      for (var n = 0; n < Math.max(1, Math.min(9, Number(side.qty) || 1)); n++) all.push(Number(side.id));
+      return all;
+    }, []);
+    var sideTotal = (sides || []).reduce(function (sum, side) {
+      return sum + Number(side.rate || 0) * Math.max(1, Math.min(9, Number(side.qty) || 1));
+    }, 0);
     var existing = order.lines.find(function (line) {
       return Number(line.menuItemId) === Number(item.id) &&
-        JSON.stringify((line.sideIds || []).slice().sort()) === JSON.stringify((sides || []).map(function (s) { return s.id; }).sort());
+        JSON.stringify((line.sideIds || []).slice().sort()) === JSON.stringify(units.slice().sort());
     });
     if (existing) {
       existing.qty += 1;
@@ -333,7 +346,7 @@
         rate: round(Number(item.price) + sideTotal),
         amount: round(Number(item.price) + sideTotal),
         sides: sides || [],
-        sideIds: (sides || []).map(function (s) { return s.id; }),
+        sideIds: units,
         notes: null
       });
     }
@@ -349,19 +362,66 @@
     return null;
   }
 
+  /**
+   * The side sheet. Sides are ticked, not chosen one of one (v9.30): a dish can carry a salad AND an extra banku, and
+   * the till has to add both rates. A dish whose side dish is required hides "continue with none" rather than accepting
+   * an answer the kitchen cannot plate.
+   */
   function openSideSheet(item) {
     state.sideItem = item;
     el.sidesTitle.textContent = 'Side dish for ' + item.name;
+    var required = item.side_required === true;
+    // a side can be ordered more than once: the count sits at the end of its row (v9.31)
     el.sidesList.innerHTML = (item.sides || []).map(function (side) {
-      return '<label class="offline-pos-side">' +
-        '<input type="radio" name="offlineSide" value="' + side.id + '">' +
-        '<span>' + esc(side.name) + '</span>' +
-        '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
-      '</label>';
+      return '<div class="offline-pos-side-row">' +
+        '<label class="offline-pos-side">' +
+          '<input type="checkbox" name="offlineSide" value="' + side.id + '" data-side-id="' + side.id + '">' +
+          '<span>' + esc(side.name) + '</span>' +
+          '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
+        '</label>' +
+        '<span class="offline-pos-side-qty">' +
+          '<button type="button" data-side-step="-1" aria-label="One fewer ' + esc(side.name) + '">−</button>' +
+          '<b data-side-count>1</b>' +
+          '<button type="button" data-side-step="1" aria-label="One more ' + esc(side.name) + '">+</button>' +
+        '</span>' +
+      '</div>';
     }).join('');
+    if (el.sidesNote) {
+      el.sidesNote.textContent = required
+        ? 'This dish must be served with a side dish. Tick what the guest wants — the kitchen cannot plate it without one.'
+        : 'This dish comes with a side. Tick one or more, or continue without if the guest does not want one.';
+    }
+    if (el.sidesWarn) el.sidesWarn.hidden = true;
+    if (el.sidesSkip) el.sidesSkip.hidden = required;
     el.sides.hidden = false;
     var first = el.sidesList.querySelector('input');
     if (first) first.focus();
+  }
+
+  /** Every side ticked in the sheet, each with the count beside it, as the line stores them. */
+  function pickedSides() {
+    var counts = {};
+    [].slice.call(el.sidesList.querySelectorAll('input:checked')).forEach(function (input) {
+      var row = input.closest('.offline-pos-side-row');
+      var count = row ? Number(row.querySelector('[data-side-count]').textContent) : 1;
+      counts[Number(input.value)] = Math.max(1, Math.min(9, count || 1));
+    });
+    return (state.sideItem && state.sideItem.sides ? state.sideItem.sides : []).filter(function (side) {
+      return counts[Number(side.id)] !== undefined;
+    }).map(function (side) {
+      return { id: side.id, name: side.name, rate: side.rate, qty: counts[Number(side.id)] };
+    });
+  }
+
+  /** The − / + beside a side: ticking it first, then counting it. */
+  function stepSide(button) {
+    var row = button.closest('.offline-pos-side-row');
+    if (!row) return;
+    var box = row.querySelector('[data-side-id]');
+    var count = row.querySelector('[data-side-count]');
+    if (box && !box.checked) box.checked = true;
+    var next = Math.max(1, Math.min(9, (Number(count.textContent) || 1) + Number(button.dataset.sideStep)));
+    count.textContent = String(next);
   }
 
   function closeSideSheet() {
@@ -549,16 +609,33 @@
 
   el.sidesAdd.addEventListener('click', function () {
     if (!state.sideItem) return;
-    var chosen = el.sidesList.querySelector('input:checked');
-    var sides = chosen ? (state.sideItem.sides || []).filter(function (side) { return Number(side.id) === Number(chosen.value); }) : [];
+    var sides = pickedSides();
+    if (state.sideItem.side_required === true && !sides.length) {
+      if (el.sidesWarn) el.sidesWarn.hidden = false;
+      var firstInput = el.sidesList.querySelector('input');
+      if (firstInput) firstInput.focus();
+      return;
+    }
     addLine(state.sideItem, sides);
     closeSideSheet();
   });
   el.sidesSkip.addEventListener('click', function () {
-    if (state.sideItem) addLine(state.sideItem, []);
+    if (!state.sideItem) return;
+    if (state.sideItem.side_required === true) {
+      if (el.sidesWarn) el.sidesWarn.hidden = false;
+      return;
+    }
+    addLine(state.sideItem, []);
     closeSideSheet();
   });
   el.sidesCancel.addEventListener('click', closeSideSheet);
+  el.sidesList.addEventListener('click', function (event) {
+    var step = event.target.closest('[data-side-step]');
+    if (!step) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stepSide(step);
+  });
 
   document.querySelectorAll('[data-offline-sync-now]').forEach(function (button) {
     button.addEventListener('click', function () { core.flush({ force: true }).then(paintAll); });
