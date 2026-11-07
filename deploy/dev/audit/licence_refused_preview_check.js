@@ -65,6 +65,14 @@ ok('it offers a way back to the dashboard', [...doc.querySelectorAll('a')].some(
 ok('it offers the property page the reader may open', [...doc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('properties-show')));
 ok('it does not offer a screen this reader cannot open', ![...doc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('group-account')));
 
+// v10.7 the sidebar is held to the same licence: the screens the page says are hidden are gone
+const navLabels = [...doc.querySelectorAll('.nav-item[data-nav-label]')].map(el => el.getAttribute('data-nav-label'));
+ok('the sidebar no longer offers the module this page refuses', !navLabels.includes('Appointments'));
+ok('nor its masters screens', !navLabels.includes('Services & Activities') && !navLabels.includes('Treatment Rooms'));
+ok('nor the group it hung under', !navLabels.includes('Spa & Activities'));
+ok('while the rest of the product is still there', navLabels.includes('Front Desk') && navLabels.includes('Housekeeping'));
+ok('and the page says the screens are hidden, not merely refused', body.includes('hides its screens'));
+
 if (failures.length) {
   console.error(`Licence refusal preview check: ${failures.length} failed, ${passed} passed`);
   for (const failure of failures) console.error(`  ✗ ${failure}`);

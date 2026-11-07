@@ -272,6 +272,43 @@ ok('the sidebar carries the register', [...rdoc.querySelectorAll('nav a')].some(
 ok('the register links to the group account', [...rdoc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('group-account')));
 ok('the register can open a new property', [...rdoc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('properties-create')));
 
+/* ── the consolidated group dashboard ───────────────────────────────────────── */
+const gd = new JSDOM(read('deploy/dev/previews/group-dashboard.html'), { url: 'https://preview.local/group-dashboard' });
+const g = gd.window.document;
+const clean = node => (node?.textContent || '').replace(/\s+/g, ' ').trim();
+const gtext = clean(g.body);
+const grows = [...g.querySelectorAll('.table tbody tr')].map(r => cells(r));
+const dstat = label => [...g.querySelectorAll('.stat')].map(s => ({ label: clean(s.querySelector('.l')), value: clean(s.querySelector('.v')) })).find(s => s.label === label);
+const bars = [...g.querySelectorAll('.bar-chart .col')];
+const height = el => parseFloat((el.querySelector('.b')?.getAttribute('style') || '').replace(/[^\d.]/g, ''));
+
+ok('the group dashboard is titled for the group', g.title.includes('Group Dashboard'));
+ok('it adds up only the properties that can trade', grows.length === 4, `${grows.length} rows`);
+ok('the property licensed for nothing is not a row', !grows.some(c => c[0].includes('Kumasi')));
+ok('it is named above the totals instead', clean(g.querySelector('.alert-warn')).includes('Nowills Kumasi City'));
+ok('and the line says it is out of these numbers', clean(g.querySelector('.alert-warn')).includes('is licensed for no modules and is not in these numbers'));
+ok('with the reason a shut property cannot be counted', clean(g.querySelector('.alert-warn')).includes('nobody can post there'));
+ok('the alert points at the register to see what each property runs', clean(g.querySelector('.alert-warn')).includes('Open the property register'));
+ok('the four trading properties are the ones listed', ['The Grove Essipong', 'Nowills Airport City', 'The Grove Cape Coast', 'Nowills Tamale'].every(n => grows.some(c => c[0].includes(n))));
+ok('each row keeps its own business date', grows.find(c => c[0].includes('Airport'))?.[1].includes('06 Nov 2026') && grows.find(c => c[0].includes('Essipong'))?.[1].includes('07 Nov 2026'));
+ok('the header calls that out', gtext.includes('Each property uses its own business date'));
+ok('the occupancy stat is the trading portfolio', dstat('Group occupancy')?.value === '62.5%', dstat('Group occupancy')?.value);
+ok('it says how many rooms it is out of', dstat('Group occupancy')?.label === 'Group occupancy' && gtext.includes('181 of 240 sellable rooms'));
+ok('revenue today is the portfolio figure', dstat('Revenue today')?.value === 'GH₵ 79,700.00', dstat('Revenue today')?.value);
+ok('month to date is the portfolio figure', dstat('Revenue MTD')?.value === 'GH₵ 1,759,200.00', dstat('Revenue MTD')?.value);
+ok('the month to date rooms figure is carried', gtext.includes('Rooms GH₵ 1,313,500.00'));
+ok('in-house, arrivals and departures are totalled', dstat('In-house guests')?.value === '149' && gtext.includes('35 arrivals · 26 departures'));
+const total = [...g.querySelectorAll('.table tfoot tr')].map(r => cells(r))[0] || [];
+ok('a group total line tallies the columns', clean(g.querySelector('.table tfoot')).includes('Group total'));
+ok('and its revenue today is the stat above it', total.includes('GH₵ 79,700.00'), total.join(' | '));
+ok('a trading row names what needs attention', grows.some(c => c.some(x => /OOO|dirty|POS/i.test(x))));
+ok('the total line does not invent an attention column', total.every(c => !/OOO|dirty|POS/i.test(c)));
+ok('the fourteen day chart has fourteen bars', bars.length === 14, `${bars.length} bars`);
+ok('the busiest day is the full height of the chart', Math.max(...bars.map(height)) === 100);
+ok('the last bar is today', clean(bars[13]).includes('Today'));
+ok('every bar carries its own amount', bars.every(b => /GH₵/.test(b.getAttribute('data-v') || b.querySelector('.b')?.getAttribute('data-v') || '')));
+ok('the chart says the days are relative to each business date', gtext.includes("Days are relative to each property's business date"));
+
 if (failures.length) {
   console.error(`Properties preview check: ${failures.length} failed, ${passed} passed`);
   for (const failure of failures) console.error(`  ✗ ${failure}`);

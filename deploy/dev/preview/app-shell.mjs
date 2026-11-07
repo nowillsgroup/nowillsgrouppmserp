@@ -119,11 +119,24 @@ export function spriteSymbols() {
   return [...src.matchAll(/<symbol id="i-[a-z0-9-]+"[\s\S]*?<\/symbol>/g)].map(m => m[0].trim());
 }
 
+/** Does this item survive the sidebar's tests? Mirrors Blade's recursive $canSee. */
+function visibleInNav(item, state) {
+  if (item.employee === true) return false;
+  if ((state.hide || new Set()).has(item.label)) return false;
+  const children = item.children || [];
+  return children.length ? children.some(child => visibleInNav(child, state)) : true;
+}
+
 /** Mirrors resources/views/partials/sidebar-nav.blade.php. */
 export function renderNav(items, depth = 0, parentKey = '', state = { lastSection: null, activeKey: 'dashboard-overview' }) {
   let html = '';
   for (const item of items) {
     if (item.employee === true) continue; // only linked staff see these; the preview user is not linked
+    // v10.7 the sidebar now drops an item whose module the licence in force does not allow — and a
+    // heading whose children are all dropped goes with them, exactly as the Blade $canSee does — so a
+    // preview of a property that switched a module off must drop the same items (see sidebar-nav).
+    if ((state.hide || new Set()).has(item.label)) continue;
+    if ((item.children || []).length && !item.children.some(child => visibleInNav(child, state))) continue;
     const key = [parentKey, slug(item.label)].filter(Boolean).join('.');
     const children = item.children || [];
     const isGroup = children.length > 0;
@@ -308,7 +321,8 @@ document.addEventListener('keydown', e => {
 }
 
 /** The sidebar exactly as the layout renders it, plus the parsed menu. */
-export function nav() {
+export function nav(options = {}) {
   const menu = menuFromConfig();
-  return { menu, navHtml: renderNav(menu) };
+  const state = { lastSection: null, activeKey: 'dashboard-overview', hide: new Set(options.hide || []) };
+  return { menu, navHtml: renderNav(menu, 0, '', state) };
 }

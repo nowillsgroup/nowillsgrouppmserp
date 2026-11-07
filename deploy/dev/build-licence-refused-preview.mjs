@@ -29,7 +29,9 @@ const log = {
   failed: [], conditionsDefaulted: [], phpSkipped: [], unknownComponents: [], unknownDirectives: [], errors: [],
 };
 
-const { navHtml } = nav();
+// The consumer's sidebar no longer offers the module this page refuses — switching a module off
+// "hides its screens" — so the preview hides the same three items the property would not see.
+const { navHtml } = nav({ hide: ['Appointments', 'Services & Activities', 'Treatment Rooms'] });
 const sprite = spriteSymbols();
 const ctx = licenceRefusedContext();
 

@@ -5460,7 +5460,60 @@ ok('closed: 1, narrowed: 2' in read(os.path.join(ROOT, 'deploy/dev/preview/prope
 ok("ok('licence coverage is counted across the portfolio'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'and the preview check holds the register to the counts and every badge')
 
-split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
+# ── 35. the consolidated view is a preview, and no report reaches across properties (v10.7) ──
+gd_builder = read(os.path.join(ROOT, 'deploy/dev/build-group-dashboard-preview.mjs'))
+ok("section('group/dashboard', 'content'" in gd_builder
+   and "deploy/dev/previews/group-dashboard.html" in gd_builder,
+   'the consolidated dashboard is built from the real view, not drawn by hand')
+ok('groupDashboardContext' in gd_builder
+   and 'export function groupDashboardContext()' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'and its numbers come from the same fixture the register uses')
+ok("closed: new Coll([PROPERTIES[2]])" in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the fixture puts the closed property in the excluded list, so the exclusion can be seen and not just asserted')
+ok('rounded' not in gd_builder and "round(max(2, ($trend[$i] ?? 0) * 100 / max(1, max($trend ?: [0]))), 1)" in dash_view,
+   'each bar is one expression with no @php temporary, so the preview shows the chart the application draws')
+ok("pathname === '/group-dashboard'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the server opens the consolidated view by name')
+ok('href="/__preview/group-dashboard"' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the preview index lists it, because a preview nobody can find is not a preview')
+ok('build-group-dashboard-preview.mjs' in read(os.path.join(ROOT, 'deploy/dev/README.md')),
+   'the README says what it is and what it holds')
+ok("ok('the group dashboard is titled for the group'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js'))
+   and "ok('it adds up only the properties that can trade'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the check reads the rows that are there against the totals they make')
+
+# Reports: the v10.7 report named reports as a place closed properties might still be added up. They
+# are not, and the reason is structural rather than lucky — every figure in ReportController comes
+# from the current tenant's scope. Pinned here so a future "add the group's other hotels" edit has to
+# pass this check and think about licensing before it can.
+report_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php'))
+ok('Hotel::' not in report_ctrl,
+   'no report reaches across properties: every figure in ReportController is the current tenant\'s, so a shut property cannot be added into another property\'s total')
+ok('HotelGroup::orderBy(' not in report_ctrl and 'HotelGroup::whereIn(' in report_ctrl,
+   'and the one report that names groups names only the groups behind the properties the reader may open, not every tenant on the platform')
+ok("pluck('hotel_group_id')->filter()->unique()->values()" in report_ctrl
+   and 'Tenant::hotel()?->hotel_group_id' in report_ctrl,
+   'a scheduled run, which has no signed-in reader, is narrowed to the one tenant it was set to serve')
+ok("'closed' => $properties->filter(fn ($h) => $h->licenceIsEmpty())->count()" in report_ctrl,
+   'the register also counts the properties licensed for nothing — still the group\'s properties, but nobody can post in them')
+ok('Tenant::id()' in report_ctrl,
+   'the reports say whose numbers they are, out loud, in the code')
+
+# The sidebar is the third place the licence had not reached: a permitted user saw the screens of a
+# module switched off at this property, clicked, and met the refusal. The refusal page says a
+# switch-off "hides its screens", so the sidebar now hides them — user permission AND licence, both.
+sidebar_nav = read(os.path.join(ROOT, 'resources/views/partials/sidebar-nav.blade.php'))
+ok(r'\App\Services\LicenceService::licensed(trim($permission))' in sidebar_nav,
+   'the sidebar drops a screen the licence in force here does not allow, instead of offering it and refusing on the click')
+ok('$user->hasPermission(trim($permission))' in sidebar_nav and r'\App\Services\LicenceService::licensed(trim($permission))' in sidebar_nav,
+   'and it asks both questions of the same permission, so holding it is not enough on its own')
+ok("nav({ hide: ['Appointments', 'Services & Activities', 'Treatment Rooms'] })" in
+   read(os.path.join(ROOT, 'deploy/dev/build-licence-refused-preview.mjs')),
+   'the refusal preview shows the sidebar without the screens that refusal removes, because that is what the property sees')
+ok('function visibleInNav(item, state)' in read(os.path.join(ROOT, 'deploy/dev/preview/app-shell.mjs')),
+   'the preview mirrors the same rule, heading and all, so a module group whose children all vanish goes with them')
+
+split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".\'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
 

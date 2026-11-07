@@ -217,6 +217,46 @@ export function propertyShowContext() {
 }
 
 /**
+ * GroupDashboardController::index(): the consolidated view of the portfolio.
+ *
+ * v10.7 leaves a property licensed for nothing OUT of these numbers — it cannot post, and its rooms
+ * would flatten the group's occupancy — and names it above the totals instead. So the fixture has
+ * four rows and one closed property, which is exactly what the screen has to explain.
+ */
+export function groupDashboardContext() {
+  const helpers = propertiesContext().helpers;
+  const row = (hotel, o) => ({
+    hotel, business_date: o.date, rooms: o.rooms, total_rooms: o.rooms, occupied: o.occupied, occ: o.occ,
+    ooo: o.ooo ?? 0, dirty: o.dirty ?? 0, in_house: o.in_house, arrivals: o.arrivals, departures: o.departures,
+    rev_today: o.rev_today, rev_mtd: o.rev_mtd, room_rev_mtd: o.room_rev_mtd ?? 0, adr: o.adr,
+    collections: o.collections ?? 0, open_pos: o.open_pos ?? 0,
+  });
+
+  const trend = [42100, 39800, 45600, 51200, 48900, 53400, 60100, 58700, 55300, 61900, 64200, 59800, 63500, 41250];
+
+  return {
+    helpers: { ...helpers, max: (...values) => Math.max(...values.flat()) },
+    fallbacks: {},
+    scope: {
+      rows: new Coll([
+        row(PROPERTIES[0], { date: day('2026-11-07'), rooms: 96, occupied: 78, occ: 81.3, in_house: 61, arrivals: 14, departures: 9, rev_today: 38450, rev_mtd: 812400, room_rev_mtd: 611200, adr: 493, collections: 36700, open_pos: 3, dirty: 12, ooo: 2 }),
+        row(PROPERTIES[1], { date: day('2026-11-06'), rooms: 120, occupied: 103, occ: 85.8, in_house: 88, arrivals: 21, departures: 17, rev_today: 41250, rev_mtd: 946800, room_rev_mtd: 702300, adr: 401, collections: 45100, open_pos: 5, dirty: 6 }),
+        row(PROPERTIES[3], { date: day('2026-11-07'), rooms: 24, occupied: 0, occ: 0, in_house: 0, arrivals: 0, departures: 0, rev_today: 0, rev_mtd: 0, adr: 0, open_pos: 0 }),
+        row(PROPERTIES[4], { date: day('2026-09-30'), rooms: 40, occupied: 0, occ: 0, in_house: 0, arrivals: 0, departures: 0, rev_today: 0, rev_mtd: 0, adr: 0, open_pos: 0 }),
+      ]),
+      trend,
+      closed: new Coll([PROPERTIES[2]]),
+      group: GROUP,
+      currentHotel: PROPERTIES[0],
+      totals: {
+        occ: 62.5, occupied: 181, rooms: 240, rev_today: 79700, collections: 81800, rev_mtd: 1759200,
+        room_rev_mtd: 1313500, in_house: 149, arrivals: 35, departures: 26,
+      },
+    },
+  };
+}
+
+/**
  * v10.6 ModuleNotLicensed → errors/licence.blade.php: the refusal that explains itself.
  *
  * The interesting case is the one v10.3 could not say: the group holds the module and the property

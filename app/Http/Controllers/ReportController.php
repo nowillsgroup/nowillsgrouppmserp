@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PropertyAccessService;
 use App\Services\ShiftService;
 use App\Models\ActivityLog;
 use App\Models\BanquetEvent;
@@ -265,6 +266,7 @@ use App\Models\YieldRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Config-driven report engine. Every report returns columns + rows and is
@@ -481,7 +483,7 @@ class ReportController extends Controller
         'club_ticket_types' => ['Health Club & Spa', 'Club Ticket Type Register', 'Every club ticket type with category, price and active', 'none', 'club.view'],
         'spa_revenue' => ['Health Club & Spa', 'Spa & Activity Revenue', 'Appointments and revenue by service and therapist', 'range'],
         'ffe_reserve' => ['Hotel Group & Owner Reporting', 'FF&E Reserve Ledger & Capex', 'Reserve opening balance, contributions, interest, capex drawdowns and adjustments with a running balance, and each capital project\'s budget and spend', 'range', 'owner.view'],
-        'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'Every management group with affiliated hotel count', 'none', 'hotels.view'],
+        'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'The groups behind the properties you may open, each with its property and room counts and how many of its properties are licensed for nothing', 'none', 'hotels.view'],
         'hotel_kpis' => ['Hotel Group & Owner Reporting', 'Hotel KPIs by Month', 'Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied room, GOP and EBITDA margins, labour cost % and F&B cost %', 'range', 'owner.view'],
         'management_agreements' => ['Hotel Group & Owner Reporting', 'Management Agreement Register', 'Every hotel management agreement with fee structure', 'none', 'hotels.view'],
         'management_fees' => ['Hotel Group & Owner Reporting', 'Management Fee Calculation', 'Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the owner\'s priority, incentive fee, status and payment', 'range', 'owner.view'],
@@ -7396,12 +7398,30 @@ class ReportController extends Controller
     {
         // v10.0 reads the group account's real columns (identity, entitlement, live property count)
         // rather than the non-existent managementCompany relation and aggregates it used to guess at.
-        $rows = HotelGroup::orderBy('name')->get()->map(fn ($r) => [
-            'name' => $r->name, 'code' => $r->code, 'mc' => $r->managementCompanyName(),
-            'hotels' => $r->hotels()->notArchived()->count(), 'rooms' => $r->roomCount(), 'contact' => $r->contact_email,
-            'status' => $r->statusLabel(), 'description' => $r->description,
-        ]);
-        return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Hotels', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register.'];
+        //
+        // v10.7 the group IS the tenant boundary, so "every management group" was every tenant's
+        // group: a property administrator holding hotels.view could read the names, room counts and
+        // property counts of other companies running this software. The register now lists the groups
+        // the reader can actually reach — the ones behind the properties they may open — and a
+        // platform administrator, who may open them all, still sees them all.
+        $user = Auth::user();
+        $groupIds = $user
+            ? app(PropertyAccessService::class)->accessible($user)->pluck('hotel_group_id')->filter()->unique()->values()
+            // A scheduled run has no signed-in reader: it serves one tenant, set before the report
+            // runs, so that tenant's own group is the only group it may name.
+            : collect([\App\Support\Tenant::hotel()?->hotel_group_id])->filter()->unique()->values();
+
+        $rows = HotelGroup::whereIn('id', $groupIds->all())->orderBy('name')->get()->map(function ($r) {
+            $properties = $r->hotels()->notArchived()->get();
+            return [
+                'name' => $r->name, 'code' => $r->code, 'mc' => $r->managementCompanyName(),
+                'hotels' => $properties->count(),
+                'closed' => $properties->filter(fn ($h) => $h->licenceIsEmpty())->count(),
+                'rooms' => $r->roomCount(), 'contact' => $r->contact_email,
+                'status' => $r->statusLabel(), 'description' => $r->description,
+            ];
+        });
+        return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Properties', 'closed' => 'Nothing licensed', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register — the groups behind the properties you may open. \'Nothing licensed\' counts properties whose module licence is empty: they still belong to the group, but nobody can post in them.'];
     }
 
     protected function r_management_agreements($from, $to): array

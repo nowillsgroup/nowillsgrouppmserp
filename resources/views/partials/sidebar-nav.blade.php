@@ -44,7 +44,15 @@
           return true;
       }
 
-      return collect(explode(',', $item['perm']))->contains(fn ($permission) => $user->hasPermission(trim($permission)));
+      // v10.7 the sidebar hid nothing the licence had switched off: the permission test alone let the
+      // screens of an unlicensed module sit there and refuse on the click, while the refusal page
+      // says plainly that switching a module off "hides its screens". An item now stays only when
+      // the user holds a permission the licence in force here also allows — the module can be licensed
+      // on the group and switched off at this property, and both cases hide it.
+      return collect(explode(',', $item['perm']))->contains(
+          fn ($permission) => $user->hasPermission(trim($permission))
+              && \App\Services\LicenceService::licensed(trim($permission))
+      );
   };
   $lastSection = null;
 @endphp

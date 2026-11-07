@@ -48,10 +48,11 @@
   </table></div></div>
 
   <div class="card mt-2"><div class="card-head"><h3>Group revenue – last 14 days</h3></div><div class="card-body">
-    @php $max = max(1, max($trend ?: [0])); @endphp
+    {{-- One expression per bar, no @php temporaries: the same rule the preview renderer can read,
+         so the chart in the preview is the chart the application draws. --}}
     <div class="bar-chart" style="max-width:900px">
-      @for($i = 0; $i < 14; $i++) @php $v = $trend[$i] ?? 0; @endphp
-        <div class="col"><div class="b" style="height: {{ max(2, $v / $max * 100) }}%" data-v="{{ money($v) }}"></div><small>{{ $i === 13 ? 'Today' : '-'.(13 - $i) }}</small></div>
+      @for($i = 0; $i < 14; $i++)
+        <div class="col"><div class="b" style="height: {{ round(max(2, ($trend[$i] ?? 0) * 100 / max(1, max($trend ?: [0]))), 1) }}%" data-v="{{ money($trend[$i] ?? 0) }}"></div><small>{{ $i === 13 ? 'Today' : '-'.(13 - $i) }}</small></div>
       @endfor
     </div>
     <p class="tiny muted mt-1">Net revenue (room + F&amp;B + other, before tax). Days are relative to each property's business date. Amounts assume a common currency.</p>

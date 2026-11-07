@@ -322,6 +322,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/property-show.html'); // v10.0 one property's own page
   } else if (pathname === '/group-account' || pathname === '/__preview/group-account') {
     file = resolve(ROOT, 'deploy/dev/previews/group-account.html'); // v10.0 the tenant account
+  } else if (pathname === '/group-dashboard' || pathname === '/__preview/group-dashboard') {
+    file = resolve(ROOT, 'deploy/dev/previews/group-dashboard.html'); // v10.7 the consolidated view, closed property named
   } else if (pathname === '/licence-refused' || pathname === '/__preview/licence-refused') {
     file = resolve(ROOT, 'deploy/dev/previews/licence-refused.html'); // v10.6 the refusal that explains itself
   } else if (pathname === '/group-people' || pathname === '/__preview/group-people') {
