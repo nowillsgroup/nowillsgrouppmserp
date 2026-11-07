@@ -87,6 +87,20 @@ ok('it can be saved as a view', [...doc.querySelectorAll('a,button')].some(el =>
 ok('and e-mailed on a schedule', [...doc.querySelectorAll('a,button')].some(el => /schedule/i.test(clean(el))));
 ok('the other group reports are offered beside it', text.includes('Hotel Group Register') && text.includes('Hotel KPIs by Month'));
 
+/* ── the slices: the same report for a brand or for a city (v10.10) ─────────── */
+const slices = [...doc.querySelectorAll('[data-testid="report-slices"] .rpt-chip')];
+const sliceText = a => clean(a);
+
+ok('the report can be sliced, not only read whole', slices.length === 8, `${slices.length} chips`);
+ok('the whole portfolio is the slice that is on', slices[0].classList.contains('is-on') && slices[0].getAttribute('aria-pressed') === 'true');
+ok('a brand slice is a link of its own', slices.some(a => /slice=brand&value=The%20Grove/.test(a.getAttribute('href') || '')));
+ok('a city slice is a link of its own', slices.some(a => /slice=city&value=Takoradi/.test(a.getAttribute('href') || '')));
+ok('every slice stays this report', slices.every(a => (a.getAttribute('href') || '').startsWith('/reports/group_operating_summary')));
+ok('every slice says how many properties it holds', slices.every(a => /\d+$/.test(sliceText(a))), slices.map(sliceText).join(' | '));
+ok('the slice counts the properties you may open, shut one included', sliceText(slices[0]).endsWith('5'), sliceText(slices[0]));
+ok('so the shut property has a slice of its own to explain itself in', slices.some(a => /^Kumasi 1$/.test(sliceText(a))));
+ok('the chips are kept off the print sheet', doc.querySelector('[data-testid="report-slices"]').classList.contains('no-print'));
+
 if (failures.length) {
   console.error(`Consolidated report preview check: ${failures.length} failed, ${passed} passed`);
   for (const failure of failures) console.error(`  ✗ ${failure}`);

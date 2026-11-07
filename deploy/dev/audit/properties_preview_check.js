@@ -272,6 +272,13 @@ ok('the sidebar carries the register', [...rdoc.querySelectorAll('nav a')].some(
 ok('the register links to the group account', [...rdoc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('group-account')));
 ok('the register can open a new property', [...rdoc.querySelectorAll('a')].some(a => (a.getAttribute('href') || '').includes('properties-create')));
 
+/* ── the register as a file (v10.10) ────────────────────────────────────────── */
+const csv = [...rdoc.querySelectorAll('#actions a, .topbar-actions a, a')].find(a => /Export CSV/.test(a.textContent));
+ok('the register can be exported, not only read', Boolean(csv), 'no export link');
+// the preview resolves route names to slugs, the way the other links on this page resolve
+ok('the export link goes to the register\'s own export', (csv?.getAttribute('href') || '').includes('properties-export'), csv?.getAttribute('href'));
+ok('it carries no query string of its own, so the filters on screen are the ones exported', !(csv?.getAttribute('href') || '').includes('?'));
+
 /* ── the consolidated group dashboard ───────────────────────────────────────── */
 const gd = new JSDOM(read('deploy/dev/previews/group-dashboard.html'), { url: 'https://preview.local/group-dashboard' });
 const g = gd.window.document;

@@ -363,6 +363,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
        check in the controller, so a property administrator can never edit a sibling property. */
     Route::prefix('properties')->name('properties.')->controller(Controllers\PropertyController::class)->group(function () {
         Route::get('/', 'index')->middleware('perm:properties.view')->name('index');
+        // v10.10 the register as a file: same rows, same filters, same licence coverage as the screen
+        Route::get('/export', 'export')->middleware('perm:properties.view')->name('export');
         Route::get('/new', 'create')->middleware('perm:properties.manage')->name('create');
         Route::post('/', 'store')->middleware('perm:properties.manage')->name('store');
         Route::get('/{hotel}', 'show')->whereNumber('hotel')->middleware('perm:properties.view')->name('show');

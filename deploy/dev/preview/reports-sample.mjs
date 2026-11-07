@@ -403,6 +403,18 @@ export function reportsConsolidatedContext() {
       data: {
         cols,
         rows,
+        // v10.10 the report can be sliced by brand and by city; the slices are links, so each one is a
+        // URL that can be bookmarked, printed and scheduled like any other state of the report.
+        choices: [
+          { label: 'All properties', url: '/reports/group_operating_summary', count: 5, active: true },
+          { label: 'The Grove', url: '/reports/group_operating_summary?slice=brand&value=The%20Grove', count: 2, active: false },
+          { label: 'Nowills', url: '/reports/group_operating_summary?slice=brand&value=Nowills', count: 2, active: false },
+          { label: 'Accra', url: '/reports/group_operating_summary?slice=city&value=Accra', count: 1, active: false },
+          { label: 'Takoradi', url: '/reports/group_operating_summary?slice=city&value=Takoradi', count: 1, active: false },
+          { label: 'Cape Coast', url: '/reports/group_operating_summary?slice=city&value=Cape%20Coast', count: 1, active: false },
+          { label: 'Tamale', url: '/reports/group_operating_summary?slice=city&value=Tamale', count: 1, active: false },
+          { label: 'Kumasi', url: '/reports/group_operating_summary?slice=city&value=Kumasi', count: 1, active: false },
+        ],
         money: ['rev_today', 'adr', 'rev_mtd', 'collections'],
         sum: ['rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
         summary: {

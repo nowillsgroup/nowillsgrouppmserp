@@ -32,6 +32,19 @@
   @endif
   <a class="rpt-context-link no-print" href="{{ route('reports.index') }}">← All reports</a>
 </div>
+{{-- v10.10 a report may offer slices of its own scope — the group's report offers brand and city.
+     They are links, so a slice can be bookmarked, printed and e-mailed like any other state of the
+     report, and the chip that is on says which slice the figures below answer for. --}}
+@if(!empty($data['choices']))
+<div class="rpt-chips no-print" role="group" aria-label="Restrict this report" data-testid="report-slices">
+  <span class="small muted"><x-icon name="list"/> Show:</span>
+  @foreach($data['choices'] as $choice)
+    <a class="rpt-chip {{ !empty($choice['active']) ? 'is-on' : '' }}" href="{{ $choice['url'] }}"
+       aria-pressed="{{ !empty($choice['active']) ? 'true' : 'false' }}"
+       @if(!empty($choice['active'])) aria-current="true" @endif>{{ $choice['label'] }} <span>{{ $choice['count'] }}</span></a>
+  @endforeach
+</div>
+@endif
 @if($views->count() || $activeView)
 <div class="card no-print" data-testid="saved-views"><div class="card-body flex gap-1 wrap" style="align-items:center">
   <span class="small muted"><x-icon name="star"/> Saved views:</span>

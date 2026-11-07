@@ -33,6 +33,61 @@ class PropertyController extends Controller
 
     public function index(Request $request)
     {
+        $register = $this->register($request);
+
+        return view('properties.index', $register + ['currentHotel' => hotel()]);
+    }
+
+    /**
+     * v10.10 the register as a file.
+     *
+     * The screen was the only way to read these figures, so an operator who wanted them in a
+     * spreadsheet opened five property pages and retyped. This is the same rows, the same filters and
+     * the same licence coverage as the screen — not a separate query that could disagree with it — and
+     * the header line says which filter produced the file, because a download with no date and no
+     * scope is the kind of attachment nobody trusts a month later.
+     */
+    public function export(Request $request)
+    {
+        $register = $this->register($request);
+        $filters = $register['filters'];
+        $scope = array_filter(['q' => $filters['q'], 'status' => $filters['status'], 'group' => $filters['group']], fn ($v) => $v !== '' && $v !== null);
+
+        $name = 'properties_'.bdate()->format('Ymd').($scope ? '_filtered' : '').'.csv';
+
+        return response()->streamDownload(function () use ($register, $scope) {
+            $out = fopen('php://output', 'w');
+
+            // A filter that was on is named in the file itself, not left in the URL it came from.
+            if ($scope) {
+                fputcsv($out, ['Filtered register: '.collect($scope)->map(fn ($v, $k) => $k.'='.$v)->implode(' · ')]);
+            }
+
+            fputcsv($out, ['Property', 'Hotel ID', 'Type', 'Brand', 'City', 'State', 'Group', 'Business date',
+                'Sellable rooms', 'Occupied', 'Occupancy %', 'In-house rooms', 'Staff', 'Open POS',
+                'Night audit behind', 'Licence']);
+
+            foreach ($register['rows'] as $r) {
+                /** @var Hotel $p */
+                $p = $r['hotel'];
+                fputcsv($out, [
+                    $p->name, $p->code, ucwords(str_replace('_', ' ', (string) $p->property_type)), $p->brand, $p->city,
+                    Hotel::STATUSES[$p->status ?? 'active'] ?? $p->status, $p->group?->name,
+                    $r['business_date']?->format('Y-m-d'),
+                    $r['rooms'], $r['occupied'], $r['occ'], $r['in_house'], $r['staff'], $r['open_pos'],
+                    $r['needs_night_audit'] ? 'Yes ('.$r['lag'].' day'.($r['lag'] === 1 ? '' : 's').')' : 'No',
+                    $r['licence']['closed'] ? 'Nothing licensed'
+                        : ($r['licence']['narrowed'] ? $r['licence']['keep'].' of '.$r['licence']['of'].' modules' : 'Follows the group'),
+                ]);
+            }
+
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    /** The rows, the totals and the filters behind them — read once, by the screen and by the file. */
+    protected function register(Request $request): array
+    {
         $user = $request->user();
         $all = $user->accessibleProperties();
 
@@ -53,17 +108,15 @@ class PropertyController extends Controller
         }
 
         $rows = $this->health->rows($all->values());
-        $sum = $this->health->summarise($rows);
 
-        return view('properties.index', [
+        return [
             'rows' => $rows,
-            'summary' => $sum,
+            'summary' => $this->health->summarise($rows),
             'statuses' => Hotel::STATUSES,
             'filters' => ['q' => $q, 'status' => $status, 'group' => $groupId ?: null],
             'groups' => $this->visibleGroups($user),
             'canAdd' => $this->groupsThatCanAdd($user),
-            'currentHotel' => hotel(),
-        ]);
+        ];
     }
 
     public function show(Request $request, Hotel $hotel)

@@ -5553,6 +5553,47 @@ ok("ok('the total line adds the rooms'" in read(os.path.join(ROOT, 'deploy/dev/a
    and "ok('it does not add occupancies together'" in read(os.path.join(ROOT, 'deploy/dev/audit/reports_consolidated_preview_check.js')),
    'and the preview check holds the totals to the rows and the ratios out of them')
 
+# ── 37. slices of a portfolio, and a register that can leave the screen (v10.10) ─────────────────
+prop_ctrl2 = read(os.path.join(ROOT, 'app/Http/Controllers/PropertyController.php'))
+routes_src2 = read(os.path.join(ROOT, 'routes/web.php'))
+show_view = read(os.path.join(ROOT, 'resources/views/reports/show.blade.php'))
+reg_view2 = read(os.path.join(ROOT, 'resources/views/properties/index.blade.php'))
+
+ok('public function export(Request $request)' in prop_ctrl2
+   and "'properties.export'" not in prop_ctrl2
+   and "Route::get('/export', 'export')->middleware('perm:properties.view')->name('export');" in routes_src2,
+   'the register has a CSV route, gated on the same permission as the screen it exports')
+ok(prop_ctrl2.count('$this->register($request)') == 2
+   and 'protected function register(Request $request): array' in prop_ctrl2,
+   'and the file and the screen are built by one method, so a filter cannot apply to one and not the other')
+ok("fputcsv($out, ['Property', 'Hotel ID', 'Type', 'Brand', 'City'" in prop_ctrl2
+   and "'Night audit behind', 'Licence']" in prop_ctrl2,
+   'the file carries every column the screen shows, including the licence coverage')
+ok("$r['licence']['closed'] ? 'Nothing licensed'" in prop_ctrl2,
+   'and states a closed property as closed rather than leaving the cell blank to be guessed at')
+ok("'Filtered register: '.collect($scope)" in prop_ctrl2,
+   'a filtered download names the filter inside the file, not only in the URL it came from')
+ok('Export CSV' in reg_view2 and "route('properties.export', array_filter($filters))" in reg_view2,
+   'the button carries the filters that are on, so the file is the screen')
+
+ok("$slice = in_array($dimension, ['brand', 'city'], true)" in report_ctrl
+   and "$hotels->filter(fn ($h) => (string) ($slice[0] === 'brand' ? $h->brand : $h->city) === $slice[1])" in report_ctrl,
+   'the consolidated report can be narrowed to a brand or a city, and to nothing else that a typo could invent')
+ok("'choices' => $choices," in report_ctrl and "'url' => request()->fullUrlWithQuery(['slice' => $field" in report_ctrl,
+   'each slice is a URL, so a slice can be bookmarked, printed and e-mailed like any other state')
+ok("'count' => $portfolio->count()" in report_ctrl and "'label' => 'All properties'" in report_ctrl,
+   'and each chip counts the properties it will read — the shut one included, which then names itself in the note')
+ok("Showing '.$slice[1].' — '.$hotels->count().' of '.$portfolio->count()" in report_ctrl,
+   'the note says which slice the figures answer for, so a printed page cannot be misread as the whole group')
+ok("!empty($data['choices'])" in show_view and 'data-testid="report-slices"' in show_view
+   and 'class="rpt-chips no-print"' in show_view,
+   'the report screen draws them from the data, and keeps them off the print sheet')
+ok("['group_operating_summary', 'Consolidated Operating Summary'" in read(os.path.join(ROOT, 'deploy/dev/preview/reports-sample.mjs'))
+   and "slice=brand&value=The%20Grove" in read(os.path.join(ROOT, 'deploy/dev/preview/reports-sample.mjs')),
+   'the preview shows the slices, so the control is seen and not only described')
+
+split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".\'")]

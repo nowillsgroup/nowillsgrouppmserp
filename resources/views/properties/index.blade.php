@@ -2,6 +2,7 @@
 @section('title', 'Properties')
 @section('crumbs'){{ $filters['group'] ? 'Group account' : 'Portfolio' }} / Property register@endsection
 @section('actions')
+  <a class="btn" href="{{ route('properties.export', array_filter($filters)) }}"><x-icon name="download" size="sm"/> Export CSV</a>
   @if($canAdd->isNotEmpty())<a class="btn btn-primary" href="{{ route('properties.create', array_filter(['group' => $filters['group']])) }}"><x-icon name="plus" size="sm"/> Open a property</a>@endif
   @if(can_do('properties.manage'))<a class="btn" href="{{ route('group.account', array_filter(['group' => $filters['group']])) }}"><x-icon name="layers" size="sm"/> Group account</a>@endif
 @endsection

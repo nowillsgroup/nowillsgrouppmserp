@@ -7411,6 +7411,29 @@ class ReportController extends Controller
             : collect([\App\Support\Tenant::hotel()])->filter()
                 ->flatMap(fn ($h) => $h->group ? $h->group->hotels()->notArchived()->get() : [$h]);
 
+        // v10.10 the portfolio can be sliced: a region or a brand wants its own line of this report, and
+        // asking for "all of it" was the only thing the screen could do. The slice is a query parameter,
+        // so a slice is a URL — bookmarked, printed and scheduled like any other state of a report.
+        $dimension = (string) request()->query('slice');
+        $value = (string) request()->query('value');
+        $slice = in_array($dimension, ['brand', 'city'], true) && $value !== '' ? [$dimension, $value] : null;
+        $portfolio = $hotels;
+
+        if ($slice) {
+            $hotels = $hotels->filter(fn ($h) => (string) ($slice[0] === 'brand' ? $h->brand : $h->city) === $slice[1])->values();
+        }
+
+        $choices = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => null, 'value' => null]),
+            'count' => $portfolio->count(), 'active' => $slice === null]];
+
+        foreach (['brand' => 'Brand', 'city' => 'City'] as $field => $label) {
+            foreach ($portfolio->pluck($field)->filter()->unique()->sort()->values() as $name) {
+                $choices[] = ['label' => (string) $name, 'url' => request()->fullUrlWithQuery(['slice' => $field, 'value' => $name]),
+                    'count' => $portfolio->filter(fn ($h) => (string) $h->{$field} === (string) $name)->count(),
+                    'active' => $slice === [$field, (string) $name]];
+            }
+        }
+
         $metrics = app(\App\Services\GroupMetricsService::class);
         $rows = collect();
         $closed = [];
@@ -7459,7 +7482,10 @@ class ReportController extends Controller
                 'Revenue MTD' => (float) $rows->sum('rev_mtd'),
                 'Properties shut' => (string) count($closed),
             ],
+            'choices' => $choices,
             'note' => 'Each property is read on its own business date, in its own books.'
+                .($slice ? ' Showing '.$slice[1].' — '.$hotels->count().' of '.$portfolio->count()
+                    .' properties you may open; the chip above puts the rest back in.' : '')
                 .($closed === [] ? '' : ' Not in these totals, because nobody can post there: '
                     .implode(', ', array_map(fn ($h) => $h->name.' ('.$h->code.')', $closed))
                     .'. Its history is untouched — licensing a module again puts it straight back in this report.'),
