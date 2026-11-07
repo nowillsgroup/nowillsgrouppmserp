@@ -1627,6 +1627,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/{event}/refund', 'refund')->middleware('perm:banquet.billing')->name('refund');
         Route::post('/{event}/bill', 'bill')->middleware('perm:banquet.billing')->name('bill');
         Route::get('/{event}/print', 'print')->middleware('perm:banquet.view')->name('print');
+        Route::get('/{event}/menu', 'menu')->middleware('perm:banquet.view')->name('menu');
         Route::get('/{event}/quote', 'quote')->middleware('perm:banquet.view')->name('quote');
     });
 

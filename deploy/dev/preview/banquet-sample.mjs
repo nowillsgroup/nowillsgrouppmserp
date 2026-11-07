@@ -86,13 +86,30 @@ export const HALLS = [
 
 /** Menu packages, grouped on the form by type. min_pax is the package's own floor. */
 export const PACKAGES = [
-  { id: 11, name: 'Gold Buffet', type: 'buffet', price_per_pax: 320, min_pax: 50, tax_rate: 21, sort: 1 },
-  { id: 12, name: 'Silver Buffet', type: 'buffet', price_per_pax: 260, min_pax: 40, tax_rate: 21, sort: 2 },
-  { id: 13, name: 'Plated three-course', type: 'plated', price_per_pax: 385, min_pax: 30, tax_rate: 21, sort: 3 },
-  { id: 14, name: 'Plated four-course', type: 'plated', price_per_pax: 460, min_pax: 30, tax_rate: 21, sort: 4 },
-  { id: 15, name: 'Cocktail reception', type: 'cocktail', price_per_pax: 210, min_pax: 60, tax_rate: 21, sort: 5 },
-  { id: 16, name: 'Coffee break', type: 'coffee', price_per_pax: 65, min_pax: 20, tax_rate: 21, sort: 6 },
-  { id: 17, name: 'Gala dinner', type: 'plated', price_per_pax: 520, min_pax: 80, tax_rate: 21, sort: 7 },
+  { id: 11, name: 'Gold Buffet', type: 'buffet', price_per_pax: 320, min_pax: 50, tax_rate: 21, sort: 1,
+    // What BanquetPackage::items holds in the database: one dish or inclusion per line.
+    items: [
+      'Jollof rice with grilled chicken',
+      'Fried rice with beef in oyster sauce',
+      'Banku and grilled tilapia with pepper relish',
+      'Waakye with shito, egg and gari',
+      'Assorted salads and coleslaw',
+      'Kelewele and plantain chips',
+      'Seasonal fruit platter',
+      'Chocolate mousse and petits fours',
+    ] },
+  { id: 12, name: 'Silver Buffet', type: 'buffet', price_per_pax: 260, min_pax: 40, tax_rate: 21, sort: 2,
+    items: ['Jollof rice with chicken', 'Fried plantain', 'Garden salad', 'Seasonal fruit', 'Soft drink'] },
+  { id: 13, name: 'Plated three-course', type: 'plated', price_per_pax: 385, min_pax: 30, tax_rate: 21, sort: 3,
+    items: ['Starter — smoked mackerel and avocado', 'Main — grilled guinea fowl, jollof and steamed vegetables', 'Dessert — coconut panna cotta'] },
+  { id: 14, name: 'Plated four-course', type: 'plated', price_per_pax: 460, min_pax: 30, tax_rate: 21, sort: 4,
+    items: ['Starter — prawn and mango salad', 'Soup — groundnut and chicken', 'Main — braised lamb, spiced rice and greens', 'Dessert — chocolate fondant'] },
+  { id: 15, name: 'Cocktail reception', type: 'cocktail', price_per_pax: 210, min_pax: 60, tax_rate: 21, sort: 5,
+    items: ['Chicken satay skewers', 'Mini meat pies and spring rolls', 'Prawn tartlets', 'Vegetable samosas', 'Sobolo and hibiscus coolers'] },
+  { id: 16, name: 'Coffee break', type: 'coffee', price_per_pax: 65, min_pax: 20, tax_rate: 21, sort: 6,
+    items: ['Coffee and tea station', 'Assorted pastries', 'Fruit skewers', 'Bottled water and juice'] },
+  { id: 17, name: 'Gala dinner', type: 'plated', price_per_pax: 520, min_pax: 80, tax_rate: 21, sort: 7,
+    items: ['Starter — seared scallops', 'Main — beef fillet with truffle mash', 'Dessert — gold-leaf chocolate torte', 'Petits fours and coffee'] },
 ];
 
 /** Extras: audio-visual, décor, entertainment, furniture, staffing. */
@@ -200,7 +217,7 @@ export function banquetContext(mode = 'new') {
   const event = mode === 'edit' ? { ...EDIT_EVENT } : { ...blankEvent };
   const functions = FUNCTION_SPECS[mode]();
   const halls = Coll.of(HALLS.map(hall => ({ id: hall.id, name: hall.name })));
-  const packages = Coll.of(PACKAGES.map(pkg => ({ ...pkg })));
+  const packages = Coll.of(PACKAGES.map(pkg => ({ ...pkg, itemList: () => (pkg.items ?? []) })));
   const services = Coll.of(SERVICES.map(svc => ({ ...svc })));
   const halfDayHours = 5;
   const hallTax = 21;

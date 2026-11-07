@@ -335,6 +335,31 @@ class BanquetController extends Controller
         return view('banquet.print', ['e' => $event, 'hotel' => Tenant::hotel(), 'deposits' => $event->depositsReceived()]);
     }
 
+    /**
+     * The production side of the booking: one function per page, the dishes to cook,
+     * the covers to cook for, and no money anywhere on it.
+     */
+    public function menu(Request $request, BanquetEvent $event)
+    {
+        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'company', 'salesUser');
+
+        $focus = $request->integer('function');
+        $fns = $event->functions
+            ->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time)
+            ->values();
+
+        if ($focus > 0) {
+            $fns = $fns->where('id', $focus)->values();
+        }
+
+        return view('banquet.menu', [
+            'e' => $event, 'fns' => $fns, 'focus' => $focus, 'hotel' => Tenant::hotel(),
+            // the cover summary the sheet opens with: booked guests, and the overset the kitchen cooks to
+            'expectedTotal' => (int) $fns->sum(fn ($f) => (int) ($f->guaranteed_pax ?? $f->expected_pax)),
+            'cookTotal' => (int) $fns->sum(fn ($f) => $f->billablePax() > 0 ? (int) ceil($f->billablePax() * 1.05) : 0),
+        ]);
+    }
+
     public function quote(BanquetEvent $event)
     {
         $event->load('functions.items', 'functions.hall', 'functions.package', 'company', 'salesUser');

@@ -110,6 +110,7 @@
             <div class="function-time"><span class="metric-label">Function time</span><b><time datetime="{{ $f->date->toDateString() }}T{{ substr($f->start_time, 0, 5) }}">{{ $f->timeRange() }}</time></b><small>{{ $f->date->format('D d M') }}</small></div>
             <div class="function-identity">
               <a class="function-ref" href="{{ route('banquet.show', $f->event) }}" target="_blank" rel="noopener" aria-label="Open banquet record {{ $f->event->event_no }} in a new tab">{{ $f->event->event_no }}</a>
+              <a class="function-ref" href="{{ route('banquet.menu', ['event' => $f->event, 'function' => $f->id]) }}" target="_blank" rel="noopener" aria-label="Open the kitchen menu for {{ $f->name }} in a new tab">Menu</a>
               <div class="function-status-line"><span class="status-badge {{ $status }}">{{ str_replace('_', ' ', $status) }}</span><span class="function-type">{{ $eventType }}</span>@if($status === 'tentative')<span class="option-deadline {{ $optionExpired ? 'is-expired' : '' }}">{{ $optionExpired ? 'Option expired' : 'Option expires' }} · {{ $f->event->option_date?->format('d M Y') ?? 'date not set' }}</span>@endif</div>
               <h2 id="sheetFunction{{ $f->id }}">{{ $functionName }}</h2>
               <p>{{ $eventTitle }}</p>

@@ -6,6 +6,7 @@
 <span id="evStatus">{!! $e->statusBadge() !!}</span>
 <a class="btn" href="{{ route('banquet.quote', $e) }}" target="_blank" rel="noopener" id="quoteBtn" aria-label="Open {{ strtolower($quoteActionLabel) }} for {{ $e->event_no }} in a new tab"><x-icon name="receipt"/> {{ $quoteActionLabel }}</a>
 <a class="btn" href="{{ route('banquet.print', $e) }}" target="_blank" rel="noopener" id="beoBtn" aria-label="Open function sheet for {{ $e->event_no }} in a new tab"><x-icon name="print"/> BEO</a>
+<a class="btn" href="{{ route('banquet.menu', $e) }}" target="_blank" rel="noopener" id="menuBtn" aria-label="Open the kitchen menu sheet for {{ $e->event_no }} in a new tab"><x-icon name="cup"/> Kitchen menu</a>
 @if(can_do('banquet.manage'))
   @if($e->isEditable())<a class="btn" href="{{ route('banquet.edit', $e) }}" id="editEvent"><x-icon name="edit"/> Edit</a>@endif
   @if(in_array($e->status, ['enquiry', 'tentative']))
