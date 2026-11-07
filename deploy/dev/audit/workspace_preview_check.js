@@ -204,6 +204,33 @@ ok('what is left is room, state, guest and the action',
   ['room', 'status', 'guest', 'action'].every(col =>
     !new RegExp(`\\[data-col="${col}"\\][^{}]*\\{[^}]*display:none`).test(wsStyle)),
   'the four columns a room is on this screen are never hidden');
+// v10.18 the sort lives on columns that retreat, so the order is stated where it cannot be hidden — and the
+// statement is the control: activate to reverse, clear to return to room order.
+const sortChip = $('#wsRackSortState');
+ok('the rack states its order outside the columns',
+  Boolean(sortChip) && sortChip.getAttribute('role') === 'status' && sortChip.hasAttribute('aria-live')
+    && sortChip.hasAttribute('hidden'),
+  `${sortChip?.tagName} role=${sortChip?.getAttribute('role')} hidden=${sortChip?.hasAttribute('hidden')}`);
+ok('and the statement is rendered by the screen, not baked in',
+  /function renderSortState\(\)/.test(rackScript)
+    && /renderSortState\(\);/.test(rackScript)
+    && /chip\.append\(toggle, clear\)/.test(rackScript),
+  'a toggle and a way back to room order');
+ok('it reverses and clears from the chip itself',
+  /toggle\.textContent = `Sorted: \$\{label\} \$\{arrow\}`/.test(rackScript)
+    && /applyRackSort\(rackSort\.key, rackSort\.dir === 'asc' \? 'desc' : 'asc'\)/.test(rackScript)
+    && /applyRackSort\(null, null\)/.test(rackScript),
+  'the order that survives the fold is also the control');
+ok('it hides when there is no order to state, and outside the rack',
+  /\.ws-rack-sortstate\[hidden\]\{display:none\}/.test(wsStyle)
+    && /if \(!rackSort \|\| !inRack\) \{ chip\.hidden = true; return; \}/.test(rackScript),
+  'board view does not carry a rack order');
+ok('printing gives the board its own count instead of the screen\'s',
+  /@media print\{[\s\S]{0,900}\.ws-grid,\.ws-group-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/.test(wsStyle),
+  wsStyle.match(/@media print\{[\s\S]{0,220}/)?.[0]?.replace(/\s+/g, ' '));
+ok('and the sheet leaves the sort chip and the action rows off the paper',
+  /@media print\{[\s\S]{0,200}\.ws-rack-sortstate\{display:none!important\}/.test(wsStyle),
+  'three across, no screen controls');
 ok('the grouped board answers to the same container',
   /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',

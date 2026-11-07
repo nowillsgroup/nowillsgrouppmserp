@@ -408,6 +408,13 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-table th{padding:0;border-bottom:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:10px;font-weight:800;letter-spacing:.07em;text-align:left;text-transform:uppercase;white-space:nowrap}
 .ws-rack-table th.num{text-align:right}
 .ws-rack-sort{display:block;width:100%;padding:10px 12px;border:0;background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-align:inherit;text-transform:inherit;cursor:pointer}
+/* v10.18 the order of the rack, stated where the columns cannot take it away */
+.ws-rack-sortstate{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 6px 2px 9px;border:1px solid #d1e7d7;border-radius:999px;background:#f5fbf6;color:#14532d;font-size:10.5px;font-weight:700;white-space:nowrap}
+.ws-rack-sortstate[hidden]{display:none}
+.ws-sortstate-toggle,.ws-sortstate-clear{padding:2px 7px;border:1px solid #bbf7d0;border-radius:999px;background:#fff;color:#166534;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.ws-sortstate-toggle{border-color:transparent;background:transparent;padding-left:0}
+.ws-sortstate-toggle:hover,.ws-sortstate-clear:hover{background:#ecfdf3;border-color:#86c79b;color:#14532d}
+.ws-sortstate-toggle:focus-visible,.ws-sortstate-clear:focus-visible{outline:2px solid #15803d;outline-offset:1px}
 .ws-rack-table th.num .ws-rack-sort{text-align:right}
 .ws-rack-sort:hover{background:#f0fdf4;color:#14532d}
 .ws-rack-sort:focus-visible{outline:2px solid #15803d;outline-offset:-2px}
@@ -499,7 +506,12 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-head-stat{flex:1 1 auto;justify-content:center}
 }
 @media print{
-  .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys{display:none!important}
+  .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys,.ws-rack-sortstate{display:none!important}
+  /* v10.18 paper has its own width: without this the sheet inherited whatever the screen's container said,
+     so printing from a wide window put five 150px cards on A4 and printing from a narrow one put two. Three
+     across is what a portrait sheet holds at a size the room number and the guest are still readable at. */
+  .ws-grid,.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px}
+  .ws-body{display:block}
   .ws-body{grid-template-columns:1fr}
   .ws-main{grid-column:1/-1}
   .ws-head{box-shadow:none;background:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3743,6 +3755,8 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <option value="status">Status</option>
       </select>
       </label>
+  
+      <span class="ws-rack-sortstate" id="wsRackSortState" role="status" aria-live="polite" hidden></span>
       <span class="ws-keys" aria-hidden="true"><kbd>/</kbd> search <kbd>B</kbd> board <kbd>R</kbd> rack <kbd>G</kbd> group</span>
       </div>
       </div>
@@ -6656,6 +6670,34 @@ body.dark a.ws-attention-row:hover{background:#193525}
     if (savedKey && (savedDir === 'asc' || savedDir === 'desc')) rackSort = { key: savedKey, dir: savedDir };
   } catch (error) { /* private mode */ }
 
+  /* v10.18 the column a rack is sorted by may not be on the screen: nights and balance go first at 840px,
+     then type and housekeeping at 720, then rate at 520. The order is therefore stated in the toolbar, and
+     the statement is the control — activate it to reverse, or clear it to go back to room order. */
+  function renderSortState() {
+    const chip = document.getElementById('wsRackSortState');
+    if (!chip) return;
+    chip.textContent = '';
+    const inRack = activeView === 'rack';
+    if (!rackSort || !inRack) { chip.hidden = true; return; }
+    const source = document.querySelector(`.ws-rack-sort[data-ws-sort="${rackSort.key}"]`);
+    const label = (source?.textContent || rackSort.key).trim();
+    const arrow = rackSort.dir === 'asc' ? '↑' : '↓';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'ws-sortstate-toggle';
+    toggle.textContent = `Sorted: ${label} ${arrow}`;
+    toggle.setAttribute('aria-label', `Sorted by ${label}, ${rackSort.dir === 'asc' ? 'ascending' : 'descending'}. Activate to reverse the order.`);
+    toggle.addEventListener('click', () => applyRackSort(rackSort.key, rackSort.dir === 'asc' ? 'desc' : 'asc'));
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'ws-sortstate-clear';
+    clear.textContent = 'Room order';
+    clear.setAttribute('aria-label', 'Clear the sort and go back to room order');
+    clear.addEventListener('click', () => applyRackSort(null, null));
+    chip.append(toggle, clear);
+    chip.hidden = false;
+  }
+
   function applyRackSort(key, dir) {
     rackSort = key ? { key, dir } : null;
     document.querySelectorAll('.ws-rack-table th').forEach(cell => cell.removeAttribute('aria-sort'));
@@ -6668,6 +6710,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       if (rackSort) sessionStorage.setItem('wsSort', `${rackSort.key}:${rackSort.dir}`);
       else sessionStorage.removeItem('wsSort');
     } catch (error) { /* private mode */ }
+    renderSortState();
   }
 
   function sortRack(key, dir) {
@@ -6715,6 +6758,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       button.tabIndex = on ? 0 : -1;
     });
     if (groupSelect) groupSelect.disabled = isRack;
+    renderSortState();
     syncUrlParam('view', isRack ? 'rack' : '');
     applyWsFilters();
     try { sessionStorage.setItem('wsView', activeView); } catch (error) { /* private mode */ }
