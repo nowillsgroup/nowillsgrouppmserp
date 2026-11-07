@@ -90,8 +90,189 @@ ok('the body holds the amenities, the guest and the actions',
   cards.every(card => card.querySelector('.ws-card-body .ws-amen')
     && card.querySelector('.ws-card-body .ws-guest')
     && card.querySelector('.ws-card-body .ws-actions')));
-ok('the board gives the cards room to breathe', /\.ws-grid\{[^}]*minmax\(min\(348px/.test($('style')?.textContent ?? ''),
-  ($('style')?.textContent ?? '').match(/\.ws-grid\{[^}]*\}/)?.[0]);
+// v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
+// than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
+// squeezing five into a phone.
+const wsStyle = $('style')?.textContent ?? '';
+ok('the board fits five rooms across', /\.ws-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+  wsStyle.match(/\.ws-grid\{[^}]*\}/)?.[0]);
+ok('and a grouped board fits five across too', /\.ws-group-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+  wsStyle.match(/\.ws-group-grid\{[^}]*\}/)?.[0]);
+ok('the grid steps down to four, three, two and one as the screen narrows',
+  [[1399, 4], [1023, 3], [767, 2], [479, 1]].every(([width, count]) =>
+    new RegExp(`@media \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle)),
+  [[1399, 4], [1023, 3], [767, 2], [479, 1]]
+    .map(([w, c]) => `${w}px→${c}`).join(' · '));
+// v10.14 the column count follows the board, not the window: the sidebar and the rail take 576px between them,
+// so a 1500px window holds a 908px board and the viewport query used to call that four.
+ok('the board is a query container, so the count is its own width',
+  /\.ws-main\{[^}]*container-type:inline-size/.test(wsStyle)
+    && /\.ws-main\{[^}]*container-name:wsboard/.test(wsStyle),
+  wsStyle.match(/\.ws-main\{[^}]*\}/)?.[0]);
+ok('the ladder is re-run against the board\'s width, after the viewport fallback',
+  [[799, 4], [639, 3], [479, 2], [319, 1]].every(([width, count]) =>
+    new RegExp(`@container wsboard \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle))
+    && wsStyle.lastIndexOf('@container wsboard (max-width:799px)') > wsStyle.indexOf('@media (max-width:1399px){.ws-grid'),
+  [[799, 4], [639, 3], [479, 2], [319, 1]].map(([w, c]) => `${w}px→${c}`).join(' · '));
+ok('a board wide enough for more than five never settles for five fat cards',
+  /@container wsboard \(min-width:1600px\)\{\.ws-grid\{grid-template-columns:repeat\(6/.test(wsStyle)
+    && /@container wsboard \(min-width:1900px\)\{\.ws-grid\{grid-template-columns:repeat\(7/.test(wsStyle),
+  'six from a 1600px board, seven from 1900px');
+// v10.15 the rail steps aside where the board is already down to four, not at 1200 where it forced three,
+// and it spreads into its own columns underneath instead of running as one tall strip.
+ok('the rail steps aside before it squeezes the board into three',
+  /@container wsscreen \(max-width:1068px\)\{\.ws-body\{grid-template-columns:1fr/.test(wsStyle),
+  wsStyle.match(/@container wsscreen \(max-width:1068px\)\{[\s\S]{0,160}/)?.[0]?.replace(/\s+/g, ' '));
+ok('and the board keeps every column it had while the rail is beside it',
+  /\.ws-body\{display:grid;grid-template-columns:1fr 320px/.test(wsStyle));
+// v10.16 the anchored rail is ranked: what needs acting on first is first. A row-flowed grid put the second
+// item to the RIGHT of the first, which reads as second-best; multi-column keeps the ranking in the order you
+// read. The check holds both the mechanism and the meaning.
+ok('the stacked rail keeps its ranking in the reading order',
+  /\.ws-rail\{display:block;columns:260px/.test(wsStyle)
+    && /\.ws-rail-card\{break-inside:avoid/.test(wsStyle)
+    && /@container wsscreen \(max-width:1068px\)\{[\s\S]{0,200}\.ws-rail\{display:block/.test(wsStyle),
+  wsStyle.match(/\.ws-rail\{[^}]*\}/g)?.join(' | '));
+const railOrder = $$('.ws-rail .ws-rail-card')
+  .map(card => (card.querySelector('.ws-rail-title')?.textContent ?? '').replace(/\s+/g, ' ').trim());
+ok('and the list is still ranked the way it is written, attention first',
+  /NEEDS ATTENTION/.test(railOrder[0] ?? '') && railOrder.length >= 5,
+  railOrder.slice(0, 5).join(' → '));
+ok('the card is its own container, so the action row can answer to the card',
+  /\.ws-card\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-card\{[^}]*container-name:wscard/.test(wsStyle),
+  wsStyle.match(/\.ws-card\{[^}]*\}/)?.[0]?.slice(0, 120));
+ok('a narrow card folds its secondary actions instead of taking a second row',
+  /@container wscard \(max-width:249px\)\{\.ws-actions \.ws-act-minor\{display:none\}/.test(wsStyle)
+    && /@container wscard \(max-width:379px\)\{[\s\S]{0,200}\.ws-all \.ws-act-label\{/.test(wsStyle),
+  'one row from 250px down: the primary action and ···');
+ok('and the extend form folds first, because it is the widest thing in the row',
+  /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
+    && wsStyle.indexOf('\u00b7 under 380px') > 0,
+  'a 140px date field and a button do not share a line with anything');
+ok('the buttons that fold are marked as secondary',
+  $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
+    && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
+  `${$$('#wsGrid .ws-card .ws-actions .ws-act-minor').length} foldable controls across ${cards.length} cards`);
+ok('and each one is still reachable in the room dialog, as the same form',
+  $$('.ws-modal .ws-modal-actions .ws-inline-action').length === $$('#wsGrid .ws-card .ws-actions .ws-inline-action').length
+    && $$('.ws-modal .ws-modal-actions .ws-extend-form').length === $$('#wsGrid .ws-card .ws-actions .ws-extend-form').length,
+  `${$$('.ws-modal .ws-modal-actions .ws-inline-action').length} mark-dirty and ${$$('.ws-modal .ws-modal-actions .ws-extend-form').length} extend forms in the dialogs`);
+ok('the dialog says what that block is for',
+  $$('.ws-modal .ws-modal-actions').every(block => /ROOM ACTIONS/.test(block.previousElementSibling?.textContent ?? '')),
+  $$('.ws-modal .ws-modal-actions')[0]?.previousElementSibling?.textContent?.trim());
+ok('the screen itself is a container, so the header answers to it too',
+  /\.ws-screen\{[^}]*container-type:inline-size/.test(wsStyle) && /\.ws-screen\{[^}]*container-name:wsscreen/.test(wsStyle),
+  wsStyle.match(/\.ws-screen\{[^}]*\}/)?.[0]);
+// a container establishes a containing block for position:fixed descendants, and every room dialog is a fixed
+// overlay: if one ever landed inside .ws-screen it would be pinned to the screen box and scroll away with it
+ok('the room dialogs sit outside the screen container, where a fixed overlay belongs',
+  $$('.ws-screen .ws-modal').length === 0 && $$('.ws-modal').length === cards.length,
+  `${$$('.ws-modal').length} dialogs, none inside .ws-screen`);
+ok('and the board, the rail and the KPI strip sit inside it',
+  $$('.ws-screen #wsGrid').length === 1 && $$('.ws-screen .ws-rail').length === 1 && $$('.ws-screen .ws-kpis').length === 1);
+ok('the KPI strip, filters, toolbar and shortcut hints switch on the screen\'s width',
+  /@container wsscreen \(max-width:908px\)\{\.ws-kpis\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:688px\)\{\.ws-kpis\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:388px\)\{\s*\.ws-head\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:388px\)\{\s*\.ws-toolbar\{/.test(wsStyle)
+    && /@container wsscreen \(max-width:888px\)\{\.ws-keys\{display:none\}/.test(wsStyle),
+  'one width decides the whole screen');
+ok('and none of them is still counting the window',
+  !/@media \(max-width:\d+px\)\{\.ws-kpis/.test(wsStyle)
+    && !/@media \(max-width:\d+px\)\{\.ws-keys/.test(wsStyle)
+    && !/@media \(max-width:\d+px\)\{\.ws-cmd/.test(wsStyle),
+  'the screen-level breakpoints are container queries now');
+// v10.17 the rack was the last place asking a reader to scroll sideways: 840px of table in a 600px panel.
+const rackHeads = $$('.ws-rack-table thead th[data-col]').map(th => th.dataset.col);
+// the body is built by the screen's own script, so the cells are held to the same names through the script
+const rackScript = $$('script').map(s => s.textContent || '').join('\n');
+ok('every rack column is named, head and cell alike',
+  rackHeads.join(',') === 'room,type,status,guest,nights,rate,balance,hk,action'
+    && rackHeads.every(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)),
+  `${rackHeads.join(' · ')} — ${rackHeads.filter(col => new RegExp(`dataset\\.col = '${col}'`).test(rackScript)).length} of ${rackHeads.length} cells tagged in the script`);
+// v10.19 the action cell is a column of buttons, and it was copying every control the card had folded.
+ok('the rack marks the controls it may have to give up',
+  /copy\.classList\.add\('ws-rack-extra'\);/.test(rackScript)
+    && /if \(node\.matches\('\.ws-act-minor'\)\) copy\.classList\.add\('ws-rack-extra'\);/.test(rackScript),
+  'the extend and mark-dirty forms, and the details link, travel tagged');
+ok('and a narrow rack keeps only the action that moves the room',
+  /@container wsscreen \(max-width:839px\)\{\.ws-rack-table \[data-col="action"\] \.ws-rack-extra\{display:none\}\}/.test(wsStyle)
+    && /\.ws-rack-open/.test(wsStyle),
+  'Details stays in the room cell, and the dialog carries the rest');
+ok('a group heading stays on the sheet with the rooms it names',
+  /@media print\{[\s\S]{0,1200}\.ws-group-head\{break-after:avoid;break-inside:avoid\}/.test(wsStyle)
+    && /@media print\{[\s\S]{0,1200}\.ws-group\{break-inside:auto\}/.test(wsStyle),
+  'three across on paper, so a group can straddle a page');
+ok('the rack reads the housekeeping state, not the sentence around it',
+  /classList\.contains\('ws-hk-prefix'\)/.test(rackScript) && !/Current\\s\*\(HK/.test(rackScript),
+  'the chip\'s prefix span is skipped rather than stripped by regex');
+ok('the rack stops pretending it has 840px of room', /\.ws-rack-table\{width:100%;min-width:840px/.test(wsStyle)
+  && /@container wsscreen \(max-width:839px\)\{\s*\.ws-rack-table\{min-width:0\}/.test(wsStyle),
+  'the floor is given up before the reader is asked to scroll');
+ok('the columns retreat in the order that costs the reader least',
+  [[839, 'nights'], [839, 'balance'], [719, 'type'], [719, 'hk'], [519, 'rate']].every(([width, col]) =>
+    new RegExp(`@container wsscreen \\(max-width:${width}px\\)\\{[\\s\\S]{0,200}\\[data-col="${col}"\\]`).test(wsStyle)),
+  'nights and balance, then type and housekeeping, then rate');
+ok('a room, its state and its action are never hidden',
+  ['room', 'status', 'action'].every(col =>
+    !new RegExp(`\\[data-col="${col}"\\]\\s*\\{[^}]*display:none`).test(wsStyle)),
+  'the three a row is nothing without');
+// v10.20 the guest is the fourth, but below 520px it stops being a column and becomes the room's second line
+ok('and the guest moves under the room number rather than off the page',
+  /@container wsscreen \(max-width:519px\)\{[\s\S]{0,600}\[data-col="guest"\]\{display:none\}/.test(wsStyle)
+    && /@container wsscreen \(max-width:519px\)\{[\s\S]{0,800}\.ws-rack-table \.ws-rack-sub\{display:block\}/.test(wsStyle)
+    && /\.ws-rack-sub\{display:none/.test(wsStyle),
+  'hidden as a column at 520px, shown as a line in the room cell');
+ok('the script puts the guest in the room cell for that narrow row',
+  /sub\.className = 'ws-rack-sub'/.test(rackScript) && /roomText\.appendChild\(sub\)/.test(rackScript)
+    && /\[guest \|\| 'No guest', guestMeta\]/.test(rackScript),
+  'one line: guest and where they came from');
+// v10.18 the sort lives on columns that retreat, so the order is stated where it cannot be hidden — and the
+// statement is the control: activate to reverse, clear to return to room order.
+const sortChip = $('#wsRackSortState');
+ok('the rack states its order outside the columns',
+  Boolean(sortChip) && sortChip.getAttribute('role') === 'status' && sortChip.hasAttribute('aria-live')
+    && sortChip.hasAttribute('hidden'),
+  `${sortChip?.tagName} role=${sortChip?.getAttribute('role')} hidden=${sortChip?.hasAttribute('hidden')}`);
+ok('and the statement is rendered by the screen, not baked in',
+  /function renderSortState\(\)/.test(rackScript)
+    && /renderSortState\(\);/.test(rackScript)
+    && /chip\.append\(toggle, clear\)/.test(rackScript),
+  'a toggle and a way back to room order');
+ok('it reverses and clears from the chip itself',
+  /toggle\.textContent = `Sorted: \$\{label\} \$\{arrow\}`/.test(rackScript)
+    && /applyRackSort\(rackSort\.key, rackSort\.dir === 'asc' \? 'desc' : 'asc'\)/.test(rackScript)
+    && /applyRackSort\(null, null\)/.test(rackScript),
+  'the order that survives the fold is also the control');
+ok('it hides when there is no order to state, and outside the rack',
+  /\.ws-rack-sortstate\[hidden\]\{display:none\}/.test(wsStyle)
+    && /if \(!rackSort \|\| !inRack\) \{ chip\.hidden = true; return; \}/.test(rackScript),
+  'board view does not carry a rack order');
+ok('printing gives the board its own count instead of the screen\'s',
+  /@media print\{[\s\S]{0,900}\.ws-grid,\.ws-group-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/.test(wsStyle),
+  wsStyle.match(/@media print\{[\s\S]{0,220}/)?.[0]?.replace(/\s+/g, ' '));
+ok('and the sheet leaves the sort chip and the action rows off the paper',
+  /@media print\{[\s\S]{0,200}\.ws-rack-sortstate\{display:none!important\}/.test(wsStyle),
+  'three across, no screen controls');
+ok('the grouped board answers to the same container',
+  /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
+ok('nothing on the card face is hidden to buy the fifth column',
+  /\.ws-photo-meta>span:nth-child\(3\)\{display:none\}/.test(wsStyle) === false
+    && /\.ws-hk-prefix\{position:absolute/.test(wsStyle) === false,
+  'the smoking rule and the housekeeping words are on the narrow card too');
+ok('the housekeeping chip wraps rather than dropping its words',
+  /\.ws-hk-badge\{[^}]*white-space:normal/.test(wsStyle)
+    && cards.every(card => /Current\s*HK|housekeeping/.test(card.querySelector('.ws-hk-badge')?.textContent ?? '')),
+  cards[0]?.querySelector('.ws-hk-badge')?.textContent?.trim());
+ok('the card itself was cut to that size, not just squeezed',
+  /\.ws-photo\{[^}]*aspect-ratio:16\/11[^}]*min-height:104px/.test(wsStyle)
+    && /\.ws-room-no\{font-size:21px/.test(wsStyle)
+    && /\.ws-avatar\{width:28px/.test(wsStyle)
+    && /\.ws-actions \.btn\{[^}]*font-size:10px/.test(wsStyle),
+  [wsStyle.match(/\.ws-photo\{[^}]*\}/)?.[0], wsStyle.match(/\.ws-room-no\{[^}]*\}/)?.[0]].join(' | '));
+ok('the housekeeping chip still names what it is talking about',
+  cards.every(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')),
+  `${cards.filter(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')).length}/${cards.length} chips carry the words`);
 
 /* ── the needs-attention rail ────────────────────────────────────────────── */
 const attention = $$('#wsAttention .ws-attention-row');

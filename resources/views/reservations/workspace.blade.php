@@ -20,6 +20,7 @@
 @endsection
 
 @section('content')
+<div class="ws-screen">
 @php
   $businessDate = $businessDate ?? bdate()->copy()->startOfDay();
   $isToday = $date->toDateString() === $businessDate->toDateString();
@@ -187,6 +188,9 @@
       <option value="status">Status</option>
     </select>
   </label>
+  {{-- v10.18 the rack sorts by columns that can retreat below ~720px, so the order is stated here, where
+       it survives the fold, and the chip itself reverses or clears it. --}}
+  <span class="ws-rack-sortstate" id="wsRackSortState" role="status" aria-live="polite" hidden></span>
   <span class="ws-keys" aria-hidden="true"><kbd>/</kbd> search <kbd>B</kbd> board <kbd>R</kbd> rack <kbd>G</kbd> group</span>
 </div>
 </div>
@@ -228,7 +232,7 @@
             </div>
             <div class="text-right">
               <span class="badge badge-{{ ['available' => 'green', 'reserved' => 'amber', 'occupied' => 'blue', 'out_of_order' => 'red', 'out_of_service' => 'red', 'leased' => 'slate', 'maintenance' => 'amber', 'house_use' => 'slate', 'group_hold' => 'blue', 'other_block' => 'slate'][$c['status']] }}">{{ strtoupper(str_replace('_', ' ', $c['status'])) }}</span>
-              @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: {{ $housekeepingLabel($room->hk_status) }}</div>@endif
+              @if ($canViewHousekeeping)<div class="ws-hk-badge ws-hk-{{ $hkTone }}" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>{{ $housekeepingLabel($room->hk_status) }}</div>@endif
               @if ($c['arriving_on_date'])<div class="ws-tag">ARRIVING ON THIS DATE</div>@endif
             </div>
           </div>
@@ -293,12 +297,12 @@
           @if ($stay && $stay->status === 'reserved')
             @if ($isToday && $c['status'] === 'reserved' && $room->status === 'vacant' && ! isset($inventoryBlocks[$room->id]) && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-primary" style="background:#16a34a" href="{{ route('frontdesk.checkin', $stay) }}" aria-label="Check in room {{ $room->room_no }}"><x-icon name="login"/> Check-In</a>
             @elseif ($isToday && ($c['status'] !== 'reserved' || $room->status !== 'vacant' || isset($inventoryBlocks[$room->id])) && can_do('frontdesk.checkin'))<span class="ws-checkin-blocker">Check-in blocked: {{ $checkInBlockReason($room, $inventoryBlocks) }}</span>@endif
-            @if (can_do('reservations.view'))<a class="btn btn-sm" href="{{ route('reservations.show', $stay->reservation_id) }}" aria-label="Reservation details for room {{ $room->room_no }}{{ $stay->reservation?->reservation_no ? ', '.$stay->reservation->reservation_no : '' }}">Reservation details</a>@endif
+            @if (can_do('reservations.view'))<a class="btn btn-sm ws-act-minor" href="{{ route('reservations.show', $stay->reservation_id) }}" aria-label="Reservation details for room {{ $room->room_no }}{{ $stay->reservation?->reservation_no ? ', '.$stay->reservation->reservation_no : '' }}">Reservation details</a>@endif
           @elseif ($stay && $stay->status === 'checked_in')
             @if ($isToday && can_do('frontdesk.checkout'))<a class="btn btn-sm" style="background:#ea580c;color:#fff" href="{{ route('frontdesk.checkout', $stay) }}" aria-label="Check out room {{ $room->room_no }}"><x-icon name="logout"/> Check-Out</a>@endif
             @if ($isToday && can_do('frontdesk.roommove'))
               @php $extendTo = $stay->departure_date->copy()->addDay()->max($businessDate->copy()->addDay()); @endphp
-              <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
+              <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form ws-act-minor" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
                 @csrf
                 <label class="sr-only" for="extend-{{ $stay->id }}">New departure date for room {{ $room->room_no }}</label>
                 <input id="extend-{{ $stay->id }}" type="date" name="departure_date" min="{{ $extendTo->toDateString() }}" value="{{ $extendTo->toDateString() }}" required>
@@ -307,14 +311,14 @@
             @endif
           @endif
           @if (! $isHistory && in_array($c['status'], ['available', 'reserved'], true) && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty')
-            <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
+            <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action ws-act-minor" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
               @csrf
               <input type="hidden" name="rooms[]" value="{{ $room->id }}">
               <input type="hidden" name="hk_status" value="dirty">
               <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark Dirty</button>
             </form>
           @endif
-          <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· All actions</button>
+          <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
         </div>
         </div>
       </div>
@@ -331,15 +335,15 @@
         <caption class="sr-only">Every room on this date: status, guest, stay, rate, housekeeping and actions. The rows are built from the room board, so both views always agree.</caption>
         <thead>
           <tr>
-            <th scope="col" aria-sort="ascending"><button type="button" class="ws-rack-sort" data-ws-sort="room">Room</button></th>
-            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="type">Type · Floor</button></th>
-            <th scope="col"><button type="button" class="ws-rack-sort" data-ws-sort="status">Status</button></th>
-            <th scope="col">Guest</th>
-            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="nights">Nights</button></th>
-            <th scope="col" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="rate">Rate</button></th>
-            <th scope="col" class="num">Balance</th>
-            @if ($canViewHousekeeping)<th scope="col">HK</th>@endif
-            <th scope="col">Action</th>
+            <th scope="col" data-col="room" aria-sort="ascending"><button type="button" class="ws-rack-sort" data-ws-sort="room">Room</button></th>
+            <th scope="col" data-col="type"><button type="button" class="ws-rack-sort" data-ws-sort="type">Type · Floor</button></th>
+            <th scope="col" data-col="status"><button type="button" class="ws-rack-sort" data-ws-sort="status">Status</button></th>
+            <th scope="col" data-col="guest">Guest</th>
+            <th scope="col" data-col="nights" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="nights">Nights</button></th>
+            <th scope="col" data-col="rate" class="num"><button type="button" class="ws-rack-sort" data-ws-sort="rate">Rate</button></th>
+            <th scope="col" data-col="balance" class="num">Balance</th>
+            @if ($canViewHousekeeping)<th scope="col" data-col="hk">HK</th>@endif
+            <th scope="col" data-col="action">Action</th>
           </tr>
         </thead>
         <tbody id="wsRackBody"></tbody>
@@ -551,6 +555,8 @@
   </div>
 </div>
 
+</div>{{-- /ws-screen: the room dialogs are fixed overlays and must not inherit its containing block --}}
+
 {{-- Room detail modals --}}
 @foreach ($cards as $c)
 @php
@@ -562,6 +568,12 @@
   $stayGuestInitial = $guestInitial($stay);
   $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
   $modalGuestIsVip = (bool) ($stay?->guest?->is_vip || $stay?->reservation?->guest?->is_vip);
+  // v10.15 the card folds these two away below 200px, so the dialog carries them: same conditions, same
+  // forms. A narrow card gives up the second row; it does not give up the action.
+  $modalCanMarkDirty = ! $isHistory && in_array($c['status'], ['available', 'reserved'], true)
+      && can_do('housekeeping.manage') && $room->status === 'vacant' && $room->hk_status !== 'dirty';
+  $modalCanExtend = $isToday && $stay && $stay->status === 'checked_in' && can_do('frontdesk.roommove');
+  $modalExtendTo = $modalCanExtend ? $stay->departure_date->copy()->addDay()->max($businessDate->copy()->addDay()) : null;
   $modalGuestContext = collect([
       $stay?->reservation?->businessSource?->name ?: 'Direct',
       $stay?->guest?->nationality ?? $stay?->reservation?->guest?->nationality,
@@ -629,6 +641,27 @@
         </tbody>
       </table>
     </div></div>@endif</div>
+    @if ($modalCanExtend || $modalCanMarkDirty)
+    <div class="ws-rail-title" style="margin-top:16px">ROOM ACTIONS</div>
+    <div class="ws-modal-actions">
+      @if ($modalCanExtend)
+      <form method="POST" action="{{ route('frontdesk.amend', $stay) }}" class="ws-extend-form" data-room-no="{{ $room->room_no }}" data-confirm="Extend the stay in room {{ $room->room_no }} through the selected departure date? Availability and stay charges will be rechecked.">
+        @csrf
+        <label class="sr-only" for="modal-extend-{{ $stay->id }}">New departure date for room {{ $room->room_no }}</label>
+        <input id="modal-extend-{{ $stay->id }}" type="date" name="departure_date" min="{{ $modalExtendTo->toDateString() }}" value="{{ $modalExtendTo->toDateString() }}" required>
+        <button type="submit" class="btn btn-sm" title="Extend this stay" aria-label="Extend stay in room {{ $room->room_no }}">Extend stay</button>
+      </form>
+      @endif
+      @if ($modalCanMarkDirty)
+      <form method="POST" action="{{ route('housekeeping.status') }}" class="ws-inline-action" data-confirm="Mark room {{ $room->room_no }} dirty? This updates its current housekeeping status.">
+        @csrf
+        <input type="hidden" name="rooms[]" value="{{ $room->id }}">
+        <input type="hidden" name="hk_status" value="dirty">
+        <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark dirty</button>
+      </form>
+      @endif
+    </div>
+    @endif
     @if (count($roomActions))<div class="ws-rail-title" style="margin-top:16px">QUICK LINKS</div><div class="ws-quick">
       @foreach ($roomActions as [$label, $icon, $url])<a class="ws-quick-tile" href="{{ $url }}"><x-icon name="{{ $icon }}"/><span>{{ $label }}</span></a>@endforeach
     </div>@else<div class="muted small" style="margin-top:12px">No room actions are available for your permissions.</div>@endif
@@ -843,7 +876,15 @@
       const nights = card.querySelector('.ws-nights')?.textContent.trim() || '';
       const rate = card.querySelector('.ws-photo-rate')?.textContent.trim() || '';
       const balance = card.querySelector('.ws-rate-row .text-right')?.textContent.trim() || '';
-      const hk = (card.querySelector('.ws-hk-badge')?.textContent || '').replace(/\s+/g, ' ').trim();
+      // v10.17 the chip carries the words "Current HK: " in a span of its own, so the rack reads the state
+      // from the chip's text minus that span: stripping a prefix by regex broke the moment the wording
+      // changed, and the column started reading "housekeeping: Dirty".
+      const hkBadge = card.querySelector('.ws-hk-badge');
+      const hk = hkBadge
+        ? [...hkBadge.childNodes]
+          .filter(node => !(node.nodeType === 1 && node.classList && node.classList.contains('ws-hk-prefix')))
+          .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim()
+        : '';
       const badge = card.querySelector('.ws-card-head .badge');
       const actions = card.querySelector('.ws-actions');
       const row = document.createElement('tr');
@@ -866,7 +907,16 @@
       }
       const strong = document.createElement('b');
       strong.textContent = roomNo;
-      roomWrap.appendChild(strong);
+      // v10.20 below 520px the guest is no longer a column of its own: it moves under the room number, so the
+      // row is a room with its guest rather than five columns squeezed into three. Wide racks ignore this line.
+      const roomText = document.createElement('div');
+      roomText.className = 'ws-rack-roomtext';
+      roomText.appendChild(strong);
+      const sub = document.createElement('span');
+      sub.className = 'ws-rack-sub';
+      sub.textContent = [guest || 'No guest', guestMeta].filter(Boolean).join(' · ');
+      roomText.appendChild(sub);
+      roomWrap.appendChild(roomText);
       if (roomId) {
         const open = document.createElement('button');
         open.type = 'button';
@@ -877,10 +927,14 @@
         roomWrap.appendChild(open);
       }
       roomCell.appendChild(roomWrap);
+      roomCell.dataset.col = 'room';
       row.appendChild(roomCell);
 
-      row.appendChild(rackCell(card.dataset.typeName || '—', card.dataset.floorName || ''));
+      const typeCell = rackCell(card.dataset.typeName || '—', card.dataset.floorName || '');
+      typeCell.dataset.col = 'type';
+      row.appendChild(typeCell);
       const statusCell = document.createElement('td');
+      statusCell.dataset.col = 'status';
       if (badge) statusCell.appendChild(badge.cloneNode(true));
       row.appendChild(statusCell);
 
@@ -896,30 +950,36 @@
         guestWrap.appendChild(meta);
       }
       guestCell.appendChild(guestWrap);
+      guestCell.dataset.col = 'guest';
       row.appendChild(guestCell);
 
       const nightsCell = document.createElement('td');
       nightsCell.className = 'num';
+      nightsCell.dataset.col = 'nights';
       nightsCell.textContent = nights || '—';
       row.appendChild(nightsCell);
 
       const rateCell = document.createElement('td');
       rateCell.className = 'num';
+      rateCell.dataset.col = 'rate';
       rateCell.textContent = rate.replace(/\s*\/\s*night$/i, '') || '—';
       row.appendChild(rateCell);
 
       const balanceCell = document.createElement('td');
       balanceCell.className = 'num';
+      balanceCell.dataset.col = 'balance';
       balanceCell.textContent = balance || '—';
       row.appendChild(balanceCell);
 
       if (document.getElementById('wsRack')?.dataset.hkColumn === '1') {
         const hkCell = document.createElement('td');
-        hkCell.textContent = hk ? hk.replace(/^Current\s*(HK\s*)?:?\s*/i, '') : '—';
+        hkCell.dataset.col = 'hk';
+        hkCell.textContent = hk || '—';
         row.appendChild(hkCell);
       }
 
       const actionCell = document.createElement('td');
+      actionCell.dataset.col = 'action';
       const actionWrap = document.createElement('div');
       actionWrap.className = 'ws-rack-actions';
       [...(actions?.children || [])].forEach(node => {
@@ -927,7 +987,14 @@
         // (extend, mark dirty) have to be copied with their form, or the rack would
         // silently lose every action that posts
         if (node.matches('a.btn, button.btn')) {
-          if (!node.matches('.ws-all')) actionWrap.appendChild(node.cloneNode(true));
+          if (!node.matches('.ws-all')) {
+            const copy = node.cloneNode(true);
+            // v10.19 the card folds its secondary controls below 380/250px; the rack copied them all into
+            // one cell, where they wrap into a column three lines deep. They keep their place at full width
+            // and retreat with the card's own rule — the room dialog still carries every one of them.
+            if (node.matches('.ws-act-minor')) copy.classList.add('ws-rack-extra');
+            actionWrap.appendChild(copy);
+          }
         } else if (node.matches('form')) {
           const copy = node.cloneNode(true);
           // the board keeps its ids; a second copy in the same page may not
@@ -939,6 +1006,7 @@
             if (!label.querySelector('input,select,textarea')) label.remove();
           });
           copy.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+          copy.classList.add('ws-rack-extra');
           actionWrap.appendChild(copy);
         }
       });
@@ -965,6 +1033,34 @@
     if (savedKey && (savedDir === 'asc' || savedDir === 'desc')) rackSort = { key: savedKey, dir: savedDir };
   } catch (error) { /* private mode */ }
 
+  /* v10.18 the column a rack is sorted by may not be on the screen: nights and balance go first at 840px,
+     then type and housekeeping at 720, then rate at 520. The order is therefore stated in the toolbar, and
+     the statement is the control — activate it to reverse, or clear it to go back to room order. */
+  function renderSortState() {
+    const chip = document.getElementById('wsRackSortState');
+    if (!chip) return;
+    chip.textContent = '';
+    const inRack = activeView === 'rack';
+    if (!rackSort || !inRack) { chip.hidden = true; return; }
+    const source = document.querySelector(`.ws-rack-sort[data-ws-sort="${rackSort.key}"]`);
+    const label = (source?.textContent || rackSort.key).trim();
+    const arrow = rackSort.dir === 'asc' ? '↑' : '↓';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'ws-sortstate-toggle';
+    toggle.textContent = `Sorted: ${label} ${arrow}`;
+    toggle.setAttribute('aria-label', `Sorted by ${label}, ${rackSort.dir === 'asc' ? 'ascending' : 'descending'}. Activate to reverse the order.`);
+    toggle.addEventListener('click', () => applyRackSort(rackSort.key, rackSort.dir === 'asc' ? 'desc' : 'asc'));
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'ws-sortstate-clear';
+    clear.textContent = 'Room order';
+    clear.setAttribute('aria-label', 'Clear the sort and go back to room order');
+    clear.addEventListener('click', () => applyRackSort(null, null));
+    chip.append(toggle, clear);
+    chip.hidden = false;
+  }
+
   function applyRackSort(key, dir) {
     rackSort = key ? { key, dir } : null;
     document.querySelectorAll('.ws-rack-table th').forEach(cell => cell.removeAttribute('aria-sort'));
@@ -977,6 +1073,7 @@
       if (rackSort) sessionStorage.setItem('wsSort', `${rackSort.key}:${rackSort.dir}`);
       else sessionStorage.removeItem('wsSort');
     } catch (error) { /* private mode */ }
+    renderSortState();
   }
 
   function sortRack(key, dir) {
@@ -1024,6 +1121,7 @@
       button.tabIndex = on ? 0 : -1;
     });
     if (groupSelect) groupSelect.disabled = isRack;
+    renderSortState();
     syncUrlParam('view', isRack ? 'rack' : '');
     applyWsFilters();
     try { sessionStorage.setItem('wsView', activeView); } catch (error) { /* private mode */ }
@@ -1263,6 +1361,7 @@
 
 @push('head')
 <style>
+.ws-screen{container-type:inline-size;container-name:wsscreen}
 .ws-head{position:relative;isolation:isolate;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;overflow:hidden;margin:2px 0 12px;padding:16px 18px;border:1px solid rgba(20,83,45,.12);border-radius:14px;color:#fff;background:radial-gradient(circle at 86% 5%,rgba(191,235,201,.2),transparent 27%),linear-gradient(118deg,#103a23,#176239 66%,#247849);box-shadow:0 12px 28px rgba(20,83,45,.12)}
 .ws-head:after{position:absolute;z-index:-1;right:11%;bottom:-76px;width:200px;height:200px;border:1px solid rgba(255,255,255,.12);border-radius:50%;content:"";pointer-events:none}
 .ws-head-main{position:relative;z-index:1;flex:1;min-width:0}
@@ -1312,8 +1411,34 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
+.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+/* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
+   to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
+   two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
+   cards only makes shorter ones.
+
+   v10.14 the count is the board's own width, not the window's. The sidebar takes 244px and the needs-attention
+   rail another 332px, so a perfectly ordinary 1500px window leaves a 908px board — wide enough for five cards
+   of 180px, which the old viewport query still called four, and a 1250px window left three. The ladder below
+   is a fallback for browsers without container queries; where they are understood the same ladder is re-run
+   against .ws-main's width, which is the only number that decides how wide a card actually is.
+
+   The thresholds are card widths written backwards: five across needs a board of 800px to leave each card
+   150px ((800 − 4×12) / 5), four needs 640, three 480, two 320. So a 1500px window — a 908px board once the
+   sidebar and the rail have had theirs — holds five cards of 172px, and five is what it shows. */
+@media (max-width:1399px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1023px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:767px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:479px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:799px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:639px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:479px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:319px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+/* a board wider than five cards of 190px gets a sixth and a seventh rather than five fat ones: the point of
+   the row was density, and density is what a 2560px screen would otherwise lose. */
+@container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
@@ -1322,23 +1447,26 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:9px 10px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:48%;flex:0 0 auto}
+.ws-card-head .text-right{max-width:54%;flex:0 0 auto}
 .ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
-.ws-card-head .badge{white-space:normal;box-shadow:0 1px 7px rgba(15,23,42,.28)}
-.ws-room-no{font-size:28px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
-.ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
+.ws-card-head .badge{white-space:normal;padding:2px 5px;font-size:9px;letter-spacing:.2px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-room-no{font-size:21px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
+.ws-tag{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;letter-spacing:.2px;background:#fef3c7;color:#b45309;padding:2px 4px;border-radius:5px}
+.ws-hk-badge{display:inline-block;max-width:100%;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;box-shadow:0 1px 6px rgba(15,23,42,.24)}
+/* v10.14 the chip wraps rather than shedding the words "Current HK:" and the smoking rule stays on the card.
+   v10.13 hid both at the five-across width to buy the fifth column; the board now knows its own width, so the
+   card no longer has to buy anything — a two-line chip is cheaper than a card that withholds what it knows. */
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
+.ws-photo{position:relative;aspect-ratio:16/11;min-height:104px;max-height:172px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
-.ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:7px;padding:8px 10px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 8px;color:rgba(255,255,255,.94);font-size:10px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
 .ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
 .ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
@@ -1351,35 +1479,49 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
+.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:3px 7px;border:1px solid rgba(255,255,255,.65);border-radius:7px;font-size:11.5px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
 .ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
 .ws-photo-rate.ws-rate-unset small{color:#b45309}
 .ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
-.ws-amen .i{width:15px;height:15px}
+.ws-amen{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px 6px;color:#94a3b8}
+.ws-amen .i{width:13px;height:13px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:0;padding:9px 14px 10px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
+.ws-guest{flex:1;margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
 .ws-guest>.flex{align-items:center}
 .ws-guest>.flex>div{min-width:0}
 .ws-guest>.flex .bold{overflow-wrap:anywhere}
 .ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
 .ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
 .ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
-.ws-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:8px;padding:8px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;text-align:center}
-.ws-nights{font-size:10px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:3px 8px;color:#166534;white-space:nowrap}
-.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;padding:8px 0 0;border-top:1px solid #f1f5f9}
+.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:6px;padding:6px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;font-size:10.5px;text-align:center}
+.ws-nights{font-size:9.5px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:2px 6px;color:#166534;white-space:nowrap}
+.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
-.ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
+.ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
-.ws-actions .btn{display:inline-flex;min-height:30px;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap}
-.ws-actions .btn .i{width:13px;height:13px;flex:0 0 13px}
+.ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
+.ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
+/* v10.17 the action row folds in three steps rather than one, because the controls are not one size.
+   Measured at their own type: the primary button is ~80px, Reservation details ~119px, Mark Dirty ~85px,
+   ··· All actions ~30px wordless, and the extend form — a 140px date field and a button — is ~200px on its
+   own. The row has 18px of padding. So:
+     · under 380px the extend form is a row of its own whatever else is there — it goes first;
+     · under 250px primary + details + Mark Dirty no longer fit one line (80+119+85+8 gaps = 292) — they go;
+     · and from 250px down the ··· loses its words, so the primary action and ··· share one line at any width.
+   A folded control is not a lost one: the room dialog carries the extend and mark-dirty forms under their own
+   ROOM ACTIONS heading, and Reservation details is in the dialog's Quick Links. */
+@container wscard (max-width:379px){.ws-actions .ws-extend-form{display:none}}
+@container wscard (max-width:249px){.ws-actions .ws-act-minor{display:none}}
+@container wscard (max-width:379px){
+  .ws-all .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
+}
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -1397,6 +1539,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-empty-copy p{margin:0 0 9px}
 .ws-empty-copy p:last-child{margin-bottom:0}
 .ws-rail{display:flex;flex-direction:column;gap:10px}
+.ws-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .ws-rail-card{overflow:hidden;border-radius:12px;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rail-card .card-body{padding:14px}
 .ws-rail-title{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:10px;font-weight:800;letter-spacing:.075em;line-height:1.35;text-transform:uppercase}
@@ -1472,9 +1615,21 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile .i{width:17px;height:17px;color:#15803d}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
-@media (max-width:1200px){.ws-kpis{grid-template-columns:repeat(5,1fr)}.ws-body{grid-template-columns:1fr}}
-@media (max-width:980px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:680px){
+@container wsscreen (max-width:908px){.ws-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}}
+/* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
+   was still beside the board but the board was too narrow for four cards, so the row went down to three wide
+   ones and then jumped back to five the moment the window crossed 1200. The rail steps aside where the board
+   is already down to four.
+
+   v10.16 it steps aside on the screen's width rather than the window's, and it flows DOWN its columns instead
+   of across them: the rail is ranked — what needs acting on first is first — and a row-flowed grid puts the
+   second item to the right of the first, which reads as second-best. Multi-column keeps the ranking in the
+   reading order, which is the only order this list has. */
+@container wsscreen (max-width:1068px){.ws-body{grid-template-columns:1fr}
+  .ws-rail{display:block;columns:260px;column-gap:10px}
+  .ws-rail-card{break-inside:avoid;margin:0 0 10px}}
+@container wsscreen (max-width:688px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsscreen (max-width:388px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}
   .ws-head>div:first-child{width:100%;min-width:0}
   .ws-head-side{width:100%;justify-content:flex-start}
@@ -1494,7 +1649,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
   .ws-assign,.ws-assign-none{padding-left:0}
   .ws-person-row>.ws-assign{padding-left:7px}
   .ws-person-row>.ws-assign-none{margin-left:0;padding-left:9px}
-  .ws-photo{min-height:184px}
+  .ws-photo{min-height:118px}
   .ws-extend-form{width:100%}
   .ws-extend-form input{flex:1;max-width:none}
 }
@@ -1578,18 +1733,35 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-chip button{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;background:#dcfce7;color:#166534;font-size:12px;line-height:1;cursor:pointer}
 .ws-chip button:hover{background:#bbf7d0}
 .ws-chip button:focus-visible{outline:2px solid #15803d;outline-offset:1px}
-.ws-main{min-width:0}
+.ws-main{min-width:0;container-type:inline-size;container-name:wsboard}
 .ws-group{grid-column:1/-1}
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+@media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:479px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:799px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:639px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:479px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:319px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (min-width:1600px){.ws-group-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container wsboard (min-width:1900px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
 .ws-rack-table th{padding:0;border-bottom:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:10px;font-weight:800;letter-spacing:.07em;text-align:left;text-transform:uppercase;white-space:nowrap}
 .ws-rack-table th.num{text-align:right}
 .ws-rack-sort{display:block;width:100%;padding:10px 12px;border:0;background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-align:inherit;text-transform:inherit;cursor:pointer}
+/* v10.18 the order of the rack, stated where the columns cannot take it away */
+.ws-rack-sortstate{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 6px 2px 9px;border:1px solid #d1e7d7;border-radius:999px;background:#f5fbf6;color:#14532d;font-size:10.5px;font-weight:700;white-space:nowrap}
+.ws-rack-sortstate[hidden]{display:none}
+.ws-sortstate-toggle,.ws-sortstate-clear{padding:2px 7px;border:1px solid #bbf7d0;border-radius:999px;background:#fff;color:#166534;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.ws-sortstate-toggle{border-color:transparent;background:transparent;padding-left:0}
+.ws-sortstate-toggle:hover,.ws-sortstate-clear:hover{background:#ecfdf3;border-color:#86c79b;color:#14532d}
+.ws-sortstate-toggle:focus-visible,.ws-sortstate-clear:focus-visible{outline:2px solid #15803d;outline-offset:1px}
 .ws-rack-table th.num .ws-rack-sort{text-align:right}
 .ws-rack-sort:hover{background:#f0fdf4;color:#14532d}
 .ws-rack-sort:focus-visible{outline:2px solid #15803d;outline-offset:-2px}
@@ -1600,6 +1772,8 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-table tbody tr:last-child td{border-bottom:0}
 .ws-rack-table tbody tr:hover{background:#f0fdf4}
 .ws-rack-room{display:flex;align-items:center;gap:8px}
+.ws-rack-roomtext{display:flex;min-width:0;flex-direction:column;gap:1px}
+.ws-rack-sub{display:none;color:#64748b;font-size:11px;line-height:1.3;overflow-wrap:anywhere}
 .ws-rack-thumb{width:38px;height:28px;flex:0 0 38px;border:1px solid #e2e8f0;border-radius:6px;background:#f1f5f9 center/cover no-repeat}
 .ws-rack-room b{font-size:14px;font-weight:800}
 .ws-rack-open{padding:2px 7px;border:1px solid #d1e7d7;border-radius:6px;background:#f5fbf6;color:#14532d;font-size:10px;font-weight:750;cursor:pointer}
@@ -1609,6 +1783,10 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-guest b{font-weight:700;overflow-wrap:anywhere}
 .ws-rack-guest span{color:#64748b;font-size:11px}
 .ws-rack-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+/* v10.19 the action cell is a column, not a row: at 840px and below it keeps the one action that moves the
+   room — check in, check out — and the secondary controls retreat, exactly as they do on the card. The rack's
+   own room cell already carries a Details button that opens the dialog, where ROOM ACTIONS has the rest. */
+@container wsscreen (max-width:839px){.ws-rack-table [data-col="action"] .ws-rack-extra{display:none}}
 .ws-rack-actions form{display:inline-flex;gap:4px;align-items:center;margin:0}
 .ws-rack-actions input[type="date"]{width:116px;padding:3px 4px;border:1px solid #d8e3dc;border-radius:6px;font-size:11px}
 .ws-rack-actions .btn{min-height:27px;padding:3px 7px;border-radius:6px;font-size:11px}
@@ -1658,9 +1836,26 @@ body.dark .ws-keys kbd{background:#18281e;border-color:var(--c-border);color:#c1
 body.dark .ws-chip{background:#143323;border-color:#3b5946;color:#86efac}
 body.dark .ws-chip button{background:#193525;color:#86efac}
 body.dark a.ws-attention-row:hover{background:#193525}
-@media (max-width:1180px){.ws-keys{display:none}}
-@media (max-width:980px){.ws-cmd{position:static}.ws-rack-table{min-width:760px}}
-@media (max-width:680px){
+@container wsscreen (max-width:888px){.ws-keys{display:none}}
+@container wsscreen (max-width:688px){.ws-cmd{position:static}}
+/* v10.17 the rack is the "scan it fast" tab, and it was the one place still asking the reader to scroll
+   sideways: an 840px table inside a 600px panel. The columns now retreat in the order that costs least —
+   the floor and the nights count first, then the balance, then housekeeping, then the rate — until the rack
+   is room, state, guest and the action, which is what a room is on this screen. Nothing is dropped from the
+   page: every one of these cells is still built, still sorted, and still in the dialogs. */
+@container wsscreen (max-width:839px){
+  .ws-rack-table{min-width:0}
+  .ws-rack-table [data-col="nights"],.ws-rack-table [data-col="balance"]{display:none}}
+@container wsscreen (max-width:719px){
+  .ws-rack-table [data-col="type"],.ws-rack-table [data-col="hk"]{display:none}}
+@container wsscreen (max-width:519px){
+  .ws-rack-table [data-col="rate"]{display:none}
+  /* a room, its guest under it, its state and the one action: a two-line row instead of three columns of
+     table. The guest cell is hidden and its content is already in the room cell, so nothing leaves the page. */
+  .ws-rack-table [data-col="guest"]{display:none}
+  .ws-rack-table .ws-rack-sub{display:block}
+  .ws-rack-table td{padding:7px 9px}}
+@container wsscreen (max-width:388px){
   .ws-toolbar{gap:8px}
   .ws-viewswitch{flex:1}
   .ws-vs-btn{flex:1;justify-content:center}
@@ -1669,11 +1864,20 @@ body.dark a.ws-attention-row:hover{background:#193525}
   .ws-head-stat{flex:1 1 auto;justify-content:center}
 }
 @media print{
-  .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys{display:none!important}
+  .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys,.ws-rack-sortstate{display:none!important}
+  /* v10.18 paper has its own width: without this the sheet inherited whatever the screen's container said,
+     so printing from a wide window put five 150px cards on A4 and printing from a narrow one put two. Three
+     across is what a portrait sheet holds at a size the room number and the guest are still readable at. */
+  .ws-grid,.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px}
+  .ws-body{display:block}
   .ws-body{grid-template-columns:1fr}
   .ws-main{grid-column:1/-1}
   .ws-head{box-shadow:none;background:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .ws-card,.ws-rack-scroll{break-inside:avoid;box-shadow:none}
+  /* v10.19 three across on paper means a group can straddle a page break: a heading at the foot of one page
+     with its rooms overleaf reads as a heading for nothing. The heading stays with what it names. */
+  .ws-group-head{break-after:avoid;break-inside:avoid}
+  .ws-group{break-inside:auto}
   .ws-rack-scroll{overflow:visible;border:0}
   .ws-rack-table{min-width:0;font-size:10px}
   .ws-photo{aspect-ratio:auto;min-height:104px}
