@@ -138,6 +138,19 @@ export class Coll {
     Object.keys(groups).forEach(name => { groups[name] = new Coll(groups[name]); });
     return groups;
   }
+  /**
+   * countBy('col') / countBy(fn ($x) => …) — Laravel's tally, keyed the way PHP keys it. The views read it
+   * back with ->get($key, 0), ->isNotEmpty() and ->map(fn ($count, $key) => …), so the tally answers to those.
+   */
+  countBy(key) {
+    const tally = {};
+    this.items.forEach((item, index) => {
+      const value = typeof key === 'function' ? key(item, index) : (key === undefined ? item : item?.[key]);
+      const name = value == null ? '' : String(value);
+      tally[name] = (tally[name] ?? 0) + 1;
+    });
+    return new CountMap(tally);
+  }
   /** where('col', value) or where('col', '!=', value), as the views write both. */
   where(key, operator, value) {
     const hasOperator = value !== undefined;
@@ -407,6 +420,26 @@ export class SampleDate {
   }
 }
 
+/** The tally Coll.countBy() returns: keyed like a PHP array, read like a Laravel collection. */
+export class CountMap {
+  constructor(tally) { this.tally = tally; }
+  get(key, fallback = null) {
+    const name = String(key);
+    return Object.prototype.hasOwnProperty.call(this.tally, name) ? this.tally[name] : fallback;
+  }
+  keys() { return new Coll(Object.keys(this.tally)); }
+  values() { return new Coll(Object.values(this.tally)); }
+  all() { return { ...this.tally }; }
+  count() { return Object.keys(this.tally).length; }
+  isEmpty() { return Object.keys(this.tally).length === 0; }
+  isNotEmpty() { return Object.keys(this.tally).length > 0; }
+  sum() { return Object.values(this.tally).reduce((total, value) => total + Number(value ?? 0), 0); }
+  map(fn) { return new Coll(Object.entries(this.tally).map(([k, v], i) => fn(v, k, i))); }
+  sortByDesc() { return this; }
+  toArray() { return { ...this.tally }; }
+  toJson() { return JSON.stringify(this.tally); }
+}
+
 /** Anything the sample does not model: returns a plausible small count per key. */
 export function countsProxy(defaults = {}) {
   const store = { ...defaults };
@@ -654,7 +687,12 @@ export class BladePreview {
       let passes = false;
       try { passes = Boolean(this.evalExpr(cond, scope, { quiet: true })); } catch { passes = false; }
       if (!rest.startsWith('{')) {
-        if (passes) this.phpStatement(rest, scope);
+        // `if ($x) $row = …;` assigns; `if ($x) $rows->push(…)` calls. The second is how the dashboard's
+        // source mix adds its "No source" and "Other sources" slices, so a bare call is run, not skipped.
+        if (passes) {
+          if (/^\$[A-Za-z_]\w*\s*=(?![=>])/.test(rest)) this.phpStatement(rest, scope);
+          else this.evalExpr(rest, scope, { quiet: true });
+        }
         return;
       }
       const end = this.matchBrace(rest, 0, '{', '}');
@@ -1455,7 +1493,10 @@ function convertArrows(src) {
       else if (depth === 0 && ch === ',') { end = j; break; }
     }
     const body = out.slice(arrow + 2, end).trim();
-    out = `${out.slice(0, at)}((${param}) => ${body})${out.slice(end)}`;
+    // The body is always an expression in PHP, but a keyed array inside it is rewritten to an object
+    // literal later (`['id' => 1]` → `{id: 1}`) — and an arrow whose body opens with `{` reads it as a
+    // block, which is a syntax error. Bracketing the body keeps it an expression.
+    out = `${out.slice(0, at)}((${param}) => (${body}))${out.slice(end)}`;
   }
 }
 

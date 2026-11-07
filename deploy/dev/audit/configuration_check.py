@@ -4539,6 +4539,56 @@ ok('the comparative statement, which this round must not have broken' in ra_chec
 ok("/rfq-show" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the award screen is reachable from the preview gallery')
 
+# ── 26az · the POS side-dish picker: the tile, the picker, the line ─────────────────
+pt_view = read(os.path.join(ROOT, 'resources/views/pos/terminal.blade.php'))
+pos_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/PosController.php'))
+ok('data-variants="{{ json_encode($i->variants->map(' in pt_view,
+   'the terminal tile hands its side dishes to the page as JSON')
+ok('e(json_encode(' not in pt_view,
+   'and escapes it exactly once — inside {{ }} a second e() turns every quote into &quot; and JSON.parse then throws, '
+   'which is how the picker stops opening without saying anything')
+ok('e(json_encode(' not in read(os.path.join(ROOT, 'resources/views/public/qrmenu.blade.php')),
+   'the guest QR menu is escaped the same way, once')
+ok('e(json_encode(' not in read(os.path.join(ROOT, 'resources/views/portal/dining.blade.php')),
+   'and so is the portal dining page')
+ok('function openSideDishPicker(button, groups, variants)' in pt_view,
+   'a dish that comes with a side asks for the side before it is added')
+ok("document.getElementById('sideDishModal')?.classList.add('show');" in pt_view,
+   'the picker is a dialog of its own, opened on the tile that was tapped')
+ok("'+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'" in pt_view,
+   'a side with a rate shows it, a side with none reads included')
+ok('function pickedSideDishes(scope)' in pt_view
+   and "'#sideDishChoices'" in pt_view and "'#modifierChoices'" in pt_view,
+   'one reader answers for both pickers, so a side ticked in either place is carried on')
+ok('openModifierPicker(button, sideDishGroups, sideDishChoiceList, picked);' in pt_view,
+   'Continue carries the sides into the option picker instead of asking for them twice')
+ok("${preselectedIds.includes(Number(variant.id)) ? ' checked' : ''}" in pt_view,
+   'and they arrive already ticked')
+ok('if (count < Number(group.min) || count > Number(group.max))' in pt_view,
+   'a required option group is still enforced before the dish is added')
+ok("const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0) + variants.reduce((sum, v) => sum + Number(v.rate || 0), 0);" in pt_view,
+   'the sides are added to the plate price, so the line is what the guest pays')
+ok('Side dishes: ${c.variants.map(v => esc(v.name)' in pt_view,
+   'the cart line names the sides it carries')
+ok('name="items[${mi}][variants][]"' in pt_view,
+   'and posts each one as items[n][variants][]')
+ok("'items.*.variants' => 'nullable|array|max:30'," in pos_ctrl
+   and "'items.*.variants.*' => 'integer|owned:menu_item_variants'," in pos_ctrl,
+   'the server validates every side against the menu variant table')
+ok('PosMenuVariantService' in pos_ctrl and '::snapshot(' in pos_ctrl,
+   'and prices it through the same snapshot the QR menu uses')
+ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/build-pos-terminal-preview.mjs')),
+   'the terminal preview is generated from the real view, not kept by hand')
+ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/preview/pos-terminal-sample.mjs')),
+   'against a sample that opens the same order the screen is built on')
+pt_check = read(os.path.join(ROOT, 'deploy/dev/audit/pos_terminal_preview_check.js'))
+ok('no attribute is escaped twice' in pt_check and "JSON.parse(button.dataset.variants)" in pt_check,
+   'and the check taps the tiles in jsdom, so a picker that cannot open fails the round')
+ok('the sides ride on the line' in pt_check and 'the total is now 347.00' in pt_check,
+   'holding the picker to the cart and the cart to the total')
+ok('href="/__preview/pos-terminal"' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the terminal is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
