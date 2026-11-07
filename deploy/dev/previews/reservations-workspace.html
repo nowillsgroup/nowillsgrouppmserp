@@ -63,7 +63,15 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+/* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
+   to a row meant scrolling past two thirds of it to find the one dirty room. Five across from 1400px, where
+   the board is wide enough to hold five cards of ~150px, then four, three, two and one. Each card was cut to
+   that size in the same round — a five-across grid of full-size cards would only have made shorter ones. */
+@media (max-width:1399px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1023px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:767px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:479px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
 .ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
@@ -73,23 +81,30 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;padding:12px 14px 0;min-height:0;color:#fff}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:9px 10px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
 .ws-card-head .text-right{max-width:48%;flex:0 0 auto}
 .ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
-.ws-card-head .badge{white-space:normal;box-shadow:0 1px 7px rgba(15,23,42,.28)}
-.ws-room-no{font-size:28px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
-.ws-tag{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.4px;background:#fef3c7;color:#b45309;padding:2px 6px;border-radius:5px}
-.ws-hk-badge{display:inline-block;margin-top:4px;padding:2px 5px;border-radius:5px;font-size:9px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
+.ws-card-head .badge{white-space:normal;padding:2px 5px;font-size:9px;letter-spacing:.2px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-room-no{font-size:21px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
+.ws-tag{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;letter-spacing:.2px;background:#fef3c7;color:#b45309;padding:2px 4px;border-radius:5px}
+.ws-hk-badge{display:inline-block;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 1px 6px rgba(15,23,42,.24)}
+/* five across is from 1400px up, and at ~150px a card carries the room, its state, its guest and its money.
+   The words in the housekeeping chip and the smoking rule are the first things to go — both are in the room
+   dialog, and the phrase stays in the accessibility tree rather than being deleted from the card. */
+@media (min-width:1400px){
+  .ws-hk-prefix{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}
+  .ws-photo-meta>span:nth-child(3){display:none}
+}
 .ws-hk-dirty{background:#fef3c7;color:#92400e}.ws-hk-clean{background:#dcfce7;color:#166534}.ws-hk-inspected{background:#d1fae5;color:#065f46}.ws-hk-touchup{background:#dbeafe;color:#1e40af}.ws-hk-unknown{background:#f1f5f9;color:#475569}
-.ws-photo{position:relative;aspect-ratio:16/10;min-height:196px;max-height:266px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
+.ws-photo{position:relative;aspect-ratio:16/11;min-height:104px;max-height:172px;margin:0;overflow:hidden;border-radius:0;background:#eef2f0}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:12px 14px}
-.ws-photo-meta{display:flex;flex-wrap:wrap;gap:3px 11px;color:rgba(255,255,255,.94);font-size:11px;font-weight:600;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:7px;padding:8px 10px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 8px;color:rgba(255,255,255,.94);font-size:10px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
 .ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
 .ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
@@ -102,35 +117,35 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:5px 9px;border:1px solid rgba(255,255,255,.65);border-radius:8px;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
+.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:3px 7px;border:1px solid rgba(255,255,255,.65);border-radius:7px;font-size:11.5px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
 .ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
 .ws-photo-rate.ws-rate-unset small{color:#b45309}
 .ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px 8px;color:#94a3b8}
-.ws-amen .i{width:15px;height:15px}
+.ws-amen{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px 6px;color:#94a3b8}
+.ws-amen .i{width:13px;height:13px}
 .ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
 .ws-amen-more:hover{background:#dcfce7}
-.ws-guest{flex:1;margin-top:0;padding:9px 14px 10px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
+.ws-guest{flex:1;margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9;border-left:3px solid transparent}
 .ws-guest>.flex{align-items:center}
 .ws-guest>.flex>div{min-width:0}
 .ws-guest>.flex .bold{overflow-wrap:anywhere}
 .ws-guest.arriving{border-left-color:#f59e0b;background:#fffbeb66}
 .ws-guest.inhouse{border-left-color:#3b82f6;background:#eff6ff66}
 .ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
-.ws-avatar{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
-.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:8px;padding:8px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;text-align:center}
-.ws-nights{font-size:10px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:3px 8px;color:#166534;white-space:nowrap}
-.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;padding:8px 0 0;border-top:1px solid #f1f5f9}
+.ws-stay{display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:6px;padding:6px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;font-size:10.5px;text-align:center}
+.ws-nights{font-size:9.5px;font-weight:750;background:#ecfdf3;border-radius:999px;padding:2px 6px;color:#166534;white-space:nowrap}
+.ws-rate-row{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;padding:6px 0 0;font-size:10.5px;border-top:1px solid #f1f5f9}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
-.ws-vacant-rate{font-size:22px;font-weight:800;margin:4px 0 8px}
+.ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
 .ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:6px;margin-top:auto;padding:9px 12px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
-.ws-actions .btn{display:inline-flex;min-height:30px;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-radius:7px;font-size:11px;line-height:1.2;white-space:nowrap}
-.ws-actions .btn .i{width:13px;height:13px;flex:0 0 13px}
+.ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
+.ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
 .ws-actions .btn-ghost{border:1px solid transparent}
 .ws-actions .btn-ghost:hover{border-color:#bbf7d0;background:#f0fdf4;color:#14532d}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
@@ -245,7 +260,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
   .ws-assign,.ws-assign-none{padding-left:0}
   .ws-person-row>.ws-assign{padding-left:7px}
   .ws-person-row>.ws-assign-none{margin-left:0;padding-left:9px}
-  .ws-photo{min-height:184px}
+  .ws-photo{min-height:118px}
   .ws-extend-form{width:100%}
   .ws-extend-form input{flex:1;max-width:none}
 }
@@ -334,7 +349,11 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(348px,100%),1fr));gap:16px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+@media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:479px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
@@ -3685,7 +3704,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
               
       </div>
       </div>
@@ -3777,7 +3796,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
               
       </div>
       </div>
@@ -3849,7 +3868,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-amber">RESERVED</span>
-      <div class="ws-hk-badge ws-hk-inspected" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Inspected</div>
+      <div class="ws-hk-badge ws-hk-inspected" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Inspected</div>
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
@@ -3941,7 +3960,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
               
       </div>
       </div>
@@ -4014,7 +4033,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-amber">MAINTENANCE</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
               
       </div>
       </div>
@@ -4077,7 +4096,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
               
       </div>
       </div>
@@ -4179,7 +4198,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-amber">RESERVED</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
@@ -4281,7 +4300,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-hk-badge ws-hk-inspected" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Inspected</div>
+      <div class="ws-hk-badge ws-hk-inspected" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Inspected</div>
               
       </div>
       </div>
@@ -4353,7 +4372,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
               
       </div>
       </div>
@@ -4455,7 +4474,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-red">OUT OF ORDER</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
               
       </div>
       </div>
@@ -4526,7 +4545,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
               
       </div>
       </div>
@@ -4628,7 +4647,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-blue">OCCUPIED</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
               
       </div>
       </div>
@@ -4730,7 +4749,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-amber">RESERVED</span>
-      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Clean</div>
+      <div class="ws-hk-badge ws-hk-clean" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Clean</div>
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>
@@ -4830,7 +4849,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-green">AVAILABLE</span>
-      <div class="ws-hk-badge ws-hk-touchup" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Touch-up</div>
+      <div class="ws-hk-badge ws-hk-touchup" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Touch-up</div>
               
       </div>
       </div>
@@ -4900,7 +4919,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
       <div class="text-right">
       <span class="badge badge-amber">RESERVED</span>
-      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: Dirty</div>
+      <div class="ws-hk-badge ws-hk-dirty" title="Current housekeeping status"><span class="ws-hk-prefix">Current <span aria-hidden="true">HK</span><span class="sr-only">housekeeping</span>: </span>Dirty</div>
       <div class="ws-tag">ARRIVING ON THIS DATE</div>
       </div>
       </div>

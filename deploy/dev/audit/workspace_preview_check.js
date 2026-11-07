@@ -90,8 +90,36 @@ ok('the body holds the amenities, the guest and the actions',
   cards.every(card => card.querySelector('.ws-card-body .ws-amen')
     && card.querySelector('.ws-card-body .ws-guest')
     && card.querySelector('.ws-card-body .ws-actions')));
-ok('the board gives the cards room to breathe', /\.ws-grid\{[^}]*minmax\(min\(348px/.test($('style')?.textContent ?? ''),
-  ($('style')?.textContent ?? '').match(/\.ws-grid\{[^}]*\}/)?.[0]);
+// v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
+// than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
+// squeezing five into a phone.
+const wsStyle = $('style')?.textContent ?? '';
+ok('the board fits five rooms across', /\.ws-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+  wsStyle.match(/\.ws-grid\{[^}]*\}/)?.[0]);
+ok('and a grouped board fits five across too', /\.ws-group-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+  wsStyle.match(/\.ws-group-grid\{[^}]*\}/)?.[0]);
+ok('the grid steps down to four, three, two and one as the screen narrows',
+  [[1399, 4], [1023, 3], [767, 2], [479, 1]].every(([width, count]) =>
+    new RegExp(`@media \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle)),
+  [[1399, 4], [1023, 3], [767, 2], [479, 1]]
+    .map(([w, c]) => `${w}px→${c}`).join(' · '));
+ok('and the widest band asks the card to give something up for the fifth column',
+  /\.ws-photo-meta>span:nth-child\(3\)\{display:none\}/.test(wsStyle)
+    && wsStyle.indexOf('@media (min-width:1400px){') < wsStyle.indexOf('.ws-photo-meta>span:nth-child(3)'),
+  'the smoking rule moves into the room dialog at five across');
+ok('the card itself was cut to that size, not just squeezed',
+  /\.ws-photo\{[^}]*aspect-ratio:16\/11[^}]*min-height:104px/.test(wsStyle)
+    && /\.ws-room-no\{font-size:21px/.test(wsStyle)
+    && /\.ws-avatar\{width:28px/.test(wsStyle)
+    && /\.ws-actions \.btn\{[^}]*font-size:10px/.test(wsStyle),
+  [wsStyle.match(/\.ws-photo\{[^}]*\}/)?.[0], wsStyle.match(/\.ws-room-no\{[^}]*\}/)?.[0]].join(' | '));
+ok('at five across the housekeeping chip keeps its state and gives up the words',
+  cards.every(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')),
+  `${cards.filter(card => card.querySelector('.ws-hk-badge .ws-hk-prefix')).length}/${cards.length} chips carry a prefix`);
+ok('the prefix is hidden from the eye but not from a screen reader',
+  /\.ws-hk-prefix\{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset\(50%\)\}/.test(wsStyle)
+    && wsStyle.indexOf('@media (min-width:1400px){') < wsStyle.indexOf('.ws-hk-prefix{position:absolute'),
+  'clip-path at five across, nothing at wider cards');
 
 /* ── the needs-attention rail ────────────────────────────────────────────── */
 const attention = $$('#wsAttention .ws-attention-row');
