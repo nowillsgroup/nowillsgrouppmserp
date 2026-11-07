@@ -108,7 +108,10 @@ ok('the second function is the reception in the Grand Ballroom',
 ok('the reception names the package and its type',
   /Gold Buffet/.test(text('.menu-package', reception)) && /Buffet/.test(text('.menu-type', reception)),
   text('.menu-package', reception));
-const dishes = $$('.menu-dishes li', reception).map(li => li.textContent.trim());
+/** the first card in the grid is the food menu; the bar, when there is one, is the second */
+const menuCard = card => [...card.querySelectorAll('.menu-card')].find(el => /^Menu/.test(el.textContent.trim()));
+const barCard = card => [...card.querySelectorAll('.menu-card')].find(el => /^Bar/.test(el.textContent.trim()));
+const dishes = $$('.menu-dishes li', menuCard(reception) ?? reception).map(li => li.textContent.trim());
 ok('every dish on the package is printed', dishes.length === 8, String(dishes.length));
 ok('the dishes are printed in order, first to last',
   dishes[0] === 'Jollof rice with grilled chicken' && dishes[7] === 'Chocolate mousse and petits fours',
@@ -123,6 +126,20 @@ ok('the reception prints the kitchen notes',
   /Buffet open at 19:45/.test(text('.menu-card.menu-wide', reception)), text('.menu-card.menu-wide', reception));
 ok('the ceremony prints its own notes',
   /The family provides the drinks/.test(text('.menu-card.menu-wide', ceremony)));
+
+/* ── the bar: a second package, listed for the bar staff ─────────────────── */
+ok('the reception carries its drinks package on the same page as the food',
+  /House drinks package/.test(barCard(reception)?.textContent ?? ''),
+  (barCard(reception)?.textContent ?? '').slice(0, 90));
+ok('the drinks are listed, not just the package name',
+  $$('.menu-dishes li', barCard(reception) ?? reception).length === 4,
+  String($$('.menu-dishes li', barCard(reception) ?? reception).length));
+ok('the bar card is a bar, and the food card is a menu',
+  /^Bar/.test(barCard(reception)?.textContent?.trim() ?? '') && /^Menu/.test(menuCard(reception)?.textContent?.trim() ?? ''));
+ok('the ceremony has no bar card to print',
+  barCard(ceremony) === undefined);
+ok('no price reaches the paper through the bar either',
+  !/GH₵/.test((barCard(reception)?.textContent ?? '') + (menuCard(reception)?.textContent ?? '')));
 
 /* ── dietary: recorded counts where they exist, the gap where they do not ── */
 const dietRows = card => $$('.menu-diet tbody tr', card).map(tr => [...tr.cells].map(td => td.textContent.trim()));

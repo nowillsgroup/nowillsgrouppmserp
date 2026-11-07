@@ -334,7 +334,7 @@ class OrganiserService
     /** The banquet event order as it stands right now (header, functions, money, terms) – the staff publish a copy of this. */
     public static function beo(BanquetEvent $e): array
     {
-        $e->loadMissing('functions.items', 'functions.hall', 'functions.package', 'company', 'hall');
+        $e->loadMissing('functions.items', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'hall');
         $m = self::money($e);
 
         return [
@@ -346,6 +346,7 @@ class OrganiserService
             'functions' => $e->functions->map(fn ($f) => ['name' => $f->name, 'date' => $f->date->toDateString(), 'time' => $f->timeRange(),
                 'hall' => $f->hall?->name, 'setup' => BanquetFunction::SETUPS[$f->setup_style] ?? $f->setup_style,
                 'expected_pax' => (int) $f->expected_pax, 'guaranteed_pax' => $f->guaranteed_pax, 'package' => $f->package?->name,
+                'bar_package' => $f->barPackage?->name, 'bar_rate_per_pax' => (float) $f->bar_rate_per_pax,
                 'rate_per_pax' => (float) $f->rate_per_pax, 'hall_rate' => (float) $f->hall_rate, 'net' => $f->net(), 'tax' => $f->tax(),
                 'items' => $f->items->map(fn ($i) => ['desc' => $i->description, 'qty' => (float) $i->qty, 'price' => (float) $i->unit_price, 'amount' => $i->amount()])->values()->all(),
                 'notes' => $f->notes])->values()->all(),

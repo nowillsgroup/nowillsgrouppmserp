@@ -122,7 +122,7 @@ class BanquetController extends Controller
             'salesUsers' => User::where('hotel_id', Tenant::id())->where('is_active', true)->orderBy('name')->get()->filter(fn ($u) => $u->hasPermission('banquet.manage'))->pluck('name', 'id'),
             'hallData' => $halls->mapWithKeys(fn ($h) => [$h->id => ['cap' => $h->capacity, 'caps' => collect(BanquetFunction::SETUPS)->keys()->mapWithKeys(fn ($s) => [$s => $h->capacityFor($s)]),
                 'half' => $h->rate_per_session, 'full' => $h->rate_full_day]]),
-            'pkgData' => $pkgs->mapWithKeys(fn ($p) => [$p->id => ['p' => $p->price_per_pax, 'min' => $p->min_pax, 't' => $p->tax_rate]]),
+            'pkgData' => $pkgs->mapWithKeys(fn ($p) => [$p->id => ['p' => $p->price_per_pax, 'min' => $p->min_pax, 't' => $p->tax_rate, 'n' => $p->name]]),
             'svcData' => $svcs->mapWithKeys(fn ($s) => [$s->id => ['n' => $s->name, 'p' => $s->price, 't' => $s->tax_rate, 'u' => $s->unit]]),
             'halfDayHours' => (float) setting('banquet_half_day_hours', '5'), 'hallTax' => (float) setting('banquet_hall_tax_rate', '21'),
         ];
@@ -133,7 +133,8 @@ class BanquetController extends Controller
         $e = new BanquetEvent(['event_type' => 'wedding', 'status' => 'enquiry', 'sales_user_id' => auth()->id(), 'source' => 'phone']);
         $fn = [['id' => null, 'name' => '', 'banquet_hall_id' => (int) $request->input('hall') ?: null, 'date' => $request->input('date', bdate()->copy()->addDays(14)->toDateString()),
             'start_time' => '19:00', 'end_time' => '23:00', 'setup_style' => 'banquet', 'expected_pax' => null, 'guaranteed_pax' => null, 'banquet_package_id' => null,
-            'rate_per_pax' => null, 'hall_rate' => null, 'notes' => null, 'dietary' => [], 'items' => []]];
+            'rate_per_pax' => null, 'hall_rate' => null, 'notes' => null, 'dietary' => [],
+            'banquet_bar_package_id' => null, 'bar_rate_per_pax' => null, 'items' => []]];
 
         return view('banquet.form', $this->formData($e, $fn));
     }
@@ -155,6 +156,7 @@ class BanquetController extends Controller
             'functions.*.expected_pax' => 'required|integer|min:1|max:10000', 'functions.*.guaranteed_pax' => 'nullable|integer|min:1|max:10000',
             'functions.*.banquet_package_id' => 'nullable|integer|owned:banquet_packages', 'functions.*.rate_per_pax' => 'nullable|numeric|min:0|max:999999',
             'functions.*.hall_rate' => 'nullable|numeric|min:0|max:99999999', 'functions.*.notes' => 'nullable|string|max:3000',
+            'functions.*.banquet_bar_package_id' => 'nullable|integer|owned:banquet_packages', 'functions.*.bar_rate_per_pax' => 'nullable|numeric|min:0|max:999999',
             'functions.*.dietary' => 'nullable|array|max:12', 'functions.*.dietary.*.diet' => 'nullable|in:'.implode(',', array_keys(BanquetFunction::DIETS)),
             'functions.*.dietary.*.covers' => 'nullable|integer|min:0|max:10000', 'functions.*.dietary.*.dish' => 'nullable|string|max:120',
             'functions.*.items' => 'nullable|array|max:40', 'functions.*.items.*.banquet_service_id' => 'nullable|integer|owned:banquet_services',
@@ -173,7 +175,7 @@ class BanquetController extends Controller
 
     public function show(BanquetEvent $event)
     {
-        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'company', 'folio', 'salesUser', 'roomBlock', 'closer');
+        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'folio', 'salesUser', 'roomBlock', 'closer');
         $folio = $event->folio;
 
         return view('banquet.show', [
@@ -192,6 +194,7 @@ class BanquetController extends Controller
             'start_time' => substr($f->start_time, 0, 5), 'end_time' => substr($f->end_time, 0, 5), 'setup_style' => $f->setup_style, 'expected_pax' => $f->expected_pax,
             'guaranteed_pax' => $f->guaranteed_pax, 'banquet_package_id' => $f->banquet_package_id, 'rate_per_pax' => $f->rate_per_pax, 'hall_rate' => $f->hall_rate, 'notes' => $f->notes,
             'dietary' => $f->dietary ?? [],
+            'banquet_bar_package_id' => $f->banquet_bar_package_id, 'bar_rate_per_pax' => $f->bar_rate_per_pax,
             'locked' => $f->guaranteeLocked() && $f->guaranteed_pax !== null,
             'items' => $f->items->map(fn ($i) => ['banquet_service_id' => $i->banquet_service_id, 'description' => $i->description, 'qty' => $i->qty, 'unit_price' => $i->unit_price, 'tax_rate' => $i->tax_rate])->all()])->all();
 
@@ -333,7 +336,7 @@ class BanquetController extends Controller
 
     public function print(BanquetEvent $event)
     {
-        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'company', 'salesUser', 'roomBlock');
+        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser', 'roomBlock');
 
         return view('banquet.print', ['e' => $event, 'hotel' => Tenant::hotel(), 'deposits' => $event->depositsReceived()]);
     }
@@ -344,7 +347,7 @@ class BanquetController extends Controller
      */
     public function menu(Request $request, BanquetEvent $event)
     {
-        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'company', 'salesUser');
+        $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser');
 
         $focus = $request->integer('function');
         $fns = $event->functions
@@ -365,7 +368,7 @@ class BanquetController extends Controller
 
     public function quote(BanquetEvent $event)
     {
-        $event->load('functions.items', 'functions.hall', 'functions.package', 'company', 'salesUser');
+        $event->load('functions.items', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser');
 
         return view('banquet.quote', ['e' => $event, 'hotel' => Tenant::hotel(), 'deposits' => $event->depositsReceived(),
             'terms' => setting('banquet_terms', Sales::DEFAULTS['banquet_terms'])]);

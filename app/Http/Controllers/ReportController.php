@@ -3055,7 +3055,7 @@ class ReportController extends Controller
 
             return ['hall' => $h->name, 'cap' => $h->capacity, 'fns' => $firm->count(), 'tent' => $all->count() - $firm->count(), 'days' => $firm->pluck('date')->map->toDateString()->unique()->count(),
                 'hours' => round($hours, 1), 'occ' => round($hours / ($days * 16) * 100, 1), 'covers' => $firm->sum(fn ($f) => $f->billablePax()),
-                'rent' => round($firm->sum(fn ($f) => (float) $f->hall_rate), 2), 'fnb' => round($firm->sum(fn ($f) => $f->fnbAmount()), 2), 'total' => round($firm->sum(fn ($f) => $f->net()), 2)];
+                'rent' => round($firm->sum(fn ($f) => (float) $f->hall_rate), 2), 'fnb' => round($firm->sum(fn ($f) => $f->fnbAmount() + $f->barAmount()), 2), 'total' => round($firm->sum(fn ($f) => $f->net()), 2)];
         });
 
         return ['cols' => ['hall' => 'Venue', 'cap' => 'Capacity', 'fns' => 'Functions', 'tent' => '+ Tentative', 'days' => 'Days used', 'hours' => 'Hours', 'occ' => 'Occupancy %',
@@ -3066,12 +3066,12 @@ class ReportController extends Controller
 
     protected function r_function_forecast($from, $to): array
     {
-        $rows = \App\Models\BanquetFunction::with('event.company', 'hall', 'package', 'items')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+        $rows = \App\Models\BanquetFunction::with('event.company', 'hall', 'package', 'barPackage', 'items')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite']))->orderBy('date')->orderBy('start_time')->get()
             ->map(fn ($f) => ['date' => $f->date->format('d-m-Y D'), 'time' => $f->timeRange(), 'venue' => $f->hall->name, 'event' => $f->event->event_no.' '.$f->event->title,
                 'fn' => $f->name, 'setup' => \App\Models\BanquetFunction::SETUPS[$f->setup_style] ?? $f->setup_style, 'pax' => $f->guaranteed_pax ?? $f->expected_pax,
-                'guar' => $f->guaranteed_pax !== null ? 'Yes' : 'due '.$f->guaranteeCutoff()->format('d M'), 'menu' => $f->package?->name ?? ($f->rate_per_pax > 0 ? 'Custom' : '—'),
-                'extras' => $f->items->pluck('description')->join(', '), 'fnb' => $f->fnbAmount(), 'status' => BanquetEvent::STATUSES[$f->event->status] ?? $f->event->status]);
+                'guar' => $f->guaranteed_pax !== null ? 'Yes' : 'due '.$f->guaranteeCutoff()->format('d M'), 'menu' => ($f->package?->name ?? ($f->rate_per_pax > 0 ? 'Custom' : '—')).($f->barPackage ? ' + '.$f->barPackage->name : ''),
+                'extras' => $f->items->pluck('description')->join(', '), 'fnb' => $f->fnbAmount() + $f->barAmount(), 'status' => BanquetEvent::STATUSES[$f->event->status] ?? $f->event->status]);
 
         return ['cols' => ['date' => 'Date', 'time' => 'Time', 'venue' => 'Venue', 'event' => 'Event', 'fn' => 'Function', 'setup' => 'Set-up', 'pax' => 'Covers', 'guar' => 'Guaranteed',
             'menu' => 'Menu', 'extras' => 'Services / equipment', 'fnb' => 'F&B value', 'status' => 'Status'], 'rows' => $rows, 'money' => ['fnb'], 'sum' => ['pax', 'fnb']];

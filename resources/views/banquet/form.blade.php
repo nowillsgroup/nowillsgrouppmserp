@@ -104,6 +104,8 @@
     <div class="field"><label>Guaranteed guests</label><input type="number" min="1" max="10000" class="input" data-f="guaranteed_pax" placeholder="Final numbers"></div>
     <div class="field"><label>Menu package</label><select class="input" data-f="banquet_package_id"><option value="">— No F&amp;B / custom —</option>@foreach($packages->groupBy('type') as $t => $grp)<optgroup label="{{ ucfirst($t) }}">@foreach($grp as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ money($p->price_per_pax, false) }})</option>@endforeach</optgroup>@endforeach</select></div>
     <div class="field"><label>Rate per guest</label><input type="number" min="0" max="999999" step="0.01" class="input" data-f="rate_per_pax"></div>
+    <div class="field"><label>Drinks package</label><select class="input" data-f="banquet_bar_package_id"><option value="">— No drinks package —</option>@foreach($packages->groupBy('type') as $t => $grp)<optgroup label="{{ ucfirst($t) }}">@foreach($grp as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ money($p->price_per_pax, false) }})</option>@endforeach</optgroup>@endforeach</select><span class="hint fn-bar"></span></div>
+    <div class="field"><label>Drinks per guest</label><input type="number" min="0" max="999999" step="0.01" class="input" data-f="bar_rate_per_pax"><span class="hint">Charged per paying guest, beside the food.</span></div>
     <div class="field"><label>Venue rent</label><input type="number" min="0" max="99999999" step="0.01" class="input" data-f="hall_rate"><span class="hint fn-rent"></span></div>
     <div class="field span-2"><label>Kitchen / set-up notes (BEO)</label><textarea class="input" rows="2" data-f="notes" maxlength="3000"></textarea></div>
   </div>
@@ -139,7 +141,7 @@
   const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const num = el => parseFloat(el.value) || 0;
   const MAX_FUNCTIONS = 30, MAX_ITEMS = 40, MAX_DIETS = 12;
-  const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
+  const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', banquet_bar_package_id: 'Drinks package', bar_rate_per_pax: 'Drinks per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
   const itemLabels = {banquet_service_id: 'Service or equipment', description: 'Description', qty: 'Quantity', unit_price: 'Unit price', tax_rate: 'Tax rate'};
   const dietLabels = {diet: 'Diet', covers: 'Covers', dish: 'Dish served'};
   function names(card) {
@@ -268,6 +270,7 @@
       (returnFocus || document.getElementById('addFn')).focus();
     });
     card.querySelector('[data-f=banquet_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=rate_per_pax]').value = p ? p.p : ''; calc(); });
+    card.querySelector('[data-f=banquet_bar_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=bar_rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelectorAll('[data-f]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { names(card); calc(); }));
     renumber(); calc(); return card;
   }
@@ -318,6 +321,16 @@
       capHint.classList.toggle('text-amber', belowPackageMinimum && !capacityWarning);
       if (belowPackageMinimum) capHint.textContent += ` · Package minimum ${pkg.min} guests`;
       const rate = rateEl.value !== '' ? num(rateEl) : (pkg ? pkg.p : 0);
+      const barId = card.querySelector('[data-f=banquet_bar_package_id]').value;
+      const barPkg = PKGS[barId];
+      const barRateEl = card.querySelector('[data-f=bar_rate_per_pax]');
+      barRateEl.placeholder = barPkg ? fmt(barPkg.p) : '0.00';
+      const barRate = barRateEl.value !== '' ? num(barRateEl) : (barPkg ? barPkg.p : 0);
+      card.querySelector('.fn-bar').textContent = barPkg
+        ? (guestsForPackage < barPkg.min ? `${barPkg.n ?? 'Drinks'} needs ${barPkg.min} guests` : (barPkg.n ?? 'Drinks package'))
+        : '';
+      card.querySelector('.fn-bar').classList.toggle('text-amber', !!barPkg && guestsForPackage < barPkg.min);
+      const barNet = barRate * billable;
       const rent = rentEl.value !== '' ? num(rentEl) : defaultRent;
       const foodNet = rate * billable;
       let extrasNet = 0, extrasTax = 0;
@@ -327,14 +340,14 @@
         extrasNet += amount;
         extrasTax += amount * num(row.querySelector('[data-i=tax_rate]')) / 100;
       });
-      const functionNet = foodNet + rent + extrasNet;
-      const functionTax = foodNet * (pkg ? pkg.t : 18) / 100 + rent * HALLTAX / 100 + extrasTax;
+      const functionNet = foodNet + barNet + rent + extrasNet;
+      const functionTax = foodNet * (pkg ? pkg.t : 18) / 100 + barNet * (barPkg ? barPkg.t : 18) / 100 + rent * HALLTAX / 100 + extrasTax;
       net += functionNet;
       tax += functionTax;
       card.querySelector('.fn-total').textContent = fmt(functionNet);
       estimates.push({
         name: card.querySelector('[data-f=name]').value || card.querySelector('.fn-title').textContent,
-        detail: `${billable || 0} guests${rate ? ` · ${fmt(rate)} per guest` : ''}`,
+        detail: `${billable || 0} guests${rate ? ` · ${fmt(rate)} food` : ''}${barRate ? ` · ${fmt(barRate)} drinks` : ''}`,
         amount: functionNet,
       });
     });

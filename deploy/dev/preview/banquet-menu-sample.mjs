@@ -40,6 +40,8 @@ const fn = (spec) => ({
   date: day(spec.date),
   hall: { id: spec.banquet_hall_id, name: hall(spec.banquet_hall_id)?.name ?? 'Venue not set' },
   package: spec.banquet_package_id ? pkg(spec.banquet_package_id) : null,
+  // the second package slot: the bar, as BanquetFunction::barPackage()
+  barPackage: spec.banquet_bar_package_id ? pkg(spec.banquet_bar_package_id) : null,
   timeRange: () => timeRange(spec),
   // max(guarantee or expected, actual) — BanquetFunction::billablePax()
   billablePax: () => Math.max(Number(spec.guaranteed_pax ?? spec.expected_pax ?? 0), Number(spec.actual_pax ?? 0)),
@@ -58,7 +60,7 @@ export const FUNCTIONS = [
     id: 4101, name: 'Traditional ceremony', banquet_hall_id: 3, date: '2026-12-12',
     start_time: '14:00', end_time: '17:00', setup_style: 'theatre',
     expected_pax: 150, guaranteed_pax: 150, actual_pax: null,
-    banquet_package_id: null, rate_per_pax: 0, dietary: [],
+    banquet_package_id: null, rate_per_pax: 0, banquet_bar_package_id: null, bar_rate_per_pax: 0, dietary: [],
     notes: 'Elders seated at the front; two chairs for the officiants. The family provides the drinks — no corkage '
       + 'to be charged. No food service: water and kola on the head table only. Venue turns around to the '
       + 'reception in 60 minutes from 17:00.',
@@ -68,7 +70,7 @@ export const FUNCTIONS = [
     id: 4102, name: 'Reception & dinner', banquet_hall_id: 1, date: '2026-12-12',
     start_time: '19:00', end_time: '23:30', setup_style: 'banquet',
     expected_pax: 180, guaranteed_pax: 180, actual_pax: null,
-    banquet_package_id: 11, rate_per_pax: 320,
+    banquet_package_id: 11, rate_per_pax: 320, banquet_bar_package_id: 18, bar_rate_per_pax: 95,
     dietary: [
       { diet: 'vegetarian', covers: 12, dish: 'Vegetable jollof with grilled plantain' },
       { diet: 'coeliac', covers: 2, dish: 'Grilled fish, gluten-free plate' },

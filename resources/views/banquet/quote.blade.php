@@ -72,6 +72,7 @@
         @php
           $rows = collect();
           if ($f->rate_per_pax > 0) $rows->push([$f->package?->name ?? 'Food & beverage', $f->billablePax().' × '.money($f->rate_per_pax, false), $f->fnbAmount()]);
+          if ($f->barAmount() > 0) $rows->push([$f->barPackage?->name ?? 'Bar', $f->billablePax().' × '.money($f->bar_rate_per_pax, false), $f->barAmount()]);
           $rows->push(['Venue rental', $f->hours().' hours', (float) $f->hall_rate]);
           foreach ($f->items as $i) $rows->push([$i->description, rtrim(rtrim(number_format($i->qty, 2), '0'), '.').' × '.money($i->unit_price, false), $i->amount()]);
         @endphp
@@ -88,6 +89,9 @@
         @endforeach
         @if($f->package && $f->package->itemList())
           <tr class="quote-menu-row"><td colspan="2"></td><td></td><td colspan="2"><span class="quote-menu-label">Menu:</span> {{ implode(' · ', $f->package->itemList()) }}</td></tr>
+        @endif
+        @if($f->barPackage && $f->barPackage->itemList())
+          <tr class="quote-menu-row"><td colspan="2"></td><td></td><td colspan="2"><span class="quote-menu-label">Bar:</span> {{ implode(' · ', $f->barPackage->itemList()) }}</td></tr>
         @endif
       @empty
         <tr><td colspan="5" class="muted">No function details have been added to this event.</td></tr>

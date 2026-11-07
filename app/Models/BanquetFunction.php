@@ -20,8 +20,8 @@ class BanquetFunction extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'rate_per_pax' => 'float', 'hall_rate' => 'float', 'fnb_tax_rate' => 'float', 'hall_tax_rate' => 'float',
-            'dietary' => 'array'];
+        return ['date' => 'date', 'rate_per_pax' => 'float', 'bar_rate_per_pax' => 'float', 'hall_rate' => 'float',
+            'fnb_tax_rate' => 'float', 'bar_tax_rate' => 'float', 'hall_tax_rate' => 'float', 'dietary' => 'array'];
     }
 
     public function event()
@@ -39,12 +39,17 @@ class BanquetFunction extends Model
         return $this->belongsTo(BanquetPackage::class, 'banquet_package_id');
     }
 
+    /** The drinks package: a second package slot, billed as its own line. */
+    public function barPackage()
+    {
+        return $this->belongsTo(BanquetPackage::class, 'banquet_bar_package_id');
+    }
+
     public function items()
     {
         return $this->hasMany(BanquetEventItem::class)->orderBy('id');
     }
 
-    /** Pax the client pays for: the guarantee (or the estimate before one is given), or more if more turned up. */
     /**
      * The dietary rows to print, labelled, with anything unrecognised or empty dropped.
      *
@@ -71,6 +76,7 @@ class BanquetFunction extends Model
         return array_sum(array_column($this->dietaryLines(), 'covers'));
     }
 
+    /** Pax the client pays for: the guarantee (or the estimate before one is given), or more if more turned up. */
     public function billablePax(): int
     {
         return max((int) ($this->guaranteed_pax ?? $this->expected_pax), (int) ($this->actual_pax ?? 0));
@@ -81,6 +87,12 @@ class BanquetFunction extends Model
         return round($this->billablePax() * $this->rate_per_pax, 2);
     }
 
+    /** Drinks: the second package, charged per paying guest like the food. */
+    public function barAmount(): float
+    {
+        return round($this->billablePax() * $this->bar_rate_per_pax, 2);
+    }
+
     public function extrasAmount(): float
     {
         return round($this->items->sum(fn ($i) => $i->amount()), 2);
@@ -88,12 +100,12 @@ class BanquetFunction extends Model
 
     public function net(): float
     {
-        return round($this->fnbAmount() + $this->hall_rate + $this->extrasAmount(), 2);
+        return round($this->fnbAmount() + $this->barAmount() + $this->hall_rate + $this->extrasAmount(), 2);
     }
 
     public function tax(): float
     {
-        return round($this->fnbAmount() * $this->fnb_tax_rate / 100 + $this->hall_rate * $this->hall_tax_rate / 100
+        return round($this->fnbAmount() * $this->fnb_tax_rate / 100 + $this->barAmount() * $this->bar_tax_rate / 100 + $this->hall_rate * $this->hall_tax_rate / 100
             + $this->items->sum(fn ($i) => $i->amount() * $i->tax_rate / 100), 2);
     }
 

@@ -91,8 +91,11 @@ ok('every active venue is offered', tplFn.querySelectorAll('[data-f=banquet_hall
   `${tplFn.querySelectorAll('[data-f=banquet_hall_id] option').length} venues incl. the placeholder`);
 ok('every set-up style is offered', fn.querySelectorAll('[data-f=setup_style] option').length === 6);
 ok('the menu packages are grouped by type, not one flat list',
-  [...tplFn.querySelectorAll('optgroup')].map(group => group.label).join('|') === 'Buffet|Plated|Cocktail|Coffee',
-  [...tplFn.querySelectorAll('optgroup')].map(group => group.label).join(', '));
+  [...tplFn.querySelectorAll('[data-f=banquet_package_id] optgroup')].map(group => group.label).join('|') === 'Buffet|Plated|Cocktail|Coffee|Beverage',
+  [...tplFn.querySelectorAll('[data-f=banquet_package_id] optgroup')].map(group => group.label).join(', '));
+ok('the drinks slot offers the same register, grouped the same way',
+  [...tplFn.querySelectorAll('[data-f=banquet_bar_package_id] optgroup')].map(group => group.label).join('|') === 'Buffet|Plated|Cocktail|Coffee|Beverage',
+  [...tplFn.querySelectorAll('[data-f=banquet_bar_package_id] optgroup')].map(group => group.label).join(', '));
 ok('the extras are grouped by their own category',
   [...tplItem.querySelectorAll('optgroup')].map(group => group.label)
     .join('|') === 'Audio-visual|Décor & flowers|Entertainment|Equipment & furniture|Staffing|Other',
@@ -162,6 +165,22 @@ ok('a quantity priced line adds to the estimate',
     return Number(amount.replace(/[^\d.]/g, '')) === 420;
   })());
 
+/* ── the drinks package beside the food package ──────────────────────────── */
+ok('a function starts with no drinks package', fn.querySelector('[data-f=banquet_bar_package_id]').value === '');
+ok('choosing a drinks package refills the drinks rate, leaving the food rate alone',
+  (() => {
+    const foodRate = fn.querySelector('[data-f=rate_per_pax]').value;
+    const bar = fn.querySelector('[data-f=banquet_bar_package_id]');
+    bar.value = '18';
+    create.fire(bar, 'change');
+    return Number(fn.querySelector('[data-f=bar_rate_per_pax]').value) === 95
+      && fn.querySelector('[data-f=rate_per_pax]').value === foodRate;
+  })(),
+  fn.querySelector('[data-f=bar_rate_per_pax]').value);
+ok('the drinks package is named beside the rate that goes with it',
+  /House drinks package/.test(fn.querySelector('.fn-bar')?.textContent ?? ''),
+  fn.querySelector('.fn-bar')?.textContent);
+
 /* ── dietary needs, recorded per function ────────────────────────────────── */
 ok('a new function starts with no dietary needs to its name',
   /None recorded/.test(fn.querySelector('.fn-diet-count')?.textContent ?? ''),
@@ -214,6 +233,20 @@ ok('each function opens on its own venue, set-up and guest count',
 ok('the extras the client asked for are on the function',
   edit.$$('#fnList .fn-item').length === 5,
   `${edit.$$('#fnList .fn-item').length} extra lines`);
+ok('the held reception brings its drinks package back onto the form',
+  (() => {
+    const reception = edit.$$('#fnList .fn-card')[1];
+    return reception.querySelector('[data-f=banquet_bar_package_id]').value === '18'
+      && Number(reception.querySelector('[data-f=bar_rate_per_pax]').value) === 95;
+  })(),
+  edit.$$('#fnList .fn-card')[1]?.querySelector('[data-f=banquet_bar_package_id]')?.value);
+ok('the ceremony has the food only, with no drinks package',
+  edit.$$('#fnList .fn-card')[0].querySelector('[data-f=banquet_bar_package_id]').value === ''
+  && Number(edit.$$('#fnList .fn-card')[0].querySelector('[data-f=bar_rate_per_pax]').value || 0) === 0,
+  edit.$$('#fnList .fn-card')[0].querySelector('[data-f=bar_rate_per_pax]').value);
+ok('the estimate names the drinks rate beside the food rate',
+  /drinks/.test(edit.$$('#estList li')[1]?.textContent ?? ''),
+  edit.$$('#estList li')[1]?.textContent?.replace(/\s+/g, ' '));
 ok('the dietary needs saved on a function come back on the form',
   (() => {
     const reception = edit.$$('#fnList .fn-card')[1];

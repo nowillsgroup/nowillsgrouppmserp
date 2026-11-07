@@ -27,6 +27,7 @@
     </div>
     <div class="dept">
       <div><span class="lbl">Kitchen – menu</span>@if($f->package)<b>{{ $f->package->name }}</b>@if($f->package->itemList())<ul style="margin:2px 0 0;padding-left:18px">@foreach($f->package->itemList() as $i)<li>{{ $i }}</li>@endforeach</ul>@endif @elseif($f->rate_per_pax > 0) Custom menu – see notes @else No F&amp;B @endif</div>
+      @if($f->barPackage)<div><span class="lbl">Bar – drinks</span><b>{{ $f->barPackage->name }}</b>@if($f->barPackage->itemList())<ul style="margin:2px 0 0;padding-left:18px">@foreach($f->barPackage->itemList() as $drink)<li>{{ $drink }}</li>@endforeach</ul>@endif</div>@endif
       @if(count($f->dietaryLines()))
         <div><span class="lbl">Dietary – {{ $f->dietaryCovers() }} of {{ $f->billablePax() }} covers</span>@foreach($f->dietaryLines() as $diet)<b>{{ $diet['covers'] }} × {{ $diet['label'] }}</b>{{ $diet['dish'] ? ' — '.$diet['dish'] : '' }}<br>@endforeach</div>
       @endif
@@ -40,7 +41,7 @@
 @endforeach
 
 <table><thead><tr><th>Billing instructions</th><th class="r">Amount</th></tr></thead><tbody>
-@foreach($e->functions as $f)<tr><td>{{ $f->name }} ({{ $f->date->format('d M') }}) – F&amp;B {{ $f->billablePax() }} × {{ money($f->rate_per_pax, false) }}, venue {{ money($f->hall_rate, false) }}{{ $f->items->count() ? ', '.$f->items->count().' extra(s)' : '' }}</td><td class="r">{{ money($f->net(), false) }}</td></tr>@endforeach
+@foreach($e->functions as $f)<tr><td>{{ $f->name }} ({{ $f->date->format('d M') }}) – F&amp;B {{ $f->billablePax() }} × {{ money($f->rate_per_pax, false) }}{{ $f->barPackage ? ', bar × '.money($f->bar_rate_per_pax, false) : '' }}, venue {{ money($f->hall_rate, false) }}{{ $f->items->count() ? ', '.$f->items->count().' extra(s)' : '' }}</td><td class="r">{{ money($f->net(), false) }}</td></tr>@endforeach
 <tr><td>Taxes</td><td class="r">{{ money($e->tax(), false) }}</td></tr>
 </tbody><tfoot><tr><td>Estimated total · deposits received {{ money($deposits, false) }} · bill to {{ $e->company?->name ?? 'client (direct payment)' }}</td><td class="r">{{ money($e->total()) }}</td></tr></tfoot></table>
 <p class="note">Charged on the guaranteed number or the actual attendance, whichever is higher. Changes after the guarantee cut-off must be approved by the banquet manager and re-issued as a revised BEO.</p>

@@ -110,6 +110,13 @@ export const PACKAGES = [
     items: ['Coffee and tea station', 'Assorted pastries', 'Fruit skewers', 'Bottled water and juice'] },
   { id: 17, name: 'Gala dinner', type: 'plated', price_per_pax: 520, min_pax: 80, tax_rate: 21, sort: 7,
     items: ['Starter — seared scallops', 'Main — beef fillet with truffle mash', 'Dessert — gold-leaf chocolate torte', 'Petits fours and coffee'] },
+  // Drinks packages: what the second package slot is for.
+  { id: 18, name: 'House drinks package', type: 'beverage', price_per_pax: 95, min_pax: 50, tax_rate: 21, sort: 8,
+    items: ['Beer, house wine and soft drinks', 'Sobolo and hibiscus cooler', 'Bottled water at every table', 'Bar open 30 minutes before dinner'] },
+  { id: 19, name: 'Wine with dinner', type: 'beverage', price_per_pax: 140, min_pax: 30, tax_rate: 21, sort: 9,
+    items: ['White and red wine poured with the main', 'Sparkling toast for the head table', 'No spirits'] },
+  { id: 20, name: 'Premium open bar', type: 'beverage', price_per_pax: 210, min_pax: 80, tax_rate: 21, sort: 10,
+    items: ['Full spirits bar with a named barman', 'Cocktail of the evening', 'Wine service throughout', 'Bar closes 30 minutes before the function ends'] },
 ];
 
 /** Extras: audio-visual, décor, entertainment, furniture, staffing. */
@@ -143,7 +150,7 @@ export const hallData = () => Object.fromEntries(HALLS.map(hall => [hall.id, {
 }]));
 
 /** pkgData — p: rate per pax, min: package floor, t: tax rate. */
-export const pkgData = () => Object.fromEntries(PACKAGES.map(pkg => [pkg.id, { p: pkg.price_per_pax, min: pkg.min_pax, t: pkg.tax_rate }]));
+export const pkgData = () => Object.fromEntries(PACKAGES.map(pkg => [pkg.id, { p: pkg.price_per_pax, min: pkg.min_pax, t: pkg.tax_rate, n: pkg.name }]));
 
 /** svcData — n: name, p: price, t: tax, u: unit (pax means qty follows the guest count). */
 export const svcData = () => Object.fromEntries(SERVICES.map(svc => [svc.id, { n: svc.name, p: svc.price, t: svc.tax_rate, u: svc.unit }]));
@@ -181,14 +188,14 @@ const FUNCTION_SPECS = {
     id: null, name: '', banquet_hall_id: null, date: '2026-11-19',
     start_time: '19:00', end_time: '23:00', setup_style: 'banquet',
     expected_pax: null, guaranteed_pax: null, banquet_package_id: null,
-    rate_per_pax: null, hall_rate: null, notes: null, dietary: [], items: [], locked: false,
+    rate_per_pax: null, hall_rate: null, notes: null, dietary: [], banquet_bar_package_id: null, bar_rate_per_pax: null, items: [], locked: false,
   }],
   edit: () => [
     {
       id: 4101, name: 'Traditional ceremony', banquet_hall_id: 3, date: '2026-12-12',
       start_time: '14:00', end_time: '17:00', setup_style: 'theatre',
       expected_pax: 150, guaranteed_pax: 150, banquet_package_id: null,
-      rate_per_pax: 0, hall_rate: 4200, notes: 'Elders seated at the front; two chairs for the officiants. '
+      rate_per_pax: 0, hall_rate: 4200, banquet_bar_package_id: null, bar_rate_per_pax: 0, notes: 'Elders seated at the front; two chairs for the officiants. '
         + 'Family provides the drinks — no corkage to be charged. Guarantee closed three days out.',
       locked: true,
       dietary: [],
@@ -201,7 +208,7 @@ const FUNCTION_SPECS = {
       id: 4102, name: 'Reception & dinner', banquet_hall_id: 1, date: '2026-12-12',
       start_time: '19:00', end_time: '23:30', setup_style: 'banquet',
       expected_pax: 180, guaranteed_pax: 180, banquet_package_id: 11,
-      rate_per_pax: 320, hall_rate: 11000, notes: 'Head table for 12 on the dais. Band to finish by 23:00 per the '
+      rate_per_pax: 320, hall_rate: 11000, banquet_bar_package_id: 18, bar_rate_per_pax: 95, notes: 'Head table for 12 on the dais. Band to finish by 23:00 per the '
         + 'house rule; 600-standing for the cocktail hour before dinner.',
       locked: false,
       dietary: [

@@ -18,6 +18,7 @@
   <h3 class="mt-2">{{ $f['name'] }} <span class="tiny muted">{{ \Carbon\Carbon::parse($f['date'])->format('d M Y') }} · {{ $f['time'] }} · {{ $f['hall'] }} · {{ $f['setup'] }}</span></h3>
   <table class="table table-compact"><thead><tr><th>Item</th><th class="right">Guests</th><th class="right">Rate</th><th class="right">Net</th></tr></thead><tbody>
     <tr><td>{{ $f['package'] ?? 'Venue & service' }}</td><td class="right">{{ max($f['expected_pax'], $f['guaranteed_pax'] ?? 0) }}</td><td class="right">{{ $f['rate_per_pax'] ? money($f['rate_per_pax']).'/guest' : '—' }}</td><td class="right">{{ money($f['net']) }}</td></tr>
+    @if(! empty($f['bar_package']))<tr><td>{{ $f['bar_package'] }}</td><td class="right">{{ max($f['expected_pax'], $f['guaranteed_pax'] ?? 0) }}</td><td class="right">{{ $f['bar_rate_per_pax'] ? money($f['bar_rate_per_pax']).'/guest' : '—' }}</td><td class="right">{{ money(($f['bar_rate_per_pax'] ?? 0) * max($f['expected_pax'], $f['guaranteed_pax'] ?? 0)) }}</td></tr>@endif
     @foreach($f['items'] as $it)<tr><td class="small">{{ $it['desc'] }} × {{ $it['qty'] }}</td><td></td><td class="right small">{{ money($it['price']) }}</td><td class="right small">{{ money($it['amount']) }}</td></tr>@endforeach
   </tbody></table>
   @if($f['notes'])<p class="tiny muted">{{ $f['notes'] }}</p>@endif

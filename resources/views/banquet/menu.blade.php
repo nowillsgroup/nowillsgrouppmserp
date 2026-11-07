@@ -101,6 +101,18 @@
             @endif
           </div>
 
+          @if($f->barPackage)
+            <div class="menu-card">
+              <span class="lbl">Bar</span>
+              <div class="menu-package"><b>{{ $f->barPackage->name }}</b><span class="menu-type">{{ ucfirst($f->barPackage->type ?: 'beverage') }}</span><span class="note">{{ number_format($cookFor) }} covers</span></div>
+              @if(count($f->barPackage->itemList()))
+                <ol class="menu-dishes">@foreach($f->barPackage->itemList() as $drink)<li>{{ $drink }}</li>@endforeach</ol>
+              @else
+                <p class="menu-empty">The drinks package has no list recorded — confirm the pour and the brands before service.</p>
+              @endif
+            </div>
+          @endif
+
           <div class="menu-card">
             <span class="lbl">Dietary &amp; allergies</span>
             @if(count($f->dietaryLines()))
