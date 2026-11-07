@@ -185,6 +185,21 @@ export function propertyShowContext() {
       ]),
       roles: new Coll([{ id: 1, name: 'Administrator' }, { id: 2, name: 'Front Office Manager' }, { id: 3, name: 'Accountant' }]),
       canManage: true,
+      // v10.5 LicenceService::stateForProperty(): the group bought 6, this property keeps 5
+      licence: {
+        Dashboard: { permissions: 1, group: true, licensed: true, own: true },
+        Reservations: { permissions: 5, group: true, licensed: true, own: true },
+        'Front Desk': { permissions: 29, group: true, licensed: true, own: true },
+        'Billing & Folio': { permissions: 5, group: true, licensed: true, own: true },
+        POS: { permissions: 5, group: true, licensed: true, own: true },
+        'Spa & Activities': { permissions: 2, group: true, licensed: true, own: true },
+        'Health Club': { permissions: 4, group: true, licensed: false, own: false },
+        'Car Rental': { permissions: 3, group: false, licensed: false, own: false },
+      },
+      licenceCounts: { keep: 6, group: 7 },
+      licenceNarrowed: true,
+      licenceEditable: true,
+      licenceGroupRestricted: true,
       canTransfer: true,
       transferGroups: new Coll([
         { id: 2, name: 'Cape Coast Hospitality Ltd' },

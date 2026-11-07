@@ -22,11 +22,18 @@ use App\Support\Tenant;
  * only in the UI: an unlicensed module answers 403 if somebody types its URL. v10.4 adds the other
  * half: the guest surfaces in config/licence.php ask allowsModule() from the global LicenceSurface
  * middleware, and the REST API asks it in ApiAuthenticate once the bearer key has named the property.
+ *
+ * v10.5 adds the property: a group licence is the ceiling, a property may keep less of it (the group
+ * bought the spa module once; only the beach property runs a spa). licenceOfHotel() intersects the
+ * two, so nothing a property does can widen what the group bought.
  */
 class LicenceService
 {
     /** @var array<int, array<int, string>|null> group id => licence (null = all) */
     protected static array $licences = [];
+
+    /** @var array<int, array<int, string>|null> hotel id => the licence in force there (null = all) */
+    protected static array $hotelLicences = [];
 
     /** @var array<string, string>|null permission key => module */
     protected static ?array $moduleOf = null;
@@ -66,7 +73,34 @@ class LicenceService
     /** The licence of the current tenant, or null when it is unrestricted. */
     public static function licence(): ?array
     {
-        return self::licenceOf(self::group());
+        $hotel = Tenant::hotel();
+
+        return $hotel ? self::licenceOfHotel($hotel) : null;
+    }
+
+    /**
+     * The licence in force AT A PROPERTY: the group's list, narrowed by the property's own.
+     *
+     * The intersection is the rule, and it is the whole point of v10.5: a group that owns one spa
+     * buys the module once, and the property without a spa switches it off for itself. A property
+     * can never end up with more than its group bought — widening is a commercial decision, and it
+     * is taken on the group, by the platform administrator.
+     */
+    public static function licenceOfHotel(Hotel $hotel): ?array
+    {
+        $id = (int) $hotel->id;
+        if (array_key_exists($id, self::$hotelLicences)) {
+            return self::$hotelLicences[$id];
+        }
+
+        $group = self::licenceOf(self::groupOf($hotel));
+        $own = $hotel->licensedModules();
+
+        return self::$hotelLicences[$id] = match (true) {
+            $own === null => $group,                                  // follows the group as it stands
+            $group === null => $own,                                   // no group cap to narrow
+            default => array_values(array_intersect($own, $group)),     // the narrower of the two
+        };
     }
 
     /** The licence of one group, or null when it is unrestricted. */
@@ -96,7 +130,7 @@ class LicenceService
             return true; // nothing to ask about (console, queue, a page that has not resolved its stay yet)
         }
 
-        $licence = self::licenceOf(self::groupOf($hotel));
+        $licence = self::licenceOfHotel($hotel);
 
         return $licence === null || in_array($module, $licence, true);
     }
@@ -145,6 +179,30 @@ class LicenceService
         return $out;
     }
 
+    /**
+     * The module list for a property screen: what the group bought, what this property keeps, and
+     * whether the property has a list of its own. Three states, never blurred into one badge.
+     */
+    public static function stateForProperty(Hotel $hotel, ?HotelGroup $group): array
+    {
+        $groupLicence = self::licenceOf($group);
+        $own = $hotel->licensedModules();
+        $effective = self::licenceOfHotel($hotel);
+
+        $out = [];
+        foreach (self::catalogue() as $module => $perms) {
+            $inGroup = $groupLicence === null || in_array($module, $groupLicence, true);
+            $out[$module] = [
+                'permissions' => count($perms),
+                'group' => $inGroup,
+                'licensed' => $effective === null || in_array($module, $effective, true),
+                'own' => $own !== null && in_array($module, $own, true),
+            ];
+        }
+
+        return $out;
+    }
+
     /** Forget the cached licence — call it after the licence changes in the same request. */
     public static function forget(?int $groupId = null): void
     {
@@ -153,6 +211,9 @@ class LicenceService
         } else {
             unset(self::$licences[$groupId]);
         }
+
+        // The property licences are derived from the group's, so they go with it.
+        self::$hotelLicences = [];
     }
 
     protected static function group(): ?HotelGroup

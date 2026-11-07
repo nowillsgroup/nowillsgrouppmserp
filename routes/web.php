@@ -373,6 +373,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/{hotel}/resume', 'resume')->whereNumber('hotel')->middleware('perm:properties.manage')->name('resume');
         Route::post('/{hotel}/archive', 'archive')->whereNumber('hotel')->middleware('perm:properties.manage')->name('archive');
         Route::post('/{hotel}/transfer', 'transfer')->whereNumber('hotel')->middleware('perm:properties.manage')->name('transfer');
+        // v10.5 narrow the licence at one property (group administrator or platform administrator)
+        Route::post('/{hotel}/licence', 'licence')->whereNumber('hotel')->middleware('perm:properties.manage')->name('licence');
         Route::post('/{hotel}/access', 'grant')->whereNumber('hotel')->middleware('perm:properties.manage')->name('access.grant');
         Route::delete('/{hotel}/access/{user}', 'revoke')->whereNumber('hotel')->whereNumber('user')->middleware('perm:properties.manage')->name('access.revoke');
     });

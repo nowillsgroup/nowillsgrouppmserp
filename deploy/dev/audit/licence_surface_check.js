@@ -257,6 +257,18 @@ ok(read('app/Support/ApiSpec.php').includes("'module_not_licensed'"), 'the API e
 ok(read('resources/views/group/account.blade.php').includes('$guestSurfaces'),
   'the group account screen does not show which guest surfaces follow the licence');
 
+/* ---------- 5b. a surface the URL cannot decide is refused where its property is named ---------- */
+
+for (const [file, module] of [['app/Http/Middleware/PartnerAuth.php', 'Partner Portal'],
+  ['app/Http/Middleware/OrganiserAuth.php', 'Organiser Portal'],
+  ['app/Http/Controllers/RobitaController.php', 'API & Integrations']]) {
+  const source = file.startsWith('app/Http/Controllers/') ? read(file) : read(file);
+  ok(source.includes(`allowsModule('${module}'`),
+    `${file} does not ask the licence for ${module}, so that portal's writes are still served`);
+}
+ok(read('app/Http/Middleware/PartnerAuth.php').includes("abort_unless(LicenceService::allowsModule('Partner Portal'"),
+  'the partner portal refuses with 404 through its own session gate, before any controller runs');
+
 /* ---------- 6. the api map is live ---------- */
 
 const apiRoutes = publicRoutes.filter(r => r.uri === '/api/v1' || r.uri.startsWith('/api/v1/'));

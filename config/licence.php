@@ -250,7 +250,7 @@ return [
             'module' => 'API & Integrations',
             'label' => 'the Robita event intake',
             'resolve' => null,
-            'why' => 'the lock sends its key in the Authorization header, not in the URL, so the property is only known inside the controller',
+            'why' => 'the lock sends its key in the Authorization header, not in the URL: the controller resolves the property and refuses the event with a 403 before it writes a row',
         ],
 
         '/api/v1' => [
@@ -265,7 +265,7 @@ return [
             'label' => 'the partner portal',
             'resolve' => null,
             'after' => true,
-            'why' => 'a partner signs in with their own session, so the property is only known once that session is read',
+            'why' => 'a partner signs in with their own session: the property is only known once that session is read, so PartnerAuth refuses the whole portal — writes included — the moment it resolves an unlicensed hotel',
         ],
 
         '/organiser' => [
@@ -273,7 +273,7 @@ return [
             'label' => 'the organiser portal',
             'resolve' => null,
             'after' => true,
-            'why' => 'an organiser signs in with their own session, so the property is only known once that session is read',
+            'why' => 'an organiser signs in with their own session: the property is only known once that session is read, so OrganiserAuth refuses the whole portal — writes included — the moment it resolves an unlicensed hotel',
         ],
 
         '/m' => [

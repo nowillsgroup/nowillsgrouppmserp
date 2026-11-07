@@ -290,6 +290,11 @@ class RobitaController extends Controller
             return response()->json(['ok' => false, 'error' => 'Unknown tenant'], 404);
         }
         Tenant::set($hotel);
+        // v10.5 the lock intake belongs to API & Integrations; a tenant without the module does not
+        // get event rows written for it just because a lock still holds its key.
+        if (! \App\Services\LicenceService::allowsModule('API & Integrations', $hotel)) {
+            return response()->json(['ok' => false, 'error' => 'Module not licensed'], 403);
+        }
 
         if (strlen((string) $request->getContent()) > 8192) {
             return response()->json(['ok' => false, 'error' => 'Payload too large'], 413);

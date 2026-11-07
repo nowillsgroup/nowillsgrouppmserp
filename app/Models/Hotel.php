@@ -35,7 +35,26 @@ class Hotel extends Model
             'is_head_office' => 'boolean',
             'star_rating' => 'integer',
             'sort_order' => 'integer',
+            // v10.5 a property may be licensed for less than its group; null = follow the group
+            'licensed_modules' => 'array',
         ];
+    }
+
+    /**
+     * v10.5 the modules this property is licensed for, or null when it simply follows the group.
+     *
+     * A list here can only ever narrow the group's licence — LicenceService intersects the two, so
+     * nothing on this screen can hand a property something its group did not buy.
+     */
+    public function licensedModules(): ?array
+    {
+        return is_array($this->licensed_modules) ? array_values(array_map('strval', $this->licensed_modules)) : null;
+    }
+
+    /** Does this property take its licence from the group as it stands? */
+    public function followsGroupLicence(): bool
+    {
+        return $this->licensedModules() === null;
     }
 
     public function group()

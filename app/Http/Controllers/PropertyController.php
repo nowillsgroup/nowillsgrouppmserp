@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Hotel;
 use App\Models\HotelGroup;
+use App\Models\PropertyEvent;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LicenceService;
 use App\Services\PropertyAccessService;
 use App\Services\PropertyHealthService;
 use App\Services\PropertyService;
@@ -68,6 +70,10 @@ class PropertyController extends Controller
     {
         $this->authoriseView($request->user(), $hotel);
 
+        // v10.5 the group's licence is the ceiling; this property may run fewer of its modules
+        $group = $hotel->hotel_group_id ? HotelGroup::find($hotel->hotel_group_id) : null;
+        $licence = LicenceService::stateForProperty($hotel, $group);
+
         return view('properties.show', [
             'property' => $hotel,
             'health' => $this->health->row($hotel),
@@ -89,6 +95,15 @@ class PropertyController extends Controller
             // v10.1 a handover is a platform decision, and only to a group with room under its entitlement
             'canTransfer' => $this->access->isPlatformAdmin($request->user()) && ! $hotel->isArchived(),
             'transferGroups' => HotelGroup::where('id', '!=', $hotel->hotel_group_id)->orderBy('name')->get(),
+            'licence' => $licence,
+            'licenceCounts' => [
+                'keep' => count(array_filter($licence, fn ($m) => $m['licensed'])),
+                'group' => count(array_filter($licence, fn ($m) => $m['group'])),
+            ],
+            'licenceGroup' => $group,
+            'licenceEditable' => $group && ($this->access->isGroupAdminOf($request->user(), $group) || $this->access->isPlatformAdmin($request->user())),
+            'licenceNarrowed' => ! $hotel->followsGroupLicence(),
+            'licenceGroupRestricted' => $group?->licensedModules() !== null,
         ]);
     }
 
@@ -233,6 +248,51 @@ class PropertyController extends Controller
         $this->properties->archive($hotel, $request->user(), $data['reason']);
 
         return redirect()->route('properties.index')->with('success', "{$hotel->name} retired. Nothing was deleted — its books stay readable.");
+    }
+
+    /**
+     * v10.5 switch modules off at this property without touching the group.
+     *
+     * The group's licence is the ceiling: anything the group did not buy is refused here rather than
+     * filtered out silently, and an empty tick list stores null, which means "follow the group" — so
+     * a property that stops narrowing follows the group again, including modules added later.
+     */
+    public function licence(Request $request, Hotel $hotel)
+    {
+        $user = $request->user();
+        $group = $hotel->hotel_group_id ? HotelGroup::find($hotel->hotel_group_id) : null;
+        abort_unless($group && ($this->access->isGroupAdminOf($user, $group) || $this->access->isPlatformAdmin($user)), 403,
+            'Only a group administrator can narrow the licence of one of the group\'s properties.');
+
+        $data = $request->validate(['modules' => 'nullable|array', 'modules.*' => 'string|max:60', 'follow' => 'nullable|boolean']);
+
+        $ceiling = LicenceService::licenceOf($group);              // null = the group bought everything
+        $catalogue = array_keys(LicenceService::catalogue());
+        $chosen = collect($data['modules'] ?? [])->map(fn ($m) => (string) $m)->unique()
+            ->filter(fn ($m) => in_array($m, $catalogue, true))
+            ->filter(fn ($m) => $ceiling === null || in_array($m, $ceiling, true))
+            ->values();
+
+        $everything = $ceiling === null ? $catalogue : $ceiling;
+        $before = $hotel->licensedModules();
+        // An explicit "follow the group" is its own action: it is the only way back from a property
+        // that was narrowed to nothing, and it does not depend on counting boxes correctly.
+        $now = $request->boolean('follow') || count($chosen) === count($everything) ? null : $chosen->all();
+
+        $hotel->forceFill(['licensed_modules' => $now])->save();
+        LicenceService::forget();
+
+        $count = count($everything) - count($chosen->all());
+        PropertyEvent::record('licence_changed', sprintf(
+            'Licence at %s %s. %s',
+            $hotel->name,
+            $now === null ? 'set to follow the group' : 'narrowed to '.count($chosen).' of '.count($everything).' module(s)',
+            $count > 0 ? $count.' module(s) switched off at this property only; the group keeps them.' : 'Nothing was switched off.'
+        ), $hotel, ['before' => $before, 'licensed' => $now, 'actor' => $user->username]);
+
+        return back()->with('success', $now === null
+            ? "{$hotel->name} follows the group licence again — including modules added later."
+            : "{$hotel->name} now runs ".count($chosen)." of the group's ".count($everything).' module(s). The screens of the rest refuse at this property only.');
     }
 
     /** v10.1 hand the property to another group (platform administrator only). */

@@ -178,6 +178,48 @@
       </div></div>
     @endif
 
+    <div class="card mt-2"><div class="card-head"><h3>Module licence at this property</h3><span class="small muted">{{ $licenceNarrowed ? 'Narrower than the group' : 'Follows the group' }}</span></div>
+      <div class="card-body">
+        <p class="small">
+          @if($licenceNarrowed)
+            This property is licensed for <b>{{ $licenceCounts['keep'] }}</b> of the group's <b>{{ $licenceCounts['group'] }}</b> module(s). The rest refuse at this property and nowhere else — the group keeps them.
+          @else
+            Nothing is switched off here, so this property moves with the group: a module the group buys later arrives without anybody visiting this page.
+          @endif
+        </p>
+        @if(! $licenceEditable)
+          <p class="small muted">Narrowing one property's licence is a group decision. You can see what this property runs, not change it.</p>
+          <ul class="small" style="columns:2">
+            @foreach($licence as $module => $state)
+              @if($state['group'])
+                <li>{{ $module }} @if($state['licensed'])<span class="badge badge-green">on</span>@else<span class="badge badge-slate">off here</span>@endif</li>
+              @endif
+            @endforeach
+          </ul>
+        @else
+          <form method="post" action="{{ route('properties.licence', $property) }}">@csrf
+            <p class="tiny muted">Only the modules the group is licensed for are listed. Untick one to switch it off at this property alone; tick every one and the property follows the group again.</p>
+            <div class="flex flex-wrap gap-2" style="columns:2">
+              @foreach($licence as $module => $state)
+                @if($state['group'])
+                  <label class="check" style="display:block;break-inside:avoid"><input type="checkbox" name="modules[]" value="{{ $module }}" @checked($state['licensed'])> {{ $module }}</label>
+                @endif
+              @endforeach
+            </div>
+            <button class="btn btn-primary"><x-icon name="key" size="sm"/> Save this property's licence</button>
+          </form>
+          @if($licenceNarrowed)
+            <form method="post" action="{{ route('properties.licence', $property) }}" class="mt-1">@csrf
+              <input type="hidden" name="follow" value="1">
+              <button class="btn btn-ghost"><x-icon name="refresh" size="sm"/> Follow the group licence again</button>
+            </form>
+          @endif
+        @endif
+        @if($licenceGroupRestricted)
+          <p class="tiny muted mt-1">The group's own licence is a subset, so this list is short by design: a property can choose from what the group bought, never add to it.</p>
+        @endif
+      </div></div>
+
     <div class="card mt-2"><div class="card-head"><h3>Audit trail</h3><span class="small muted">Last 25 decisions</span></div>
       <div class="card-body">
         @if($events->isEmpty())

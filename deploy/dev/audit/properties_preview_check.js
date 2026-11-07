@@ -139,6 +139,22 @@ ok('and that a group administrator does not — a handover cannot move one tenan
 ok('it says outside grants are revoked', body.includes('Cross-property grants are revoked'));
 ok('it checks the receiving group\'s entitlement', body.includes('must have room for one more property'));
 ok('the handover needs a reason', !!sdoc.querySelector('form[action*="transfer"] input[name="reason"]'));
+// v10.5 the licence can be narrowed at one property
+ok('the property carries its own licence card', body.includes('Module licence at this property'));
+ok('it says the property is narrower than the group', body.includes('Narrower than the group'));
+ok('it counts what this property keeps of the group\'s list', body.includes('licensed for 6 of the group\'s 7 module(s)'));
+{
+  const boxes = [...sdoc.querySelectorAll('form[action*="licence"] input[name="modules[]"]')];
+  ok('only the modules the group bought are offered', boxes.length === 7, `${boxes.length} boxes`);
+  ok('the one the property switched off is unticked',
+     boxes.find(b => b.value === 'Health Club')?.checked === false);
+  ok('a module the group never bought is not offered at all',
+     !boxes.some(b => b.value === 'Car Rental'));
+  ok('the property licence posts to its own endpoint', !!sdoc.querySelector('form[action*="licence"]'));
+}
+ok('it says the group\'s own subset bounds the list', body.includes('choose from what the group bought, never add to it'));
+ok('a narrowed property can go back to the group licence in one action',
+   !!sdoc.querySelector('form[action*="licence"] input[name="follow"]'));
 ok('the audit trail is shown', body.includes('Audit trail'));
 ok('a suspension is in the trail with its reason', body.includes('Suspended Nowills Kumasi City: Refurbishment'));
 ok('an access grant is in the trail', body.includes('Granted emensah access'));
@@ -223,6 +239,7 @@ ok('it says how much of the guest estate the URL decides by itself', gbody.inclu
 ok('it says a code or token in the URL is decided before the controller runs', gbody.includes('before the controller runs'));
 ok('and that a link which resolves its own stay is refused once it has', gbody.includes('once it has resolved'));
 ok('the REST API is included, after the key names the hotel', gbody.includes('after the bearer key has named the hotel'));
+ok('a property may run fewer modules than its group, and only fewer', gbody.includes('can only narrow this list, never widen it'));
 ok('the defaults it hands down are named as such', gbody.includes('Defaults new properties inherit'));
 ok('the defaults carried are the group\'s own', field('country')?.value === 'Ghana' && field('currency')?.value === 'GHS' && field('timezone')?.value === 'Africa/Accra');
 ok('changing a default is said not to rewrite existing properties', gbody.includes('never rewrites a property that already exists'));

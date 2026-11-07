@@ -5303,6 +5303,62 @@ ok('licence_surface_check' in read(os.path.join(ROOT, 'deploy/dev/README.md')),
 ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/audit/licence_surface_check.js')),
    'and the audit exists')
 
+# ── 32. a licence is bought for a group but used at a property (v10.5) ─────────────────
+mig35 = os.path.join(ROOT, 'database/migrations/2026_11_08_000397_property_module_licence.php')
+hotel_mdl = read(os.path.join(ROOT, 'app/Models/Hotel.php'))
+prop_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/PropertyController.php'))
+prop_show = read(os.path.join(ROOT, 'resources/views/properties/show.blade.php'))
+
+ok(os.path.exists(mig35) and "Schema::table('hotels'" in read(mig35) and 'licensed_modules' in read(mig35),
+   'a property carries its own licence column, and the migration is written so a re-run cannot fail')
+ok("'licensed_modules' => 'array'" in hotel_mdl and 'public function licensedModules(): ?array' in hotel_mdl,
+   'the property reads its own list, with null meaning "follow the group"')
+ok('public function followsGroupLicence(): bool' in hotel_mdl,
+   'and says out loud whether it follows the group')
+ok('public static function licenceOfHotel' in licence_svc and 'array_intersect($own, $group)' in licence_svc,
+   'the licence in force is the intersection — a property may narrow what the group bought, never widen it')
+ok("return $hotel ? self::licenceOfHotel($hotel) : null;" in licence_svc,
+   'everything that already asked the licence now asks the property it is standing in')
+ok('self::$hotelLicences = [];' in licence_svc,
+   'forgetting the group licence forgets the property licences derived from it')
+ok('public static function stateForProperty' in licence_svc and "'group' => $inGroup," in licence_svc,
+   'the property screen is told both what the group bought and what the property keeps')
+ok('public function licence(Request $request, Hotel $hotel)' in prop_ctrl,
+   'the property has its own licence endpoint')
+ok("$this->access->isGroupAdminOf($user, $group) || $this->access->isPlatformAdmin($user)" in prop_ctrl,
+   'only a group administrator (or the platform administrator) may narrow one property')
+ok("->filter(fn ($m) => $ceiling === null || in_array($m, $ceiling, true))" in prop_ctrl,
+   'a module the group never bought is refused here, not quietly filtered out')
+ok("$request->boolean('follow') || count($chosen) === count($everything) ? null : $chosen->all();" in prop_ctrl,
+   'a property can go back to the group licence in one action, without depending on counting boxes')
+ok('count($chosen) === count($everything)' in prop_ctrl,
+   'ticking every box also stores null, so the property follows the group again — including modules added later')
+ok("PropertyEvent::record('licence_changed'" in prop_ctrl,
+   'every change lands in the property audit trail')
+ok("Route::post('/{hotel}/licence', 'licence')" in read(os.path.join(ROOT, 'routes/web.php')),
+   'the endpoint is routed with the rest of the property actions')
+ok('Module licence at this property' in prop_show and "route('properties.licence', $property)" in prop_show,
+   'the property page shows the licence and saves it')
+ok('name="modules[]"' in prop_show and "$state['group']" in prop_show,
+   'only the group\'s modules are offered as boxes')
+ok('a property can choose from what the group bought, never add to it' in prop_show
+   and 'can only narrow this list, never widen it' in read(os.path.join(ROOT, 'resources/views/group/account.blade.php')),
+   'both screens say a property may run fewer modules and can never add one')
+ok('licence:' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs'))
+   and 'licenceNarrowed: true' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the preview carries a narrowed property, so the state can be seen')
+
+partner_mw = read(os.path.join(ROOT, 'app/Http/Middleware/PartnerAuth.php'))
+organiser_mw = read(os.path.join(ROOT, 'app/Http/Middleware/OrganiserAuth.php'))
+ok("abort_unless(LicenceService::allowsModule('Partner Portal', $hotel), 404);" in partner_mw,
+   'the partner portal is refused through its own session gate, so its booking and payment POSTs go too')
+ok("abort_unless(LicienceService::allowsModule('Organiser Portal', $hotel), 404);".replace('LicienceService', 'LicenceService') in organiser_mw,
+   'and so is the organiser portal, writes included')
+ok("allowsModule('API & Integrations', $hotel)" in read(os.path.join(ROOT, 'app/Http/Controllers/RobitaController.php')),
+   'the lock intake refuses an unlicensed tenant before it writes an event row')
+ok("ok('only the modules the group bought are offered'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'the preview check holds the property card to the ceiling, box by box')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
