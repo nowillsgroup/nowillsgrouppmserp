@@ -5513,6 +5513,48 @@ ok("nav({ hide: ['Appointments', 'Services & Activities', 'Treatment Rooms'] })"
 ok('function visibleInNav(item, state)' in read(os.path.join(ROOT, 'deploy/dev/preview/app-shell.mjs')),
    'the preview mirrors the same rule, heading and all, so a module group whose children all vanish goes with them')
 
+# ── 36. the consolidated report: the group's numbers with a way off the screen (v10.9) ──────────
+# The consolidated view lived on one screen with no print, no CSV and no schedule, and its
+# arithmetic lived in the controller that drew it. It is a service and a report now.
+metrics_svc = read(os.path.join(ROOT, 'app/Services/GroupMetricsService.php'))
+ok('class GroupMetricsService' in metrics_svc
+   and 'public function row(Hotel $hotel, ?array &$trend = null): array' in metrics_svc
+   and 'Tenant::set($previous);' in metrics_svc,
+   'one property\'s consolidated figures live in a service that sets and restores its own tenant scope')
+ok('public function licenceLabel(Hotel $hotel): string' in metrics_svc and "'Nothing licensed'" in metrics_svc,
+   'and the licence beside each row is derived, in words a reader can act on')
+ok('protected function revenue(' not in grp_dash
+   and 'protected function metrics(' not in grp_dash
+   and '$metrics->row($hotel, $trend)' in grp_dash,
+   'the dashboard no longer keeps its own copy of the arithmetic')
+ok("'group_operating_summary' => ['Hotel Group & Owner Reporting'" in report_ctrl,
+   'the consolidated view is a report in the catalogue, filed with the group reports')
+ok('protected function r_group_operating_summary($from, $to): array' in report_ctrl
+   and '$metrics = app(\\App\\Services\\GroupMetricsService::class);' in report_ctrl,
+   'and it is read by the same service the dashboard reads, so the two cannot drift')
+ok("if ($hotel->licenceIsEmpty()) {\n                $closed[] = $hotel;" in report_ctrl,
+   'a property licensed for nothing is out of the report\'s totals, exactly as it is out of the dashboard\'s')
+ok('Not in these totals, because nobody can post there: ' in report_ctrl
+   and 'licensing a module again puts it straight back in this report' in report_ctrl,
+   'and it is named beneath the table, with the way back stated')
+ok("'money' => ['rev_today', 'adr', 'rev_mtd', 'collections']," in report_ctrl
+   and "// Occupancy and ADR are ratios: a total of them would be a number nobody can act on." in report_ctrl,
+   'occupancy and ADR are printed but never summed: a total of four ratios means nothing')
+ok('app(PropertyAccessService::class)->accessible($user)' in report_ctrl
+   and 'function r_group_operating_summary' in report_ctrl,
+   'the portfolio is the properties the reader may open, not every property in the database')
+ok("['group_operating_summary', 'Consolidated Operating Summary'" in read(os.path.join(ROOT, 'deploy/dev/preview/reports-sample.mjs')),
+   'and the library preview files it under its real area, beside the register and the KPI report')
+ok('/__preview/reports-consolidated' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the preview index offers the screen it produced')
+ok("pathname === '/reports-consolidated'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'as does the preview server')
+ok("ok('the total line adds the rooms'" in read(os.path.join(ROOT, 'deploy/dev/audit/reports_consolidated_preview_check.js'))
+   and "ok('it does not add occupancies together'" in read(os.path.join(ROOT, 'deploy/dev/audit/reports_consolidated_preview_check.js')),
+   'and the preview check holds the totals to the rows and the ratios out of them')
+
+split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".\'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

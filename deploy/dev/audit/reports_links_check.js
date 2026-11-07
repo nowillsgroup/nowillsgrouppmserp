@@ -35,7 +35,7 @@ const controller = read(CONTROLLER);
 const table = controller.slice(controller.indexOf('const REPORTS'), controller.indexOf('GROUP_ICONS'));
 const slugs = [...table.matchAll(/^\s*'([a-z0-9_]+)' => \[\s*/gm)].map((match) => match[1]);
 const catalogue = new Set(slugs);
-ok('the catalogue is the expected size', slugs.length === 472, `${slugs.length} reports`);
+ok('the catalogue is the expected size', slugs.length === 473, `${slugs.length} reports`);
 ok('no report slug is registered twice', catalogue.size === slugs.length);
 
 // ── every call site ─────────────────────────────────────────────────────────

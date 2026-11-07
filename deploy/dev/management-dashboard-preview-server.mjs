@@ -115,6 +115,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/laundry-list.html');
   } else if (pathname === '/laundry-prices' || pathname === '/__preview/laundry-prices') {
     file = resolve(ROOT, 'deploy/dev/previews/laundry-prices.html');
+  } else if (pathname === '/reports-consolidated' || pathname === '/__preview/reports-consolidated') {
+    file = resolve(ROOT, 'deploy/dev/previews/reports-consolidated.html'); // v10.9 the group's own report
   } else if (pathname === '/reports-report-date' || pathname === '/__preview/reports-report-date') {
     file = resolve(ROOT, 'deploy/dev/previews/reports-report-date.html');
   } else if (pathname === '/reports-views' || pathname === '/__preview/reports-views') {

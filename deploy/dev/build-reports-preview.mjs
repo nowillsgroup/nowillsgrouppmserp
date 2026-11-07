@@ -19,6 +19,7 @@ import { BladePreview } from './preview/blade-render.mjs';
 import { shell, nav, spriteSymbols } from './preview/app-shell.mjs';
 import {
   reportsLibraryContext, reportsDetailContext, reportsSavedViewsContext, reportsSchedulesContext, reportsAlertsContext, reportsAsOnContext,
+  reportsConsolidatedContext,
 } from './preview/reports-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -56,6 +57,12 @@ const screens = [
   {
     view: 'reports/show', file: 'reports-report-date.html', title: 'Trial Balance', crumbs: 'Reports / Trial Balance',
     context: reportsAsOnContext,
+  },
+  {
+    // v10.9 the first report that reads more than one property: the consolidated view, off the screen
+    // and into the engine that prints, exports and schedules.
+    view: 'reports/show', file: 'reports-consolidated.html', title: 'Consolidated Operating Summary',
+    crumbs: 'Reports / Consolidated Operating Summary', context: reportsConsolidatedContext,
   },
 ];
 

@@ -64,6 +64,12 @@ const GROUPS = [
     ['kpi_scorecard', 'KPI Scorecard', 'The scored board: every KPI, its target, its result and who owns it', 'Period'],
     ['management_pack', 'Management Pack', 'The month in one pack: trading, payroll, cost of sales and capital, ready to circulate', 'Period'],
   ]],
+  ['Hotel Group & Owner Reporting', 'building', [
+    // v10.9 the consolidated report: the one report that reads more than one property
+    ['group_operating_summary', 'Consolidated Operating Summary', 'Every property you may open on its own business date: rooms, occupancy, in-house, arrivals and departures, revenue today and month to date, ADR and collections — a property licensed for nothing is out of the totals and named beneath them', 'Live'],
+    ['hotel_groups', 'Hotel Group Register', 'The groups behind the properties you may open, with property, room and licence counts', 'Live'],
+    ['hotel_kpis', 'Hotel KPIs by Month', 'Occupancy, ADR, RevPAR, TRevPAR, GOPPAR and margins, month by month', 'Period'],
+  ]],
   ['Compliance & HSE', 'shield', [
     ['foreign_guests', 'Form C (Foreign Guests)', 'Every foreign guest with the arrival report filed or outstanding', 'Period'],
     ['hse_incidents', 'Incidents & Accidents', 'What happened, where, who was involved and what was done', 'Period'],
@@ -319,6 +325,98 @@ export function reportsDetailContext() {
   };
 
   return { helpers, scope, fallbacks: {} };
+}
+
+/**
+ * The consolidated report: v10.9's cross-property screen, read by a group administrator.
+ *
+ * Mirrors what ReportController::r_group_operating_summary() hands reports/show.blade.php: one row per
+ * property the reader may open, each on its own business date, the ratios left out of the totals
+ * because a total of four occupancies means nothing, and the property licensed for nothing named in
+ * the note under the table instead of being added to it.
+ */
+export function reportsConsolidatedContext() {
+  const from = new SampleDate('2026-11-01T00:00:00Z');
+  const to = new SampleDate('2026-11-07T00:00:00Z');
+
+  const cols = {
+    property: 'Property', code: 'Code', status: 'Status', date: 'Business date',
+    rooms: 'Sellable', occupied: 'Occupied', occ: 'Occupancy',
+    in_house: 'In-house', arrivals: 'Arr', departures: 'Dep',
+    rev_today: 'Revenue today', adr: 'ADR', rev_mtd: 'Revenue MTD',
+    collections: 'Collections', open_pos: 'Open POS', licence: 'Licence',
+  };
+
+  const rows = Coll.of([
+    {
+      property: 'The Grove Essipong Beach Resort', code: 'GROVE', status: 'Live', date: '07-11-2026',
+      rooms: 96, occupied: 78, occ: '81.3%', in_house: 61, arrivals: 14, departures: 9,
+      rev_today: 38450, adr: 493, rev_mtd: 812400, collections: 36700, open_pos: 3, licence: '6 of 7 modules',
+    },
+    {
+      property: 'Nowills Airport City Hotel', code: 'ACC', status: 'Live', date: '06-11-2026',
+      rooms: 120, occupied: 103, occ: '85.8%', in_house: 88, arrivals: 21, departures: 17,
+      rev_today: 41250, adr: 401, rev_mtd: 946800, collections: 45100, open_pos: 5, licence: 'Group licence',
+    },
+    {
+      property: 'The Grove Cape Coast', code: 'CCP', status: 'Live', date: '07-11-2026',
+      rooms: 24, occupied: 14, occ: '58.3%', in_house: 11, arrivals: 3, departures: 2,
+      rev_today: 6180, adr: 441, rev_mtd: 96400, collections: 5900, open_pos: 1, licence: 'Group licence',
+    },
+    {
+      property: 'Nowills Tamale Lodge', code: 'TML', status: 'Live', date: '30-09-2026',
+      rooms: 40, occupied: 0, occ: '0%', in_house: 0, arrivals: 0, departures: 0,
+      rev_today: 0, adr: 0, rev_mtd: 0, collections: 0, open_pos: 0, licence: 'Group licence',
+    },
+  ]);
+
+  // The show view names the area from ReportController::REPORTS, so the same static lookup the
+  // detail screen supplies has to be supplied here too.
+  const helpers = {
+    ...HELPERS,
+    // PHP hands the strip floats for money and strings for counts (occupancy, properties, shut). A JS
+    // number cannot tell an int from a float, and every non-string value in THIS report's summary is
+    // money, so the question "is it an int?" is answered the way PHP would answer it here.
+    is_int: () => false,
+    __static: (cls, method, ...args) => args[0] ?? '',
+    __const: (cls, name) => {
+      if (name === 'REPORTS') return REPORTS;
+      if (name === 'RANGES') return RANGES;
+      return [];
+    },
+  };
+
+  return {
+    helpers,
+    fallbacks: {},
+    scope: {
+      report: 'group_operating_summary',
+      title: 'Consolidated Operating Summary',
+      desc: 'Every property you may open, each on its own business date.',
+      mode: 'none',
+      range: 'custom',
+      from,
+      to,
+      views: Coll.of([]),
+      activeView: null,
+      allCols: cols,
+      data: {
+        cols,
+        rows,
+        money: ['rev_today', 'adr', 'rev_mtd', 'collections'],
+        sum: ['rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+        summary: {
+          'Properties trading': '4',
+          'Group occupancy': '64.6%',
+          'Revenue today': 85880,
+          'Revenue MTD': 1855600,
+          'Properties shut': '1',
+        },
+        note: 'Each property is read on its own business date, in its own books. Not in these totals, because nobody can post there: '
+          + 'Nowills Kumasi City (KSI). Its history is untouched — licensing a module again puts it straight back in this report.',
+      },
+    },
+  };
 }
 
 /**

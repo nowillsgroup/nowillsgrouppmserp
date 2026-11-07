@@ -679,6 +679,6 @@ return [
         'families' => 4,
         'accessors' => 9,
         'map' => 374,
-        'files' => 1901,
+        'files' => 1902,
     ],
 ];

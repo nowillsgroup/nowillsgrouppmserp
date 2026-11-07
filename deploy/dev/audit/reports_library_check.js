@@ -190,8 +190,9 @@ ok('a search keeps only matching reports', visibleRows().length === 2, `${visibl
 ok('a search hides the areas it empties', visibleGroups().length === 1 && visibleGroups()[0].dataset.reportGroup === 'Accounts');
 ok('a search says what is left', /^2 reports in 1 area matching “ageing”$/.test(countText()), countText());
 search('occupancy');
-// it lands in three areas, because two promises mention occupancy too
-ok('a search reads the report promise too', visibleRows().length === 3 && visibleGroups().length === 3,
+// it lands in four areas, because three promises mention occupancy too — one of them the consolidated
+// report added in v10.9, whose promise is about occupancy on four different business dates
+ok('a search reads the report promise too', visibleRows().length === 5 && visibleGroups().length === 4,
   `${visibleRows().length} rows in ${visibleGroups().length} areas`);
 search('housekeeping');
 ok('a search reads the area name', visibleRows().length === 3, `${visibleRows().length} rows`);
@@ -208,7 +209,7 @@ ok('"momo" finds mobile money', titles().join('|') === 'Mobile Money Settlement'
 search('gl');
 ok('"gl" finds the general ledger area', visibleRows().length === 4 && visibleGroups().length === 1 && visibleGroups()[0].dataset.reportGroup === 'General Ledger');
 search('occ');
-ok('"occ" finds occupancy wherever it is promised', visibleRows().length === 3, `${visibleRows().length} rows`);
+ok('"occ" finds occupancy wherever it is promised', visibleRows().length === 5, `${visibleRows().length} rows`);
 ok('the shorthand is advertised on the screen', ['p&l', 'ADR', 'MoMo', 'GL'].every(term => (text('.rpt-hint') || '').includes(term)), text('.rpt-hint'));
 
 search('  ');

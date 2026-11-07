@@ -484,6 +484,10 @@ class ReportController extends Controller
         'spa_revenue' => ['Health Club & Spa', 'Spa & Activity Revenue', 'Appointments and revenue by service and therapist', 'range'],
         'ffe_reserve' => ['Hotel Group & Owner Reporting', 'FF&E Reserve Ledger & Capex', 'Reserve opening balance, contributions, interest, capex drawdowns and adjustments with a running balance, and each capital project\'s budget and spend', 'range', 'owner.view'],
         'hotel_groups' => ['Hotel Group & Owner Reporting', 'Hotel Group Register', 'The groups behind the properties you may open, each with its property and room counts and how many of its properties are licensed for nothing', 'none', 'hotels.view'],
+        // v10.9 the consolidated view could not leave the screen: no print through the report engine,
+        // no CSV, no schedule. This is that view as a report, read by the same service the dashboard
+        // reads, with the same rule: a property licensed for nothing is out of the totals and named.
+        'group_operating_summary' => ['Hotel Group & Owner Reporting', 'Consolidated Operating Summary', 'Every property you may open, each on its own business date: sellable rooms, occupancy, in-house guests, arrivals and departures, revenue today and month to date, ADR and collections, and how each is licensed — a property licensed for nothing is left out of the totals and named beneath them', 'none', 'hotels.view'],
         'hotel_kpis' => ['Hotel Group & Owner Reporting', 'Hotel KPIs by Month', 'Per calendar month: occupancy, ADR, RevPAR, TRevPAR, GOPPAR, cost per occupied room, GOP and EBITDA margins, labour cost % and F&B cost %', 'range', 'owner.view'],
         'management_agreements' => ['Hotel Group & Owner Reporting', 'Management Agreement Register', 'Every hotel management agreement with fee structure', 'none', 'hotels.view'],
         'management_fees' => ['Hotel Group & Owner Reporting', 'Management Fee Calculation', 'Monthly base fee, FF&E contribution, adjusted GOP, fee-year AGOP against the owner\'s priority, incentive fee, status and payment', 'range', 'owner.view'],
@@ -7392,6 +7396,74 @@ class ReportController extends Controller
             'price' => $r->price, 'valid_days' => $r->valid_days, 'description' => $r->description, 'status' => $r->status,
         ]);
         return ['cols' => ['name' => 'Name', 'plan' => 'Plan', 'price' => 'Price', 'valid_days' => 'Valid Days', 'description' => 'Description', 'status' => 'Status'], 'rows' => $rows, 'money' => ['price'], 'note' => 'Club ticket type catalog.'];
+    }
+
+    protected function r_group_operating_summary($from, $to): array
+    {
+        // The period arguments are not used: every property is read on its OWN business date, and a
+        // report that silently picked one date for four properties on four different dates would be
+        // the kind of number that is argued about a month later. The header says so instead.
+        $user = Auth::user();
+        $hotels = $user
+            ? app(PropertyAccessService::class)->accessible($user)
+            // A scheduled run has no reader: it serves one tenant, so that tenant's group is the
+            // portfolio it reports on.
+            : collect([\App\Support\Tenant::hotel()])->filter()
+                ->flatMap(fn ($h) => $h->group ? $h->group->hotels()->notArchived()->get() : [$h]);
+
+        $metrics = app(\App\Services\GroupMetricsService::class);
+        $rows = collect();
+        $closed = [];
+
+        foreach ($hotels as $hotel) {
+            // Same rule as the dashboard: a property nobody can post in is not added to the group's
+            // occupancy or revenue. It is named underneath instead, because a reader who counted the
+            // properties in the group would otherwise find one missing with no explanation.
+            if ($hotel->licenceIsEmpty()) {
+                $closed[] = $hotel;
+
+                continue;
+            }
+
+            $m = $metrics->row($hotel);
+            $rows->push([
+                'property' => $hotel->name, 'code' => $hotel->code, 'status' => $hotel->statusLabel(),
+                'date' => $m['business_date']->format('d-m-Y'),
+                'rooms' => $m['rooms'], 'occupied' => $m['occupied'], 'occ' => number_format($m['occ'], 1).'%',
+                'in_house' => $m['in_house'], 'arrivals' => $m['arrivals'], 'departures' => $m['departures'],
+                'rev_today' => (float) $m['rev_today'], 'adr' => (float) $m['adr'], 'rev_mtd' => (float) $m['rev_mtd'],
+                'collections' => (float) $m['collections'], 'open_pos' => $m['open_pos'],
+                'licence' => $metrics->licenceLabel($hotel),
+            ]);
+        }
+
+        $rooms = (int) $rows->sum('rooms');
+        $occupied = (int) $rows->sum('occupied');
+
+        return [
+            'cols' => [
+                'property' => 'Property', 'code' => 'Code', 'status' => 'Status', 'date' => 'Business date',
+                'rooms' => 'Sellable', 'occupied' => 'Occupied', 'occ' => 'Occupancy',
+                'in_house' => 'In-house', 'arrivals' => 'Arr', 'departures' => 'Dep',
+                'rev_today' => 'Revenue today', 'adr' => 'ADR', 'rev_mtd' => 'Revenue MTD',
+                'collections' => 'Collections', 'open_pos' => 'Open POS', 'licence' => 'Licence',
+            ],
+            'rows' => $rows,
+            // Occupancy and ADR are ratios: a total of them would be a number nobody can act on.
+            'money' => ['rev_today', 'adr', 'rev_mtd', 'collections'],
+            'sum' => ['rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+            'summary' => [
+                'Properties trading' => (string) $rows->count(),
+                'Group occupancy' => number_format($rooms ? $occupied * 100 / $rooms : 0, 1).'%',
+                'Revenue today' => (float) $rows->sum('rev_today'),
+                'Revenue MTD' => (float) $rows->sum('rev_mtd'),
+                'Properties shut' => (string) count($closed),
+            ],
+            'note' => 'Each property is read on its own business date, in its own books.'
+                .($closed === [] ? '' : ' Not in these totals, because nobody can post there: '
+                    .implode(', ', array_map(fn ($h) => $h->name.' ('.$h->code.')', $closed))
+                    .'. Its history is untouched — licensing a module again puts it straight back in this report.'),
+        ];
     }
 
     protected function r_hotel_groups($from, $to): array
