@@ -425,6 +425,8 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-rack-table tbody tr:last-child td{border-bottom:0}
 .ws-rack-table tbody tr:hover{background:#f0fdf4}
 .ws-rack-room{display:flex;align-items:center;gap:8px}
+.ws-rack-roomtext{display:flex;min-width:0;flex-direction:column;gap:1px}
+.ws-rack-sub{display:none;color:#64748b;font-size:11px;line-height:1.3;overflow-wrap:anywhere}
 .ws-rack-thumb{width:38px;height:28px;flex:0 0 38px;border:1px solid #e2e8f0;border-radius:6px;background:#f1f5f9 center/cover no-repeat}
 .ws-rack-room b{font-size:14px;font-weight:800}
 .ws-rack-open{padding:2px 7px;border:1px solid #d1e7d7;border-radius:6px;background:#f5fbf6;color:#14532d;font-size:10px;font-weight:750;cursor:pointer}
@@ -500,7 +502,12 @@ body.dark a.ws-attention-row:hover{background:#193525}
 @container wsscreen (max-width:719px){
   .ws-rack-table [data-col="type"],.ws-rack-table [data-col="hk"]{display:none}}
 @container wsscreen (max-width:519px){
-  .ws-rack-table [data-col="rate"]{display:none}}
+  .ws-rack-table [data-col="rate"]{display:none}
+  /* a room, its guest under it, its state and the one action: a two-line row instead of three columns of
+     table. The guest cell is hidden and its content is already in the room cell, so nothing leaves the page. */
+  .ws-rack-table [data-col="guest"]{display:none}
+  .ws-rack-table .ws-rack-sub{display:block}
+  .ws-rack-table td{padding:7px 9px}}
 @container wsscreen (max-width:388px){
   .ws-toolbar{gap:8px}
   .ws-viewswitch{flex:1}
@@ -6569,7 +6576,16 @@ body.dark a.ws-attention-row:hover{background:#193525}
       }
       const strong = document.createElement('b');
       strong.textContent = roomNo;
-      roomWrap.appendChild(strong);
+      // v10.20 below 520px the guest is no longer a column of its own: it moves under the room number, so the
+      // row is a room with its guest rather than five columns squeezed into three. Wide racks ignore this line.
+      const roomText = document.createElement('div');
+      roomText.className = 'ws-rack-roomtext';
+      roomText.appendChild(strong);
+      const sub = document.createElement('span');
+      sub.className = 'ws-rack-sub';
+      sub.textContent = [guest || 'No guest', guestMeta].filter(Boolean).join(' · ');
+      roomText.appendChild(sub);
+      roomWrap.appendChild(roomText);
       if (roomId) {
         const open = document.createElement('button');
         open.type = 'button';

@@ -213,10 +213,20 @@ ok('the columns retreat in the order that costs the reader least',
   [[839, 'nights'], [839, 'balance'], [719, 'type'], [719, 'hk'], [519, 'rate']].every(([width, col]) =>
     new RegExp(`@container wsscreen \\(max-width:${width}px\\)\\{[\\s\\S]{0,200}\\[data-col="${col}"\\]`).test(wsStyle)),
   'nights and balance, then type and housekeeping, then rate');
-ok('what is left is room, state, guest and the action',
-  ['room', 'status', 'guest', 'action'].every(col =>
+ok('a room, its state and its action are never hidden',
+  ['room', 'status', 'action'].every(col =>
     !new RegExp(`\\[data-col="${col}"\\]\\s*\\{[^}]*display:none`).test(wsStyle)),
-  'the four columns a room is on this screen are never hidden — though the action cell may shed its extras');
+  'the three a row is nothing without');
+// v10.20 the guest is the fourth, but below 520px it stops being a column and becomes the room's second line
+ok('and the guest moves under the room number rather than off the page',
+  /@container wsscreen \(max-width:519px\)\{[\s\S]{0,600}\[data-col="guest"\]\{display:none\}/.test(wsStyle)
+    && /@container wsscreen \(max-width:519px\)\{[\s\S]{0,800}\.ws-rack-table \.ws-rack-sub\{display:block\}/.test(wsStyle)
+    && /\.ws-rack-sub\{display:none/.test(wsStyle),
+  'hidden as a column at 520px, shown as a line in the room cell');
+ok('the script puts the guest in the room cell for that narrow row',
+  /sub\.className = 'ws-rack-sub'/.test(rackScript) && /roomText\.appendChild\(sub\)/.test(rackScript)
+    && /\[guest \|\| 'No guest', guestMeta\]/.test(rackScript),
+  'one line: guest and where they came from');
 // v10.18 the sort lives on columns that retreat, so the order is stated where it cannot be hidden — and the
 // statement is the control: activate to reverse, clear to return to room order.
 const sortChip = $('#wsRackSortState');
