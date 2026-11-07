@@ -212,6 +212,10 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/purchases.html');
   } else if (pathname === '/purchases-drift' || pathname === '/__preview/purchases-drift') {
     file = resolve(ROOT, 'deploy/dev/previews/purchases-drift.html');
+  } else if (pathname === '/requisitions' || pathname === '/inventory/requisitions' || pathname === '/__preview/requisitions') {
+    file = resolve(ROOT, 'deploy/dev/previews/requisitions.html');
+  } else if (pathname === '/requisitions-drift' || pathname === '/__preview/requisitions-drift') {
+    file = resolve(ROOT, 'deploy/dev/previews/requisitions-drift.html');
   } else if (pathname === '/grns' || pathname === '/inventory/goods-receipts' || pathname === '/__preview/grns') {
     file = resolve(ROOT, 'deploy/dev/previews/grns.html');
   } else if (pathname === '/grns-drift' || pathname === '/__preview/grns-drift') {

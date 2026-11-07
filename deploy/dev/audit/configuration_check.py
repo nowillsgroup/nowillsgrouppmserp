@@ -4001,6 +4001,53 @@ ok('the drift leaves the commitment alone' in read(os.path.join(ROOT, 'deploy/de
 ok("/purchases-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26ao · store requisitions: the queue, the allowance and the handover ──────────────
+req_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/RequisitionController.php'))
+req_fn = req_ctrl[req_ctrl.index('public function index('):]
+ok("$r->unack_count = $r->issues->filter(fn ($i) => ! $i->received_at)->count();" in req_fn,
+   'a row counts the issues nobody has signed for, from the issue record and not from the requisition status')
+ok("$r->outstanding_qty = round($r->outstandingQty(), 3);" in req_fn,
+   'and carries the quantity still to come out of the store, so the view renders no arithmetic of its own')
+ok("'submitted' => $r->submitted_at," in req_fn and "'approved', 'partial' => $r->approved_at," in req_fn,
+   'the age of a row is counted from the day it reached the person holding it, not from the day it was written')
+ok("$age = ['head' => $queue(['submitted'], 'submitted_at'), 'store' => $queue(['approved', 'partial'], 'approved_at')];" in req_fn,
+   'the two queues that wait on a person are aged separately, over the whole book rather than the open tab')
+ok("$b = RequisitionService::budgetStatus($d);" in req_fn,
+   'each department is read through the same budgetStatus() the raise screen tests, so the two cannot disagree')
+ok("$overBudget = $budgetRows->filter(fn ($r) => $r['left'] < -0.005)->values();" in req_fn,
+   'a department is over only when the allowance is actually exceeded, to the cent')
+ok("$unsigned = StoreIssue::with('requisition', 'department', 'fromStore', 'issuer')->whereNull('received_at')->get()" in req_fn,
+   'the handover is taken from the issue notes themselves: an issue with no acknowledgement is the whole signal')
+ok("'worst' => $budgetRows->first(), 'no_budget' => Department::count() - $budgetRows->count()," in req_fn,
+   'the tightest department is named by percentage, and a department with no allowance is counted rather than hidden')
+ok("'avg_days' => $signDays->count() ? round((float) $signDays->avg(), 1) : null];" in req_fn,
+   'how long a signature takes is measured, not asserted, and left null when nothing was issued')
+req_view = read(os.path.join(ROOT, 'resources/views/requisitions/index.blade.php'))
+ok('id="reqAge"' in req_view and 'How long has each queue waited?' in req_view and 'id="reqAgeTable"' in req_view,
+   'the page asks how long each queue has waited, and lists both queues')
+ok('id="reqAgeState"' in req_view and 'The oldest with the head of department is' in req_view and 'still open for' in req_view,
+   'the oldest in each queue is named with its requisition, its department, its money and its age')
+ok('id="reqBudget"' in req_view and "What is left of each department's month?" in req_view and 'id="budgetTable"' in req_view,
+   'the allowance is on the page the requisitions are raised from')
+ok('id="reqBudgetState"' in req_view and "$budget['over_rows'][0]['name']" in req_view and 'no allowance set' in req_view,
+   'the verdict names the department that is over, and says which ones are held to nothing')
+ok('id="reqHandover"' in req_view and "What has left the store with nobody's signature?" in req_view and 'id="handoverTable"' in req_view,
+   'the handover is asked as a question with a list behind it, not a badge')
+ok('id="reqHandoverState"' in req_view and 'nobody has signed for it' in req_view and 'goods it may never have seen' in req_view,
+   'an unsigned note is named with its store, its money and its age, and says what it costs the department')
+ok('<th class="num">Age</th><th>Receipt</th>' in req_view and 'unsigned' in req_view and 'signed' in req_view,
+   'the row carries the age of its state and whether anybody signed for what left the store')
+ok('data-unsigned="{{ $r->unack_count ? 1 : 0 }}"' in req_view,
+   'and states it in the row data, so the unsigned rows can be found without reading the table')
+ok('id="reqChain"' in req_view and 'here, goods leave and a signature should' in req_view,
+   'the chain from request to signature is spelled out, and points back at the goods receipt that mirrors it')
+ok('the verdict names the oldest note, its department, its money and its store' in read(os.path.join(ROOT, 'deploy/dev/audit/requisitions_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the drift leaves the queue alone' in read(os.path.join(ROOT, 'deploy/dev/audit/requisitions_preview_check.js')),
+   'and proves the three readings are independent: the drift breaks the allowance and the handover, not the queue')
+ok("/requisitions-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

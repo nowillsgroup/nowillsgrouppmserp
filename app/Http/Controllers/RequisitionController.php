@@ -47,11 +47,71 @@ class RequisitionController extends Controller
         $counts = collect($filter)->map(fn ($f) => $all->filter($f)->count());
         $monthFrom = bdate()->copy()->startOfMonth()->toDateString();
 
+        $rows = $all->filter($filter[$tab])->values();
+        $asOf = bdate()->toDateString();
+        $today = bdate()->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - \Carbon\Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : 0;
+
+        // v9.18 the row states how long it has been in the state it is in, and how many issues it still has unsigned
+        $rows->each(function ($r) use ($ageOf) {
+            $r->unack_count = $r->issues->filter(fn ($i) => ! $i->received_at)->count();
+            $r->outstanding_qty = round($r->outstandingQty(), 3);
+            $since = match ($r->status) {
+                'submitted' => $r->submitted_at,
+                'approved', 'partial' => $r->approved_at,
+                'issued', 'closed' => $r->issues->max(fn ($i) => $i->date?->toDateString() ?: '') ?: $r->req_date,
+                default => $r->req_date,
+            };
+            $r->state_since = $since;
+            $r->age_days = $ageOf($since);
+        });
+
+        // 1. the two queues that wait on a person, aged from the day the requisition reached them — the whole book, not the tab
+        $ledger = Requisition::with('department')->get();
+        $queue = function ($statuses, $stamp) use ($ledger, $ageOf) {
+            $rows = $ledger->whereIn('status', $statuses)->map(function ($r) use ($stamp, $ageOf) {
+                $since = $stamp === 'approved_at' ? ($r->approved_at ?? $r->submitted_at ?? $r->req_date) : ($r->submitted_at ?? $r->req_date);
+
+                return ['req_no' => $r->req_no, 'department' => $r->department?->name, 'value' => round((float) $r->est_value, 2),
+                    'since' => $since, 'days' => $ageOf($since), 'required_by' => $r->required_by];
+            })->sortByDesc('days')->values();
+
+            return ['count' => $rows->count(), 'value' => round((float) $rows->sum('value'), 2),
+                'oldest_days' => (int) ($rows->max('days') ?? 0), 'oldest' => $rows->first(), 'pending' => $rows->count(fn ($r) => $r['required_by'] && $r['required_by']->toDateString() < bdate()->toDateString())];
+        };
+        $age = ['head' => $queue(['submitted'], 'submitted_at'), 'store' => $queue(['approved', 'partial'], 'approved_at')];
+
+        // 2. the month's allowance, per department: issued + still committed against the budget the department answers to
+        $budgetRows = Department::orderBy('name')->get()->map(function ($d) {
+            $b = RequisitionService::budgetStatus($d);
+
+            return $b['budget'] === null ? null : ['name' => $d->name, 'budget' => round((float) $b['budget'], 2), 'issued' => $b['issued'],
+                'committed' => $b['committed'], 'used' => $b['used'], 'left' => $b['left'], 'pct' => $b['pct'],
+                'note' => $b['source_note']];
+        })->filter()->sortByDesc('pct')->values();
+        $overBudget = $budgetRows->filter(fn ($r) => $r['left'] < -0.005)->values();
+        $budget = ['rows' => $budgetRows->take(10)->all(), 'count' => $budgetRows->count(), 'over' => $overBudget->count(),
+            'over_value' => round((float) $overBudget->sum(fn ($r) => abs($r['left'])), 2), 'over_rows' => $overBudget->take(10)->all(),
+            'worst' => $budgetRows->first(), 'no_budget' => Department::count() - $budgetRows->count(),
+            'total_budget' => round((float) $budgetRows->sum('budget'), 2), 'total_used' => round((float) $budgetRows->sum('used'), 2)];
+
+        // 3. what left the store and nobody signed for — the mirror of the goods-receipts screen, goods going the other way
+        $unsigned = StoreIssue::with('requisition', 'department', 'fromStore', 'issuer')->whereNull('received_at')->get()
+            ->map(fn ($i) => ['req_no' => $i->requisition?->req_no, 'department' => $i->department?->name, 'store' => $i->fromStore?->name,
+                'date' => $i->date, 'days' => $ageOf($i->date), 'value' => round((float) $i->value, 2), 'by' => $i->issuer?->name])
+            ->sortByDesc('days')->values();
+        $signDays = StoreIssue::whereNotNull('received_at')->whereDate('date', '>=', bdate()->copy()->subDays(30)->toDateString())->get()
+            ->map(fn ($i) => max(0, (int) round((\Carbon\Carbon::parse($i->received_at)->startOfDay()->timestamp - \Carbon\Carbon::parse($i->date)->startOfDay()->timestamp) / 86400)));
+        $handover = ['count' => $unsigned->count(), 'value' => round((float) $unsigned->sum('value'), 2),
+            'oldest' => $unsigned->first(), 'rows' => $unsigned->take(10)->all(),
+            'signed' => $signDays->count(), 'avg_days' => $signDays->count() ? round((float) $signDays->avg(), 1) : null];
+
         return view('requisitions.index', [
-            'rows' => $all->filter($filter[$tab])->values(), 'tab' => $tab, 'counts' => $counts,
+            'rows' => $rows, 'tab' => $tab, 'counts' => $counts,
             'departments' => Department::orderBy('name')->pluck('name', 'id'),
             'monthIssued' => (float) StoreIssue::whereBetween('date', [$monthFrom, bdate()->toDateString()])->sum('value'),
             'monthIssues' => StoreIssue::whereBetween('date', [$monthFrom, bdate()->toDateString()])->count(),
+            'as_of' => $asOf, 'age' => $age, 'budget' => $budget, 'handover' => $handover, 'tabs' => self::TABS,
         ]);
     }
 
