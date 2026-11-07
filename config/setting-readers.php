@@ -199,7 +199,7 @@ return [
         'po_limit_2' => ['app/Services/ProcurementService.php'],
         'po_over_receipt_pct' => ['app/Services/ProcurementService.php', 'resources/views/inventory/purchases.blade.php'],
         'po_price_tolerance_pct' => ['app/Models/PurchaseOrderItem.php', 'resources/views/inventory/po-form.blade.php', 'resources/views/inventory/purchases.blade.php', 'resources/views/procurement/prices.blade.php'],
-        'po_segregation' => ['app/Services/ProcurementService.php', 'resources/views/inventory/purchases.blade.php'],
+        'po_segregation' => ['app/Http/Controllers/PurchaseController.php', 'app/Services/ProcurementService.php'],
         'portal_amenities' => ['app/Services/GuestPortalService.php'],
         'portal_auto_welcome' => ['app/Services/GuestPortalService.php'],
         'portal_days_after' => ['app/Models/ReservationRoom.php', 'resources/views/portal/expired.blade.php'],

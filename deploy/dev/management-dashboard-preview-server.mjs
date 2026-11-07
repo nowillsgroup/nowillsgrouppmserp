@@ -208,6 +208,10 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/ap-bill-show.html');
   } else if (pathname === '/ap-payment-show' || pathname === '/__preview/ap-payment-show') {
     file = resolve(ROOT, 'deploy/dev/previews/ap-payment-show.html');
+  } else if (pathname === '/purchases' || pathname === '/inventory/purchases' || pathname === '/__preview/purchases') {
+    file = resolve(ROOT, 'deploy/dev/previews/purchases.html');
+  } else if (pathname === '/purchases-drift' || pathname === '/__preview/purchases-drift') {
+    file = resolve(ROOT, 'deploy/dev/previews/purchases-drift.html');
   } else if (pathname === '/grns' || pathname === '/inventory/goods-receipts' || pathname === '/__preview/grns') {
     file = resolve(ROOT, 'deploy/dev/previews/grns.html');
   } else if (pathname === '/grns-drift' || pathname === '/__preview/grns-drift') {

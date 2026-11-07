@@ -3949,6 +3949,58 @@ ok('the drift does not touch the delivery card' in read(os.path.join(ROOT, 'depl
 ok("/grns-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26an. purchase orders: a commitment, a gate and a match ──────────────────────────────
+# Between the requisition that starts an order and the bill that ends it, an order is money promised and not yet posted, a
+# signature somebody with the right level has to give, and a document the shelf and the invoice both have to match. The
+# register listed orders and nothing else; v9.17 reads each of the three from the record that owns it — the goods receipts,
+# the approval matrix in ProcurementService (the same requiredLevel()/approvalBlocker() the approve button tests), and the
+# order's own bill relation, filtered to bills that are actually on the ledger.
+purchase_controller = read(os.path.join(ROOT, 'app/Http/Controllers/PurchaseController.php'))
+po_fn = purchase_controller.split('public function index(Request $request)', 1)[-1][:12000]
+ok("$onLedger = fn ($q) => $q->whereIn('status', ['open', 'partial', 'paid']);" in po_fn,
+   'a bill counts only once it is on the ledger, the same rule the goods-receipts screen applies')
+ok("$receivedOf = function (array $ids) {" in po_fn,
+   'what the shelf took in is summed once for the page, not asked again for every row')
+ok("$openOrders = PurchaseOrder::with('supplier')->whereIn('status', ['approved', 'partial'])->get();" in po_fn,
+   'the commitment is the orders approved or part-received, and nothing else')
+ok("'worst' => $lateRows->first(), 'soonest' => $openRows->filter(fn ($r) => $r['late'] === 0 && $r['expected'])" in po_fn,
+   'the card knows both ends: the oldest lateness, and the next promise still inside its date')
+ok("$drafts = PurchaseOrder::with('items', 'supplier')->where('status', 'draft')->where('total', '>', 0)->get();" in po_fn,
+   'the gate reads the drafts themselves, because the level depends on their lines as well as their total')
+ok("'largest' => $set->first()?->po_no, 'largest_value' => round((float) ($set->first()?->total ?? 0), 2)];" in po_fn,
+   'each level names the largest order it holds, so the matrix is evidence and not a threshold table')
+ok("$blocked = $drafts->map(fn ($po) => ['po' => $po, 'why' => ProcurementService::approvalBlocker($po)])" in po_fn,
+   'and the orders the reader may not sign are found with the same blocker the approve button runs')
+ok("$matched = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();" in po_fn,
+   'the match is taken over the orders whose goods arrived, short-closed ones included')
+ok("'largest' => $matchRows->sortByDesc('received')->first(), 'unbilled' => $matchRows->filter(fn ($r) => $r['billed'] <= 0.005)->count()];" in po_fn,
+   'a receipt with no bill at all is counted as a break rather than as a missing row')
+ok("'mine' => ProcurementService::awaitingMyApproval(), 'late_pos' => ProcurementService::overdueDeliveries()," in po_fn,
+   'the queues the view used to call for are handed to it, so the screen renders no service calls of its own')
+po_view = read(os.path.join(ROOT, 'resources/views/inventory/purchases.blade.php'))
+ok('id="poCommit"' in po_view and 'What has been promised and not yet delivered?' in po_view and 'id="commitTable"' in po_view,
+   'the page asks what has been promised and not delivered, and lists it')
+ok('id="poCommitState"' in po_view and 'The oldest is ' in po_view and 'Nothing is on the ledger for it' in po_view,
+   'a late commitment is named with its supplier, its money and its age, and says why the ledger does not hold it')
+ok('id="poGate"' in po_view and 'Who has to approve what, and may they?' in po_view and 'id="gateLevels"' in po_view,
+   'the approval matrix is on the page it governs')
+ok('id="gateBlocked"' in po_view and 'id="poGateState"' in po_view and "$gate['blocked_rows'][0]['why']" in po_view,
+   'and an order the reader may not sign is named with the reason, not dropped from the list')
+ok('id="poMatch"' in po_view and 'Is the bill for what the shelf actually took in?' in po_view and 'id="matchGap"' in po_view,
+   'the receipt and the bill are held to one another, order by order')
+ok("""data-open="{{ in_array($po->status, ['approved', 'partial']) && $po->open_value > 0.005 ? 1 : 0 }}""" in po_view,
+   'a row states whether it is still a commitment, and a draft is not one until somebody signs it')
+ok('<th class="num">Receipt</th><th>Bill</th>' in po_view and 'not received' in po_view and 'no bill' in po_view,
+   'the row itself carries what arrived and which bill it reached')
+ok('id="poChain"' in po_view and 'an order is a commitment until it is received' in po_view and 'Past the date' in po_view,
+   'the chain from order to receipt to bill is spelled out, and the late orders can be filtered out of it')
+ok('the verdict names the oldest order, its supplier, its money and its age' in read(os.path.join(ROOT, 'deploy/dev/audit/purchases_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the drift leaves the commitment alone' in read(os.path.join(ROOT, 'deploy/dev/audit/purchases_preview_check.js')),
+   'and proves the three readings are independent: the drift breaks the match and leaves the other two')
+ok("/purchases-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

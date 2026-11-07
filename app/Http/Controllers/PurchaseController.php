@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GoodsReceipt;
 use App\Models\InventoryItem;
 use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
@@ -15,9 +16,103 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseController extends Controller
 {
+    /**
+     * v9.17 Purchase orders, read as three things at once.
+     *
+     * An order is a commitment the ledger does not carry until the goods arrive, a gate somebody with the right level has
+     * to pass, and a document the shelf and the invoice both have to match. The register could list orders and nothing
+     * else. Each reading is taken from the records that own it: the goods receipts against the order, the approval matrix
+     * in ProcurementService (the same requiredLevel()/approvalBlocker() the approve button tests), and the order's bill
+     * relation — filtered to bills that are actually on the ledger, as the goods-receipts screen filters it.
+     */
     public function index(Request $request)
     {
-        return view('inventory.purchases', ['orders' => PurchaseOrder::with('supplier', 'store')->when($request->status, fn ($q, $s) => $q->where('status', $s))->latest('po_date')->paginate(25)->withQueryString()]);
+        $asOf = bdate()->toDateString();
+        $today = bdate()->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - \Carbon\Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : 0;
+        $onLedger = fn ($q) => $q->whereIn('status', ['open', 'partial', 'paid']);
+        // what the shelf took in, per order, summed once — receivedValue() would ask the same question once per row
+        $receivedOf = function (array $ids) {
+            return GoodsReceipt::whereIn('purchase_order_id', $ids)->selectRaw('purchase_order_id, SUM(total) v')
+                ->groupBy('purchase_order_id')->pluck('v', 'purchase_order_id');
+        };
+        $receivedFor = function ($po, $map) {
+            $grn = round((float) ($map[$po->id] ?? 0), 2);
+
+            return $grn > 0 ? $grn : ($po->status === 'received' ? round((float) $po->total, 2) : 0.0);
+        };
+
+        $orders = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])
+            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
+            ->when($request->boolean('late'), fn ($q) => $q->whereIn('status', ['approved', 'partial'])->whereDate('expected_date', '<', $asOf))
+            ->latest('po_date')->latest('id')->paginate(25)->withQueryString();
+        $pageReceived = $receivedOf($orders->getCollection()->pluck('id')->all());
+        $orders->getCollection()->transform(function ($po) use ($pageReceived, $receivedFor) {
+            $po->receipt_value = $receivedFor($po, $pageReceived);
+            $po->bill_total = round((float) ($po->bill?->total ?? 0), 2);
+            $po->open_value = round((float) $po->total - $po->receipt_value, 2);
+
+            return $po;
+        });
+
+        // 1. the commitment: approved or part-received, and the goods have not all arrived — money promised, not yet posted
+        $openOrders = PurchaseOrder::with('supplier')->whereIn('status', ['approved', 'partial'])->get();
+        $openReceived = $receivedOf($openOrders->pluck('id')->all());
+        $openRows = $openOrders->map(function ($po) use ($openReceived, $receivedFor, $asOf, $ageOf) {
+            $received = $receivedFor($po, $openReceived);
+            $expected = $po->expected_date;
+            $late = $expected && $expected->toDateString() < $asOf ? $ageOf($expected) : 0;
+
+            return ['po_no' => $po->po_no, 'supplier' => $po->supplier?->name, 'store' => $po->store?->name, 'expected' => $expected,
+                'total' => round((float) $po->total, 2), 'received' => $received, 'open' => round((float) $po->total - $received, 2), 'late' => $late];
+        })->filter(fn ($r) => $r['open'] > 0.005)->values();
+        $lateRows = $openRows->filter(fn ($r) => $r['late'] > 0)->sortByDesc('late')->values();
+        $commit = ['orders' => $openRows->count(), 'value' => round((float) $openRows->sum('open'), 2),
+            'late' => $lateRows->count(), 'late_value' => round((float) $lateRows->sum('open'), 2),
+            'worst' => $lateRows->first(), 'soonest' => $openRows->filter(fn ($r) => $r['late'] === 0 && $r['expected'])->sortBy(fn ($r) => $r['expected']->toDateString())->first(),
+            'rows' => $openRows->sortByDesc('open')->take(10)->values()->all()];
+
+        // 2. the gate: who has to approve what, and who may not — the matrix the approve button itself tests
+        $drafts = PurchaseOrder::with('items', 'supplier')->where('status', 'draft')->where('total', '>', 0)->get();
+        $levelRows = [];
+        foreach ([1, 2, 3] as $level) {
+            $set = $drafts->filter(fn ($po) => ProcurementService::requiredLevel($po) === $level)->sortByDesc('total')->values();
+            $levelRows[] = ['level' => $level, 'label' => ProcurementService::levelLabel($level), 'count' => $set->count(),
+                'value' => round((float) $set->sum('total'), 2), 'largest' => $set->first()?->po_no, 'largest_value' => round((float) ($set->first()?->total ?? 0), 2)];
+        }
+        $blocked = $drafts->map(fn ($po) => ['po' => $po, 'why' => ProcurementService::approvalBlocker($po)])->filter(fn ($r) => $r['why'] !== null)->values();
+        $gate = ['drafts' => $drafts->count(), 'value' => round((float) $drafts->sum('total'), 2), 'levels' => $levelRows,
+            'approvable' => $drafts->count() - $blocked->count(),
+            'approvable_value' => round((float) $drafts->sum('total') - (float) $blocked->sum(fn ($r) => (float) $r['po']->total), 2),
+            'largest_approvable' => $drafts->reject(fn ($po) => ProcurementService::approvalBlocker($po) !== null)->sortByDesc('total')->first(),
+            'blocked' => $blocked->count(), 'blocked_value' => round((float) $blocked->sum(fn ($r) => (float) $r['po']->total), 2),
+            'blocked_rows' => $blocked->take(10)->map(fn ($r) => ['po_no' => $r['po']->po_no, 'supplier' => $r['po']->supplier?->name,
+                'total' => round((float) $r['po']->total, 2), 'why' => $r['why']])->all(),
+            'user_level' => ProcurementService::userLevel(), 'limits' => ProcurementService::limits(),
+            'segregation' => setting('po_segregation', '0') === '1'];
+
+        // 3. the match: a receipt and the bill for it must be the same money, order by order
+        $matched = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();
+        $matchReceived = $receivedOf($matched->pluck('id')->all());
+        $matchRows = $matched->map(function ($po) use ($matchReceived, $receivedFor) {
+            $received = $receivedFor($po, $matchReceived);
+            $billed = round((float) ($po->bill?->total ?? 0), 2);
+
+            return ['po_no' => $po->po_no, 'supplier' => $po->supplier?->name, 'store' => $po->store?->name, 'status' => $po->status,
+                'ordered' => round((float) $po->total, 2), 'received' => $received, 'billed' => $billed,
+                'bill_no' => $po->bill?->doc_no, 'diff' => round($received - $billed, 2)];
+        })->filter(fn ($r) => $r['received'] > 0.005)->values();
+        $breaks = $matchRows->filter(fn ($r) => abs($r['diff']) > 0.005)->sortByDesc(fn ($r) => abs($r['diff']))->values();
+        $match = ['orders' => $matchRows->count(), 'received' => round((float) $matchRows->sum('received'), 2),
+            'billed' => round((float) $matchRows->sum('billed'), 2), 'diff' => round((float) $matchRows->sum('diff'), 2),
+            'breaks' => $breaks->count(), 'rows' => $breaks->take(10)->all(),
+            'largest' => $matchRows->sortByDesc('received')->first(), 'unbilled' => $matchRows->filter(fn ($r) => $r['billed'] <= 0.005)->count()];
+
+        return view('inventory.purchases', ['orders' => $orders, 'status' => $request->status, 'as_of' => $asOf,
+            'commit' => $commit, 'gate' => $gate, 'match' => $match,
+            'mine' => ProcurementService::awaitingMyApproval(), 'late_pos' => ProcurementService::overdueDeliveries(),
+            'limits' => ProcurementService::limits(), 'segregation' => $gate['segregation'],
+            'suppliers' => Supplier::where('is_active', true)->pluck('name', 'id')]);
     }
 
     public function create()
