@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Pay Setup · '.$e->name)
 @section('crumbs') <a href="{{ route('payroll.index') }}">Payroll</a> / <a href="{{ route('masters.index', 'employees') }}">Employees</a> / {{ $e->emp_code }} @endsection
-@section('actions')<a class="btn" href="{{ route('masters.edit', ['employees', $e->id]) }}"><x-icon name="user"/> Edit employee</a>@endsection
+@section('actions')<a class="btn" href="{{ route('hr.employee.file', $e) }}"><x-icon name="id"/> Employee file</a><a class="btn" href="{{ route('masters.edit', ['employees', $e->id]) }}"><x-icon name="user"/> Edit employee</a>@endsection
 @section('content')
 <div class="card"><div class="card-body grid g-3">
   <dl class="kv"><dt>Employee</dt><dd><b>{{ $e->name }}</b> · {{ $e->emp_code }}</dd><dt>Designation</dt><dd>{{ $e->designation ?? '—' }} · {{ $e->department?->name ?? '—' }}</dd><dt>Joined</dt><dd>{{ $e->joining_date ? dmy($e->joining_date) : '—' }}@if($e->leaving_date) · leaves {{ dmy($e->leaving_date) }}@endif</dd></dl>

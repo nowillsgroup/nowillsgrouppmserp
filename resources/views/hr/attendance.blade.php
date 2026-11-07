@@ -11,7 +11,7 @@
 <div class="card-body table-wrap"><table class="table">
 <thead><tr><th>Code</th><th>Employee</th><th>Department</th><th>Status</th><th>In</th><th>Out</th><th>Remarks</th><th class="num" title="This month">P / A / L</th></tr></thead><tbody>
 @forelse($employees as $e)@php $a = $e->attendances->first(); $s = $summary[$e->id] ?? collect(); $lv = $a?->leave_request_id; @endphp
-<tr><td class="small muted">{{ $e->emp_code }}</td><td class="bold">{{ $e->name }}<div class="tiny muted">{{ $e->designation }}</div></td><td>{{ $e->department?->name }}</td>
+<tr><td class="small muted">{{ $e->emp_code }}</td><td class="bold"><a href="{{ route('hr.employee.file', $e) }}">{{ $e->name }}</a><div class="tiny muted">{{ $e->designation }}</div></td><td>{{ $e->department?->name }}</td>
 <td>@if($lv)<input type="hidden" name="att[{{ $e->id }}][status]" value="{{ $a->status }}"><span class="badge {{ $a->status === 'H' ? 'badge-amber' : 'badge-purple' }}" title="Approved leave – cancel it from Leave to change">{{ $a->status === 'H' ? 'Half day' : 'On leave' }} · {{ $a->leaveRequest?->leaveType?->code }}</span>@else<select class="input input-sm" name="att[{{ $e->id }}][status]">@foreach(['P'=>'Present','A'=>'Absent','L'=>'Leave','H'=>'Half day','WO'=>'Week off','PH'=>'Public holiday'] as $k=>$v)<option value="{{ $k }}" @selected(($a->status ?? ($holiday ? 'PH' : 'P'))===$k)>{{ $v }}</option>@endforeach</select>@endif</td>
 <td><input class="input input-sm" type="time" name="att[{{ $e->id }}][in_time]" value="{{ $a?->in_time ? substr($a->in_time,0,5) : '' }}"></td>
 <td><input class="input input-sm" type="time" name="att[{{ $e->id }}][out_time]" value="{{ $a?->out_time ? substr($a->out_time,0,5) : '' }}"></td>

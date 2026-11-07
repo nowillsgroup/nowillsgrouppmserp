@@ -1706,6 +1706,19 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/hr/settings', [Controllers\HrController::class, 'settings'])->middleware('perm:hr.manage')->name('hr.settings');
     Route::post('/hr/settings', [Controllers\HrController::class, 'saveSettings'])->middleware('perm:hr.manage')->name('hr.settings.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
+
+    // the employee file: photograph, papers, and the review of what staff send in
+    Route::controller(Controllers\HrController::class)->prefix('hr/employees')->name('hr.employee.')->group(function () {
+        Route::get('/{employee}', 'employee')->whereNumber('employee')->middleware('perm:hr.manage,hr.view,payroll.view')->name('file');
+        Route::get('/{employee}/photo', 'employeePhoto')->whereNumber('employee')->middleware('perm:hr.manage,hr.view,payroll.view')->name('photo');
+        Route::post('/{employee}/photo', 'savePhoto')->whereNumber('employee')->middleware('perm:hr.manage')->name('photo.save');
+        Route::post('/{employee}/photo/remove', 'removePhoto')->whereNumber('employee')->middleware('perm:hr.manage')->name('photo.remove');
+        Route::post('/{employee}/documents', 'uploadDocument')->whereNumber('employee')->middleware('perm:hr.manage')->name('documents.save');
+    });
+    Route::get('/hr/documents/{doc}', [Controllers\HrController::class, 'document'])->whereNumber('doc')
+        ->middleware('perm:hr.manage,hr.view,payroll.view')->name('hr.document');
+    Route::post('/hr/documents/{doc}/delete', [Controllers\HrController::class, 'deleteDocument'])->whereNumber('doc')
+        ->middleware('perm:hr.manage')->name('hr.document.delete');
     // v7.43 public holidays – the gazetted Ghana calendar behind the roster, the register, leave and payroll
     Route::get('/hr/holidays', [Controllers\HrController::class, 'holidays'])->middleware('perm:hr.manage,roster.view,payroll.view')->name('hr.holidays');
     Route::post('/hr/holidays', [Controllers\HrController::class, 'saveHolidays'])->middleware('perm:hr.manage')->name('hr.holidays.save');
@@ -1770,6 +1783,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     });
     // v7.40 employee self-service: profile change requests, documents, announcements
     Route::prefix('me')->name('me.')->controller(Controllers\EssController::class)->middleware('perm:hr.self')->group(function () {
+        Route::get('/documents/{doc}', 'documentFile')->whereNumber('doc')->name('documents.file');
         Route::get('/profile', 'profile')->name('profile');
         Route::post('/profile', 'profileUpdate')->middleware('throttle:20,1')->name('profile.update');
         Route::get('/documents', 'documents')->name('documents');

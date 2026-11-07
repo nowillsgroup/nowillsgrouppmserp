@@ -10,6 +10,7 @@ use App\Models\MessageLog;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -114,6 +115,59 @@ class EmployeeSelfService
 
     // ------------------------------------------------------------------ documents
 
+    /** Every document the HR desk loads waits for nobody: HR is the check. */
+    public static function uploadOnBehalf(Employee $e, UploadedFile $file, string $title, ?string $kind, User $u): HrDocument
+    {
+        $doc = self::storeDocument($e, $file, $title, $kind, $u, 'hr');
+        $doc->update(['status' => 'verified', 'reviewed_by' => $u->id, 'reviewed_at' => now(),
+            'review_note' => 'Loaded by HR — no review needed.']);
+
+        return $doc->fresh();
+    }
+
+    /** Remove a document from the file, and the file from the disk with it. */
+    public static function deleteDocument(HrDocument $d, User $u): void
+    {
+        $employee = Employee::find($d->employee_id);
+        if ($d->file_path && Storage::disk('local')->exists($d->file_path)) {
+            Storage::disk('local')->delete($d->file_path);
+        }
+        $d->delete();
+        ActivityLogger::log('hr', 'document', 'Removed the document “'.$d->title.'” from '.(string) ($employee->name ?? 'an employee file'), $d);
+    }
+
+    /** The photograph: one per employee, replaced in place, old file removed. */
+    public static function savePhoto(Employee $e, UploadedFile $file, User $u): string
+    {
+        if (! $file->isValid() || $file->getSize() <= 0) {
+            throw ValidationException::withMessages(['photo' => ['The upload failed — try again.']]);
+        }
+        if (! in_array($file->getMimeType(), ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            throw ValidationException::withMessages(['photo' => ['The photograph must be a JPEG, PNG or WebP image.']]);
+        }
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            throw ValidationException::withMessages(['photo' => ['The photograph may not exceed 5 MB.']]);
+        }
+        $path = $file->storeAs('employee-photos/'.$e->hotel_id, $e->id.'-'.substr(md5(uniqid('', true)), 0, 8).'.'.$file->extension(), 'local');
+        $old = $e->photo_path;
+        $e->update(['photo_path' => $path]);
+        if ($old && $old !== $path && Storage::disk('local')->exists($old)) {
+            Storage::disk('local')->delete($old);
+        }
+        ActivityLogger::log('hr', 'photo', 'Loaded a photograph for '.$e->name, $e);
+
+        return $path;
+    }
+
+    public static function removePhoto(Employee $e, User $u): void
+    {
+        if ($e->photo_path && Storage::disk('local')->exists($e->photo_path)) {
+            Storage::disk('local')->delete($e->photo_path);
+        }
+        $e->update(['photo_path' => null]);
+        ActivityLogger::log('hr', 'photo', 'Removed the photograph of '.$e->name, $e);
+    }
+
     public static function upload(Employee $e, UploadedFile $file, string $title, ?string $kind, User $u): HrDocument
     {
         if (! $file->isValid() || $file->getSize() <= 0) {
@@ -130,12 +184,38 @@ class EmployeeSelfService
         $doc = new HrDocument([
             'employee_id' => $e->id, 'uploaded_by' => $u->id,
             'title' => mb_substr(trim($title) ?: $file->getClientOriginalName(), 0, 200),
-            'kind' => ($kind && isset(self::DOC_KINDS[$kind])) ? $kind : null,
+            'kind' => ($kind && isset(self::DOC_KINDS[$kind])) ? $kind : null, 'source' => 'ess',
             'file_path' => $path, 'mime' => $file->getMimeType(), 'bytes' => $file->getSize(), 'status' => 'new',
         ]);
         $doc->hotel_id = $e->hotel_id; // guarded — set explicitly
         $doc->save();
         self::tellHr($e, "ESS: {$e->name} uploaded a document ({$doc->title}). Review at /hr/ess", 'ess_doc_uploaded', $doc);
+
+        return $doc;
+    }
+
+    /** The file checks and the disk write both upload paths share. */
+    public static function storeDocument(Employee $e, UploadedFile $file, string $title, ?string $kind, User $u, string $source): HrDocument
+    {
+        if (! $file->isValid() || $file->getSize() <= 0) {
+            throw ValidationException::withMessages(['file' => ['The upload failed — try again.']]);
+        }
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            throw ValidationException::withMessages(['file' => ['Documents may not exceed 10 MB.']]);
+        }
+        if (! in_array($file->getMimeType(), ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'], true)) {
+            throw ValidationException::withMessages(['file' => ['Upload a PDF, JPEG, PNG or WebP file.']]);
+        }
+        $doc = new HrDocument([
+            'employee_id' => $e->id, 'uploaded_by' => $u->id,
+            'title' => mb_substr(trim($title) ?: $file->getClientOriginalName(), 0, 200),
+            'kind' => ($kind && isset(self::DOC_KINDS[$kind])) ? $kind : null, 'source' => $source === 'hr' ? 'hr' : 'ess',
+            'file_path' => $file->store('employee-docs/'.now()->format('Ym')),
+            'mime' => $file->getMimeType(), 'bytes' => $file->getSize(), 'status' => 'new',
+        ]);
+        $doc->hotel_id = $e->hotel_id; // guarded — set explicitly
+        $doc->save();
+        ActivityLogger::log('hr', 'document', "Loaded “{$doc->title}” into {$e->name}'s file", $doc);
 
         return $doc;
     }

@@ -35,6 +35,29 @@ class Employee extends Model
         ];
     }
 
+    /** Where the stored photograph lives, or null when none was loaded. */
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? route('hr.employee.photo', $this) : null;
+    }
+
+    /** Two letters for the initials shown when there is no photograph. */
+    public function initials(): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->name)) ?: [];
+        $letters = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $letters .= mb_substr($part, 0, 1);
+        }
+
+        return mb_strtoupper($letters ?: mb_substr((string) $this->name, 0, 2));
+    }
+
+    public function documents() // v8.x the papers in the employee file
+    {
+        return $this->hasMany(HrDocument::class)->latest('id');
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -29,7 +29,7 @@
         <x-empty text="No documents uploaded yet." icon="file"/>
       @else
         <table class="table table-compact">
-          <thead><tr><th>Title</th><th>Kind</th><th>Size</th><th>Status</th><th>Uploaded</th></tr></thead>
+          <thead><tr><th>Title</th><th>Kind</th><th>Size</th><th>Status</th><th>Uploaded</th><th></th></tr></thead>
           <tbody>
             @foreach ($docs as $d)
             <tr>
@@ -38,6 +38,7 @@
               <td class="small">{{ number_format($d->bytes / 1024, 0) }} KB</td>
               <td><span class="badge badge-{{ $d->statusTone() }}">{{ $d->statusLabel() }}</span>@if ($d->review_note)<div class="small muted">{{ $d->review_note }}</div>@endif</td>
               <td class="small">{{ $d->created_at->format('j M Y') }}</td>
+              <td class="right"><a class="btn btn-sm" href="{{ route('me.documents.file', $d) }}" target="_blank" rel="noopener" aria-label="Open {{ $d->title }}"><x-icon name="eye"/></a></td>
             </tr>
             @endforeach
           </tbody>

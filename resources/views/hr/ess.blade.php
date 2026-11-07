@@ -52,14 +52,15 @@
       <x-empty text="No document uploads." icon="file"/>
     @else
       <table class="table table-compact">
-        <thead><tr><th>Employee</th><th>Title</th><th>Kind</th><th>Size</th><th>Status</th><th>Review</th></tr></thead>
+        <thead><tr><th>Employee</th><th>Title</th><th>Kind</th><th>From</th><th>Size</th><th>Status</th><th>Review</th></tr></thead>
         <tbody>
           @foreach ($docs as $d)
           <tr>
-            <td>{{ $d->employee?->name }}</td>
-            <td>{{ $d->title }}</td>
+            <td>@if($d->employee)<a href="{{ route('hr.employee.file', $d->employee) }}">{{ $d->employee->name }}</a>@else — @endif</td>
+            <td><a href="{{ route('hr.document', $d) }}" target="_blank" rel="noopener">{{ $d->title }}</a></td>
             <td class="small">{{ \App\Services\EmployeeSelfService::DOC_KINDS[$d->kind] ?? '—' }}</td>
-            <td class="small">{{ number_format($d->bytes / 1024, 0) }} KB</td>
+            <td><span class="badge badge-{{ $d->source === 'hr' ? 'blue' : 'slate' }}">{{ $d->sourceLabel() }}</span></td>
+            <td class="small">{{ $d->sizeLabel() }}</td>
             <td><span class="badge badge-{{ $d->statusTone() }}">{{ $d->statusLabel() }}</span></td>
             <td>
               @if ($d->status === 'new')

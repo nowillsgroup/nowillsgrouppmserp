@@ -79,6 +79,20 @@ class EssController extends Controller
         return back()->with('success', 'Document uploaded — HR will verify it shortly.');
     }
 
+    /** A member of staff opening their own paper: the file, never somebody else's. */
+    public function documentFile(HrDocument $doc)
+    {
+        if (! $e = $this->me()) {
+            abort(403);
+        }
+        abort_unless((int) $doc->employee_id === (int) $e->id, 403);
+        abort_unless($doc->file_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($doc->file_path), 404);
+
+        return $doc->isImage()
+            ? \Illuminate\Support\Facades\Storage::disk('local')->response($doc->file_path, null, ['Cache-Control' => 'private, max-age=300'])
+            : \Illuminate\Support\Facades\Storage::disk('local')->download($doc->file_path, str_replace(['/', '\\'], '-', $doc->title).'.'.pathinfo($doc->file_path, PATHINFO_EXTENSION));
+    }
+
     public function announcements()
     {
         if (! $e = $this->me()) {
