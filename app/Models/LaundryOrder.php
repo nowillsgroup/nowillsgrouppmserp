@@ -83,6 +83,12 @@ class LaundryOrder extends Model
         return self::STATUSES[$this->status] ?? ucfirst($this->status);
     }
 
+    /** Paid across the counter rather than posted to the guest's room folio. */
+    public function settledDirectly(): bool
+    {
+        return (bool) $this->folio_transaction_id && $this->folio?->type === 'walk_in';
+    }
+
     /** Where the order came from / goes to, for lists. */
     public function whoLabel(): string
     {

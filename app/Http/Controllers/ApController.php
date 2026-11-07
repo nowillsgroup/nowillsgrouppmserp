@@ -9,8 +9,11 @@ use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\SupplierPayment;
 use App\Services\ApService;
+use App\Services\ArService;
+use App\Services\LedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /** Accounts payable: supplier bills, debit notes, payments, allocation, ageing and statements. */
@@ -36,20 +39,23 @@ class ApController extends Controller
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->status, fn ($q, $s) => $s === 'unpaid' ? $q->whereIn('status', ['open', 'partial']) : $q->where('status', $s))
-            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('due_date', '<', $asOf))
+            // "overdue only" is the same test the band uses: a bill falls due on its due date, or its document date when
+            // it has none — the list and the 155,700 have to be the same bills
+            ->when($request->boolean('overdue'), fn ($q) => $q->where('type', 'invoice')->whereIn('status', ['open', 'partial'])
+                ->whereDate(DB::raw('COALESCE(due_date, doc_date)'), '<', $asOf))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('doc_no', 'like', "%{$s}%")->orWhere('supplier_ref', 'like', "%{$s}%")));
-        $open = SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial']);
+        // v9.1 the figures come from the same banding rule the ageing uses, so the two screens cannot disagree: a bill
+        // with no due date is overdue on both, and goods received but not billed are counted on both
+        $due = ApService::dueStats($asOf);
 
         return view('ap.bills', [
             'bills' => $q->latest('doc_date')->latest('id')->paginate(30)->withQueryString(),
             'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
-            'kpi' => [
-                'outstanding' => (float) (clone $open)->sum('total') - (float) (clone $open)->sum('allocated'),
-                'overdue' => (float) (clone $open)->whereDate('due_date', '<', $asOf)->get()->sum(fn ($b) => $b->outstanding()),
-                'due7' => (float) (clone $open)->whereDate('due_date', '>=', $asOf)->whereDate('due_date', '<=', Carbon::parse($asOf)->addDays(7)->toDateString())->get()->sum(fn ($b) => $b->outstanding()),
-                'hold' => SupplierInvoice::where('status', 'on_hold')->count(),
-                'unbilled' => ApService::unbilledReceipts(),
-            ],
+            'kpi' => array_merge($due, [
+                'outstanding' => $due['open_bills'],   // the balance of the bills themselves, which is what this list holds
+                'hold' => $due['counts']['hold'],      // the bills held for a variance, which the tile links to
+                'unbilled' => ApService::unbilledReceipts(),   // the receipts behind the unbilled value, as documents
+            ]),
         ]);
     }
 
@@ -158,11 +164,14 @@ class ApController extends Controller
         $bill->load('supplier', 'purchaseOrder.items.item', 'purchaseOrder.receipts.lines.item', 'lines.head', 'allocations.payment.paymentMode', 'allocations.debitNote', 'applications.invoice', 'creator', 'approver', 'againstInvoice');
         $credits = collect();
         if (in_array($bill->status, ['open', 'partial'])) {
-            $credits = SupplierPayment::where('supplier_id', $bill->supplier_id)->whereNull('cancelled_at')->whereColumn('allocated', '<', 'amount')->get()
-                ->filter(fn ($p) => $p->unapplied() > 0.004) // a foreign-exchange loss is not supplier credit
-                ->map(fn ($p) => ['key' => 'p'.$p->id, 'label' => "{$p->payment_no} · ".$p->date->format('d M').' · unapplied '.money($p->unapplied()), 'free' => $p->unapplied()])
-                ->merge(SupplierInvoice::where('supplier_id', $bill->supplier_id)->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->get()
-                    ->map(fn ($d) => ['key' => 'd'.$d->id, 'label' => "{$d->doc_no} · debit note · unapplied ".money($d->outstanding()), 'free' => $d->outstanding()]));
+            // v9.4 the credits on offer here are the credit rule's own documents — the set the ageing nets off, the bills
+            // list takes off what is payable and the payments screen lists — narrowed to this bill's currency, because
+            // applying a credit across currencies is refused and an option that throws is not an offer
+            $currency = $bill->isForeign() ? strtoupper((string) $bill->currency) : strtoupper((string) (hotel()?->currency ?: 'GHS'));
+            $credits = ApService::openCredits((int) $bill->supplier_id, null, $currency)->map(fn ($c) => ['key' => $c['key'], 'free' => $c['free'],
+                'label' => $c['kind'] === 'payment'
+                    ? "{$c['doc']} · ".Carbon::parse($c['date'])->format('d M').' · unapplied '.money($c['free'])
+                    : "{$c['doc']} · debit note · unapplied ".money($c['free'])]);
         }
         $journals = \App\Models\GlJournal::where('source_type', 'ap_inv')->where('source_key', (string) $bill->id)->orderBy('id')->get();
         $grnJournal = $bill->purchase_order_id ? \App\Models\GlJournal::where('source_type', 'po')->where('source_key', (string) $bill->purchase_order_id)->whereNull('reversed_by_id')->first() : null;
@@ -201,15 +210,74 @@ class ApController extends Controller
 
     // ───────────── payments ─────────────
 
+    /**
+     * v9.15 Supplier payments, read as money that has left the bank and has not yet reached a bill.
+     *
+     * The screen printed the unapplied total as a figure with no age, so a payment made last week and one made in July
+     * looked the same, and the two things a payment can get wrong were invisible: the withheld tax it says it paid GRA
+     * without a certificate to prove it, and an allocated column that no longer agrees with the allocations behind it.
+     * The ageing is built from ApService::openCredits() — the same collection the KPI is summed from, so the card and the
+     * header cannot disagree — and both records are read back over the payments themselves.
+     */
     public function payments(Request $request)
     {
+        $asOf = bdate()->toDateString();
+        $today = Carbon::parse($asOf)->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : 0;
         $payments = SupplierPayment::with('supplier', 'paymentMode')
             ->when($request->supplier, fn ($q, $s) => $q->where('supplier_id', $s))
             ->when($request->from, fn ($q, $d) => $q->whereDate('date', '>=', $d))->when($request->to, fn ($q, $d) => $q->whereDate('date', '<=', $d))
+            // v9.2 "unapplied" is the credit rule, not "amount differs from allocated": a foreign payment's remainder is
+            // an exchange difference and a cancelled payment is not a credit, so neither belongs on this tab
+            ->when($request->boolean('unapplied'), fn ($q) => $q->whereNull('cancelled_at')
+                ->whereColumn('allocated', '<', 'amount')
+                ->where(fn ($w) => $w->whereNull('currency')->orWhere('currency', '')
+                    ->orWhereRaw('UPPER(TRIM(currency)) = ?', [strtoupper((string) (hotel()?->currency ?: 'GHS'))])))
+            ->when($request->boolean('cancelled'), fn ($q) => $q->whereNotNull('cancelled_at'))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('payment_no', 'like', "%{$s}%")->orWhere('reference', 'like', "%{$s}%")))
             ->latest('date')->latest('id')->paginate(30)->withQueryString();
+        $payments->getCollection()->transform(function ($p) use ($ageOf) {
+            $p->days = $ageOf($p->date);
+            $p->bucket = $p->unapplied() > 0.004 ? ArService::bucketOf($p->days) : null;
 
-        return view('ap.payments', ['payments' => $payments, 'suppliers' => Supplier::orderBy('name')->get(['id', 'name'])]);
+            return $p;
+        });
+
+        // the supplier's money still on our books, aged from the day it left the bank, on the receivables' 30/60/90 rule
+        $free = ApService::openCredits(null, $asOf)->where('kind', 'payment')
+            ->map(fn ($c) => $c + ['days' => $ageOf($c['date']), 'bucket' => ArService::bucketOf($ageOf($c['date']))])->values();
+        $oldest = $free->sortByDesc('days')->first();
+        $aged = ['total' => round((float) $free->sum('free'), 2), 'count' => $free->count(), 'oldest' => (int) ($free->max('days') ?? 0),
+            'worst' => $oldest ? ['doc' => $oldest['doc'], 'supplier' => $oldest['supplier']?->name, 'free' => (float) $oldest['free'], 'days' => (int) $oldest['days']] : null,
+            'beyond' => $free->where('bucket', 'b90')->count(), 'beyond_amount' => round((float) $free->where('bucket', 'b90')->sum('free'), 2)];
+        foreach (array_keys(ArService::BUCKETS) as $b) {
+            $aged[$b] = round((float) $free->where('bucket', $b)->sum('free'), 2);
+            $aged['n'.$b] = $free->where('bucket', $b)->count();
+        }
+
+        // v9.15 the certificate: tax withheld is a GRA liability the supplier claims back only against a certificate
+        $taxed = SupplierPayment::with('supplier')->whereNull('cancelled_at')->where('wht_amount', '>', 0)->orderByDesc('date')->orderByDesc('id')->get();
+        $uncertified = $taxed->filter(fn ($p) => trim((string) $p->wht_cert_no) === '')->values();
+        $cert = ['payments' => $taxed->count(), 'amount' => round((float) $taxed->sum('wht_amount'), 2),
+            'certified' => $taxed->count() - $uncertified->count(), 'certified_amount' => round((float) $taxed->sum('wht_amount') - (float) $uncertified->sum('wht_amount'), 2),
+            'missing' => $uncertified->count(), 'missing_amount' => round((float) $uncertified->sum('wht_amount'), 2),
+            'missing_rows' => $uncertified->take(10)->map(fn ($p) => ['payment_no' => $p->payment_no, 'supplier' => $p->supplier?->name,
+                'date' => $p->date, 'days' => $ageOf($p->date), 'amount' => round((float) $p->wht_amount, 2), 'gross' => round((float) $p->amount, 2)])->all()];
+
+        // and the tie: the allocated column must be the allocations on file, or the ageing is resting on a stale summary
+        $onFile = ApAllocation::selectRaw('supplier_payment_id, SUM(amount) a')->groupBy('supplier_payment_id')->pluck('a', 'supplier_payment_id');
+        $applied = SupplierPayment::with('supplier')->whereNull('cancelled_at')->where('allocated', '>', 0)->get()
+            ->map(fn ($p) => ['payment' => $p, 'on_file' => round((float) ($onFile[$p->id] ?? 0), 2)]);
+        $breaks = $applied->filter(fn ($r) => abs((float) $r['payment']->allocated - $r['on_file']) > 0.005)->values();
+        $alloc = ['payments' => $applied->count(), 'allocated' => round((float) $applied->sum(fn ($r) => (float) $r['payment']->allocated), 2),
+            'on_file' => round((float) $applied->sum('on_file'), 2), 'breaks' => $breaks->count(),
+            'diff' => round((float) $applied->sum(fn ($r) => (float) $r['payment']->allocated) - (float) $applied->sum('on_file'), 2),
+            'rows' => $breaks->take(10)->map(fn ($r) => ['payment_no' => $r['payment']->payment_no, 'supplier' => $r['payment']->supplier?->name,
+                'date' => $r['payment']->date, 'allocated' => round((float) $r['payment']->allocated, 2), 'on_file' => $r['on_file']])->all()];
+
+        return view('ap.payments', ['payments' => $payments, 'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
+            'kpi' => ApService::paymentStats($asOf), 'as_of' => $asOf, 'aged' => $aged, 'cert' => $cert, 'alloc' => $alloc,
+            'buckets' => ArService::BUCKETS]);
     }
 
     /** v7.54 the payment-date board quote for the live foreign-payment form. */
@@ -280,8 +348,15 @@ class ApController extends Controller
     {
         $spay->load('supplier', 'paymentMode', 'allocations.invoice', 'creator');
         $view = request()->boolean('print') ? 'ap.remittance' : 'ap.payment-show';
+        $asOf = bdate()->toDateString();
+        // v9.5 what is left of this payment is only a credit if the credit rule says so — and the clerk's question after
+        // a part payment is exactly "is this money on the ageing?" — so ask openCredits() rather than deciding again here
+        $open = ApService::openCredits((int) $spay->supplier_id, $asOf)->firstWhere('key', 'p'.$spay->id);
+        $credit = ['as_of' => $asOf, 'in_credit' => $open !== null, 'free' => (float) ($open['free'] ?? 0),
+            'supplier_credits' => ApService::creditSources($asOf, (int) $spay->supplier_id)['credits']];
 
-        return view($view, ['p' => $spay, 'journals' => \App\Models\GlJournal::where('source_type', 'ap_pay')->where('source_key', (string) $spay->id)->orderBy('id')->get()]);
+        return view($view, ['p' => $spay, 'credit' => $credit,
+            'journals' => \App\Models\GlJournal::where('source_type', 'ap_pay')->where('source_key', (string) $spay->id)->orderBy('id')->get()]);
     }
 
     public function payCancel(Request $request, SupplierPayment $spay)
@@ -299,8 +374,16 @@ class ApController extends Controller
         $rows = ApService::ageing($asOf);
         $keys = ['current', 'd30', 'd60', 'd90', 'd90p', 'unbilled', 'credit', 'balance'];
         $tot = collect($keys)->mapWithKeys(fn ($k) => [$k => round($rows->sum($k), 2)])->all();
+        $counts = collect(array_keys(ApService::BUCKETS))->mapWithKeys(fn ($k) => [$k => (int) $rows->sum(fn ($r) => $r['counts'][$k])])->all();
+        // v8.8 the documents behind each bucket, and the proof that they add up to the balance printed above them
+        $items = ApService::agedItems($asOf);
 
-        return view('ap.ageing', compact('rows', 'tot', 'asOf'))
+        return view('ap.ageing', compact('rows', 'tot', 'asOf', 'items', 'counts'))
+            ->with('buckets', ApService::BUCKETS)
+            ->with('itemsTotal', round((float) $items->sum('amount'), 2))
+            ->with('tie', LedgerService::control('accounts_payable', $asOf))   // v9.0 the control account, on the screen that ages it
+            ->with('due', ApService::dueStats($asOf))   // v9.1 the same figures the bills screen prints
+            ->with('credits', ApService::creditSources($asOf))   // v9.2 what the credit column is made of, and where the payments are
             ->with('fx', ApService::fxExposure($asOf));   // v7.53 open foreign-currency bills at today's board
     }
 
@@ -310,7 +393,13 @@ class ApController extends Controller
         $from = $request->input('from', Carbon::parse($to)->subDays(89)->toDateString());
         $st = ApService::statement($supplier, $from, $to);
         $age = ApService::ageing($to, $supplier->id)->first();
+        // v9.3 the statement and the ageing are two readings of one supplier's balance, built from the same documents
+        // by different routes; a difference is a defect to explain, not a rounding to wave through
+        $balance = round((float) ($age['balance'] ?? 0), 2);
+        $tie = ['as_of' => $to, 'statement' => round((float) $st['closing'], 2), 'ageing' => $balance,
+            'diff' => round((float) $st['closing'] - $balance, 2)];
+        $tie['ties'] = abs($tie['diff']) <= 0.005;
 
-        return view($request->boolean('print') ? 'ap.statement-print' : 'ap.statement', compact('supplier', 'from', 'to', 'st', 'age'));
+        return view($request->boolean('print') ? 'ap.statement-print' : 'ap.statement', compact('supplier', 'from', 'to', 'st', 'age', 'tie'));
     }
 }

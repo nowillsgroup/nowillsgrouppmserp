@@ -276,7 +276,33 @@ ${content}
     </main>
   </div>
 </div>
-${page.scripts ?? ''}</body>
+${page.scripts ?? ''}
+<script>
+// The application's modal plumbing (public/js/app.js): a button that opens nothing
+// would hide a bug, so the rendered shell answers [data-modal] the same way.
+document.addEventListener('click', e => {
+  const opener = e.target.closest('[data-modal]');
+  if (opener) {
+    e.preventDefault();
+    const modal = document.getElementById(opener.dataset.modal);
+    if (modal) {
+      modal.classList.add('show');
+      const resetting = modal.querySelector('form[data-reset]');
+      if (resetting) resetting.reset();
+      const field = modal.querySelector('input:not([type=hidden]),select,textarea');
+      if (field) setTimeout(() => field.focus(), 50);
+    }
+  }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) {
+    e.target.closest('.modal')?.classList.remove('show');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show'));
+});
+</script>
+</body>
 </html>
 `;
 }

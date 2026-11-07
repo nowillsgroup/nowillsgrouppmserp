@@ -253,7 +253,7 @@ class GiftVoucherController extends Controller
 
     public function saveSettings(Request $request)
     {
-        $data = $request->validate(['enabled' => 'nullable|boolean', 'validity' => 'required|integer|min:1|max:120', 'min' => 'required|numeric|min:0', 'max' => 'required|numeric|min:1',
+        $data = $request->validate(['enabled' => 'nullable|boolean', 'validity' => 'required|integer|min:1|max:120', 'min' => 'required|numeric|min:0|max:10000000', 'max' => 'required|numeric|min:1|max:10000000',
             'reminder_days' => 'required|integer|min:0|max:180', 'terms' => 'nullable|string|max:1000']);
         try {
             Gv::saveSettings($data);

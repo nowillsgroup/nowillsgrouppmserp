@@ -430,8 +430,8 @@ class LedgerService
                 'wastage' => AccountHead::sys(str_starts_with((string) $m->reference, 'FW-') ? 'food_waste' : 'stock_variance'), // v5.0 food waste log → 5042
                 default => AccountHead::sys('stock_variance'), // adjustment, stock-take adjust
             };
-            $lines[] = [$inv, $value, null];
-            $lines[] = [$counter, -$value, null];
+            $lines[] = [$inv, $value, null];                       // stock is an asset – no cost centre
+            $lines[] = [$counter, -$value, null, $m->department_id]; // the department that consumed it (v8.1)
         }
 
         return $lines ? ['date' => $date, 'reference' => 'STORES '.$date, 'narration' => 'Stores issues, consumption & adjustments', 'lines' => $lines] : null;
@@ -480,20 +480,30 @@ class LedgerService
         };
     }
 
-    /** Merge lines per account, drop zeros, round, and absorb tiny imbalances into round-off. */
+    /**
+     * Merge lines per account and cost centre, drop zeros, round, and absorb tiny imbalances into round-off.
+     *
+     * A line is [account, amount, memo] or [account, amount, memo, department]. Lines for the same account but
+     * different cost centres stay apart – that is the whole point of the dimension. v8.1
+     */
     public static function normalise(array $lines): array
     {
         $net = [];
         $memo = [];
-        foreach ($lines as [$acct, $amt, $m]) {
-            $net[$acct] = ($net[$acct] ?? 0) + (float) $amt;
-            $memo[$acct] ??= $m;
+        $dept = [];
+        foreach ($lines as $l) {
+            $acct = (int) $l[0];
+            $d = isset($l[3]) && $l[3] !== null && $l[3] !== '' ? (int) $l[3] : null;
+            $k = $acct.'|'.($d ?? '');
+            $net[$k] = ($net[$k] ?? 0) + (float) $l[1];
+            $memo[$k] ??= $l[2] ?? null;
+            $dept[$k] = $d;
         }
         $out = [];
-        foreach ($net as $acct => $amt) {
+        foreach ($net as $k => $amt) {
             $amt = round($amt, 2);
             if (abs($amt) >= 0.005) {
-                $out[] = [(int) $acct, $amt, $memo[$acct]];
+                $out[] = [(int) explode('|', $k)[0], $amt, $memo[$k], $dept[$k]];
             }
         }
         $diff = round(array_sum(array_column($out, 1)), 2);
@@ -501,12 +511,17 @@ class LedgerService
             if (abs($diff) > self::ROUNDING_TOLERANCE) {
                 throw new \RuntimeException('Unbalanced by '.number_format($diff, 2));
             }
-            $out[] = [AccountHead::sys('rounding'), -$diff, 'auto round-off'];
+            $out[] = [AccountHead::sys('rounding'), -$diff, 'auto round-off', null];
         }
 
         return $out;
     }
 
+    /**
+     * Fingerprint of what a journal posts. Deliberately blind to the cost centre (v8.1): tagging a line must not
+     * change the money, and including it here would make the first sync after the dimension shipped reverse and
+     * re-post every historic stores day and petty voucher. A wrong tag is corrected by allocating the journal.
+     */
     public static function hash(array $lines): string
     {
         $key = array_map(fn ($l) => $l[0].':'.number_format($l[1], 2, '.', ''), $lines);
@@ -521,20 +536,57 @@ class LedgerService
         if (! $lines) {
             throw new \RuntimeException('Nothing to post');
         }
+        // v8.1 – the header cost centre; a line that carries its own wins over it
+        $header = $doc['department_id'] ?? $extra['department_id'] ?? null;
 
-        return DB::transaction(function () use ($doc, $sourceType, $sourceKey, $extra, $lines) {
+        return DB::transaction(function () use ($doc, $sourceType, $sourceKey, $extra, $lines, $header) {
             $j = GlJournal::create([
                 'journal_no' => Numbering::next('journal'), 'date' => $doc['date'], 'source_type' => $sourceType, 'source_key' => $sourceKey,
                 'reference' => mb_substr((string) ($doc['reference'] ?? ''), 0, 80) ?: null, 'narration' => mb_substr((string) ($doc['narration'] ?? ''), 0, 255) ?: null,
                 'total' => array_sum(array_map(fn ($l) => max($l[1], 0), $lines)), 'hash' => self::hash($lines),
                 'is_manual' => $sourceType === 'manual', 'is_closing' => $sourceType === 'ye_close', 'created_by' => auth()->id(),
+                'department_id' => $header,
             ] + $extra);
-            foreach ($lines as [$acct, $amt, $memo]) {
-                GlLine::create(['gl_journal_id' => $j->id, 'account_head_id' => $acct, 'date' => $doc['date'], 'debit' => max($amt, 0), 'credit' => max(-$amt, 0), 'memo' => $memo ? mb_substr((string) $memo, 0, 150) : null, 'closing' => $j->is_closing]);
+            foreach ($lines as [$acct, $amt, $memo, $dept]) {
+                GlLine::create(['gl_journal_id' => $j->id, 'account_head_id' => $acct, 'date' => $doc['date'], 'debit' => max($amt, 0), 'credit' => max(-$amt, 0),
+                    'memo' => $memo ? mb_substr((string) $memo, 0, 150) : null, 'closing' => $j->is_closing, 'department_id' => $dept ?? $header]);
             }
 
             return $j;
         });
+    }
+
+    /**
+     * v8.1 – put a posted journal's lines against cost centres (or clear them). Journalling is a separate, audited
+     * act: the money does not move, so no reversal is raised and the hash stays as it was.
+     *
+     * @param  array<int, int|null>  $map  gl line id => department id (null = unallocated)
+     */
+    public static function allocate(GlJournal $j, array $map, ?string $why = null): int
+    {
+        $valid = \App\Models\Department::query()->pluck('id')->all();
+        $n = 0;
+        DB::transaction(function () use ($j, $map, $valid, &$n) {
+            foreach ($j->lines()->get() as $l) {
+                if (! array_key_exists($l->id, $map)) {
+                    continue;
+                }
+                $to = $map[$l->id] === null || $map[$l->id] === '' ? null : (int) $map[$l->id];
+                if ($to !== null && ! in_array($to, array_map('intval', $valid), true)) {
+                    throw new \RuntimeException('That cost centre does not belong to this hotel.');
+                }
+                if ((int) $l->department_id === (int) $to && ($l->department_id === null) === ($to === null)) {
+                    continue;
+                }
+                $l->forceFill(['department_id' => $to])->save();
+                $n++;
+            }
+        });
+        if ($n) {
+            ActivityLogger::log('accounts', 'journal_allocate', "Cost centres set on journal {$j->journal_no}".($why ? ': '.$why : ''), $j);
+        }
+
+        return $n;
     }
 
     public static function reverse(GlJournal $j, string $date, ?string $why = null): GlJournal
@@ -551,7 +603,7 @@ class LedgerService
         }
 
         return DB::transaction(function () use ($j, $date, $why) {
-            $lines = $j->lines()->get()->map(fn ($l) => [$l->account_head_id, (float) $l->credit - (float) $l->debit, $l->memo])->all();
+            $lines = $j->lines()->get()->map(fn ($l) => [$l->account_head_id, (float) $l->credit - (float) $l->debit, $l->memo, $l->department_id])->all();
             $r = self::post(['date' => $date, 'reference' => $j->reference, 'narration' => 'Reversal of '.$j->journal_no.($why ? ' – '.$why : ''), 'lines' => $lines],
                 $j->source_type, $j->source_key, ['reversal_of_id' => $j->id]);
             $j->forceFill(['reversed_by_id' => $r->id])->save();
@@ -793,37 +845,132 @@ class LedgerService
         return $c->isLastOfMonth() ? $c->toDateString() : $c->startOfMonth()->subDay()->toDateString();
     }
 
-    public static function controls(string $asOf): array
+    /**
+     * The sub-ledger/control specs, one closure per figure so a single control can be read without computing the other
+     * seventeen. Before v9.0 a screen that wanted one tie had to run the whole list — the stock valuation, the asset
+     * register and every other balance — or re-implement the comparison and drift from it.
+     *
+     * @return array<string, array{label: string, sub: callable, gl: callable, strict: bool}>
+     */
+    protected static function controlSpecs(string $asOf): array
     {
-        $fo = FolioTransaction::where('is_void', false)->whereDate('business_date', '<=', $asOf)
+        $fo = fn () => FolioTransaction::where('is_void', false)->whereDate('business_date', '<=', $asOf)
             ->selectRaw("SUM(CASE WHEN type='charge' THEN amount + tax_amount WHEN type='opening_balance' AND category='opening_ar' THEN amount WHEN type='refund' THEN amount WHEN type IN ('payment','discount','allowance') THEN -amount ELSE 0 END) bal")->value('bal');
-        $clDebits = FolioTransaction::where('is_void', false)->whereIn('type', ['payment', 'opening_balance'])
+        $clDebits = fn () => FolioTransaction::where('is_void', false)->whereIn('type', ['payment', 'opening_balance'])
             ->where('category', 'city_ledger')->whereDate('business_date', '<=', $asOf)->sum('amount');
-        $clCredits = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOf)->sum('amount');
-        $stock = DB::table('stock_movements as m')->join('inventory_items as i', 'i.id', '=', 'm.inventory_item_id')
+        $clCredits = fn () => Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOf)->sum('amount');
+        $stock = fn () => DB::table('stock_movements as m')->join('inventory_items as i', 'i.id', '=', 'm.inventory_item_id')
             ->where('m.hotel_id', Tenant::id())->whereDate('m.date', '<=', $asOf)
             ->selectRaw('SUM(ROUND(m.qty * COALESCE(NULLIF(m.rate, 0), i.last_cost), 2)) v')->value('v'); // each movement is posted at its rounded value
-        $fa = AssetService::registerBalances($asOf);
+        $fa = fn () => AssetService::registerBalances($asOf);
 
         return [
-            ['label' => 'Guest ledger (open folio balances)', 'key' => 'guest_ledger', 'sub' => round((float) $fo, 2), 'gl' => self::balance('guest_ledger', $asOf), 'strict' => true],
-            ['label' => 'City ledger (company receivables)', 'key' => 'city_ledger', 'sub' => round((float) $clDebits - (float) $clCredits, 2), 'gl' => self::balance('city_ledger', $asOf), 'strict' => true],
-            ['label' => 'Accounts payable (supplier sub-ledger)', 'key' => 'accounts_payable', 'sub' => ApService::controlBalance($asOf), 'gl' => -self::balance('accounts_payable', $asOf), 'strict' => true],
-            ['label' => 'Salaries payable (approved, unpaid payroll)', 'key' => 'salary_payable', 'sub' => PayrollService::payableBalance($asOf), 'gl' => -self::balance('salary_payable', $asOf), 'strict' => true],
-            ['label' => 'Staff advances (outstanding)', 'key' => 'staff_advances', 'sub' => PayrollService::advancesBalance($asOf), 'gl' => self::balance('staff_advances', $asOf), 'strict' => true],
-            ['label' => 'Club members receivable (members\' accounts)', 'key' => 'club_receivable', 'sub' => ClubBillingService::controlBalance($asOf), 'gl' => self::balance('club_receivable', $asOf), 'strict' => true],
-            ['label' => 'Membership fees in advance (unearned subscriptions)', 'key' => 'club_unearned', 'sub' => ClubBillingService::unearned(self::monthEndBefore($asOf)), 'gl' => -self::balance('club_unearned', self::monthEndBefore($asOf)), 'strict' => false],
-            ['label' => 'Tenant receivables (lease accounts)', 'key' => 'lease_receivable', 'sub' => LeaseBillingService::controlBalance($asOf), 'gl' => self::balance('lease_receivable', $asOf), 'strict' => true],
-            ['label' => 'Tenant security deposits held', 'key' => 'lease_deposits', 'sub' => LeaseBillingService::depositControl($asOf), 'gl' => -self::balance('lease_deposits', $asOf), 'strict' => true],
-            ['label' => 'Payment gateway clearing (collected online, not yet paid out)', 'key' => 'gateway_clearing', 'sub' => OnlinePaymentService::clearingBalance($asOf), 'gl' => self::balance('gateway_clearing', $asOf), 'strict' => true],
-            ['label' => 'Cheques in hand (cheque register – received, not yet banked)', 'key' => 'cheques_in_hand', 'sub' => TreasuryService::chequesInHand($asOf), 'gl' => self::balance('cheques_in_hand', $asOf), 'strict' => false], // v5.7
-            ['label' => 'Cash in transit (transfers sent, not yet credited)', 'key' => 'cash_in_transit', 'sub' => TreasuryService::inTransit($asOf), 'gl' => self::balance('cash_in_transit', $asOf), 'strict' => false],
-            ['label' => 'Management fees payable (accrued, unpaid fees)', 'key' => 'mgmt_fees_payable', 'sub' => OwnerService::payable($asOf), 'gl' => -self::balance('mgmt_fees_payable', $asOf), 'strict' => false], // v5.8
-            ['label' => 'Activity vendors payable (room charges less commission and settlements)', 'key' => 'concierge_payable', 'sub' => ConciergeService::payableBalance($asOf), 'gl' => -self::balance('concierge_payable', $asOf), 'strict' => false], // v5.9
-            ['label' => 'Commission receivable from activity vendors', 'key' => 'concierge_receivable', 'sub' => ConciergeService::receivableBalance($asOf), 'gl' => self::balance('concierge_receivable', $asOf), 'strict' => false],
-            ['label' => 'Inventory (stores valuation at cost)', 'key' => 'inventory', 'sub' => round((float) $stock, 2), 'gl' => self::balance('inventory', $asOf), 'strict' => false],
-            ['label' => 'Fixed assets at cost (asset register)', 'key' => 'fixed_assets', 'sub' => $fa[0], 'gl' => self::balance('fixed_assets', $asOf), 'strict' => false],
-            ['label' => 'Accumulated depreciation (asset register)', 'key' => 'acc_depreciation', 'sub' => $fa[1], 'gl' => -self::balance('acc_depreciation', $asOf), 'strict' => false],
+            'guest_ledger' => ['label' => 'Guest ledger (open folio balances)', 'sub' => fn () => round((float) $fo(), 2), 'gl' => fn () => self::balance('guest_ledger', $asOf), 'strict' => true],
+            'city_ledger' => ['label' => 'City ledger (company receivables)', 'sub' => fn () => round((float) $clDebits() - (float) $clCredits(), 2), 'gl' => fn () => self::balance('city_ledger', $asOf), 'strict' => true],
+            'accounts_payable' => ['label' => 'Accounts payable (supplier sub-ledger)', 'sub' => fn () => ApService::controlBalance($asOf), 'gl' => fn () => -self::balance('accounts_payable', $asOf), 'strict' => true],
+            'salary_payable' => ['label' => 'Salaries payable (approved, unpaid payroll)', 'sub' => fn () => PayrollService::payableBalance($asOf), 'gl' => fn () => -self::balance('salary_payable', $asOf), 'strict' => true],
+            'staff_advances' => ['label' => 'Staff advances (outstanding)', 'sub' => fn () => PayrollService::advancesBalance($asOf), 'gl' => fn () => self::balance('staff_advances', $asOf), 'strict' => true],
+            'club_receivable' => ['label' => 'Club members receivable (members\' accounts)', 'sub' => fn () => ClubBillingService::controlBalance($asOf), 'gl' => fn () => self::balance('club_receivable', $asOf), 'strict' => true],
+            'club_unearned' => ['label' => 'Membership fees in advance (unearned subscriptions)', 'sub' => fn () => ClubBillingService::unearned(self::monthEndBefore($asOf)), 'gl' => fn () => -self::balance('club_unearned', self::monthEndBefore($asOf)), 'strict' => false],
+            'lease_receivable' => ['label' => 'Tenant receivables (lease accounts)', 'sub' => fn () => LeaseBillingService::controlBalance($asOf), 'gl' => fn () => self::balance('lease_receivable', $asOf), 'strict' => true],
+            'lease_deposits' => ['label' => 'Tenant security deposits held', 'sub' => fn () => LeaseBillingService::depositControl($asOf), 'gl' => fn () => -self::balance('lease_deposits', $asOf), 'strict' => true],
+            'gateway_clearing' => ['label' => 'Payment gateway clearing (collected online, not yet paid out)', 'sub' => fn () => OnlinePaymentService::clearingBalance($asOf), 'gl' => fn () => self::balance('gateway_clearing', $asOf), 'strict' => true],
+            'cheques_in_hand' => ['label' => 'Cheques in hand (cheque register – received, not yet banked)', 'sub' => fn () => TreasuryService::chequesInHand($asOf), 'gl' => fn () => self::balance('cheques_in_hand', $asOf), 'strict' => false], // v5.7
+            'cash_in_transit' => ['label' => 'Cash in transit (transfers sent, not yet credited)', 'sub' => fn () => TreasuryService::inTransit($asOf), 'gl' => fn () => self::balance('cash_in_transit', $asOf), 'strict' => false],
+            'mgmt_fees_payable' => ['label' => 'Management fees payable (accrued, unpaid fees)', 'sub' => fn () => OwnerService::payable($asOf), 'gl' => fn () => -self::balance('mgmt_fees_payable', $asOf), 'strict' => false], // v5.8
+            'concierge_payable' => ['label' => 'Activity vendors payable (room charges less commission and settlements)', 'sub' => fn () => ConciergeService::payableBalance($asOf), 'gl' => fn () => -self::balance('concierge_payable', $asOf), 'strict' => false], // v5.9
+            'concierge_receivable' => ['label' => 'Commission receivable from activity vendors', 'sub' => fn () => ConciergeService::receivableBalance($asOf), 'gl' => fn () => self::balance('concierge_receivable', $asOf), 'strict' => false],
+            'inventory' => ['label' => 'Inventory (stores valuation at cost)', 'sub' => fn () => round((float) $stock(), 2), 'gl' => fn () => self::balance('inventory', $asOf), 'strict' => false],
+            'fixed_assets' => ['label' => 'Fixed assets at cost (asset register)', 'sub' => fn () => $fa()[0], 'gl' => fn () => self::balance('fixed_assets', $asOf), 'strict' => false],
+            'acc_depreciation' => ['label' => 'Accumulated depreciation (asset register)', 'sub' => fn () => $fa()[1], 'gl' => fn () => -self::balance('acc_depreciation', $asOf), 'strict' => false],
         ];
+    }
+
+    /**
+     * The screen that owns each sub-ledger. A control account is a promise about a screen's figures, and the GL page is
+     * where a difference is found — so the row that says "a difference of 40.00" should take the reader to the documents
+     * that made it (v9.6). The keys are the spec keys, not route names, so a control with no screen simply has none.
+     *
+     * @return array<string, array{route: string, label: string}>
+     */
+    public static function controlScreens(): array
+    {
+        return [
+            'guest_ledger' => ['route' => 'folios.index', 'label' => 'Guest folios'],
+            'city_ledger' => ['route' => 'accounts.receivables', 'label' => 'Receivables ageing'],
+            'accounts_payable' => ['route' => 'ap.ageing', 'label' => 'Payables ageing'],
+            'salary_payable' => ['route' => 'payroll.index', 'label' => 'Payroll runs'],
+            'staff_advances' => ['route' => 'payroll.index', 'label' => 'Payroll runs'],
+            'club_receivable' => ['route' => 'club.members', 'label' => 'Members accounts'],
+            'club_unearned' => ['route' => 'club.billing', 'label' => 'Club billing'],
+            'lease_receivable' => ['route' => 'leases.billing', 'label' => 'Lease billing'],
+            'lease_deposits' => ['route' => 'leases.billing', 'label' => 'Lease billing'],
+            'gateway_clearing' => ['route' => 'payments.index', 'label' => 'Online payments'],
+            'cheques_in_hand' => ['route' => 'treasury.cheques', 'label' => 'Cheque register'],
+            'cash_in_transit' => ['route' => 'treasury.transfers', 'label' => 'Bank transfers'],
+            'mgmt_fees_payable' => ['route' => 'owner.fees', 'label' => 'Owner fees'],
+            'concierge_payable' => ['route' => 'concierge.settlements', 'label' => 'Vendor settlements'],
+            'concierge_receivable' => ['route' => 'concierge.settlements', 'label' => 'Vendor settlements'],
+            'inventory' => ['route' => 'inventory.ledger', 'label' => 'Stock ledger'],
+            'fixed_assets' => ['route' => 'assets.index', 'label' => 'Asset register'],
+            'acc_depreciation' => ['route' => 'assets.depreciation', 'label' => 'Depreciation runs'],
+        ];
+    }
+
+    /** Sub-ledger vs control account checks as at a date, each with the screen that owns it. */
+    public static function controls(string $asOf): array
+    {
+        $screens = self::controlScreens();
+        $out = [];
+        foreach (self::controlSpecs($asOf) as $key => $spec) {
+            $out[] = ['label' => $spec['label'], 'key' => $key, 'sub' => $spec['sub'](), 'gl' => $spec['gl'](),
+                'strict' => $spec['strict'], 'screen' => $screens[$key] ?? null];
+        }
+
+        return $out;
+    }
+
+    /**
+     * How many of the control accounts agree at a date, and what the strict ones that do not are out by. The page used to
+     * print eighteen rows and leave the reader to count them; the count is the first thing anyone asks of a control list,
+     * and a non-strict row (inventory at latest cost) differing is indicative rather than a failure.
+     *
+     * @return array{as_of: string, total: int, tied: int, missed: int, indicative: int, worst: ?array{key: string, label: string, diff: float, screen: ?array}}
+     */
+    public static function controlSummary(string $asOf): array
+    {
+        $rows = self::controls($asOf);
+        $off = array_values(array_filter($rows, fn ($c) => abs(round($c['gl'] - $c['sub'], 2)) >= 0.01));
+        $strict = array_values(array_filter($off, fn ($c) => $c['strict']));
+        usort($strict, fn ($a, $b) => abs($b['gl'] - $b['sub']) <=> abs($a['gl'] - $a['sub']));
+        $worst = $strict[0] ?? null;
+
+        return ['as_of' => $asOf, 'total' => count($rows), 'tied' => count($rows) - count($off),
+            'missed' => count($strict), 'indicative' => count($off) - count($strict),
+            'worst' => $worst ? ['key' => $worst['key'], 'label' => $worst['label'],
+                'diff' => round($worst['gl'] - $worst['sub'], 2), 'screen' => $worst['screen']] : null];
+    }
+
+    /**
+     * One control line, for the screen that owns that sub-ledger: the ageing screens print the tie beside the figure they
+     * age, so a difference is seen where the work is done rather than on the GL page afterwards. `behind` says the date
+     * being aged is past what the ledger has posted, which is the one honest explanation of a difference at month end.
+     *
+     * @return array{key: string, label: string, sub: float, gl: float, diff: float, ties: bool, strict: bool, as_of: string, posted_through: string, behind: bool}|null
+     */
+    public static function control(string $key, string $asOf): ?array
+    {
+        $spec = self::controlSpecs($asOf)[$key] ?? null;
+        if (! $spec) {
+            return null;
+        }
+        $sub = (float) $spec['sub']();
+        $gl = (float) $spec['gl']();
+        $diff = round($sub - $gl, 2);
+        $posted = self::cutoff();
+
+        return ['key' => $key, 'label' => $spec['label'], 'sub' => $sub, 'gl' => $gl, 'diff' => $diff,
+            'ties' => abs($diff) <= 0.005, 'strict' => $spec['strict'], 'as_of' => $asOf,
+            'posted_through' => $posted, 'behind' => $asOf > $posted];
     }
 }

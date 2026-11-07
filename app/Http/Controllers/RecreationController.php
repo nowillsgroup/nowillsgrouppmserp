@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ClubTicketSale;
 use App\Models\ClubTicketType;
 use App\Models\PaymentMode;
+use App\Models\Setting;
 use App\Services\ActivityLogger;
 use App\Services\RecreationService;
+use App\Services\RecreationShiftService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -28,13 +30,166 @@ class RecreationController extends Controller
     public function outlet()
     {
         RecreationService::ensureTypes();
+        $shift = RecreationShiftService::active();
+
+        $modes = $this->modes();
 
         return view('recreation.outlet', [
             'types' => ClubTicketType::where('is_active', true)->orderBy('sort')->orderBy('id')->get()->groupBy('category'),
-            'modes' => $this->modes(),
+            'modesJson' => $modes->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'type' => $m->type])->values()->all(),
             'stats' => RecreationService::todayStats(),
             'rate' => \App\Services\ClubBillingService::tax(100)['rate'],
+            'shift' => $shift,
+            'shiftSummary' => $shift ? RecreationShiftService::summary($shift) : null,
+            'shiftRequired' => setting('recreation_shift_required', '0') === '1',
         ]);
+    }
+
+    // ───────────────────────── outlet shift (X / Z) ─────────────────────────
+
+    public function shift(Request $request)
+    {
+        $mine = RecreationShiftService::active();
+        // A manager on duty can pull up a cashier's open shift (?shift_id=) and close it for
+        // them — the count, the variance and the audit trail stay identical.
+        $target = $mine;
+        if ($request->filled('shift_id') && (int) $request->query('shift_id') !== (int) ($mine?->id)) {
+            abort_unless($request->user()->hasPermission('club.manage'), 403);
+            $target = \App\Models\DepartmentShiftSession::with('user')->where('department', RecreationShiftService::DEPARTMENT)
+                ->where('status', 'open')->findOrFail((int) $request->query('shift_id'));
+        }
+        $latest = \App\Models\DepartmentShiftSession::with('user')->where('department', RecreationShiftService::DEPARTMENT)
+            ->orderByDesc('opened_at')->limit(12)->get();
+
+        // The history shows a closed shift's frozen snapshot; an open one is summarised live.
+        $live = $latest->where('status', 'open')->mapWithKeys(fn ($s) => [$s->id => RecreationShiftService::summary($s)]);
+
+        return view('recreation.shift', [
+            'shift' => $target,
+            'summary' => $target ? RecreationShiftService::summary($target) : null,
+            'recent' => $latest,
+            'live' => $live,
+            'denominations' => RecreationShiftService::DENOMINATIONS,
+            'dayTotal' => RecreationShiftService::dayReport(),
+            'shiftRequired' => setting('recreation_shift_required', '0') === '1',
+        ]);
+    }
+
+    public function openShift(Request $request)
+    {
+        $d = $request->validate(['opening_float' => 'required|numeric|min:0|max:1000000', 'note' => 'nullable|string|max:500']);
+        try {
+            RecreationShiftService::open($request->user(), (float) $d['opening_float'], $d['note'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('recreation.shift')->with('success', 'Outlet shift opened with a float of '.money((float) $d['opening_float']).'.');
+    }
+
+    public function closeShift(Request $request)
+    {
+        $shift = RecreationShiftService::active();
+        if ($request->filled('shift_id') && (int) $request->input('shift_id') !== (int) ($shift?->id)) {
+            abort_unless($request->user()->hasPermission('club.manage'), 403);
+            $shift = \App\Models\DepartmentShiftSession::where('department', RecreationShiftService::DEPARTMENT)
+                ->where('status', 'open')->findOrFail((int) $request->input('shift_id'));
+        }
+        if (! $shift) {
+            return back()->with('error', 'You have no open outlet shift to close.');
+        }
+        $d = $request->validate([
+            'counted_cash' => 'required|numeric|min:0|max:10000000', 'note' => 'nullable|string|max:1000',
+            'denominations' => 'nullable|array', 'denominations.*' => 'nullable|integer|min:0|max:9999',
+        ]);
+        try {
+            $closed = RecreationShiftService::close($shift, $request->user(), (float) $d['counted_cash'], $d['note'] ?? null, $d['denominations'] ?? []);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        $message = 'Shift closed for '.($closed->user?->name ?? 'the cashier')
+            .'. Expected '.money($closed->expected_cash).', counted '.money($closed->counted_cash).', variance '.money($closed->variance).'.';
+        if ($request->boolean('print')) {
+            return redirect()->route('recreation.day.print', ['date' => $closed->business_date?->toDateString() ?? bdate()->toDateString()])
+                ->with('success', $message);
+        }
+
+        return redirect()->route('recreation.shift')->with('success', $message);
+    }
+
+    /** Outlet counter policy: is an open shift compulsory before money is taken? */
+    public function saveSettings(Request $request)
+    {
+        abort_unless($request->user()->hasPermission('club.manage'), 403);
+        Setting::updateOrCreate(['key' => 'recreation_shift_required'], ['value' => $request->boolean('recreation_shift_required') ? '1' : '0']);
+        ActivityLogger::log('recreation', 'settings', $request->boolean('recreation_shift_required')
+            ? 'A cashier shift is now required before the outlet will take money'
+            : 'The outlet may now take money without an open shift');
+
+        return back()->with('success', 'Outlet counter settings saved.'.($request->boolean('recreation_shift_required')
+            ? ' A shift must now be open before the till will take money.' : ' Cashiers may now sell without opening a shift.'));
+    }
+
+    // ───────────────────────── the gate (admissions) ─────────────────────────
+
+    public function gate(Request $request)
+    {
+        $board = RecreationService::gateBoard($request->query('date'));
+
+        return view('recreation.gate', [
+            'board' => $board,
+            'recent' => $board['passes']->take(25),
+            'stats' => RecreationService::todayStats(),
+        ]);
+    }
+
+    public function redeem(Request $request)
+    {
+        $d = $request->validate([
+            'code' => 'required|string|max:20',
+            'pax' => 'nullable|integer|min:1|max:20',
+            'note' => 'nullable|string|max:120',
+        ]);
+        try {
+            $pass = RecreationService::redeem($d['code'], $request->user(), isset($d['pax']) ? (int) $d['pax'] : null, $d['note'] ?? null);
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('recreation.gate')->with('success', 'Admitted '.$pass->pass_no.' – '
+            .($pass->redeemed_pax ?: $pass->pax()).' guest(s)'.($pass->name ? ' for '.$pass->name : '').'.');
+    }
+
+    public function reverseAdmission(Request $request, \App\Models\ClubDayPass $daypass)
+    {
+        abort_unless($request->user()->hasPermission('club.manage'), 403);
+        $d = $request->validate(['reason' => 'required|string|max:120']);
+        try {
+            $pass = RecreationService::reverseAdmission($daypass, $d['reason'], $request->user());
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('recreation.gate')->with('success', 'Admission of '.$pass->pass_no.' reversed — the ticket is valid at the gate again.');
+    }
+
+    // ───────────────────────── day report (Z) ─────────────────────────
+
+    public function day(Request $request)
+    {
+        $date = $request->query('date');
+
+        return view('recreation.day', ['report' => RecreationShiftService::dayReport($date)]);
+    }
+
+    public function dayPrint(Request $request)
+    {
+        $date = $request->query('date');
+
+        return view('recreation.day-print', ['report' => RecreationShiftService::dayReport($date)]);
     }
 
     public function sell(Request $request)
@@ -63,7 +218,7 @@ class RecreationController extends Controller
     public function sales(Request $request)
     {
         $date = $request->query('date');
-        $rows = ClubTicketSale::with(['items.type', 'payments.paymentMode', 'user', 'stay.room'])
+        $rows = ClubTicketSale::with(['items.type', 'payments.paymentMode', 'payments.receiver', 'user', 'stay.room', 'shift'])
             ->when($date, fn ($q) => $q->whereDate('sold_at', $date))
             ->latest('sold_at')->latest('id')->paginate(40)->withQueryString();
         $scope = ClubTicketSale::when($date, fn ($q) => $q->whereDate('sold_at', $date));

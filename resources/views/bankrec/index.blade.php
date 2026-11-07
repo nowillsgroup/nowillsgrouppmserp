@@ -46,8 +46,8 @@
 <div class="card mt-2"><div class="card-head"><h3><x-icon name="tool"/> Settings</h3></div><div class="card-body">
   @if(can_do('bankrec.approve'))
   <form method="post" action="{{ route('bankrec.settings') }}" class="form-grid" id="recSettings">@csrf
-    <div class="field"><label for="f_bankrec_window_days">Auto-match: days either side</label><input type="number" min="0" max="31" name="bankrec_window_days" id="f_bankrec_window_days" value="{{ $cfg['bankrec_window_days'] }}" required></div>
-    <div class="field"><label for="f_bankrec_stale_days">Overdue after (days since the last reconciled statement)</label><input type="number" min="7" max="365" name="bankrec_stale_days" id="f_bankrec_stale_days" value="{{ $cfg['bankrec_stale_days'] }}" required></div>
+    <div class="field"><label for="f_bankrec_window_days">Auto-match: days either side <span class="tiny muted">— 0 to 31</span></label><input type="number" min="0" max="31" name="bankrec_window_days" id="f_bankrec_window_days" value="{{ $cfg['bankrec_window_days'] }}" required><div class="tiny muted">Bounds every automatic pairing — by reference, by amount and by settlement batch. 0 = the same day only.</div></div>
+    <div class="field"><label for="f_bankrec_stale_days">Overdue after (days since the last reconciled statement) <span class="tiny muted">— 7 to 365</span></label><input type="number" min="7" max="365" name="bankrec_stale_days" id="f_bankrec_stale_days" value="{{ $cfg['bankrec_stale_days'] }}" required></div>
     <div class="field"><label class="check"><input type="checkbox" name="bankrec_segregation" value="1" @checked($cfg['bankrec_segregation'] === '1')> Whoever loads a statement cannot finalise it</label></div>
     <div><button class="btn btn-primary">Save</button></div>
   </form>

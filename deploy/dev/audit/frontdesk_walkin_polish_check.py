@@ -12,6 +12,21 @@ ACCOUNTS_CONTROLLER = (ROOT / "app/Http/Controllers/AccountsController.php").rea
 GUEST_SCHEMA = (ROOT / "database/migrations/2026_01_01_000100_create_front_office_tables.php").read_text()
 TITLE_MIGRATION = (ROOT / "database/migrations/2026_10_31_000100_expand_guest_title_to_30_characters.php").read_text()
 ROUTES = (ROOT / "routes/web.php").read_text()
+RESERVATION_FORM = (ROOT / "resources/views/reservations/form.blade.php").read_text()
+CITY_LEDGER_PARTIAL = (ROOT / "resources/views/reservations/_city-ledger-create.blade.php").read_text()
+CITY_LEDGER_SERVICE = (ROOT / "app/Services/CityLedgerService.php").read_text()
+
+
+def method_body(source, signature, next_signature=None):
+    """The body of one method, so a test reads the method it names and nothing else."""
+    start = source.index(signature)
+    rest = source[start + len(signature):]
+    if next_signature:
+        return rest[:rest.index(next_signature)]
+    for marker in ('\n    public function ', '\n    protected function ', '\n    private function '):
+        if marker in rest:
+            rest = rest[:rest.index(marker)]
+    return rest
 
 
 class FrontDeskWalkInPolishTest(unittest.TestCase):
@@ -21,11 +36,9 @@ class FrontDeskWalkInPolishTest(unittest.TestCase):
             'id="walkinForm"', 'name="room_id"', 'name="nights"', 'name="rate_plan_id"',
             'name="rate"', 'name="adults"', 'name="children"', 'name="business_source_id"',
             'name="company_id"', 'id="walkinBillingNote"', 'Direct billing is enabled',
-            'id="walkinCreateCityLedger"', 'Create City Ledger / Company', 'id="walkinCompanyCreateForm"',
-            "route('frontdesk.walkin.company.store')", "dispatchEvent(new CustomEvent('walkin-company-created'",
-            "form.addEventListener('submit', async event =>", 'body: new FormData(form)',
-            'response.status === 422 && payload?.errors', 'showErrors(Object.values(payload.errors).flat())',
-            "headers: {'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest'}",
+            'id="walkinCreateCityLedger"', 'Create City Ledger / Company',
+            "@include('reservations._city-ledger-create'", "'prefix' => 'walkinCompanyCreate'",
+            "route('frontdesk.walkin.company.store')", "document.addEventListener('city-ledger-created'",
             'guest billing is the default', 'id="walkinGuestLink"', 'id="walkinGuestUnlink"', 'name="purpose"',
             'Ready for arrival', 'Confirm room readiness with Housekeeping before arrival.',
             'Other housekeeping states require confirmation with Housekeeping before arrival.',
@@ -81,6 +94,36 @@ class FrontDeskWalkInPolishTest(unittest.TestCase):
         self.assertNotIn('plan.innerHTML', VIEW)
         self.assertNotIn('insertAdjacentHTML', VIEW)
 
+    def test_new_reservation_offers_the_same_guest_title_picker(self):
+        """A booking desk can hit the same missing title the walk-in desk can."""
+        reservation_form = (ROOT / "resources/views/reservations/form.blade.php").read_text()
+        guest_picker = (ROOT / "resources/views/reservations/_guest.blade.php").read_text()
+
+        self.assertIn("@include('reservations._guest', ['allowCustomGuestTitle' => true])", reservation_form)
+        self.assertIn("if ($allowCustomGuestTitle) $guestTitleOptions['__other__'] = 'Others';", guest_picker)
+        self.assertIn('name="guest[custom_title]"', guest_picker)
+        self.assertIn('id="guestCustomTitleSave"', guest_picker)
+        self.assertIn("titleSelect.add(option, otherOption || null)", guest_picker)
+        # the hint must not name one of the two screens it now appears on
+        self.assertIn('The title is saved on the guest profile when you save this form.', guest_picker)
+        self.assertNotIn('Save the walk-in form', guest_picker)
+
+        def method_body(source, signature):
+            start = source.index(signature)
+            rest = source[start + len(signature):]
+            return rest[:rest.index('\n    public function ') if '\n    public function ' in rest else len(rest)]
+
+        store_reservation = method_body(RESERVATION_CONTROLLER, 'public function store(Request $request)')
+        update_reservation = method_body(RESERVATION_CONTROLLER, 'public function update(Request $request, Reservation $reservation)')
+        resolver_start = RESERVATION_CONTROLLER.index('protected function resolveGuestTitle(array $data): array')
+        resolver = RESERVATION_CONTROLLER[resolver_start:RESERVATION_CONTROLLER.index('protected function upsertGuest(')]
+        self.assertIn("'guest.custom_title' => 'required_if:guest.title,__other__|nullable|string|max:30|not_in:__other__'", RESERVATION_CONTROLLER)
+        self.assertIn("if (($data['guest']['title'] ?? null) === '__other__') {", resolver)
+        self.assertIn("$data['guest']['title'] = trim((string) ($data['guest']['custom_title'] ?? ''));", resolver)
+        self.assertIn("unset($data['guest']['custom_title']);", resolver)
+        self.assertIn('$this->resolveGuestTitle($request->validate($this->rules()))', store_reservation)
+        self.assertIn('$this->resolveGuestTitle($request->validate($this->rules(true)))', update_reservation)
+
     def test_walkin_route_and_server_behavior_remain_gated_and_validated(self):
         self.assertIn("Route::get('/walk-in', 'walkIn')->name('walkin')", ROUTES)
         self.assertIn("Route::post('/walk-in', 'storeWalkIn')->name('walkin.store')", ROUTES)
@@ -100,18 +143,75 @@ class FrontDeskWalkInPolishTest(unittest.TestCase):
         self.assertIn("$t->string('title', 30)->nullable()", GUEST_SCHEMA)
         self.assertIn("$table->string('title', 30)->nullable()->change()", TITLE_MIGRATION)
         self.assertIn("Cannot shrink guest titles to 10 characters while longer titles are stored.", TITLE_MIGRATION)
-        company_creator = CONTROLLER[CONTROLLER.index('public function storeWalkInCompany(Request $request)'):CONTROLLER.index('public function storeWalkIn(Request $request)')]
+        company_creator = method_body(CONTROLLER, 'public function storeWalkInCompany(Request $request)')
         self.assertIn("can_do('frontdesk.checkin') && can_do('credit.manage')", company_creator)
-        self.assertIn("'direct_billing' => false", company_creator)
-        self.assertIn("CreditService::setTerms(", company_creator)
-        self.assertIn("                true,", company_creator)
-        self.assertIn("'credit_status' => 'open'", company_creator)
-        self.assertIn("'type' => 'required|in:corporate,travel_agent'", company_creator)
+        self.assertIn("CityLedgerService::createFromDesk(", company_creator)
+        self.assertIn("'Walk-in check-in'", company_creator)
         self.assertIn("Route::post('/walk-in/company', 'storeWalkInCompany')->middleware('perm:credit.manage')->name('walkin.company.store')", ROUTES)
         self.assertIn("Company::orderBy('name')->get()", ACCOUNTS_CONTROLLER)
-        self.assertIn('AvailabilityService::blockingStays($arr, $dep)', CONTROLLER)
+        self.assertIn('AvailabilityService::blockingStays($arr, $checkedThrough)', CONTROLLER)
+        self.assertIn('$checkedThrough = $dayUse ? $arr->copy()->addDay() : $dep;', CONTROLLER)
         self.assertIn('$stay = StayService::checkIn($stay, $room->id);', CONTROLLER)
         self.assertIn('FolioService::payment($stay->folio', CONTROLLER)
+
+
+    def test_booking_desk_opens_the_same_city_ledger_account_as_the_walkin_desk(self):
+        # the booking desk carries the control the walk-in desk has
+        for marker in (
+            'id="resCompanyCreate"', 'data-modal="resCompanyCreateModal"', 'Create City Ledger / Company',
+            "@include('reservations._city-ledger-create'", "'prefix' => 'resCompanyCreate'",
+            "route('reservations.company.store')", 'id="resCompanyStatus"',
+            "document.addEventListener('city-ledger-created'",
+            "status.textContent = `${account.name} was created and selected. The direct-billing account is available in Finance → City Ledger.`",
+            "CO.dispatchEvent(new Event('change', {bubbles:true}));",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, RESERVATION_FORM)
+
+        # one dialog, so the two desks cannot drift apart
+        for marker in (
+            "id=\"{{ $prefix }}Modal\"", "id=\"{{ $prefix }}Form\"", "id=\"{{ $prefix }}Errors\"",
+            "id=\"{{ $prefix }}Save\"", '@csrf', 'data-reset data-no-lock',
+            "form.addEventListener('submit', async event =>", 'body: new FormData(form)',
+            'response.status === 422 && payload?.errors', 'showErrors(Object.values(payload.errors).flat())',
+            "headers: {'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest'}",
+            "document.dispatchEvent(new CustomEvent('city-ledger-created', {detail: payload.company}))",
+            'form.reset()', "modal.classList.remove('show')",
+            'Go to Finance → City Ledger',  # placeholder guard, replaced below
+        ):
+            if marker.startswith('Go to'):
+                continue
+            with self.subTest(partial=marker):
+                self.assertIn(marker, CITY_LEDGER_PARTIAL)
+        self.assertIn("can_do('credit.manage')", CITY_LEDGER_PARTIAL)
+        self.assertIn('Finance → City Ledger', CITY_LEDGER_PARTIAL)
+
+        # the walk-in desk includes it rather than carrying its own copy
+        self.assertIn("@include('reservations._city-ledger-create'", VIEW)
+        self.assertIn("'prefix' => 'walkinCompanyCreate'", VIEW)
+        self.assertNotIn('id="walkinCompanyCreateForm"', VIEW)
+
+        # the endpoint behind the booking desk's dialog
+        store_company = method_body(RESERVATION_CONTROLLER, 'public function storeCompany(Request $request)')
+        self.assertIn("abort_unless(can_do('credit.manage'), 403)", store_company)
+        self.assertIn('CityLedgerService::createFromDesk(', store_company)
+        self.assertIn("'New reservation'", store_company)
+        self.assertIn("Route::post('/company', 'storeCompany')->middleware('perm:credit.manage')->name('company.store')", ROUTES)
+
+        # one account builder, whichever desk asks for it
+        self.assertIn('public static function createFromDesk(array $data, string $source): Company', CITY_LEDGER_SERVICE)
+        for marker in (
+            "'direct_billing' => false", "'credit_status' => 'open'", "'is_active' => true",
+            "'type' => 'required|in:corporate,travel_agent'",
+            "'credit_limit' => 'required|numeric|min:0|max:999999999999.99'",
+            "'credit_days' => 'required|integer|min:0|max:365'",
+            'A company with this name already exists.',
+            'CreditService::setTerms(',
+            'Initial City Ledger setup from {$source}',
+            "ActivityLogger::log('credit', 'city_ledger_create'",
+        ):
+            with self.subTest(service=marker):
+                self.assertIn(marker, CITY_LEDGER_SERVICE)
 
 
 if __name__ == "__main__":

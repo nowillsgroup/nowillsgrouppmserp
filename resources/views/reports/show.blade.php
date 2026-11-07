@@ -12,6 +12,26 @@
   $RS = \App\Services\ReportScheduleService::class;
   $rangeOpts = $mode === 'date' ? array_intersect_key($RS::RANGES, array_flip([...$RS::DATE_RANGES, 'custom'])) : ($mode === 'range' ? $RS::RANGES : ['today' => 'Current position']);
   $myView = $activeView && $activeView->user_id === auth()->id(); @endphp
+{{-- What this screen is showing, in one line: the period it answers on, how many rows
+     survived any filter, and the business date the figures are cut at. It stays on the
+     print sheet so a printed report is never undated. --}}
+<div class="rpt-context" data-testid="report-context">
+  <span><x-icon name="calendar"/>
+    @if($mode === 'range')
+      <b>{{ $from->format('d M Y') }}</b> – <b>{{ $to->format('d M Y') }}</b>
+    @elseif($mode === 'date')
+      as on <b>{{ $to->format('d M Y') }}</b>
+    @else
+      <b>Current position</b>
+    @endif
+  </span>
+  <span><b>{{ $rows->count() }}</b> row{{ $rows->count() === 1 ? '' : 's' }}@if(!empty($data['note'])) · {{ $data['note'] }}@endif</span>
+  <span>Business date <b>{{ bdate()->format('d M Y') }}</b></span>
+  @if($activeView)
+    <span>View <b>{{ $activeView->name }}</b>@if($activeView->user_id !== auth()->id() && $activeView->user) · shared by {{ $activeView->user->name }}@endif</span>
+  @endif
+  <a class="rpt-context-link no-print" href="{{ route('reports.index') }}">← All reports</a>
+</div>
 @if($views->count() || $activeView)
 <div class="card no-print" data-testid="saved-views"><div class="card-body flex gap-1 wrap" style="align-items:center">
   <span class="small muted"><x-icon name="star"/> Saved views:</span>
@@ -53,7 +73,10 @@
   <button class="btn btn-primary">Generate</button>
 </form></div></div>
 @endif
-<div class="print-only print-head"><h2>{{ hotel()->name }}</h2><div>{{ $title }} @if($mode==='range') · {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }} @elseif($mode==='date') · as on {{ $to->format('d M Y') }} @else · as on {{ bdate()->format('d M Y') }} @endif</div></div>
+<div class="print-only print-head"><h2>{{ hotel()->name }}</h2><div>{{ $title }}
+  @if($mode==='range') · {{ $from->format('d M Y') }} – {{ $to->format('d M Y') }} @elseif($mode==='date') · as on {{ $to->format('d M Y') }} @else · as on {{ bdate()->format('d M Y') }} @endif
+  <div class="tiny">Printed {{ now()->format('d M Y H:i') }}@if(auth()->user()) by {{ auth()->user()->name }}@endif · {{ $rows->count() }} row(s)@if($activeView) · view “{{ $activeView->name }}”@endif</div>
+</div></div>
 
 @if(!empty($data['chart']) && $rows->count() > 1)
 @php $ck = $data['chart']['key']; $max = max(1, $rows->max($ck)); $chartRows = $rows->take(40); @endphp
@@ -63,10 +86,14 @@
 @endif
 
 @if(!empty($data['summary']) && count($data['summary']))
-<div class="stats">@foreach($data['summary'] as $k => $v)<x-stat :label="$k ?: '—'" :value="is_string($v) ? $v : money($v)" icon="money" tone="slate"/>@endforeach</div>
+{{-- A summary line may hold counts (covers, rooms, guests) beside money. A whole
+     number reads as a count; a fractional one carries the currency. --}}
+<div class="stats">@foreach($data['summary'] as $k => $v)@php $isMoneyStat = ! is_string($v) && ! is_int($v); @endphp<x-stat :label="$k ?: '—'" :value="is_string($v) ? $v : ($isMoneyStat ? money($v) : number_format($v))" :icon="$isMoneyStat ? 'money' : 'chart'" tone="slate"/>@endforeach</div>
 @endif
 
-<div class="card flush"><div class="card-head"><h3>{{ $rows->count() }} record(s)</h3><input class="input input-sm no-print" placeholder="Quick filter…" data-filter-table="#rpt" style="max-width:220px"></div>
+<div class="card flush"><div class="card-head"><h3>{{ $rows->count() }} record(s)</h3>
+  <span class="tiny muted no-print" id="rptFilterCount" aria-live="polite">{{ $rows->count() }} rows</span>
+  <input class="input input-sm no-print" placeholder="Quick filter…" aria-label="Filter the rows of this report" data-filter-table="#rpt" style="max-width:220px"></div>
 <div class="card-body table-wrap"><table class="table table-compact" id="rpt">
 <thead><tr><th>#</th>@foreach($cols as $k => $l)<th class="{{ in_array($k, $money) || in_array($k, $sum) ? 'num' : '' }}">{{ $l }}</th>@endforeach</tr></thead>
 <tbody>
@@ -75,12 +102,35 @@
 @empty
 <tr><td colspan="{{ count($cols) + 1 }}"><x-empty text="No data for the selected period." icon="chart"/></td></tr>
 @endforelse
+<tr id="rptNoMatch" hidden><td colspan="{{ count($cols) + 1 }}" class="small muted">No row in this report matches that filter.</td></tr>
 </tbody>
 @if($rows->count() && count($sum))
 <tfoot><tr><td></td>@foreach($cols as $k => $l)<td class="num">@if(in_array($k, $sum)){{ in_array($k, $money) ? money($rows->sum($k), false) : $rows->sum($k) }}@elseif($loop->first) Total @endif</td>@endforeach</tr></tfoot>
 @endif
 </table></div></div>
 @if(!empty($data['note']))<p class="small muted">{{ $data['note'] }}</p>@endif
+
+@php
+  // The other reports of the same area, so a reader never has to go back to the
+  // catalogue to find the next one — and only the ones they may open.
+  $area = \App\Http\Controllers\ReportController::REPORTS[$report][0] ?? null;
+  $siblings = $area
+    ? collect(\App\Http\Controllers\ReportController::REPORTS)->filter(fn ($r) => $r[0] === $area && can_do($r[4] ?? 'reports.view'))
+    : collect();
+@endphp
+@if($siblings->count() > 1)
+<section class="card no-print rpt-siblings" data-testid="report-siblings">
+  <div class="card-head">
+    <h3><x-icon name="grid"/> More in {{ $area }}</h3>
+    <a class="btn btn-sm btn-soft" href="{{ route('reports.index') }}">All {{ $siblings->count() }} reports in {{ $area }} →</a>
+  </div>
+  <div class="card-body flex gap-1 wrap">
+    @foreach($siblings as $slug => $r)
+      <a class="rpt-sibling{{ $slug === $report ? ' is-here' : '' }}" href="{{ route('reports.show', $slug) }}"@if($slug === $report) aria-current="page"@endif>{{ $r[1] }}</a>
+    @endforeach
+  </div>
+</section>
+@endif
 
 @foreach(['save-view' => null] + ($myView ? ['edit-view' => $activeView] : []) as $mid => $ev)
 <div class="modal" id="{{ $mid }}"><div class="modal-box" style="max-width:720px">
@@ -108,7 +158,48 @@
   </form>
 </div></div>
 @endforeach
+@push('head')
+<style>
+  /* The report prints on a landscape sheet: a wide report must never have its columns
+     clipped, its header must repeat on every page, and the rows must not straddle one. */
+  @page { size: A4 landscape; margin: 10mm; }
+  @media print {
+    .table-wrap { overflow: visible !important; max-height: none !important; }
+    #rpt thead { display: table-header-group; }
+    #rpt thead th { position: static; }
+    #rpt tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .stats, .rpt-context { break-inside: avoid; }
+    .print-head .tiny { font-weight: 400; }
+  }
+</style>
+@endpush
 @push('scripts')
-<script>document.querySelectorAll('[data-range-nav]').forEach(s => s.addEventListener('change', () => { if (s.value) location.href = s.value; }));</script>
+<script>
+document.querySelectorAll('[data-range-nav]').forEach(s => s.addEventListener('change', () => { if (s.value) location.href = s.value; }));
+
+// The quick filter narrows the rows; it also has to say how many are left, and to say
+// so plainly when nothing matches rather than leaving a headless table on the screen.
+(() => {
+  const input = document.querySelector('[data-filter-table="#rpt"]');
+  const table = document.getElementById('rpt');
+  const count = document.getElementById('rptFilterCount');
+  const noMatch = document.getElementById('rptNoMatch');
+  if (!input || !table || !table.tBodies[0]) return;
+  const rows = [...table.tBodies[0].rows].filter(row => row.id !== 'rptNoMatch' && !row.querySelector('td[colspan]'));
+  const apply = () => {
+    const q = input.value.trim().toLowerCase();
+    let shown = 0;
+    rows.forEach(row => {
+      const hit = !q || row.textContent.toLowerCase().includes(q);
+      row.style.display = hit ? '' : 'none';
+      if (hit) shown += 1;
+    });
+    if (count) count.textContent = q ? `${shown} of ${rows.length} rows` : `${rows.length} rows`;
+    if (noMatch) noMatch.hidden = !q || shown > 0;
+  };
+  input.addEventListener('input', apply);
+  apply();
+})();
+</script>
 @endpush
 @endsection

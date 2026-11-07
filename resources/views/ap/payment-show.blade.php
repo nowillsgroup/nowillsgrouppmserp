@@ -24,6 +24,24 @@
     <div><div class="l">Unapplied credit</div><div class="v" id="payUnapplied">{{ money($p->unapplied()) }}</div></div>
     @endif
   </div>
+  {{-- v9.5 what is left of this payment, and whether the ageing counts it: three ways it may not --}}
+  @if($credit['in_credit'])
+    <p class="small" id="payCredit" style="grid-column:1/-1;margin:.6rem 0 0"><x-icon name="check"/><b>{{ money($credit['free']) }}</b> of this payment is still on account:
+      the ageing at {{ dmy($credit['as_of']) }} counts it in the {{ money($credit['supplier_credits']) }} it nets off for {{ $p->supplier->name }}.
+      Apply it from any open bill for this supplier, or leave it for the next one.</p>
+  @elseif($p->cancelled_at)
+    <p class="small muted" id="payCredit" style="grid-column:1/-1;margin:.6rem 0 0"><x-icon name="info"/>This payment was cancelled, so none of it is in the ageing:
+      its allocations were released and its ledger posting reversed.</p>
+  @elseif($p->isForeign())
+    <p class="small muted" id="payCredit" style="grid-column:1/-1;margin:.6rem 0 0"><x-icon name="info"/>Nothing of this payment is a supplier credit: it was made in {{ strtoupper((string) $p->currency) }},
+      and what is left of a foreign payment is an exchange difference that has already been posted to Exchange Gain / Loss. The ageing does not net it off.</p>
+  @elseif($p->unapplied() > 0.004)
+    <p class="small muted" id="payCredit" style="grid-column:1/-1;margin:.6rem 0 0"><x-icon name="clock"/>This payment is dated after {{ dmy($credit['as_of']) }}, so the ageing does not count
+      its {{ money($p->unapplied()) }} yet. It becomes a credit on the day it is dated.</p>
+  @else
+    <p class="small muted" id="payCredit" style="grid-column:1/-1;margin:.6rem 0 0"><x-icon name="info"/>All of this payment has been applied to bills, so there is no credit
+      left to age — the {{ money($p->allocated) }} it settled reduced what those bills owe.</p>
+  @endif
   @if($p->isForeign())
   <dl class="kv" id="fxPayPanel" style="grid-column:1/-1"><dt>Paid in</dt><dd class="bold">{{ $p->currency }}</dd>
     <dt>Bank's figure</dt><dd>{{ $p->fxLabel() }}</dd>

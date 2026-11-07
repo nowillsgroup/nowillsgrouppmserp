@@ -23,6 +23,17 @@
   <x-stat label="Saved views" :value="$stats['views']" icon="star" tone="purple" sub="all users"/>
 </div>
 
+@if($stats['failing'])
+<div class="card rpt-banner is-red no-print" role="status" data-testid="failing-banner">
+  <div class="card-body flex gap-1 wrap" style="align-items:center">
+    <x-icon name="alert"/>
+    <b>{{ $stats['failing'] }} schedule{{ $stats['failing'] === 1 ? '' : 's' }} failing.</b>
+    <span class="small muted">The last run did not reach everybody — the delivery log carries the error.</span>
+    <a class="btn btn-sm" href="{{ route('reports.schedules', ['status' => 'failed']) }}#t-log">Failed deliveries →</a>
+  </div>
+</div>
+@endif
+
 <details class="card" id="scheduleForm" {{ $e || $newKey || $errors->any() || session('error') ? 'open' : '' }}>
   <summary class="card-head" style="cursor:pointer"><h3><x-icon name="{{ $e ? 'edit' : 'plus' }}"/> {{ $e ? 'Edit schedule “'.$e->name.'”' : 'New scheduled report' }}</h3><span class="small muted">the report runs with the owner's permissions{{ $allowed ? ' · recipients limited to '.$allowed : '' }}</span></summary>
   <div class="card-body">
@@ -58,7 +69,9 @@
   @if(can_do('settings.manage'))<button data-tab="t-settings">Settings</button>@endif
 </div>
 
-<div class="tab-pane active" id="t-schedules"><div class="card flush"><div class="card-body table-wrap"><table class="table" id="schedTable">
+<div class="tab-pane active" id="t-schedules"><div class="card flush">
+  <div class="card-head"><h3>{{ $schedules->count() }} schedule(s)</h3><input class="input input-sm no-print" placeholder="Search schedules…" aria-label="Search scheduled reports" data-filter-table="#schedTable" style="max-width:230px"></div>
+  <div class="card-body table-wrap"><table class="table" id="schedTable">
   <thead><tr><th>Schedule</th><th>Report &amp; period</th><th>When</th><th>Recipients</th><th>Owner</th><th>Last run</th><th>Next run</th><th></th></tr></thead>
   <tbody>@forelse($schedules as $s) @php $can = $s->user_id === $me->id || can_do('settings.manage'); $rc = count($s->emails()); @endphp
     <tr data-schedule="{{ $s->id }}" class="{{ $s->is_active ? '' : 'muted' }}">
@@ -80,7 +93,9 @@
       </td>
     </tr>
   @empty
-    <tr><td colspan="8"><x-empty text="No scheduled reports yet." icon="mail"/></td></tr>
+    <tr><td colspan="8"><x-empty text="No scheduled reports yet." icon="mail">
+      <div class="flex gap-1 mt-1" style="justify-content:center"><a class="btn btn-sm btn-primary" href="#scheduleForm">Create the first schedule</a></div>
+    </x-empty></td></tr>
   @endforelse</tbody>
 </table></div></div></div>
 
@@ -89,7 +104,8 @@
     <div class="field"><label>Status</label><select name="status" onchange="this.form.submit()"><option value="">All</option>@foreach($tone as $k => $t)<option value="{{ $k }}" @selected(request('status') === $k)>{{ ucfirst($k) }}</option>@endforeach</select></div>
     @if(request('schedule'))<a class="btn btn-sm btn-soft" href="{{ route('reports.schedules') }}#t-log">All schedules ✕</a>@endif
   </form>
-  <div class="card flush"><div class="card-body table-wrap"><table class="table table-compact" id="deliveryTable">
+  <div class="card flush"><div class="card-head"><h3>{{ $deliveries->total() }} deliver{{ $deliveries->total() === 1 ? 'y' : 'ies' }}</h3><span class="small muted">every e-mail sent, newest first</span></div>
+  <div class="card-body table-wrap"><table class="table table-compact" id="deliveryTable">
   <thead><tr><th>When</th><th>Schedule</th><th>Period</th><th>Trigger</th><th>Status</th><th class="num">Rows</th><th>Delivered</th><th>Detail</th><th></th></tr></thead>
   <tbody>@forelse($deliveries as $d)
     <tr data-delivery="{{ $d->id }}"><td class="small nowrap">{{ $d->created_at->format('d M H:i') }}</td><td class="small">{{ $d->title }}</td>
@@ -100,7 +116,7 @@
       <td class="tiny {{ $d->status === 'failed' ? 'text-red' : 'muted' }}">{{ \Illuminate\Support\Str::limit($d->error, 110) }}</td>
       <td>@if($d->period_to && $d->status !== 'failed')<a class="btn btn-sm btn-ghost" href="{{ route('reports.deliveries.csv', $d) }}" title="Download CSV (re-generated for the same period)"><x-icon name="download"/></a>@endif</td></tr>
   @empty
-    <tr><td colspan="9"><x-empty text="Nothing has been sent yet." icon="mail"/></td></tr>
+    <tr><td colspan="9"><x-empty text="Nothing has been sent yet. A schedule sends its first e-mail at its next run time." icon="mail"/></td></tr>
   @endforelse</tbody></table></div></div>
   {{ $deliveries->fragment('t-log')->links() }}
 </div>

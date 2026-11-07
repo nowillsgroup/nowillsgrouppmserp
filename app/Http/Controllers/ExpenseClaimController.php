@@ -12,6 +12,7 @@ use App\Services\ActivityLogger;
 use App\Services\ExpenseClaimService as Claims;
 use App\Services\PettyCashService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -34,17 +35,98 @@ class ExpenseClaimController extends Controller
         abort_unless(Claims::canSee($c), 403, 'This claim belongs to someone else.');
     }
 
+    /** How long a claim may wait before it is a message somebody has to answer: two weeks is a nudge, a month is a fault. */
+    public const WAIT_BUCKETS = ['w0' => '0–7 days', 'w1' => '8–14 days', 'w2' => '15–30 days', 'w3' => 'Over 30 days'];
+
+    public static function waitBucket(?int $days): string
+    {
+        $days = (int) ($days ?? 0);
+
+        return $days <= 7 ? 'w0' : ($days <= 14 ? 'w1' : ($days <= 30 ? 'w2' : 'w3'));
+    }
+
+    /**
+     * v9.14 Staff expense claims, read as two queues that age and two rules that either hold or do not.
+     *
+     * A claim is money an employee has already spent, so the screen's question is never "how much is outstanding" but "how
+     * long has this person been waiting, and can the line be proved". The screen counted claims by status and stopped
+     * there: a claim submitted in September and one submitted this morning were the same row, and the receipt rule — which
+     * the service enforces when a line is added — was invisible once a claim existed, so a line that lost its receipt, or
+     * that arrived by import, was never noticed again. Both queues are now aged, and the receipt and the claim window are
+     * read back over the live claims instead of trusted to have been right at entry.
+     */
     public function index(Request $request)
     {
         $status = $request->query('status', can_do('claims.approve') ? 'submitted' : (can_do('claims.pay') ? 'approved' : ''));
         $status = in_array($status, ['draft', 'submitted', 'approved', 'rejected', 'paid', 'all'], true) ? $status : 'submitted';
         $q = trim((string) $request->query('q'));
 
+        $today = bdate()->copy()->startOfDay();
+        $ageOf = fn ($d) => $d ? max(0, (int) round(($today->timestamp - Carbon::parse($d)->startOfDay()->timestamp) / 86400)) : null;
+
+        $claims = ExpenseClaim::with('employee.department', 'approver')->withCount('lines')
+            ->when($status !== 'all', fn ($x) => $x->where('status', $status))
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w->where('claim_no', 'like', "%{$q}%")->orWhere('title', 'like', "%{$q}%")->orWhereHas('employee', fn ($e) => $e->where('name', 'like', "%{$q}%"))))
+            ->orderByDesc('updated_at')->paginate(30)->withQueryString();
+        $claims->getCollection()->transform(function ($c) use ($ageOf) {
+            $c->waiting = in_array($c->status, ['submitted', 'approved'], true) ? $ageOf($c->status === 'submitted' ? $c->submitted_at : $c->approved_on) : null;
+            $c->bucket = $c->waiting === null ? null : self::waitBucket($c->waiting);
+
+            return $c;
+        });
+
+        // the two queues, aged: approval waits on submitted_at, payment waits on approved_on
+        $queue = [];
+        foreach (['submitted' => 'Awaiting approval', 'approved' => 'Awaiting payment'] as $key => $label) {
+            $rows = ExpenseClaim::with('employee')->where('status', $key)->get(['id', 'claim_no', 'employee_id', 'total', 'submitted_at', 'approved_on'])
+                ->each(fn ($c) => $c->waiting = $ageOf($key === 'submitted' ? $c->submitted_at : $c->approved_on));
+            $worst = $rows->sortByDesc('waiting')->first();
+            $row = ['key' => $key, 'label' => $label, 'claims' => $rows->count(), 'amount' => round((float) $rows->sum('total'), 2),
+                'oldest' => (int) ($rows->max('waiting') ?? 0),
+                'worst' => $worst ? ['claim_no' => $worst->claim_no, 'staff' => $worst->employee?->name, 'amount' => round((float) $worst->total, 2), 'days' => (int) $worst->waiting] : null];
+            foreach (array_keys(self::WAIT_BUCKETS) as $b) {
+                $in = $rows->filter(fn ($c) => self::waitBucket($c->waiting) === $b);
+                $row[$b] = round((float) $in->sum('total'), 2);
+                $row['n'.$b] = $in->count();
+            }
+            $queue[$key] = $row;
+        }
+
+        // v9.14 the receipt rule, read back over the live claims: over the threshold, a scan or a transaction number or nothing
+        $threshold = (float) Claims::cfg('claims_receipt_threshold');
+        $claimed = ExpenseClaimLine::with('claim.employee')->where('category', '!=', 'mileage')
+            ->whereHas('claim', fn ($w) => $w->whereIn('status', ['submitted', 'approved', 'paid']))
+            ->where('amount', '>', $threshold)->orderByDesc('date')->orderByDesc('id')->get()
+            ->map(fn ($l) => ['claim_no' => $l->claim?->claim_no, 'staff' => $l->claim?->employee?->name, 'date' => $l->date,
+                'age' => $ageOf($l->date), 'category' => $l->category, 'amount' => round((float) $l->amount, 2),
+                'description' => $l->description, 'status' => $l->claim?->status,
+                'evidence' => $l->receipt_path ? 'receipt' : (trim((string) $l->receipt_ref) !== '' ? 'ref' : 'none')]);
+        $gaps = $claimed->where('evidence', 'none')->values();
+        $receipt = ['threshold' => $threshold, 'needing' => $claimed->count(), 'with_receipt' => $claimed->where('evidence', 'receipt')->count(),
+            'with_ref' => $claimed->where('evidence', 'ref')->count(), 'missing' => $gaps->count(),
+            'amount' => round((float) $claimed->sum('amount'), 2), 'missing_amount' => round((float) $gaps->sum('amount'), 2),
+            'oldest' => (int) ($claimed->max('age') ?? 0),
+            'gap_rows' => $gaps->take(10)->all()];
+
+        // and the claim window: a line older than the window on the day it was submitted should never have been claimable
+        $window = (int) Claims::cfg('claims_max_age_days');
+        $oldestAtSubmit = 0;
+        $late = collect();
+        foreach (ExpenseClaim::with('lines', 'employee')->whereIn('status', ['submitted', 'approved', 'paid'])->whereNotNull('submitted_at')->get() as $c) {
+            foreach ($c->lines as $l) {
+                $age = (int) round((Carbon::parse($c->submitted_at)->startOfDay()->timestamp - $l->date->copy()->startOfDay()->timestamp) / 86400);
+                $oldestAtSubmit = max($oldestAtSubmit, $age);
+                if ($age > $window) {
+                    $late->push(['claim_no' => $c->claim_no, 'staff' => $c->employee?->name, 'date' => $l->date, 'age' => $age,
+                        'amount' => round((float) $l->amount, 2), 'description' => $l->description]);
+                }
+            }
+        }
+        $windowDoc = ['window' => $window, 'oldest' => $oldestAtSubmit, 'late' => $late->count(),
+            'late_amount' => round((float) $late->sum('amount'), 2), 'rows' => $late->take(10)->all()];
+
         return view('claims.index', [
-            'claims' => ExpenseClaim::with('employee.department', 'approver')->withCount('lines')
-                ->when($status !== 'all', fn ($x) => $x->where('status', $status))
-                ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w->where('claim_no', 'like', "%{$q}%")->orWhere('title', 'like', "%{$q}%")->orWhereHas('employee', fn ($e) => $e->where('name', 'like', "%{$q}%"))))
-                ->orderByDesc('updated_at')->paginate(30)->withQueryString(),
+            'claims' => $claims, 'queue' => $queue, 'waitBuckets' => self::WAIT_BUCKETS, 'receipt' => $receipt, 'windowDoc' => $windowDoc,
             'counts' => ExpenseClaim::selectRaw('status, count(*) n, sum(total) t')->groupBy('status')->get()->keyBy('status'),
             'status' => $status, 'q' => $q, 'mine' => false,
             'employees' => Employee::where('is_active', true)->orderBy('name')->get()->mapWithKeys(fn ($e) => [$e->id => $e->name.' ('.$e->emp_code.')'])->all(),
@@ -60,6 +142,9 @@ class ExpenseClaimController extends Controller
             'claims' => ExpenseClaim::with('employee', 'approver')->withCount('lines')->where(fn ($w) => $w->where('employee_id', $me?->id ?? 0)->orWhere('created_by', auth()->id()))
                 ->orderByDesc('updated_at')->paginate(30),
             'counts' => collect(), 'status' => 'all', 'q' => '', 'mine' => true, 'employees' => [], 'me' => $me,
+            'queue' => [], 'waitBuckets' => self::WAIT_BUCKETS,
+            'receipt' => ['threshold' => 0, 'needing' => 0, 'with_receipt' => 0, 'with_ref' => 0, 'missing' => 0, 'amount' => 0, 'missing_amount' => 0, 'oldest' => 0, 'gap_rows' => []],
+            'windowDoc' => ['window' => 0, 'oldest' => 0, 'late' => 0, 'late_amount' => 0, 'rows' => []],
             'cfg' => collect(Claims::DEFAULTS)->map(fn ($v, $k) => Claims::cfg($k))->all(),
         ]);
     }

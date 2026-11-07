@@ -23,6 +23,8 @@ class LinenController extends Controller
             'types' => $types, 'all' => LinenType::orderBy('code')->get(),
             'moves' => LinenMovement::with('linen', 'batch', 'user')->latest('id')->limit(30)->get(),
             'levels' => (float) setting('linen_par_levels', '4'), 'rooms' => \App\Models\Room::count(),
+            'defaultSupplier' => setting('linen_default_supplier_id', ''),
+            'suppliers' => Supplier::orderBy('name')->pluck('name', 'id'),
             'stats' => [
                 'store' => (int) $types->sum('qty_store'), 'floor' => (int) $types->sum('qty_floor'), 'soiled' => (int) $types->sum('qty_soiled'), 'laundry' => (int) $types->sum('qty_laundry'),
                 'short' => $types->where('short', '>', 0)->count(),
@@ -73,8 +75,14 @@ class LinenController extends Controller
 
     public function saveLevels(Request $request)
     {
-        $data = $request->validate(['linen_par_levels' => 'required|numeric|min:1|max:10']);
+        $data = $request->validate([
+            'linen_par_levels' => 'required|numeric|min:1|max:10',
+            // the supplier the laundry goes out to (and comes back from) — blank = not set
+            'linen_default_supplier_id' => 'nullable|integer|owned:suppliers',
+        ]);
         Setting::updateOrCreate(['key' => 'linen_par_levels'], ['value' => (string) $data['linen_par_levels']]);
+        Setting::updateOrCreate(['key' => 'linen_default_supplier_id'], ['value' => (string) ($data['linen_default_supplier_id'] ?? '')]);
+        ActivityLogger::log('settings', 'linen', 'Updated linen par levels and the default laundry supplier');
 
         return back()->with('success', 'Par levels updated.');
     }

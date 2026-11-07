@@ -809,6 +809,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/desk-views', [Controllers\ReservationDeskController::class, 'saveView'])->middleware('perm:reservations.view')->name('views.store');
         Route::delete('/desk-views/{deskView}', [Controllers\ReservationDeskController::class, 'destroyView'])->middleware('perm:reservations.view')->name('views.destroy');
         Route::get('/create', 'create')->middleware('perm:reservations.create')->name('create');
+        // The booking desk can open a city-ledger account without leaving the form.
+        Route::post('/company', 'storeCompany')->middleware('perm:credit.manage')->name('company.store');
         Route::post('/', 'store')->middleware('perm:reservations.create')->name('store');
         Route::get('/{reservation}', 'show')->middleware('perm:reservations.view')->name('show');
         Route::get('/{reservation}/print', 'print')->middleware('perm:reservations.view')->name('print');
@@ -1098,8 +1100,10 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::controller(Controllers\BudgetController::class)->name('budgets.')->group(function () {
         Route::middleware('perm:budget.view')->group(function () {
             Route::get('/budgets', 'index')->name('index');
+            Route::get('/budgets/cost-centres', 'costCentres')->name('costcentres');   // v8.1
             Route::get('/budgets/{budget}', 'show')->whereNumber('budget')->name('show');
             Route::get('/budgets/{budget}/export', 'export')->whereNumber('budget')->name('export');
+            Route::get('/budgets/{budget}/variance', 'variance')->whereNumber('budget')->name('variance');   // v8.2
             Route::get('/budget-vs-actual', 'bva')->name('bva');
             Route::post('/budget-vs-actual/comments', 'comment')->name('comment');
             Route::delete('/budget-vs-actual/comments/{bcomment}', 'deleteComment')->whereNumber('bcomment')->name('comment.delete');
@@ -1111,12 +1115,15 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/budgets/{budget}/adjust', 'adjust')->whereNumber('budget')->name('adjust');
             Route::post('/budgets/{budget}/stats', 'saveStats')->whereNumber('budget')->name('stats');
             Route::post('/budgets/{budget}/import', 'import')->whereNumber('budget')->name('import');
+            Route::post('/budgets/{budget}/variance', 'explain')->whereNumber('budget')->name('explain');
             Route::post('/budgets/{budget}/submit', 'submit')->whereNumber('budget')->name('submit');
             Route::post('/budgets/{budget}/forecast', 'forecast')->whereNumber('budget')->name('forecast');
             Route::delete('/budgets/{budget}', 'destroy')->whereNumber('budget')->name('destroy');
         });
         Route::middleware('perm:budget.approve')->group(function () {
             Route::post('/budgets/settings', 'saveSettings')->name('settings');
+            Route::post('/budgets/{budget}/variance/signoff', 'signOff')->whereNumber('budget')->name('signoff');
+            Route::post('/budget-variance/comments/{bcomment}/accept', 'acceptExplanation')->whereNumber('bcomment')->name('comment.accept');
             Route::post('/budgets/{budget}/approve', 'approve')->whereNumber('budget')->name('approve');
             Route::post('/budgets/{budget}/return', 'returnDraft')->whereNumber('budget')->name('return');
             Route::post('/budgets/{budget}/reopen', 'reopen')->whereNumber('budget')->name('reopen');
@@ -1639,6 +1646,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/vouchers', 'storeVoucher')->middleware('perm:accounts.manage')->name('vouchers.store');
         Route::delete('/vouchers/{voucher}', 'deleteVoucher')->middleware('perm:accounts.manage')->name('vouchers.delete');
         Route::get('/city-ledger', 'cityLedger')->name('cityledger');
+        Route::get('/receivables', 'receivables')->name('receivables'); // v8.9 company receivables aged, with the documents
         Route::get('/city-ledger/{company}', 'companyLedger')->name('company');
         Route::post('/city-ledger/{company}/receipt', 'companyReceipt')->middleware('perm:accounts.manage')->name('company.receipt');
         Route::get('/cash-book', 'cashBook')->name('cashbook');
@@ -1651,6 +1659,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     // ---- HR
     Route::get('/hr/attendance', [Controllers\HrController::class, 'attendance'])->middleware('perm:hr.manage')->name('hr.attendance');
     Route::post('/hr/attendance', [Controllers\HrController::class, 'saveAttendance'])->middleware('perm:hr.manage')->name('hr.attendance.save');
+    Route::get('/hr/settings', [Controllers\HrController::class, 'settings'])->middleware('perm:hr.manage')->name('hr.settings');
+    Route::post('/hr/settings', [Controllers\HrController::class, 'saveSettings'])->middleware('perm:hr.manage')->name('hr.settings.save');
     Route::get('/hr/register', [Controllers\HrController::class, 'register'])->middleware('perm:hr.manage')->name('hr.register');
     // v7.43 public holidays – the gazetted Ghana calendar behind the roster, the register, leave and payroll
     Route::get('/hr/holidays', [Controllers\HrController::class, 'holidays'])->middleware('perm:hr.manage,roster.view,payroll.view')->name('hr.holidays');
@@ -1847,6 +1857,8 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/', 'index')->middleware('perm:rentals.view')->name('index');
         Route::get('/fleet', 'fleet')->middleware('perm:rentals.view')->name('fleet');
         Route::middleware('perm:rentals.manage')->group(function () {
+            Route::get('/settings', 'settings')->name('settings');
+            Route::post('/settings', 'saveSettings')->name('settings.save');
             Route::post('/', 'store')->name('store');
             Route::post('/vehicles', 'vehicleStore')->name('vehicles.store');
             Route::post('/vehicles/{vehicle}', 'vehicleUpdate')->whereNumber('vehicle')->name('vehicles.update');
@@ -1911,6 +1923,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/journals', 'store')->middleware(['perm:gl.journal', 'throttle:30,1'])->name('journals.store');
         Route::get('/journals/{journal}', 'show')->whereNumber('journal')->name('journals.show');
         Route::post('/journals/{journal}/reverse', 'reverse')->whereNumber('journal')->middleware('perm:gl.journal')->name('journals.reverse');
+        Route::post('/journals/{journal}/allocate', 'allocate')->whereNumber('journal')->middleware('perm:gl.journal')->name('journals.allocate');   // v8.1
         Route::post('/sync', 'sync')->middleware(['perm:gl.manage', 'throttle:10,1'])->name('sync');
         Route::post('/lock', 'lock')->middleware('perm:gl.manage')->name('lock');
         Route::get('/mapping', 'mapping')->middleware('perm:gl.manage')->name('mapping');
@@ -2770,6 +2783,20 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         });
     });
 
+    // Daily briefings — a pack per head of department and the consolidated GM/CEO brief.
+    // Each screen checks the permission of the pack it renders, so a head sees only their own.
+    Route::controller(Controllers\BriefingController::class)->prefix('briefings')->name('briefings.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/executive', 'exec')->name('exec');
+        Route::get('/executive/print', 'execPrint')->name('exec.print');
+        Route::get('/executive/csv', 'execCsv')->name('exec.csv');
+        Route::get('/book', 'book')->name('book');
+        Route::post('/{pack}/sign', 'sign')->where('pack', '[a-z]+')->name('sign');
+        Route::get('/{pack}/print', 'print')->where('pack', '[a-z]+')->name('print');
+        Route::get('/{pack}/csv', 'packCsv')->where('pack', '[a-z]+')->name('csv');
+        Route::get('/{pack}', 'show')->where('pack', '[a-z]+')->name('show');
+    });
+
     Route::get('/reports', [Controllers\ReportController::class, 'index'])->middleware('perm:reports.view')->name('reports.index');
     Route::get('/reports/{report}', [Controllers\ReportController::class, 'show'])->middleware('perm:reports.view,folio.shift_all')->name('reports.show');
 
@@ -2793,6 +2820,24 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::resource('users', Controllers\UserController::class)->except(['show', 'destroy']);
         Route::post('/users/{id}/two-factor/reset', [Controllers\Auth\TwoFactorController::class, 'reset'])->whereNumber('id')->name('users.2fa.reset');
         Route::resource('roles', Controllers\RoleController::class)->except(['show']);
+    });
+    // ---- Settings › Configuration: the register of every module's settings surface.
+    // Read-only by design — each value is changed on the screen that owns it, so the
+    // module keeps its own validation, permission and audit trail.
+    Route::middleware('perm:settings.view')->prefix('configuration')->name('configuration.')->controller(Controllers\ConfigurationController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/print', 'print')->name('print');
+        Route::get('/export', 'csv')->name('csv');
+        // before /{module}: "changed" is a page, not a module key
+        Route::get('/changed', 'changed')->name('changed');
+        Route::get('/on-null', 'onNull')->name('on-null');
+        Route::get('/history', 'history')->name('history');
+        Route::get('/handover', 'handover')->name('handover');
+        // the one write in this area: put a setting back to a value the property recorded
+        Route::middleware('perm:settings.manage')->group(function () {
+            Route::post('/history/{change}/restore', 'restore')->whereNumber('change')->name('restore');
+        });
+        Route::get('/{module}', 'show')->where('module', '[a-z0-9_]+')->name('show');
     });
     Route::middleware('perm:settings.manage')->group(function () {
         Route::get('/settings', [Controllers\SettingController::class, 'index'])->name('settings.index');
@@ -2911,6 +2956,17 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::controller(Controllers\RecreationController::class)->group(function () {
             Route::get('/outlet', 'outlet')->middleware('perm:club.desk')->name('outlet');
             Route::post('/outlet/sell', 'sell')->middleware('perm:club.desk')->name('sell');
+            // outlet cash desk: the shift that holds the takings, and the day (Z) report
+            Route::get('/shift', 'shift')->middleware('perm:club.desk')->name('shift');
+            Route::post('/shift/open', 'openShift')->middleware('perm:club.desk')->name('shift.open');
+            Route::post('/shift/close', 'closeShift')->middleware('perm:club.desk')->name('shift.close');
+            Route::post('/settings', 'saveSettings')->middleware('perm:club.manage')->name('settings');
+            // the gate: admit the ticket the counter sold
+            Route::get('/gate', 'gate')->middleware('perm:club.desk')->name('gate');
+            Route::post('/gate/redeem', 'redeem')->middleware('perm:club.desk')->name('gate.redeem');
+            Route::post('/gate/{daypass}/reverse', 'reverseAdmission')->middleware('perm:club.manage')->name('gate.reverse');
+            Route::get('/day', 'day')->middleware('perm:club.view')->name('day');
+            Route::get('/day/print', 'dayPrint')->middleware('perm:club.view')->name('day.print');
             Route::get('/sales', 'sales')->middleware('perm:club.view')->name('sales');
             Route::get('/sales/{sale}/receipt', 'receipt')->middleware('perm:club.view')->name('receipt');
             Route::post('/sales/{sale}/void', 'void')->middleware('perm:club.manage')->name('void');

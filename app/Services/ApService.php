@@ -752,20 +752,35 @@ class ApService
             'payments' => (int) array_sum(array_column($rows, 'payments'))];
     }
 
+    /** when goods received but not billed fall due: the receipt date plus the supplier's own terms */
+    protected static function receiptDue($po): Carbon
+    {
+        return Carbon::parse($po->grnDate())->addDays((int) $po->supplier->payment_terms_days);
+    }
+
+    /** the five ageing buckets, from days past due */
+    public const BUCKETS = ['current' => 'Not yet due', 'd30' => '1–30', 'd60' => '31–60', 'd90' => '61–90', 'd90p' => 'Over 90'];
+
+    protected static function bucketOf(int $days): string
+    {
+        return match (true) { $days <= 0 => 'current', $days <= 30 => 'd30', $days <= 60 => 'd60', $days <= 90 => 'd90', default => 'd90p' };
+    }
+
     /**
      * Ageing by days past due as at a date: current (not yet due), 1–30, 31–60, 61–90, 90+.
      * Unapplied home-currency payments and debit notes are shown as credits and netted in the balance.
+     * v8.8 each bucket also carries how many documents are in it, so a figure like 1–30 can be read as "two bills"
+     * before anyone leaves the screen to find out.
      */
     public static function ageing(?string $asOf = null, ?int $supplierId = null): Collection
     {
         $asOf ??= bdate()->toDateString();
         $rows = [];
-        $bucket = function (int $days): string {
-            return match (true) { $days <= 0 => 'current', $days <= 30 => 'd30', $days <= 60 => 'd60', $days <= 90 => 'd90', default => 'd90p' };
-        };
+        $bucket = fn (int $days): string => self::bucketOf($days);
         $row = function ($s) use (&$rows): int {
             $rows[$s->id] ??= ['supplier_id' => $s->id, 'supplier' => $s->name, 'terms' => (int) $s->payment_terms_days,
-                'current' => 0.0, 'd30' => 0.0, 'd60' => 0.0, 'd90' => 0.0, 'd90p' => 0.0, 'unbilled' => 0.0, 'credit' => 0.0, 'balance' => 0.0, 'oldest' => 0];
+                'current' => 0.0, 'd30' => 0.0, 'd60' => 0.0, 'd90' => 0.0, 'd90p' => 0.0, 'unbilled' => 0.0, 'credit' => 0.0, 'balance' => 0.0, 'oldest' => 0,
+                'counts' => ['current' => 0, 'd30' => 0, 'd60' => 0, 'd90' => 0, 'd90p' => 0], 'docs' => 0];
 
             return $s->id;
         };
@@ -773,29 +788,33 @@ class ApService
             ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $b) {
             $r = &$rows[$row($b->supplier)];
             $days = $b->daysOverdue($asOf);
-            $r[$bucket($days)] += $b->outstanding();
+            $k = $bucket($days);
+            $r[$k] += $b->outstanding();
+            $r['counts'][$k]++;
+            if ($b->outstanding() > 0.004) {
+                $r['docs']++;
+            }
             $r['oldest'] = max($r['oldest'], $days);
             unset($r);
         }
         foreach (self::unbilledReceipts($supplierId, $asOf) as $po) {
             $r = &$rows[$row($po->supplier)];
-            $due = Carbon::parse($po->grnDate())->addDays((int) $po->supplier->payment_terms_days);
+            $due = self::receiptDue($po);
             $days = max(0, (int) $due->diffInDays(Carbon::parse($asOf), false));
-            $r[$bucket($days)] += (float) $po->receiptValue;
+            $k = $bucket($days);
+            $r[$k] += (float) $po->receiptValue;
+            $r['counts'][$k]++;
+            $r['docs']++;
             $r['unbilled'] += (float) $po->receiptValue;
             $r['oldest'] = max($r['oldest'], $days);
             unset($r);
         }
-        foreach (SupplierPayment::with('supplier')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)->whereColumn('allocated', '<', 'amount')
-            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->filter(fn ($p) => $p->unapplied() > 0.004) as $p) {
-            $r = &$rows[$row($p->supplier)];
-            $r['credit'] += $p->unapplied();
-            unset($r);
-        }
-        foreach (SupplierInvoice::with('supplier')->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)
-            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $dn) {
-            $r = &$rows[$row($dn->supplier)];
-            $r['credit'] += $dn->outstanding();
+        // v9.2 the credit column is the shared credit rule, so the ageing, the bills list and the payments screen
+        // cannot print three versions of the same 11,600
+        foreach (self::creditSources($asOf, $supplierId)['rows'] as $c) {
+            $r = &$rows[$row($c['supplier'])];
+            $r['credit'] += $c['credit'];
+            $r['docs'] += $c['payment_count'] + $c['debit_note_count'];
             unset($r);
         }
 
@@ -807,6 +826,205 @@ class ApService
 
             return $r;
         })->filter(fn ($r) => abs($r['balance']) > 0.004 || $r['credit'] > 0)->sortByDesc('balance')->values();
+    }
+
+    /**
+     * Every credit on the payables ledger at a date, as the documents themselves: a payment with something still on
+     * account, and a debit note not yet applied. One rule answers "what is a credit" — a foreign payment's remainder is
+     * an exchange difference and a cancelled payment is not a credit — and it answers "which documents" too, so the bill
+     * screen's apply-credit list is the same set the ageing nets off rather than a fourth query written beside it.
+     *
+     * $currency narrows it to the money a bill is written in: applying a credit across currencies is refused, so
+     * offering one is offering a button that throws.
+     *
+     * @return Collection<int, array{key: string, kind: string, doc: string, date: string, supplier_id: int, supplier: mixed, free: float, currency: string}>
+     */
+    public static function openCredits(?int $supplierId = null, ?string $asOf = null, ?string $currency = null): Collection
+    {
+        $asOf ??= bdate()->toDateString();
+        $home = strtoupper(trim((string) (hotel()?->currency ?: 'GHS')));
+        $want = $currency === null ? null : strtoupper(trim($currency));
+        $out = collect();
+        foreach (SupplierPayment::with('supplier')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)
+            ->whereColumn('allocated', '<', 'amount')
+            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $p) {
+            if ($p->unapplied() <= 0.004) {
+                continue;
+            }
+            // what is left of a payment is only ever credit in the property's own money
+            $out->push(['key' => 'p'.$p->id, 'kind' => 'payment', 'doc' => $p->payment_no,
+                'date' => $p->date->toDateString(), 'supplier_id' => (int) $p->supplier_id, 'supplier' => $p->supplier,
+                'free' => round($p->unapplied(), 2), 'currency' => $home]);
+        }
+        foreach (SupplierInvoice::with('supplier')->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])
+            ->whereDate('doc_date', '<=', $asOf)
+            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $dn) {
+            if ($dn->outstanding() <= 0.004) {
+                continue;
+            }
+            $out->push(['key' => 'd'.$dn->id, 'kind' => 'debit_note', 'doc' => $dn->doc_no,
+                'date' => $dn->doc_date->toDateString(), 'supplier_id' => (int) $dn->supplier_id, 'supplier' => $dn->supplier,
+                'free' => round($dn->outstanding(), 2),
+                'currency' => $dn->isForeign() ? strtoupper((string) $dn->currency) : $home]);
+        }
+
+        return ($want === null ? $out : $out->where('currency', $want))->values();
+    }
+
+    /**
+     * The credits on the payables ledger at a date, per supplier and in total: the aggregate of openCredits(). The
+     * ageing nets this off its buckets, the bills list takes it off what is payable, the payments screen prints it, and
+     * the bill screen lists the documents behind it.
+     *
+     * @return array{as_of: string, payments: float, payment_count: int, debit_notes: float, debit_note_count: int, credits: float, rows: Collection}
+     */
+    public static function creditSources(?string $asOf = null, ?int $supplierId = null): array
+    {
+        $asOf ??= bdate()->toDateString();
+        $rows = self::openCredits($supplierId, $asOf)->groupBy('supplier_id')->map(function ($group) {
+            $payments = $group->where('kind', 'payment');
+            $notes = $group->where('kind', 'debit_note');
+
+            return ['supplier' => $group->first()['supplier'],
+                'payments' => round((float) $payments->sum('free'), 2), 'payment_count' => $payments->count(),
+                'debit_notes' => round((float) $notes->sum('free'), 2), 'debit_note_count' => $notes->count(),
+                'credit' => round((float) $group->sum('free'), 2)];
+        })->values();
+
+        return ['as_of' => $asOf,
+            'payments' => round((float) $rows->sum('payments'), 2), 'payment_count' => (int) $rows->sum('payment_count'),
+            'debit_notes' => round((float) $rows->sum('debit_notes'), 2), 'debit_note_count' => (int) $rows->sum('debit_note_count'),
+            'credits' => round((float) $rows->sum('credit'), 2), 'rows' => $rows];
+    }
+
+    /**
+     * What is payable and how soon — computed once, for both screens that print it. The supplier bills screen used to
+     * work out its own overdue figure with `due_date < today`, so a bill with no due date was overdue on the ageing and
+     * not on the bills list; and neither figure included goods received but not billed, which are owed just the same.
+     * One banding rule now serves both, so the two screens cannot report different answers to the same question.
+     *
+     * @return array{as_of: string, open_bills: float, unbilled_value: float, credits: float, overdue: float, due7: float, payable: float, counts: array<string, int>}
+     */
+    public static function dueStats(?string $asOf = null): array
+    {
+        $asOf ??= bdate()->toDateString();
+        $on = Carbon::parse($asOf)->startOfDay();
+        $week = $on->copy()->addDays(7);
+        $out = ['as_of' => $asOf, 'open_bills' => 0.0, 'unbilled_value' => 0.0, 'credits' => 0.0, 'overdue' => 0.0, 'due7' => 0.0, 'payable' => 0.0,
+            'counts' => ['bills' => 0, 'unbilled' => 0, 'overdue' => 0, 'due7' => 0, 'hold' => 0]];
+        foreach (SupplierInvoice::where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)->get() as $b) {
+            $open = $b->outstanding();
+            if ($open <= 0.004) {
+                continue;
+            }
+            $out['open_bills'] += $open;
+            $out['counts']['bills']++;
+            self::band($out, $open, $b->due_date?->copy() ?? $b->doc_date->copy(), $on, $week);
+        }
+        foreach (self::unbilledReceipts(null, $asOf) as $po) {
+            $value = (float) $po->receiptValue;
+            if ($value <= 0.004) {
+                continue;
+            }
+            $out['unbilled_value'] += $value;
+            $out['counts']['unbilled']++;
+            self::band($out, $value, self::receiptDue($po), $on, $week);
+        }
+        // the credits the ageing nets off, from the one method that knows what a credit is
+        $out['credits'] = self::creditSources($asOf)['credits'];
+        $out['counts']['hold'] = SupplierInvoice::where('status', 'on_hold')->count();
+        $out['payable'] = round($out['open_bills'] + $out['unbilled_value'] - $out['credits'], 2);
+        foreach (['open_bills', 'unbilled_value', 'overdue', 'due7'] as $k) {
+            $out[$k] = round($out[$k], 2);
+        }
+
+        return $out;
+    }
+
+    /**
+     * The supplier payments screen's figures. Two of them are the credit rule above, so what the screen calls
+     * "credits on the ageing" is the figure the ageing nets off rather than a fourth opinion; the other two are what a
+     * payment clerk needs beside them — what has gone out in the last thirty days, and how many payments were cancelled.
+     *
+     * @return array{as_of: string, payments: float, payment_count: int, debit_notes: float, debit_note_count: int, credits: float, paid: float, paid_count: int, cancelled_count: int}
+     */
+    public static function paymentStats(?string $asOf = null): array
+    {
+        $asOf ??= bdate()->toDateString();
+        $from = Carbon::parse($asOf)->subDays(29)->toDateString();
+        $credits = self::creditSources($asOf);
+        $recent = fn () => SupplierPayment::whereNull('cancelled_at')
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $asOf);
+
+        return ['as_of' => $asOf,
+            'payments' => $credits['payments'], 'payment_count' => $credits['payment_count'],
+            'debit_notes' => $credits['debit_notes'], 'debit_note_count' => $credits['debit_note_count'],
+            'credits' => $credits['credits'],
+            // home money: a foreign payment is counted at what it cost, not at the supplier's currency
+            'paid' => round((float) $recent()->sum('amount'), 2), 'paid_count' => $recent()->count(),
+            'cancelled_count' => SupplierPayment::whereNotNull('cancelled_at')->count()];
+    }
+
+    /** put one document in the overdue band or the due-within-a-week band, the way the ageing buckets it */
+    protected static function band(array &$out, float $amount, Carbon $due, Carbon $on, Carbon $week): void
+    {
+        if ($due->lt($on)) {
+            $out['overdue'] += $amount;
+            $out['counts']['overdue']++;
+        } elseif ($due->lte($week)) {
+            $out['due7'] += $amount;
+            $out['counts']['due7']++;
+        }
+    }
+
+    /**
+     * The documents behind the ageing: one row per open bill, debit note, unapplied payment and goods receipt that has
+     * not been billed. An ageing total nobody can open is a number taken on trust — this is what makes each bucket
+     * auditable, and because the rows carry signed amounts, their total must equal the balance the ageing prints.
+     *
+     * @return Collection<int, array{kind: string, supplier_id: int, supplier: string, doc: string, ref: ?string, date: string, due: ?string, days: int, bucket: string, amount: float, note: ?string}>
+     */
+    public static function agedItems(?string $asOf = null, ?int $supplierId = null): Collection
+    {
+        $asOf ??= bdate()->toDateString();
+        $out = collect();
+        foreach (SupplierInvoice::with('supplier')->where('type', 'invoice')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)
+            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $b) {
+            if ($b->outstanding() <= 0.004) {
+                continue;
+            }
+            $days = $b->daysOverdue($asOf);
+            $out->push(['kind' => 'Bill', 'supplier_id' => (int) $b->supplier_id, 'supplier' => $b->supplier?->name ?? '',
+                'doc' => $b->doc_no, 'ref' => $b->supplier_ref, 'date' => $b->doc_date->toDateString(),
+                'due' => ($b->due_date ?? $b->doc_date)->toDateString(), 'days' => $days, 'bucket' => self::bucketOf($days),
+                'amount' => round($b->outstanding(), 2), 'note' => $b->isForeign() ? strtoupper((string) $b->currency).' bill' : null]);
+        }
+        foreach (self::unbilledReceipts($supplierId, $asOf) as $po) {
+            $due = self::receiptDue($po);
+            $days = max(0, (int) $due->diffInDays(Carbon::parse($asOf), false));
+            $out->push(['kind' => 'Goods received', 'supplier_id' => (int) $po->supplier_id, 'supplier' => $po->supplier?->name ?? '',
+                'doc' => $po->grn_no ?? $po->po_no, 'ref' => $po->invoice_no, 'date' => $po->grnDate(),
+                'due' => $due->toDateString(), 'days' => $days, 'bucket' => self::bucketOf($days),
+                'amount' => round((float) $po->receiptValue, 2), 'note' => 'not yet billed']);
+        }
+        foreach (SupplierInvoice::with('supplier')->where('type', 'debit_note')->whereIn('status', ['open', 'partial'])->whereDate('doc_date', '<=', $asOf)
+            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get() as $dn) {
+            if ($dn->outstanding() <= 0.004) {
+                continue;
+            }
+            $out->push(['kind' => 'Debit note', 'supplier_id' => (int) $dn->supplier_id, 'supplier' => $dn->supplier?->name ?? '',
+                'doc' => $dn->doc_no, 'ref' => $dn->supplier_ref, 'date' => $dn->doc_date->toDateString(),
+                'due' => null, 'days' => 0, 'bucket' => 'current', 'amount' => round(-1 * $dn->outstanding(), 2), 'note' => 'credit']);
+        }
+        foreach (SupplierPayment::with('supplier')->whereNull('cancelled_at')->whereDate('date', '<=', $asOf)
+            ->when($supplierId, fn ($q) => $q->where('supplier_id', $supplierId))->get()->filter(fn ($p) => $p->unapplied() > 0.004) as $p) {
+            $out->push(['kind' => 'Unapplied payment', 'supplier_id' => (int) $p->supplier_id, 'supplier' => $p->supplier?->name ?? '',
+                'doc' => $p->payment_no, 'ref' => null, 'date' => $p->date->toDateString(), 'due' => null, 'days' => 0,
+                'bucket' => 'current', 'amount' => round(-1 * $p->unapplied(), 2), 'note' => 'paid, not applied']);
+        }
+
+        // oldest first, and within a day's band the biggest document first: sortBy is stable, so the second call orders ties
+        return $out->sortByDesc('amount')->sortByDesc('days')->values();
     }
 
     /** Supplier statement: every document that moves the balance, in date order, with a running balance (credit = we owe). */

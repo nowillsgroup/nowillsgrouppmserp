@@ -91,40 +91,11 @@ class ManagementReportService
      */
     public static function arAgeing(Carbon $asOn): Collection
     {
-        $asOn = $asOn->copy()->startOfDay();
-        $bills = FolioTransaction::where('category', 'city_ledger')->where('is_void', false)->whereNotNull('company_id')->whereDate('business_date', '<=', $asOn)
-            ->orderBy('business_date')->orderBy('id')->get(['company_id', 'business_date', 'due_date', 'amount'])->groupBy('company_id');
-        $paid = Voucher::where('type', 'receipt')->whereNotNull('company_id')->whereDate('date', '<=', $asOn)->get(['company_id', 'amount'])->groupBy('company_id')->map->sum('amount');
-        $companies = Company::whereIn('id', $bills->keys()->merge($paid->keys())->unique())->orderBy('name')->get();
-
-        return $companies->map(function ($c) use ($bills, $paid, $asOn) {
-            $credit = (float) ($paid[$c->id] ?? 0);
-            $b = ['b0' => 0.0, 'b30' => 0.0, 'b60' => 0.0, 'b90' => 0.0];
-            $billed = 0.0;
-            $oldest = null;
-            foreach ($bills[$c->id] ?? [] as $bill) {
-                $amt = (float) $bill->amount;
-                $billed += $amt;
-                $applied = min($amt, $credit);
-                $credit -= $applied;
-                $open = round($amt - $applied, 2);
-                if ($open <= 0) {
-                    continue;
-                }
-                $dueDate = $bill->due_date?->copy() ?? $bill->business_date->copy()->addDays((int) $c->credit_days);
-                $age = $dueDate->lt($asOn) ? max(0, (int) $dueDate->diffInDays($asOn)) : 0;
-                if ($age > 0) {
-                    $oldest = max($oldest ?? 0, $age);
-                }
-                $b[$age <= 30 ? 'b0' : ($age <= 60 ? 'b30' : ($age <= 90 ? 'b60' : 'b90'))] += $open;
-            }
-            $outstanding = array_sum($b) - $credit; // leftover credit = advance / on-account
-
-            return ['company' => $c->name, 'type' => ucwords(str_replace('_', ' ', $c->type)), 'billed' => round($billed, 2), 'received' => (float) ($paid[$c->id] ?? 0),
-                'b0' => round($b['b0'], 2), 'b30' => round($b['b30'], 2), 'b60' => round($b['b60'], 2), 'b90' => round($b['b90'], 2),
-                'unapplied' => round($credit, 2), 'outstanding' => round($outstanding, 2), 'limit' => (float) $c->credit_limit,
-                'oldest' => $oldest !== null ? $oldest.' d' : '—',
-                'flag' => $c->credit_limit > 0 && $outstanding > $c->credit_limit ? 'OVER LIMIT' : ($b['b90'] > 0 ? '90+ overdue' : ''), 'id' => $c->id];
-        })->filter(fn ($r) => abs($r['outstanding']) > 0.004 || $r['billed'] > 0)->sortByDesc('outstanding')->values();
+        // v8.9 the ageing moved into ArService, because the receivables screen needs the same FIFO buckets *and* the
+        // documents behind them. This report keeps its shape — the totals it prints — so its three other readers
+        // (the KPI service and two briefings) are untouched; only the documents are dropped.
+        return ArService::ageing($asOn)
+            ->map(fn ($r) => array_diff_key($r, ['counts' => true, 'items' => true, 'oldest_days' => true]))
+            ->values();
     }
 }

@@ -226,7 +226,8 @@ class RequisitionService
         $b = self::budgetStatus($r->department, null, $r->id);
         $over = $b['budget'] !== null && $b['used'] + $value > $b['budget'] + 0.005;
         if ($over) {
-            $msg = "This takes {$r->department->name} over its monthly stores budget: ".money($b['used'] + $value).' against '.money($b['budget']).'.';
+            $msg = "This takes {$r->department->name} over its monthly stores allowance: ".money($b['used'] + $value).' against '.money($b['budget'])
+                .($b['source_note'] ? ' ('.$b['source_note'].')' : '').'.';
             if (setting('req_over_budget', 'warn') === 'block' && ! $u->hasPermission('requisitions.manage')) {
                 throw ValidationException::withMessages(['approve' => $msg.' Only a user with requisition setup rights can approve it.']);
             }
@@ -445,17 +446,27 @@ class RequisitionService
     {
         $month ??= bdate();
         if (! $d) {
-            return ['budget' => null, 'issued' => 0.0, 'committed' => 0.0, 'used' => 0.0, 'left' => null, 'pct' => null];
+            return ['budget' => null, 'issued' => 0.0, 'committed' => 0.0, 'used' => 0.0, 'left' => null, 'pct' => null,
+                'source' => null, 'source_note' => null];
         }
         $issued = (float) StoreIssue::where('department_id', $d->id)->whereDate('date', '>=', $month->copy()->startOfMonth()->toDateString())->whereDate('date', '<=', $month->copy()->endOfMonth()->toDateString())->sum('value');
         $committed = Requisition::with('lines.item')->where('department_id', $d->id)->whereIn('status', Requisition::OPEN_FOR_ISSUE)
             ->when($exceptReq, fn ($q) => $q->whereKeyNot($exceptReq))->get()
             ->sum(fn ($r) => $r->lines->sum(fn ($l) => $l->outstanding() * self::cost($l->item)));
-        $budget = $d->monthly_budget !== null && (float) $d->monthly_budget > 0 ? (float) $d->monthly_budget : null;
+        // v8.1 – the department's own budget governs when there is one; the single monthly figure on the department is
+        // the fallback (and says so), so a property moving to cost-centre budgets never silently loses its cap.
+        $fromBudget = BudgetService::departmentAllowance($d, self::expenseHeadFor($d->id), $month);
+        $legacy = $d->monthly_budget !== null && (float) $d->monthly_budget > 0 ? (float) $d->monthly_budget : null;
+        $budget = $fromBudget ? (float) $fromBudget['amount'] : $legacy;
+        $source = $fromBudget ? 'budget' : ($legacy !== null ? 'setup' : null);
+        $note = $fromBudget
+            ? $fromBudget['budget']->budget_no.' · '.$fromBudget['budget']->fyLabel().' · month '.$fromBudget['month']
+            : ($legacy !== null ? 'monthly figure on the department' : null);
         $used = round($issued + $committed, 2);
 
         return ['budget' => $budget, 'issued' => round($issued, 2), 'committed' => round($committed, 2), 'used' => $used,
-            'left' => $budget === null ? null : round($budget - $used, 2), 'pct' => $budget ? round($used / $budget * 100, 1) : null];
+            'left' => $budget === null ? null : round($budget - $used, 2), 'pct' => $budget ? round($used / $budget * 100, 1) : null,
+            'source' => $source, 'source_note' => $note];
     }
 
     /**

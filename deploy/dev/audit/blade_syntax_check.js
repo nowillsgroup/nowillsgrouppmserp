@@ -4,7 +4,8 @@
  *
  * Every PHP expression a view sends through the compiler is re-parsed here:
  *   @php … @endphp blocks, {{ … }} / {!! … !!} echoes, the expression inside
- *   @if/@elseif/@unless/@while/@foreach/@forelse/@switch/@case/@json/@checked…
+ *   @if/@elseif/@unless/@while/@foreach/@forelse/@switch/@case/@json/@checked…,
+ *   and the PHP in a bound component attribute (:sub="…", :options="…")
  * A failure means Blade would choke on that argument at render time.
  *
  * Directive arguments are extracted with a balanced-paren scanner rather than a
@@ -136,6 +137,15 @@ for (const file of files) {
   for (const m of src.matchAll(/\{!!([\s\S]*?)!!\}/g)) {
     const body = (m[1] || '').trim();
     if (body) push(`<?php $__v = ( ${body} ); ?>`, m.index);
+  }
+
+  // Bound component attributes compile to `echo e(<expr>)`, so an unescaped quote inside one is a fatal render
+  // error — and one this audit used to miss until a `:sub="… the year's plan"` reached a preview as a blank.
+  // The `:` must open an attribute (preceded by whitespace), so Alpine's `x-bind:class="…"` stays out of scope.
+  for (const m of src.matchAll(/(?<=\s):([a-zA-Z][\w.-]*)="([^"]*)"/g)) {
+    const body = (m[2] || '').trim();
+    if (!body || body.startsWith('{{') || body.startsWith('@')) continue;
+    push(`<?php $__v = ( ${body} ); ?>`, m.index);
   }
 
   for (const m of src.matchAll(/@([a-z]+)\s*(?=\()/g)) {

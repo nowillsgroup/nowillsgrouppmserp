@@ -11,7 +11,7 @@ class ClubTicketPayment extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2'];
+        return ['amount' => 'decimal:2', 'received_at' => 'datetime'];
     }
 
     public function sale()
@@ -22,5 +22,10 @@ class ClubTicketPayment extends Model
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);
+    }
+
+    public function receiver()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'received_by');
     }
 }

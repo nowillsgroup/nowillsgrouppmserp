@@ -170,9 +170,61 @@ class LaundryService
     }
 
     /**
-     * Hand the laundry back. In-house guest → one charge on the room folio. Walk-in → a paid, closed invoice.
+     * What the order comes to: the listed items plus express, and the tax the bill will carry.
+     *
+     * Prices are entered either exclusive (tax added on top) or inclusive (tax extracted), following
+     * the same tax-prices setting the outlets use — so laundry prices always attract the VAT, NHIL,
+     * GETFund and tourism-levy components configured for the hotel's service category.
+     *
+     * @return array{listed: float, net: float, tax: float, total: float, rate: float, inclusive: bool, components: array<string, float>}
      */
-    public static function deliver(LaundryOrder $o, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null, array $payments = []): LaundryOrder
+    public static function quote(LaundryOrder $o): array
+    {
+        $listed = round((float) $o->total, 2);
+        $split = TaxService::splitPrice($listed, null, 'laundry');
+
+        return ['listed' => $listed, 'net' => (float) $split['net'], 'tax' => (float) $split['tax'], 'total' => (float) $split['total'],
+            'rate' => (float) $split['rate'], 'inclusive' => TaxService::pricesInclusive(),
+            'components' => TaxService::componentRates('laundry', $listed)];
+    }
+
+    /** The components a laundry line carries, e.g. "VAT 15% + NHIL 2.5% + GETFund levy 2.5% + Tourism levy 1%". */
+    public static function taxLabel(?float $amount = null): string
+    {
+        $parts = [];
+        foreach (TaxService::componentRates('laundry', $amount) as $code => $rate) {
+            if ($rate <= 0) {
+                continue;
+            }
+            $parts[] = (TaxService::COMPONENTS[$code][0] ?? $code).' '.rtrim(rtrim(number_format((float) $rate, 2), '0'), '.').'%';
+        }
+
+        return $parts ? implode(' + ', $parts) : 'no tax';
+    }
+
+    /** The laundry tax before an amount is known (itemising screen): rate, its components and the mode. */
+    public static function taxInfo(): array
+    {
+        return ['rate' => round(array_sum(TaxService::componentRates('laundry')), 4), 'label' => self::taxLabel(), 'inclusive' => TaxService::pricesInclusive()];
+    }
+
+    /** Cash, card, mobile money or bank — the modes a guest can settle with at the counter. */
+    protected static function isDirectMode(int $modeId): bool
+    {
+        return PaymentMode::where('is_active', true)->whereKey($modeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists();
+    }
+
+    /**
+     * Hand the laundry back.
+     *
+     *   in-house guest, settle = room → one charge on the room folio (the default)
+     *   in-house guest, settle = pay  → the guest settles now and gets a paid invoice
+     *   walk-in customer              → always paid on delivery
+     *
+     * The net of tax is what gets posted, so the bill carries the tax exactly once whether the
+     * hotel's prices are entered inclusive or exclusive.
+     */
+    public static function deliver(LaundryOrder $o, ?int $paymentModeId = null, ?string $reference = null, ?array $cheque = null, array $payments = [], ?string $settle = null): LaundryOrder
     {
         if (! in_array($o->status, ['processing', 'ready'])) {
             throw new RuntimeException($o->status === 'collected' ? 'Add the items before delivering.' : "Laundry {$o->order_no} is already {$o->statusLabel()}.");
@@ -180,26 +232,27 @@ class LaundryService
         if ((float) $o->total <= 0) {
             throw new RuntimeException('The order has no chargeable items.');
         }
+        $direct = $o->type === 'walk_in' || $settle === 'pay';
         $payments = array_values($payments);
-        if ($payments && $o->type !== 'walk_in') {
-            throw ValidationException::withMessages(['payments' => 'Split tender is available only for walk-in laundry payments.']);
+        if ($payments && ! $direct) {
+            throw ValidationException::withMessages(['payments' => 'Split tender is available only when the laundry is being paid for now.']);
         }
         if ($payments && ($paymentModeId || count($payments) < 2 || count($payments) > 10)) {
             throw ValidationException::withMessages(['payments' => $paymentModeId ? 'Use either one payment mode or split tender rows, not both.' : 'Use between two and ten payment tenders.']);
         }
-        if ($o->type === 'walk_in' && ! $payments && ! $paymentModeId) {
-            throw ValidationException::withMessages(['payment_mode_id' => 'Choose how the customer is paying.']);
+        if ($direct && ! $payments && ! $paymentModeId) {
+            throw ValidationException::withMessages(['payment_mode_id' => 'Choose how the laundry is being paid for.']);
         }
-        if ($o->type === 'walk_in') {
+        if ($direct) {
             $modes = $payments ? array_column($payments, 'payment_mode_id') : [$paymentModeId];
             foreach ($modes as $i => $modeId) {
-                if (! PaymentMode::where('is_active', true)->whereKey((int) $modeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                if (! self::isDirectMode((int) $modeId)) {
                     throw ValidationException::withMessages([$payments ? "payments.{$i}.payment_mode_id" : 'payment_mode_id' => 'Choose a cash, card, UPI / mobile money or bank payment mode.']);
                 }
             }
         }
 
-        DB::transaction(function () use ($o, $paymentModeId, $reference, $cheque, $payments) {
+        DB::transaction(function () use ($o, $paymentModeId, $reference, $cheque, $payments, $direct) {
             $o = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
             if (! in_array($o->status, ['processing', 'ready'], true)) {
                 throw new RuntimeException("Laundry {$o->order_no} is already {$o->statusLabel()} and can't be delivered.");
@@ -210,23 +263,26 @@ class LaundryService
             if ($o->folio_transaction_id) {
                 throw new RuntimeException("Laundry {$o->order_no} has already been charged.");
             }
-            if ($payments && $o->type !== 'walk_in') {
-                throw ValidationException::withMessages(['payments' => 'Split tender is available only for walk-in laundry payments.']);
-            }
+            $quote = self::quote($o);
             $desc = "Laundry {$o->order_no} – {$o->pieces} pc".($o->pieces === 1 ? '' : 's').($o->speed === 'express' ? ' (express)' : '');
             $extra = ['source_type' => 'laundry', 'source_id' => $o->id, 'reference' => $o->order_no];
-            if ($o->type === 'guest') {
-                $stay = ReservationRoom::find($o->reservation_room_id);
+            $stay = $o->reservation_room_id ? ReservationRoom::with('reservation')->find($o->reservation_room_id) : null;
+            if ($o->type === 'guest' && ! $direct) {
                 if (! $stay || $stay->status !== 'checked_in') {
-                    throw new RuntimeException('The guest has checked out – post the laundry on their folio from Billing, or cancel this order.');
+                    throw new RuntimeException('The guest has checked out – take payment for the laundry now, or cancel the order.');
                 }
                 $folio = FolioService::openForStay($stay);
-                $tx = FolioService::charge($folio, 'laundry', $desc, (float) $o->total, true, $extra);
             } else {
-                $name = preg_split('/\s+/', trim($o->guest_name), 2);
-                $guest = Guest::create(['first_name' => $name[0], 'last_name' => $name[1] ?? null, 'phone' => $o->phone]);
-                $folio = FolioService::openStandalone(['guest_id' => $guest->id, 'type' => 'walk_in']);
-                $tx = FolioService::charge($folio, 'laundry', $desc, (float) $o->total, true, $extra);
+                // Paid across the counter: the guest keeps their own guest record, the room folio stays clean.
+                $guestId = $stay?->guest_id ?? $stay?->reservation?->guest_id;
+                if (! $guestId) {
+                    $name = preg_split('/\s+/', trim($o->guest_name), 2);
+                    $guestId = Guest::create(['first_name' => $name[0], 'last_name' => $name[1] ?? null, 'phone' => $o->phone])->id;
+                }
+                $folio = FolioService::openStandalone(['guest_id' => $guestId, 'type' => 'walk_in', 'reservation_id' => $stay?->reservation_id]);
+            }
+            $tx = FolioService::charge($folio, 'laundry', $desc, $quote['net'], true, $extra);
+            if ($direct) {
                 $amountDue = round((float) $tx->amount + (float) $tx->tax_amount, 2);
                 if ($payments) {
                     $allocated = round(array_sum(array_map(fn ($line) => round((float) $line['amount'], 2), $payments)), 2);
@@ -234,8 +290,7 @@ class LaundryService
                         throw ValidationException::withMessages(['payments' => 'Payment tenders must total '.money($amountDue).' to settle the laundry order.']);
                     }
                     foreach ($payments as $i => $line) {
-                        $modeId = (int) ($line['payment_mode_id'] ?? 0);
-                        if (! PaymentMode::where('is_active', true)->whereKey($modeId)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->exists()) {
+                        if (! self::isDirectMode((int) ($line['payment_mode_id'] ?? 0))) {
                             throw ValidationException::withMessages(["payments.{$i}.payment_mode_id" => 'Choose an active direct payment mode.']);
                         }
                         $lineReference = trim((string) ($line['reference'] ?? '')) ?: $o->order_no;
@@ -244,7 +299,7 @@ class LaundryService
                                 $line['momo_network'] ?? null, $line['momo_phone'] ?? null, $lineReference,
                             ]))), 0, 80);
                         }
-                        FolioService::payment($folio, round((float) $line['amount'], 2), $modeId, $lineReference, 'settlement', 'payment', [
+                        FolioService::payment($folio, round((float) $line['amount'], 2), (int) $line['payment_mode_id'], $lineReference, 'settlement', 'payment', [
                             'bank_name' => $line['cheque_bank_name'] ?? null, 'number' => $line['cheque_number'] ?? null,
                             'bank_branch' => $line['cheque_bank_branch'] ?? null,
                         ]);
@@ -255,11 +310,12 @@ class LaundryService
                 FolioService::close($folio->fresh());
             }
             $o->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'delivered_by' => auth()->id(), 'folio_id' => $folio->id,
-                'folio_transaction_id' => $tx->id, 'payment_mode_id' => $o->type === 'walk_in' && ! $payments ? $paymentModeId : null])->save();
+                'folio_transaction_id' => $tx->id, 'payment_mode_id' => $direct && ! $payments ? $paymentModeId : null])->save();
             if ($o->guest_request_id && ($req = GuestRequest::find($o->guest_request_id)) && in_array($req->status, GuestRequest::OPEN)) {
                 GuestPortalService::transition($req, 'done', "Laundry delivered – {$o->pieces} pcs");
             }
-            ActivityLogger::log('laundry', 'deliver', "Laundry {$o->order_no} delivered – ".money($o->total).($o->type === 'guest' ? " posted to {$folio->folio_no}" : " paid, invoice {$folio->fresh()->invoice_no}"), $o);
+            ActivityLogger::log('laundry', 'deliver', "Laundry {$o->order_no} delivered – ".money($quote['total'])
+                .($direct ? " paid, invoice {$folio->fresh()->invoice_no}" : " posted to {$folio->folio_no}"), $o);
         });
 
         return $o->fresh(['folio', 'folioTransaction']);

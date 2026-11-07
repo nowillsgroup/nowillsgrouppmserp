@@ -26,9 +26,50 @@ class ReservationRoom extends Model
         return (float) $this->rate + (float) $this->extra_charge;
     }
 
+    /** A day-use stay keeps the room for a few hours: it has no nights. */
+    public function isDayUse(): bool
+    {
+        return (bool) $this->is_day_use;
+    }
+
+    /** "4 hours" — how long the room was sold for; null on an overnight stay. */
+    public function dayUseHoursLabel(): ?string
+    {
+        if (! $this->is_day_use || ! $this->day_use_hours) {
+            return null;
+        }
+
+        $hours = (int) $this->day_use_hours;
+
+        return $hours.' '.($hours === 1 ? 'hour' : 'hours');
+    }
+
+    /** The hourly rate the desk sold those hours at; null when it was not recorded. */
+    public function dayUseRateLabel(): ?string
+    {
+        if (! $this->is_day_use || $this->day_use_rate === null) {
+            return null;
+        }
+
+        return money((float) $this->day_use_rate).' / hour';
+    }
+
+    /** "until 18:00" — only when the desk recorded a time. */
+    public function dayUseUntilLabel(): ?string
+    {
+        if (! $this->is_day_use || ! $this->day_use_until) {
+            return null;
+        }
+
+        return 'until '.substr((string) $this->day_use_until, 0, 5);
+    }
+
     protected function casts(): array
     {
         return [
+            'is_day_use' => 'boolean',
+            'day_use_hours' => 'integer',
+            'day_use_rate' => 'decimal:2',
             'arrival_date' => 'date',
             'grc_signed_at' => 'datetime',
             'portal_seen_at' => 'datetime',

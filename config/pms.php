@@ -210,12 +210,15 @@ return [
             'channels.manage' => 'Manage OTA connections, mappings, restrictions, pushes & iCal feeds'],
         'Reports' => ['reports.view' => 'View reports, save personal report views & pin them to the dashboard',
             'reports.schedule' => 'Schedule e-mailed reports, share saved views, send reports to external addresses', // v5.4
-            'reports.alerts' => 'Manage KPI threshold alerts and acknowledge alert events'], // v5.4
+            'reports.alerts' => 'Manage KPI threshold alerts and acknowledge alert events', // v5.4
+            // Daily briefings: the hub itself is gated by the department permissions of the packs
+            // it lists (a head only sees their own), so this one key guards the consolidated pack.
+            'reports.exec' => 'Read the daily executive brief for the General Manager & CEO — whole-property scorecard, cash, receivables, people and risks'],
         'Packages & Meal Plans' => ['packages.view' => 'View package dashboard, meal cover forecast, entitlements & package catalogue', // v5.5
             'packages.redeem' => 'Record breakfast / meal covers and allowances used at the restaurant door, charge extras to the room',
             'packages.sell' => 'Add packages (dinner, airport drop, spa credit …) to a stay',
             'packages.manage' => 'Manage the package catalogue, rate-plan inclusions, package settings and void redemptions'],
-        'Administration' => ['masters.manage' => 'Manage masters', 'users.manage' => 'Manage users & roles', 'settings.manage' => 'Hotel settings', 'logs.view' => 'View activity logs'],
+        'Administration' => ['masters.manage' => 'Manage masters', 'users.manage' => 'Manage users & roles', 'settings.view' => 'Read the configuration register — every module\'s settings and their values', 'settings.manage' => 'Hotel settings & the configuration export', 'logs.view' => 'View activity logs'],
         'Upselling' => ['upsell.view' => 'View upsell offers, orders, requests and conversion', 'upsell.sell' => 'Sell upsells at the desk, confirm / decline guest requests, cancel orders, e-mail offers',
             'upsell.manage' => 'Manage the offer catalogue, prices, staff incentives and upselling settings'],
         'Security' => ['security.view' => 'View visitor register, gate passes, incidents and the security dashboard',
@@ -227,6 +230,24 @@ return [
             'security.manage' => 'Watch list, overrides (barred persons, no-visitor rooms, after-hours), close / reopen incidents, security settings'],
         'API & Integrations' => ['api.view' => 'View API clients, webhooks, deliveries and the API request log',
             'api.manage' => 'Issue / rotate / revoke API keys, manage webhook endpoints, retry deliveries, API settings'],
+        // v7.62 the report table gates 86 of its 472 reports by area rather than by
+        // reports.view. Those keys were never registered, so no role could be granted
+        // them and only administrators could open those reports. Registering them makes
+        // the gate grantable; nothing is granted automatically.
+        'Reports by area' => [
+            'frontoffice.view' => 'Front Office reports (credit log, activity bookings, in-house lists)',
+            'fnb.view' => 'F&B & POS reports (banquet items, packages, outlet sales)',
+            'channel.view' => 'Channel manager reports (ARI states, channel messages)',
+            'activity.view' => 'Concierge & activities reports (activity departures, bookings)',
+            'hr.view' => 'HR & people reports (announcements, documents, leave)',
+            'hotels.view' => 'Hotel group & owner reports (groups, management agreements)',
+            'interfaces.view' => 'Interface reports (commands, interface logs)',
+            'training.view' => 'Learning & development reports (SOPs, acknowledgements)',
+            'marketing.view' => 'Marketing & CRM reports (contacts, places, campaigns)',
+            'property.view' => 'Property & utilities reports (leases, meter readings, inspections)',
+            'system.view' => 'System & administration reports (migration batches, idempotency keys)',
+            'tax.view' => 'Tax & statutory reports (e-invoice logs, cancelled documents)',
+        ],
     ],
 
     // Sidebar navigation. 'perm' is required permission; 'route' is the named route.
@@ -243,6 +264,8 @@ return [
                 ['label' => 'Scheduled Reports', 'route' => 'reports.schedules', 'perm' => 'reports.schedule'],
                 ['label' => 'KPI Alerts', 'route' => 'reports.alerts', 'perm' => 'reports.alerts', 'badge' => 'kpi_alerts'],
             ]],
+            ['label' => 'Daily Briefings', 'route' => 'briefings.index', 'perm' => 'reports.exec,reports.view,frontdesk.view,housekeeping.view,fnb.view,pos.kitchen,banquet.view,sales.view,revenue.view,club.view,laundry.view,maintenance.manage,security.view,hr.view,accounts.view,feedback.view,interfaces.view,inventory.view,transport.view,parking.view'],
+            ['label' => 'Executive Brief', 'route' => 'briefings.exec', 'perm' => 'reports.exec'],
         ]],
         // OPERATIONS: Front Office
         ['label' => 'Front Office', 'icon' => 'bell', 'section' => 'OPERATIONS', 'children' => [
@@ -430,6 +453,7 @@ return [
             ['label' => 'Accounts', 'icon' => 'wallet', 'children' => [
                 ['label' => 'Vouchers', 'route' => 'accounts.vouchers', 'perm' => 'accounts.view'],
                 ['label' => 'City Ledger', 'route' => 'accounts.cityledger', 'perm' => 'accounts.view'],
+                ['label' => 'Receivables Ageing', 'route' => 'accounts.receivables', 'perm' => 'accounts.view'], // v8.9
                 ['label' => 'Credit Control', 'route' => 'credit.index', 'perm' => 'credit.view', 'badge' => 'credit_hold'],
                 ['label' => 'Agent Commissions', 'route' => 'accounts.commissions', 'perm' => 'accounts.view'],
                 ['label' => 'Supplier Bills (AP)', 'route' => 'ap.bills', 'perm' => 'ap.view'],
@@ -616,6 +640,7 @@ return [
             ['label' => 'Car Rental', 'icon' => 'car', 'children' => [ // v7.40 self-drive fleet and rental desk
                 ['label' => 'Rental Desk', 'route' => 'rentals.index', 'perm' => 'rentals.view'],
                 ['label' => 'Rental Fleet', 'route' => 'rentals.fleet', 'perm' => 'rentals.view'],
+                ['label' => 'Rental Settings', 'route' => 'rentals.settings', 'perm' => 'rentals.manage'], // v7.79 the rate card the return desk applies
             ]],
         ]],
         // OPERATIONS: Wellness & Recreation
@@ -631,6 +656,9 @@ return [
             ]],
             ['label' => 'Recreation Outlet', 'icon' => 'spa', 'children' => [ // v7.38 POS ticketing for walk-ins
                 ['label' => 'Ticket Outlet', 'route' => 'recreation.outlet', 'perm' => 'club.desk'],
+                ['label' => 'Ticket Gate', 'route' => 'recreation.gate', 'perm' => 'club.desk'],
+                ['label' => 'Outlet Shift', 'route' => 'recreation.shift', 'perm' => 'club.desk'],
+                ['label' => 'Outlet Day Report', 'route' => 'recreation.day', 'perm' => 'club.view'],
                 ['label' => 'Ticket Sales', 'route' => 'recreation.sales', 'perm' => 'club.view'],
                 ['label' => 'Ticket Types', 'route' => 'recreation.types', 'perm' => 'club.manage'],
             ]],
@@ -657,6 +685,7 @@ return [
                 ['label' => 'Employees', 'route' => 'masters.index', 'params' => ['employees'], 'perm' => 'hr.manage'],
                 ['label' => 'Attendance', 'route' => 'hr.attendance', 'perm' => 'hr.manage'],
                 ['label' => 'Monthly Register', 'route' => 'hr.register', 'perm' => 'hr.manage'],
+                ['label' => 'HR Settings', 'route' => 'hr.settings', 'perm' => 'hr.manage'], // v7.79 leave answer window and the counting rule
                 ['label' => 'Public Holidays', 'route' => 'hr.holidays', 'perm' => 'hr.manage,roster.view,payroll.view'], // v7.43 Act 601 / Act 1142
                 ['label' => 'Leave Requests', 'route' => 'leave.index', 'perm' => 'hr.leave', 'badge' => 'leave_pending'],
                 ['label' => 'Duty Roster', 'route' => 'roster.index', 'perm' => 'roster.view', 'badge' => 'swap_pending'], // v4.9
@@ -740,6 +769,7 @@ return [
             ['label' => 'System Admin', 'icon' => 'shield', 'children' => [
                 ['label' => 'Users', 'route' => 'users.index', 'perm' => 'users.manage'],
                 ['label' => 'Roles & Permissions', 'route' => 'roles.index', 'perm' => 'users.manage'],
+                ['label' => 'Configuration', 'route' => 'configuration.index', 'perm' => 'settings.view'],
                 ['label' => 'Hotel Settings', 'route' => 'settings.index', 'perm' => 'settings.manage'],
                 ['label' => 'Activity Log', 'route' => 'logs.index', 'perm' => 'logs.view'],
                 ['label' => 'E-mail Log', 'route' => 'emails.index', 'perm' => 'logs.view'],

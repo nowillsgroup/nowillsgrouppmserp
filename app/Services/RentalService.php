@@ -19,14 +19,35 @@ use Illuminate\Validation\ValidationException;
  */
 class RentalService
 {
-    /** % tank shortfall charged per missing 10% + rate card */
+    /**
+     * The rate card the return desk applies. These were constants; they are settings now,
+     * because every property prices a tank, an overdue hour and a kilometre differently
+     * and the desk should not need a deployment to change one. The constants stay as the
+     * fallback so a property that has never opened Car Rental › Settings keeps the old
+     * behaviour exactly.
+     */
     public const FUEL_PRICE_PER_TANK = 250.0;   // flat tank refill when returned below the pickup level
     public const LATE_PER_HOUR = 60.0;
-    public const MILEAGE_PER_KM = 2.5;          // beyond the free 150 km/day
+    public const MILEAGE_PER_KM = 2.5;          // beyond the free kilometres included per day
 
     public static function freeKmPerDay(): int
     {
         return (int) setting('rental_free_km', 150);
+    }
+
+    public static function fuelPricePerTank(): float
+    {
+        return (float) setting('rental_fuel_price', (string) self::FUEL_PRICE_PER_TANK);
+    }
+
+    public static function latePerHour(): float
+    {
+        return (float) setting('rental_late_per_hour', (string) self::LATE_PER_HOUR);
+    }
+
+    public static function mileagePerKm(): float
+    {
+        return (float) setting('rental_mileage_per_km', (string) self::MILEAGE_PER_KM);
     }
 
     // ------------------------------------------------------------------ pricing
@@ -163,7 +184,7 @@ class RentalService
         // late return: beyond 3 hours' grace
         if ($now->gt($r->return_due_at->copy()->addHours(3))) {
             $hours = (int) ceil($r->return_due_at->diffInHours($now));
-            $late = self::LATE_PER_HOUR * max(1, $hours - 3);
+            $late = self::latePerHour() * max(1, $hours - 3);
             $adjust += $late;
             $lines[] = "late return (".($hours - 3)."h)";
         }
@@ -172,7 +193,7 @@ class RentalService
         $out = $r->fuel_out ?? 100;
         $in = $fuel ?? $out;
         if ($in < $out - 0.5) {
-            $adjust += self::FUEL_PRICE_PER_TANK;
+            $adjust += self::fuelPricePerTank();
             $lines[] = "fuel {$in}% vs {$out}% out";
         }
 
@@ -181,7 +202,7 @@ class RentalService
             $km = $mileage - $r->pickup_mileage;
             $free = self::freeKmPerDay() * max(1, (int) ceil($r->pickup_at->diffInDays($r->return_due_at)));
             if ($km > $free) {
-                $over = self::MILEAGE_PER_KM * ($km - $free);
+                $over = self::mileagePerKm() * ($km - $free);
                 $adjust += $over;
                 $lines[] = "mileage {$km} km (".($km - $free)." over)";
             }

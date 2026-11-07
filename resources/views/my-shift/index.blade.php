@@ -56,6 +56,25 @@
       </section>
     @endif
 
+    @if($canOutlet)
+      <section class="my-shift-card" aria-labelledby="outletShiftTitle">
+        <div class="my-shift-card-head"><span class="my-shift-icon"><x-icon name="receipt"/></span><div><h3 id="outletShiftTitle">Recreation outlet</h3><div class="eyebrow">Ticket till, takings &amp; drawer count</div></div></div>
+        @if($outletShift)
+          <div class="my-shift-state">Your outlet shift is open</div>
+          <div class="my-shift-detail">{{ ucfirst($outletShift->shift) }} shift · opened {{ $outletShift->opened_at->format('H:i') }} · float {{ money($outletSummary['opening_float']) }}</div>
+          <div class="my-shift-metrics">
+            <span class="my-shift-metric">Expected drawer <b>{{ money($outletSummary['expected_cash']) }}</b></span>
+            <span class="my-shift-metric">Takings <b>{{ money($outletSummary['total']) }}</b></span>
+            <span class="my-shift-metric">Sales <b>{{ $outletSummary['sales'] }}</b></span>
+          </div>
+        @else
+          <div class="my-shift-state">No open outlet shift</div>
+          <div class="my-shift-detail">Open a shift with the float you are starting with. Every ticket, rental and service you sell is tied to it, and the close-out reconciles the drawer.</div>
+        @endif
+        <div class="my-shift-cta"><a class="btn btn-primary" href="{{ route('recreation.shift') }}">{{ $outletShift ? 'Manage & close outlet shift' : 'Open outlet shift' }} <x-icon name="chev"/></a>@if($outletShift)<a class="btn" href="{{ route('recreation.outlet') }}">Open the till</a>@endif</div>
+      </section>
+    @endif
+
     @if($canService || $canViewServiceTeam)
       <section class="my-shift-card" aria-labelledby="serviceShiftTitle">
         <div class="my-shift-card-head"><span class="my-shift-icon"><x-icon name="cup"/></span><div><h3 id="serviceShiftTitle">Food &amp; Beverage Service</h3><div class="eyebrow">Waiter / service staff shift &amp; POS order report</div></div></div>

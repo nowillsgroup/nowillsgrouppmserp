@@ -15,6 +15,7 @@ use App\Support\Tenant;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 /**
  * v7.38 Recreation ticketing — a POS-style outlet for Wellness & Recreation.
@@ -69,6 +70,7 @@ class RecreationService
      */
     public static function sell(array $d, ?\App\Models\User $u = null): ClubTicketSale
     {
+        RecreationShiftService::requireOpenForSelling();
         $items = array_values(array_filter($d['items'] ?? []));
         if (! $items) {
             throw ValidationException::withMessages(['items' => 'Add at least one ticket or item to the cart.']);
@@ -163,11 +165,13 @@ class RecreationService
                 'reference' => trim((string) ($d['reference'] ?? '')) ?: null,
                 'notes' => trim((string) ($d['notes'] ?? '')) ?: null,
                 'user_id' => $u?->id,
+                'department_shift_session_id' => RecreationShiftService::active($u?->id)?->id,
             ]);
 
             $folio = $stay ? FolioService::openForStay($stay) : null;
             foreach ($payments as $pay) {
-                ClubTicketPayment::create(['sale_id' => $sale->id, 'payment_mode_id' => $pay['mode']->id, 'amount' => $pay['amount'], 'reference' => $pay['reference']]);
+                ClubTicketPayment::create(['sale_id' => $sale->id, 'payment_mode_id' => $pay['mode']->id, 'amount' => $pay['amount'],
+                    'reference' => $pay['reference'], 'received_by' => $u?->id, 'received_at' => now()]);
             }
 
             foreach ($lines as $line) {
@@ -247,6 +251,11 @@ class RecreationService
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'Give a reason for the void.']);
         }
+        $admitted = $sale->passes()->whereNotNull('redeemed_at')->whereNull('cancelled_at')->first();
+        if ($admitted) {
+            throw ValidationException::withMessages(['reason' => 'Ticket '.$admitted->pass_no.' has already been admitted at '
+                .$admitted->redeemed_at->format('H:i').'. Reverse the admission before voiding this sale.']);
+        }
         DB::transaction(function () use ($sale, $reason, $u) {
             \App\Models\FolioTransaction::where('source_type', 'club_ticket_sale')->where('source_id', $sale->id)
                 ->where('is_void', false)->each(fn ($tx) => FolioService::void($tx, 'Outlet sale voided – '.$reason));
@@ -272,6 +281,112 @@ class RecreationService
             'revenue' => round((float) $passes->sum('amount') + (float) $sales->sum('subtotal'), 2),
             'tax' => round((float) $passes->sum('tax') + (float) $sales->sum('tax'), 2),
             'collections' => round((float) $passes->sum('total') + (float) $sales->sum('total'), 2),
+        ];
+    }
+
+    /**
+     * Admit a ticket at the gate: find the pass by its printed code and record the check-in.
+     *
+     * A pass is only good for the day it was sold, only while it stands (not cancelled by a
+     * void), and only once — the second presentation is refused and the first admission is
+     * named so the gate can see who let them in.
+     */
+    public static function redeem(string $code, ?\App\Models\User $u = null, ?int $pax = null, ?string $note = null): ClubDayPass
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            throw new RuntimeException('Enter the ticket code printed on the stub.');
+        }
+        $pass = ClubDayPass::with(['sale', 'host', 'ticketType'])->whereRaw('UPPER(pass_no) = ?', [$code])->first();
+        if (! $pass) {
+            throw new RuntimeException('No ticket carries the code '.$code.'.');
+        }
+        if ($pass->cancelled_at) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' was cancelled'.($pass->cancel_reason ? ' – '.$pass->cancel_reason : '').'.');
+        }
+        if ($pass->date->toDateString() !== bdate()->toDateString()) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' is for '.dmy($pass->date).', not today.');
+        }
+        if ($pass->redeemed_at) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' was already used at '.$pass->redeemed_at->format('H:i')
+                .($pass->redeemer ? ' by '.$pass->redeemer->name : '').'.');
+        }
+        $entitled = (int) $pass->adults + (int) $pass->children;
+        $pax = $pax === null || $pax < 1 ? max(1, $entitled) : $pax;
+        if ($pax > max(1, $entitled)) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' admits '.$entitled.' guest(s); '.$pax.' cannot be checked in on it.');
+        }
+
+        return DB::transaction(function () use ($pass, $u, $pax, $note) {
+            $locked = ClubDayPass::whereKey($pass->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->redeemed_at) {
+                throw new RuntimeException('Ticket '.$locked->pass_no.' was already used.');
+            }
+            $locked->forceFill([
+                'redeemed_at' => now(),
+                'redeemed_by' => $u?->id,
+                'redeemed_pax' => $pax,
+                'redeemed_note' => trim((string) $note) ? mb_substr(trim($note), 0, 120) : null,
+            ])->save();
+            ActivityLogger::log('club', 'ticket_redeemed', 'Admitted '.$locked->pass_no.' – '.$pax.' guest(s)'
+                .($locked->sale ? ' on sale '.$locked->sale->sale_no : ''), $locked);
+
+            return $locked;
+        });
+    }
+
+    /**
+     * Take an admission back off a ticket — the manager's correction when the wrong stub was
+     * admitted, a visitor left immediately, or a sale needs to be voided after the gate.
+     * Same business day only, with a reason; the ticket becomes valid again for the gate.
+     */
+    public static function reverseAdmission(ClubDayPass $pass, string $reason, ?\App\Models\User $u = null): ClubDayPass
+    {
+        if (! $pass->redeemed_at) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' has not been admitted.');
+        }
+        if ($pass->cancelled_at) {
+            throw new RuntimeException('Ticket '.$pass->pass_no.' is cancelled; its admission cannot be reversed.');
+        }
+        if ($pass->date->toDateString() !== bdate()->toDateString()) {
+            throw new RuntimeException('Only an admission made today can be reversed at the gate.');
+        }
+        if (trim($reason) === '') {
+            throw new RuntimeException('Give a reason for reversing the admission.');
+        }
+
+        return DB::transaction(function () use ($pass, $reason, $u) {
+            $locked = ClubDayPass::whereKey($pass->getKey())->lockForUpdate()->firstOrFail();
+            $was = $locked->redeemed_at;
+            $locked->forceFill(['redeemed_at' => null, 'redeemed_by' => null, 'redeemed_pax' => null, 'redeemed_note' => null])->save();
+            ActivityLogger::log('club', 'ticket_admission_reversed', 'Reversed the admission of '.$locked->pass_no
+                .($was ? ' (admitted '.$was->format('H:i').')' : '').' – '.mb_substr(trim($reason), 0, 120), $locked);
+
+            return $locked;
+        });
+    }
+
+    /** The gate board for a business date: what was sold today and who has come through. */
+    public static function gateBoard(?string $date = null): array
+    {
+        $date ??= bdate()->toDateString();
+        $passes = ClubDayPass::with(['sale', 'host', 'redeemer', 'ticketType'])
+            ->whereDate('date', $date)->orderByDesc('id')->get();
+
+        $live = $passes->whereNull('cancelled_at');
+        $redeemed = $live->whereNotNull('redeemed_at');
+
+        return [
+            'date' => $date,
+            'passes' => $passes,
+            'issued' => $live->count(),
+            'admitted' => $redeemed->count(),
+            'waiting' => $live->whereNull('redeemed_at')->count(),
+            'cancelled' => $passes->whereNotNull('cancelled_at')->count(),
+            'pax_issued' => (int) $live->sum(fn ($p) => (int) $p->adults + (int) $p->children),
+            'pax_admitted' => (int) $redeemed->sum(fn ($p) => (int) ($p->redeemed_pax ?? ((int) $p->adults + (int) $p->children))),
+            'revenue' => round((float) $live->sum('total'), 2),
+            'turnstile' => $live->count() ? (int) round($redeemed->count() * 100 / $live->count()) : 0,
         ];
     }
 

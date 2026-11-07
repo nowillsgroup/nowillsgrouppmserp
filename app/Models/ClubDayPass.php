@@ -16,7 +16,8 @@ class ClubDayPass extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'cancelled_at' => 'datetime', 'amount' => 'decimal:2', 'tax' => 'decimal:2', 'total' => 'decimal:2'];
+        return ['date' => 'date', 'cancelled_at' => 'datetime', 'redeemed_at' => 'datetime',
+            'amount' => 'decimal:2', 'tax' => 'decimal:2', 'total' => 'decimal:2'];
     }
 
     public function host()
@@ -42,6 +43,23 @@ class ClubDayPass extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** v7.40 the gate check: who admitted this pass and when (null while the visitor has not arrived). */
+    public function redeemer()
+    {
+        return $this->belongsTo(User::class, 'redeemed_by');
+    }
+
+    public function isRedeemed(): bool
+    {
+        return $this->redeemed_at !== null;
+    }
+
+    /** Adults + children the pass admits. */
+    public function pax(): int
+    {
+        return (int) $this->adults + (int) $this->children;
     }
 
     /** v7.38 ticket outlet sale that issued this pass (null for classic desk day passes). */

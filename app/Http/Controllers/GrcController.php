@@ -21,7 +21,14 @@ class GrcController extends Controller
         abort_if(in_array($stay->status, ['cancelled', 'no_show']), 422, 'This stay is '.$stay->status.'.');
         $stay->load('reservation.guest.documents', 'reservation.company', 'room', 'roomType', 'ratePlan');
 
-        return view('frontdesk.grc-sign', ['stay' => $stay, 'g' => $stay->reservation->guest]);
+        // Whether a signature exists is the controller's business, not the template's:
+        // the view only needs to know if there is one it may show.
+        return view('frontdesk.grc-sign', [
+            'stay' => $stay,
+            'g' => $stay->reservation->guest,
+            'signatureAvailable' => $stay->grc_signature_path && Storage::disk('local')->exists($stay->grc_signature_path),
+            'canViewSignature' => can_do('frontdesk.view'),
+        ]);
     }
 
     public function saveSignature(Request $request, ReservationRoom $stay)

@@ -602,9 +602,10 @@ class PettyCashService
         $cash = (int) $t->float->account_head_id;
         $amt = round((float) $t->amount, 2);
         $claimable = setting('gl_input_tax', '1') === '1';
-        $spend = function (float $gross, float $vat, ?int $head, string $memo) use ($claimable) {
+        $dept = $t->float->department_id;   // v8.1 – the float belongs to a department; its spend is that department's
+        $spend = function (float $gross, float $vat, ?int $head, string $memo) use ($claimable, $dept) {
             $vat = $claimable ? $vat : 0.0;
-            $out = [[$head ?: AccountHead::sys('misc_expense'), round($gross - $vat, 2), $memo]];
+            $out = [[$head ?: AccountHead::sys('misc_expense'), round($gross - $vat, 2), $memo, $dept]];
             if ($vat > 0) {
                 $out[] = [AccountHead::sys('input_tax'), $vat, 'Input VAT, NHIL & GETFund'];
             }

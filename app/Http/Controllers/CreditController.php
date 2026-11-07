@@ -95,6 +95,9 @@ class CreditController extends Controller
             Setting::updateOrCreate(['key' => 'credit_auto_hold'], ['value' => $request->boolean('credit_auto_hold') ? '1' : '0']);
             Setting::updateOrCreate(['key' => 'credit_hold_grace_days'], ['value' => (string) (int) $data['credit_hold_grace_days']]);
             Setting::$version++;
+            ActivityLogger::log('credit', 'settings', $request->boolean('credit_auto_hold')
+                ? 'Accounts are put on hold automatically '.($data['credit_hold_grace_days'] ? $data['credit_hold_grace_days'].' day(s) after terms' : 'the day they fall overdue')
+                : 'Automatic holds switched off — accounts stay open when overdue');
         }
         $r = CreditService::review();
         ActivityLogger::log('credit', 'review', "Credit review: {$r['held']} held, {$r['released']} released", null);

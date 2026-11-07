@@ -148,6 +148,87 @@ export function tapeContext() {
     unassigned: unassigned.count(),
   };
 
+  // Dated blocks — a maintenance block or a room let as an apartment — take that room
+  // off the market for those nights, so they leave both the drawing and the denominator.
+  const OFF_MARKET = ['out_of_order', 'out_of_service'];
+  const sellable = rooms.filter(item => !OFF_MARKET.includes(item.status)).length;
+  const OUTAGES = [
+    // [room id, starts on, ends on (exclusive), reason]
+    [304, '2026-11-09', '2026-11-12', 'maintenance'],
+  ];
+  const REASONS = { maintenance: 'Maintenance', renovation: 'Renovation', vip: 'VIP hold', group: 'Group hold', management: 'Management block', house: 'House use', owner: 'Owner use', other: 'Other' };
+  const offMarket = new Set(rooms.filter(item => OFF_MARKET.includes(item.status)).map(item => item.id));
+  const blocksByRoom = {};
+  const blockNotes = [];
+  OUTAGES.forEach(([roomId, startsOn, endsOn, reason]) => {
+    if (offMarket.has(roomId)) return;
+    const roomNo = rooms.find(item => item.id === roomId)?.room_no ?? roomId;
+    const short = REASONS[reason] ?? reason;
+    (blocksByRoom[roomId] ??= []).push({
+      from: day(startsOn), to: day(endsOn),
+      title: `Room ${roomNo} blocked ${day(startsOn).format('d M')} – ${day(endsOn).format('d M')} (${short})`,
+      short,
+    });
+    blockNotes.push(`room ${roomNo} is blocked ${day(startsOn).format('j M')} – ${day(endsOn).format('j M')} (${short.toLowerCase()})`);
+  });
+  // One flat key per room-night, exactly as the controller builds it: "304|2026-11-09".
+  const blockedNights = {};
+  Object.entries(blocksByRoom).forEach(([roomId, list]) => list.forEach(block => {
+    for (let i = 0; i < days; i += 1) {
+      const night = from.copy().addDays(i).toDateString();
+      if (block.from.toDateString() <= night && block.to.toDateString() > night) {
+        blockedNights[`${roomId}|${night}`] = true;
+      }
+    }
+  }));
+
+  // The same numbers the controller puts under the day columns: rooms sold on each
+  // night, and that as a share of the rooms that can be sold that night (room 205 is out
+  // of order all window; room 304 is blocked for three nights).
+  const dailyTotals = Array.from({ length: days }, (_, index) => {
+    const day = from.copy().addDays(index);
+    const iso = day.toDateString();
+    const sold = stays.filter(stay => stay.room_id !== null
+      && ['reserved', 'checked_in'].includes(stay.status)
+      && stay.reservation?.status !== 'tentative'
+      // compare the dates, not the timestamps: the sample carries 09:00 for the day
+      && stay.arrival_date.toDateString() <= iso && stay.departure_date.toDateString() > iso).length;
+    const blocked = Object.keys(blockedNights).filter(key => key.endsWith(`|${iso}`)).length;
+    const sellableTonight = Math.max(0, sellable - blocked);
+    return {
+      day: iso,
+      label: day.format('l, j F Y'),
+      short: day.format('j M'),
+      occupied: sold,
+      sellable: sellableTonight,
+      blocked,
+      pct: sellableTonight > 0 ? Math.round((sold / sellableTonight) * 100) : 0,
+    };
+  });
+
+  const roomNights = dailyTotals.reduce((total, entry) => total + entry.occupied, 0);
+  const sellableNights = dailyTotals.reduce((total, entry) => total + entry.sellable, 0);
+  const peak = dailyTotals.slice().sort((a, b) => b.occupied - a.occupied)[0] ?? null;
+  // Which rooms are left out of the denominator, and why — the note under the grid
+  // names them so nobody has to guess why 15 active rooms count as 14.
+  const excluded = rooms
+    .filter(item => ['out_of_order', 'out_of_service'].includes(item.status))
+    .map(item => ({
+      room_no: item.room_no,
+      reason: item.status === 'out_of_order' ? 'out of order' : 'out of service',
+    }));
+  const totalsSummary = {
+    roomNights,
+    sellableNights,
+    sellable,
+    active: rooms.length,
+    excluded,
+    blockedNights: dailyTotals.reduce((total, entry) => total + entry.blocked, 0),
+    blockNotes,
+    avgPct: sellableNights > 0 ? Math.round((roomNights / sellableNights) * 100) : 0,
+    peak,
+  };
+
   return {
     helpers: {
       number_format: value => Number(value ?? 0).toLocaleString('en-US'),
@@ -158,6 +239,7 @@ export function tapeContext() {
       now: () => new SampleDate('2026-11-05T08:40:00Z'),
       collect: value => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
       count: value => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
+      isset: (...values) => values.every(value => value !== undefined && value !== null),
       empty: value => value === undefined || value === null || value === ''
         || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty()),
       in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
@@ -195,6 +277,11 @@ export function tapeContext() {
       rooms: grouped,
       byRoom,
       unassigned,
+      dailyTotals,
+      totalsSummary,
+      blocksByRoom,
+      blockedNights,
+      hasDayUse: false,
       canDrag: true,
       canMoveInHouse: true,
       canViewReservation: true,

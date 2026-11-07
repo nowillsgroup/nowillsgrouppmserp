@@ -9,7 +9,7 @@
  *
  * Run: node deploy/dev/audit/permission_reference_check.js
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -101,6 +101,31 @@ for (const file of files) {
       match[1].split(',').filter(Boolean).forEach((perm) => record(perm, file, index + 1));
     }
   });
+}
+
+/*
+ * The report table gates each report by a permission string in its fifth column. Those
+ * are asks too: a report gated by a permission nobody can be granted is a report nobody
+ * can open, and nothing else in the codebase mentions the string.
+ */
+const reportsFile = join(ROOT, 'app/Http/Controllers/ReportController.php');
+if (existsSync(reportsFile)) {
+  const source = readFileSync(reportsFile, 'utf8');
+  const open = source.indexOf('const REPORTS');
+  const close = source.indexOf('GROUP_ICONS');
+  if (open > 0 && close > open) {
+    const table = source.slice(open, close);
+    const entries = [...table.matchAll(/^\s*'([a-z0-9_]+)' => \[\s*/gm)];
+    entries.forEach((entry, index) => {
+      const end = index + 1 < entries.length ? entries[index + 1].index : table.length;
+      const body = table.slice(entry.index + entry[0].length, end);
+      const fields = (body.match(/'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"/g) ?? [])
+        .map((literal) => literal.slice(1, -1));
+      const permission = fields[4] ?? 'reports.view';
+      const line = source.slice(0, open + entry.index).split('\n').length;
+      record(permission, reportsFile, line);
+    });
+  }
 }
 
 /* ── the standard roles grant tokens that have to exist ──────────────────── */

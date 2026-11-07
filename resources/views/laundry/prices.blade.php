@@ -29,7 +29,11 @@
   </form>
   @else<ul class="list"><li><span>Express surcharge</span><b>{{ $v['laundry_express_pct'] ?? 50 }} %</b></li><li><span>Normal / express</span><b>{{ $v['laundry_normal_hours'] ?? 24 }} h / {{ $v['laundry_express_hours'] ?? 6 }} h</b></li></ul>@endif
   </div></div>
-  <div class="card"><div class="card-body small muted">Guests see this price list in the mobile portal when they ask for a laundry pick-up. The laundry tax rate comes from <b>Masters › Taxes</b> (category <i>Laundry</i>).</div></div>
+  <div class="card" id="priceTax"><div class="card-body small">
+    <div class="flex justify-between items-center"><b>Tax on laundry</b><span class="badge badge-{{ ($tax['rate'] ?? 0) > 0 ? 'green' : 'amber' }}">{{ rtrim(rtrim(number_format((float) ($tax['rate'] ?? 0), 2), '0'), '.') }} %</span></div>
+    <p class="m-0 mt-1">{{ ($tax['rate'] ?? 0) > 0 ? $tax['label'].' applies to every laundry charge; the rates come from Masters › Taxes (group Service).' : 'No tax currently applies to laundry – add a VAT row for services in Masters › Taxes.' }}</p>
+    <p class="m-0 mt-1 muted">Prices above are entered <b>{{ ! empty($tax['inclusive']) ? 'tax-inclusive' : 'before tax' }}</b>{{ ! empty($tax['inclusive']) ? ' – the tax is taken out of the price.' : ' – the tax is added on top.' }} Guests see this list in the mobile portal when they ask for a pick-up.</p>
+  </div></div>
 </div>
 </div>
 @if(can_do('laundry.manage'))

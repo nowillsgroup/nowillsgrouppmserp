@@ -28,13 +28,28 @@
 <thead><tr><th>Control</th><th class="num">Sub-ledger</th><th class="num">General ledger</th><th class="num">Difference</th><th></th></tr></thead><tbody>
 @forelse($controls as $c)
 @php $d = round($c['gl'] - $c['sub'], 2); @endphp
-<tr><td>{{ $c['label'] }}</td><td class="num">{{ money($c['sub'], false) }}</td>
+<tr><td>{{ $c['label'] }}@if($c['screen']) <a class="tiny" href="{{ route($c['screen']['route']) }}" title="the screen this sub-ledger belongs to">{{ $c['screen']['label'] }} →</a>@endif</td><td class="num">{{ money($c['sub'], false) }}</td>
 <td class="num"><a href="{{ route('gl.ledger', \App\Models\AccountHead::sys($c['key'])) }}">{{ money($c['gl'], false) }}</a></td>
 <td class="num">{{ money($d, false) }}</td>
 <td>@if(abs($d) < 0.01)<span class="ctl-ok">✓ Reconciled</span>@elseif($c['strict'])<span class="ctl-bad">Mismatch</span>@else<span class="ctl-info" title="Opening stock and stock-take revaluations use the latest cost">Indicative</span>@endif</td></tr>
 @empty<tr><td colspan="5" class="muted">The ledger has not been synced yet.</td></tr>@endforelse
 </tbody></table>
-<p class="small muted" style="padding:0 1.1rem .8rem">Guest and city ledger must reconcile to the cent. Inventory is compared with quantity × latest cost, so it is indicative only.</p></div></div>
+{{-- v9.6 the count, and where to go when one does not agree --}}
+@if($controlSummary)
+<p class="small {{ $controlSummary['missed'] ? 'text-red' : 'muted' }}" id="controlSummary" style="padding:0 1.1rem .8rem">
+  @if($controlSummary['missed'])
+    <x-icon name="alert"/><b>{{ $controlSummary['tied'] }} of {{ $controlSummary['total'] }}</b> control accounts agree to the cent at {{ dmy($controlSummary['as_of']) }}.
+    {{ $controlSummary['missed'] }} {{ $controlSummary['missed'] === 1 ? 'control does' : 'controls do' }} not — the largest is
+    {{ $controlSummary['worst']['label'] }}, out by {{ money(abs($controlSummary['worst']['diff'])) }}@if($controlSummary['worst']['screen']) ({{ $controlSummary['worst']['screen']['label'] }})@endif.
+    Reconcile {{ $controlSummary['missed'] === 1 ? 'it' : 'them' }} before the month is closed.
+  @else
+    <x-icon name="check"/><b>{{ $controlSummary['tied'] }} of {{ $controlSummary['total'] }}</b> control accounts agree to the cent at {{ dmy($controlSummary['as_of']) }}.
+  @endif
+  Guest and city ledger must reconcile to the cent. Inventory is compared with quantity × latest cost, so a difference there is indicative only.
+</p>
+@else
+<p class="small muted" style="padding:0 1.1rem .8rem">Guest and city ledger must reconcile to the cent. Inventory is compared with quantity × latest cost, so it is indicative only.</p>
+@endif</div></div>
 
 <div class="card"><div class="card-head"><h3>Period close</h3></div><div class="card-body">
 <p class="small muted mb-1">Operational modules keep working after a day is closed. The ledger posts <strong>closed business days only</strong> (automatically at night audit). If a closed day is amended later (void, edit, deleted voucher), the original journal is reversed and a corrected one posted on the next open day, so nothing already reported changes silently.</p>

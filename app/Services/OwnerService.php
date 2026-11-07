@@ -420,8 +420,16 @@ class OwnerService
         if ((float) $d['budget'] <= 0) {
             throw new RuntimeException('Enter the project budget.');
         }
+        // v8.5 – the capital asset account the project belongs to. It must be one of the hotel's capital heads (the asset
+        // accounts the capital plan is held by), so a project cannot be pinned to cash, a receivable or an expense.
+        $head = ! empty($d['capital_head_id']) ? AccountHead::find((int) $d['capital_head_id']) : null;
+        if (! empty($d['capital_head_id']) && (! $head || ! BudgetService::isCapitalHead($head))) {
+            throw new RuntimeException('Choose a capital asset account – the capital plan is held by the asset heads whose code starts with '
+                .implode(', ', BudgetService::prefixList()).'.');
+        }
         $p ??= new CapexProject(['number' => Numbering::next('capex_project'), 'requested_by' => $by->id, 'status' => 'draft']);
         $p->fill(['title' => $d['title'], 'category' => $d['category'], 'funding' => $d['funding'], 'usali_dept' => $d['usali_dept'] ?? null, 'budget' => round((float) $d['budget'], 2),
+            'capital_head_id' => $head?->id,
             'justification' => $d['justification'] ?? null, 'needed_by' => $d['needed_by'] ?? null])->save();
         ActivityLogger::log('owner', 'capex_saved', "{$p->number} {$p->title} ".money((float) $p->budget).' ('.CapexProject::FUNDING[$p->funding].')', $p);
 

@@ -23,9 +23,424 @@
 <body>
 <main class="pv">
   <h1>Preview screens</h1>
-  <p class="lead">The built screens, as they look in the application, for configuration and development reference: dashboard, POS and guest menu, shift totals, fleet management and its printed documents.</p>
+  <p class="lead">The built screens, as they look in the application, for configuration and development reference. The five <b>Reports</b> screens come first — the catalogue, a report being read, the saved views, scheduled reports and KPI alerts — then the recreation outlet’s till, shift close-out and day (Z) report, the dashboard, the front desk, the restaurant POS and guest menu, shift totals, masters, fleet management with its printed documents, the offline outbox and the shell.</p>
 
   <div class="pv-cards">
+    <a class="pv-card" href="/__preview/revenue-dashboard">
+      <span class="pv-tag">Revenue</span>
+      <h2>Revenue dashboard</h2>
+      <p>Fourteen nights of demand as one chart: booked rooms and group holds stacked against each night’s sellable capacity, expected pickup above them, the weekend shading, the four headline cards, pickup by booking source, and the nightly table whose totals are the sum of the rows you can see.</p>
+    </a>
+    <a class="pv-card" href="/__preview/revenue-pricing">
+      <span class="pv-tag">Revenue</span>
+      <h2>Pricing grid</h2>
+      <p>Five room types against seven nights: the live rate beside the recommendation, the rules that produced it in each cell’s tooltip, the floor and ceiling printed on every room row, contract dates and stop-sell nights that refuse an editable price, the rounding step taken from the setting, and a summary that counts what is actually waiting to be published.</p>
+    </a>
+    <a class="pv-card" href="/__preview/revenue-rules">
+      <span class="pv-tag">Revenue</span>
+      <h2>Pricing rules</h2>
+      <p>Six yield rules in the order the engine applies them, each spelling out the condition it really matches on — a stay-date window, a hotel occupancy band, Friday and Saturday, or the room type's own occupancy with a lead time — the percentage or fixed amount it applies, the minimum stay it sets, and a paused rule whose button has already flipped to Enable. Beside them: the mode in force, the rounding step, the forecast horizon, and a floor and ceiling per room type.</p>
+    </a>
+    <a class="pv-card" href="/__preview/club-plans">
+      <span class="pv-tag">Health Club</span>
+      <h2>Plans &amp; settings</h2>
+      <p>The nine starter plans with what each one sells — term, price, facilities, guest passes, F&amp;B and spa discounts and live members — one withdrawn plan kept on the list, and the sixteen club settings on the same card, each printing the band the controller enforces: cedis to two decimals, whole counts from zero, the check-out window from one hour, and the in-house flag as a Yes/No choice.</p>
+    </a>
+    <a class="pv-card" href="/__preview/receivables">
+      <span class="pv-tag">Finance</span>
+      <h2>Receivables ageing</h2>
+      <p>The other half of the payables ageing: the city ledger, read FIFO because a company pays in lumps and the PMS records the money, not which invoice it settled. A part-paid June conference shows at its 28,000 remainder in the over-90 bucket while the October dinner is untouched at 46,500 inside its terms — and the charges listed underneath add up to exactly the 120,200 the buckets print. Credit limits are printed beside the balances and flagged when broken, and a company paid in advance reads as a 2,700 credit on account rather than being dropped from the screen.</p>
+    </a>
+    <a class="pv-card" href="/__preview/claims">
+      <span class="pv-tag">HR</span>
+      <h2>Expense claims</h2>
+      <p>Eight claims, GH₵ 6,090.00 of other people's money, aged in the two directions a claim can wait: five sit in approval, aged from the day they were sent in, and three in payment, aged from the day they were approved. The oldest approval has waited <em>33 days</em> — Kofi Mensah's September market runs — and one claim crosses the month line that makes it a message nobody answered. Then the receipt rule the service enforces when a line is added, read back over the claims that already exist: sixteen lines over GH₵ 50.00, 8,140.00 in all, twelve with a receipt, four by transaction number, none with neither, mileage outside the count as the service has it. The claim window is re-tested against the day each claim was submitted rather than the day the page is read. The second build is the fault that rule cannot prevent but can certainly inherit: a 940.00 pump-parts line with no receipt and no reference.</p>
+    </a>
+    <a class="pv-card" href="/__preview/petty-cash">
+      <span class="pv-tag">Finance</span>
+      <h2>Petty cash</h2>
+      <p>Four tins on the imprest system, GH₵ 4,880.00 in the custodians' hands — and the two questions a float can fail that no ledger screen asks. Does the ledger agree with the tin? The float account posts at the night audit, so the 1,420.00 gap is exactly the two 07 Nov movements still waiting to post: 780.00 and 640.00, float by float, with 0.00 unaccounted for. And is there a receipt behind every cedi out of the tin? Eight spends over GH₵ 100.00 totalling 4,180.00: six receipts (3,560.00), two stated reasons, none without either. The register foots cash + IOUs + spend back to the imprest on every row and ages each float by the days since it was counted. The second build is the fault that control exists for: a 640.00 water bill with no receipt and no reason, while the tin and the ledger still agree — a missing receipt is a different question.</p>
+    </a>
+    <a class="pv-card" href="/__preview/commissions">
+      <span class="pv-tag">Finance</span>
+      <h2>Agent commissions</h2>
+      <p>What three agents are owed and how long they have been owed it: <em>23,820.00 due as at 07 Nov 2026</em>, of which 12,320.00 is over ninety days old, and the oldest commission is 193 days past its check-out. Each row prints its age in days and the 30/60/90 bucket it falls in — the same rule the receivables ageing uses — and the agent summary is built from that same aged collection, so each agent's due is its own four buckets and the footer is the sum of the agents rather than a second query. Then the question a commission can raise on its own: a commission marked paid must name the voucher that paid it — 4 paid, 4 on a voucher, 0 without one. The second build is that fault: a 1,120.00 settlement marked paid with nothing behind it, named by agent and amount, with the voucher register to reconcile against.</p>
+    </a>
+    <a class="pv-card" href="/__preview/vouchers">
+      <span class="pv-tag">Finance</span>
+      <h2>Voucher register</h2>
+      <p>Every receipt and payment written in the week, with the period totalling itself in the footer: <em>18,800.00 in · 46,100.00 out · 11 vouchers</em>. Underneath it the register read as an analysis — each account head with its voucher count, receipts, payments and net — and those heads are the lines the P&amp;L prints for the same week, six payment heads to its 46,100.00 and Other Income to its 6,800.00, with the company receipt shown as a voucher that is not income at all. Then the question only this screen can answer: are they in the ledger? Nine vouchers dated on or before 06 Nov expect 37,850.00 of movement head by head and the posted ledger has it, while the two dated after that day are counted and excluded rather than quietly skewing the comparison. The second build is the fault: a 7,800.00 fuel payment the sync never carried, named by head.</p>
+    </a>
+    <a class="pv-card" href="/__preview/pnl">
+      <span class="pv-tag">Finance</span>
+      <h2>Profit &amp; loss</h2>
+      <p>One week of trading read as a statement: income by charge category with discounts as a deduction, POS takings settled at the counter, receipts that are not company settlements, expenses by voucher head, and the result — <em>GH₵ 157,500.00 net, 77.4 % of GH₵ 203,600.00</em> — with the 34,600.00 of tax collected stated but never counted as income. The statement is built from documents and the general ledger from posted journals, so it prints the ledger's own figure beside each line and says whether they agree: <em>203,600.00 of income and 46,100.00 of expense — it can be issued as it stands</em>. The second build is the fault that column exists for: a 6,800.00 receipt voucher the sync has not posted, so revenue is out by 6,800.00, expenses still agree, and the page names the line and points at the sync failures rather than claiming the statement is ready.</p>
+    </a>
+    <a class="pv-card" href="/__preview/cash-book">
+      <span class="pv-tag">Finance</span>
+      <h2>Cash book</h2>
+      <p>The book the tills are counted against: every mode carried in from yesterday, the day's receipts and payments, and what it holds at the close — Cash 5,050.00, transfers 55,900.00, card 25,150.00, MoMo 9,500.00, <em>GH₵ 95,600.00</em> across the four, opened at 82,050.00 and moved 13,550.00 net. The day's movement is traceable to the three places money comes from (front office 900.00 · POS 9,050.00 · vouchers 3,600.00), and both the by-mode table and the day's rows print the same 22,250.00 in and 8,700.00 out. The note under the header names where the day sits in the ledger — posted through 06 Nov, so 07 Nov is still open — and the second build is the fault a cash book exists to catch: a 5,600.00 refund out of a drawer holding 5,350.00 leaves Cash at −250.00 and the page says which mode, and why, before the day is banked.</p>
+    </a>
+    <a class="pv-card" href="/__preview/city-ledger">
+      <span class="pv-tag">Finance</span>
+      <h2>City ledger</h2>
+      <p>The index of the company ledgers: every corporate account with what it was billed, what it has paid and what it still owes as at a date, one click from its own statement. Four companies, GH₵ 196,700.00 billed, GH₵ 76,500.00 received, <em>GH₵ 120,200.00 owing</em> — and because this list is a second query over the sub-ledger the receivables ageing reads, the page states its own tie: <em>the list totals 120,200.00, the ageing says the same, company by company</em>. A company paid in advance reads as a credit on account rather than being dropped, the flags are the ageing's own rule (over limit, 90+ overdue) instead of a second copy of the threshold, and a company with nothing to its name says so rather than printing four zeroes. Built in both states: the second page is the fault this screen exists to catch, a receipt the list counted and the ageing did not, and it names the row and the 3,000.00.</p>
+    </a>
+    <a class="pv-card" href="/__preview/company-ledger">
+      <span class="pv-tag">Finance</span>
+      <h2>Company ledger</h2>
+      <p>One corporate account read as at a date, the way the company's own clerk will read it: every charge and every receipt in date order, a balance carried down each line, and the closing line that is both the last row's balance and the two columns subtracted. Because the city ledger and the receivables ageing are two readings of one balance, the page states its own tie — <em>this ledger closes at 48,400.00, the ageing says 48,400.00</em> — and says the ledger can be sent, or names the difference and the entries to check before it goes out. The as-at date cannot be set past the business date, the receipt dialog opens at what is owed through a real mode list, and every charge links back to the folio it came from.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-ageing">
+      <span class="pv-tag">Finance</span>
+      <h2>Payables ageing</h2>
+      <p>The screen the month-end close reads first, with the documents behind every figure. Five buckets by days past the due date — current, 1–30, 31–60, 61–90, over 90 — each printing how many documents sit in it, per supplier and in total; credits are a debit note and an unapplied payment, printed negative because they reduce what is owed, and goods received but not billed are owed and marked as such. Below the buckets every open document is listed oldest first, from a 115-day part-paid bill down to a payment made and never applied, and the list totals exactly the balance the table prints: an ageing nobody can open is a number taken on trust. Five figures lead it, and since v9.1 the last two are read from the same rule the supplier bills list uses: the 155,700 past due across four documents, and the 26,000 that falls due within the next seven days.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-bills">
+      <span class="pv-tag">Finance</span>
+      <h2>Supplier bills</h2>
+      <p>The list the payables ageing adds up to. Since v9.1 both screens take their figures from one rule, so the five numbers lead here as they do there: 181,700 still owed on the bills themselves, 155,700 already past due, the 26,000 that falls due in the next seven days, four bills past their date and one held for a variance — and 182,500 payable once the 11,600 of credits is taken off, 12,400 of it goods received and not yet invoiced. The documents behind it: the only bill inside the seven-day window carries no overdue marker, a part-paid linen bill shows its 64,000 remainder 115 days late rather than its total, a fuel bill entered in euros prints its rate and the 240 the rate has moved, a debit note reads as a reduction, and the receipt nobody has invoiced yet has its own card with the button that matches it.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-payments">
+      <span class="pv-tag">Finance</span>
+      <h2>Supplier payments</h2>
+      <p>Money out, and what is left of it. A payment may be larger than the bills it settles, and the remainder is a supplier credit — but only sometimes, which is the point of the screen: a 2,400 euro payment that cost 31,440 against a bill booked at 31,200 leaves a 240 exchange difference, not a credit, and a cancelled 5,000 is not a credit either. So the 8,000 that really is unapplied, plus the 3,600 debit note on the bills list, is the 11,600 the ageing nets off and the bills screen takes off what is payable — the same figure on three screens, read from one method. Beside it: 39,440 paid in the thirty days to today, with the cancelled payment left out of the count. And the three things a row has to be able to prove: the unapplied money aged from the day it left the bank on the receivables' 30/60/90 rule — 8,000.00, eight days old, named with its supplier — the certificate behind every cedi withheld for GRA (4,320.00 over three payments, each named), and the allocated column held to the allocations on file, 67,200.00 either way. The <a href="/ap-payments-drift">drift build</a> is a payment file that no longer adds up in two places: a 480.00 certificate missing and 500.00 of allocated figure adrift from its allocations.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-statement">
+      <span class="pv-tag">Finance</span>
+      <h2>Supplier statement</h2>
+      <p>The document a supplier checks line by line against their own ledger, and the only one of these screens that leaves the building. Coastal Beverages' quarter: a 22,000 delivery owed from the day it arrived, the payment that settled it, an expense bill with no receipt behind it, the November delivery, the bill matched to that receipt that moves nothing because it carries no variance, and the 3,600 short delivery the supplier credited back — closing at 40,900. Above it, the question the clerk should ask first: does it agree with the ageing? The same 40,900, from the same documents by a different route, with the differing branch spelled out for the day it does not. The printed copy drops the internal card and keeps the statement.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-bill-show">
+      <span class="pv-tag">Finance</span>
+      <h2>Supplier bill</h2>
+      <p>One document, everything behind it: three lines netting 20,000 and 3,000 of VAT, 23,000 entered, 4,500 already applied by a cheque that links to the payment, and the 18,500 still owed — which is the figure the ageing prints in its 1–30 bucket, 13 days past due. The apply-credit list is the point of the screen since v9.4: it is not a query of its own but the credit rule's own documents — the 8,000 payment on account and the 3,600 debit note, the same two the payments screen lists and the ageing nets off — narrowed to this bill's currency, because applying a credit across currencies is refused and an option that throws is not an offer. For an expense bill the ledger side is one posting, named and linked, rather than a matching story it does not have.</p>
+    </a>
+    <a class="pv-card" href="/__preview/ap-payment-show">
+      <span class="pv-tag">Finance</span>
+      <h2>Supplier payment</h2>
+      <p>One payment and the question a clerk asks after a part payment: where is the rest of this money, and does the ageing know about it? 8,000 paid on account by transfer, nothing allocated, so all of it is unapplied — and the screen answers with the credit rule rather than an opinion: openCredits() returns this payment, so the 8,000 is part of the 11,600 the ageing nets off for Coastal Beverages, the same 11,600 the payments list leads with. The other three answers live on the same line for the days they apply — this payment cancelled, a currency payment whose remainder is an exchange difference, or a payment dated after the ageing date and counted on the day it is dated. Below: nothing settled, the posting that waits for the night audit by name of date, the remittance advice, and a cancel that asks for a reason and says what it undoes.</p>
+    </a>
+    <a class="pv-card" href="/__preview/bankrec">
+      <span class="pv-tag">Finance</span>
+      <h2>Bank reconciliation</h2>
+      <p>The statements with their match counts, the statement awaiting review, and the settings card — where the auto-match window now says it governs every pass, by reference as well as by amount and batch, and the reference pass itself now test the same ±0–31 days it always promised. Paired with the reconciliation in progress: every reason it cannot be finalised, each line labelled with the pass that matched it, and the reconciling statement down to the difference.</p>
+    </a>
+    <a class="pv-card" href="/__preview/budget-variance">
+      <span class="pv-tag">Finance</span>
+      <h2>Variance review</h2>
+      <p>The variances one month must account for — exactly the rows the comparison flags, read from the same rule — each with the explanation that covers it, the person who owes it and the deadline (month end plus the days in the setting, 0–90). An open variance says so and says nobody owns it yet; a deadline already passed is marked in red. Below, the sign-off: refused while one is open, naming the accounts and the money, with the button disabled rather than dead. The paired build shows the same month fully explained and signed off, with who signed it and the count as it stood.</p>
+    </a>
+    <a class="pv-card" href="/__preview/budget-capital">
+      <span class="pv-tag">Finance</span>
+      <h2>Capital plan</h2>
+      <p>Capex against opex. The year's capital plan is a version of the same fiscal year whose lines are <em>capital asset accounts</em> only — the asset heads coded 15 in settings — so buying a generator puts an asset on the balance sheet instead of quietly landing in repairs. The screen says so in its own words, its totals are committed / spent to date / remaining rather than revenue and profit, and it carries the plan against capital spend to date per asset account, dated to the month the ledger has closed — the same figure a supplier bill coded to that head is checked against. Carrying capital also cleans up the other direction: the P&L grid refuses a capital account and the capital plan refuses an income or expense one, so neither can shelter the other.</p>
+    </a>
+    <a class="pv-card" href="/__preview/budget-approval">
+      <span class="pv-tag">Finance</span>
+      <h2>Budget approval</h2>
+      <p>Approval thresholds by value — the last of the budgeting acceptance list. A version is GH₵6,180,000 against a GH₵5,000,000 threshold in settings, submitted on 3 November and signed once, so it needs two approvers: the note under the header says who gave the first approval, when, and that a second approver must sign before it counts; the button reads <em>Second approval</em> and the dialog says this is the final one. The Details panel carries both signatures and the threshold the version is measured against, the audit trail records a first approval as a first approval rather than an approval, and the Budgets list marks the same version <em>1 of 2 approved</em> — still awaiting approval, not approved.</p>
+    </a>
+    <a class="pv-card" href="/__preview/budget-cost-centres">
+      <span class="pv-tag">Finance</span>
+      <h2>Cost centre budgets</h2>
+      <p>The budgeting module's department dimension. Every department with its own budget version, the plan pro-rated to the days elapsed rather than the full year, what the ledger actually charged to that cost centre, and the two rows that make a departmental P&amp;L still reconcile: the plan not yet given to any department, and the expense that carries no cost centre at all. Underneath, the four postings that fill the dimension in by themselves — stores issues, petty cash, expense claims and manual journals — and the note that a requisition is now capped by the department's own budget, with the single monthly figure only as a fallback.</p>
+    </a>
+    <a class="pv-card" href="/__preview/budgets">
+      <span class="pv-tag">Finance</span>
+      <h2>Budgets &amp; forecasts</h2>
+      <p>Every budget version with what it was built from, its totals, and who prepared and approved it — the four-eyes trail the screen explains — plus the fiscal-year and go-live note, the re-forecast, and the settings modal. There the variance threshold prints the 0–100 % band the brief always stated and the controller refuses outside of, and the approval threshold decides how many signatures a version needs: above that value the list marks it <em>1 of 2 approved</em> or <em>2 approvers needed</em> and it stays awaiting approval until a second, different person has signed. Capital now sits beside the P&amp;L instead of inside it: a capital plan is its own kind of version, the list gives it a <em>Capital</em> column and dashes where revenue, expense and net would be, and its own card names the active plan.</p>
+    </a>
+    <a class="pv-card" href="/__preview/vouchers">
+      <span class="pv-tag">Finance</span>
+      <h2>Gift vouchers</h2>
+      <p>The outstanding liability with the vouchers behind it, sales and redemptions split, the vouchers about to expire and whether reminders will reach them, the six-tab workspace, and the settings — where the two value settings now print the 0–10,000,000 band the brief always stated and the controller now refuses outside, and the terms carry their 1,000-character limit.</p>
+    </a>
+    <a class="pv-card" href="/__preview/treasury-accounts">
+      <span class="pv-tag">Finance</span>
+      <h2>Treasury</h2>
+      <p>The cash and bank accounts with their ledger codes, masked numbers, minimums and settlement terms, the treasury settings card — where the approval threshold and the banking float now print their bands like every other setting in the module — and the IAS 7 cash-flow classification with the automatic default marked. Paired with the transfers screen, where the suggested deposit's note has to add up to the amount beside it.</p>
+    </a>
+    <a class="pv-card" href="/__preview/close">
+      <span class="pv-tag">Finance</span>
+      <h2>Month-end close</h2>
+      <p>What is locked, which month is late and by how many days, every period with its checklist progress, who prepared it and who closed it and how long that took, the four approval queues, and the journals due for the period in focus with their total. The settings card states the close window as 1 to 60 days in words as well as in the input, fixes the first managed period once anything has been closed — and prints the checklist caps the save now refuses to exceed instead of trimming.</p>
+    </a>
+    <a class="pv-card" href="/__preview/gst-settings">
+      <span class="pv-tag">Finance</span>
+      <h2>GRA VAT &amp; E-VAT</h2>
+      <p>The registration record with the valid TIN, the VAT status worked out from this property's own taxable supplies against the GH₵ 200,000 threshold, the E-VAT switches and credentials — with the security key blank and announced only by its placeholder — and the sandbox connection warning that its stamps are generated on this server and never reach GRA. Plus price entry and the four tax components with the Act each falls under.</p>
+    </a>
+    <a class="pv-card" href="/__preview/wht-desk">
+      <span class="pv-tag">Finance</span>
+      <h2>Withholding tax desk</h2>
+      <p>October's GRA schedule: tax withheld, withholding VAT at the agent's 7 %, what is payable and whether it is filed — with an overdue September return flagged, two suppliers named for having no TIN, the ledger-versus-schedule difference explained, a schedule whose totals are the sums of its rows, and the filing form that locks the month, under a threshold input that now prints its 0–10,000,000 band.</p>
+    </a>
+    <a class="pv-card" href="/__preview/payments-settings">
+      <span class="pv-tag">Finance</span>
+      <h2>Online payment settings</h2>
+      <p>The gateway and which providers are ready, payment links valid 1–720 hours, the booking-engine deposit with its percentage, the hold in minutes, and five secret keys that are printed as blank password fields with a placeholder saying a key is saved — never the key. Built in both switch states, because with online payments off the deposit collects nothing at all.</p>
+    </a>
+    <a class="pv-card" href="/__preview/gl-ledger">
+      <span class="pv-tag">Finance</span>
+      <h2>General ledger</h2>
+      <p>The posted-up-to day, the last sync, the lock date and a trial balance that balances — with the three source documents the last sync could not post, each control account compared against its own sub-ledger and called a mismatch where it must reconcile to the cent, a lock that refuses any date past the posted-up-to day, and a trial balance whose printed totals are the sums of the rows above them. Since v9.6 the control list also answers the two questions it used to leave open: <em>3 of 5 agree to the cent</em>, the one strict control that does not is named with its 20.00 and told to be reconciled before the close — and every row links to the screen that owns its sub-ledger, so a difference is never a dead end: payables to the ageing, city ledger to receivables, stock to the stock ledger.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-library">
+      <span class="pv-tag">Reports</span>
+      <h2>Report library</h2>
+      <p>The catalogue every report is filed in: the counts across the top, saved views with their pinned and shared badges, a search that reads titles, promises and areas, an area chip per group, and every report listed under its area with the period it answers on.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-report">
+      <span class="pv-tag">Reports</span>
+      <h2>Report screen</h2>
+      <p>One report being read: the period and row count in one line, its own date range with the presets, the bar chart, the summary strip, the table with its totals and quick filter, the saved views, and the form that keeps this report as a view.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-outlet">
+      <span class="pv-tag">Recreation</span>
+      <h2>Recreation outlet till (POS)</h2>
+      <p>The ticket counter as a revenue outlet: the shift strip for the drawer on duty, the catalogue grid for day passes, rentals and services, a live cart with quantities, and tenders taken directly — cash, MoMo, card, bank — split across rows or charged to a room.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-outlet-closed">
+      <span class="pv-tag">Recreation</span>
+      <h2>Outlet till — before the shift is opened</h2>
+      <p>The same counter at an outlet that requires a shift: the banner names the cashier's obligation, the catalogue still shows prices, and the till refuses to take money until a float is opened and counted.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-hub">
+      <span class="pv-tag">Briefings</span>
+      <h2>Daily briefings</h2>
+      <p>The hub a head of department opens: every pack they may read, what it covers, and who has signed for the day.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-fnb">
+      <span class="pv-tag">Briefings</span>
+      <h2>F&amp;B Manager daily briefing</h2>
+      <p>A full trading pack: headline figures against last week, the house band, sales and covers by outlet, how guests paid, what sold, leakage and the open bills — signed at 10:05.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-housekeeping">
+      <span class="pv-tag">Briefings</span>
+      <h2>Executive Housekeeper daily briefing</h2>
+      <p>The floor mid-morning: rooms ready against rooms to turn, tasks closed by type, credits and inspections, linen movement, lost property and what the housekeeper is watching.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-laundry">
+      <span class="pv-tag">Briefings</span>
+      <h2>Laundry briefing (start of day)</h2>
+      <p>The same screen before the laundry opens: honest zeros, and the empty state every block shows when nothing has been posted yet.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-finance">
+      <span class="pv-tag">Briefings</span>
+      <h2>Finance briefing — Financial Controller</h2>
+      <p>The controller's own page: money in by mode, receivables ageing, the profit lines for day, month and fiscal year, the month against the approved budget, and what stands between today and a clean close.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-hr">
+      <span class="pv-tag">Briefings</span>
+      <h2>People &amp; HR briefing</h2>
+      <p>Attendance by department against the roster, the leave queue oldest first, and the contracts and probation periods running out — plus the decisions waiting on the HR manager.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-parking">
+      <span class="pv-tag">Briefings</span>
+      <h2>Parking &amp; Valet briefing</h2>
+      <p>The yard by zone against its bays, the drop-off curve so the drive can be staffed for the peak, permits falling due, and what the valet desk still has to run.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-frontoffice">
+      <span class="pv-tag">Briefings</span>
+      <h2>Front Office briefing</h2>
+      <p>The desk's working list: arrivals still to run with their room or the flag that none is assigned, departures with the balance their folio still carries, the desk's cash by mode, and the requests the desk still owns.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-security">
+      <span class="pv-tag">Briefings</span>
+      <h2>Security briefing</h2>
+      <p>Who is inside the property right now and on whose authority, every master key off the board with its return time, the gate passes still out and the incidents of the day.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-kitchen">
+      <span class="pv-tag">Briefings</span>
+      <h2>Kitchen briefing</h2>
+      <p>What the pass sent out, what is still on it with the wait against each line, the allergen lines a chef still has to sign, and the cold-chain readings that fell outside their range.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-stores">
+      <span class="pv-tag">Briefings</span>
+      <h2>Purchasing &amp; Stores briefing</h2>
+      <p>What to buy and how much the system suggests, the requisitions waiting at the counter with the department that needs them, and the deliveries received today with anything rejected on the dock.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-revenue">
+      <span class="pv-tag">Briefings</span>
+      <h2>Revenue briefing</h2>
+      <p>The fortnight on the books with occupancy, ADR and RevPAR by night, the mix against each published base rate, the rate decisions waiting for a ruling, and every discount and allowance given away today.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-maintenance">
+      <span class="pv-tag">Briefings</span>
+      <h2>Engineering briefing</h2>
+      <p>What is past its promised date with the days late, what is already planned for the next week so the team can plan around it, and the rooms held out of the sale until engineering releases them.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-sales">
+      <span class="pv-tag">Briefings</span>
+      <h2>Sales briefing</h2>
+      <p>The pipeline by stage, the enquiries that have gone quiet for a fortnight, and what was won and lost today with the reason recorded against every loss.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-guestexp">
+      <span class="pv-tag">Briefings</span>
+      <h2>Guest experience briefing</h2>
+      <p>The day's reviews and whether they were answered, the recovery cases ranked by severity and due date, and the last few days of guest comments in their own words.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-banquet">
+      <span class="pv-tag">Briefings</span>
+      <h2>Banquet briefing</h2>
+      <p>The floor today event by event, the event orders still unpublished so the kitchen is not working blind, and the events that closed and left with the bill unraised.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-it">
+      <span class="pv-tag">Briefings</span>
+      <h2>IT briefing</h2>
+      <p>Every command that failed today with what came back, the endpoints not taking our updates, the night audit, and the kitchen tickets that never printed.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration">
+      <span class="pv-tag">Settings</span>
+      <h2>Configuration register</h2>
+      <p>Every module that has something to configure, grouped, with how many of its settings are set on this property, what changed last and a link to the screen that owns each one.</p>
+    </a>
+    <a class="pv-card" href="/__preview/rentals-settings">
+      <span class="pv-tag">Settings</span>
+      <h2>Car rental settings</h2>
+      <p>The rate card the return desk applies — free kilometres, the excess kilometre, a late hour past the grace and a flat tank refill — which used to be constants inside the service.</p>
+    </a>
+    <a class="pv-card" href="/__preview/hr-settings">
+      <span class="pv-tag">Settings</span>
+      <h2>HR settings</h2>
+      <p>How long a leave request may sit before the nightly HR run escalates it, and whether leave is counted in working days (the Act 651 default) or every calendar day.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-module">
+      <span class="pv-tag">Settings</span>
+      <h2>Module configuration</h2>
+      <p>One module in full — the banquet pack's settings, each with its key, the value on this property and whether it is running on the built-in default.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-module-findings">
+      <span class="pv-tag">Settings</span>
+      <h2>Module configuration — with a finding</h2>
+      <p>A module whose saved settings contradict something: online payments switched on but left on the test gateway, with the keys involved and the register that sent you here.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-changed">
+      <span class="pv-tag">Settings</span>
+      <h2>What this property changed</h2>
+      <p>The property's own configuration decisions — every setting moved off a built-in default, and every setting filled in where the code ships none — with the default, the value and who changed it.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-on-null">
+      <span class="pv-tag">Settings</span>
+      <h2>What an unset setting runs on</h2>
+      <p>The 51 settings read with no built-in default, grouped by what actually comes back when the property has set nothing — a literal at the read site, a value only a page prints, or nothing at all.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-history">
+      <span class="pv-tag">Settings</span>
+      <h2>What it was before</h2>
+      <p>The value trail behind "last changed by" — every write of a setting with the value it replaced, from 48 hours to 24 or from 48 to 72, recorded by the model itself so every module is covered.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-handover">
+      <span class="pv-tag">Settings</span>
+      <h2>Configuration handover</h2>
+      <p>One printable sheet for an auditor or an incoming manager: the decisions, what an unset value runs on, the findings, what is checked against what, how many credentials are set, the value trail, a fingerprint to compare with last time, and room to sign.</p>
+    </a>
+    <a class="pv-card" href="/__preview/configuration-register">
+      <span class="pv-tag">Settings</span>
+      <h2>Configuration register (print)</h2>
+      <p>The whole register on paper: every module, every key and every value, so a new property can be checked line by line against a working one.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-fleet">
+      <span class="pv-tag">Briefings</span>
+      <h2>Daily brief — Transport &amp; Fleet</h2>
+      <p>The board car by car — what each did today and whether its papers would stop it — the drivers and their licences, how every trip was billed and what is still to post, fuel against kilometres, the workshop, open defects and the rentals out.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-recreation">
+      <span class="pv-tag">Briefings</span>
+      <h2>Daily brief — Spa &amp; Recreation</h2>
+      <p>The till roll and the gate: takings by tender and line by line, every sale rung, the passes sold against the guests actually admitted, the shift drawer with its float, expected cash and variance, and the tax split the way the return is filed.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-exec">
+      <span class="pv-tag">Briefings</span>
+      <h2>Daily executive brief — GM &amp; CEO</h2>
+      <p>The whole property on one page: the flash report day/month/year, the 18-department scorecard with sign-offs, revenue by department, cash and banking, the seven-day trend, receivables, risks and every head's signature.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-book">
+      <span class="pv-tag">Briefings</span>
+      <h2>Daily briefing book — GM &amp; CEO</h2>
+      <p>One document for the morning meeting: a contents page, the consolidated executive brief, then every department pack on its own page with its headline, blocks, open items and sign-off.</p>
+    </a>
+    <a class="pv-card" href="/__preview/briefing-print">
+      <span class="pv-tag">Briefings</span>
+      <h2>Printed daily briefing</h2>
+      <p>The print sheet a head files or e-mails: the same blocks, on the print layout, with the sign-off line and the sources of the numbers.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-types">
+      <span class="pv-tag">Recreation</span>
+      <h2>Recreation ticket types</h2>
+      <p>What the outlet sells and what the guest actually pays: the entered price, the standard 21% build-up or a per-type override, whether the line issues an entry ticket, and the manager's form to add or retire a product.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-gate">
+      <span class="pv-tag">Recreation</span>
+      <h2>Ticket gate — admissions</h2>
+      <p>The other half of selling a ticket: the code on the stub is entered at the gate, the pass is admitted once for the guests it names, and the board shows who has come through, who has not, and the turnstile rate against the day's takings.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-z">
+      <span class="pv-tag">Recreation</span>
+      <h2>Printed Z report</h2>
+      <p>The sheet the duty manager signs: takings by tender, revenue by category and item, each cashier's drawer with its variance, admissions, voids and the tax build-up — on a narrow monospace page that prints as-is.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-receipt">
+      <span class="pv-tag">Recreation</span>
+      <h2>Recreation receipt &amp; entry tickets</h2>
+      <p>What the visitor walks away with: the itemised day passes and sunbed, the tax, split cash and MoMo tenders with the MoMo reference, the change given, and a tear-off stub per entry ticket carrying the pass code and visit date.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-sales">
+      <span class="pv-tag">Recreation</span>
+      <h2>Outlet sales ledger</h2>
+      <p>Every sale at the counter, the shift it belonged to, who took the money, how it was settled and the tickets issued — with a manager's void and a jump to the day report.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-shift">
+      <span class="pv-tag">Recreation</span>
+      <h2>Outlet shift close-out</h2>
+      <p>The outlet's X report: takings by tender, the expected drawer (float + cash − change), an eleven-denomination cash count that must reconcile, and the variance the duty manager signs off before the shift closes.</p>
+    </a>
+    <a class="pv-card" href="/__preview/recreation-day">
+      <span class="pv-tag">Recreation</span>
+      <h2>Recreation day (Z) report</h2>
+      <p>End of the outlet day: what every shift took by tender, revenue by category and ticket type, takings by cashier, each drawer's variance, the voided sales and the tax build-up — printable as the Z report.</p>
+    </a>
+    <a class="pv-card" href="/__preview/laundry-order">
+      <span class="pv-tag">Laundry</span>
+      <h2>Laundry order &amp; settlement</h2>
+      <p>An in-house guest's express order priced with the VAT, NHIL, GETFund and tourism-levy components, and a delivery dialog that either charges room 202's folio or takes the money at the counter with cash, MoMo, card, cheque or split tender.</p>
+    </a>
+    <a class="pv-card" href="/__preview/laundry-prices">
+      <span class="pv-tag">Laundry</span>
+      <h2>Laundry price list</h2>
+      <p>The garment prices, the 21% laundry tax they attract and where that rate comes from — the list the guest portal shows when a guest asks for a pick-up.</p>
+    </a>
+    <a class="pv-card" href="/__preview/laundry-settled">
+      <span class="pv-tag">Laundry</span>
+      <h2>Laundry order, paid at the counter</h2>
+      <p>The same order after the guest settled it: delivered, invoiced, the tax it carried on the line, and no re-deliver button.</p>
+    </a>
+    <a class="pv-card" href="/__preview/laundry-list">
+      <span class="pv-tag">Laundry</span>
+      <h2>Laundry orders desk</h2>
+      <p>The list with a Payable column — what each order comes to with tax, and what it is made of underneath.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-report-date">
+      <span class="pv-tag">Reports</span>
+      <h2>Report screen — as on a date</h2>
+      <p>A snapshot report read at a business date rather than over a period: the "as on" line, one date field with its own presets, the ledger that balances to the cedi, and the same print sheet.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-views">
+      <span class="pv-tag">Reports</span>
+      <h2>My reports</h2>
+      <p>The saved views a reader keeps — pinned, shared, the columns and period each one holds, how often it is opened, and one tap to e-mail it on a schedule — above the reports already being e-mailed on their behalf.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-schedules">
+      <span class="pv-tag">Reports</span>
+      <h2>Scheduled reports</h2>
+      <p>What is e-mailed on whose behalf, and what happened when it went: the failing-schedule banner, the counts, the schedule table with send-now and pause, the delivery log with every error, and the form that sets a report to be sent.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reports-alerts">
+      <span class="pv-tag">Reports</span>
+      <h2>KPI alerts</h2>
+      <p>The figures watched every night: the events waiting for acknowledgement with their actual against threshold, who was notified, the acknowledgement with its action note, and the rules behind them with their severities.</p>
+    </a>
     <a class="pv-card" href="/__preview/management-dashboard">
       <span class="pv-tag">Dashboard</span>
       <h2>Management dashboard</h2>
@@ -35,6 +450,26 @@
       <span class="pv-tag">Front Office</span>
       <h2>Tape chart</h2>
       <p>Two weeks of rooms against dates: the five summary counts, the window controls, room type groups with housekeeping dots, one bar per stay coloured by status, unassigned reservations you can drag onto a room, and the print sheet.</p>
+    </a>
+    <a class="pv-card" href="/__preview/egrc-signature">
+      <span class="pv-tag">Front Office</span>
+      <h2>e-Registration signature</h2>
+      <p>The tablet the guest signs on: the identity and stay record beside the terms, a signature pad that unlocks the save button once ink lands, and the guest's identity scans with the upload form.</p>
+    </a>
+    <a class="pv-card" href="/__preview/guest-registration-card">
+      <span class="pv-tag">Front Office</span>
+      <h2>Guest registration card</h2>
+      <p>The printed card a guest signs: room and stay at a glance, guest particulars, identity document, charges, the declaration, the signature block with the e-signed image, and the office-use strip.</p>
+    </a>
+    <a class="pv-card" href="/__preview/walkin-checkin">
+      <span class="pv-tag">Front Office</span>
+      <h2>Walk-in check-in</h2>
+      <p>The desk's walk-in form: guest profile, one tap between Night and Day, a dropdown of hours when it is a day use, room and rate, deposit and payment.</p>
+    </a>
+    <a class="pv-card" href="/__preview/reservation-form">
+      <span class="pv-tag">Front Office</span>
+      <h2>New reservation</h2>
+      <p>The booking desk taking a reservation: stay dates and nights, the room lines with live rate and room pickers, the guest block with the same title picker the walk-in desk uses (including <b>Others</b> and a new title saved to the profile), billing instructions, advance payment and special requests.</p>
     </a>
     <a class="pv-card" href="/__preview/reservations-workspace">
       <span class="pv-tag">Front Office</span>

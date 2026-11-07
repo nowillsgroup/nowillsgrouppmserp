@@ -39,7 +39,8 @@
       @if($type === 'bool')
         <label class="check span-2"><input type="checkbox" name="settings[{{ $k }}]" value="1" @checked(($values[$k] ?? ($keys[$k][2] ?? '0')) === '1')> {{ $label }}</label>
       @elseif($type === 'number')
-        <x-field :name="'settings['.$k.']'" :label="$label" type="number" step="0.01" min="0" :value="$values[$k] ?? ($keys[$k][2] ?? '')"/>
+        @php [$bMin, $bMax] = \App\Http\Controllers\SettingController::BOUNDS[$k] ?? ['0', null]; @endphp
+        <x-field :name="'settings['.$k.']'" :label="$label" type="number" step="0.01" :min="$bMin" :max="$bMax" :value="$values[$k] ?? ($keys[$k][2] ?? '')"/>
       @elseif($type === 'select')
         <x-field :name="'settings['.$k.']'" :label="$label" type="select" :options="$keys[$k][3]" :value="$values[$k] ?? $keys[$k][2]"/>
       @elseif($type === 'time')

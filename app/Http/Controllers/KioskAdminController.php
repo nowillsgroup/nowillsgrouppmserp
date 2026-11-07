@@ -132,9 +132,9 @@ class KioskAdminController extends Controller
     public function saveSettings(Request $r)
     {
         return $this->attempt(function () use ($r) {
+            // every field, including the breakfast line, is written by the service under
+            // its one audit trail — a second write here would be unlogged
             KS::saveSettings($r->all(), $r->user());
-            \App\Models\Setting::updateOrCreate(['key' => 'kiosk_breakfast'], ['value' => mb_substr(trim((string) $r->input('kiosk_breakfast')), 0, 200)]);
-            \App\Models\Setting::$version++;
         }, 'Kiosk settings saved.');
     }
 }

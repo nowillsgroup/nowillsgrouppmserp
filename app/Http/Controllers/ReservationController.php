@@ -18,6 +18,7 @@ use App\Models\Room;
 use App\Models\RoomType;
 use App\Services\ActivityLogger;
 use App\Services\AvailabilityService;
+use App\Services\CityLedgerService;
 use App\Services\ReservationDeskService;
 use App\Services\ReservationAmendmentService;
 use App\Services\CancellationService;
@@ -69,11 +70,30 @@ class ReservationController extends Controller
         ]);
     }
 
+    /**
+     * Open a city-ledger account from the booking desk.
+     *
+     * The walk-in desk already does this in place; the booking desk needs the same,
+     * so both go through CityLedgerService and create the same account.
+     */
+    public function storeCompany(Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(can_do('credit.manage'), 403);
+
+        $company = CityLedgerService::createFromDesk(
+            $request->validate(CityLedgerService::rules()),
+            'New reservation'
+        );
+
+        return response()->json(['company' => CityLedgerService::payload($company)], 201);
+    }
+
     protected function rules(bool $update = false): array
     {
         return [
             'guest_id' => 'nullable|integer',
             'guest.title' => 'nullable|string|max:30',
+            'guest.custom_title' => 'required_if:guest.title,__other__|nullable|string|max:30|not_in:__other__',
             'guest.first_name' => 'required|string|max:80',
             'guest.last_name' => 'nullable|string|max:80',
             'guest.phone' => 'required|string|max:30',
@@ -83,7 +103,12 @@ class ReservationController extends Controller
             'guest.id_type' => 'nullable|string|max:30',
             'guest.id_number' => 'nullable|string|max:60',
             'arrival_date' => ['required', 'date', 'after_or_equal:'.bdate()->toDateString()],
-            'departure_date' => 'required|date|after:arrival_date',
+            'departure_date' => ['required', 'date', $this->departureRule()],
+            // A day use is sold by the hour: the desk names the hours and what they cost
+            // per hour, and the night count is not what the booking is charged on.
+            'stay_type' => 'nullable|in:overnight,day_use',
+            'day_use_hours' => 'required_if:stay_type,day_use|nullable|integer|min:1|max:12',
+            'day_use_rate' => 'required_if:stay_type,day_use|nullable|numeric|min:0|max:99999999.99',
             'eta' => 'nullable|date_format:H:i',
             'business_source_id' => 'nullable|integer|owned:business_sources',
             'company_id' => 'nullable|integer|owned:companies',
@@ -114,6 +139,20 @@ class ReservationController extends Controller
             'payments.*.momo_phone' => 'nullable|string|max:30', 'payments.*.cheque_bank_name' => 'nullable|string|max:100',
             'payments.*.cheque_number' => 'nullable|string|max:20', 'payments.*.cheque_bank_branch' => 'nullable|string|max:100',
         ];
+    }
+
+    /**
+     * "Others" on the title picker is a prompt, not a title: the guest keeps the one that
+     * was typed. The same rule the walk-in desk applies, so both doors to a profile agree.
+     */
+    protected function resolveGuestTitle(array $data): array
+    {
+        if (($data['guest']['title'] ?? null) === '__other__') {
+            $data['guest']['title'] = trim((string) ($data['guest']['custom_title'] ?? ''));
+        }
+        unset($data['guest']['custom_title']);
+
+        return $data;
     }
 
     protected function upsertGuest(array $g, ?int $guestId, ?int $companyId): Guest
@@ -157,19 +196,55 @@ class ReservationController extends Controller
         AvailabilityService::lockRoomInventory($typeIds);
     }
 
-    protected function checkInventory(array $lines, string $from, string $to, ?int $ignoreReservation = null, ?int $contractId = null): void
+    /** A day use departs on its arrival day; an overnight stay must move forward. */
+    protected function departureRule(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail) {
+            $arrival = (string) request()->input('arrival_date');
+            $editing = request()->route('reservation');
+            $dayUse = request()->input('stay_type') === 'day_use'
+                || ($editing instanceof Reservation && $editing->isDayUse());
+            if ($dayUse) {
+                if (substr((string) $value, 0, 10) !== substr($arrival, 0, 10)) {
+                    $fail('A day use stays on its arrival day – its departure is the same date.');
+                }
+
+                return;
+            }
+            if (! $arrival || strtotime((string) $value) <= strtotime($arrival)) {
+                $fail('The departure date must be after the arrival date.');
+            }
+        };
+    }
+
+    /**
+     * The hour a day use runs until: the guest's ETA (or the time the desk sells it,
+     * for today) plus the hours bought.
+     */
+    protected function dayUseUntil(string $arrival, ?string $eta, int $hours): string
+    {
+        $start = $eta ?: (Carbon::parse($arrival)->isToday() ? now()->format('H:i') : '12:00');
+
+        return Carbon::parse(substr($arrival, 0, 10).' '.substr($start, 0, 5))->addHours(max(1, $hours))->format('H:i');
+    }
+
+    protected function checkInventory(array $lines, string $from, string $to, ?int $ignoreReservation = null, ?int $contractId = null, bool $dayUse = false): void
     {
         $need = collect($lines)->groupBy('room_type_id')->map->count();
         foreach ($need as $typeId => $count) {
             $type = RoomType::findOrFail((int) $typeId);
-            $quote = $contractId
-                ? ContractService::quote(RateContract::with('rates', 'blackouts')->findOrFail($contractId), $type, $from, $to, 1)
-                : \App\Services\RateService::quote($type, $from, $to);
-            if ($quote['stop_sell']) {
-                throw ValidationException::withMessages(['rooms' => "{$type->name} is closed for sale on the selected dates."]);
-            }
-            if (! $quote['min_stay_ok']) {
-                throw ValidationException::withMessages(['rooms' => "A minimum stay of {$quote['min_stay']} night(s) applies to {$type->name}."]);
+            // A day use sells hours, not nights: the night-rate rules (stop-sell,
+            // minimum stay) are not what it is judged on. The room still has to be free.
+            if (! $dayUse) {
+                $quote = $contractId
+                    ? ContractService::quote(RateContract::with('rates', 'blackouts')->findOrFail($contractId), $type, $from, $to, 1)
+                    : \App\Services\RateService::quote($type, $from, $to);
+                if ($quote['stop_sell']) {
+                    throw ValidationException::withMessages(['rooms' => "{$type->name} is closed for sale on the selected dates."]);
+                }
+                if (! $quote['min_stay_ok']) {
+                    throw ValidationException::withMessages(['rooms' => "A minimum stay of {$quote['min_stay']} night(s) applies to {$type->name}."]);
+                }
             }
             $avail = AvailabilityService::typeAvailable((int) $typeId, $from, $to, null, $contractId, $ignoreReservation); // v2.7: own allotment is sellable
             if ($count > $avail) {
@@ -229,16 +304,23 @@ class ReservationController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate($this->rules());
+        $data = $this->resolveGuestTitle($request->validate($this->rules()));
         if (! empty($data['payments']) && ($data['advance'] ?? 0) > 0) {
             throw ValidationException::withMessages(['payments' => 'Use either the single advance fields or split tender lines, not both.']);
         }
         $advanceLines = ! empty($data['payments']) || ($data['advance'] ?? 0) > 0 ? $this->advancePaymentLines($request, $data) : [];
+        // A day use is taken in hours on one day: it leaves the same day and is charged
+        // for the hours bought (hours × rate per hour), never for a night.
+        $dayUse = ($data['stay_type'] ?? 'overnight') === 'day_use';
+        $hours = $dayUse ? (int) $data['day_use_hours'] : 0;
+        $hourly = $dayUse ? (float) $data['day_use_rate'] : 0.0;
+        $until = $dayUse ? $this->dayUseUntil($data['arrival_date'], $data['eta'] ?? null, $hours) : null;
+        $occupiedTo = $dayUse ? Carbon::parse(substr($data['arrival_date'], 0, 10))->addDay()->toDateString() : $data['departure_date'];
         $contract = $this->contractAndCredit($data);
 
-        $reservation = DB::transaction(function () use ($data, $contract, $advanceLines) {
+        $reservation = DB::transaction(function () use ($data, $contract, $advanceLines, $dayUse, $hours, $hourly, $until, $occupiedTo) {
             $this->lockInventory($data['rooms']);
-            $this->checkInventory($data['rooms'], $data['arrival_date'], $data['departure_date'], null, $contract?->id);
+            $this->checkInventory($data['rooms'], $data['arrival_date'], $occupiedTo, null, $contract?->id, $dayUse);
             $guest = $this->upsertGuest($data['guest'], $data['guest_id'] ?? null, $data['company_id'] ?? null);
             $res = Reservation::create([
                 'reservation_no' => Numbering::next('reservation'),
@@ -250,8 +332,12 @@ class ReservationController extends Controller
             foreach ($data['rooms'] as $line) {
                 $res->rooms()->create([
                     'room_type_id' => $line['room_type_id'], 'room_id' => $line['room_id'] ?? null, 'rate_plan_id' => $line['rate_plan_id'] ?? null,
-                    'guest_id' => $guest->id, 'arrival_date' => $data['arrival_date'], 'departure_date' => $data['departure_date'],
-                    'rate' => $line['rate'], 'adults' => $line['adults'], 'children' => $line['children'] ?? 0,
+                    'guest_id' => $guest->id, 'arrival_date' => $data['arrival_date'], 'departure_date' => $dayUse ? $data['arrival_date'] : $data['departure_date'],
+                    // rate is what the folio posts: the hours bought at the hourly rate.
+                    'rate' => $dayUse ? round($hours * $hourly, 2) : $line['rate'],
+                    'adults' => $line['adults'], 'children' => $line['children'] ?? 0,
+                    'is_day_use' => $dayUse, 'day_use_until' => $until,
+                    'day_use_hours' => $dayUse ? $hours : null, 'day_use_rate' => $dayUse ? $hourly : null,
                     'extra_charge' => $this->lineExtra($line, $contract), 'status' => 'reserved',
                 ]);
             }
@@ -279,7 +365,11 @@ class ReservationController extends Controller
             report($e);
         }
 
-        return redirect()->route('reservations.show', $reservation)->with('success', "Reservation {$reservation->reservation_no} created.");
+        $message = $dayUse
+            ? "Day-use reservation {$reservation->reservation_no} created for {$hours} hour(s)."
+            : "Reservation {$reservation->reservation_no} created.";
+
+        return redirect()->route('reservations.show', $reservation)->with('success', $message);
     }
 
     public function show(Reservation $reservation)
@@ -385,10 +475,20 @@ class ReservationController extends Controller
     public function update(Request $request, Reservation $reservation)
     {
         abort_unless(in_array($reservation->status, ['confirmed', 'tentative']), 403);
-        $data = $request->validate($this->rules(true));
+        $data = $this->resolveGuestTitle($request->validate($this->rules(true)));
+        // The stay type is chosen when the booking is taken; an amendment keeps the
+        // stay that is already on the books, so a posted stay type is not applied here.
+        unset($data['stay_type'], $data['day_use_hours'], $data['day_use_rate']);
+        $dayUse = $reservation->isDayUse();
+        $occupiedTo = $dayUse
+            ? Carbon::parse($reservation->arrival_date->toDateString())->addDay()->toDateString()
+            : $data['departure_date'];
+        if ($dayUse) {
+            $data['departure_date'] = $data['arrival_date'];
+        }
         $contract = $this->contractAndCredit($data);
 
-        DB::transaction(function () use ($data, $reservation, $contract) {
+        DB::transaction(function () use ($data, $reservation, $contract, $dayUse, $occupiedTo) {
             $reservation = Reservation::whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             // The edit form's status check happened before the transaction;
             // repeat it after the reservation lock so a concurrent check-in or
@@ -427,7 +527,7 @@ class ReservationController extends Controller
             }
 
             $this->lockInventory($data['rooms'], $reservation->id);
-            $this->checkInventory($data['rooms'], $data['arrival_date'], $data['departure_date'], $reservation->id, $contract?->id);
+            $this->checkInventory($data['rooms'], $data['arrival_date'], $occupiedTo, $reservation->id, $contract?->id, $dayUse);
             $guest = $this->upsertGuest($data['guest'], $reservation->guest_id, $data['company_id'] ?? null);
             $reservation->update([
                 'adults' => collect($data['rooms'])->sum('adults'), 'children' => collect($data['rooms'])->sum('children'), 'rate_contract_id' => $contract?->id,

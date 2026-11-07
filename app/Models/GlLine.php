@@ -29,4 +29,10 @@ class GlLine extends Model
     {
         return $this->belongsTo(AccountHead::class, 'account_head_id');
     }
+
+    /** v8.1 – the cost centre this line is charged to; null = unallocated */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
 }

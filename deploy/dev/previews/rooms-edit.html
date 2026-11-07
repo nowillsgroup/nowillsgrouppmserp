@@ -164,6 +164,18 @@
     </div>
       </div>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-briefings" data-nav-label="Daily Briefings">
+      <a href="#" title="Daily Briefings" data-route="briefings.index">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Daily Briefings</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-brief" data-nav-label="Executive Brief">
+      <a href="#" title="Executive Brief" data-route="briefings.exec">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Executive Brief</span>
+      </a>
+    </div>
       </div>
     </div>
     <div class="nav-section-label">OPERATIONS</div>
@@ -1199,6 +1211,12 @@
         <span class="nav-label">City Ledger</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="finance.accounts.receivables-ageing" data-nav-label="Receivables Ageing">
+      <a href="#" title="Receivables Ageing" data-route="accounts.receivables">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Receivables Ageing</span>
+      </a>
+    </div>
     <div class="nav-item nav-link-item" data-nav-key="finance.accounts.credit-control" data-nav-label="Credit Control">
       <a href="#" title="Credit Control" data-route="credit.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
@@ -2229,6 +2247,12 @@
         <span class="nav-label">Rental Fleet</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="facilities-security.car-rental.rental-settings" data-nav-label="Rental Settings">
+      <a href="#" title="Rental Settings" data-route="rentals.settings">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Rental Settings</span>
+      </a>
+    </div>
       </div>
     </div>
       </div>
@@ -2302,6 +2326,24 @@
       <a href="#" title="Ticket Outlet" data-route="recreation.outlet">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
         <span class="nav-label">Ticket Outlet</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.ticket-gate" data-nav-label="Ticket Gate">
+      <a href="#" title="Ticket Gate" data-route="recreation.gate">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Ticket Gate</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.outlet-shift" data-nav-label="Outlet Shift">
+      <a href="#" title="Outlet Shift" data-route="recreation.shift">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Outlet Shift</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.outlet-day-report" data-nav-label="Outlet Day Report">
+      <a href="#" title="Outlet Day Report" data-route="recreation.day">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Outlet Day Report</span>
       </a>
     </div>
     <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.ticket-sales" data-nav-label="Ticket Sales">
@@ -2441,6 +2483,12 @@
       <a href="#" title="Monthly Register" data-route="hr.register">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
         <span class="nav-label">Monthly Register</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="hr-payroll.workforce.hr-settings" data-nav-label="HR Settings">
+      <a href="#" title="HR Settings" data-route="hr.settings">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">HR Settings</span>
       </a>
     </div>
     <div class="nav-item nav-link-item" data-nav-key="hr-payroll.workforce.public-holidays" data-nav-label="Public Holidays">
@@ -2858,6 +2906,12 @@
         <span class="nav-label">Roles &amp; Permissions</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="administration.system-admin.configuration" data-nav-label="Configuration">
+      <a href="#" title="Configuration" data-route="configuration.index">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Configuration</span>
+      </a>
+    </div>
     <div class="nav-item nav-link-item" data-nav-key="administration.system-admin.hotel-settings" data-nav-label="Hotel Settings">
       <a href="#" title="Hotel Settings" data-route="settings.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
@@ -3126,5 +3180,31 @@
     </main>
   </div>
 </div>
+
+<script>
+// The application's modal plumbing (public/js/app.js): a button that opens nothing
+// would hide a bug, so the rendered shell answers [data-modal] the same way.
+document.addEventListener('click', e => {
+  const opener = e.target.closest('[data-modal]');
+  if (opener) {
+    e.preventDefault();
+    const modal = document.getElementById(opener.dataset.modal);
+    if (modal) {
+      modal.classList.add('show');
+      const resetting = modal.querySelector('form[data-reset]');
+      if (resetting) resetting.reset();
+      const field = modal.querySelector('input:not([type=hidden]),select,textarea');
+      if (field) setTimeout(() => field.focus(), 50);
+    }
+  }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) {
+    e.target.closest('.modal')?.classList.remove('show');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show'));
+});
+</script>
 </body>
 </html>

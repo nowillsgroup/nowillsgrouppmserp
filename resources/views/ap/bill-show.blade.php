@@ -27,7 +27,7 @@
     <dt>Type</dt><dd>{{ $bill->isOpening() ? ($bill->isDebitNote() ? 'Opening supplier credit' : 'Opening payable balance') : ($bill->isDebitNote() ? 'Debit note' : ($bill->kind === 'goods' ? 'Goods (matched to receipt)' : 'Expense / service')) }}</dd>
     @if($bill->purchaseOrder)<dt>Purchase order</dt><dd><a href="{{ route('purchases.show', $bill->purchaseOrder) }}">{{ $bill->purchaseOrder->po_no }}</a></dd>@endif
     @if($bill->againstInvoice)<dt>Against bill</dt><dd><a href="{{ route('ap.bills.show', $bill->againstInvoice) }}">{{ $bill->againstInvoice->doc_no }}</a></dd>@endif</dl>
-  <dl class="kv"><dt>Date</dt><dd>{{ $bill->doc_date->format('d M Y') }}</dd>@if(! $bill->isDebitNote())<dt>Due</dt><dd class="{{ $od ? 'text-red bold' : '' }}">{{ $bill->due_date?->format('d M Y') }}{{ $od ? " · {$od} days overdue" : '' }}</dd>@endif
+  <dl class="kv"><dt>Date</dt><dd>{{ $bill->doc_date->format('d M Y') }}</dd>@if(! $bill->isDebitNote())<dt>Due</dt><dd class="{{ $od ? 'text-red bold' : '' }}">{{ $bill->due_date?->format('d M Y') }}{{ $od ? ' · '.$od.' days overdue' : '' }}</dd>@endif
     <dt>Entered by</dt><dd>{{ $bill->creator?->name ?? '—' }} · {{ $bill->created_at->format('d M H:i') }}</dd>
     @if($bill->approved_at)<dt>Approved by</dt><dd>{{ $bill->approver?->name }} · {{ $bill->approved_at->format('d M H:i') }}</dd>@endif</dl>
   <div class="ap-summary">
@@ -98,6 +98,11 @@
     <input type="number" name="amount" step="0.01" min="0.01" class="input input-sm num" style="width:120px" value="{{ min($credits->first()['free'], $bill->outstanding()) }}">
     <button class="btn btn-sm btn-primary">Apply credit</button>
   </form>
+  @elseif(! $bill->isDebitNote() && in_array($bill->status, ['open', 'partial']) && can_do('ap.pay'))
+  {{-- v9.4 an empty list is an answer too: say there is nothing on account rather than leaving the card looking unfinished --}}
+  <p class="small muted" id="noCredit" style="margin:.6rem 0 0">Nothing on account with this supplier in
+    {{ $bill->isForeign() ? strtoupper((string) $bill->currency) : strtoupper((string) (hotel()?->currency ?: 'GHS')) }} to apply.
+    Pay the bill, or record a debit note against it first.</p>
   @endif
 </div></div>
 

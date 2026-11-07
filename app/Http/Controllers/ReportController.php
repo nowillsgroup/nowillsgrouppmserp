@@ -549,7 +549,7 @@ class ReportController extends Controller
         'linen_par' => ['Laundry & Linen', 'Linen Stock & Par', 'Every linen type by location (clean, floors, soiled, at laundry) against par, with shortfall and stock value', 'none', 'laundry.view'],
         'sop_acknowledgement' => ['Learning & Development', 'SOP Sign-off Status', 'Every published SOP that staff must sign: version, effective date, review due, staff in scope, signed, outstanding and who has not signed', 'none', 'learning.view'],
         'sop_acknowledgements' => ['Learning & Development', 'SOP Acknowledgement Register', 'Every employee acknowledgement of a SOP', 'none', 'training.view'],
-        'sop_documents' => ['Learning & Development', 'SOP Document Register', 'Every SOP document', 'none', 'training.view'],
+        'sop_documents' => ['Learning & Development', 'SOP Document Register', 'Every SOP document, its version, owner and next review date', 'none', 'training.view'],
         'sop_versions' => ['Learning & Development', 'SOP Version Register', 'Every version of a SOP', 'none', 'training.view'],
         'training_compliance' => ['Learning & Development', 'Training Matrix Compliance', 'Every employee against the training their department / job title requires: current, expiring, expired, overdue, new-starter due and compliance %', 'none', 'learning.view'],
         'training_courses' => ['Learning & Development', 'Training Course Register', 'Every training course with hours and active', 'none', 'training.view'],
@@ -682,13 +682,13 @@ class ReportController extends Controller
         'esg_initiatives' => ['Sustainability & ESG', 'Green Initiative Register', 'Every initiative: category, owner, status, capital cost, annual saving, simple payback, energy / water / waste / carbon savings, approver and completion', 'none', 'esg.view'],
         'esg_laundry_months' => ['Sustainability & ESG', 'ESG Laundry Month Register', 'Monthly laundry consumption', 'none', 'esg.view'],
         'esg_local_spend' => ['Sustainability & ESG', 'Local Sourcing Spend', 'Supplier bills in the period by supplier (net of debit notes, before tax) with the local flag and the share of spend with local suppliers', 'range', 'esg.view'],
-        'esg_policies' => ['Sustainability & ESG', 'ESG Policy Register', 'Every ESG policy', 'none', 'esg.view'],
+        'esg_policies' => ['Sustainability & ESG', 'ESG Policy Register', 'Every ESG policy with its owner, review date and approval status', 'none', 'esg.view'],
         'esg_refrigerants' => ['Sustainability & ESG', 'F-gas (Refrigerant) Log', 'Refrigerant added and recovered in the period by system: gas, GWP, work done, technician and certificate, kg CO₂e, with the annual leak rate per system', 'range', 'esg.view'],
-        'esg_targets' => ['Sustainability & ESG', 'ESG Target Register', 'Every ESG target', 'none', 'esg.view'],
+        'esg_targets' => ['Sustainability & ESG', 'ESG Target Register', 'Every ESG target with its baseline, target year and progress to date', 'none', 'esg.view'],
         'esg_waste' => ['Sustainability & ESG', 'Waste Register & Diversion', 'Waste consignments in the period: stream, disposal route, weight, department, contractor, waste transfer note, cost and income, kg CO₂e, with the diversion rate and kg per occupied room', 'range', 'esg.view'],
         'api_idempotency_keys' => ['System & Administration', 'API Idempotency Key Register', 'Every API idempotency key recorded', 'none', 'system.view'],
         'data_migration_batches' => ['System & Administration', 'Data Migration Batch Register', 'Every data migration batch with row counts', 'none', 'system.view'],
-        'data_migration_rows' => ['System & Administration', 'Data Migration Row Register', 'Every migrated row', 'none', 'system.view'],
+        'data_migration_rows' => ['System & Administration', 'Data Migration Row Register', 'Every migrated row, the batch it came from and whether it was accepted or skipped', 'none', 'system.view'],
         'log_entry_comments' => ['System & Administration', 'Log Entry Comment Register', 'Every comment added to an activity log entry', 'none', 'system.view'],
         'log_entry_reads' => ['System & Administration', 'Log Entry Read Register', 'Every time a user read an activity log entry', 'none', 'system.view'],
         'offline_sync_operations' => ['System & Administration', 'Offline Sync Operation Register', 'Every offline sync operation with payload and result', 'none', 'system.view'],
@@ -748,11 +748,63 @@ class ReportController extends Controller
         'upsell_revenue' => ['Front Office', 'Upsell Revenue by Offer', 'Per offer: confirmed orders and revenue split by channel (pre-arrival, desk, in-house portal), average sale, share of upsell revenue, plus declined and cancelled orders', 'range', 'upsell.view'],
     ];
 
-    public function index()
+    /** The icon each report area shows in the library, and how a period reads. */
+    public const GROUP_ICONS = [
+        'Accounts' => 'wallet', 'Banquet & Events' => 'cup', 'Billing' => 'receipt', 'Budget & Planning' => 'chart',
+        'Central Reservations' => 'phone', 'Channel Manager' => 'layers', 'Compliance & HSE' => 'shield',
+        'Concierge & Activities' => 'plane', 'Front Office' => 'bed', 'F&B & POS' => 'coffee',
+        'Feedback & Reputation' => 'star', 'Fixed Assets & Engineering' => 'tool', 'Food Safety' => 'thermo',
+        'Foreign Guests & Forex' => 'globe', 'General Ledger' => 'book', 'Guest Messaging' => 'message',
+        'HR & People' => 'users', 'Health Club & Spa' => 'spa', 'Hotel Group & Owner Reporting' => 'building',
+        'Hotel Interfaces' => 'link', 'Housekeeping' => 'broom', 'IPTV & Guest Technology' => 'wifi',
+        'Inventory & Purchasing' => 'box', 'Laundry & Linen' => 'shirt', 'Learning & Development' => 'check',
+        'Management & MIS' => 'trend', 'Marketing & CRM' => 'mail', 'Treasury & Payments' => 'money',
+        'Sales & Business Development' => 'trend', 'Partner & Organiser Portals' => 'external', 'Payroll' => 'id',
+        'Property & Utilities' => 'house', 'Quality Assurance' => 'check', 'Revenue Management' => 'chart',
+        'Security' => 'lock', 'Self-Service Kiosk' => 'qr', 'Sustainability & ESG' => 'tree',
+        'System & Administration' => 'settings', 'Talent Management' => 'user', 'Tax & Statutory' => 'receipt',
+        'Transport & Parking' => 'car',
+    ];
+
+    public const MODE_LABELS = ['range' => 'Period', 'date' => 'As on date', 'none' => 'Live'];
+
+    /**
+     * The report library.
+     *
+     * Half a thousand reports live behind this page, so it is built as a catalogue
+     * rather than a link list: every report keeps its area, its one-line promise and
+     * the period it answers on, and the page carries the saved views the reader can
+     * open. Only reports the reader may open are listed.
+     */
+    public function index(Request $request)
     {
         $visible = collect(self::REPORTS)->filter(fn ($r) => can_do($r[4] ?? 'reports.view'));
 
-        return view('reports.index', ['groups' => $visible->groupBy(fn ($r) => $r[0], true)]);
+        $groups = $visible->groupBy(fn ($r) => $r[0], true)
+            ->map(fn ($reports, $group) => [
+                'name' => $group,
+                'icon' => self::GROUP_ICONS[$group] ?? 'chart',
+                'reports' => $reports->map(fn ($r, $slug) => [
+                    'slug' => $slug,
+                    'title' => $r[1],
+                    'desc' => $r[2],
+                    'mode' => self::MODE_LABELS[$r[3] ?? 'range'] ?? 'Period',
+                ])->values()->all(),
+            ])
+            ->sortKeys();
+
+        $u = $request->user();
+        $views = \App\Services\ReportScheduleService::viewsFor($u);
+
+        return view('reports.index', [
+            'groups' => $groups,
+            'total' => $visible->count(),
+            'views' => $views,
+            'pinned' => $views->where('is_pinned', true)->where('user_id', $u->id)->values(),
+            'mine' => $views->where('user_id', $u->id)->count(),
+            'shared' => $views->where('user_id', '!=', $u->id)->count(),
+            'schedules' => can_do('reports.schedule') ? \App\Models\ReportSchedule::where('user_id', $u->id)->count() : null,
+        ]);
     }
 
     public function show(Request $request, string $report)
@@ -798,7 +850,8 @@ class ReportController extends Controller
                     fputcsv($out, array_map(fn ($k) => $this->csvSafe($row[$k] ?? ''), array_keys($data['cols'])));
                 }
                 fclose($out);
-            }, $report.'_'.$from->format('Ymd').'_'.$to->format('Ymd').'.csv', ['Content-Type' => 'text/csv']);
+            // an "as on" report is one day, so its file is named for that day, not a span
+            }, $report.'_'.($mode === 'date' ? $to->format('Ymd') : $from->format('Ymd').'_'.$to->format('Ymd')).'.csv', ['Content-Type' => 'text/csv']);
         }
 
         $views = \App\Services\ReportScheduleService::viewsFor($request->user(), $report);

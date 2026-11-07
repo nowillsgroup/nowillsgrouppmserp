@@ -3,7 +3,7 @@
 @section('actions')<a class="btn" href="{{ route('gl.journals') }}"><x-icon name="book"/> Journals</a>@endsection
 @section('content')
 @php
-  $rows = old('lines') ?: ($copy ? $copy->lines->map(fn ($l) => ['account_head_id' => $l->account_head_id, 'debit' => (float) $l->debit ?: '', 'credit' => (float) $l->credit ?: '', 'memo' => $l->memo])->all() : array_fill(0, 4, []));
+  $rows = old('lines') ?: ($copy ? $copy->lines->map(fn ($l) => ['account_head_id' => $l->account_head_id, 'debit' => (float) $l->debit ?: '', 'credit' => (float) $l->credit ?: '', 'memo' => $l->memo, 'department_id' => $l->department_id])->all() : array_fill(0, 4, []));
   $opts = $accounts->groupBy('type');
 @endphp
 @if($errors->any())<div class="alert alert-error">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>@endif
@@ -15,9 +15,10 @@
 </div></div>
 <div class="card flush"><div class="card-head"><h3>Lines</h3><button type="button" class="btn btn-sm" id="addLine"><x-icon name="plus" size="sm"/> Add line</button></div>
 <div class="card-body table-wrap"><table class="table gl-lines" id="jvLines">
-<thead><tr><th style="width:42%">Account</th><th>Memo</th><th class="num" style="width:14%">Debit</th><th class="num" style="width:14%">Credit</th><th style="width:40px"></th></tr></thead><tbody>
+<thead><tr><th style="width:32%">Account</th><th style="width:16%">Cost centre@if($requireCc) <span class="req">*</span>@endif</th><th>Memo</th><th class="num" style="width:13%">Debit</th><th class="num" style="width:13%">Credit</th><th style="width:40px"></th></tr></thead><tbody>
 @foreach($rows as $i => $r)
-<tr><td><select class="input input-sm" name="lines[{{ $i }}][account_head_id]"><option value="">— Select account —</option>@foreach($opts as $type => $as)<optgroup label="{{ \App\Models\AccountHead::TYPES[$type] ?? $type }}">@foreach($as as $a)<option value="{{ $a->id }}" @selected(($r['account_head_id'] ?? null) == $a->id)>{{ $a->label }}</option>@endforeach</optgroup>@endforeach</select></td>
+<tr><td><select class="input input-sm" name="lines[{{ $i }}][account_head_id]"><option value="">— Select account —</option>@foreach($opts as $type => $as)<optgroup label="{{ \App\Models\AccountHead::TYPES[$type] ?? $type }}">@foreach($as as $a)<option value="{{ $a->id }}" data-type="{{ $a->type }}" @selected(($r['account_head_id'] ?? null) == $a->id)>{{ $a->label }}</option>@endforeach</optgroup>@endforeach</select></td>
+<td><select class="input input-sm cc" name="lines[{{ $i }}][department_id]"><option value="">— none —</option>@foreach($departments as $id => $nm)<option value="{{ $id }}" @selected(($r['department_id'] ?? null) == $id)>{{ $nm }}</option>@endforeach</select></td>
 <td><input class="input input-sm" name="lines[{{ $i }}][memo]" maxlength="150" value="{{ $r['memo'] ?? '' }}"></td>
 <td><input type="number" step="0.01" min="0" class="input input-sm num dr" name="lines[{{ $i }}][debit]" value="{{ $r['debit'] ?? '' }}"></td>
 <td><input type="number" step="0.01" min="0" class="input input-sm num cr" name="lines[{{ $i }}][credit]" value="{{ $r['credit'] ?? '' }}"></td>
@@ -25,22 +26,37 @@
 @endforeach
 </tbody></table>
 <div class="gl-balance" style="padding-right:1rem"><span>Debits <span id="tDr">0.00</span></span><span>Credits <span id="tCr">0.00</span></span><span id="tDiff" class="off">Difference 0.00</span></div>
+<p class="small text-red m-0" id="ccWarn" style="display:none;padding:0 1rem .6rem"></p>
 </div></div>
 <div class="flex gap-2" style="justify-content:flex-end"><a class="btn" href="{{ route('gl.journals') }}">Cancel</a><button class="btn btn-primary" id="postJv" disabled><x-icon name="check"/> Post journal</button></div>
 </form>
-<p class="small muted">Each line carries either a debit or a credit. The journal can be dated after the lock date ({{ \App\Services\LedgerService::lockDate() ?: 'none' }}) and up to the current business date. Posted journals are never edited – use Reverse.</p>
+<p class="small muted">A cost centre is the department a line is charged to; it drives the departmental budgets and reports. @if($requireCc)<b>Budget settings require one on every expense line.</b>@endif Each line carries either a debit or a credit. The journal can be dated after the lock date ({{ \App\Services\LedgerService::lockDate() ?: 'none' }}) and up to the current business date. Posted journals are never edited – use Reverse.</p>
 @endsection
 @push('scripts')<script>
 (() => {
   const body = document.querySelector('#jvLines tbody'), post = document.getElementById('postJv');
+  const ccRequired = {{ $requireCc ? 'true' : 'false' }};
   const f = v => (Math.round((parseFloat(v) || 0) * 100) / 100);
+  function missingCc() {
+    let n = 0;
+    body.querySelectorAll('tr').forEach(tr => {
+      const acc = tr.querySelector('select[name$="[account_head_id]"]'), cc = tr.querySelector('.cc');
+      if (!acc || !cc) return;
+      const o = acc.options[acc.selectedIndex];
+      if (o && o.dataset && o.dataset.type === 'expense' && cc.value === '') n++;
+    });
+    return n;
+  }
   function total() {
     let dr = 0, cr = 0, used = 0;
     body.querySelectorAll('tr').forEach(tr => { const d = f(tr.querySelector('.dr').value), c = f(tr.querySelector('.cr').value); dr += d; cr += c; if (d || c) used++; });
     const diff = Math.round((dr - cr) * 100) / 100;
     document.getElementById('tDr').textContent = dr.toFixed(2); document.getElementById('tCr').textContent = cr.toFixed(2);
     const el = document.getElementById('tDiff'); el.textContent = diff === 0 ? 'Balanced' : 'Difference ' + diff.toFixed(2); el.className = diff === 0 ? 'ok' : 'off';
-    post.disabled = !(diff === 0 && dr > 0 && used >= 2);
+    const miss = ccRequired ? missingCc() : 0;
+    const warn = document.getElementById('ccWarn');
+    if (warn) { warn.style.display = miss ? '' : 'none'; warn.textContent = miss ? miss + ' expense line(s) name no cost centre – budget settings require one on every expense line.' : ''; }
+    post.disabled = !(diff === 0 && dr > 0 && used >= 2) || miss > 0;
   }
   body.addEventListener('input', e => {
     const tr = e.target.closest('tr'); if (!tr) return;
@@ -48,6 +64,7 @@
     if (e.target.classList.contains('cr') && e.target.value) tr.querySelector('.dr').value = '';
     total();
   });
+  body.addEventListener('change', total);
   body.addEventListener('click', e => { const b = e.target.closest('.del'); if (b && body.rows.length > 2) { b.closest('tr').remove(); total(); } });
   document.getElementById('addLine').addEventListener('click', () => {
     const tr = body.rows[body.rows.length - 1].cloneNode(true), n = Date.now();

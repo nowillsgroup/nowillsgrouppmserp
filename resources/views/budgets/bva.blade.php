@@ -13,6 +13,7 @@
 @else
 @php
   $m = $data['meta']; $T = $data['totals']; $S = $data['sections']; $K = $data['kpis'];
+  $cc = $m['cost_centre'] ?? null;   // v8.1 – set when this version plans one department
   $n = fn ($v) => money($v, false);
   $var = fn ($v, $fav) => '<span class="'.(abs($v) < 0.005 ? 'muted' : ($fav ? 'text-green' : 'text-red')).'">'.($v > 0 ? '+' : '').money($v, false).'</span>';
   $pct = fn ($p, $fav) => $p === null ? '<span class="muted">—</span>' : '<span class="'.($fav ? 'text-green' : 'text-red').'">'.($p > 0 ? '+' : '').number_format($p, 1).' %</span>';
@@ -24,9 +25,11 @@
 @endphp
 
 <form method="get" class="filters card" style="padding:.8rem 1rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end" id="bvaFilter">
-  <div class="field"><label>Budget</label><select name="budget" class="input">@foreach($approved as $a)<option value="{{ $a->id }}" @selected($a->id === $budget->id)>{{ $a->budget_no }} – {{ $a->name }} ({{ $a->fyLabel() }})@if($a->is_active) ★@endif</option>@endforeach</select></div>
+  <div class="field"><label>Budget</label><select name="budget" class="input">@foreach($approved as $a)<option value="{{ $a->id }}" @selected($a->id === $budget->id)>{{ $a->budget_no }} – {{ $a->name }} ({{ $a->fyLabel() }}{{ $a->department_id ? ' · '.$a->costCentreLabel() : '' }})@if($a->is_active) ★@endif</option>@endforeach</select></div>
   <div class="field"><label>Month</label><select name="month" class="input">@foreach($labels as $i => $l)<option value="{{ $i }}" @selected($i === $month)>{{ $l }}</option>@endforeach</select></div>
   <button class="btn btn-primary">Show</button>
+  <a class="btn" href="{{ route('budgets.variance', ['budget' => $budget->id, 'month' => $month]) }}" id="reviewLink"><x-icon name="message"/> Review variances @if(($review['outstanding'] ?? 0) > 0)<span class="badge badge-amber">{{ $review['outstanding'] }}</span>@endif</a>
+  @if($signoff)<span class="badge badge-green" id="signedBadge">Month signed off</span>@endif
   <span class="muted small ml-auto">Actuals from the general ledger up to <b>{{ $m['cutoff']->format('d M Y') }}</b> (closed days)@if($forecast) · forecast {{ $forecast->budget_no }}@endif</span>
 </form>
 
@@ -38,6 +41,10 @@
 <div class="alert alert-info"><x-icon name="calendar"/><div>{{ $labels[$month] }} has not started – only the budget is shown.</div></div>
 @endif
 
+@if($cc)
+<div class="alert alert-info" id="ccBva"><x-icon name="users"/><div>This comparison is <b>cost centre {{ $cc }}</b>: the plan of that department against the ledger lines tagged to it.
+Expense that carries no cost centre, and revenue, are not in these figures – the whole-hotel P&amp;L is a separate version.</div></div>
+@endif
 <div class="stats">
   <x-stat label="Revenue – {{ $labels[$month] }}" :value="money($T['revenue']['actual'])" icon="trend" :tone="$T['revenue']['fav'] ? 'green' : 'red'" :sub="'budget '.money($T['revenue']['budget']).' · '.($T['revenue']['var'] >= 0 ? '+' : '').money($T['revenue']['var'])"/>
   <x-stat label="GOP – {{ $labels[$month] }}" :value="money($T['gop']['actual'])" icon="chart" :tone="$T['gop']['fav'] ? 'green' : 'red'" :sub="'budget '.money($T['gop']['budget']).($T['revenue']['actual'] ? ' · '.round($T['gop']['actual'] * 100 / $T['revenue']['actual'], 1).' % margin' : '')"/>
@@ -45,6 +52,7 @@
   <x-stat label="Variances to explain" :value="$m['flagged']" icon="message" :tone="$m['flagged'] ? 'amber' : 'green'" :sub="'≥ '.rtrim(rtrim(number_format($cfg['var_pct'], 1), '0'), '.').' % and ≥ '.money($cfg['var_amount'])"/>
 </div>
 
+@unless($cc)
 <div class="card flush">
   <div class="card-head"><h3>Rooms KPIs</h3><span class="muted small">budget pro-rated like the P&L</span></div>
   <div class="card-body table-wrap"><table class="table table-compact" id="kpiTable">
@@ -58,6 +66,7 @@
     @endforeach
     </tbody></table></div>
 </div>
+@endunless
 
 <div class="card flush">
   <div class="card-head"><h3>Profit & loss – {{ $labels[$month] }}</h3><span class="muted small">favourable = more revenue / less cost · <span class="text-green">green</span> favourable, <span class="text-red">red</span> adverse</span></div>

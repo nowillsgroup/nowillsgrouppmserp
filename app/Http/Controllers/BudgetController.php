@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AccountHead;
 use App\Models\Budget;
 use App\Models\BudgetComment;
+use App\Models\Department;
 use App\Services\BudgetService;
 use App\Services\LedgerService;
 use Illuminate\Http\Request;
@@ -23,25 +24,47 @@ class BudgetController extends Controller
     {
         $cur = BudgetService::currentFy();
         $fy = (int) $request->query('fy', 0) ?: null;
-        $versions = Budget::with('creator', 'submitter', 'approver', 'parent')
+        $versions = Budget::with('creator', 'submitter', 'approver', 'secondApprover', 'parent')
             ->when($fy, fn ($q) => $q->where('fiscal_year', $fy))
             ->when(in_array($request->query('status'), array_keys(Budget::STATUSES), true), fn ($q) => $q->where('status', $request->query('status')))
-            ->orderByDesc('fiscal_year')->orderByRaw("FIELD(kind,'budget','forecast')")->orderByDesc('is_active')->orderByDesc('id')->get();
+            ->orderByDesc('fiscal_year')->orderByRaw("FIELD(kind,'budget','forecast','capital')")->orderByDesc('is_active')->orderByDesc('id')->get();
         $totals = $versions->mapWithKeys(fn ($b) => [$b->id => BudgetService::totals($b)]);
         $years = [];
         for ($y = $cur - 1; $y <= $cur + 2; $y++) {
             $years[$y] = BudgetService::fyLabel($y);
         }
 
+        $versions->loadMissing('department');
+
+        // v8.3 – how many signatures each version needs, and how many it has. Derived from the totals already read, so
+        // the list does not query per row.
+        $threshold = (float) BudgetService::cfg()['dual_approval_above'];
+        $approvals = $versions->mapWithKeys(function ($b) use ($totals, $threshold) {
+            $t = $totals[$b->id];
+            // v8.4 – a capital plan is signed for the capital it commits, not for a P&L it does not have
+            $size = $b->isCapital() ? round(abs($t['capital']), 2) : round(max(abs($t['income']), abs($t['expense'])), 2);
+            $need = $threshold > 0 && $size >= $threshold ? 2 : 1;
+
+            return [$b->id => ['size' => $size, 'need' => $need, 'signed' => ($b->approved_by ? 1 : 0) + ($b->second_approved_by ? 1 : 0),
+                'awaiting' => $need === 2 && $b->approved_by !== null && $b->second_approved_by === null && $b->status === 'submitted',
+                'mine' => $b->approved_by !== null && (int) $b->approved_by === (int) auth()->id()]];
+        });
+
         return view('budgets.index', ['versions' => $versions, 'totals' => $totals, 'years' => $years, 'fy' => $fy, 'cur' => $cur,
-            'cfg' => BudgetService::cfg(), 'active' => BudgetService::active($cur), 'forecast' => BudgetService::active($cur, 'forecast'),
-            'pending' => Budget::where('status', 'submitted')->count(), 'copyable' => Budget::orderByDesc('fiscal_year')->orderByDesc('id')->get()]);
+            'cfg' => BudgetService::cfg(), 'approvals' => $approvals, 'active' => BudgetService::active($cur), 'forecast' => BudgetService::active($cur, 'forecast'),
+            'pending' => Budget::where('status', 'submitted')->count(), 'copyable' => Budget::orderByDesc('fiscal_year')->orderByDesc('id')->get(),
+            'capitalPlan' => BudgetService::active($cur, 'capital'), 'capitalPending' => Budget::where('kind', 'capital')->where('status', 'submitted')->count(),
+            'departments' => Department::orderBy('name')->get()->mapWithKeys(fn ($d) => [$d->id => $d->label()])->all(),   // v8.1
+            'costCentres' => Budget::whereNotNull('department_id')->where('status', 'submitted')->count(),
+            'capexPrefixes' => implode(', ', BudgetService::prefixList())]);
     }
 
     public function store(Request $request)
     {
         $d = $request->validate(['fiscal_year' => 'required|integer', 'name' => 'nullable|string|max:80', 'method' => 'required|in:'.implode(',', array_keys(Budget::METHODS)),
-            'source_id' => 'nullable|integer', 'growth_income' => 'nullable|numeric', 'growth_expense' => 'nullable|numeric', 'notes' => 'nullable|string|max:1000']);
+            'source_id' => 'nullable|integer', 'growth_income' => 'nullable|numeric', 'growth_expense' => 'nullable|numeric', 'notes' => 'nullable|string|max:1000',
+            'department_id' => 'nullable|integer|owned:departments',   // v8.1 – blank = the whole hotel
+            'kind' => 'nullable|in:budget,capital']);   // v8.4 – a capital plan is created here too, and is not a P&L version
         try {
             $b = BudgetService::create($d);
         } catch (RuntimeException $e) {
@@ -53,8 +76,11 @@ class BudgetController extends Controller
 
     public function saveSettings(Request $request)
     {
-        $d = $request->validate(['fy_start' => 'required|integer|between:1,12', 'live_from' => 'nullable|date', 'var_pct' => 'required|numeric|between:0,1000',
-            'var_amount' => 'required|numeric|min:0', 'control' => 'required|in:off,warn,block', 'control_basis' => 'required|in:month,ytd,annual']);
+        $d = $request->validate(['fy_start' => 'required|integer|between:1,12', 'live_from' => 'nullable|date', 'var_pct' => 'required|numeric|between:0,100',
+            'var_amount' => 'required|numeric|min:0', 'control' => 'required|in:off,warn,block', 'control_basis' => 'required|in:month,ytd,annual',
+            'cost_centre_required' => 'required|in:on,off', 'explain_due_days' => 'required|integer|between:0,90',
+            'dual_approval_above' => 'required|numeric|min:0',   // v8.3 – 0 turns the second signature off
+            'capex_control' => 'required|in:off,warn,block', 'capex_prefixes' => ['nullable', 'string', 'max:60', 'regex:/^[0-9A-Za-z,;\s]*$/']]);   // v8.4
         $d['live_from'] = ! empty($d['live_from']) ? Carbon::parse($d['live_from'])->toDateString() : '';
         BudgetService::saveSettings($d);
 
@@ -63,8 +89,9 @@ class BudgetController extends Controller
 
     public function show(Budget $budget)
     {
-        $budget->load('lines.account', 'stats', 'events.user', 'creator', 'submitter', 'approver', 'parent');
-        $accounts = BudgetService::accounts()->keyBy('id');
+        $budget->load('lines.account', 'stats', 'events.user', 'creator', 'submitter', 'approver', 'secondApprover', 'parent', 'department');
+        // v8.4 – a capital plan's lines are capital asset heads, a P&L version's are income and expense
+        $accounts = BudgetService::accountsFor($budget->kind)->keyBy('id');
         $lines = $budget->lines->filter(fn ($l) => $accounts->has($l->account_head_id))
             ->sortBy(fn ($l) => array_search($accounts[$l->account_head_id]->section, array_keys(BudgetService::SECTIONS)).'-'.$accounts[$l->account_head_id]->code)
             ->groupBy(fn ($l) => $accounts[$l->account_head_id]->section);
@@ -72,10 +99,15 @@ class BudgetController extends Controller
         $lastYear = BudgetService::actuals($budget->fiscal_year - 1);
 
         return view('budgets.show', ['b' => $budget, 'lines' => $lines, 'accounts' => $accounts, 'labels' => BudgetService::monthLabels($budget->fiscal_year),
-            'locked' => $budget->lockedMonths(), 'totals' => BudgetService::totals($budget), 'actuals' => $act, 'lastYear' => $lastYear,
+            'locked' => $budget->lockedMonths(), 'totals' => BudgetService::totals($budget), 'grid' => BudgetService::gridTotals($lines),
+            'actuals' => $act, 'lastYear' => $lastYear,
             'stats' => $budget->stats->keyBy('month'), 'actualStats' => BudgetService::actualStats($budget->fiscal_year),
             'canEdit' => $budget->isDraft() && can_do('budget.manage'), 'roomAccount' => AccountHead::sys('rev_room'),
             'forecasts' => Budget::where('parent_id', $budget->id)->where('kind', 'forecast')->orderByDesc('id')->get(),
+            'approval' => BudgetService::approvalState($budget),   // v8.3 – one signature or two
+            'capital' => $budget->isCapital() ? BudgetService::capitalSpend($budget) : null,   // v8.4 – plan against spend
+            'timeline' => $budget->isCapital() ? BudgetService::commitmentTimeline($budget->fiscal_year) : null,   // v8.6 – when it is needed
+            'funding' => $budget->isCapital() ? BudgetService::capitalFunding($budget->fiscal_year) : null,   // v8.7 – and whether the money is there
             'closedMonths' => $this->closedMonthOptions($budget->fiscal_year)]);
     }
 
@@ -178,7 +210,12 @@ class BudgetController extends Controller
             return $this->fail($e);
         }
 
-        return back()->with('success', "{$budget->budget_no} submitted for approval.");
+        // v8.3 – say up front whether this version will need a second approver, while the preparer can still see why
+        $state = BudgetService::approvalState($budget->fresh());
+
+        return back()->with('success', "{$budget->budget_no} submitted for approval."
+            .($state['needed'] === 2 ? ' At '.money($state['size']).' it is over the '.money($state['threshold'])
+                .' threshold, so two different approvers must sign it before it counts.' : ''));
     }
 
     public function approve(Request $request, Budget $budget)
@@ -189,7 +226,13 @@ class BudgetController extends Controller
             return $this->fail($e);
         }
 
-        return back()->with('success', "{$budget->budget_no} approved".($budget->fresh()->is_active ? ' and is now the active '.strtolower($budget->kindLabel()).'.' : '.'));
+        $b = $budget->fresh();
+        if ($b->status === 'submitted') {
+            return back()->with('success', "{$b->budget_no} – first approval recorded. It is over the ".money(BudgetService::approvalState($b)['threshold'])
+                .' threshold, so a second approver must sign before it counts.');
+        }
+
+        return back()->with('success', "{$b->budget_no} approved".($b->is_active ? ' and is now the active '.strtolower($b->kindLabel()).'.' : '.'));
     }
 
     public function returnDraft(Request $request, Budget $budget)
@@ -250,13 +293,30 @@ class BudgetController extends Controller
         return redirect()->route('budgets.index')->with('success', 'Draft deleted.');
     }
 
+    // ───────────────────────── cost centres (v8.1) ─────────────────────────
+
+    /** every department's plan against what the ledger charged to it, and what carries no cost centre at all */
+    public function costCentres(Request $request)
+    {
+        $cur = BudgetService::currentFy();
+        $fy = (int) $request->query('fy', 0) ?: $cur;
+        $data = BudgetService::costCentres($fy);
+        $years = [];
+        for ($y = $cur - 1; $y <= $cur + 2; $y++) {
+            $years[$y] = BudgetService::fyLabel($y);
+        }
+
+        return view('budgets.cost-centres', ['data' => $data, 'fy' => $fy, 'years' => $years, 'cur' => $cur, 'cfg' => BudgetService::cfg(),
+            'whole' => $data['meta']['whole']]);
+    }
+
     // ───────────────────────── budget vs actual ─────────────────────────
 
     public function bva(Request $request)
     {
         $cut = Carbon::parse(LedgerService::cutoff());
         $cur = BudgetService::fyFor($cut);
-        $approved = Budget::where('kind', 'budget')->where('status', 'approved')->orderByDesc('fiscal_year')->orderByDesc('is_active')->orderByDesc('id')->get();
+        $approved = Budget::with('department')->where('kind', 'budget')->where('status', 'approved')->orderByDesc('fiscal_year')->orderByDesc('is_active')->orderByDesc('id')->get();
         $budget = $request->query('budget') ? $approved->firstWhere('id', (int) $request->query('budget')) : null;
         $budget ??= BudgetService::active($cur) ?? $approved->first();
         if (! $budget) {
@@ -269,7 +329,65 @@ class BudgetController extends Controller
         $period = BudgetService::period($budget->fiscal_year, $month);
 
         return view('budgets.bva', ['budget' => $budget, 'approved' => $approved, 'forecast' => $forecast, 'month' => $month, 'data' => $data,
-            'labels' => BudgetService::monthLabels($budget->fiscal_year), 'period' => $period, 'comments' => BudgetService::commentsFor($period), 'cfg' => BudgetService::cfg()]);
+            'labels' => BudgetService::monthLabels($budget->fiscal_year), 'period' => $period, 'comments' => BudgetService::commentsFor($budget, $period), 'cfg' => BudgetService::cfg(),
+            'signoff' => BudgetService::signoffFor($budget, $period), 'review' => BudgetService::worklist($budget, $month)]);
+    }
+
+    // ───────────────────────── variance review & month sign-off (v8.2) ─────────────────────────
+
+    /** the variances a month must account for: owner, deadline, explanation, and the sign-off state */
+    public function variance(Request $request, Budget $budget)
+    {
+        // v8.4 – a capital plan has no variances to explain: it is compared with capital spend on its own screen, and
+        // calling those figures "variance against budget" would name the wrong kind of thing
+        if ($budget->isCapital()) {
+            return redirect()->route('budgets.show', $budget)
+                ->with('error', 'A capital plan is not reviewed for variance – open it to see its plan against capital spend to date.');
+        }
+        $budget->load('department');
+        $cut = Carbon::parse(LedgerService::cutoff());
+        $defMonth = BudgetService::fyFor($cut) === $budget->fiscal_year ? BudgetService::monthIndex($cut) : 1;
+        $month = min(12, max(1, (int) $request->query('month', $defMonth)));
+        $wl = BudgetService::worklist($budget, $month);
+        $period = $wl['period'];
+
+        return view('budgets.variance', ['b' => $budget, 'month' => $month, 'wl' => $wl, 'period' => $period,
+            'labels' => BudgetService::monthLabels($budget->fiscal_year), 'cfg' => BudgetService::cfg(),
+            'signoff' => BudgetService::signoffFor($budget, $period), 'blockers' => BudgetService::signOffBlockers($budget, $month),
+            'people' => \App\Models\User::orderBy('name')->get(['id', 'name'])]);
+    }
+
+    public function explain(Request $request, Budget $budget)
+    {
+        $d = $request->validate(['month' => 'required|integer|between:1,12', 'account_head_id' => 'nullable|integer',
+            'body' => 'required|string|min:3|max:2000', 'assigned_to' => 'nullable|integer|owned:users', 'due_on' => 'nullable|date']);
+        try {
+            BudgetService::explain($budget, (int) $d['month'], isset($d['account_head_id']) ? (int) $d['account_head_id'] : null,
+                $d['body'], isset($d['assigned_to']) ? (int) $d['assigned_to'] : null, $d['due_on'] ?? null);
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
+        }
+
+        return back()->with('success', 'Explanation saved.');
+    }
+
+    public function signOff(Request $request, Budget $budget)
+    {
+        $d = $request->validate(['month' => 'required|integer|between:1,12', 'note' => 'nullable|string|max:255']);
+        try {
+            $s = BudgetService::signOff($budget, (int) $d['month'], $d['note'] ?? null);
+        } catch (RuntimeException $e) {
+            return $this->fail($e);
+        }
+
+        return back()->with('success', $s->periodLabel().' signed off for '.$budget->budget_no.'.');
+    }
+
+    public function acceptExplanation(Request $request, BudgetComment $bcomment)
+    {
+        BudgetService::acceptExplanation($bcomment, $request->boolean('accepted', true));
+
+        return back()->with('success', $request->boolean('accepted', true) ? 'Explanation accepted.' : 'Explanation reopened.');
     }
 
     public function comment(Request $request)

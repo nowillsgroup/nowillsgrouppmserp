@@ -16,6 +16,8 @@
   <x-stat label="Overdue" :value="money($kpi['overdue'])" icon="alert" :tone="$kpi['overdue'] > 0 ? 'red' : 'green'" href="?overdue=1"/>
   <x-stat label="Due in next 7 days" :value="money($kpi['due7'])" icon="clock" tone="amber" href="?status=unpaid"/>
   <x-stat label="Held for variance" :value="$kpi['hold']" icon="lock" :tone="$kpi['hold'] ? 'red' : 'green'" href="?status=on_hold" sub="need ap.approve"/>
+  <x-stat label="Total payable" :value="money($kpi['payable'])" icon="wallet" tone="slate"
+    :sub="money($kpi['unbilled_value']).' of it is goods received, not yet billed'"/>
 </div>
 
 @if($unb->count())

@@ -25,7 +25,7 @@
         <input type="text" id="guestCustomTitle" name="guest[custom_title]" value="{{ old('guest.custom_title') }}" maxlength="30" autocomplete="off" aria-describedby="guestCustomTitleHint">
         <button type="button" class="btn btn-sm btn-soft" id="guestCustomTitleSave">Save title</button>
       </div>
-      <span class="hint" id="guestCustomTitleHint">Up to 30 characters. Save the walk-in form to add this title to the guest profile.</span>
+      <span class="hint" id="guestCustomTitleHint">Up to 30 characters. The title is saved on the guest profile when you save this form.</span>
       @error('guest.custom_title')<span class="err">{{ $message }}</span>@enderror
     </div>
   @endif

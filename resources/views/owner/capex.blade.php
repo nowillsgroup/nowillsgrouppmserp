@@ -40,7 +40,18 @@
       <dt>Category</dt><dd>{{ $CP::CATEGORIES[$p->category] ?? $p->category }}{{ $p->usali_dept ? ' · '.$U::label($p->usali_dept) : '' }}</dd>
       <dt>Funded by</dt><dd>{{ $CP::FUNDING[$p->funding] }}@if($p->funding === 'reserve') <span class="tiny muted">(reserve balance {{ money($reserve) }})</span>@endif</dd>
       <dt>Budget</dt><dd>{{ money($p->budget) }}</dd>
-      <dt>Needed by</dt><dd>{{ $p->needed_by?->format('d M Y') ?? '—' }}</dd>
+      {{-- v8.5 – the plan this project draws on, and where it stands: plan, spent, committed, left --}}
+      <dt>Capital account</dt><dd>@if($p->capitalHead){{ $p->capitalHead->label }}@else<span class="muted">not decided – no capital plan counts this project</span>@endif</dd>
+      @if($headPosition && $headPosition['plan_no'])
+      <dt>Against the plan</dt><dd>{{ $headPosition['plan_no'] }} · {{ money($headPosition['plan']) }} planned
+        <span class="tiny muted">· {{ money($headPosition['spent']) }} spent · {{ money($headPosition['committed']) }} committed ·
+        {{ money(abs($headPosition['remaining'])) }} {{ $headPosition['remaining'] < 0 ? 'over' : 'left' }}</span></dd>
+      @endif
+      <dt>Needed by</dt><dd>{{ $p->needed_by?->format('d M Y') ?? '—' }}
+        {{-- v8.6 – an approved project whose date has gone is money the year's cash plan has already got wrong --}}
+        @if($p->needed_by && $p->status === 'approved' && $p->needed_by->copy()->startOfDay()->lt(bdate()->copy()->startOfDay()))
+          <span class="badge badge-red" id="projectOverdue">date passed · still unspent</span>
+        @endif</dd>
       <dt>Requested</dt><dd>{{ $p->requester?->name }} · {{ $p->created_at->format('d M Y') }}{{ $p->submitted_at ? ' · sent '.$p->submitted_at->format('d M Y') : '' }}</dd>
       @if($p->decided_at)<dt>{{ $p->status === 'rejected' ? 'Rejected' : 'Approved' }}</dt><dd>{{ $p->decider?->name }} · {{ $p->decided_at->format('d M Y') }}@if($p->decision_note)<div class="small">“{{ $p->decision_note }}”</div>@endif</dd>@endif
       @if($p->completed_at)<dt>Completed</dt><dd>{{ $p->completed_at->format('d M Y') }}</dd>@endif

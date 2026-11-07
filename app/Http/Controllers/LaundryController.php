@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Services\LaundryService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LaundryController extends Controller
 {
@@ -64,6 +65,7 @@ class LaundryController extends Controller
             'requests' => self::waiting(GuestRequest::with('room'))->orderBy('id')->get(),
             'stayId' => (int) ($req?->reservation_room_id ?? $request->input('stay')), 'expressPct' => LaundryService::expressPct(),
             'hours' => ['normal' => LaundryService::hours('normal'), 'express' => LaundryService::hours('express')],
+            'tax' => LaundryService::taxInfo(),
         ]);
     }
 
@@ -108,13 +110,16 @@ class LaundryController extends Controller
             }
         }
 
+        $quote = LaundryService::quote($lorder);
+
         return view('laundry.show', ['o' => $lorder, 'items' => LaundryService::priceList(), 'current' => $current, 'remarks' => $remarks,
-            'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->orderBy('id')->pluck('name', 'id'), 'expressPct' => LaundryService::expressPct()]);
+            'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->orderBy('id')->pluck('name', 'id'), 'expressPct' => LaundryService::expressPct(),
+            'quote' => $quote, 'tax' => ['rate' => $quote['rate'], 'label' => LaundryService::taxLabel($lorder->total), 'inclusive' => $quote['inclusive']]]);
     }
 
     public function docket(LaundryOrder $lorder)
     {
-        return view('laundry.docket', ['o' => $lorder->load('lines', 'room'), 'hotel' => hotel()]);
+        return view('laundry.docket', ['o' => $lorder->load('lines', 'room'), 'hotel' => hotel(), 'quote' => LaundryService::quote($lorder)]);
     }
 
     public function items(Request $request, LaundryOrder $lorder)
@@ -124,10 +129,15 @@ class LaundryController extends Controller
         try {
             $o = LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'));
         } catch (\RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
         }
 
-        return back()->with('success', "Items saved – {$o->pieces} pcs, ".money($o->total).' before tax.');
+        $q = LaundryService::quote($o);
+
+        return back()->with('success', "Items saved – {$o->pieces} pcs, ".money($q['listed'])
+            .($q['rate'] > 0 ? ' + '.money($q['tax']).' tax = '.money($q['total']) : ' (no tax set for laundry)').'.');
     }
 
     public function ready(LaundryOrder $lorder)
@@ -135,7 +145,9 @@ class LaundryController extends Controller
         try {
             $ready = LaundryService::markReady($lorder);
         } catch (\RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
         }
 
         return back()->with('success', "Laundry {$ready->order_no} is ready for delivery.");
@@ -144,6 +156,7 @@ class LaundryController extends Controller
     public function deliver(Request $request, LaundryOrder $lorder)
     {
         $data = $request->validate([
+            'settle' => 'nullable|in:room,pay',
             'payment_mode_id' => 'nullable|integer|owned:payment_modes', 'reference' => 'nullable|string|max:80',
             'momo_network' => 'nullable|string|max:20', 'momo_phone' => 'nullable|string|max:30',
             'cheque_bank_name' => 'nullable|string|max:100', 'cheque_number' => 'nullable|string|max:20', 'cheque_bank_branch' => 'nullable|string|max:100',
@@ -163,13 +176,16 @@ class LaundryController extends Controller
         try {
             $o = LaundryService::deliver($lorder, $data['payment_mode_id'] ?? null, $reference ?: null, [
                 'bank_name' => $data['cheque_bank_name'] ?? null, 'number' => $data['cheque_number'] ?? null, 'bank_branch' => $data['cheque_bank_branch'] ?? null,
-            ], $payments);
+            ], $payments, $data['settle'] ?? null);
         } catch (\RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
         }
         $t = $o->folioTransaction;
 
-        return back()->with('success', "Delivered. ".money((float) $t->amount + (float) $t->tax_amount).($o->type === 'guest' ? " charged to folio {$o->folio->folio_no}." : " received – invoice {$o->folio->invoice_no}."));
+        return back()->with('success', "Delivered. ".money((float) $t->amount + (float) $t->tax_amount)
+            .($o->settledDirectly() ? " received – invoice {$o->folio->invoice_no}." : " charged to folio {$o->folio->folio_no}."));
     }
 
     public function cancel(Request $request, LaundryOrder $lorder)
@@ -178,7 +194,9 @@ class LaundryController extends Controller
         try {
             $cancelled = LaundryService::cancel($lorder, $data['reason']);
         } catch (\RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
         }
 
         return back()->with('success', "Laundry {$cancelled->order_no} cancelled.");
@@ -189,7 +207,7 @@ class LaundryController extends Controller
     public function prices()
     {
         return view('laundry.prices', ['items' => LaundryItem::orderBy('category')->orderBy('sort_order')->orderBy('name')->get()->groupBy('category'),
-            'v' => Setting::whereIn('key', self::SETTINGS)->pluck('value', 'key')]);
+            'v' => Setting::whereIn('key', self::SETTINGS)->pluck('value', 'key'), 'tax' => LaundryService::taxInfo()]);
     }
 
     public function savePrice(Request $request)

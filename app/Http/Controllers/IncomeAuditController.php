@@ -7,6 +7,7 @@ use App\Models\AuditFinding;
 use App\Models\Room;
 use App\Models\RoomCount;
 use App\Models\Setting;
+use App\Services\ActivityLogger;
 use App\Services\IncomeAuditService as IA;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -64,6 +65,8 @@ class IncomeAuditController extends Controller
             Setting::updateOrCreate(['key' => $k], ['value' => (string) $v]);
         }
         Setting::$version++;
+        ActivityLogger::log('audit', 'settings', 'Income audit tolerances updated: '.
+            collect($d)->map(fn ($v, $k) => $k.' '.$v)->implode(', '));
 
         return back()->with('success', 'Income audit settings saved.');
     }

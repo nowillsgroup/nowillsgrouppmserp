@@ -17,9 +17,25 @@
       <td class="num">@if(can_do('club.manage'))<button class="btn btn-sm" data-modal="planModal" data-title="Edit {{ $p->name }}" data-action="{{ route('club.plans.update', $p) }}" data-plan-json="{{ json_encode(['code' => $p->code, 'name' => $p->name, 'category' => $p->category, 'term_months' => $p->term_months, 'price' => (float) $p->price, 'joining_fee' => (float) $p->joining_fee, 'max_persons' => $p->max_persons, 'facilities' => $p->facilities, 'access_from' => $p->access_from ? substr($p->access_from, 0, 5) : '', 'access_to' => $p->access_to ? substr($p->access_to, 0, 5) : '', 'guest_passes' => $p->guest_passes, 'fnb_discount_pct' => (float) $p->fnb_discount_pct, 'spa_discount_pct' => (float) $p->spa_discount_pct, 'freeze_days_max' => $p->freeze_days_max, 'description' => $p->description, 'is_active' => $p->is_active]) }}">Edit</button>@endif</td></tr>
   @endforeach</tbody></table></div></div>
 
-<div class="card mt-1" id="clubSettings"><div class="card-head"><h3>Club settings</h3></div><div class="card-body">
+<div class="card mt-1" id="clubSettings"><div class="card-head"><h3>Club settings</h3><span class="small muted">Cedis exclude tax · counts and hours are whole numbers</span></div><div class="card-body">
   <form method="post" action="{{ route('club.settings') }}">@csrf<div class="grid g-3" style="gap:.2rem 1rem">
-    @foreach($settings as $k => $s)<div class="field"><label for="s_{{ $k }}">{{ $s['label'] }}</label><input type="number" step="any" min="0" name="{{ $k }}" id="s_{{ $k }}" value="{{ $s['value'] }}" @disabled(! can_do('club.manage'))></div>@endforeach
+    @php
+      // the same 0–100000 band the controller enforces, and the 1-hour floor the service applies,
+      // printed on the input rather than discovered after a save is rejected. Cedis carry two
+      // decimals; every other key here is a whole number of hours, days or people.
+      $moneyKeys = ['club_daypass_adult', 'club_daypass_child', 'club_guestpass'];
+    @endphp
+    @foreach($settings as $k => $s)
+      @if($k === 'club_resident_free')
+        <div class="field"><label for="s_{{ $k }}">In-house guests use the gym, pool and sauna free</label><select name="{{ $k }}" id="s_{{ $k }}" @disabled(! can_do('club.manage'))><option value="1" @selected((int) $s['value'] === 1)>Yes – free for in-house guests</option><option value="0" @selected((int) $s['value'] !== 1)>No – sell a day pass instead</option></select></div>
+      @elseif(in_array($k, $moneyKeys, true))
+        <div class="field"><label for="s_{{ $k }}">{{ $s['label'] }}</label><input type="number" step="0.01" min="0" max="100000" name="{{ $k }}" id="s_{{ $k }}" value="{{ $s['value'] }}" @disabled(! can_do('club.manage'))></div>
+      @elseif($k === 'club_checkout_hours')
+        <div class="field"><label for="s_{{ $k }}">{{ $s['label'] }}</label><input type="number" step="1" min="1" max="100000" name="{{ $k }}" id="s_{{ $k }}" value="{{ $s['value'] }}" @disabled(! can_do('club.manage'))><span class="tiny muted">At least 1 hour</span></div>
+      @else
+        <div class="field"><label for="s_{{ $k }}">{{ $s['label'] }}</label><input type="number" step="1" min="0" max="100000" name="{{ $k }}" id="s_{{ $k }}" value="{{ $s['value'] }}" @disabled(! can_do('club.manage'))></div>
+      @endif
+    @endforeach
   </div>@if(can_do('club.manage'))<button class="btn btn-primary mt-1" id="settingsSave">Save settings</button>@endif</form>
   <p class="tiny muted">GL: subscriptions Dr 1120 Club Members Receivable / Cr 2130 Membership Fees Received in Advance + output tax; released monthly to 4042 Health Club Membership Revenue. Joining fees, guest passes, day passes → 4043. Room-charged day passes post through the guest folio (category "club").</p>
 </div></div>

@@ -20,6 +20,14 @@ class Reservation extends Model
         return max(1, $this->arrival_date->diffInDays($this->departure_date));
     }
 
+    /** A day-use booking sells hours, not a night: every room line on it is a day use. */
+    public function isDayUse(): bool
+    {
+        $lines = $this->relationLoaded('rooms') ? $this->rooms : $this->rooms()->get();
+
+        return $lines->isNotEmpty() && $lines->every(fn ($stay) => $stay->is_day_use);
+    }
+
     /** Recompute header status from its room lines. */
     public function syncStatus(): void
     {

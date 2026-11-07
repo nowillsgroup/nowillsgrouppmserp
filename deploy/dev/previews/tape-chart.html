@@ -65,7 +65,29 @@
   .tape-chart-room-hk.hk-clean { background:#16a34a; }.tape-chart-room-hk.hk-dirty { background:#dc2626; }.tape-chart-room-hk.hk-inspected { background:#2563eb; }.tape-chart-room-hk.hk-touch_up { background:#d97706; }
   .tape-chart-group td { position:static; height:30px; padding:.35rem .65rem; background:#eff4f0; color:#52645a; font-size:.7rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
   .tape-chart-table td.tape-cell { position:relative; min-width:var(--tape-day-width); width:var(--tape-day-width); max-width:var(--tape-day-width); }
+  .tape-chart-table tbody td.tape-today { background:#f1faf4; box-shadow:inset 1px 0 0 #d7e9de, inset -1px 0 0 #d7e9de; }
+  body.dark .tape-chart-table tbody td.tape-today { background:#152419; box-shadow:inset 1px 0 0 #29422f, inset -1px 0 0 #29422f; }
+  .tape-chart-table tbody td.tape-out { background-color:#f4f6f8; background-image:repeating-linear-gradient(135deg,rgba(148,163,184,.34) 0 5px,transparent 5px 10px); }
+  .tape-chart-table tbody td.tape-out.tape-today { background-color:#eaf2ec; }
+  body.dark .tape-chart-table tbody td.tape-out { background-color:#1b2229; background-image:repeating-linear-gradient(135deg,rgba(148,163,184,.22) 0 5px,transparent 5px 10px); }
+  .tape-chart-table tbody tr.tape-row-out .tape-room-label { background:#f2f5f7; }
+  body.dark .tape-chart-table tbody tr.tape-row-out .tape-room-label { background:#1b2229; }
+  .tape-chart-legend i.tape-legend-out { background:repeating-linear-gradient(135deg,rgba(148,163,184,.6) 0 3px,#f4f6f8 3px 6px); box-shadow:inset 0 0 0 1px #cfd8e0; }
+  .tape-chart-table .tape-bar.tape-block { background:#e5e9ee repeating-linear-gradient(135deg,#c8d2dc 0 5px,transparent 5px 10px); color:#33415a; cursor:default; box-shadow:none; }
+  body.dark .tape-chart-table .tape-bar.tape-block { background:#28323c repeating-linear-gradient(135deg,#3b4854 0 5px,transparent 5px 10px); color:#cbd5e1; }
+  .tape-chart-legend i.tape-legend-block { background:repeating-linear-gradient(135deg,#c8d2dc 0 3px,#eef2f6 3px 6px); box-shadow:inset 0 0 0 1px #cfd8e0; }
+  .tape-chart-legend i.tape-legend-dayuse { background:#eef2ff; box-shadow:inset 0 0 0 1.5px #6366f1; }
   .tape-chart-table tbody tr.tape-room-row:hover td { background-color:#f7fbf8; }
+  .tape-chart-table tfoot th,.tape-chart-table tfoot td { position:sticky; bottom:0; z-index:3; height:32px; padding:.2rem .3rem; border-top:1px solid #d5e5db; border-right:1px solid #e5ece7; background:#f1f7f3; color:#25422f; font-size:.72rem; font-weight:780; text-align:center; font-variant-numeric:tabular-nums; }
+  .tape-chart-table tfoot tr:first-child th,.tape-chart-table tfoot tr:first-child td { bottom:32px; }
+  .tape-chart-table tfoot .tape-room-label { z-index:6; padding:0 .65rem; background:#e8f1ea; color:#3c5946; font-size:.7rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; text-align:left; }
+  .tape-chart-table tfoot .tape-total-pct { font-size:.7rem; }
+  .tape-chart-table tfoot .pct-high { background:#fde8e8; color:#991b1b; }
+  .tape-chart-table tfoot .pct-mid { background:#fdf3df; color:#8a5a09; }
+  /* A night with rooms off the market runs on a smaller base: say so without
+     changing the colour, which still means "how full". */
+  .tape-chart-table tfoot .tape-blocked-night { background-image:repeating-linear-gradient(135deg,rgba(120,138,156,.36) 0 4px,transparent 4px 8px); }
+  body.dark .tape-chart-table tfoot .tape-blocked-night { background-image:repeating-linear-gradient(135deg,rgba(148,163,184,.28) 0 4px,transparent 4px 8px); }
   .tape-chart-room-row[tabindex="0"]:focus-visible .tape-room-label { outline:3px solid #2563eb; outline-offset:-3px; }
   .tape-chart-table tbody tr.tape-room-row:hover .tape-room-label { background:#f7fbf8; }
   .tape-chart-table tbody tr.drop-over td { background:#e4f1ff!important; }
@@ -74,12 +96,21 @@
   .tape-chart-table .tape-cell a.tape-new:hover { background:#eff8f1; }
   .tape-chart-table .tape-bar { position:absolute; top:5px; bottom:5px; left:2px; z-index:2; display:flex; align-items:center; overflow:hidden; padding:0 .42rem; border-radius:6px; color:#fff; font-size:.7rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; cursor:grab; box-shadow:0 1px 3px rgba(15,23,42,.18); }
   .tape-chart-table .tape-bar:active { cursor:grabbing; }
+  .tape-chart-table .tape-bar.b-day_use { background:#eef2ff; color:#3730a3; box-shadow:inset 0 0 0 1.5px #6366f1; }
+  body.dark .tape-chart-table .tape-bar.b-day_use { background:#242a52; color:#c7ccff; box-shadow:inset 0 0 0 1.5px #6b74c9; }
   .tape-chart-table .tape-bar.b-reserved { background:#166534; }.tape-chart-table .tape-bar.b-checked_in { background:#b91c1c; }.tape-chart-table .tape-bar.b-checked_out { background:#475569; }.tape-chart-table .tape-bar.b-tentative { background:#92400e; }
   .tape-chart-table .tape-bar:focus-visible,.tape-chart-chip:focus-visible,.tape-chart-source-selected { outline:3px solid #2563eb; outline-offset:2px; }
   .tape-chart-status { min-height:1.3rem; margin:.5rem .1rem; color:var(--c-text-2); font-size:.76rem; }
+  .tape-chart-summary { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin:.15rem .1rem .1rem; color:var(--c-text-2); font-size:.76rem; }
+  .tape-chart-summary b { color:var(--c-text); font-variant-numeric:tabular-nums; }
+  .tape-chart-basis { margin:.55rem .1rem 0; color:var(--c-text-2); font-size:.74rem; }
+  .tape-chart-basis b { color:var(--c-text); font-variant-numeric:tabular-nums; }
+  .tape-chart-summary .i { width:14px; height:14px; color:#17623b; }
+  body.dark .tape-chart-summary .i { color:#86efac; }
   .tape-chart-legend { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-top:.65rem; color:var(--c-text-2); font-size:.74rem; }
   .tape-chart-legend span { display:inline-flex; align-items:center; gap:.34rem; }
   .tape-chart-legend i { width:11px; height:11px; border-radius:3px; }
+  .tape-chart-legend .tape-legend-note { color:var(--c-muted); font-style:normal; font-size:.68rem; }
   .tape-unassigned-details { margin-top:1rem; border:1px solid var(--c-border); border-radius:12px; background:var(--c-surface); overflow:hidden; }
   .tape-unassigned-details summary { padding:.75rem .9rem; color:var(--c-text); font-size:.84rem; font-weight:700; cursor:pointer; }
   .tape-unassigned-details[open] summary { border-bottom:1px solid var(--c-border); }
@@ -102,12 +133,16 @@
   body.dark .tape-chart-table .tape-room-label,body.dark .tape-chart-table tbody tr.tape-room-row:hover .tape-room-label { background:var(--c-surface); }
   body.dark .tape-chart-group td { background:#1d2c23; color:var(--c-text-2); }
   body.dark .tape-chart-table tbody tr.tape-room-row:hover td { background:#18271e; }
+  body.dark .tape-chart-table tfoot th,body.dark .tape-chart-table tfoot td { background:#1b2b21; border-top-color:var(--c-border); border-right-color:var(--c-border); color:#cfe6d6; }
+  body.dark .tape-chart-table tfoot .tape-room-label { background:#16241c; color:#a9c3b3; }
+  body.dark .tape-chart-table tfoot .pct-high { background:#3b1d24; color:#fda4af; }
+  body.dark .tape-chart-table tfoot .pct-mid { background:#3a2a12; color:#fcd34d; }
   body.dark .tape-chart-room-state { border-color:#465462; background:#25303a; color:#d0d9e2; }
   body.dark .tape-chart-unassigned-details summary,body.dark .tape-unassigned-table th { background:#18271e; color:var(--c-text-2); }
   @media(max-width:1000px) { .tape-chart-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); } }
   @media(max-width:700px) { .tape-chart-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }.tape-chart-metric { padding:.68rem .72rem; }.tape-chart-metric b { font-size:1.18rem; }.tape-chart-hero { display:block; padding:.85rem; }.tape-chart-window { margin-top:.7rem; }.tape-chart-controls { align-items:stretch; }.tape-chart-controls-main { width:100%; }.tape-chart-window-nav { width:100%; justify-content:space-between; }.tape-chart-window-nav a { flex:1; }.tape-chart-table { --tape-day-width:50px; }.tape-chart-table .tape-room-heading,.tape-chart-table .tape-room-label { width:126px; min-width:126px; max-width:126px; }.tape-chart-scroll { max-height:70vh; } }
   @media(prefers-reduced-motion:reduce) { .tape-chart-table .tape-bar { scroll-behavior:auto; } }
-  @media print { .tape-chart-controls,.tape-chart-help,.tape-chart-status,.tape-chart-chip,.tape-chart-unassigned,.tape-unassigned-details,.no-print { display:none!important; }.tape-chart-hero .tape-chart-window { border:0; background:none; }.tape-chart-metrics { grid-template-columns:repeat(5,1fr); }.tape-chart-scroll { max-height:none; overflow:visible; border:0; box-shadow:none; }.tape-chart-table { --tape-day-width:32px; width:100%; }.tape-chart-table .tape-room-heading,.tape-chart-table .tape-room-label { width:92px; min-width:92px; max-width:92px; }.tape-chart-table th,.tape-chart-table td { font-size:7pt; }.tape-chart-table .tape-bar { font-size:6pt; }.tape-chart-group { break-after:avoid; } }
+  @media print { .tape-chart-controls,.tape-chart-help,.tape-chart-status,.tape-chart-chip,.tape-chart-unassigned,.tape-unassigned-details,.no-print { display:none!important; }.tape-chart-hero .tape-chart-window { border:0; background:none; }.tape-chart-metrics { grid-template-columns:repeat(5,1fr); }.tape-chart-scroll { max-height:none; overflow:visible; border:0; box-shadow:none; }.tape-chart-table { --tape-day-width:32px; width:100%; }.tape-chart-table .tape-room-heading,.tape-chart-table .tape-room-label { width:92px; min-width:92px; max-width:92px; }.tape-chart-table th,.tape-chart-table td { font-size:7pt; }.tape-chart-table .tape-bar { font-size:6pt; } .tape-chart-table tfoot th,.tape-chart-table tfoot td { position:static; font-size:6.5pt; }.tape-chart-group { break-after:avoid; } }
 </style>
 </head>
 <body>
@@ -259,6 +294,18 @@
       </a>
     </div>
       </div>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-briefings" data-nav-label="Daily Briefings">
+      <a href="#" title="Daily Briefings" data-route="briefings.index">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Daily Briefings</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-brief" data-nav-label="Executive Brief">
+      <a href="#" title="Executive Brief" data-route="briefings.exec">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Executive Brief</span>
+      </a>
     </div>
       </div>
     </div>
@@ -1295,6 +1342,12 @@
         <span class="nav-label">City Ledger</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="finance.accounts.receivables-ageing" data-nav-label="Receivables Ageing">
+      <a href="#" title="Receivables Ageing" data-route="accounts.receivables">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Receivables Ageing</span>
+      </a>
+    </div>
     <div class="nav-item nav-link-item" data-nav-key="finance.accounts.credit-control" data-nav-label="Credit Control">
       <a href="#" title="Credit Control" data-route="credit.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
@@ -2325,6 +2378,12 @@
         <span class="nav-label">Rental Fleet</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="facilities-security.car-rental.rental-settings" data-nav-label="Rental Settings">
+      <a href="#" title="Rental Settings" data-route="rentals.settings">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Rental Settings</span>
+      </a>
+    </div>
       </div>
     </div>
       </div>
@@ -2398,6 +2457,24 @@
       <a href="#" title="Ticket Outlet" data-route="recreation.outlet">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
         <span class="nav-label">Ticket Outlet</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.ticket-gate" data-nav-label="Ticket Gate">
+      <a href="#" title="Ticket Gate" data-route="recreation.gate">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Ticket Gate</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.outlet-shift" data-nav-label="Outlet Shift">
+      <a href="#" title="Outlet Shift" data-route="recreation.shift">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Outlet Shift</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.outlet-day-report" data-nav-label="Outlet Day Report">
+      <a href="#" title="Outlet Day Report" data-route="recreation.day">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Outlet Day Report</span>
       </a>
     </div>
     <div class="nav-item nav-link-item" data-nav-key="wellness-recreation.recreation-outlet.ticket-sales" data-nav-label="Ticket Sales">
@@ -2537,6 +2614,12 @@
       <a href="#" title="Monthly Register" data-route="hr.register">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
         <span class="nav-label">Monthly Register</span>
+      </a>
+    </div>
+    <div class="nav-item nav-link-item" data-nav-key="hr-payroll.workforce.hr-settings" data-nav-label="HR Settings">
+      <a href="#" title="HR Settings" data-route="hr.settings">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">HR Settings</span>
       </a>
     </div>
     <div class="nav-item nav-link-item" data-nav-key="hr-payroll.workforce.public-holidays" data-nav-label="Public Holidays">
@@ -2954,6 +3037,12 @@
         <span class="nav-label">Roles &amp; Permissions</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="administration.system-admin.configuration" data-nav-label="Configuration">
+      <a href="#" title="Configuration" data-route="configuration.index">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Configuration</span>
+      </a>
+    </div>
     <div class="nav-item nav-link-item" data-nav-key="administration.system-admin.hotel-settings" data-nav-label="Hotel Settings">
       <a href="#" title="Hotel Settings" data-route="settings.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
@@ -3121,15 +3210,15 @@
       <div class="tape-chart-unassigned-list">
         
           
-      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24151 · Nana Kwabena. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="14" data-label="RES-24151 · Nana Kwabena" data-inhouse="0" title="Standard Single · 07 Nov to 09 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Nana Kwabena <small>SGL · 07/11–09/11</small></span>
+      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24151 · Nana Kwabena. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="14" data-label="RES-24151 · Nana Kwabena" data-inhouse="0" title="Standard Single · 07 Nov to 09 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Nana Kwabena <small>SGL · 7 Nov–9 Nov</small></span>
           
         
           
-      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24153 · Abena Nyarko. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="15" data-label="RES-24153 · Abena Nyarko" data-inhouse="0" title="Family Room · 09 Nov to 12 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Abena Nyarko <small>FAM · 09/11–12/11</small></span>
+      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24153 · Abena Nyarko. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="15" data-label="RES-24153 · Abena Nyarko" data-inhouse="0" title="Family Room · 09 Nov to 12 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Abena Nyarko <small>FAM · 9 Nov–12 Nov</small></span>
           
         
           
-      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24158 · Ibrahim Fuseini. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="16" data-label="RES-24158 · Ibrahim Fuseini" data-inhouse="0" title="Deluxe Sea View · 14 Nov to 17 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Ibrahim Fuseini <small>DSV · 14/11–17/11</small></span>
+      <span class="tape-chart-chip" draggable="true" tabindex="0" role="button" aria-label="Unassigned stay RES-24158 · Ibrahim Fuseini. Press Space to select, use the arrow keys to choose a room, then press Enter to assign." data-stay="16" data-label="RES-24158 · Ibrahim Fuseini" data-inhouse="0" title="Deluxe Sea View · 14 Nov to 17 Nov"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Ibrahim Fuseini <small>DSV · 14 Nov–17 Nov</small></span>
           
         
       </div>
@@ -3141,33 +3230,33 @@
       <caption class="sr-only">Room bookings by date from 3 November 2026 through 16 November 2026.</caption>
       <thead><tr><th class="tape-room-heading" scope="col">Room</th>
          
-      <th scope="col" class=" "><span>Tue</span><br><time datetime="2026-11-03">03 Nov</time></th>
+      <th scope="col"  class=" "><span>Tue</span><br><time datetime="2026-11-03">03 Nov</time></th>
          
-      <th scope="col" class=" "><span>Wed</span><br><time datetime="2026-11-04">04 Nov</time></th>
+      <th scope="col"  class=" "><span>Wed</span><br><time datetime="2026-11-04">04 Nov</time></th>
          
-      <th scope="col" class="tape-today "><span>Thu</span><br><time datetime="2026-11-05">05 Nov</time></th>
+      <th scope="col"  aria-current="date"  class="tape-today "><span>Thu</span><br><time datetime="2026-11-05">05 Nov</time></th>
          
-      <th scope="col" class=" "><span>Fri</span><br><time datetime="2026-11-06">06 Nov</time></th>
+      <th scope="col"  class=" "><span>Fri</span><br><time datetime="2026-11-06">06 Nov</time></th>
          
-      <th scope="col" class=" tape-weekend"><span>Sat</span><br><time datetime="2026-11-07">07 Nov</time></th>
+      <th scope="col"  class=" tape-weekend"><span>Sat</span><br><time datetime="2026-11-07">07 Nov</time></th>
          
-      <th scope="col" class=" tape-weekend"><span>Sun</span><br><time datetime="2026-11-08">08 Nov</time></th>
+      <th scope="col"  class=" tape-weekend"><span>Sun</span><br><time datetime="2026-11-08">08 Nov</time></th>
          
-      <th scope="col" class=" "><span>Mon</span><br><time datetime="2026-11-09">09 Nov</time></th>
+      <th scope="col"  class=" "><span>Mon</span><br><time datetime="2026-11-09">09 Nov</time></th>
          
-      <th scope="col" class=" "><span>Tue</span><br><time datetime="2026-11-10">10 Nov</time></th>
+      <th scope="col"  class=" "><span>Tue</span><br><time datetime="2026-11-10">10 Nov</time></th>
          
-      <th scope="col" class=" "><span>Wed</span><br><time datetime="2026-11-11">11 Nov</time></th>
+      <th scope="col"  class=" "><span>Wed</span><br><time datetime="2026-11-11">11 Nov</time></th>
          
-      <th scope="col" class=" "><span>Thu</span><br><time datetime="2026-11-12">12 Nov</time></th>
+      <th scope="col"  class=" "><span>Thu</span><br><time datetime="2026-11-12">12 Nov</time></th>
          
-      <th scope="col" class=" "><span>Fri</span><br><time datetime="2026-11-13">13 Nov</time></th>
+      <th scope="col"  class=" "><span>Fri</span><br><time datetime="2026-11-13">13 Nov</time></th>
          
-      <th scope="col" class=" tape-weekend"><span>Sat</span><br><time datetime="2026-11-14">14 Nov</time></th>
+      <th scope="col"  class=" tape-weekend"><span>Sat</span><br><time datetime="2026-11-14">14 Nov</time></th>
          
-      <th scope="col" class=" tape-weekend"><span>Sun</span><br><time datetime="2026-11-15">15 Nov</time></th>
+      <th scope="col"  class=" tape-weekend"><span>Sun</span><br><time datetime="2026-11-15">15 Nov</time></th>
          
-      <th scope="col" class=" "><span>Mon</span><br><time datetime="2026-11-16">16 Nov</time></th>
+      <th scope="col"  class=" "><span>Mon</span><br><time datetime="2026-11-16">16 Nov</time></th>
         
       </tr></thead>
       <tbody>
@@ -3178,7 +3267,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 201. Press Enter to assign or move the selected stay here."  data-room="201" data-room-no="201" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">201 <small>DSV</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3190,13 +3279,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -3204,6 +3286,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 5 November 2026" title="New reservation · room 201 · 05 Nov"></a>
       </td>
@@ -3213,6 +3305,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 6 November 2026" title="New reservation · room 201 · 06 Nov"></a>
       </td>
              
@@ -3220,6 +3313,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 7 November 2026" title="New reservation · room 201 · 07 Nov"></a>
       </td>
@@ -3229,6 +3323,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 8 November 2026" title="New reservation · room 201 · 08 Nov"></a>
       </td>
              
@@ -3236,6 +3331,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 9 November 2026" title="New reservation · room 201 · 09 Nov"></a>
       </td>
@@ -3245,6 +3341,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 10 November 2026" title="New reservation · room 201 · 10 Nov"></a>
       </td>
              
@@ -3252,6 +3349,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 11 November 2026" title="New reservation · room 201 · 11 Nov"></a>
       </td>
@@ -3261,6 +3359,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 12 November 2026" title="New reservation · room 201 · 12 Nov"></a>
       </td>
              
@@ -3268,6 +3367,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 13 November 2026" title="New reservation · room 201 · 13 Nov"></a>
       </td>
@@ -3277,6 +3377,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 14 November 2026" title="New reservation · room 201 · 14 Nov"></a>
       </td>
              
@@ -3285,6 +3386,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 15 November 2026" title="New reservation · room 201 · 15 Nov"></a>
       </td>
              
@@ -3292,6 +3394,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 201 arriving 16 November 2026" title="New reservation · room 201 · 16 Nov"></a>
       </td>
@@ -3302,7 +3405,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 202. Press Enter to assign or move the selected stay here."  data-room="202" data-room-no="202" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">202 <small>DSV</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3311,6 +3414,7 @@
                   
                 
                 
+                
       </td>
              
       <td class="tape-cell">
@@ -3319,15 +3423,17 @@
                   
                 
                 
+                
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-today">
                 
                   
                   
       <a class="bar tape-bar b-reserved"  draggable="true" data-stay="8" data-label="RES-24129 · Yaw Antwi" data-inhouse="0"  data-span-days="2" href="#" aria-label="RES-24129 · Yaw Antwi · 05 Nov 2026 to 07 Nov 2026" title="RES-24129 · Yaw Antwi · 05 Nov 2026 to 07 Nov 2026">Yaw Antwi</a>
                     
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 5 November 2026" title="New reservation · room 202 · 05 Nov"></a>
       </td>
@@ -3337,6 +3443,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 6 November 2026" title="New reservation · room 202 · 06 Nov"></a>
       </td>
              
@@ -3344,6 +3451,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 7 November 2026" title="New reservation · room 202 · 07 Nov"></a>
       </td>
@@ -3353,6 +3461,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 8 November 2026" title="New reservation · room 202 · 08 Nov"></a>
       </td>
              
@@ -3360,6 +3469,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 9 November 2026" title="New reservation · room 202 · 09 Nov"></a>
       </td>
@@ -3369,6 +3479,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 10 November 2026" title="New reservation · room 202 · 10 Nov"></a>
       </td>
              
@@ -3376,6 +3487,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 11 November 2026" title="New reservation · room 202 · 11 Nov"></a>
       </td>
@@ -3385,6 +3497,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 12 November 2026" title="New reservation · room 202 · 12 Nov"></a>
       </td>
              
@@ -3392,6 +3505,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 13 November 2026" title="New reservation · room 202 · 13 Nov"></a>
       </td>
@@ -3401,6 +3515,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 14 November 2026" title="New reservation · room 202 · 14 Nov"></a>
       </td>
              
@@ -3409,6 +3524,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 15 November 2026" title="New reservation · room 202 · 15 Nov"></a>
       </td>
              
@@ -3416,6 +3532,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 202 arriving 16 November 2026" title="New reservation · room 202 · 16 Nov"></a>
       </td>
@@ -3426,7 +3543,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 203. Press Enter to assign or move the selected stay here."  data-room="203" data-room-no="203" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">203 <small>DSV</small>
               
-      <span class="tape-chart-room-hk hk-touch_up" aria-label="Housekeeping touch up" title="Housekeeping: touch up"></span>
+      <span class="tape-chart-room-hk hk-touch_up" role="img" aria-label="Housekeeping touch up" title="Housekeeping: touch up"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3435,13 +3552,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -3449,6 +3559,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 5 November 2026" title="New reservation · room 203 · 05 Nov"></a>
       </td>
@@ -3458,6 +3578,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 6 November 2026" title="New reservation · room 203 · 06 Nov"></a>
       </td>
              
@@ -3465,6 +3586,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 7 November 2026" title="New reservation · room 203 · 07 Nov"></a>
       </td>
@@ -3474,6 +3596,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 8 November 2026" title="New reservation · room 203 · 08 Nov"></a>
       </td>
              
@@ -3481,6 +3604,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 9 November 2026" title="New reservation · room 203 · 09 Nov"></a>
       </td>
@@ -3493,6 +3617,7 @@
                     
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 10 November 2026" title="New reservation · room 203 · 10 Nov"></a>
       </td>
              
@@ -3500,6 +3625,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 11 November 2026" title="New reservation · room 203 · 11 Nov"></a>
       </td>
@@ -3509,6 +3635,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 12 November 2026" title="New reservation · room 203 · 12 Nov"></a>
       </td>
              
@@ -3516,6 +3643,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 13 November 2026" title="New reservation · room 203 · 13 Nov"></a>
       </td>
@@ -3525,6 +3653,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 14 November 2026" title="New reservation · room 203 · 14 Nov"></a>
       </td>
              
@@ -3533,6 +3662,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 15 November 2026" title="New reservation · room 203 · 15 Nov"></a>
       </td>
              
@@ -3540,6 +3670,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 203 arriving 16 November 2026" title="New reservation · room 203 · 16 Nov"></a>
       </td>
@@ -3550,13 +3681,14 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 204. Press Enter to assign or move the selected stay here."  data-room="204" data-room-no="204" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">204 <small>DSV</small>
               
-      <span class="tape-chart-room-hk hk-dirty" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
+      <span class="tape-chart-room-hk hk-dirty" role="img" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
       </span></th>
              
       <td class="tape-cell">
                 
                   
                   
+                
                 
                 
       </td>
@@ -3570,12 +3702,14 @@
                   
                 
                 
+                
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-today">
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 5 November 2026" title="New reservation · room 204 · 05 Nov"></a>
       </td>
@@ -3585,6 +3719,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 6 November 2026" title="New reservation · room 204 · 06 Nov"></a>
       </td>
              
@@ -3592,6 +3727,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 7 November 2026" title="New reservation · room 204 · 07 Nov"></a>
       </td>
@@ -3601,6 +3737,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 8 November 2026" title="New reservation · room 204 · 08 Nov"></a>
       </td>
              
@@ -3608,6 +3745,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 9 November 2026" title="New reservation · room 204 · 09 Nov"></a>
       </td>
@@ -3617,6 +3755,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 10 November 2026" title="New reservation · room 204 · 10 Nov"></a>
       </td>
              
@@ -3624,6 +3763,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 11 November 2026" title="New reservation · room 204 · 11 Nov"></a>
       </td>
@@ -3633,6 +3773,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 12 November 2026" title="New reservation · room 204 · 12 Nov"></a>
       </td>
              
@@ -3640,6 +3781,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 13 November 2026" title="New reservation · room 204 · 13 Nov"></a>
       </td>
@@ -3649,6 +3791,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 14 November 2026" title="New reservation · room 204 · 14 Nov"></a>
       </td>
              
@@ -3657,6 +3800,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 15 November 2026" title="New reservation · room 204 · 15 Nov"></a>
       </td>
              
@@ -3664,6 +3808,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 204 arriving 16 November 2026" title="New reservation · room 204 · 16 Nov"></a>
       </td>
@@ -3674,7 +3819,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 305. Press Enter to assign or move the selected stay here."  data-room="305" data-room-no="305" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">305 <small>DSV</small>
               
-      <span class="tape-chart-room-hk hk-dirty" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
+      <span class="tape-chart-room-hk hk-dirty" role="img" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3683,13 +3828,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -3697,6 +3835,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 5 November 2026" title="New reservation · room 305 · 05 Nov"></a>
       </td>
@@ -3705,6 +3853,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 6 November 2026" title="New reservation · room 305 · 06 Nov"></a>
       </td>
@@ -3717,6 +3866,7 @@
                     
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 7 November 2026" title="New reservation · room 305 · 07 Nov"></a>
       </td>
              
@@ -3724,6 +3874,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 8 November 2026" title="New reservation · room 305 · 08 Nov"></a>
       </td>
@@ -3733,6 +3884,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 9 November 2026" title="New reservation · room 305 · 09 Nov"></a>
       </td>
              
@@ -3740,6 +3892,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 10 November 2026" title="New reservation · room 305 · 10 Nov"></a>
       </td>
@@ -3749,6 +3902,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 11 November 2026" title="New reservation · room 305 · 11 Nov"></a>
       </td>
              
@@ -3756,6 +3910,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 12 November 2026" title="New reservation · room 305 · 12 Nov"></a>
       </td>
@@ -3765,6 +3920,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 13 November 2026" title="New reservation · room 305 · 13 Nov"></a>
       </td>
              
@@ -3772,6 +3928,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 14 November 2026" title="New reservation · room 305 · 14 Nov"></a>
       </td>
@@ -3781,6 +3938,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 15 November 2026" title="New reservation · room 305 · 15 Nov"></a>
       </td>
              
@@ -3788,6 +3946,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 305 arriving 16 November 2026" title="New reservation · room 305 · 16 Nov"></a>
       </td>
@@ -3801,7 +3960,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 101. Press Enter to assign or move the selected stay here."  data-room="101" data-room-no="101" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">101 <small>STG</small>
               
-      <span class="tape-chart-room-hk hk-dirty" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
+      <span class="tape-chart-room-hk hk-dirty" role="img" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3813,13 +3972,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -3827,6 +3979,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 5 November 2026" title="New reservation · room 101 · 05 Nov"></a>
       </td>
@@ -3836,6 +3998,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 6 November 2026" title="New reservation · room 101 · 06 Nov"></a>
       </td>
              
@@ -3843,6 +4006,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 7 November 2026" title="New reservation · room 101 · 07 Nov"></a>
       </td>
@@ -3852,6 +4016,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 8 November 2026" title="New reservation · room 101 · 08 Nov"></a>
       </td>
              
@@ -3859,6 +4024,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 9 November 2026" title="New reservation · room 101 · 09 Nov"></a>
       </td>
@@ -3868,6 +4034,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 10 November 2026" title="New reservation · room 101 · 10 Nov"></a>
       </td>
              
@@ -3875,6 +4042,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 11 November 2026" title="New reservation · room 101 · 11 Nov"></a>
       </td>
@@ -3884,6 +4052,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 12 November 2026" title="New reservation · room 101 · 12 Nov"></a>
       </td>
              
@@ -3891,6 +4060,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 13 November 2026" title="New reservation · room 101 · 13 Nov"></a>
       </td>
@@ -3900,6 +4070,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 14 November 2026" title="New reservation · room 101 · 14 Nov"></a>
       </td>
              
@@ -3908,6 +4079,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 15 November 2026" title="New reservation · room 101 · 15 Nov"></a>
       </td>
              
@@ -3915,6 +4087,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 101 arriving 16 November 2026" title="New reservation · room 101 · 16 Nov"></a>
       </td>
@@ -3925,7 +4098,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 102. Press Enter to assign or move the selected stay here."  data-room="102" data-room-no="102" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">102 <small>STG</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -3934,13 +4107,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -3948,6 +4114,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 5 November 2026" title="New reservation · room 102 · 05 Nov"></a>
       </td>
@@ -3957,6 +4133,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 6 November 2026" title="New reservation · room 102 · 06 Nov"></a>
       </td>
              
@@ -3965,6 +4142,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 7 November 2026" title="New reservation · room 102 · 07 Nov"></a>
       </td>
              
@@ -3972,6 +4150,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 8 November 2026" title="New reservation · room 102 · 08 Nov"></a>
       </td>
@@ -3984,6 +4163,7 @@
                     
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 9 November 2026" title="New reservation · room 102 · 09 Nov"></a>
       </td>
              
@@ -3991,6 +4171,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 10 November 2026" title="New reservation · room 102 · 10 Nov"></a>
       </td>
@@ -4000,6 +4181,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 11 November 2026" title="New reservation · room 102 · 11 Nov"></a>
       </td>
              
@@ -4007,6 +4189,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 12 November 2026" title="New reservation · room 102 · 12 Nov"></a>
       </td>
@@ -4016,6 +4199,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 13 November 2026" title="New reservation · room 102 · 13 Nov"></a>
       </td>
              
@@ -4023,6 +4207,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 14 November 2026" title="New reservation · room 102 · 14 Nov"></a>
       </td>
@@ -4032,6 +4217,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 15 November 2026" title="New reservation · room 102 · 15 Nov"></a>
       </td>
              
@@ -4039,6 +4225,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 102 arriving 16 November 2026" title="New reservation · room 102 · 16 Nov"></a>
       </td>
@@ -4049,7 +4236,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 103. Press Enter to assign or move the selected stay here."  data-room="103" data-room-no="103" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">103 <small>STG</small>
               
-      <span class="tape-chart-room-hk hk-inspected" aria-label="Housekeeping inspected" title="Housekeeping: inspected"></span>
+      <span class="tape-chart-room-hk hk-inspected" role="img" aria-label="Housekeeping inspected" title="Housekeeping: inspected"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4058,6 +4245,7 @@
                   
                 
                 
+                
       </td>
              
       <td class="tape-cell">
@@ -4066,15 +4254,17 @@
                   
                 
                 
+                
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-today">
                 
                   
                   
       <a class="bar tape-bar b-reserved"  draggable="true" data-stay="7" data-label="RES-24126 · Adjoa Boateng" data-inhouse="0"  data-span-days="3" href="#" aria-label="RES-24126 · Adjoa Boateng · 05 Nov 2026 to 08 Nov 2026" title="RES-24126 · Adjoa Boateng · 05 Nov 2026 to 08 Nov 2026">Adjoa Boateng</a>
                     
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 5 November 2026" title="New reservation · room 103 · 05 Nov"></a>
       </td>
@@ -4084,6 +4274,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 6 November 2026" title="New reservation · room 103 · 06 Nov"></a>
       </td>
              
@@ -4091,6 +4282,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 7 November 2026" title="New reservation · room 103 · 07 Nov"></a>
       </td>
@@ -4100,6 +4292,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 8 November 2026" title="New reservation · room 103 · 08 Nov"></a>
       </td>
              
@@ -4107,6 +4300,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 9 November 2026" title="New reservation · room 103 · 09 Nov"></a>
       </td>
@@ -4116,6 +4310,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 10 November 2026" title="New reservation · room 103 · 10 Nov"></a>
       </td>
              
@@ -4123,6 +4318,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 11 November 2026" title="New reservation · room 103 · 11 Nov"></a>
       </td>
@@ -4132,6 +4328,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 12 November 2026" title="New reservation · room 103 · 12 Nov"></a>
       </td>
              
@@ -4139,6 +4336,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 13 November 2026" title="New reservation · room 103 · 13 Nov"></a>
       </td>
@@ -4148,6 +4346,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 14 November 2026" title="New reservation · room 103 · 14 Nov"></a>
       </td>
              
@@ -4156,6 +4355,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 15 November 2026" title="New reservation · room 103 · 15 Nov"></a>
       </td>
              
@@ -4163,6 +4363,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 103 arriving 16 November 2026" title="New reservation · room 103 · 16 Nov"></a>
       </td>
@@ -4173,7 +4374,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 105. Press Enter to assign or move the selected stay here."  data-room="105" data-room-no="105" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">105 <small>STG</small>
               
-      <span class="tape-chart-room-hk hk-dirty" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
+      <span class="tape-chart-room-hk hk-dirty" role="img" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4185,13 +4386,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -4199,6 +4393,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 5 November 2026" title="New reservation · room 105 · 05 Nov"></a>
       </td>
@@ -4208,6 +4412,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 6 November 2026" title="New reservation · room 105 · 06 Nov"></a>
       </td>
              
@@ -4215,6 +4420,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 7 November 2026" title="New reservation · room 105 · 07 Nov"></a>
       </td>
@@ -4224,6 +4430,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 8 November 2026" title="New reservation · room 105 · 08 Nov"></a>
       </td>
              
@@ -4231,6 +4438,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 9 November 2026" title="New reservation · room 105 · 09 Nov"></a>
       </td>
@@ -4240,6 +4448,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 10 November 2026" title="New reservation · room 105 · 10 Nov"></a>
       </td>
              
@@ -4247,6 +4456,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 11 November 2026" title="New reservation · room 105 · 11 Nov"></a>
       </td>
@@ -4256,6 +4466,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 12 November 2026" title="New reservation · room 105 · 12 Nov"></a>
       </td>
              
@@ -4263,6 +4474,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 13 November 2026" title="New reservation · room 105 · 13 Nov"></a>
       </td>
@@ -4272,6 +4484,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 14 November 2026" title="New reservation · room 105 · 14 Nov"></a>
       </td>
              
@@ -4280,6 +4493,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 15 November 2026" title="New reservation · room 105 · 15 Nov"></a>
       </td>
              
@@ -4287,6 +4501,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 105 arriving 16 November 2026" title="New reservation · room 105 · 16 Nov"></a>
       </td>
@@ -4300,7 +4515,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 301. Press Enter to assign or move the selected stay here."  data-room="301" data-room-no="301" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">301 <small>EXS</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4312,13 +4527,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -4326,6 +4534,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 5 November 2026" title="New reservation · room 301 · 05 Nov"></a>
       </td>
@@ -4335,6 +4553,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 6 November 2026" title="New reservation · room 301 · 06 Nov"></a>
       </td>
              
@@ -4342,6 +4561,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 7 November 2026" title="New reservation · room 301 · 07 Nov"></a>
       </td>
@@ -4351,6 +4571,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 8 November 2026" title="New reservation · room 301 · 08 Nov"></a>
       </td>
              
@@ -4358,6 +4579,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 9 November 2026" title="New reservation · room 301 · 09 Nov"></a>
       </td>
@@ -4367,6 +4589,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 10 November 2026" title="New reservation · room 301 · 10 Nov"></a>
       </td>
              
@@ -4374,6 +4597,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 11 November 2026" title="New reservation · room 301 · 11 Nov"></a>
       </td>
@@ -4383,6 +4607,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 12 November 2026" title="New reservation · room 301 · 12 Nov"></a>
       </td>
              
@@ -4390,6 +4615,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 13 November 2026" title="New reservation · room 301 · 13 Nov"></a>
       </td>
@@ -4399,6 +4625,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 14 November 2026" title="New reservation · room 301 · 14 Nov"></a>
       </td>
              
@@ -4407,6 +4634,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 15 November 2026" title="New reservation · room 301 · 15 Nov"></a>
       </td>
              
@@ -4414,6 +4642,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 301 arriving 16 November 2026" title="New reservation · room 301 · 16 Nov"></a>
       </td>
@@ -4424,7 +4653,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 302. Press Enter to assign or move the selected stay here."  data-room="302" data-room-no="302" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">302 <small>EXS</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4436,13 +4665,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -4450,6 +4672,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 5 November 2026" title="New reservation · room 302 · 05 Nov"></a>
       </td>
@@ -4459,6 +4691,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 6 November 2026" title="New reservation · room 302 · 06 Nov"></a>
       </td>
              
@@ -4466,6 +4699,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 7 November 2026" title="New reservation · room 302 · 07 Nov"></a>
       </td>
@@ -4475,6 +4709,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 8 November 2026" title="New reservation · room 302 · 08 Nov"></a>
       </td>
              
@@ -4482,6 +4717,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 9 November 2026" title="New reservation · room 302 · 09 Nov"></a>
       </td>
@@ -4491,6 +4727,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 10 November 2026" title="New reservation · room 302 · 10 Nov"></a>
       </td>
              
@@ -4498,6 +4735,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 11 November 2026" title="New reservation · room 302 · 11 Nov"></a>
       </td>
@@ -4507,6 +4745,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 12 November 2026" title="New reservation · room 302 · 12 Nov"></a>
       </td>
              
@@ -4514,6 +4753,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 13 November 2026" title="New reservation · room 302 · 13 Nov"></a>
       </td>
@@ -4523,6 +4763,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 14 November 2026" title="New reservation · room 302 · 14 Nov"></a>
       </td>
              
@@ -4531,6 +4772,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 15 November 2026" title="New reservation · room 302 · 15 Nov"></a>
       </td>
              
@@ -4538,6 +4780,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 302 arriving 16 November 2026" title="New reservation · room 302 · 16 Nov"></a>
       </td>
@@ -4551,7 +4794,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 104. Press Enter to assign or move the selected stay here."  data-room="104" data-room-no="104" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">104 <small>FAM</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4560,13 +4803,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -4574,6 +4810,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 5 November 2026" title="New reservation · room 104 · 05 Nov"></a>
       </td>
@@ -4583,6 +4829,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 6 November 2026" title="New reservation · room 104 · 06 Nov"></a>
       </td>
              
@@ -4590,6 +4837,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 7 November 2026" title="New reservation · room 104 · 07 Nov"></a>
       </td>
@@ -4599,6 +4847,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 8 November 2026" title="New reservation · room 104 · 08 Nov"></a>
       </td>
              
@@ -4606,6 +4855,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 9 November 2026" title="New reservation · room 104 · 09 Nov"></a>
       </td>
@@ -4615,6 +4865,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 10 November 2026" title="New reservation · room 104 · 10 Nov"></a>
       </td>
              
@@ -4622,6 +4873,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 11 November 2026" title="New reservation · room 104 · 11 Nov"></a>
       </td>
@@ -4634,6 +4886,7 @@
                     
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 12 November 2026" title="New reservation · room 104 · 12 Nov"></a>
       </td>
              
@@ -4641,6 +4894,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 13 November 2026" title="New reservation · room 104 · 13 Nov"></a>
       </td>
@@ -4650,6 +4904,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 14 November 2026" title="New reservation · room 104 · 14 Nov"></a>
       </td>
              
@@ -4657,6 +4912,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 15 November 2026" title="New reservation · room 104 · 15 Nov"></a>
       </td>
@@ -4666,84 +4922,99 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 104 arriving 16 November 2026" title="New reservation · room 104 · 16 Nov"></a>
       </td>
             
       </tr>
         
           
-      <tr class="tape-chart-room-row"  data-room="205" data-room-no="205"  data-room-disabled="1" >
+      <tr class="tape-chart-room-row tape-row-out"  data-room="205" data-room-no="205"  data-room-disabled="1" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">205 <small>FAM</small>
       <span class="tape-chart-room-state">OOO</span>
-      <span class="tape-chart-room-hk hk-dirty" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
+      <span class="tape-chart-room-hk hk-dirty" role="img" aria-label="Housekeeping dirty" title="Housekeeping: dirty"></span>
       </span></th>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-today tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
                 
-                
-      </td>
-             
-      <td class="tape-cell">
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
+                
                 
                 
       </td>
              
-      <td class="tape-cell">
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-out">
+                
                 
                 
       </td>
@@ -4754,7 +5025,7 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 303. Press Enter to assign or move the selected stay here."  data-room="303" data-room-no="303" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">303 <small>FAM</small>
               
-      <span class="tape-chart-room-hk hk-inspected" aria-label="Housekeeping inspected" title="Housekeeping: inspected"></span>
+      <span class="tape-chart-room-hk hk-inspected" role="img" aria-label="Housekeeping inspected" title="Housekeeping: inspected"></span>
       </span></th>
              
       <td class="tape-cell">
@@ -4763,13 +5034,6 @@
                   
                 
                 
-      </td>
-             
-      <td class="tape-cell">
-                
-                  
-                  
-                
                 
       </td>
              
@@ -4777,6 +5041,16 @@
                 
                   
                   
+                
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                  
+                  
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 5 November 2026" title="New reservation · room 303 · 05 Nov"></a>
       </td>
@@ -4789,6 +5063,7 @@
                     
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 6 November 2026" title="New reservation · room 303 · 06 Nov"></a>
       </td>
              
@@ -4796,6 +5071,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 7 November 2026" title="New reservation · room 303 · 07 Nov"></a>
       </td>
@@ -4805,6 +5081,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 8 November 2026" title="New reservation · room 303 · 08 Nov"></a>
       </td>
              
@@ -4812,6 +5089,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 9 November 2026" title="New reservation · room 303 · 09 Nov"></a>
       </td>
@@ -4821,6 +5099,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 10 November 2026" title="New reservation · room 303 · 10 Nov"></a>
       </td>
              
@@ -4828,6 +5107,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 11 November 2026" title="New reservation · room 303 · 11 Nov"></a>
       </td>
@@ -4837,6 +5117,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 12 November 2026" title="New reservation · room 303 · 12 Nov"></a>
       </td>
              
@@ -4844,6 +5125,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 13 November 2026" title="New reservation · room 303 · 13 Nov"></a>
       </td>
@@ -4853,6 +5135,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 14 November 2026" title="New reservation · room 303 · 14 Nov"></a>
       </td>
              
@@ -4861,6 +5144,7 @@
                   
                   
                 
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 15 November 2026" title="New reservation · room 303 · 15 Nov"></a>
       </td>
              
@@ -4868,6 +5152,7 @@
                 
                   
                   
+                
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 303 arriving 16 November 2026" title="New reservation · room 303 · 16 Nov"></a>
       </td>
@@ -4881,75 +5166,120 @@
       <tr class="tape-chart-room-row"  tabindex="0" aria-label="Destination room 304. Press Enter to assign or move the selected stay here."  data-room="304" data-room-no="304" >
       <th scope="row" class="tape-room-label"><span class="tape-chart-room-copy">304 <small>SGL</small>
               
-      <span class="tape-chart-room-hk hk-clean" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
+      <span class="tape-chart-room-hk hk-clean" role="img" aria-label="Housekeeping clean" title="Housekeeping: clean"></span>
       </span></th>
              
       <td class="tape-cell">
                 
                 
-      </td>
-             
-      <td class="tape-cell">
+                  
                 
                 
       </td>
              
       <td class="tape-cell">
+                
+                
+                  
+                
+                
+      </td>
+             
+      <td class="tape-cell tape-today">
+                
+                
+                  
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 5 November 2026" title="New reservation · room 304 · 05 Nov"></a>
       </td>
              
       <td class="tape-cell">
                 
+                
+                  
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 6 November 2026" title="New reservation · room 304 · 06 Nov"></a>
       </td>
              
       <td class="tape-cell">
+                
+                
+                  
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 7 November 2026" title="New reservation · room 304 · 07 Nov"></a>
       </td>
              
       <td class="tape-cell">
                 
+                
+                  
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 8 November 2026" title="New reservation · room 304 · 08 Nov"></a>
       </td>
              
       <td class="tape-cell">
                 
-      <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 9 November 2026" title="New reservation · room 304 · 09 Nov"></a>
+                
+                  
+                    
+      <span class="bar tape-bar tape-block" data-span-days="3" role="img" aria-label="Room 304 blocked 09 Nov – 12 Nov (Maintenance)" title="Room 304 blocked 09 Nov – 12 Nov (Maintenance)">Maintenance</span>
+                  
+                
+                
       </td>
              
       <td class="tape-cell">
                 
-      <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 10 November 2026" title="New reservation · room 304 · 10 Nov"></a>
+                
+                  
+                
+                
       </td>
              
       <td class="tape-cell">
                 
-      <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 11 November 2026" title="New reservation · room 304 · 11 Nov"></a>
+                
+                  
+                
+                
       </td>
              
       <td class="tape-cell">
+                
+                
+                  
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 12 November 2026" title="New reservation · room 304 · 12 Nov"></a>
       </td>
              
       <td class="tape-cell">
                 
+                
+                  
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 13 November 2026" title="New reservation · room 304 · 13 Nov"></a>
       </td>
              
       <td class="tape-cell">
+                
+                
+                  
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 14 November 2026" title="New reservation · room 304 · 14 Nov"></a>
       </td>
              
       <td class="tape-cell">
                 
+                
+                  
+                
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 15 November 2026" title="New reservation · room 304 · 15 Nov"></a>
       </td>
              
       <td class="tape-cell">
+                
+                
+                  
                 
       <a class="tape-new" href="#" aria-label="New reservation in room 304 arriving 16 November 2026" title="New reservation · room 304 · 16 Nov"></a>
       </td>
@@ -4958,13 +5288,109 @@
         
       
       </tbody>
+      <tfoot>
+      <tr class="tape-chart-total">
+      <th scope="row" class="tape-room-label">Occupied</th>
+           
+      <td class="tape-cell tape-total" aria-label="Tuesday, 3 November 2026: 4 of 14 sellable rooms occupied">4</td>
+           
+      <td class="tape-cell tape-total" aria-label="Wednesday, 4 November 2026: 5 of 14 sellable rooms occupied">5</td>
+           
+      <td class="tape-cell tape-total" aria-label="Thursday, 5 November 2026: 7 of 14 sellable rooms occupied">7</td>
+           
+      <td class="tape-cell tape-total" aria-label="Friday, 6 November 2026: 6 of 14 sellable rooms occupied">6</td>
+           
+      <td class="tape-cell tape-total" aria-label="Saturday, 7 November 2026: 4 of 14 sellable rooms occupied">4</td>
+           
+      <td class="tape-cell tape-total" aria-label="Sunday, 8 November 2026: 2 of 14 sellable rooms occupied">2</td>
+           
+      <td class="tape-cell tape-total tape-blocked-night" title="1 room blocked · 13 of 14 rooms for sale" aria-label="Monday, 9 November 2026: 3 of 13 sellable rooms occupied">3</td>
+           
+      <td class="tape-cell tape-total tape-blocked-night" title="1 room blocked · 13 of 14 rooms for sale" aria-label="Tuesday, 10 November 2026: 2 of 13 sellable rooms occupied">2</td>
+           
+      <td class="tape-cell tape-total tape-blocked-night" title="1 room blocked · 13 of 14 rooms for sale" aria-label="Wednesday, 11 November 2026: 1 of 13 sellable rooms occupied">1</td>
+           
+      <td class="tape-cell tape-total" aria-label="Thursday, 12 November 2026: 1 of 14 sellable rooms occupied">1</td>
+           
+      <td class="tape-cell tape-total" aria-label="Friday, 13 November 2026: 1 of 14 sellable rooms occupied">1</td>
+           
+      <td class="tape-cell tape-total" aria-label="Saturday, 14 November 2026: 1 of 14 sellable rooms occupied">1</td>
+           
+      <td class="tape-cell tape-total" aria-label="Sunday, 15 November 2026: 1 of 14 sellable rooms occupied">1</td>
+           
+      <td class="tape-cell tape-total" aria-label="Monday, 16 November 2026: 0 of 14 sellable rooms occupied">0</td>
+          
+      </tr>
+      <tr class="tape-chart-total">
+      <th scope="row" class="tape-room-label">Occupancy</th>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Tuesday, 3 November 2026: 29 percent of 14 sellable rooms">29%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Wednesday, 4 November 2026: 36 percent of 14 sellable rooms">36%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct pct-mid" aria-label="Thursday, 5 November 2026: 50 percent of 14 sellable rooms">50%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Friday, 6 November 2026: 43 percent of 14 sellable rooms">43%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Saturday, 7 November 2026: 29 percent of 14 sellable rooms">29%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Sunday, 8 November 2026: 14 percent of 14 sellable rooms">14%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct  tape-blocked-night" title="1 room blocked · share of 13 rooms for sale" aria-label="Monday, 9 November 2026: 23 percent of 13 sellable rooms">23%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct  tape-blocked-night" title="1 room blocked · share of 13 rooms for sale" aria-label="Tuesday, 10 November 2026: 15 percent of 13 sellable rooms">15%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct  tape-blocked-night" title="1 room blocked · share of 13 rooms for sale" aria-label="Wednesday, 11 November 2026: 8 percent of 13 sellable rooms">8%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Thursday, 12 November 2026: 7 percent of 14 sellable rooms">7%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Friday, 13 November 2026: 7 percent of 14 sellable rooms">7%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Saturday, 14 November 2026: 7 percent of 14 sellable rooms">7%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Sunday, 15 November 2026: 7 percent of 14 sellable rooms">7%</td>
+           
+      <td class="tape-cell tape-total tape-total-pct " aria-label="Monday, 16 November 2026: 0 percent of 14 sellable rooms">0%</td>
+          
+      </tr>
+      </tfoot>
       </table>
       </div>
+      <p class="tape-chart-basis">
+    
+      Occupancy is measured against <b>14</b> of <b>15</b> active rooms —
+      room 205 is out of order, so it is not for sale.
+    
+    
+      <br>Dated blocks take those nights out of the count too:
+      room 304 is blocked 9 Nov – 12 Nov (maintenance).
+    
+      </p>
       <p class="tape-chart-status" id="tape-chart-status" role="status" aria-live="polite"></p>
 
+      <p class="tape-chart-summary">
+      <svg class="i i-sm" aria-hidden="true"><use href="#i-chart"/></svg>
+      <b>38</b> room-nights sold over
+      14 nights ·
+      average occupancy <b>20%</b>
+    
+      · fullest night <b>5 Nov</b> with
+      7 rooms
+      (50%)
+    
+      </p>
+
       <div class="tape-chart-legend" aria-label="Booking status legend">
-      <span><i style="background:#166534"></i>Reserved</span><span><i style="background:#b91c1c"></i>In-house</span><span><i style="background:#92400e"></i>Tentative</span><span><i style="background:#475569"></i>Checked out</span>
-      <span><i class="tape-chart-room-hk hk-clean"></i>Clean room</span><span><i class="tape-chart-room-hk hk-dirty"></i>Dirty room</span>
+      <span><i style="background:#166534"></i>Reserved</span><span><i style="background:#b91c1c"></i>In-house</span><span><i style="background:#92400e"></i>Tentative <em class="tape-legend-note">not counted</em></span><span><i style="background:#475569"></i>Checked out</span>
+    
+      <span aria-hidden="true"><i class="tape-chart-room-hk hk-clean"></i>Clean</span>
+      <span aria-hidden="true"><i class="tape-chart-room-hk hk-inspected"></i>Inspected</span>
+      <span aria-hidden="true"><i class="tape-chart-room-hk hk-dirty"></i>Dirty</span>
+      <span aria-hidden="true"><i class="tape-chart-room-hk hk-touch_up"></i>Touch-up</span>
+    
+      <span aria-hidden="true"><i class="tape-legend-out"></i>Not for sale</span>
+      <span aria-hidden="true"><i class="tape-legend-block"></i>Blocked nights</span>
+    
       <span>Click an empty cell to start a booking.</span>
       </div>
 
@@ -5006,7 +5432,7 @@
       return;
     }
     if (status) status.textContent = `Updating room assignment for ${selected.label}…`;
-    fetch(@json(route('frontdesk.tapechart.drop')), {
+    fetch("#", {
       method:'POST',
       headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},
       body:JSON.stringify({stay_id:Number(selected.stay),room_id:Number(roomRow.dataset.room)})
@@ -5097,6 +5523,32 @@
   sizeBars();
   window.addEventListener('resize', () => requestAnimationFrame(sizeBars));
 })();
+</script>
+
+<script>
+// The application's modal plumbing (public/js/app.js): a button that opens nothing
+// would hide a bug, so the rendered shell answers [data-modal] the same way.
+document.addEventListener('click', e => {
+  const opener = e.target.closest('[data-modal]');
+  if (opener) {
+    e.preventDefault();
+    const modal = document.getElementById(opener.dataset.modal);
+    if (modal) {
+      modal.classList.add('show');
+      const resetting = modal.querySelector('form[data-reset]');
+      if (resetting) resetting.reset();
+      const field = modal.querySelector('input:not([type=hidden]),select,textarea');
+      if (field) setTimeout(() => field.focus(), 50);
+    }
+  }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('modal')) {
+    e.target.closest('.modal')?.classList.remove('show');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal.show').forEach(modal => modal.classList.remove('show'));
+});
 </script>
 </body>
 </html>

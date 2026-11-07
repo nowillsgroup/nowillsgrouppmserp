@@ -228,9 +228,19 @@ class TreasuryService
         $bal = self::balance($from->account_head_id);
         $committed = (float) TreasuryTransfer::where('from_account_id', $from->id)->whereIn('status', ['requested', 'approved'])->sum('cash_amount');
         if ($kind === 'deposit') {
-            $amt = max(0, $bal - $committed - (float) self::cfg('treasury_cash_float'));
+            $float = (float) self::cfg('treasury_cash_float');
+            $amt = max(0, $bal - $committed - $float);
+            // The note has to add up to the amount beside it: it names the float, any deposit already
+            // requested (which also reduces the suggestion) and the rounding down to the nearest 10.
+            $note = 'Cash in hand '.money($bal).' less the float of '.money($float);
+            if ($committed > 0) {
+                $note .= ' less '.money($committed).' already requested';
+            }
+            if ($amt >= 10) {
+                $note .= ', rounded down to the nearest '.money(10, false);
+            }
 
-            return ['amount' => round(floor($amt / 10) * 10, 2), 'fee' => 0.0, 'note' => 'Cash in hand '.money($bal).' less the float of '.money((float) self::cfg('treasury_cash_float')).'.'];
+            return ['amount' => round(floor($amt / 10) * 10, 2), 'fee' => 0.0, 'note' => $note.'.'];
         }
         if ($kind === 'sweep') {
             $d = bdate()->copy()->subDays((int) $from->settle_days)->toDateString();

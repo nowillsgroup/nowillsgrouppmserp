@@ -177,9 +177,9 @@
         <label class="flex span-2" style="gap:.4rem;align-items:center"><input type="checkbox" name="enabled" value="1" @checked($cfg['enabled'])> Gift vouchers enabled (sale & redemption)</label>
         <x-field name="validity" label="Default validity (months)" type="number" min="1" max="120" :value="$cfg['validity']" required/>
         <x-field name="reminder_days" label="Expiry reminder (days before)" type="number" min="0" max="180" :value="$cfg['reminder_days']" required hint="0 = no reminders"/>
-        <x-field name="min" label="Smallest open-amount voucher" type="number" step="0.01" min="0" :value="$cfg['min']" required/>
-        <x-field name="max" label="Largest balance on one voucher" type="number" step="0.01" min="1" :value="$cfg['max']" required/>
-        <x-field name="terms" label="Terms printed on every voucher" type="textarea" rows="3" class="span-2" :value="$cfg['terms']"/>
+        <x-field name="min" label="Smallest open-amount voucher (GH₵)" type="number" step="0.01" min="0" max="10000000" :value="$cfg['min']" required hint="0 to 10,000,000 — and cannot be more than the largest balance below"/>
+        <x-field name="max" label="Largest balance on one voucher (GH₵)" type="number" step="0.01" min="1" max="10000000" :value="$cfg['max']" required hint="0 to 10,000,000"/>
+        <x-field name="terms" label="Terms printed on every voucher" type="textarea" rows="3" class="span-2" maxlength="1000" :value="$cfg['terms']" hint="Up to 1,000 characters; blank restores the standard terms"/>
       </div>
       <div class="flex" style="justify-content:space-between;margin-top:.8rem"><span class="small muted">Expiry is processed during night audit. Reminder checks are scheduled daily at 06:30 (pms:vouchers); delivery requires a holder e-mail and configured mail service.</span><button class="btn btn-primary">Save settings</button></div>
     </form>

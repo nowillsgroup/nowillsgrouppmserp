@@ -23,7 +23,12 @@
     <label class="check"><input type="checkbox" name="pay_portal_enabled" value="1" @checked($val('pay_portal_enabled', '1') === '1')> Guests can pay their bill in the mobile portal</label>
   </div></div>
 
-  <div class="card"><div class="card-head"><h3>Booking engine deposit</h3></div><div class="card-body form-grid">
+  <div class="card"><div class="card-head"><h3>Booking engine deposit</h3><span class="small muted">applies only while online payments are on</span></div><div class="card-body form-grid">
+    @if($val('pay_enabled', '0') !== '1')
+      {{-- OnlinePaymentService::depositPolicy() answers 'none' whenever the gateway is off, so the
+           policy chosen here would look set and take no money: a new online booking is confirmed at once. --}}
+      <div class="alert alert-warn span-2" role="note"><x-icon name="alert"/><div>Online payments are <b>off</b>, so nothing is collected whatever is chosen here — a new online booking is confirmed immediately, with no deposit and no hold. Switch online payments on above to charge a deposit.</div></div>
+    @endif
     <div class="field span-2"><label>Online bookings require</label><select name="pay_booking_deposit" class="input" id="depPolicy" onchange="document.getElementById('depPct').closest('.field').style.display=this.value==='percent'?'':'none'">@foreach(\App\Services\OnlinePaymentService::DEPOSIT_POLICIES as $k => $l)<option value="{{ $k }}" @selected($val('pay_booking_deposit', 'none') === $k)>{{ $l }}</option>@endforeach</select></div>
     <div class="field" @style(['display:none' => $val('pay_booking_deposit', 'none') !== 'percent'])><label>Deposit %</label><input type="number" name="pay_booking_deposit_pct" id="depPct" min="1" max="100" step="0.5" class="input" value="{{ $val('pay_booking_deposit_pct', 30) }}"></div>
     <div class="field"><label>Hold rooms for (minutes)</label><input type="number" name="pay_booking_hold_minutes" min="15" max="1440" class="input" value="{{ $val('pay_booking_hold_minutes', 60) }}"><span class="hint">Unpaid bookings are released automatically after this.</span></div>

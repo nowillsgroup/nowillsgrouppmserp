@@ -98,6 +98,7 @@ class GuestPortalController extends Controller
             'prices' => \App\Services\LaundryService::priceList(), 'express' => \App\Services\LaundryService::expressPct(),
             'hours' => ['normal' => \App\Services\LaundryService::hours('normal'), 'express' => \App\Services\LaundryService::hours('express')],
             'orders' => \App\Models\LaundryOrder::where('reservation_room_id', $stay->id)->where('status', '!=', 'cancelled')->latest('id')->limit(10)->get(),
+            'tax' => \App\Services\LaundryService::taxInfo(),
         ];
 
         return $this->page($stay, 'portal.requests', 'requests', compact('list', 'cats', 'laundry'), ['inhouse', 'upcoming', 'departed']);

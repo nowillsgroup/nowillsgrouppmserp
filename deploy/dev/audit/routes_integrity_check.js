@@ -336,6 +336,19 @@ for (const r of all) {
   else if (!hasPerm) noPermission.push(`${r.verb.toUpperCase()} ${r.uri}`);
 }
 
+if (process.env.DUMP_PERMS) {
+  // Lets the configuration register prove every module's declared permission is the
+  // one the route actually enforces (and find the screens that have a settings route
+  // but no permission gate at all).
+  const lines = all.filter(r => r.name && r.action).map(r => {
+    const gate = (r.middleware || []).find(m => /^perm:|^can:/.test(m)) || '';
+
+    return [r.name, gate, r.verb.toUpperCase(), r.uri].join('\t');
+  });
+  fs.writeFileSync(process.env.DUMP_PERMS, lines.sort().join('\n') + '\n');
+  console.log(`route permissions written to ${process.env.DUMP_PERMS} (${lines.length})`);
+}
+
 if (process.env.DUMP_NAMES) {
   // Lets other audits (and a route('…') reference check) reuse the name list.
   fs.writeFileSync(process.env.DUMP_NAMES, [...byName.keys()].sort().join('\n') + '\n');

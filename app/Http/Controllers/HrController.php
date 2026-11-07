@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Setting;
+use App\Services\ActivityLogger;
 use App\Services\HolidayService;
 use App\Services\PayrollService;
 use Illuminate\Http\Request;
@@ -13,6 +15,39 @@ use RuntimeException;
 
 class HrController extends Controller
 {
+    /**
+     * Human Resources › Settings — the policy the HR desk works to.
+     *
+     * Two rules that were invisible until they bit somebody: how long a leave request may
+     * sit unanswered before the nightly HR run escalates it, and whether leave is counted
+     * in working days (Act 651 s.20/s.22 — the default) or in calendar days.
+     */
+    public function settings()
+    {
+        return view('hr.settings', [
+            'c' => [
+                'hr_leave_sla_hours' => (string) setting('hr_leave_sla_hours', '24'),
+                'leave_count_all_days' => (string) setting('leave_count_all_days', '0'),
+            ],
+        ]);
+    }
+
+    public function saveSettings(Request $request)
+    {
+        $data = $request->validate([
+            'hr_leave_sla_hours' => 'required|integer|min:1|max:168',
+            'leave_count_all_days' => 'nullable|in:0,1',
+        ]);
+        $data['leave_count_all_days'] = $request->boolean('leave_count_all_days') ? '1' : '0';
+
+        foreach ($data as $key => $value) {
+            Setting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
+        }
+        ActivityLogger::log('settings', 'hr', 'Updated HR leave policy settings');
+
+        return redirect()->route('hr.settings')->with('success', 'HR settings saved.');
+    }
+
     public function attendance(Request $request)
     {
         $date = $request->input('date', bdate()->toDateString());
@@ -136,6 +171,8 @@ class HrController extends Controller
                 }
             }
             \App\Models\Setting::$version++;
+            ActivityLogger::log('settings', 'hr', "Holiday calendar for {$d['year']} saved ({$n} day(s))".
+                (isset($d['payroll_holiday_multiplier']) && $d['payroll_holiday_multiplier'] !== '' ? ", holidays paid at {$d['payroll_holiday_multiplier']}×" : ''));
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
