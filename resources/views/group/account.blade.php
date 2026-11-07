@@ -3,6 +3,7 @@
 @section('crumbs')<a href="{{ route('properties.index') }}">Properties</a> / {{ $group->name }}@endsection
 @section('actions')
   <span class="badge badge-{{ $group->isSuspended() ? 'red' : 'green' }}">{{ $group->statusLabel() }}</span>
+  <a class="btn" href="{{ route('group.people.index', ['group' => $group->id]) }}"><x-icon name="users" size="sm"/> Its people</a>
   <a class="btn" href="{{ route('properties.index', ['group' => $group->id]) }}"><x-icon name="building" size="sm"/> Its properties</a>
 @endsection
 @section('content')

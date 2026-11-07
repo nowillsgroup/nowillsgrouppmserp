@@ -156,6 +156,28 @@
         @endif
       </div></div>
 
+    @if($canTransfer)
+    <div class="card mt-2"><div class="card-head"><h3>Hand this property to another group</h3><span class="small muted">Platform administrator only</span></div>
+      <div class="card-body small">
+        <p>Use this when a management contract changes hands, a lease is reassigned or the portfolio is restructured. The property keeps its books, its rooms, its folios and its audit trail — what changes is who owns the account it sits in.</p>
+        <ul class="small">
+          <li><b>Staff follow the property.</b> Everyone whose home is this property moves to the receiving group.</li>
+          <li><b>A group administrator does not.</b> Any of them whose home is this property is demoted, so a handover cannot hand one tenant's administrator the keys to another tenant.</li>
+          <li><b>Cross-property grants are revoked</b> for anybody outside the receiving group — they were trust inside the old tenant, not a right that travels.</li>
+          <li><b>The entitlement is checked</b>: the receiving group must have room for one more property.</li>
+        </ul>
+        @if($transferGroups->isEmpty())
+          <p class="muted">There is no other group to hand it to.</p>
+        @else
+        <form method="post" action="{{ route('properties.transfer', $property) }}" onsubmit="return confirm('Hand {{ $property->name }} to another group? Its staff move with it and outside grants are revoked.')">@csrf
+          <x-field name="group_id" label="Receiving group" type="select" required :placeholder="false" :options="$transferGroups->pluck('name', 'id')->all()" />
+          <x-field name="reason" label="Reason" required hint="Kept in the property's audit trail, both groups see it" />
+          <button class="btn btn-danger btn-block"><x-icon name="swap" size="sm"/> Hand over the property</button>
+        </form>
+        @endif
+      </div></div>
+    @endif
+
     <div class="card mt-2"><div class="card-head"><h3>Audit trail</h3><span class="small muted">Last 25 decisions</span></div>
       <div class="card-body">
         @if($events->isEmpty())

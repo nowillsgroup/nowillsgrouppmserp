@@ -372,6 +372,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/{hotel}/suspend', 'suspend')->whereNumber('hotel')->middleware('perm:properties.manage')->name('suspend');
         Route::post('/{hotel}/resume', 'resume')->whereNumber('hotel')->middleware('perm:properties.manage')->name('resume');
         Route::post('/{hotel}/archive', 'archive')->whereNumber('hotel')->middleware('perm:properties.manage')->name('archive');
+        Route::post('/{hotel}/transfer', 'transfer')->whereNumber('hotel')->middleware('perm:properties.manage')->name('transfer');
         Route::post('/{hotel}/access', 'grant')->whereNumber('hotel')->middleware('perm:properties.manage')->name('access.grant');
         Route::delete('/{hotel}/access/{user}', 'revoke')->whereNumber('hotel')->whereNumber('user')->middleware('perm:properties.manage')->name('access.revoke');
     });
@@ -382,6 +383,16 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::post('/', 'update')->middleware('perm:properties.manage')->name('account.update');
         Route::post('/suspend', 'suspend')->middleware('perm:properties.manage')->name('suspend');
         Route::post('/resume', 'resume')->middleware('perm:properties.manage')->name('resume');
+    });
+
+    /* v10.1 the tenant's people: created once at group level, with a home property and any number of
+       additional grants. Every write is gated by properties.manage and by the per-group check in the
+       controller, so a group administrator can staff their own tenant and no other. */
+    Route::prefix('group/people')->name('group.people.')->controller(Controllers\GroupPeopleController::class)->group(function () {
+        Route::get('/', 'index')->middleware('perm:properties.view')->name('index');
+        Route::post('/', 'store')->middleware('perm:properties.manage')->name('store');
+        Route::put('/{user}', 'update')->whereNumber('user')->middleware('perm:properties.manage')->name('update');
+        Route::post('/{user}/toggle', 'toggle')->whereNumber('user')->middleware('perm:properties.manage')->name('toggle');
     });
 
     // ---- Rate management (seasonal pricing, weekend rates, min-stay, stop-sell)

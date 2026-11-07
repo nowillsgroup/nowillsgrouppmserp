@@ -261,6 +261,74 @@ class PropertyService
     }
 
     /**
+     * v10.1 hand a property over to another group — a management contract won, a lease reassigned, a
+     * portfolio restructured. Platform administrators only, and deliberately explicit about what
+     * follows the property and what does not:
+     *   - the property's own staff follow it, and their group membership moves with them;
+     *   - a group administrator whose home happens to be this property does NOT follow it — they are
+     *     demoted, because otherwise a handover would silently hand one tenant's administrator the
+     *     keys to another tenant;
+     *   - every cross-property grant that was made to somebody outside the new group is revoked,
+     *     because it was a grant of trust inside the old tenant.
+     * The property's history, its books and its audit trail are untouched.
+     *
+     * @return array{hotel: Hotel, moved: int, revoked: int, demoted: int}
+     */
+    public function transfer(Hotel $hotel, HotelGroup $target, User $actor): array
+    {
+        if (! $this->access->isPlatformAdmin($actor)) {
+            throw ValidationException::withMessages(['group' => 'Only a platform administrator can move a property between groups.']);
+        }
+        if ((int) $target->id === (int) $hotel->hotel_group_id) {
+            throw ValidationException::withMessages(['group_id' => 'The property already belongs to that group.']);
+        }
+        if ($target->isSuspended()) {
+            throw ValidationException::withMessages(['group_id' => 'The receiving group is suspended. Reactivate it first.']);
+        }
+        if ($hotel->isArchived()) {
+            throw ValidationException::withMessages(['group_id' => 'A retired property cannot be handed over.']);
+        }
+        if (! $target->canAddProperty()) {
+            throw ValidationException::withMessages(['group_id' => 'The receiving group has no property left under its entitlement.']);
+        }
+
+        $from = $hotel->group;
+
+        return DB::transaction(function () use ($hotel, $target, $from, $actor) {
+            $moved = 0;
+            $demoted = 0;
+            foreach (User::where('hotel_id', $hotel->id)->get() as $person) {
+                $wasGroupAdmin = (bool) $person->is_group_admin; // read before the flag is cleared
+                $person->forceFill([
+                    'hotel_group_id' => $target->id,
+                    // a group administrator is a right inside the *old* tenant; it does not travel
+                    'is_group_admin' => false,
+                ])->saveQuietly();
+                $moved++;
+                if ($wasGroupAdmin) {
+                    $demoted++;
+                }
+            }
+
+            $revoked = 0;
+            foreach ($hotel->propertyUsers()->get() as $granted) {
+                if ((int) $granted->hotel_group_id !== (int) $target->id) {
+                    DB::table('property_user')->where('user_id', $granted->id)->where('hotel_id', $hotel->id)->delete();
+                    $revoked++;
+                }
+            }
+
+            $hotel->forceFill(['hotel_group_id' => $target->id])->save();
+
+            PropertyEvent::record('transferred', "Handed {$hotel->name} ({$hotel->code}) from ".($from?->name ?? 'no group').' to '.$target->name, $hotel, [
+                'from' => $from?->code, 'to' => $target->code, 'staff_moved' => $moved, 'grants_revoked' => $revoked, 'admins_demoted' => $demoted, 'actor' => $actor->username,
+            ]);
+
+            return ['hotel' => $hotel, 'moved' => $moved, 'revoked' => $revoked, 'demoted' => $demoted];
+        });
+    }
+
+    /**
      * Profile values for a property: everything explicitly given, everything else inherited from the
      * group's defaults. This is the inheritance rule the module promises — a new property is never
      * born with the *current* property's settings, only with its own group's.

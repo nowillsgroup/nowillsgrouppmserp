@@ -322,6 +322,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/property-show.html'); // v10.0 one property's own page
   } else if (pathname === '/group-account' || pathname === '/__preview/group-account') {
     file = resolve(ROOT, 'deploy/dev/previews/group-account.html'); // v10.0 the tenant account
+  } else if (pathname === '/group-people' || pathname === '/__preview/group-people') {
+    file = resolve(ROOT, 'deploy/dev/previews/group-people.html'); // v10.1 the tenant's people
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
   } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {

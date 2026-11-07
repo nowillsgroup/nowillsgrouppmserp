@@ -133,10 +133,40 @@ ok('the retirement is blocked until the property is empty', body.includes('can b
 ok('retirement is explained as permanent but not destructive', body.includes('reversible only by opening a new property'));
 
 // audit
+ok('the handover card is offered to a platform administrator', body.includes('Hand this property to another group'));
+ok('it says the staff follow the property', body.includes('Staff follow the property'));
+ok('and that a group administrator does not — a handover cannot move one tenant\'s admin into another', body.includes('A group administrator does not'));
+ok('it says outside grants are revoked', body.includes('Cross-property grants are revoked'));
+ok('it checks the receiving group\'s entitlement', body.includes('must have room for one more property'));
+ok('the handover needs a reason', !!sdoc.querySelector('form[action*="transfer"] input[name="reason"]'));
 ok('the audit trail is shown', body.includes('Audit trail'));
 ok('a suspension is in the trail with its reason', body.includes('Suspended Nowills Kumasi City: Refurbishment'));
 ok('an access grant is in the trail', body.includes('Granted emensah access'));
 ok('every trail line names who took the decision', body.includes('Ama Serwaa') && body.includes('Kwesi Boateng'));
+
+/* ── the tenant's people ───────────────────────────────────────────────────── */
+const gp = new JSDOM(read('deploy/dev/previews/group-people.html'), { url: 'https://preview.local/group/people' });
+const pdoc = gp.window.document;
+const pbody = pdoc.body.textContent.replace(/\s+/g, ' ');
+const prow = name => [...pdoc.querySelectorAll('.table tbody tr')].map(tr => tr.textContent.replace(/\s+/g, ' ').trim()).find(t => t.includes(name));
+
+ok('the people screen is titled for the tenant', pdoc.title.includes('Group people'));
+ok('everybody in the tenant is listed', [...pdoc.querySelectorAll('.table tbody tr')].length === 5);
+ok('a person\'s home property is shown', prow('Kwesi Boateng')?.includes('Nowills Airport City Hotel'));
+ok('and the role that governs it', prow('Kwesi Boateng')?.includes('Accountant'));
+ok('the extra properties they may enter are named', prow('Kwesi Boateng')?.includes('The Grove Essipong Beach Resort'));
+ok('a person with no extra grant shows none', prow('Ama Serwaa')?.includes('—') || !prow('Ama Serwaa')?.includes('Also'));
+ok('the group administrator is marked', prow('Ama Serwaa')?.includes('Group admin'));
+ok('a switched-off person is marked and greyed out', prow('Yaw Osei')?.includes('Switched off')
+   && [...pdoc.querySelectorAll('.table tbody tr')].find(tr => tr.textContent.includes('Yaw Osei'))?.className.includes('muted'));
+ok('switching a person off is offered', pbody.includes('Switch off'));
+ok('the screen says an account is created once at group level', pbody.includes('created once, at group level'));
+ok('it explains that a grant\'s role governs that property only', pbody.includes('governs that property only'));
+ok('it says switching somebody off keeps their history', pbody.includes('leaves their history'));
+ok('the add form asks for a home property', !!pdoc.querySelector('form[action*="people"] select[name="hotel_id"]'));
+ok('and a role grouped by the property it belongs to', [...pdoc.querySelectorAll('optgroup')].length === 4);
+ok('the extra-property grants are checkboxes, one per property', [...pdoc.querySelectorAll('input[name="grants[]"]')].length === 4);
+ok('a group administrator may be minted by a platform administrator', !!pdoc.querySelector('input[name="is_group_admin"]'));
 
 /* ── the group account ─────────────────────────────────────────────────────── */
 const ga = new JSDOM(read('deploy/dev/previews/group-account.html'), { url: 'https://preview.local/group' });

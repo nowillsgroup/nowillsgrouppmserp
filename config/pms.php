@@ -777,6 +777,7 @@ return [
                 ['label' => 'Hotel Settings', 'route' => 'settings.index', 'perm' => 'settings.manage'],
                 ['label' => 'Properties', 'icon' => 'building', 'route' => 'properties.index', 'perm' => 'properties.view'],
                 ['label' => 'Group Account', 'icon' => 'layers', 'route' => 'group.account', 'perm' => 'properties.manage'],
+                ['label' => 'Group People', 'icon' => 'users', 'route' => 'group.people.index', 'perm' => 'properties.view'],
                 ['label' => 'Activity Log', 'route' => 'logs.index', 'perm' => 'logs.view'],
                 ['label' => 'E-mail Log', 'route' => 'emails.index', 'perm' => 'logs.view'],
                 ['label' => 'SMS / WhatsApp Settings', 'route' => 'messages.settings', 'perm' => 'settings.manage'],

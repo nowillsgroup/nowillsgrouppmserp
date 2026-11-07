@@ -177,6 +177,11 @@ export function propertyShowContext() {
       ]),
       roles: new Coll([{ id: 1, name: 'Administrator' }, { id: 2, name: 'Front Office Manager' }, { id: 3, name: 'Accountant' }]),
       canManage: true,
+      canTransfer: true,
+      transferGroups: new Coll([
+        { id: 2, name: 'Cape Coast Hospitality Ltd' },
+        { id: 3, name: 'Volta Lake Resorts' },
+      ]),
       addressLine: 'Essipong Beach Road, Takoradi, Western, Ghana',
       contactLine: '+233 31 200 0001 · grove@nowillsgroup.com',
       currentHotel: grove,
@@ -222,6 +227,38 @@ export function groupAccountContext() {
       ]),
       canSuspendGroup: true,
       types: { hotel: 'Hotel', resort: 'Resort', guest_house: 'Guest house', service_apartment: 'Serviced apartment', restaurant: 'Restaurant', cafe: 'Café' },
+      currentHotel: PROPERTIES[0],
+    },
+  };
+}
+
+/** GroupPeopleController::index(): one tenant's people, their home property, role and extra grants. */
+export function groupPeopleContext() {
+  return {
+    helpers: propertiesContext().helpers,
+    fallbacks: {},
+    scope: {
+      group: GROUP,
+      people: new Coll([
+        { id: 1, name: 'Ama Serwaa', username: 'aserwaa', email: 'ama@nowillsgroup.com', is_active: true, is_group_admin: true, hotel_id: 1, hotel: PROPERTIES[0], role: { name: 'Group Administrator' } },
+        { id: 2, name: 'Kwesi Boateng', username: 'kboateng', email: 'kwesi@nowillsgroup.com', is_active: true, is_group_admin: false, hotel_id: 2, hotel: PROPERTIES[1], role: { name: 'Accountant' } },
+        { id: 3, name: 'Efua Mensah', username: 'emensah', email: 'efua@nowillsgroup.com', is_active: true, is_group_admin: false, hotel_id: 1, hotel: PROPERTIES[0], role: { name: 'Front Office Manager' } },
+        { id: 4, name: 'Yaw Osei', username: 'yosei', email: null, is_active: false, is_group_admin: false, hotel_id: 3, hotel: PROPERTIES[2], role: { name: 'Housekeeping Supervisor' } },
+        { id: 5, name: 'Adjoa Nyarko', username: 'anyarko', email: 'adjoa@nowillsgroup.com', is_active: true, is_group_admin: false, hotel_id: 4, hotel: PROPERTIES[3], role: null },
+      ]),
+      hotels: new Coll(PROPERTIES),
+      homeOptions: { 1: 'The Grove Essipong Beach Resort (GROVE)', 2: 'Nowills Airport City Hotel (ACC)', 3: 'Nowills Kumasi City (KSI)', 4: 'The Grove Cape Coast (CCP)' },
+      grantsByUser: { 2: ['The Grove Essipong Beach Resort'], 3: ['Nowills Airport City Hotel', 'The Grove Essipong Beach Resort'] },
+      rolesByHotel: {
+        1: { 1: 'Administrator', 2: 'Front Office Manager', 3: 'Accountant' },
+        2: { 4: 'Administrator', 5: 'Accountant' },
+        3: { 6: 'Administrator' },
+        4: { 7: 'Administrator' },
+      },
+      search: '',
+      canStaff: true,
+      canMintAdmins: true,
+      groupAdmins: 1,
       currentHotel: PROPERTIES[0],
     },
   };

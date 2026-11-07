@@ -86,6 +86,9 @@ class PropertyController extends Controller
             'candidates' => $this->grantCandidates($hotel),
             'roles' => Role::orderBy('name')->get(['id', 'name']),
             'canManage' => $this->access->canAdminister($request->user(), $hotel),
+            // v10.1 a handover is a platform decision, and only to a group with room under its entitlement
+            'canTransfer' => $this->access->isPlatformAdmin($request->user()) && ! $hotel->isArchived(),
+            'transferGroups' => HotelGroup::where('id', '!=', $hotel->hotel_group_id)->orderBy('name')->get(),
         ]);
     }
 
@@ -230,6 +233,23 @@ class PropertyController extends Controller
         $this->properties->archive($hotel, $request->user(), $data['reason']);
 
         return redirect()->route('properties.index')->with('success', "{$hotel->name} retired. Nothing was deleted — its books stay readable.");
+    }
+
+    /** v10.1 hand the property to another group (platform administrator only). */
+    public function transfer(Request $request, Hotel $hotel)
+    {
+        $this->authoriseManage($request->user(), $hotel);
+        $data = $request->validate([
+            'group_id' => 'required|integer|exists:hotel_groups,id',
+            'reason' => 'required|string|min:4|max:255',
+        ]);
+
+        $result = $this->properties->transfer($hotel, HotelGroup::findOrFail($data['group_id']), $request->user());
+
+        return redirect()->route('properties.show', $hotel)->with('success', sprintf(
+            '%s handed to %s. %d staff account(s) moved with it, %d cross-property grant(s) revoked, %d group administrator(s) demoted. Reason: %s',
+            $hotel->name, $result['hotel']->group?->name ?? 'the new group', $result['moved'], $result['revoked'], $result['demoted'], $data['reason']
+        ));
     }
 
     public function grant(Request $request, Hotel $hotel)

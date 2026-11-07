@@ -2268,7 +2268,7 @@ petty_service = read(os.path.join(ROOT, 'app/Services/PettyCashService.php'))
 ok('$dept = $t->float->department_id' in petty_service and '$memo, $dept]' in petty_service,
    'petty cash spend is charged to the float\'s department')
 claim_service = read(os.path.join(ROOT, 'app/Services/ExpenseClaimService.php'))
-ok('$dept = $c->employee?->department_id' in claim_service and "').implode('; '), $dept]" in claim_service.replace("$g->pluck('description')->take(3)->implode('; ')", "').implode('; ')" ) or True,
+ok('$dept = $c->employee?->department_id' in claim_service and ', $dept];' in claim_service,
    'expense claims are charged to the claimant\'s department')
 ok("$dept]" in claim_service,
    'the claim\'s expense lines carry that department')
@@ -5030,6 +5030,85 @@ ok("ok('the property you are standing in offers no switch'" in read(os.path.join
    'the preview check holds the register to what it claims about switching')
 ok("ok('a live property does not offer activation'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'and the property page to offering only the action that fits')
+
+# ── 28 · staffing a tenant, handing a property over (v10.1) ────────────────────────
+cmd = read(os.path.join(ROOT, 'app/Console/Commands/SyncPropertyPermissions.php'))
+ok("protected $signature = 'pms:sync-permissions {--hotel= : Hotel code (default: every property)} {--live-only : Skip suspended and retired properties}';" in cmd,
+   'the release that adds a permission ships the command that registers it')
+ok('$added = HotelProvisioner::upgrade($hotel);' in cmd,
+   'it runs the upgrade path that already existed, property by property')
+ok('Tenant::set(null);' in cmd,
+   'and leaves no tenant set behind it')
+people = read(os.path.join(ROOT, 'app/Services/GroupPeopleService.php'))
+ok('public function create(HotelGroup $group, array $data, User $actor): User' in people,
+   'a person is created at group level, once')
+ok("'Only a platform administrator can make somebody a group administrator.'" in people,
+   'a group administrator cannot mint a peer — privilege does not escalate sideways')
+ok("if (! $home || (int) $home->hotel_group_id !== (int) $group->id) {" in people,
+   'the home property must belong to the group')
+ok("Role::withoutGlobalScopes()->whereKey($roleId)->where('hotel_id', $home->id)->first();" in people,
+   'and the role must belong to that home property, because roles are per property here')
+ok("'Every additional property must belong to this group and must not be retired.'" in people,
+   'an extra grant cannot reach outside the tenant or into a retired property')
+ok("'You cannot switch your own account off.'" in people,
+   'nobody switches themselves off')
+ok("'This is the last active group administrator. Make somebody else one first.'" in people,
+   'and a group always keeps one active administrator')
+ok("PropertyEvent::record('person_added'" in people and "PropertyEvent::record($active ? 'person_enabled' : 'person_disabled'" in people,
+   'every staffing decision lands in the audit trail')
+props = read(os.path.join(ROOT, 'app/Services/PropertyService.php'))
+ok('public function transfer(Hotel $hotel, HotelGroup $target, User $actor): array' in props,
+   'a property can be handed to another group')
+ok("'Only a platform administrator can move a property between groups.'" in props,
+   'only the platform administrator may do it')
+ok("$wasGroupAdmin = (bool) $person->is_group_admin; // read before the flag is cleared" in props,
+   'a group administrator whose home is the property is demoted, not carried into the new tenant')
+ok("DB::table('property_user')->where('user_id', $granted->id)->where('hotel_id', $hotel->id)->delete();" in props,
+   'grants made to people outside the receiving group are revoked')
+ok("if (! $target->canAddProperty()) {" in props,
+   'the receiving group must have room under its entitlement')
+ok("PropertyEvent::record('transferred'" in props,
+   'and the handover is recorded on the property')
+ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/GroupPeopleController.php'))
+ok("Route::prefix('group/people')" in read(os.path.join(ROOT, 'routes/web.php')),
+   'the people screen is routed')
+ok("Route::prefix('group/people')->name('group.people.')" in read(os.path.join(ROOT, 'routes/web.php')),
+   'the people routes are declared once, under one name prefix')
+ok("$this->people->create($group, $data, $request->user());" in ctrl,
+   'the controller creates through the service, where the rules live')
+ok("$this->people->setActive($group, $user, $active, $request->user());" in ctrl,
+   'and switches a person off through the service too')
+ok("protected function grantsByUser(HotelGroup $group, array $userIds): array" in ctrl,
+   'the list says which other properties each person may enter')
+routes28 = read(os.path.join(ROOT, 'routes/web.php'))
+for name in ['store', 'update', 'toggle', 'index']:
+    ok(f"->name('{name}')" in routes28, f'group people: {name} is routed')
+ok("'/group-people'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the preview server serves the people screen')
+ok("Route::post('/{hotel}/transfer', 'transfer')->whereNumber('hotel')" in routes28,
+   'the handover is a routed action on the property')
+ok("'label' => 'Group People'" in read(os.path.join(ROOT, 'config/pms.php')),
+   'and the sidebar carries it')
+people_view = read(os.path.join(ROOT, 'resources/views/group/people.blade.php'))
+ok('Their <em>home property</em> owns their role' in people_view,
+   'the screen explains that the home property owns the role')
+ok('name="grants[]"' in people_view,
+   'extra properties are granted from the same form')
+ok('$canMintAdmins' in people_view,
+   'and only a platform administrator sees the group-administrator switch')
+show28 = read(os.path.join(ROOT, 'resources/views/properties/show.blade.php'))
+ok('Hand this property to another group' in show28 and '$canTransfer' in show28,
+   'the property page offers the handover to a platform administrator only')
+ok('A group administrator does not.' in show28,
+   'and says plainly that a group administrator does not travel with it')
+ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/previews/group-people.html')),
+   'the people screen is built as a preview')
+ok('<h2>The tenant\'s people</h2>' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery lists it')
+ok("ok('the extra properties they may enter are named'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'the preview check holds the people list to the grants it claims')
+ok("ok('and that a group administrator does not" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the handover card to what it promises about administrators')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
