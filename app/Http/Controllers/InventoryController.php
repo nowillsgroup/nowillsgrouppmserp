@@ -104,10 +104,87 @@ class InventoryController extends Controller
             'value' => $value, 'shelf' => $shelf, 'where' => $where, 'still' => $still]);
     }
 
-    public function movement()
+    /**
+     * Issue / transfer / adjustment — the only document that writes a stock movement by hand.
+     *
+     * v9.25 the form had no reference field at all, so every movement written here reached the ledger with nothing behind
+     * it, and the ledger's own gap reading could only count them. The form now asks for the document, and the screen
+     * carries the three things a clerk needs before posting: what is actually in the store they are taking from, what has
+     * already left it this month, and which of those movements nobody can account for.
+     */
+    public function movement(Request $request)
     {
-        return view('inventory.movement', ['items' => InventoryItem::where('is_active', true)->orderBy('name')->get(), 'stores' => Store::pluck('name', 'id'),
-            'departments' => \App\Models\Department::orderBy('name')->pluck('name', 'name')]);
+        $stores = Store::orderBy('name')->get();
+        $storeId = (int) ($request->input('store_id') ?: ($stores->first()?->id ?? 0));
+        $store = $stores->firstWhere('id', $storeId);
+        $items = InventoryItem::where('is_active', true)->orderBy('name')->get();
+
+        $qty = StockMovement::where('store_id', $storeId)->select('inventory_item_id', DB::raw('SUM(qty) as qty'))
+            ->groupBy('inventory_item_id')->pluck('qty', 'inventory_item_id');
+        $held = $items->map(fn ($i) => ['item' => $i->name, 'unit' => $i->unit, 'qty' => round((float) ($qty[$i->id] ?? 0), 2),
+            'level' => (float) $i->reorder_level, 'cost' => (float) $i->last_cost,
+            'value' => round((float) ($qty[$i->id] ?? 0) * (float) $i->last_cost, 2)])->filter(fn ($r) => abs($r['qty']) > 0.004)
+            ->sortByDesc('value')->values();
+        $held = $held->map(fn ($r) => $r + ['standing' => $r['qty'] <= 0 ? 'at zero' : ($r['qty'] <= $r['level'] ? 'below level' : 'in stock')])->values();
+        $value = round((float) $held->sum('value'), 2);
+        $below = $held->filter(fn ($r) => $r['qty'] > 0 && $r['qty'] <= $r['level']);
+        $position = ['store' => $store?->name, 'items' => $held->count(), 'value' => $value,
+            'zero' => $held->filter(fn ($r) => $r['qty'] <= 0)->count(), 'below' => $below->count(),
+            'top' => ($t = $held->first()) ? $t : null,
+            'tightest' => $below->sortBy(fn ($r) => $r['qty'] / max($r['level'], 0.01))->first(),
+            'rows' => $held->take(10)->all()];
+        $position['sub'] = $held->count().' item'.($held->count() === 1 ? '' : 's').' in the '.($store?->name ?? 'store')
+            .', '.$below->count().' at or below level';
+        $position['zero_sub'] = $held->filter(fn ($r) => $r['qty'] <= 0)->count()
+            ? $held->filter(fn ($r) => $r['qty'] <= 0)->count().' item'.($held->filter(fn ($r) => $r['qty'] <= 0)->count() === 1 ? '' : 's')
+                .' with nothing in the store, so nothing can be issued against them'
+            : 'every item on the list has something in the store';
+
+        // what has already left this store since the first of the month
+        $since = bdate()->copy()->startOfMonth();
+        $out = StockMovement::with('item', 'user')->where('store_id', $storeId)->whereDate('date', '>=', $since)
+            ->whereDate('date', '<=', bdate())->where('qty', '<', 0)->orderByDesc('date')->get();
+        $label = fn ($type) => ucfirst(str_replace('_', ' ', (string) $type));
+        $month = ['count' => $out->count(), 'units' => round((float) $out->sum(fn ($m) => abs((float) $m->qty)), 2),
+            'value' => round((float) $out->sum(fn ($m) => abs((float) $m->qty * (float) $m->rate)), 2),
+            'rows' => $out->groupBy('type')->map(function ($set, $type) use ($label) {
+                $units = round((float) $set->sum(fn ($m) => abs((float) $m->qty)), 2);
+
+                return ['type' => $type, 'label' => $label($type), 'count' => $set->count(), 'units' => $units,
+                    'value' => round((float) $set->sum(fn ($m) => abs((float) $m->qty * (float) $m->rate)), 2),
+                    'tone' => $type === 'adjustment' ? 'amber' : 'slate'];
+            })->sortByDesc('value')->values()->all(),
+            'biggest' => ($b = $out->sortByDesc(fn ($m) => abs((float) $m->qty * (float) $m->rate))->first())
+                ? ['item' => $b->item?->name, 'unit' => $b->item?->unit, 'qty' => abs((float) $b->qty), 'date' => $b->date,
+                    'value' => round(abs((float) $b->qty * (float) $b->rate), 2), 'department' => $b->department] : null];
+        $month['sub'] = $out->count().' movement'.($out->count() === 1 ? '' : 's').' since '.$since->format('d M Y');
+        $adjust = $out->where('type', 'adjustment');
+        $month['corrections'] = $adjust->count();
+        $month['corrections_value'] = round((float) $adjust->sum(fn ($m) => abs((float) $m->qty * (float) $m->rate)), 2);
+        $month['corrections_sub'] = $adjust->count()
+            ? 'GH₵ '.number_format($month['corrections_value'], 2).' corrected by hand — nothing posted is edited or deleted'
+            : 'nothing has needed correcting: no adjustment has been posted out of this store this month';
+
+        // the movements nothing can be asked about — and what this form used to write by definition
+        $bare = $out->filter(fn ($m) => blank($m->reference) && blank($m->department));
+        $gaps = ['count' => $bare->count(), 'value' => round((float) $bare->sum(fn ($m) => abs((float) $m->qty * (float) $m->rate)), 2),
+            'waste' => $bare->where('type', 'wastage')->count(),
+            'rows' => $bare->sortByDesc(fn ($m) => abs((float) $m->qty * (float) $m->rate))->take(10)->map(fn ($m) => [
+                'date' => $m->date, 'item' => $m->item?->name, 'unit' => $m->item?->unit, 'type' => $label($m->type),
+                'qty' => round(abs((float) $m->qty), 2), 'value' => round(abs((float) $m->qty * (float) $m->rate), 2),
+                'user' => $m->user ? ucfirst($m->user->username) : '—'])->values()->all()];
+        $gaps['worst'] = $gaps['rows'][0] ?? null;
+        $gaps['tone'] = $gaps['count'] ? 'amber' : 'green';
+        $gaps['head_sub'] = $gaps['count']
+            ? 'GH₵ '.number_format($gaps['value'], 2).' left this store with nothing behind it'
+            : 'every movement out names a document or a department';
+        $gaps['sub'] = $gaps['count']
+            ? $gaps['count'].' movement'.($gaps['count'] === 1 ? '' : 's').' out of this store with no reference and nobody named'
+            : 'every movement out of this store this month names a document or a department';
+
+        return view('inventory.movement', ['items' => $items, 'stores' => Store::pluck('name', 'id'), 'storeId' => $storeId,
+            'departments' => \App\Models\Department::orderBy('name')->pluck('name', 'name'),
+            'position' => $position, 'month' => $month, 'gaps' => $gaps]);
     }
 
     public function storeMovement(Request $request)
@@ -116,6 +193,7 @@ class InventoryController extends Controller
             'type' => 'required|in:issue,transfer,adjustment,wastage,opening', 'store_id' => 'required|integer|owned:stores',
             'to_store_id' => 'nullable|required_if:type,transfer|different:store_id|integer|owned:stores',
             'date' => 'required|date', 'department' => 'nullable|string|max:80', 'remarks' => 'nullable|string|max:255',
+            'reference' => 'nullable|string|max:60',
             'lines' => 'required|array|min:1', 'lines.*.item_id' => 'required|integer|owned:inventory_items',
             'lines.*.qty' => 'required|numeric|not_in:0', 'adjust_sign' => 'nullable|in:plus,minus',
         ]);
@@ -128,7 +206,9 @@ class InventoryController extends Controller
                 if ($out && $qty > $current + 0.0001) {
                     throw ValidationException::withMessages(['lines' => "Insufficient stock of {$item->name} (available {$current} {$item->unit})."]);
                 }
-                $base = ['inventory_item_id' => $item->id, 'date' => $data['date'], 'rate' => $item->last_cost, 'department' => $data['department'] ?? null, 'remarks' => $data['remarks'] ?? null, 'user_id' => auth()->id(),
+                $base = ['inventory_item_id' => $item->id, 'date' => $data['date'], 'rate' => $item->last_cost,
+                    'department' => $data['department'] ?? null, 'reference' => $data['reference'] ?? null,
+                    'remarks' => $data['remarks'] ?? null, 'user_id' => auth()->id(),
                     'department_id' => $data['type'] === 'issue' && ! empty($data['department']) ? \App\Models\Department::where('name', $data['department'])->value('id') : null];
                 if ($data['type'] === 'transfer') {
                     StockMovement::create($base + ['store_id' => $data['store_id'], 'type' => 'transfer_out', 'qty' => -$qty]);

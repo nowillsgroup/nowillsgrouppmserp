@@ -4235,7 +4235,7 @@ ok("/ledger-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html'))
 
 # ── 26at · stock on hand: the shelf, the split and the age ────────────────────────────
 sh_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/InventoryController.php'))
-sh_fn = sh_ctrl[sh_ctrl.index('public function index(Request $request)'):sh_ctrl.index('public function movement()')]
+sh_fn = sh_ctrl[sh_ctrl.index('public function index(Request $request)'):sh_ctrl.index('public function movement(Request $request)')]
 ok("DB::raw('MAX(date) as last_on')" in sh_fn,
    'the last movement comes from the same grouped sum the quantities do, so a date and a quantity cannot disagree')
 ok("$i->days_still = $i->last_moved ? (int) $i->last_moved->diffInDays(bdate()->startOfDay()) : null;" in sh_fn,
@@ -4325,6 +4325,54 @@ ok('the blank lines are not among the ones that will write anything' in read(os.
 ok('the drift finishes the count' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktake_sheet_preview_check.js')),
    'the drift build proves the readings move together when the count is finished')
 ok("/stocktake-sheet-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
+# ── 26av · stock movement: the store, the month and what nobody can answer for ────────
+mv_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/InventoryController.php'))
+mv_fn = mv_ctrl[mv_ctrl.index('public function movement(Request $request)'):mv_ctrl.index('public function storeMovement(')]
+ok("'reference' => 'nullable|string|max:60'," in mv_ctrl,
+   'the form can record the document a movement rests on, which it could not before this round')
+ok("'department' => $data['department'] ?? null, 'reference' => $data['reference'] ?? null," in mv_ctrl,
+   'and stores it on every line the movement writes, both sides of a transfer included')
+ok("$qty = StockMovement::where('store_id', $storeId)->select('inventory_item_id', DB::raw('SUM(qty) as qty'))" in mv_fn,
+   'the shelf is the same movement sum the stock screen reads, scoped to the store being issued from')
+ok("'tightest' => $below->sortBy(fn ($r) => $r['qty'] / max($r['level'], 0.01))->first()," in mv_fn,
+   'the tightest line is the one furthest below its own level rather than the smallest number of units')
+ok("$out = StockMovement::with('item', 'user')->where('store_id', $storeId)->whereDate('date', '>=', $since)" in mv_fn,
+   'what has left the store is read from the month\'s outward movements, not from a separate summary')
+ok("$bare = $out->filter(fn ($m) => blank($m->reference) && blank($m->department));" in mv_fn,
+   'a movement nobody can account for is one with no reference and no department — the same rule the ledger uses')
+ok("$month['corrections'] = $adjust->count();" in mv_fn,
+   'corrections are counted from the adjustments, because nothing posted is edited or deleted')
+ok("$gaps['head_sub'] = $gaps['count']" in mv_fn,
+   'the header wording is written in PHP, where a comparison belongs')
+mv_view = read(os.path.join(ROOT, 'resources/views/inventory/movement.blade.php'))
+ok('id="mvStock"' in mv_view and 'What is in the store you are taking from?' in mv_view and 'id="holdTable"' in mv_view,
+   'the page asks what is in the store you are taking from, and lists it by value')
+ok('id="mvStockState"' in mv_view and 'is refused rather than' in mv_view,
+   'and says why the shelf quantity is the one that matters, not the quantity on order')
+ok('id="mvOut"' in mv_view and 'What has left this store this month?' in mv_view and 'id="outTable"' in mv_view,
+   'what has left it this month is a card of its own, split by the kind of movement')
+ok('id="mvGaps"' in mv_view and 'What can nobody answer for?' in mv_view and 'id="gapTable"' in mv_view,
+   'and the movements nobody can account for are named rather than counted')
+ok('id="mvGapsState"' in mv_view and 'Until this version the form had nowhere to record the document' in mv_view,
+   'the card says what the missing field caused, which is the point of the round')
+ok('name="reference"' in mv_view and 'Without one the ledger carries a number nobody can ask about' in mv_view,
+   'the form now asks for the document and says why')
+ok('id="mvChain"' in mv_view and 'the only stock document written by hand' in mv_view,
+   'the page places itself among the documents that are not written by hand')
+ok('@selected($storeId == $id)' in mv_view,
+   'the store select opens on the store the cards describe, without a cast the renderer cannot hold')
+mv_sample = read(os.path.join(ROOT, 'deploy/dev/preview/movement-sample.mjs'))
+ok('const bare = drift ? [] : out.filter(m => !m.ref && !m.dept);' in mv_sample and 'const position = {' in mv_sample,
+   'the sample computes the readings from its own holdings and movement lists, the way the controller does')
+ok('the verdict says the form had nowhere to record the document' in read(os.path.join(ROOT, 'deploy/dev/audit/movement_preview_check.js')),
+   'the preview check holds that sentence to the card it promises')
+ok('it opens on the store the three cards describe' in read(os.path.join(ROOT, 'deploy/dev/audit/movement_preview_check.js')),
+   'and proves the form and the cards describe the same store')
+ok('the gap card empties to a check rather than a list' in read(os.path.join(ROOT, 'deploy/dev/audit/movement_preview_check.js')),
+   'the drift build proves the reference field is what empties the gap card, and nothing else moves')
+ok("/movement-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
