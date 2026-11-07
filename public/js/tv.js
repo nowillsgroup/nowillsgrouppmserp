@@ -463,9 +463,11 @@
         var showCat = function (c) {
           clear(items);
           c.items.forEach(function (it) {
-            items.appendChild(el('button', { cls: 'tv-dish', 'data-f': '1', tabindex: '0', on: function () { if (it.modifiers && it.modifiers.length) modifierModal(it, cartBox); else { addCart(it); drawCart(cartBox); } } }, [
+            items.appendChild(el('button', { cls: 'tv-dish', 'data-f': '1', tabindex: '0', on: function () { pickItem(it, cartBox); } }, [
               it.image ? el('img', { cls: 'tv-dish-img', src: it.image, alt: '' }) : null,
-              el('span', { cls: 'tv-dish-n', text: (it.veg ? '🟢 ' : '') + it.name }), it.modifiers && it.modifiers.length ? el('small', { text: 'Customise' }) : null, el('b', { text: it.price })]));
+              el('span', { cls: 'tv-dish-n', text: (it.veg ? '🟢 ' : '') + it.name }),
+              (it.sides && it.sides.length) ? el('small', { text: (T.side || 'Side dish') + (it.side_required ? ' · ' + (T.required_side || 'required') : '') })
+                : (it.modifiers && it.modifiers.length ? el('small', { text: 'Customise' }) : null), el('b', { text: it.price })]));
           });
         };
         d.cats.forEach(function (c, i) { cats.appendChild(btn(c.name, function () { showCat(c); }, 'tv-cat', { 'data-autofocus': i === 0 ? '1' : null })); });
@@ -665,7 +667,52 @@
     var s = n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return sym + ' ' + s;
   }
-  function modifierModal(it, box) {
+  // a dish that comes with a side dish asks for it first, then for its options (v9.33)
+  function pickItem(it, box) {
+    if (it.sides && it.sides.length) { sideModal(it, box); return; }
+    if (it.modifiers && it.modifiers.length) { modifierModal(it, box); return; }
+    addCart(it);
+    drawCart(box);
+  }
+  function sideModal(it, box, then) {
+    var counts = {}, sides = it.sides || [], list = el('div', { cls: 'tv-list' }), note = el('p', { cls: 'tv-muted' });
+    function picked() {
+      var out = [];
+      sides.forEach(function (s) {
+        var n = counts[s.id] || 0;
+        if (n > 0) out.push({ id: s.id, name: s.name, rate: Number(s.rate || 0), qty: n });
+      });
+      return out;
+    }
+    var confirm = btn(T.add || 'Add to order', function () {
+      var chosen = picked();
+      if (it.side_required && !chosen.length) { toast(T.choose_side || 'This dish comes with a side dish – choose one.', true); return; }
+      closeModal();
+      if (then) { then(chosen); return; }
+      if (it.modifiers && it.modifiers.length) { modifierModal(it, box, chosen); return; }
+      addCart(it, [], chosen);
+      drawCart(box);
+    }, 'tv-primary');
+    function draw() {
+      clear(list);
+      sides.forEach(function (s) {
+        var n = counts[s.id] || 0;
+        list.appendChild(el('div', { cls: 'tv-side-row' }, [
+          el('span', { cls: 'tv-side-n', text: s.name + (Number(s.rate) ? ' +' + Number(s.rate).toFixed(2) : ' · ' + (T.included || 'included')) }),
+          btn('−', function () { if ((counts[s.id] || 0) > 0) { counts[s.id] = (counts[s.id] || 0) - 1; if (!counts[s.id]) delete counts[s.id]; draw(); } }, 'tv-q'),
+          el('b', { cls: 'tv-side-q', text: '×' + n }),
+          btn('+', function () { if ((counts[s.id] || 0) < 9) { counts[s.id] = (counts[s.id] || 0) + 1; draw(); } }, 'tv-q'),
+        ]));
+      });
+      var n = picked().length;
+      note.textContent = it.side_required && !n ? (T.choose_side || 'This dish comes with a side dish – choose one.') : '';
+      confirm.textContent = n ? (T.add || 'Add to order') : (it.side_required ? (T.side || 'Side dish') : (T.no_side || 'No side dish'));
+    }
+    openModal(el('div', {}, [el('h2', { text: it.name + ' · ' + (T.side || 'Side dish') }), list, note,
+      el('div', { cls: 'tv-row' }, [confirm, btn(T.cancel || 'Cancel', closeModal)])]));
+    draw();
+  }
+  function modifierModal(it, box, sides) {
     var selected = {}, groups = it.modifiers || [], list = el('div', { cls: 'tv-list' });
     groups.forEach(function (g) {
       list.appendChild(el('h3', { text: g.name + ' · choose ' + g.min + '–' + g.max }));
@@ -683,15 +730,21 @@
         var count = picked.filter(function (o) { return Number(o.group_id) === Number(groups[i].id); }).length;
         if (count < Number(groups[i].min) || count > Number(groups[i].max)) { toast('Choose between ' + groups[i].min + ' and ' + groups[i].max + ' for ' + groups[i].name + '.', true); return; }
       }
-      addCart(it, picked); closeModal(); drawCart(box);
+      addCart(it, picked, sides || []); closeModal(); drawCart(box);
     }, 'tv-primary');
     openModal(el('div', {}, [el('h2', { text: it.name }), list, el('div', { cls: 'tv-row' }, [confirm, btn(T.cancel || 'Cancel', closeModal)])]));
   }
-  function addCart(it, modifiers) {
-    modifiers = modifiers || [];
+  function addCart(it, modifiers, sides) {
+    modifiers = modifiers || []; sides = sides || [];
     var ids = modifiers.map(function (m) { return Number(m.id); }).sort(function (a, b) { return a - b; });
-    var key = it.id + ':' + ids.join(','), delta = modifiers.reduce(function (sum, m) { return sum + Number(m.price_delta || 0); }, 0);
-    if (!cart[key]) cart[key] = { id: it.id, name: it.name, raw: Number(it.raw) + delta, price: money(Number(it.raw) + delta, it.price), qty: 0, modifiers: modifiers };
+    // a double portion is the same side dish named twice, so the line carries the units and the count (v9.33)
+    var units = [];
+    sides.forEach(function (s) { for (var i = 0, n = Math.max(1, Number(s.qty) || 1); i < n; i++) units.push(Number(s.id)); });
+    units.sort(function (a, b) { return a - b; });
+    var key = it.id + ':' + ids.join(',') + '|s:' + units.join(',');
+    var delta = modifiers.reduce(function (sum, m) { return sum + Number(m.price_delta || 0); }, 0)
+      + sides.reduce(function (sum, s) { return sum + Number(s.rate || 0) * Math.max(1, Number(s.qty) || 1); }, 0);
+    if (!cart[key]) cart[key] = { id: it.id, name: it.name, raw: Number(it.raw) + delta, price: money(Number(it.raw) + delta, it.price), qty: 0, modifiers: modifiers, sides: sides, units: units };
     if (cart[key].qty < 20) cart[key].qty++;
     toast('+1 ' + it.name);
   }
@@ -702,13 +755,14 @@
     ids.forEach(function (k) {
       var c = cart[k];
       total += c.raw * c.qty; sample = c.price;
-      var label = c.qty + ' × ' + c.name + (c.modifiers && c.modifiers.length ? ' · ' + c.modifiers.map(function (m) { return m.name; }).join(', ') : '');
+      var label = c.qty + ' × ' + c.name + (c.modifiers && c.modifiers.length ? ' · ' + c.modifiers.map(function (m) { return m.name; }).join(', ') : '')
+        + (c.sides && c.sides.length ? ' · ' + c.sides.map(function (x) { return x.name + (Number(x.qty) > 1 ? ' ×' + Number(x.qty) : ''); }).join(', ') : '');
       box.appendChild(el('div', { cls: 'tv-cart-l' }, [btn('−', function () { c.qty--; drawCart(box); }, 'tv-q'), el('span', { text: label }), btn('+', function () { if (c.qty < 20) c.qty++; drawCart(box); }, 'tv-q')]));
     });
     if (!ids.length) { box.appendChild(el('p', { cls: 'tv-muted', text: '—' })); return; }
     box.appendChild(el('div', { cls: 'tv-total' }, [el('span', { text: T.total || 'Total' }), el('b', { text: money(total, sample) })]));
     box.appendChild(btn(T.order || 'Place order', function () {
-      var lines = ids.map(function (k) { return { id: cart[k].id, qty: cart[k].qty, modifiers: (cart[k].modifiers || []).map(function (m) { return m.id; }) }; });
+      var lines = ids.map(function (k) { return { id: cart[k].id, qty: cart[k].qty, modifiers: (cart[k].modifiers || []).map(function (m) { return m.id; }), variants: cart[k].units || [] }; });
       api('POST', '/order', { items: lines }, function (err, d) {
         if (err) { toast(err, true); return; }
         cart = {};

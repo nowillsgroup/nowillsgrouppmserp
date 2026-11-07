@@ -865,9 +865,13 @@ class IptvService
             self::need(is_numeric($l['id'] ?? null) && $qty >= 1 && $qty <= 20, 'Choose 1 to 20 of each dish.');
             $modifierIds = array_values(array_unique(array_map('intval', (array) ($l['modifiers'] ?? []))));
             self::need(count($modifierIds) <= 20, 'Too many options selected for a dish.');
-            $clean[] = ['id' => (int) $l['id'], 'qty' => $qty, 'modifiers' => $modifierIds];
+            // a side dish is counted, not de-duplicated: the id named twice is a double portion (v9.33)
+            $sideIds = array_map('intval', (array) ($l['variants'] ?? []));
+            self::need(count($sideIds) <= 30, 'Too many side dishes selected for a dish.');
+            $clean[] = ['id' => (int) $l['id'], 'qty' => $qty, 'modifiers' => $modifierIds, 'variants' => $sideIds];
         }
-        $o = GuestPortalService::orderDining($stay, $clean, null, 'tv');
+        // the TV can offer a side dish, so it holds the dish to its own rule
+        $o = GuestPortalService::orderDining($stay, $clean, null, 'tv', true);
         self::logEvent($dev, $stay, 'order', $o->order_no);
 
         return $o;
@@ -1289,11 +1293,14 @@ class IptvService
             return ['outlet' => null, 'cats' => []];
         }
         $cats = MenuCategory::where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->orderBy('sort_order')->get();
-        $items = MenuItem::with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
+        $items = MenuItem::with(['variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
             ->where('is_available', true)->whereIn('menu_category_id', $cats->pluck('id'))->where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->orderBy('name')->get();
 
         return ['outlet' => $outlet->name, 'cats' => $cats->map(fn ($c) => ['name' => $c->name, 'items' => $items->where('menu_category_id', $c->id)->map(fn ($i) => ['id' => $i->id, 'name' => $i->name,
             'price' => money($i->price), 'raw' => (float) $i->price, 'veg' => $i->food_type === 'veg', 'image' => $i->imageUrl(),
+            // v9.33 the side dishes a dish comes with, and whether one is owed — the TV asks before it adds the dish
+            'sides' => $i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()->all(),
+            'side_required' => (bool) $i->side_dish_required,
             'modifiers' => $i->modifierGroups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name, 'min' => $g->is_required ? max(1, $g->min_selections) : $g->min_selections, 'max' => $g->max_selections,
                 'required' => $g->is_required, 'options' => $g->modifiers->where('is_available', true)->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price_delta' => (float) $m->price_delta])->values()])->values()->all()])->values()->all()])->filter(fn ($c) => $c['items'] !== [])->values()->all()];
     }

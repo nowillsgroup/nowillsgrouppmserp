@@ -206,7 +206,7 @@ ok('the snapshot prices them beside the add-ons', service.includes('PosMenuVaria
 ok('a dish that owes a side dish cannot be sent without one', service.includes('if ($requireSides && $m->side_dish_required && empty($l[\'variants\']))'));
 ok('the rule is asked for by the caller that can offer the choice', service.includes('bool $requireSides = false'));
 ok('the portal asks for it', controller.includes("GuestPortalService::orderDining($stay, $data['items'], null, 'portal', true)"));
-ok('the room TV, which cannot offer a side dish, does not', read('app/Services/IptvService.php').includes("GuestPortalService::orderDining($stay, $clean, null, 'tv')"));
+ok('the room TV, which can offer the choice from v9.33, asks for it too', read('app/Services/IptvService.php').includes("GuestPortalService::orderDining($stay, $clean, null, 'tv', true)"));
 ok('the portal validates the side dishes like the till does', controller.includes("'items.*.variants.*' => 'integer|owned:menu_item_variants'"));
 
 console.log(failures ? `\n${failures} assertion(s) failed` : '\nguest portal dining: OK');

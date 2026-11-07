@@ -312,6 +312,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/sidebar-navigation.html');
   } else if (pathname === '/guest-dining' || pathname === '/__preview/guest-dining') {
     file = resolve(ROOT, 'deploy/dev/previews/guest-dining.html');
+  } else if (pathname === '/tv-dining' || pathname === '/__preview/tv-dining') {
+    file = resolve(ROOT, 'deploy/dev/previews/tv-dining.html');
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
   } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {
@@ -326,6 +328,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'public/css/dashboard.css');
   } else if (pathname === '/css/offline.css') {
     file = resolve(ROOT, 'public/css/offline.css');
+  } else if (pathname === '/css/tv.css') {
+    file = resolve(ROOT, 'public/css/tv.css'); // v9.33 the room TV preview draws with the television stylesheet
   } else if (pathname.startsWith('/preview-assets/')) {
     // sample photography for the preview screens (never shipped to the application)
     file = resolve(ROOT, 'deploy/dev/previews/assets', pathname.slice('/preview-assets/'.length));

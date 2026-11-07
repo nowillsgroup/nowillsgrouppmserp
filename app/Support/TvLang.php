@@ -37,6 +37,7 @@ class TvLang
             'all_clear' => 'All clear', 'events_today' => "Today's events", 'left' => 'left', 'hours' => 'h', 'unavailable' => 'Not available right now.',
             'error' => 'Something went wrong – please call the front desk.', 'all' => 'All', 'qty' => 'Qty', 'new_msg' => 'New message', 'rented' => 'Rented',
             'read_more' => 'Open', 'tuned' => 'Now showing', 'no_signal' => 'This channel plays on the TV tuner.', 'dial' => 'Dial', 'front_desk' => 'for the front desk',
+            'side' => 'Side dish', 'choose_side' => 'This dish comes with a side dish – choose one.', 'no_side' => 'No side dish', 'included' => 'included', 'required_side' => 'required',
         ],
         'fr' => [
             'welcome' => 'Bienvenue', 'vacant' => 'Bienvenue à', 'continue' => 'Continuer', 'home' => 'Accueil', 'tv' => 'TV en direct', 'movies' => 'Films', 'dining' => 'Service en chambre',
@@ -50,6 +51,7 @@ class TvLang
             'all_clear' => 'Fin d’alerte', 'events_today' => "Événements du jour", 'left' => 'restantes', 'hours' => 'h', 'unavailable' => 'Indisponible pour le moment.',
             'error' => 'Une erreur est survenue – veuillez appeler la réception.', 'all' => 'Tout', 'qty' => 'Qté', 'new_msg' => 'Nouveau message', 'rented' => 'Loué',
             'read_more' => 'Ouvrir', 'tuned' => "À l'antenne", 'no_signal' => 'Cette chaîne est diffusée par le tuner du téléviseur.', 'dial' => 'Composez le', 'front_desk' => 'pour la réception',
+            'side' => 'Accompagnement', 'choose_side' => 'Ce plat est servi avec un accompagnement – choisissez-en un.', 'no_side' => 'Sans accompagnement', 'included' => 'inclus', 'required_side' => 'obligatoire',
         ],
         'es' => [
             'welcome' => 'Bienvenido', 'vacant' => 'Bienvenido a', 'continue' => 'Continuar', 'home' => 'Inicio', 'tv' => 'TV en directo', 'movies' => 'Películas', 'dining' => 'Servicio a la habitación',
@@ -63,6 +65,7 @@ class TvLang
             'all_clear' => 'Fin de la alerta', 'events_today' => 'Eventos de hoy', 'left' => 'restantes', 'hours' => 'h', 'unavailable' => 'No disponible en este momento.',
             'error' => 'Algo salió mal – llame a recepción.', 'all' => 'Todo', 'qty' => 'Cant.', 'new_msg' => 'Mensaje nuevo', 'rented' => 'Alquilada',
             'read_more' => 'Abrir', 'tuned' => 'En emisión', 'no_signal' => 'Este canal se reproduce con el sintonizador del televisor.', 'dial' => 'Marque', 'front_desk' => 'para recepción',
+            'side' => 'Guarnición', 'choose_side' => 'Este plato se sirve con guarnición – elija una.', 'no_side' => 'Sin guarnición', 'included' => 'incluida', 'required_side' => 'obligatoria',
         ],
         'pt' => [
             'welcome' => 'Bem-vindo', 'vacant' => 'Bem-vindo ao', 'continue' => 'Continuar', 'home' => 'Início', 'tv' => 'TV ao vivo', 'movies' => 'Filmes', 'dining' => 'Serviço de quarto',
@@ -76,6 +79,7 @@ class TvLang
             'all_clear' => 'Fim do alerta', 'events_today' => 'Eventos de hoje', 'left' => 'restantes', 'hours' => 'h', 'unavailable' => 'Indisponível de momento.',
             'error' => 'Ocorreu um erro – ligue para a receção.', 'all' => 'Tudo', 'qty' => 'Qtd.', 'new_msg' => 'Nova mensagem', 'rented' => 'Alugado',
             'read_more' => 'Abrir', 'tuned' => 'Em exibição', 'no_signal' => 'Este canal é reproduzido pelo sintonizador da TV.', 'dial' => 'Marque', 'front_desk' => 'para a receção',
+            'side' => 'Acompanhamento', 'choose_side' => 'Este prato é servido com acompanhamento – escolha um.', 'no_side' => 'Sem acompanhamento', 'included' => 'incluído', 'required_side' => 'obrigatório',
         ],
         'de' => [
             'welcome' => 'Willkommen', 'vacant' => 'Willkommen im', 'continue' => 'Weiter', 'home' => 'Start', 'tv' => 'Live-TV', 'movies' => 'Filme', 'dining' => 'Zimmerservice',
@@ -89,6 +93,7 @@ class TvLang
             'all_clear' => 'Entwarnung', 'events_today' => 'Veranstaltungen heute', 'left' => 'übrig', 'hours' => 'Std.', 'unavailable' => 'Derzeit nicht verfügbar.',
             'error' => 'Etwas ist schiefgelaufen – bitte rufen Sie die Rezeption an.', 'all' => 'Alle', 'qty' => 'Menge', 'new_msg' => 'Neue Nachricht', 'rented' => 'Ausgeliehen',
             'read_more' => 'Öffnen', 'tuned' => 'Läuft jetzt', 'no_signal' => 'Dieser Sender läuft über den TV-Tuner.', 'dial' => 'Wählen Sie', 'front_desk' => 'für die Rezeption',
+            'side' => 'Beilage', 'choose_side' => 'Dieses Gericht wird mit einer Beilage serviert – bitte wählen Sie eine.', 'no_side' => 'Ohne Beilage', 'included' => 'inklusive', 'required_side' => 'erforderlich',
         ],
         'zh' => [
             'welcome' => '欢迎', 'vacant' => '欢迎光临', 'continue' => '继续', 'home' => '主页', 'tv' => '电视直播', 'movies' => '电影', 'dining' => '客房送餐',
@@ -102,6 +107,7 @@ class TvLang
             'all_clear' => '警报解除', 'events_today' => '今日活动', 'left' => '剩余', 'hours' => '小时', 'unavailable' => '暂时无法使用。',
             'error' => '出现问题，请致电前台。', 'all' => '全部', 'qty' => '数量', 'new_msg' => '新消息', 'rented' => '已租',
             'read_more' => '打开', 'tuned' => '正在播放', 'no_signal' => '该频道通过电视调谐器播放。', 'dial' => '请拨', 'front_desk' => '联系前台',
+            'side' => '配菜', 'choose_side' => '该菜品含配菜，请选择一份。', 'no_side' => '不要配菜', 'included' => '已含', 'required_side' => '必选',
         ],
     ];
 

@@ -4747,8 +4747,8 @@ ok("'items.*.variants' => 'nullable|array|max:30', 'items.*.variants.*' => 'inte
    'the portal validates side dishes exactly as the till does')
 ok("GuestPortalService::orderDining($stay, $data['items'], null, 'portal', true)" in gp_controller,
    'and asks for the rule, because the page can honour it')
-ok("GuestPortalService::orderDining($stay, $clean, null, 'tv')" in read(os.path.join(ROOT, 'app/Services/IptvService.php')),
-   'the room TV, which cannot yet offer a side dish, does not ask for a rule it cannot keep')
+ok("GuestPortalService::orderDining($stay, $clean, null, 'tv', true)" in read(os.path.join(ROOT, 'app/Services/IptvService.php')),
+   'the room TV asks for the same rule now that it can offer the choice (v9.33)')
 ok('Interview' not in read(os.path.join(ROOT, 'deploy/dev/build-guest-dining-preview.js')),
    'the preview is built, not written')
 ok("click(document.getElementById('sideAdd'));" in read(os.path.join(ROOT, 'deploy/dev/build-guest-dining-preview.js')),
@@ -4766,6 +4766,54 @@ ok("ok('the same dish and the same side dishes stay one line'" in read(os.path.j
    'the page itself is driven in jsdom: the same dish and sides stay one line, a different side is its own')
 ok("ok('a required side dish cannot be skipped'" in read(os.path.join(ROOT, 'deploy/dev/audit/portal_dining_check.js')),
    'and the required side dish is held to its rule by the screen')
+
+# ── 26dd · the room TV picks the side dish too ──
+tv_service = read(os.path.join(ROOT, 'app/Services/IptvService.php'))
+ok("'sides' => $i->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->name, 'rate' => (float) $v->rate])->values()->all()," in tv_service,
+   'the TV menu publishes each dish\'s side dishes with their rates')
+ok("'side_required' => (bool) $i->side_dish_required," in tv_service,
+   'and says on the dish whether a side dish is owed')
+ok("MenuItem::with(['variants', 'modifierGroups'" in tv_service,
+   'the side dishes are loaded with the menu, not one query per dish')
+ok("$sideIds = array_map('intval', (array) ($l['variants'] ?? []));" in tv_service,
+   'the TV order takes the side dishes as units, so a double portion stays two')
+ok("array_values(array_unique(array_map('intval', (array) ($l['modifiers'] ?? []))));" in tv_service,
+   'while its options are still de-duplicated — the two are not the same thing')
+ok("self::need(count($sideIds) <= 30, 'Too many side dishes selected for a dish.');" in tv_service,
+   'and a line cannot carry an unbounded list of sides')
+ok("GuestPortalService::orderDining($stay, $clean, null, 'tv', true)" in tv_service,
+   'a dish that owes a side dish is refused on the TV too, by the server')
+tv_js = read(os.path.join(ROOT, 'public/js/tv.js'))
+ok('function pickItem(it, box) {' in tv_js and 'if (it.sides && it.sides.length) { sideModal(it, box); return; }' in tv_js,
+   'the remote opens the side-dish step before the options step')
+ok("el('span', { cls: 'tv-side-n', text: s.name + (Number(s.rate) ? ' +' + Number(s.rate).toFixed(2) : ' · ' + (T.included || 'included')) })," in tv_js,
+   'each side dish is a row with its rate, or “included” when it costs nothing')
+ok("btn('−', function () { if ((counts[s.id] || 0) > 0) {" in tv_js and "btn('+', function () { if ((counts[s.id] || 0) < 9) {" in tv_js,
+   'and its own − / +, so a side dish can be counted twice')
+ok("if (it.side_required && !chosen.length) { toast(T.choose_side" in tv_js,
+   'a dish whose side is required is refused on the screen, before anything is sent')
+ok('+ sides.reduce(function (sum, s) { return sum + Number(s.rate || 0) * Math.max(1, Number(s.qty) || 1); }, 0);' in tv_js,
+   'the line is priced per portion')
+ok('variants: cart[k].units || []' in tv_js,
+   'and the order posts one variant per portion, as the till does')
+ok("(c.sides && c.sides.length ? ' · ' + c.sides.map(function (x) { return x.name + (Number(x.qty) > 1 ? ' ×' + Number(x.qty) : ''); }).join(', ') : '')" in tv_js,
+   'the cart says “French fries ×2” rather than listing the side once')
+tv_lang = read(os.path.join(ROOT, 'app/Support/TvLang.php'))
+for key in ('side', 'choose_side', 'no_side', 'included', 'required_side'):
+    ok(tv_lang.count(f"'{key}' =>") == len(re.findall(r"^        '[a-z]{2}' => \[", tv_lang, re.M)),
+       f'“{key}” is written in every language the TV speaks')
+ok('.tv-side-row{display:flex' in read(os.path.join(ROOT, 'public/css/tv.css')),
+   'the step is styled for a television — large rows, a ten-foot read')
+ok("ok('the side dishes are posted unit by unit'" in read(os.path.join(ROOT, 'deploy/dev/audit/tv_dining_check.js')),
+   'the TV client is driven in jsdom and held to the payload it posts')
+ok("ok('then for its options'" in read(os.path.join(ROOT, 'deploy/dev/audit/tv_dining_check.js')),
+   'including the chain from the side dish to the options on the same dish')
+ok("ok('a required side dish cannot be skipped'" in read(os.path.join(ROOT, 'deploy/dev/audit/tv_dining_check.js')),
+   'and holds the screen to that refusal, toast and all')
+ok('tv-dining' in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the preview server serves the television screen')
+ok('In-room dining on the television' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the gallery lists it')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
