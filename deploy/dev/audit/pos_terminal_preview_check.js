@@ -7,11 +7,13 @@
  *
  *   1. the menu — eight dishes, four of them "with sides", each tile carrying its sides and its option groups;
  *   2. the order already open on table 12 — a served beer and a grilled chicken that reached the kitchen with its chips;
- *   3. the chain on a dish with both: Jollof Rice asks for the side dish first, the sides ticked there are carried into the
+ *   3. the side step and the options step are drawn differently on purpose (v10.33) — the side step as a shelf of cards
+ *      to be tapped, the options step as a list to be read — while both answer to the same count code;
+ *   4. the chain on a dish with both: Jollof Rice asks for the side dish first, the sides ticked there are carried into the
  *      option picker already ticked, the required portion is enforced, and the line lands in the cart at the price the
  *      sides and the option make — 65.00 + 25.00 + 5.00 + 15.00 = 110.00;
- *   4. a dish with sides and no options goes straight from the side picker into the cart (85.00 + 12.00 = 97.00);
- *   5. a dish with neither goes into the cart without a dialog, and the total, the per-item counts and the quantity
+ *   5. a dish with sides and no options goes straight from the side picker into the cart (85.00 + 12.00 = 97.00);
+ *   6. a dish with neither goes into the cart without a dialog, and the total, the per-item counts and the quantity
  *      buttons all keep up.
  *
  * The JSON written into data-variants / data-modifiers is escaped exactly once — `{{ json_encode(…) }}`, not
@@ -119,6 +121,27 @@ ok('a charged side shows its rate', /\+GH₵ 25\.00/.test(text($('#sideDishChoic
 ok('nothing is ticked to begin with', sideBoxes.every(box => !box.checked));
 ok('the options picker is still closed', !$('#modifierModal').classList.contains('show'));
 
+// v10.33 the side step draws each side as a card: a till is tapped with a thumb, and a card is a target where a line of
+// small print is not. The card keeps .pos-side-row, because that is what the count code walks up to.
+const sideCards = $$('#sideDishChoices .pos-side-card');
+ok('the sides are drawn as cards, one per side', sideCards.length === 3, `${sideCards.length} cards`);
+ok('a card carries the dish name and the rate it adds',
+  sideCards.map(card => text(card.querySelector('.pos-side-card-name'))).join(' · ') === 'Grilled chicken · Fried fish · Extra shito'
+  && /\+GH₵ 25\.00/.test(text(sideCards[0])) && /included|\+GH₵/.test(text(sideCards[0])),
+  text(sideCards[0]));
+ok('the count sits on the card it counts',
+  sideCards.every(card => card.querySelector('[data-side-count]') && card.querySelectorAll('[data-side-step]').length === 2));
+ok('a card still answers as a row to the code that reads it',
+  sideCards.every(card => card.classList.contains('pos-side-row') && card.querySelector('input[type=checkbox]')));
+const appCss = readFileSync('public/css/app.css', 'utf8');
+ok('the cards sit on a shelf, not in a column',
+  /\.pos-side-cards \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(176px, 1fr\)\)/.test(appCss));
+ok('a ticked card is drawn as chosen — the rail, the tint and the count',
+  /\.pos-side-cards \.pos-side-card:has\(input:checked\) \{[^}]*border-color: var\(--c-primary\)[^}]*background: var\(--c-primary-50\)/.test(appCss)
+  && /\.pos-side-cards \.pos-side-card:has\(input:checked\) \.pos-side-qty \{ visibility: visible/.test(appCss));
+ok('an unticked card does not advertise a count it has not been given',
+  /\.pos-side-cards \.pos-side-qty \{ justify-self: end; visibility: hidden/.test(appCss));
+
 sideBoxes.find(box => box.dataset.sideVariantName === 'Grilled chicken').checked = true;
 sideBoxes.find(box => box.dataset.sideVariantName === 'Extra shito').checked = true;
 $('#sideDishContinue').click();
@@ -128,6 +151,8 @@ ok('and carries the dish into the options picker', optionModal.classList.contain
 ok('the options picker is titled for the dish', text($('#modifierTitle')) === 'Options for Jollof Rice (Special)');
 const carried = $$('#modifierChoices input[data-side-variant-id]');
 ok('the same sides are offered there', carried.length === 3);
+ok('the options step still reads as a list, not a shelf',
+  $$('#modifierChoices .pos-side-card').length === 0 && $$('#modifierChoices .pos-side-dish-choices .pos-side-row').length === 3);
 ok('the two ticked sides are already ticked',
   carried.filter(box => box.checked).map(box => box.dataset.sideVariantName).join(' · ') === 'Grilled chicken · Extra shito');
 ok('it says the sides came from above', /Chosen above/.test(text($('#modifierChoices'))));
