@@ -255,14 +255,6 @@
           </div>
         </div>
         <div class="ws-card-body">
-        <div class="ws-amen">
-          @foreach (array_slice($c['amenities'], 0, 10) as $a)
-            <span role="img" aria-label="{{ $a }}" title="{{ $a }}"><x-icon name="{{ WS::amenityIcon($a) }}"/></span>
-          @endforeach
-          @if (count($c['amenities']) > 10)
-            <button type="button" class="ws-amen-more" data-room="{{ $room->id }}" aria-label="Open room {{ $room->room_no }} details; {{ count($c['amenities']) - 10 }} more amenities" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">+{{ count($c['amenities']) - 10 }}</button>
-          @endif
-        </div>
 
         @if ($stay)
         {{-- v10.23 the card says what the room is and nothing else: who is in it, from when to when, and what it is
@@ -1325,7 +1317,7 @@
       first.focus();
     }
   }
-  document.querySelectorAll('.ws-all, .ws-photo-link, .ws-amen-more').forEach(trigger => {
+  document.querySelectorAll('.ws-all, .ws-photo-link').forEach(trigger => {
     trigger.addEventListener('click', () => openRoomModal(trigger.dataset.room, trigger));
     if (trigger.classList.contains('ws-photo-link')) trigger.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -1400,7 +1392,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
 .ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
 /* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
    to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
    two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
@@ -1472,11 +1464,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-photo-rate small{font-weight:650;color:#64748b}
 .ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
 .ws-photo-rate.ws-rate-unset small{color:#b45309}
-.ws-card-body{display:flex;flex:1;flex-direction:column;padding-bottom:10px}
-.ws-amen{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px 6px;color:#94a3b8}
-.ws-amen .i{width:13px;height:13px}
-.ws-amen-more{padding:0 5px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:10px;font-weight:700;cursor:pointer}
-.ws-amen-more:hover{background:#dcfce7}
+.ws-card-body{display:flex;flex-direction:column;padding-bottom:6px}
 .ws-guest{margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9}
 .ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
@@ -1682,7 +1670,6 @@ body.dark .ws-actions .ws-all:hover{background:#234630;color:#d7f5df}
 body.dark .ws-extend-form input{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
 body.dark .ws-fac-more{color:#86efac}
 body.dark .ws-fac-more summary:focus-visible{outline-color:#86efac}
-body.dark .ws-amen-more{background:#193525;border-color:#3b5946;color:#86efac}
 body.dark .ws-vip-filter{border-color:var(--c-border)}
 body.dark .ws-cal-day.disabled{color:#94a3b8}
 /* ────────────────────────────────────────────────────────────────────────
@@ -1719,7 +1706,7 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
 @media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

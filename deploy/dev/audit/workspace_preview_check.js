@@ -86,9 +86,9 @@ ok('the facts under the picture are the room’s own',
   (cards[0].querySelector('.ws-photo-meta')?.textContent ?? '').includes('m²')
     && /guests/.test(cards[0].querySelector('.ws-photo-meta')?.textContent ?? ''),
   cards[0].querySelector('.ws-photo-meta')?.textContent?.trim());
-ok('the body holds the amenities and the actions',
-  cards.every(card => card.querySelector('.ws-card-body .ws-amen')
-    && card.querySelector('.ws-card-body .ws-actions')));
+ok('the body holds the action row and nothing else',
+  cards.every(card => card.querySelector('.ws-card-body .ws-actions'))
+    && $$('#wsGrid .ws-card .ws-amen').length === 0);
 // v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
 // than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
 // squeezing five into a phone.
@@ -148,8 +148,8 @@ ok('and the extend form folds first, because it is the widest thing in the row',
   /@container wscard \(max-width:379px\)\{\.ws-actions \.ws-extend-form\{display:none\}/.test(wsStyle)
     && wsStyle.indexOf('\u00b7 under 380px') > 0,
   'a 140px date field and a button do not share a line with anything');
-// v10.22 took the guest and the stay off the card; v10.23 took the provenance line and the money with it. What is
-// left on the card is the room: its photo, its state, its amenities and its actions.
+// v10.22 took the guest and the stay off the card; v10.23 took the provenance line and the money with it; v10.24
+// took the amenity icons. What is left on the card is the room's picture and the one action that moves it.
 ok('the card prints no guest, no stay dates and no money',
   $$('#wsGrid .ws-card .ws-stay').length === 0
     && $$('#wsGrid .ws-card .ws-guest .bold.small').length === 0
@@ -182,6 +182,21 @@ ok('the dialog the card opens is where all of it went',
     && $$('.ws-modal .ws-resv').every(box => (box.querySelector('.bold')?.textContent ?? '').trim().length > 0
       && /→/.test(box.textContent)),
   `every dialog still states the guest and 12 Nov → 15 Nov · 3n`);
+// v10.24 with the stay block and the amenity strip gone there was nothing left to absorb the slack a stretched card
+// was given, so the card grew a band of white between its photo and its action row. The grid sizes cards to their
+// contents now, and the body no longer claims the slack.
+ok('cards are as tall as what they hold, not as tall as the tallest in the row',
+  /\.ws-grid\{[^}]*align-items:start/.test(wsStyle)
+    && /\.ws-group-grid\{[^}]*align-items:start/.test(wsStyle)
+    && /\.ws-card-body\{[^}]*\}/.test(wsStyle)
+    && !/\.ws-card-body\{[^}]*flex:1/.test(wsStyle),
+  'no stretched card, no gap under the photo');
+ok('and the amenity icons are not left behind as dead weight',
+  $$('#wsGrid .ws-card .ws-amen').length === 0 && !/\.ws-amen\{/.test(wsStyle),
+  'the strip and its rules are gone; the dialog still lists every amenity');
+ok('the dialog names every amenity the card used to draw in icons',
+  $$('.ws-modal .ws-fac-chip').length > 0,
+  `${$$('.ws-modal .ws-fac-chip').length} facility chips across the dialogs`);
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,
