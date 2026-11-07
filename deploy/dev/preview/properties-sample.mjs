@@ -212,6 +212,31 @@ export function propertyShowContext() {
   };
 }
 
+/**
+ * v10.6 ModuleNotLicensed → errors/licence.blade.php: the refusal that explains itself.
+ *
+ * The interesting case is the one v10.3 could not say: the group holds the module and the property
+ * switched it off, so the fix belongs to the group administrator who runs that property.
+ */
+export function licenceRefusedContext() {
+  const helpers = propertiesContext().helpers;
+
+  return {
+    helpers: {
+      ...helpers,
+      can_do: (key) => key !== 'group.dashboard',   // no link to a page this person cannot open
+    },
+    fallbacks: {},
+    scope: {
+      module: 'Spa & Activities',
+      property: PROPERTIES[0],
+      groupHoldsIt: true,
+      permission: 'spa.bookings',
+      currentHotel: PROPERTIES[0],
+    },
+  };
+}
+
 /** HotelGroupController::edit(): the account itself — identity, the defaults it hands down, its cap and its status. */
 export function groupAccountContext() {
   return {
@@ -269,6 +294,9 @@ export function groupAccountContext() {
       licenceRestricted: true,
       // LicenceSurfaces::coverage(): how much of the guest estate the URL can decide by itself
       guestCoverage: { fromUrl: 31, total: 36 },
+      // v10.6 a property narrowed to nothing releases the seats of the people who work there
+      seatsReleased: 12,
+      darkProperties: 1,
       // LicenceSurfaces::byModule(): the guest pages and feeds that follow the same licence
       guestSurfaces: {
         Reservations: ['the online booking engine'],

@@ -97,12 +97,38 @@ class HotelGroup extends Model
     public function userCount(): int
     {
         $ids = $this->hotels()->pluck('id');
+        $dark = $this->darkPropertyIds();
 
         return User::query()
             ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
             ->where(function ($q) use ($ids, $this) {
                 $q->whereIn('hotel_id', $ids)->orWhere('hotel_group_id', $this->id);
-            })->count();
+            })
+            // v10.6 a property licensed for no modules is closed: its people keep their accounts and
+            // their history, but they are not holding a seat nobody can use.
+            ->when($dark !== [], fn ($q) => $q->where(fn ($w) => $w->whereNull('hotel_id')->orWhereNotIn('hotel_id', $dark)))
+            ->count();
+    }
+
+    /** Properties of this group that are licensed for no modules at all. */
+    public function darkPropertyIds(): array
+    {
+        return $this->hotels()->get(['id', 'licensed_modules'])
+            ->filter(fn (Hotel $h) => $h->licenceIsEmpty())
+            ->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    /** The people who would be holding a seat but for a property that is licensed for nothing. */
+    public function seatsReleased(): array
+    {
+        $dark = $this->darkPropertyIds();
+        if ($dark === []) {
+            return [];
+        }
+
+        return User::query()
+            ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
+            ->whereIn('hotel_id', $dark)->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
     /** The modules this tenant has bought; null means everything. */

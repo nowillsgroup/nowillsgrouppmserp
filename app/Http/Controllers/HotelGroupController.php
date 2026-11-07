@@ -45,6 +45,9 @@ class HotelGroupController extends Controller
             'licenceRestricted' => $group->licensedModules() !== null,
             'guestSurfaces' => \App\Support\LicenceSurfaces::byModule(), // v10.4: the guest pages and feeds that follow the same licence
             'guestCoverage' => \App\Support\LicenceSurfaces::coverage(),
+            // v10.6 a property licensed for nothing is closed, and its people stop holding a seat
+            'seatsReleased' => count($group->seatsReleased()),
+            'darkProperties' => count($group->darkPropertyIds()),
             'seatBasis' => $group->seatBasis(),
         ]);
     }

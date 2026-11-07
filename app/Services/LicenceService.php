@@ -135,6 +135,21 @@ class LicenceService
         return $licence === null || in_array($module, $licence, true);
     }
 
+    /**
+     * Does the GROUP hold this module, ignoring any narrowing at a property?
+     *
+     * A refusal has to say which of the two licences is missing: a group that never bought the module
+     * needs the platform administrator, a property that switched it off needs the group
+     * administrator who runs that property. Those are different people, so the answer is not merged.
+     */
+    public static function groupHolds(string $module, ?Hotel $hotel = null): bool
+    {
+        $hotel = $hotel ?? Tenant::hotel();
+        $licence = $hotel ? self::licenceOf(self::groupOf($hotel)) : self::licence();
+
+        return $licence === null || in_array($module, $licence, true);
+    }
+
     /** The group behind a property, read through the relation when it is already loaded. */
     public static function groupOf(Hotel $hotel): ?HotelGroup
     {

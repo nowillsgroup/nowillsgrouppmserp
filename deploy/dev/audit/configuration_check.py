@@ -5193,8 +5193,8 @@ ok('return in_array($module, $licence, true);' in lic,
 perm_mw = read(os.path.join(ROOT, 'app/Http/Middleware/RequirePermission.php'))
 ok('$user->hasPermission($p) && LicenceService::licensed($p)' in perm_mw,
    'the route gate checks the person and the licence in one condition')
-ok("is not on this group\\'s licence. Ask your group administrator." in perm_mw,
-   'and says so plainly when the person would otherwise have been allowed in')
+ok('throw new ModuleNotLicensed(' in perm_mw,
+   'and says so plainly — v10.6 through an explained refusal — when the person would otherwise have been allowed in')
 ok(perm_mw.index('LicenceService::licensed($p)') < perm_mw.index("abort(403, 'You do not have permission"),
    'an unlicensed module is indistinguishable from a forbidden one for somebody never allowed in')
 ok('\\App\\Services\\LicenceService::licensed($perm)' in read(os.path.join(ROOT, 'app/helpers.php')),
@@ -5358,6 +5358,64 @@ ok("allowsModule('API & Integrations', $hotel)" in read(os.path.join(ROOT, 'app/
    'the lock intake refuses an unlicensed tenant before it writes an event row')
 ok("ok('only the modules the group bought are offered'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'the preview check holds the property card to the ceiling, box by box')
+
+# ── 33. the refusal explains itself, and a closed property stops holding seats (v10.6) ──────
+refusal = read(os.path.join(ROOT, 'resources/views/errors/licence.blade.php'))
+exc = read(os.path.join(ROOT, 'app/Exceptions/ModuleNotLicensed.php'))
+grp_mdl = read(os.path.join(ROOT, 'app/Models/HotelGroup.php'))
+acct4 = acct3
+
+ok(os.path.exists(os.path.join(ROOT, 'app/Exceptions/ModuleNotLicensed.php'))
+   and 'class ModuleNotLicensed extends HttpException' in exc,
+   'an unlicensed-but-permitted reader gets an exception that carries the facts, not a bare 403')
+ok('public readonly bool $groupHoldsIt = false' in exc and 'public readonly ?Hotel $property = null' in exc,
+   'the exception carries the module, the property and whether the group still holds it')
+ok('throw new ModuleNotLicensed($module, Tenant::hotel(), LicenceService::groupHolds($module), $p);' in read(os.path.join(ROOT, 'app/Http/Middleware/RequirePermission.php')),
+   'the route gate throws it only for somebody who would otherwise have been let in')
+ok('public static function groupHolds' in licence_svc,
+   'the service can answer "is it the group or the property?" without merging the two')
+ok("return $licence === null || in_array($module, $licence, true);" in licence_svc,
+   'and it answers for the group alone, not for the property it is narrowed to')
+ok("response()->view('errors.licence'" in bootstrap,
+   'the refusal renders a page instead of a stack trace')
+ok("if ($request->expectsJson() || $request->is('api/*')) {" in bootstrap,
+   'an API call still gets its JSON error, never an HTML page')
+ok('Your group is licensed for' in refusal and 'has switched it off for itself' in refusal,
+   'the page separates the two cases: the group holds it and the property does not')
+ok("That is a commercial decision, not an operational one" in refusal,
+   'and the other case names the platform administrator, who is the only one who can add a module')
+ok('the permission this screen needs' in refusal and 'not a question of your rights' in refusal,
+   'it names the permission the reader does hold, so the refusal cannot be mistaken for a denial of rights')
+ok('Nothing has been deleted' in refusal and 'restores the work rather than recovering it' in refusal,
+   'it says what switching a module off does and does not do')
+ok("can_do('properties.view')" in refusal and "can_do('group.dashboard')" in refusal,
+   'the page only offers screens the reader may open')
+
+ok('public function licenceIsEmpty(): bool' in hotel_mdl,
+   'a property licensed for no modules is a state the model can name')
+ok("->when($dark !== [], fn ($q) => $q->where(fn ($w) => $w->whereNull('hotel_id')->orWhereNotIn('hotel_id', $dark)))" in grp_mdl,
+   'seats are not held by people who cannot work, and a group administrator with no home property still counts')
+ok('public function seatsReleased(): array' in grp_mdl,
+   'the account can say how many seats that released, rather than leaving a number to explain itself')
+ok('$group->userCount()' in acct4 and 'seatsReleased' in acct4,
+   'the seats stat uses the same count and the screen explains the difference')
+ok("'seatsReleased' => count($group->seatsReleased())," in grp_ctrl3,
+   'and the controller hands it the number rather than letting the view count rows')
+ok('seatsReleased:' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the preview carries a released count, so the sentence can be seen')
+ok("ok('it says the group" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'the group account check holds the seats panel to that sentence')
+ok("ok('the page is titled for the module that was refused'" in read(os.path.join(ROOT, 'deploy/dev/audit/licence_refused_preview_check.js')),
+   'and the refusal page has a check of its own')
+ok('licence_refused_preview_check' in read(os.path.join(ROOT, 'deploy/dev/README.md')),
+   'documented with the rest of the audits')
+
+ok("LicenceService::licenceOf($target)" in read(os.path.join(ROOT, 'app/Services/PropertyService.php'))
+   and "'licensed_modules' => $after" in read(os.path.join(ROOT, 'app/Services/PropertyService.php')),
+   'a handover reconciles the property licence with the receiving group instead of carrying a stale list')
+ok("'licence_dropped' => $dropped" in read(os.path.join(ROOT, 'app/Services/PropertyService.php'))
+   and "$dropped = $result['licence_dropped'] ?? []" in prop_ctrl,
+   'and the modules it loses are reported to whoever performed the handover')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,

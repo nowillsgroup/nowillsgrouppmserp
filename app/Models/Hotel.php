@@ -57,6 +57,15 @@ class Hotel extends Model
         return $this->licensedModules() === null;
     }
 
+    /**
+     * v10.6 licensed for nothing: every screen at this property refuses, so nobody can work here.
+     * A seat is a person who can work — these people stop holding one until the licence comes back.
+     */
+    public function licenceIsEmpty(): bool
+    {
+        return $this->licensedModules() === [];
+    }
+
     public function group()
     {
         return $this->belongsTo(HotelGroup::class, 'hotel_group_id');

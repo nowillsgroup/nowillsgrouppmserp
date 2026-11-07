@@ -222,6 +222,8 @@ ok('ticking everything stores "everything", so later modules are not silently lo
 ok('the seat basis is a choice, not a hidden default', field('seat_basis')?.value === 'active', field('seat_basis')?.value);
 ok('and the named-user basis is spelled out', gbody.includes('every account holds a seat, switched off or not'));
 ok('what is left of the entitlement is spelled out', gbody.includes('3 left to open'));
+ok('the seats a closed property released are stated, not left to explain a missing number',
+   gbody.includes('12 seat(s) released') && gbody.includes('licensed for no modules at all'));
 ok('the guest surfaces are said to follow the same licence', gbody.includes('The guest surfaces follow the same licence'));
 ok('and the reason is given: a guest carries no permission', gbody.includes('A guest is not signed in, so there is no permission to check'));
 {

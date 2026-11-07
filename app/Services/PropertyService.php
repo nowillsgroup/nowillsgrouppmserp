@@ -350,13 +350,31 @@ class PropertyService
                 }
             }
 
-            $hotel->forceFill(['hotel_group_id' => $target->id])->save();
+            // v10.6 the property's own licence was written against the OLD group's list. Carrying it
+            // over unchanged would leave a list naming modules the receiving group never bought —
+            // harmless at the gate (the intersection protects it) but a lie on the screen. Reconcile
+            // it: keep what both allow, and if that is everything the new group has, follow the group.
+            $before = $hotel->licensedModules();
+            $after = $before;
+            $dropped = [];
+            if ($before !== null) {
+                $ceiling = LicenceService::licenceOf($target);        // null = the new group bought everything
+                $allowed = $ceiling === null ? $before : array_values(array_intersect($before, $ceiling));
+                $dropped = array_values(array_diff($before, $allowed));
+                $everything = $ceiling === null ? array_keys(LicenceService::catalogue()) : $ceiling;
+                $after = count($allowed) === count($everything) ? null : $allowed;
+            }
 
-            PropertyEvent::record('transferred', "Handed {$hotel->name} ({$hotel->code}) from ".($from?->name ?? 'no group').' to '.$target->name, $hotel, [
-                'from' => $from?->code, 'to' => $target->code, 'staff_moved' => $moved, 'grants_revoked' => $revoked, 'admins_demoted' => $demoted, 'actor' => $actor->username,
+            $hotel->forceFill(['hotel_group_id' => $target->id, 'licensed_modules' => $after])->save();
+            LicenceService::forget();
+
+            PropertyEvent::record('transferred', "Handed {$hotel->name} ({$hotel->code}) from ".($from?->name ?? 'no group').' to '.$target->name
+                .($dropped ? ' — '.count($dropped).' module(s) it was licensed for are not on the receiving group\'s licence' : ''), $hotel, [
+                'from' => $from?->code, 'to' => $target->code, 'staff_moved' => $moved, 'grants_revoked' => $revoked, 'admins_demoted' => $demoted,
+                'licence_before' => $before, 'licence_after' => $after, 'licence_dropped' => $dropped, 'actor' => $actor->username,
             ]);
 
-            return ['hotel' => $hotel, 'moved' => $moved, 'revoked' => $revoked, 'demoted' => $demoted];
+            return ['hotel' => $hotel, 'moved' => $moved, 'revoked' => $revoked, 'demoted' => $demoted, 'licence_dropped' => $dropped];
         });
     }
 

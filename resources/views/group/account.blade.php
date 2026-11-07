@@ -58,6 +58,9 @@
             <option value="named" @selected($seatBasis === 'named')>Named user — every account holds a seat, switched off or not</option>
           </select>
           <span class="hint">A named-user licence is bought per person, so a switched-off account keeps its seat.</span>
+          @if($seatsReleased > 0)
+            <span class="hint"><b>{{ $seatsReleased }} seat(s) released:</b> {{ $darkProperties }} propert{{ $darkProperties === 1 ? 'y is' : 'ies are' }} licensed for no modules at all, so nobody can work there and its people are not holding a seat.</span>
+          @endif
         </div>
         <x-field name="notes" label="Internal notes" type="textarea" :value="$group->notes" />
       </div>

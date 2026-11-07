@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ModuleNotLicensed;
 use App\Services\LicenceService;
+use App\Support\Tenant;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -29,7 +31,13 @@ class RequirePermission
         foreach ($perms as $p) {
             if ($user && $user->hasPermission($p) && ! LicenceService::licensed($p)) {
                 $module = LicenceService::moduleOf($p);
-                abort(403, ($module ? 'The '.LicenceService::moduleLabel($module).' module' : 'That function').' is not on this group\'s licence. Ask your group administrator.');
+                if ($module === null) {
+                    break;   // a permission outside the catalogue is never refused for a licence
+                }
+
+                // v10.6 an explained refusal: the module, the property, and whether the group still
+                // holds it — because those two fixes belong to two different people.
+                throw new ModuleNotLicensed($module, Tenant::hotel(), LicenceService::groupHolds($module), $p);
             }
         }
 

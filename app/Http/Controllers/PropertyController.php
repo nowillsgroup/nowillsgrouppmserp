@@ -306,9 +306,13 @@ class PropertyController extends Controller
 
         $result = $this->properties->transfer($hotel, HotelGroup::findOrFail($data['group_id']), $request->user());
 
+        $dropped = $result['licence_dropped'] ?? [];
+
         return redirect()->route('properties.show', $hotel)->with('success', sprintf(
-            '%s handed to %s. %d staff account(s) moved with it, %d cross-property grant(s) revoked, %d group administrator(s) demoted. Reason: %s',
-            $hotel->name, $result['hotel']->group?->name ?? 'the new group', $result['moved'], $result['revoked'], $result['demoted'], $data['reason']
+            '%s handed to %s. %d staff account(s) moved with it, %d cross-property grant(s) revoked, %d group administrator(s) demoted.%s Reason: %s',
+            $hotel->name, $result['hotel']->group?->name ?? 'the new group', $result['moved'], $result['revoked'], $result['demoted'],
+            $dropped ? ' Its own licence was reconciled with the new group\'s: '.count($dropped).' module(s) it had bought at that property are not on the receiving group\'s licence (' . implode(', ', $dropped) . ').' : '',
+            $data['reason']
         ));
     }
 

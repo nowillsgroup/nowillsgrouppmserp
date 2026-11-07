@@ -67,6 +67,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => $err('server_error', 'Something went wrong on our side – quote the request_id to the hotel.', 500),
             };
         });
+        // v10.6 a licensed refusal explains itself: which module, which property, and whether the
+        // group still holds it — the two fixes belong to two different people.
+        $exceptions->render(function (\App\Exceptions\ModuleNotLicensed $e, Request $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->view('errors.licence', [
+                'module' => $e->module,
+                'property' => $e->property,
+                'groupHoldsIt' => $e->groupHoldsIt,
+                'permission' => $e->permission,
+            ], 403);
+        });
+
         // Business-rule violations become friendly flash messages
         $exceptions->render(function (\RuntimeException $e, Request $request) {
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
