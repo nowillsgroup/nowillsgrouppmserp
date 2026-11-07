@@ -7,6 +7,7 @@ use App\Models\PurchaseOrderItem;
 use App\Models\RequisitionLine;
 use App\Models\StockMovement;
 use App\Models\StockTake;
+use App\Models\StockTakeLine;
 use App\Models\Store;
 use App\Models\Supplier;
 use App\Services\StockTakeService;
@@ -16,8 +17,74 @@ class StockTakeController extends Controller
 {
     public function index()
     {
+        $takes = StockTake::with('store', 'creator', 'poster')->withCount(['lines', 'lines as counted_count' => fn ($q) => $q->whereNotNull('counted_qty')])->latest('id')->paginate(25);
+
+        // v9.21 a count sheet is only worth what the posting made of it: the variance, the coverage behind it and what is still unposted
+        $all = StockTake::with('store', 'creator', 'poster')->get();
+        $lines = StockTakeLine::whereIn('stock_take_id', $all->pluck('id'))->with('item')->get()->groupBy('stock_take_id');
+        $summary = $all->mapWithKeys(function ($t) use ($lines) {
+            $set = $lines[$t->id] ?? collect();
+            $counted = $set->filter(fn ($l) => $l->counted_qty !== null);
+            $varied = $counted->filter(fn ($l) => abs((float) $l->varianceQty()) >= 0.005);
+
+            return [$t->id => ['lines' => $set->count(), 'counted' => $counted->count(),
+                'pct' => $set->count() ? round($counted->count() / $set->count() * 100, 1) : null,
+                'varied' => $varied->count(), 'value' => round((float) $counted->sum(fn ($l) => $l->varianceValue()), 2),
+                'short' => round((float) $counted->sum(fn ($l) => min(0, (float) $l->varianceValue())), 2),
+                'over' => round((float) $counted->sum(fn ($l) => max(0, (float) $l->varianceValue())), 2),
+                'days' => (int) max(0, $t->count_date->diffInDays(bdate()->startOfDay(), false))]];
+        });
+
+        $posted = $all->where('status', 'posted');
+        $drafts = $all->where('status', 'draft');
+        $postedLines = $lines->only($posted->pluck('id')->all())->flatten(1);
+        $countedLines = $postedLines->filter(fn ($l) => $l->counted_qty !== null);
+        $variance = ['value' => round((float) $posted->sum(fn ($t) => $summary[$t->id]['value']), 2),
+            'short' => round((float) $posted->sum(fn ($t) => $summary[$t->id]['short']), 2),
+            'over' => round((float) $posted->sum(fn ($t) => $summary[$t->id]['over']), 2),
+            'lines' => $postedLines->count(), 'counted' => $countedLines->count(),
+            'skipped' => $postedLines->count() - $countedLines->count(),
+            'pct' => $postedLines->count() ? round($countedLines->count() / $postedLines->count() * 100, 1) : null,
+            'adjusted' => (int) $posted->sum(fn ($t) => $summary[$t->id]['varied']),
+            'worst' => $countedLines->filter(fn ($l) => (float) $l->varianceValue() < -0.005)
+                ->sortBy(fn ($l) => (float) $l->varianceValue())->first(),
+            'worst_take' => $posted->filter(fn ($t) => $summary[$t->id]['pct'] !== null)
+                ->sortBy(fn ($t) => $summary[$t->id]['pct'])->first(),
+            'takes' => $posted->count()];
+
+        $postedRows = $posted->map(fn ($t) => ['take' => $t->take_no, 'store' => $t->store?->name, 'counted' => $summary[$t->id]['counted'],
+            'lines' => $summary[$t->id]['lines'], 'pct' => $summary[$t->id]['pct'], 'varied' => $summary[$t->id]['varied'],
+            'short' => $summary[$t->id]['short'], 'over' => $summary[$t->id]['over'], 'value' => $summary[$t->id]['value'],
+            'days' => $summary[$t->id]['days']])->values();
+        $variance['rows'] = $postedRows->sortByDesc(fn ($r) => abs($r['value']))->take(10)->values()->all();
+        $variance['coverage_rows'] = $postedRows->sortBy(fn ($r) => $r['pct'] ?? 100)->take(10)->map(fn ($r) => $r + ['tone' => ($r['pct'] ?? 100) < 95 ? 'text-red bold' : ''])->values()->all();
+        $worstLine = $variance['worst'];
+        $variance['pct_tone'] = ($variance['pct'] ?? 0) >= 95 ? 'green' : 'amber';
+        $variance['pct_label'] = $variance['pct'].' %';
+        $variance['value_sub'] = $variance['adjusted'].' line'.($variance['adjusted'] === 1 ? '' : 's').' adjusted across the posted counts';
+        $variance['worst_short'] = $worstLine ? ['item' => $worstLine->item?->name, 'unit' => $worstLine->item?->unit,
+            'take' => $all->firstWhere('id', $worstLine->stock_take_id)?->take_no,
+            'counted' => (float) $worstLine->counted_qty, 'system' => (float) $worstLine->system_qty,
+            'qty' => abs((float) $worstLine->varianceQty()), 'cost' => (float) $worstLine->unit_cost,
+            'value' => abs((float) $worstLine->varianceValue())] : null;
+
+        $posting = ['drafts' => $drafts->count(), 'cancelled' => $all->where('status', 'cancelled')->count(),
+            'value' => round((float) $drafts->sum(fn ($t) => abs($summary[$t->id]['value'])), 2),
+            'lines' => (int) $drafts->sum(fn ($t) => $summary[$t->id]['lines']),
+            'counted' => (int) $drafts->sum(fn ($t) => $summary[$t->id]['counted']),
+            'oldest' => $drafts->sortBy(fn ($t) => $t->count_date->toDateString())->first(),
+            'oldest_days' => (int) $drafts->max(fn ($t) => $summary[$t->id]['days']),
+            'rows' => $drafts->sortBy(fn ($t) => $t->count_date->toDateString())->map(fn ($t) => ['take' => $t->take_no,
+                'store' => $t->store?->name, 'date' => $t->count_date, 'days' => $summary[$t->id]['days'],
+                'counted' => $summary[$t->id]['counted'], 'lines' => $summary[$t->id]['lines'],
+                'value' => $summary[$t->id]['value'],
+                'tone' => $summary[$t->id]['days'] > 7 ? 'text-red bold' : ''])->values()->all()];
+        $posting['oldest_tone'] = $posting['oldest_days'] > 7 ? 'red' : 'slate';
+        $posting['sub'] = $posting['drafts'].' draft'.($posting['drafts'] === 1 ? '' : 's')
+            .' · oldest '.$posting['oldest_days'].' day'.($posting['oldest_days'] === 1 ? '' : 's').' unposted';
+
         return view('inventory.stocktakes', [
-            'takes' => StockTake::with('store', 'creator', 'poster')->withCount(['lines', 'lines as counted_count' => fn ($q) => $q->whereNotNull('counted_qty')])->latest('id')->paginate(25),
+            'takes' => $takes, 'summary' => $summary, 'variance' => $variance, 'posting' => $posting,
             'stores' => Store::orderBy('name')->pluck('name', 'id'),
             'categories' => ItemCategory::orderBy('name')->pluck('name', 'id'),
         ]);

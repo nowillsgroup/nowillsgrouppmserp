@@ -4138,6 +4138,53 @@ ok('the drift leaves the gap whole' in read(os.path.join(ROOT, 'deploy/dev/audit
 ok("/reorder-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26ar · stock take: the variance, the coverage and the posting ─────────────────────
+st_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/StockTakeController.php'))
+st_fn = st_ctrl[st_ctrl.index('public function index()'):st_ctrl.index('public function store(')]
+ok("'skipped' => $postedLines->count() - $countedLines->count()," in st_fn,
+   'the lines posted with no counted figure are counted as skipped, which is exactly the lines nobody looked at')
+ok("'pct' => $postedLines->count() ? round($countedLines->count() / $postedLines->count() * 100, 1) : null," in st_fn,
+   'coverage is counted lines over posted lines, and null where nothing has been posted — not a reassuring 100')
+ok("$countedLines = $postedLines->filter(fn ($l) => $l->counted_qty !== null);" in st_fn,
+   'a line counts as counted only where somebody wrote a figure down, because post() leaves the rest on the book')
+ok("'worst_take' => $posted->filter(fn ($t) => $summary[$t->id]['pct'] !== null)" in st_fn,
+   'the thinnest sheet is found rather than averaged into the total')
+ok("$variance['worst_short'] = $worstLine ? ['item' => $worstLine->item?->name, 'unit' => $worstLine->item?->unit," in st_fn,
+   'and the largest single shortage is kept as a line, with its item, its quantity and its cost')
+ok("'short' => round((float) $counted->sum(fn ($l) => min(0, (float) $l->varianceValue())), 2)," in st_fn,
+   'the short side and the over side are kept apart per sheet, because a net hides which one happened')
+ok("'value' => round((float) $drafts->sum(fn ($t) => abs($summary[$t->id]['value'])), 2)," in st_fn,
+   'the value held out of the books is the size of the unposted variance, whichever way it went')
+ok("'oldest_days' => (int) $drafts->max(fn ($t) => $summary[$t->id]['days'])," in st_fn,
+   'and the age of the oldest draft is measured from its count date')
+ok("$variance['pct_tone'] = ($variance['pct'] ?? 0) >= 95 ? 'green' : 'amber';" in st_fn,
+   'the tones are decided where the arithmetic is, so no comparison lands inside a template attribute')
+ok("$posting['sub'] = $posting['drafts'].' draft'.($posting['drafts'] === 1 ? '' : 's')" in st_fn,
+   'and the header wording is pluralised in PHP, because the renderer cannot hold two ternaries in one attribute')
+st_view = read(os.path.join(ROOT, 'resources/views/inventory/stocktakes.blade.php'))
+ok('id="stVariance"' in st_view and 'What did the count find?' in st_view and 'id="varianceTable"' in st_view,
+   'the page asks what the count found, and lists the posted sheets behind the answer')
+ok('id="stVarianceState"' in st_view and "$variance['worst_short']['item']" in st_view,
+   'the verdict names the largest single shortage with its quantity, its cost and its money')
+ok('id="stCoverage"' in st_view and 'How much of the shelf was actually counted?' in st_view and 'id="coverageTable"' in st_view,
+   'and how much of the shelf was actually counted is a card of its own, with the thinnest sheet named')
+ok('id="stPosting"' in st_view and 'What is still out of the ledger?' in st_view and 'id="postingTable"' in st_view,
+   'what is still out of the ledger sits beside it, with the oldest draft aged and named')
+ok('data-net=' in st_view and 'data-coverage=' in st_view and 'data-age=' in st_view and 'data-status=' in st_view,
+   'every reading is carried on the row it came from, so the check can hold the template to the figures')
+ok('id="stChain"' in st_view and 'It is worth nothing until it is posted' in st_view,
+   'the page says what a count is worth on its own, which is the point of the round')
+ok('deploy/dev/preview/stocktakes-sample.mjs' and 'pct_tone' in read(os.path.join(ROOT, 'deploy/dev/preview/stocktakes-sample.mjs')),
+   'the sample carries the same tones the controller computes, so the preview cannot drift from the contract')
+ok('the verdict names the largest single line with its quantity, its cost and its value' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktakes_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the drift shows the same six sheets with one more posted' in read(os.path.join(ROOT, 'deploy/dev/audit/stocktakes_preview_check.js')),
+   'and proves the readings are independent: posting a thin sheet moves the variance, the coverage and the posting, not the shelf')
+ok("/stocktakes-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+ok("'POST', '/stock-takes'" not in st_view and "$takes->total()" in st_view,
+   'the sheet count comes from the paginator, so the header and the list cannot disagree')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
