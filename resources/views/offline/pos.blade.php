@@ -130,7 +130,7 @@
     <div class="offline-pos-modal-body">
       <p class="small muted" data-pos-sides-note>This dish comes with a side. Pick one or more, or continue without if the guest does not want one.</p>
       <p class="small bold" data-pos-sides-warn role="alert" style="color:#b91c1c" hidden>This dish must be served with a side dish — pick at least one.</p>
-      <div data-pos-sides-list></div>
+      <div class="offline-pos-side-cards" data-pos-sides-list></div>
     </div>
     <div class="offline-pos-modal-foot">
       <button type="button" class="btn btn-sm" data-pos-sides-skip>Continue with none</button>

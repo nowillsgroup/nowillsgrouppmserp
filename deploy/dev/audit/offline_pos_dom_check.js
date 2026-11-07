@@ -25,6 +25,8 @@ try {
   process.exit(0);
 }
 
+const text = el => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
 let failures = 0;
 const ok = (label, condition, detail = '') => {
   if (condition) {
@@ -144,6 +146,29 @@ ok('nothing is added to the ticket before the side is chosen', document.querySel
 // Sides are ticked, not chosen one of one: a dish can carry a charged side AND a free one.
 const sideBoxes = sheet.querySelectorAll('input[type="checkbox"]');
 ok('the sides in the sheet are checkboxes, one per side', sideBoxes.length === 2, `found ${sideBoxes.length}`);
+
+// v10.34 the side sheet is a shelf of cards, the shape the online till uses: the terminal is tapped with a thumb, and a
+// card is a target where a line of small print is not. The card keeps .offline-pos-side-row for the count code.
+const sideCards = sheet.querySelectorAll('.offline-pos-side-card');
+ok('the sides are drawn as cards, one per side', sideCards.length === 2, `${sideCards.length} cards`);
+ok('the shelf is a grid the sheet can lay out', Boolean(sheet.querySelector('.offline-pos-side-cards')));
+ok('a card carries the dish name and the rate it adds',
+  text(sideCards[0].querySelector('.offline-pos-side-name')) === 'French fries'
+  && /12\.50/.test(text(sideCards[0].querySelector('.offline-pos-side-rate'))), text(sideCards[0]));
+ok('a card that adds nothing says so on the card', /included/.test(text(sideCards[1].querySelector('.offline-pos-side-rate'))));
+ok('the count sits on the card it counts',
+  sideCards[0].querySelector('[data-side-count]') && sideCards[0].querySelectorAll('[data-side-step]').length === 2);
+ok('a card still answers as a row to the code that reads it',
+  [...sideCards].every(card => card.classList.contains('offline-pos-side-row') && card.querySelector('input[type=checkbox]')));
+const offlineCss = read('public/css/offline.css');
+ok('the cards sit on a shelf, not in a column',
+  /\.offline-pos-side-cards\{[^}]*grid-template-columns:repeat\(auto-fill,minmax\(158px,1fr\)\)/.test(offlineCss));
+ok('a ticked card is drawn as chosen — the rail, the tint and the count',
+  /\.offline-pos-side-card:has\(input:checked\)\{[^}]*border-color:var\(--c-primary\)[^}]*background:var\(--c-primary-50\)/.test(offlineCss)
+  && /\.offline-pos-side-card:has\(input:checked\) \.offline-pos-side-qty\{visibility:visible\}/.test(offlineCss));
+ok('an unticked card does not advertise a count it has not been given',
+  /\.offline-pos-side-card \.offline-pos-side-qty\{justify-self:end;visibility:hidden\}/.test(offlineCss));
+
 sideBoxes.forEach(box => { box.checked = true; });
 // a double portion is the same side twice (v9.31): the count sits on the row
 const friesRow = sideBoxes[0].closest('.offline-pos-side-row');
