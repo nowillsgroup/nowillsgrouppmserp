@@ -4097,6 +4097,47 @@ ok('the drift leaves the delivery record alone' in read(os.path.join(ROOT, 'depl
 ok("/scorecard-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the drift build is reachable from the preview gallery')
 
+# ── 26aq · re-order suggestions: the gap, the pipeline and the cover ──────────────────
+ro_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/StockTakeController.php'))
+ro_fn = ro_ctrl[ro_ctrl.index('public function reorder()'):ro_ctrl.index('public function reorderStore(')]
+ok("$usage = StockMovement::where('date', '>=', $since)->where('qty', '<', 0)->groupBy('inventory_item_id')" in ro_fn,
+   'usage is taken from the stock movements that left the store, over a window a buyer can argue with')
+ok("$draft = PurchaseOrderItem::join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')" in ro_fn,
+   'the part of the pipeline still in draft is found on the order lines, because a draft is not coming')
+ok("$requested = RequisitionLine::whereHas('requisition', fn ($q) => $q->whereIn('status', ['approved', 'partial']))" in ro_fn,
+   'and what departments have asked for is read from the approved requisitions, not guessed')
+ok("$r->days_cover = $r->per_day > 0 ? (int) round($r->stock / $r->per_day) : null;" in ro_fn,
+   'days of cover is stock over the daily draw, and null where nothing has moved — not zero')
+ok("$r->short = round(max(0, $r->level * 2 - $r->stock), 2);" in ro_fn,
+   'the gap is measured to twice the level, which is the rule the suggestion itself uses')
+ok("'nothing' => $rows->filter(fn ($r) => $r->on_order <= 0 && $r->requested_qty <= 0 && $r->suggest > 0)->count()," in ro_fn,
+   'a shortage with neither an order nor a request against it is counted, because nothing is coming for it')
+ok("$cover['aged_sub'] = $cover['aged']" in ro_fn,
+   'the ninety-day wording is pluralised where it is written rather than in the template')
+ok("$r->used_label = number_format($r->used60);" in ro_fn,
+   'and quantities arrive formatted, so the view prints digits and does no arithmetic')
+ro_view = read(os.path.join(ROOT, 'resources/views/inventory/reorder.blade.php'))
+ok('id="roGap"' in ro_view and 'How far below the level is the shelf?' in ro_view and 'id="gapTable"' in ro_view,
+   'the page asks how far below the level the shelf is, and lists the gap')
+ok('id="roGapState"' in ro_view and "The largest is {{ $gap['worst']->item->name }}" in ro_view,
+   'the largest shortage is named with its units, its level and its money rather than totalled')
+ok('id="roPipeline"' in ro_view and 'What is already on its way?' in ro_view and 'id="pipeTable"' in ro_view,
+   'what is already coming is on the page the order is raised from')
+ok("$pipeline['worst']->draft_qty" in ro_view and 'data-draft=' in ro_view,
+   'an order in draft is named as money that will not arrive, and marked on its row')
+ok('id="roCover"' in ro_view and 'How many days of stock is left?' in ro_view and 'id="coverTable"' in ro_view,
+   'and the level is held against the usage behind it, in days rather than in units')
+ok('id="roCoverState"' in ro_view and 'data-cover=' in ro_view and 'days\' cover' in ro_view,
+   'the item that runs out first is named with the date, and its cover is on every row')
+ok('id="roChain"' in ro_view and 'A level alone only says what somebody once thought was enough' in ro_view,
+   'the page says what a level on its own is worth, which is the point of the round')
+ok('the verdict names the largest shortage with its units, its level and its money rather than a total' in read(os.path.join(ROOT, 'deploy/dev/audit/reorder_preview_check.js')),
+   'the preview check holds that naming to the sentence it promises')
+ok('the drift leaves the gap whole' in read(os.path.join(ROOT, 'deploy/dev/audit/reorder_preview_check.js')),
+   'and proves the readings are independent: a draft order and a busy week move the pipeline and the cover, not the shelf')
+ok("/reorder-drift" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the drift build is reachable from the preview gallery')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
