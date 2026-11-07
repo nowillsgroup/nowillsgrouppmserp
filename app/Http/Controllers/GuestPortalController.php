@@ -159,7 +159,7 @@ class GuestPortalController extends Controller
         $cats = $items = collect();
         if ($outlet) {
             $cats = MenuCategory::where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->orderBy('sort_order')->get();
-            $items = MenuItem::with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
+            $items = MenuItem::with(['variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
                 ->where('is_available', true)->whereIn('menu_category_id', $cats->pluck('id'))
                 ->where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->orderBy('name')->get();
             $cats = $cats->filter(fn ($c) => $items->contains('menu_category_id', $c->id))->values();
@@ -175,10 +175,14 @@ class GuestPortalController extends Controller
         $data = $request->validate([
             'items' => 'required|array|min:1|max:30', 'items.*.id' => 'required|integer|owned:menu_items',
             'items.*.qty' => 'required|integer|min:1|max:20', 'items.*.notes' => 'nullable|string|max:120',
-            'items.*.modifiers' => 'nullable|array|max:20', 'items.*.modifiers.*' => 'integer|owned:menu_modifiers', 'website' => 'nullable|size:0',
+            'items.*.modifiers' => 'nullable|array|max:20', 'items.*.modifiers.*' => 'integer|owned:menu_modifiers',
+            // v9.32 the room can order a side dish, count it twice, or be made to choose one
+            'items.*.variants' => 'nullable|array|max:30', 'items.*.variants.*' => 'integer|owned:menu_item_variants',
+            'website' => 'nullable|size:0',
         ]);
         try {
-            $order = GuestPortalService::orderDining($stay, $data['items']);
+            // the guest portal can ask for a side dish, so the dish's own rule is held here
+            $order = GuestPortalService::orderDining($stay, $data['items'], null, 'portal', true);
         } catch (RuntimeException $e) {
             return $this->fail($e);
         }

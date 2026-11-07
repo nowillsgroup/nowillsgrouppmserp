@@ -248,14 +248,22 @@ class GuestPortalService
         return $id ? Outlet::where('is_active', true)->find($id) : null;
     }
 
-    public static function orderDining(ReservationRoom $stay, array $lines, ?string $notes = null, string $source = 'portal'): PosOrder
+    /**
+     * An in-room dining order: the guest portal page, or the room TV.
+     *
+     * Side dishes ride with the add-ons so the kitchen, the KOT and the bill read one list — the same snapshot the
+     * restaurant terminal and the QR menu use (v9.32), counted per portion. $requireSides holds a dish to its own rule
+     * ("a side dish must be chosen"); it is asked for by the caller that can offer the choice, because a screen that
+     * cannot show a side dish must not be able to fail on one.
+     */
+    public static function orderDining(ReservationRoom $stay, array $lines, ?string $notes = null, string $source = 'portal', bool $requireSides = false): PosOrder
     {
         $outlet = self::diningOutlet();
         if (! $outlet || $stay->portalState() !== 'inhouse') {
             throw new RuntimeException('In-room dining is not available right now.');
         }
 
-        return DB::transaction(function () use ($stay, $lines, $outlet, $notes, $source) {
+        return DB::transaction(function () use ($stay, $lines, $outlet, $notes, $source, $requireSides) {
             $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
             if ($stay->portalState() !== 'inhouse') {
                 throw new RuntimeException('In-room dining is no longer available for this stay. Please refresh the guest portal.');
@@ -270,12 +278,18 @@ class GuestPortalService
                 'business_date' => Tenant::hotel()->business_date, 'status' => 'open', 'covers' => 1,
             ]);
             foreach ($lines as $index => $l) {
-                $m = MenuItem::with(['modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
+                $m = MenuItem::with(['variants', 'modifierGroups' => fn ($q) => $q->where(fn ($w) => $w->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->with('modifiers')])
                     ->where('is_available', true)->where(fn ($q) => $q->whereNull('outlet_id')->orWhere('outlet_id', $outlet->id))->find($l['id']);
                 if (! $m) {
                     throw new RuntimeException('One of the selected dishes is no longer available.');
                 }
+                if ($requireSides && $m->side_dish_required && empty($l['variants'])) {
+                    throw new RuntimeException("{$m->name} is served with a side dish – please choose one.");
+                }
                 [$modifierSnapshots, $modifierAmount] = PosModifierService::snapshot($m, $l['modifiers'] ?? [], $index);
+                [$sideDishSnapshots, $sideDishAmount] = PosMenuVariantService::snapshot($m, $l['variants'] ?? [], $index);
+                $modifierSnapshots = array_merge($modifierSnapshots, $sideDishSnapshots);
+                $modifierAmount = round($modifierAmount + $sideDishAmount, 2);
                 $rate = round((float) $m->price + $modifierAmount, 2);
                 $order->items()->create(['menu_item_id' => $m->id, 'item_name' => $m->name, 'qty' => $l['qty'], 'rate' => $rate,
                     'modifier_amount' => $modifierAmount, 'modifiers' => $modifierSnapshots, 'tax_rate' => $m->tax_rate,

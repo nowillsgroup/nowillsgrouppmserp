@@ -310,6 +310,8 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/waiter-pos.html');
   } else if (pathname === '/sidebar-navigation' || pathname === '/__preview/sidebar-navigation') {
     file = resolve(ROOT, 'deploy/dev/previews/sidebar-navigation.html');
+  } else if (pathname === '/guest-dining' || pathname === '/__preview/guest-dining') {
+    file = resolve(ROOT, 'deploy/dev/previews/guest-dining.html');
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
   } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {

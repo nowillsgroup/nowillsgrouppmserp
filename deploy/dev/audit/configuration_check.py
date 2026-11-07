@@ -4707,6 +4707,66 @@ ok('a side can be counted twice' in read(os.path.join(ROOT, 'deploy/dev/previews
 ok('sides are ticked and counted' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'and says the offline sheet does too')
 
+# ── 26cc · in-room dining: the guest picks the side dish, and may count it twice ──
+portal_dining = read(os.path.join(ROOT, 'resources/views/portal/dining.blade.php'))
+ok('data-variants="{{ json_encode($i->variants->map(' in portal_dining,
+   'the in-room dining page publishes each dish\'s side dishes, escaped exactly once')
+ok('&amp;quot;' not in portal_dining,
+   'and not twice, which would leave the sheet unopenable')
+ok('data-side-required="{{ $i->side_dish_required' in portal_dining,
+   'the dish says on the page whether its side dish is owed')
+ok('id="sideSheet"' in portal_dining and 'id="sideChoices"' in portal_dining,
+   'a side-dish sheet sits beside the options sheet')
+ok('function sideUnits(sides){ return (sides || []).flatMap(s => Array(Math.max(1, Number(s.qty) || 1)).fill(Number(s.id))).sort((a, b) => a - b); }' in portal_dining,
+   'the order repeats the id once per portion — the same units the till posts')
+ok('name="items[${i}][variants][]"' in portal_dining,
+   'and posts them as variants, which is what the server counts')
+ok("+ sides.reduce((sum, s) => sum + Number(s.price_delta || 0) * Math.max(1, Number(s.qty) || 1), 0)" in portal_dining,
+   'the line is priced per portion, so a double portion is charged twice')
+ok("add.disabled = sideWanted(sideTarget) && !picked.length;" in portal_dining,
+   'a dish whose side is required cannot be added without one')
+ok("document.getElementById('sideSkip').style.display = sideWanted(sideTarget) ? 'none' : '';" in portal_dining,
+   'and no “no side dish” shortcut is offered on it')
+ok('if (n <= 0) delete sideCounts[id]; else sideCounts[id] = Math.min(9, n);' in portal_dining,
+   'the count runs from one to nine on the guest\'s phone, and never closes the sheet while it is stepped')
+ok('.gp-side-row{display:flex' in portal_dining and '.gp-side-qty button[disabled]{opacity:.35' in portal_dining,
+   'one row per side dish, each with its own − / + and a spent state at the cap')
+ok('PosMenuVariantService::describe(collect($i->modifiers ?? [])->where(\'type\', \'side_dish\'))' in portal_dining,
+   'the guest reads back what was ordered, “French fries ×2” included')
+gp_service = read(os.path.join(ROOT, 'app/Services/GuestPortalService.php'))
+ok("MenuItem::with(['variants', 'modifierGroups'" in gp_service,
+   'the room-service order loads the side dishes with the dish')
+ok("PosMenuVariantService::snapshot($m, $l['variants'] ?? [], $index)" in gp_service,
+   'and snapshots them beside the add-ons, into the same list the kitchen already reads')
+ok("if ($requireSides && $m->side_dish_required && empty($l['variants'])) {" in gp_service,
+   'a dish that owes a side dish is refused by the server, not only by the screen')
+ok('bool $requireSides = false' in gp_service,
+   'the rule is asked for by the caller that can offer the choice, never assumed')
+gp_controller = read(os.path.join(ROOT, 'app/Http/Controllers/GuestPortalController.php'))
+ok("'items.*.variants' => 'nullable|array|max:30', 'items.*.variants.*' => 'integer|owned:menu_item_variants'," in gp_controller,
+   'the portal validates side dishes exactly as the till does')
+ok("GuestPortalService::orderDining($stay, $data['items'], null, 'portal', true)" in gp_controller,
+   'and asks for the rule, because the page can honour it')
+ok("GuestPortalService::orderDining($stay, $clean, null, 'tv')" in read(os.path.join(ROOT, 'app/Services/IptvService.php')),
+   'the room TV, which cannot yet offer a side dish, does not ask for a rule it cannot keep')
+ok('Interview' not in read(os.path.join(ROOT, 'deploy/dev/build-guest-dining-preview.js')),
+   'the preview is built, not written')
+ok("click(document.getElementById('sideAdd'));" in read(os.path.join(ROOT, 'deploy/dev/build-guest-dining-preview.js')),
+   'by tapping the side dish and then adding the line, as the guest would')
+ok('in-room dining · the side dish' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')).lower()
+   or 'In-room dining · the side dish' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery lists the new screen')
+ok('guest-dining' in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'and the preview server serves it')
+ok("ok('the double portion is charged twice'" in read(os.path.join(ROOT, 'deploy/dev/audit/guest_dining_preview_check.js')),
+   'a preview check holds the frozen frames to the figures the guest saw')
+ok("ok('both units of the double portion are posted'" in read(os.path.join(ROOT, 'deploy/dev/audit/guest_dining_preview_check.js')),
+   'and to the payload the room-service order would carry')
+ok("ok('the same dish and the same side dishes stay one line'" in read(os.path.join(ROOT, 'deploy/dev/audit/portal_dining_check.js')),
+   'the page itself is driven in jsdom: the same dish and sides stay one line, a different side is its own')
+ok("ok('a required side dish cannot be skipped'" in read(os.path.join(ROOT, 'deploy/dev/audit/portal_dining_check.js')),
+   'and the required side dish is held to its rule by the screen')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
