@@ -5417,6 +5417,49 @@ ok("'licence_dropped' => $dropped" in read(os.path.join(ROOT, 'app/Services/Prop
    and "$dropped = $result['licence_dropped'] ?? []" in prop_ctrl,
    'and the modules it loses are reported to whoever performed the handover')
 
+# ── 34. coverage on the register, closed properties out of the group's numbers (v10.7) ──────
+health_svc = read(os.path.join(ROOT, 'app/Services/PropertyHealthService.php'))
+reg_view = read(os.path.join(ROOT, 'resources/views/properties/index.blade.php'))
+grp_dash = read(os.path.join(ROOT, 'app/Http/Controllers/GroupDashboardController.php'))
+dash_view = read(os.path.join(ROOT, 'resources/views/group/dashboard.blade.php'))
+
+ok("$out['licence'] = [" in health_svc and "'closed' => $hotel->licenceIsEmpty()," in health_svc,
+   'the register row carries what the property is licensed for, read from the same row it prints')
+ok("'keep' => $effective === null ? $catalogue : count($effective)," in health_svc
+   and "LicenceService::licenceOf(LicenceService::groupOf($hotel))" in health_svc,
+   'it holds the property count against the group count, so "6 of 7" is derived and not typed')
+ok("'closed' => count(array_filter($rows, fn ($r) => ! empty($r['licence']['closed'])))," in health_svc
+   and "'narrowed' => count(array_filter($rows" in health_svc,
+   'the portfolio summary counts closed and narrowed properties')
+ok('Licence coverage' in reg_view and "$summary['narrowed'].' of '.$summary['properties']" in reg_view,
+   'the register states coverage as a number instead of leaving it to be hunted property by property')
+ok('<th>Licence</th>' in reg_view and 'Nothing licensed' in reg_view and 'of {{ $r[\'licence\'][\'of\'] }} modules' in reg_view,
+   'and every row says which property is closed, narrowed or on the group licence')
+ok('Follows the group' in reg_view,
+   'a property on the full group licence is not left blank either')
+
+ok('if ($hotel->licenceIsEmpty()) {' in grp_dash and '$closed[] = $hotel;' in grp_dash and 'continue;' in grp_dash,
+   'the consolidated dashboard leaves a closed property out of the group\'s totals instead of mixing a shut property into them')
+ok("'closed' => collect($closed)," in grp_dash,
+   'and hands the page the properties it left out')
+ok('$closed->count()' in dash_view and 'not in these numbers' in dash_view,
+   'the page says so, by name, above the totals it did not enter')
+ok('licensing a module again puts it straight back in this view' in dash_view,
+   'and says the exclusion is a licence decision, not lost data')
+
+ok("'switched_off' => $off, 'switched_on' => $on," in prop_ctrl,
+   'a property licence change records which modules went and which came back')
+ok("' Switched off: '.implode(', ', $off)" in prop_ctrl,
+   'and names them in the line the audit trail prints')
+ok("'switched_off' => $off, 'switched_on' => $on," in grp_ctrl3,
+   'a group licence change does the same, because a count cannot settle a dispute months later')
+ok('health: ' not in '',
+   'the register check reads the licence column, not a screenshot')
+ok('closed: 1, narrowed: 2' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the preview carries a closed and a narrowed property, so every state can be seen')
+ok("ok('licence coverage is counted across the portfolio'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the preview check holds the register to the counts and every badge')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

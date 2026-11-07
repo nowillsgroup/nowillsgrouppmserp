@@ -10,6 +10,17 @@
   <x-stat label="In-house guests" :value="number_format($totals['in_house'])" icon="users" tone="teal" :sub="$totals['arrivals'].' arrivals · '.$totals['departures'].' departures'"/>
 </div>
 
+@if($closed->isNotEmpty())
+  <div class="alert alert-warn"><x-icon name="alert" /><div>
+    <b>{{ $closed->count() }} property{{ $closed->count() === 1 ? ' is' : 'ies are' }} licensed for no modules and {{ $closed->count() === 1 ? 'is' : 'are' }} not in these numbers.</b>
+    @foreach($closed as $c){{ $c->name }}@if(! $loop->last), @endif @endforeach
+    — nobody can post there, and counting its rooms would flatten the group's occupancy. Its history is untouched: licensing a module again puts it straight back in this view.
+    @if(can_do('properties.view'))
+      <div class="tiny muted" style="margin-top:4px"><a href="{{ route('properties.index') }}">Open the property register</a> to see what each property runs.</div>
+    @endif
+  </div></div>
+@endif
+
 <div class="card flush"><div class="card-head"><h3>Properties</h3><span class="small muted">Each property uses its own business date</span></div>
   <div class="card-body table-wrap"><table class="table">
     <thead><tr><th>Property</th><th>Business date</th><th class="center">Occupancy</th><th class="num">In-house</th><th class="num">Arr / Dep</th><th class="num">Revenue today</th><th class="num">ADR</th><th class="num">Revenue MTD</th><th class="center">Alerts</th><th></th></tr></thead>

@@ -96,6 +96,21 @@ ok('the property you are standing in offers no switch', !byName('The Grove Essip
 ok('a suspended property cannot be switched into', !byName('Nowills Kumasi City')?.[9].includes('Switch'));
 ok('the register explains the lifecycle', rdoc.body.textContent.includes('never deleted'));
 
+// v10.7 licence coverage is a column on the register, not a hunt through five property pages
+ok('licence coverage is counted across the portfolio', stat('Licence coverage')?.value === '2 of 5', stat('Licence coverage')?.value);
+{
+  const statEl = [...rdoc.querySelectorAll('.stat')].find(s => s.querySelector('.l').textContent.trim() === 'Licence coverage');
+  ok('and the closed property is said out loud in the stat',
+     (statEl?.textContent || '').includes('1 licensed for nothing'), (statEl?.textContent || '').slice(0, 80));
+}
+ok('the register has a licence column', [...rdoc.querySelectorAll('thead th')].some(th => th.textContent.trim() === 'Licence'));
+const rowText = name => (byName(name) || []).join(' ');
+ok('a property licensed for nothing reads as closed',
+   rowText('Nowills Kumasi City').includes('Nothing licensed') && rowText('Nowills Kumasi City').includes('no screen opens'));
+ok('a narrowed property says how many modules it keeps', rowText('The Grove Essipong Beach Resort').includes('6 of 7 modules'));
+ok('and how many it switched off', rowText('The Grove Essipong Beach Resort').includes('1 switched off at this property'));
+ok('a property on the full group licence says so', rowText('Nowills Airport City Hotel').includes('Follows the group'));
+
 /* ── the property page ─────────────────────────────────────────────────────── */
 const sh = new JSDOM(read('deploy/dev/previews/property-show.html'), { url: 'https://preview.local/properties/1' });
 const sdoc = sh.window.document;

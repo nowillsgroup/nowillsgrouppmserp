@@ -24,8 +24,17 @@ class GroupDashboardController extends Controller
         $current = Tenant::hotel();
         $rows = [];
         $trend = [];
+        $closed = [];
         try {
             foreach ($user->accessibleHotels() as $hotel) {
+                // v10.7 a property licensed for no modules is shut: nobody can work in it and nothing
+                // new can be posted there. Its rooms must not sit in the group's occupancy denominator
+                // and its stale month-to-date must not be added to revenue as though it were trading,
+                // so it is left out of the consolidated numbers — and named underneath them.
+                if ($hotel->licenceIsEmpty()) {
+                    $closed[] = $hotel;
+                    continue;
+                }
                 Tenant::set($hotel);
                 $rows[] = $this->metrics($hotel, $trend);
             }
@@ -39,6 +48,7 @@ class GroupDashboardController extends Controller
 
         return view('group.dashboard', [
             'rows' => $rows, 'trend' => $trend,
+            'closed' => collect($closed),
             'group' => $user->group,
             'totals' => [
                 'rooms' => $rooms, 'occupied' => $occupied, 'occ' => $rooms ? round($occupied * 100 / $rooms, 1) : 0,

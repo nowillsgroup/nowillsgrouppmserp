@@ -12,6 +12,7 @@
   <x-stat label="Sellable rooms" :value="number_format($summary['rooms'])" icon="bed" tone="teal" :sub="$summary['occupied'].' occupied now'" />
   <x-stat label="Occupancy" :value="$summary['occ'].'%'" icon="chart" tone="green" :sub="$summary['in_house'].' rooms in-house'" />
   <x-stat label="People with access" :value="number_format($summary['staff'])" icon="users" tone="purple" :sub="'Across every property you can see'" />
+  <x-stat label="Licence coverage" :value="$summary['narrowed'].' of '.$summary['properties']" icon="key" :tone="$summary['closed'] ? 'red' : ($summary['narrowed'] ? 'amber' : 'slate')" :sub="$summary['closed'] ? $summary['closed'].' licensed for nothing · the rest follow the group' : 'Every property follows the group licence'" />
   <x-stat label="Night audit behind" :value="$summary['behind']" icon="clock" :tone="$summary['behind'] ? 'amber' : 'slate'" :sub="$summary['behind'] ? 'Business date not rolled forward' : 'Every live property is current'" />
 </div>
 
@@ -46,7 +47,7 @@
     <table class="table">
       <thead><tr>
         <th>Property</th><th>State</th><th>Business date</th><th class="center">Rooms</th><th class="center">Occupancy</th>
-        <th class="num">In-house</th><th class="num">Staff</th><th class="num">Open POS</th><th>Clock</th><th></th>
+        <th class="num">In-house</th><th class="num">Staff</th><th class="num">Open POS</th><th>Licence</th><th>Clock</th><th></th>
       </tr></thead>
       <tbody>
       @foreach($rows as $r)
@@ -72,6 +73,19 @@
           <td class="num">{{ $r['in_house'] }}</td>
           <td class="num">{{ $r['staff'] }}</td>
           <td class="num">{{ $r['open_pos'] ?: '—' }}</td>
+          {{-- v10.7 what this property is licensed for, so coverage is a column and not a hunt --}}
+          <td class="small">
+            @if($r['licence']['closed'])
+              <span class="badge badge-red">Nothing licensed</span>
+              <div class="tiny muted">Closed: no module is licensed here, so no screen opens</div>
+            @elseif($r['licence']['narrowed'])
+              <span class="badge badge-amber">{{ $r['licence']['keep'] }} of {{ $r['licence']['of'] }} modules</span>
+              <div class="tiny muted">{{ $r['licence']['missing'] }} switched off at this property</div>
+            @else
+              <span class="badge badge-slate">Follows the group</span>
+              <div class="tiny muted">{{ $r['licence']['of'] }} module(s), as the group holds them</div>
+            @endif
+          </td>
           <td class="small">{{ $p->currency }} · {{ $p->timezone }}</td>
           <td class="right" style="white-space:nowrap">
             <a class="btn btn-sm" href="{{ route('properties.show', $p) }}">Open</a>

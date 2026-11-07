@@ -44,6 +44,20 @@ class PropertyHealthService
 
         $out['needs_night_audit'] = $hotel->isLive() && $out['lag'] > 0;
 
+        // v10.7 what this property is licensed for, read from the same row the register prints.
+        // A property licensed for nothing is closed, and the register has to say so before an
+        // operator wonders why it has no occupancy: the numbers are real, the door is shut.
+        $catalogue = count(LicenceService::catalogue());
+        $effective = LicenceService::licenceOfHotel($hotel);
+        $groupLicence = LicenceService::licenceOf(LicenceService::groupOf($hotel));
+        $out['licence'] = [
+            'closed' => $hotel->licenceIsEmpty(),
+            'narrowed' => ! $hotel->followsGroupLicence(),
+            'keep' => $effective === null ? $catalogue : count($effective),
+            'of' => $groupLicence === null ? $catalogue : count($groupLicence),
+            'missing' => $effective === null ? 0 : max(0, ($groupLicence === null ? $catalogue : count($groupLicence)) - count($effective)),
+        ];
+
         return $out;
     }
 
@@ -81,6 +95,9 @@ class PropertyHealthService
             'in_house' => array_sum(array_column($rows, 'in_house')),
             'staff' => array_sum(array_column($rows, 'staff')),
             'behind' => count(array_filter($live, fn ($r) => $r['needs_night_audit'])),
+            // v10.7 licence coverage across the portfolio, so it is a number rather than a hunt
+            'closed' => count(array_filter($rows, fn ($r) => ! empty($r['licence']['closed']))),
+            'narrowed' => count(array_filter($rows, fn ($r) => ! empty($r['licence']['narrowed']))),
         ];
     }
 }

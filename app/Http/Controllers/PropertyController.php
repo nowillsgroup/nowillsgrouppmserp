@@ -283,12 +283,25 @@ class PropertyController extends Controller
         LicenceService::forget();
 
         $count = count($everything) - count($chosen->all());
+
+        // v10.7 name the modules, not only their number: "6 of 7" cannot settle a dispute months
+        // later, and the two lists (what went off, what came back) are what somebody actually asks.
+        $was = $before === null ? $everything : $before;
+        $is = $now === null ? $everything : $now;
+        $off = array_values(array_diff($was, $is));
+        $on = array_values(array_diff($is, $was));
+
         PropertyEvent::record('licence_changed', sprintf(
-            'Licence at %s %s. %s',
+            'Licence at %s %s. %s%s',
             $hotel->name,
             $now === null ? 'set to follow the group' : 'narrowed to '.count($chosen).' of '.count($everything).' module(s)',
-            $count > 0 ? $count.' module(s) switched off at this property only; the group keeps them.' : 'Nothing was switched off.'
-        ), $hotel, ['before' => $before, 'licensed' => $now, 'actor' => $user->username]);
+            $count > 0 ? $count.' module(s) switched off at this property only; the group keeps them.' : 'Nothing was switched off.',
+            ($off ? ' Switched off: '.implode(', ', $off).'.' : '')
+                .($on ? ' Switched back on: '.implode(', ', $on).'.' : '')
+        ), $hotel, [
+            'before' => $before, 'licensed' => $now, 'actor' => $user->username,
+            'switched_off' => $off, 'switched_on' => $on,
+        ]);
 
         return back()->with('success', $now === null
             ? "{$hotel->name} follows the group licence again — including modules added later."

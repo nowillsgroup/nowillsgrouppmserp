@@ -74,17 +74,21 @@ export const PROPERTIES = [
 ];
 
 /** PropertyHealthService::row() per property, summarised the way the register does it. */
+// v10.7 the licence column: what each property runs, and whether it is closed altogether
+const licence = (closed, narrowed, keep, of) => ({ closed, narrowed, keep, of, missing: of - keep });
+
 const HEALTH = [
-  { hotel: PROPERTIES[0], rooms: 96, occupied: 78, occ: 81.3, in_house: 61, open_pos: 3, staff: 214, business_date: day('2026-11-07'), lag: 0, needs_night_audit: false },
-  { hotel: PROPERTIES[1], rooms: 120, occupied: 103, occ: 85.8, in_house: 88, open_pos: 5, staff: 260, business_date: day('2026-11-06'), lag: 1, needs_night_audit: true },
-  { hotel: PROPERTIES[2], rooms: 74, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 96, business_date: day('2026-10-12'), lag: 26, needs_night_audit: false },
-  { hotel: PROPERTIES[3], rooms: 24, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 0, business_date: day('2026-11-07'), lag: 0, needs_night_audit: false },
-  { hotel: PROPERTIES[4], rooms: 40, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 12, business_date: day('2026-09-30'), lag: 38, needs_night_audit: false },
+  { hotel: PROPERTIES[0], rooms: 96, occupied: 78, occ: 81.3, in_house: 61, open_pos: 3, staff: 214, business_date: day('2026-11-07'), lag: 0, needs_night_audit: false, licence: licence(false, true, 6, 7) },
+  { hotel: PROPERTIES[1], rooms: 120, occupied: 103, occ: 85.8, in_house: 88, open_pos: 5, staff: 260, business_date: day('2026-11-06'), lag: 1, needs_night_audit: true, licence: licence(false, false, 7, 7) },
+  { hotel: PROPERTIES[2], rooms: 74, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 96, business_date: day('2026-10-12'), lag: 26, needs_night_audit: false, licence: licence(true, true, 0, 7) },
+  { hotel: PROPERTIES[3], rooms: 24, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 0, business_date: day('2026-11-07'), lag: 0, needs_night_audit: false, licence: licence(false, false, 7, 7) },
+  { hotel: PROPERTIES[4], rooms: 40, occupied: 0, occ: 0, in_house: 0, open_pos: 0, staff: 12, business_date: day('2026-09-30'), lag: 38, needs_night_audit: false, licence: licence(false, false, 7, 7) },
 ];
 
 export const SUMMARY = {
   properties: 5, live: 2, draft: 1, suspended: 1, archived: 1,
   rooms: 354, occupied: 181, occ: 51.1, in_house: 149, staff: 582, behind: 1,
+  closed: 1, narrowed: 2,
 };
 
 const STAFF = (name, username) => ({ name, username, hotel_id: 1 });

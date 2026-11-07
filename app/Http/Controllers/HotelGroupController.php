@@ -108,16 +108,27 @@ class HotelGroupController extends Controller
         $unknown = $chosen->diff($modules);
         $chosen = $chosen->diff($unknown)->values();
 
+        $before = $group->licensedModules();   // read before the licence is replaced
         $now = $chosen->count() === count($modules) ? null : $chosen->all();
         $group->forceFill(['licensed_modules' => $now])->save();
         LicenceService::forget($group->id);
 
         $restricted = $now === null ? 0 : count($modules) - count($now);
 
+        // v10.7 the trail names the modules: a count tells the next administrator nothing about
+        // which screen the group lost, and that is the only question ever asked of this row.
+        $was = $before === null ? $modules : $before;
+        $is = $now === null ? $modules : $now;
+        $off = array_values(array_diff($was, $is));
+        $on = array_values(array_diff($is, $was));
+
         PropertyEvent::record('licence_changed', 'Licence for '.$group->name.' set to '
             .($now === null ? 'every module' : count($now).' of '.count($modules).' modules')
-            .($restricted ? ' — '.$restricted.' module(s) are not on it' : ''), null, [
+            .($restricted ? ' — '.$restricted.' module(s) are not on it' : '')
+            .($off ? '. Switched off: '.implode(', ', $off) : '')
+            .($on ? '. Switched back on: '.implode(', ', $on) : ''), null, [
                 'group' => $group->code, 'licensed' => $now, 'actor' => $request->user()->username,
+                'switched_off' => $off, 'switched_on' => $on,
             ]);
 
         return back()->with('success', $now === null
