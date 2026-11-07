@@ -357,6 +357,33 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     Route::get('/notifications', [Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/group-dashboard', [Controllers\GroupDashboardController::class, 'index'])->middleware('perm:group.dashboard')->name('group.dashboard');
 
+    /* ---- v10.0 Multi-tenant & multi-property management
+       The register and the property page are readable by anyone with properties.view inside the
+       properties they can reach; every write is gated by properties.manage *and* by the per-property
+       check in the controller, so a property administrator can never edit a sibling property. */
+    Route::prefix('properties')->name('properties.')->controller(Controllers\PropertyController::class)->group(function () {
+        Route::get('/', 'index')->middleware('perm:properties.view')->name('index');
+        Route::get('/new', 'create')->middleware('perm:properties.manage')->name('create');
+        Route::post('/', 'store')->middleware('perm:properties.manage')->name('store');
+        Route::get('/{hotel}', 'show')->whereNumber('hotel')->middleware('perm:properties.view')->name('show');
+        Route::get('/{hotel}/edit', 'edit')->whereNumber('hotel')->middleware('perm:properties.manage')->name('edit');
+        Route::put('/{hotel}', 'update')->whereNumber('hotel')->middleware('perm:properties.manage')->name('update');
+        Route::post('/{hotel}/activate', 'activate')->whereNumber('hotel')->middleware('perm:properties.manage')->name('activate');
+        Route::post('/{hotel}/suspend', 'suspend')->whereNumber('hotel')->middleware('perm:properties.manage')->name('suspend');
+        Route::post('/{hotel}/resume', 'resume')->whereNumber('hotel')->middleware('perm:properties.manage')->name('resume');
+        Route::post('/{hotel}/archive', 'archive')->whereNumber('hotel')->middleware('perm:properties.manage')->name('archive');
+        Route::post('/{hotel}/access', 'grant')->whereNumber('hotel')->middleware('perm:properties.manage')->name('access.grant');
+        Route::delete('/{hotel}/access/{user}', 'revoke')->whereNumber('hotel')->whereNumber('user')->middleware('perm:properties.manage')->name('access.revoke');
+    });
+
+    /* The group account itself: identity, inheritance defaults, entitlement, tenant suspension. */
+    Route::prefix('group')->name('group.')->controller(Controllers\HotelGroupController::class)->group(function () {
+        Route::get('/', 'edit')->middleware('perm:properties.manage')->name('account');
+        Route::post('/', 'update')->middleware('perm:properties.manage')->name('account.update');
+        Route::post('/suspend', 'suspend')->middleware('perm:properties.manage')->name('suspend');
+        Route::post('/resume', 'resume')->middleware('perm:properties.manage')->name('resume');
+    });
+
     // ---- Rate management (seasonal pricing, weekend rates, min-stay, stop-sell)
     Route::prefix('rates')->name('rates.')->middleware('perm:reservations.rates')->controller(Controllers\RateController::class)->group(function () {
         Route::get('/', 'index')->name('index');

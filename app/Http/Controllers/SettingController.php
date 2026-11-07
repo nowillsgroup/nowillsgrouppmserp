@@ -208,18 +208,10 @@ class SettingController extends Controller
             'code' => 'required|alpha_dash|max:30|unique:hotels,code', 'name' => 'required|string|max:255', 'property_type' => 'required|in:hotel,resort,guest_house,restaurant,cafe,service_apartment',
             'city' => 'nullable|string|max:255', 'admin_username' => 'required|alpha_dash|max:60', 'admin_password' => 'required|string|min:8',
         ]);
-        $current = hotel();
-        $hotel = DB::transaction(function () use ($data, $user, $current) {
-            $hotel = Hotel::create(['hotel_group_id' => $user->hotel_group_id, 'code' => strtoupper($data['code']), 'name' => $data['name'], 'property_type' => $data['property_type'], 'city' => $data['city'] ?? null,
-                'country' => $current->country, 'currency' => $current->currency, 'currency_symbol' => $current->currency_symbol, 'timezone' => $current->timezone, 'business_date' => now()->toDateString()]);
-            HotelProvisioner::provision($hotel);
-            $admin = new User(['name' => 'Administrator', 'username' => $data['admin_username'], 'password' => $data['admin_password'], 'is_active' => true]);
-            $admin->hotel_id = $hotel->id;
-            $admin->is_super_admin = true;
-            $admin->save();
-
-            return $hotel;
-        });
+        // v10.0 the settings shortcut creates a *draft* property through the same service the
+        // property module uses, so the group entitlement, the inherited defaults and the audit
+        // trail apply whichever screen the property is opened from.
+        $hotel = app(\App\Services\PropertyService::class)->create($user->group, $data + ['status' => 'draft', 'business_date' => now()->toDateString()], $user);
         ActivityLogger::log('settings', 'add_property', "Added property {$hotel->name} ({$hotel->code})", $hotel);
 
         return back()->with('success', "Property {$hotel->name} created. Use Switch Hotel to open it.");

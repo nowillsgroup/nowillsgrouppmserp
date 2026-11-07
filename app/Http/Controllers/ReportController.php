@@ -7394,20 +7394,24 @@ class ReportController extends Controller
 
     protected function r_hotel_groups($from, $to): array
     {
-        $rows = HotelGroup::with('managementCompany')->get()->map(fn ($r) => [
-            'name' => $r->name, 'code' => $r->code, 'mc' => optional($r->managementCompany)->name,
-            'hotels' => $r->hotel_count, 'rooms' => $r->total_rooms, 'contact' => $r->contact_email,
-            'status' => $r->status, 'description' => $r->description,
+        // v10.0 reads the group account's real columns (identity, entitlement, live property count)
+        // rather than the non-existent managementCompany relation and aggregates it used to guess at.
+        $rows = HotelGroup::orderBy('name')->get()->map(fn ($r) => [
+            'name' => $r->name, 'code' => $r->code, 'mc' => $r->managementCompanyName(),
+            'hotels' => $r->hotels()->notArchived()->count(), 'rooms' => $r->roomCount(), 'contact' => $r->contact_email,
+            'status' => $r->statusLabel(), 'description' => $r->description,
         ]);
         return ['cols' => ['name' => 'Name', 'code' => 'Code', 'mc' => 'Management Co', 'hotels' => 'Hotels', 'rooms' => 'Rooms', 'contact' => 'Contact', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Hotel group register.'];
     }
 
     protected function r_management_agreements($from, $to): array
     {
-        $rows = ManagementAgreement::with('hotel.hotelGroup.managementCompany')->get()->map(fn ($r) => [
-            'hotel' => optional($r->hotel)->name, 'group' => optional($r->hotelGroup)->name,
-            'mc' => optional($r->managementCompany)->name, 'start' => $r->agreement_start,
-            'end' => $r->agreement_end, 'fee_pct' => $r->management_fee_pct,
+        // v10.0 the register reads the agreement's own dates and fee column, and the group through
+        // the hotel's group relation, instead of four attributes that do not exist.
+        $rows = ManagementAgreement::with('hotel.group')->get()->map(fn ($r) => [
+            'hotel' => optional($r->hotel)->name, 'group' => optional(optional($r->hotel)->group)->name,
+            'mc' => optional(optional($r->hotel)->group)->managementCompanyName(), 'start' => $r->effective_from,
+            'end' => $r->ends_on, 'fee_pct' => $r->base_fee_pct,
             'status' => $r->status, 'notes' => $r->notes,
         ]);
         return ['cols' => ['hotel' => 'Hotel', 'group' => 'Group', 'mc' => 'Management Co', 'start' => 'Start', 'end' => 'End', 'fee_pct' => 'Fee %', 'status' => 'Status'], 'rows' => $rows, 'note' => 'Management agreement register.'];

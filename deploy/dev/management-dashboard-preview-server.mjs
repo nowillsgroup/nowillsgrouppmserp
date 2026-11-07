@@ -316,6 +316,12 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/tv-dining.html');
   } else if (pathname === '/fbc-sides' || pathname === '/__preview/fbc-sides') {
     file = resolve(ROOT, 'deploy/dev/previews/fbc-sides.html');
+  } else if (pathname === '/properties' || pathname === '/__preview/properties') {
+    file = resolve(ROOT, 'deploy/dev/previews/properties.html'); // v10.0 the multi-property register
+  } else if (pathname === '/property-show' || pathname === '/__preview/property-show') {
+    file = resolve(ROOT, 'deploy/dev/previews/property-show.html'); // v10.0 one property's own page
+  } else if (pathname === '/group-account' || pathname === '/__preview/group-account') {
+    file = resolve(ROOT, 'deploy/dev/previews/group-account.html'); // v10.0 the tenant account
   } else if (pathname === '/offline-pos' || pathname === '/__preview/offline-pos') {
     file = resolve(ROOT, 'deploy/dev/previews/offline-pos.html');
   } else if (pathname === '/offline-frontdesk' || pathname === '/__preview/offline-frontdesk') {

@@ -74,7 +74,7 @@
 </form>
 
 @if($properties->count())
-<div class="card flush mt-2"><div class="card-head"><h3>Group properties</h3><button class="btn btn-sm btn-primary" data-modal="propModal"><x-icon name="plus" size="sm"/> Add property</button></div>
+<div class="card flush mt-2"><div class="card-head"><h3>Group properties</h3><div class="flex gap-1"><a class="btn btn-sm" href="{{ route('properties.index') }}"><x-icon name="building" size="sm"/> Property register</a><button class="btn btn-sm btn-primary" data-modal="propModal"><x-icon name="plus" size="sm"/> Add property</button></div></div>
 <div class="card-body table-wrap"><table class="table"><thead><tr><th>Hotel ID</th><th>Name</th><th>Type</th><th>City</th><th>Business date</th><th>Status</th></tr></thead><tbody>
 @foreach($properties as $p)<tr><td class="bold">{{ $p->code }}</td><td>{{ $p->name }}</td><td>{{ str_replace('_',' ',$p->property_type) }}</td><td>{{ $p->city }}</td><td>{{ $p->business_date->format('d M Y') }}</td><td>{!! $p->is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-slate">Inactive</span>' !!}</td></tr>@endforeach
 </tbody></table></div></div>

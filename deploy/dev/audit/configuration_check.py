@@ -4897,6 +4897,140 @@ ok("ok('the screen raises it before the numbers'" in read(os.path.join(ROOT, 'de
 ok('the side dish sold with no cost at all' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the gallery says the screen names the gap')
 
+# ── 27 · multi-tenant & multi-property management (v10.0) ─────────────────────────
+mig = read(os.path.join(ROOT, 'database/migrations/2026_11_08_000390_property_management_module.php'))
+ok("$t->string('status', 20)->default('active');  // draft | active | suspended | archived" in mig,
+   'a property has a lifecycle, not just an on/off switch')
+ok("Schema::create('property_user'" in mig and "$t->foreignId('role_id')->nullable()" in mig,
+   'access to a second property is an explicit grant, and may carry a role that applies only there')
+ok("Schema::create('property_events'" in mig,
+   'every lifecycle and access decision on a property is recorded')
+ok("$t->unsignedInteger('max_properties')->nullable()" in mig,
+   'the group account carries the property entitlement')
+ok("->update(['status' => 'suspended', 'suspended_at' => now()])" in mig,
+   'a property that was switched off before v10.0 is carried over as suspended, not lost')
+hotel_model = read(os.path.join(ROOT, 'app/Models/Hotel.php'))
+ok("public const STATUSES = ['draft' => 'Draft', 'active' => 'Live', 'suspended' => 'Suspended', 'archived' => 'Archived']" in hotel_model,
+   'the four states are named once, in the model')
+ok('public function isOperable(): bool' in hotel_model and 'return $this->isLive();' in hotel_model,
+   'only a live property can be worked in')
+ok('public function businessDateLag(): int' in hotel_model,
+   'each property is judged on its own business date')
+group_model = read(os.path.join(ROOT, 'app/Models/HotelGroup.php'))
+ok('public function canAddProperty(): bool' in group_model and 'return $this->isSuspended();' not in group_model,
+   'a suspended group cannot open another property')
+ok("return $this->max_properties === null;" in group_model or 'if ($this->max_properties === null)' in group_model,
+   'the entitlement is a real cap when one is set')
+access = read(os.path.join(ROOT, 'app/Services/PropertyAccessService.php'))
+ok('public function canEnter(User $user, Hotel $hotel, bool $forSetup = false): bool' in access,
+   'one service answers "may this person work in this property?"')
+ok('if (! $user->is_active || $hotel->isArchived()) {' in access,
+   'a retired property is closed to everybody')
+ok('if ($group && $group->isSuspended()) {' in access,
+   'and a suspended group closes all of its properties at once')
+ok('return $this->canAdminister($user, $hotel) && $forSetup === false;' in access,
+   'a suspended property is readable by its administrators only')
+ok('return $forSetup && $this->canAdminister($user, $hotel);' in access,
+   'a draft is enterable by its administrators so they can finish the setup')
+prop_service = read(os.path.join(ROOT, 'app/Services/PropertyService.php'))
+ok("throw ValidationException::withMessages(['group' => 'The group entitlement allows '" in prop_service,
+   'the entitlement is enforced where the property is opened, not in the form')
+ok("'You are working in this property. Switch to another property first, then suspend it.'" in prop_service,
+   'a property cannot be suspended underneath the person standing in it')
+ok("'The group would be left with no live property.'" in prop_service,
+   'a group always keeps one live property, so nobody is stranded at sign-in')
+ok("$inHouse.' room(s) still checked in'" in prop_service and "' POS order(s) still open'" in prop_service,
+   'a property with guests or open orders cannot be retired')
+ok("PropertyEvent::record('archived'" in prop_service and "PropertyEvent::record('access_granted'" in prop_service,
+   'every one of those decisions is written to the property audit trail')
+ok("throw ValidationException::withMessages(['user_id' => 'This person belongs to another group." in prop_service,
+   'a grant cannot reach across groups')
+ok("'currency_symbol' => $this->symbolFor($group->currency ?: 'GHS')," in prop_service,
+   'a new property inherits the group defaults, never the current property settings')
+ok('public function touchGrant(Hotel $hotel, ?User $user): void' in prop_service,
+   'a grant records when it was actually used')
+middleware = read(os.path.join(ROOT, 'app/Http/Middleware/SetTenant.php'))
+ok('PropertyAccessService::class);' in middleware,
+   'the middleware asks the same access service as the screens')
+ok("if (! $request->isMethod('GET')) {" in middleware and "return redirect()->route('dashboard')" in middleware,
+   'a person whose property was suspended is moved to another one, not signed out mid-shift')
+ok('Auth::logout();' in middleware,
+   'only a session with nowhere left to go is ended')
+login = read(os.path.join(ROOT, 'app/Http/Controllers/Auth/LoginController.php'))
+ok('app(\\App\\Services\\PropertyAccessService::class)->canEnter($user, $hotel)' in login,
+   'switching properties obeys the same rule')
+user_model = read(os.path.join(ROOT, 'app/Models/User.php'))
+ok('public function effectiveRoleId(?int $hotelId = null): ?int' in user_model,
+   'a role granted with a property governs only that property')
+ok("if ($this->is_super_admin && ! $this->hotel_group_id) {\n            return true; // platform administrator: no group of their own" in user_model,
+   'a property administrator is a super admin inside their property and nothing more')
+ok('return app(\\App\\Services\\PropertyAccessService::class)->operable($this);' in user_model,
+   'the switcher offers live properties only')
+ok('public function isPlatformAdmin(User $user): bool' in access and '! $user->hotel_group_id' in access,
+   'the platform administrator is defined by having no group of their own')
+routes = read(os.path.join(ROOT, 'routes/web.php'))
+ok("Route::prefix('properties')->name('properties.')->controller(Controllers\\PropertyController::class)" in routes,
+   'the property module is routed under one prefix')
+for action in ['index', 'create', 'store', 'show', 'edit', 'update', 'activate', 'suspend', 'resume', 'archive', 'grant', 'revoke']:
+    ok(f"'{action}'" in routes, f'the {action} endpoint is routed')
+ok("name('access.grant')" in routes and "name('access.revoke')" in routes,
+   'and the access list has both a grant and a revoke')
+ok("->name('account')" in routes and "->name('account.update')" in routes,
+   'the group account is routed')
+ok("Route::post('/{hotel}/archive', 'archive')->whereNumber('hotel')->middleware('perm:properties.manage')" in routes,
+   'retiring a property needs properties.manage')
+ok("Route::get('/', 'index')->middleware('perm:properties.view')" in routes,
+   'and reading the register needs properties.view')
+pms = read(os.path.join(ROOT, 'config/pms.php'))
+ok("'properties.view' => 'See the property register" in pms and "'properties.manage' => 'Open, edit, suspend" in pms,
+   'both permissions are registered, so a role can be granted them')
+ok("'label' => 'Properties'" in pms and "'route' => 'properties.index', 'perm' => 'properties.view']" in pms,
+   'the sidebar carries the register')
+ok("'label' => 'Group Account'" in pms and "'route' => 'group.account', 'perm' => 'properties.manage']" in pms,
+   'and the group account beside it')
+register = read(os.path.join(ROOT, 'resources/views/properties/index.blade.php'))
+ok('$p->statusTone()' in register and "@foreach($statuses as $key => $label)" in register,
+   'the register filters by lifecycle state and colours each row by it')
+ok("$r['needs_night_audit']" in register and "d behind</span>" in register,
+   'a property whose night audit is open is flagged on the row')
+ok('never deleted' in register,
+   'and the screen says a property is retired, never deleted')
+show = read(os.path.join(ROOT, 'resources/views/properties/show.blade.php'))
+ok("route('properties.activate', $property)" in show and "route('properties.suspend', $property)" in show
+   and "route('properties.resume', $property)" in show,
+   'the property page offers exactly the lifecycle move that fits the state it is in')
+ok("route('properties.access.grant', $property)" in show and 'applies in this property only' in show,
+   'and the grant form explains the per-property role')
+ok('$blockers' in show,
+   'retirement names what is still open')
+group_view = read(os.path.join(ROOT, 'resources/views/group/account.blade.php'))
+ok("route('group.account.update'" in group_view and "route('group.suspend'" in group_view,
+   'the group account edits its identity and can be suspended as a whole')
+ok('$canSuspendGroup' in group_view,
+   'but only the platform administrator may suspend a tenant')
+settings_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/SettingController.php'))
+ok('app(\\App\\Services\\PropertyService::class)->create($user->group, $data +' in settings_ctrl,
+   'the old "add property" shortcut now goes through the same service, so the entitlement and the audit trail apply')
+reports = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php'))
+ok("HotelGroup::with('managementCompany')" not in reports and 'managementCompanyName()' in reports,
+   'the group report reads a group column that exists instead of a relation that never did')
+ok("'start' => $r->agreement_start" not in reports and "'start' => $r->effective_from" in reports,
+   'and the management-agreement register reads the agreement dates it actually has')
+ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/previews/properties.html'))
+   and os.path.exists(os.path.join(ROOT, 'deploy/dev/previews/property-show.html'))
+   and os.path.exists(os.path.join(ROOT, 'deploy/dev/previews/group-account.html')),
+   'all three screens are built as previews')
+ok("'/properties' || pathname === '/__preview/properties'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the preview server serves the register')
+ok('<h2>The group account</h2>' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery lists the tenant account too')
+ok('<h2>The property register</h2>' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and the gallery lists it')
+ok("ok('the property you are standing in offers no switch'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'the preview check holds the register to what it claims about switching')
+ok("ok('a live property does not offer activation'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
+   'and the property page to offering only the action that fits')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
