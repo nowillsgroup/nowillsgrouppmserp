@@ -204,6 +204,53 @@ class BanquetSalesService
             ->where('start_time', '<', $en)->where('end_time', '>', $s)->get();
     }
 
+    /**
+     * Which venues answer one enquiry: free for the slot, too small for the set-up, or held.
+     *
+     * "Held" is the answer the sales desk actually needs — the room is not free because
+     * another event has it, and the desk should see whose event and how it sits against the
+     * turn-around before it promises the date.
+     *
+     * @param  list<int>  $exceptFunctionIds  the event's own functions, when editing
+     * @return Collection<int, array{hall: BanquetHall, capacity: int, rent: float, status: string, held: ?BanquetFunction}>
+     */
+    public static function availability(string $date, string $start, string $end, int $pax, ?string $style, array $exceptFunctionIds = []): Collection
+    {
+        $hours = max(0, (self::mins($end) - self::mins($start)) / 60);
+
+        return BanquetHall::where('is_active', true)->orderBy('sort')->orderBy('name')->get()
+            ->map(function ($hall) use ($date, $start, $end, $pax, $style, $exceptFunctionIds, $hours) {
+                $capacity = $hall->capacityFor($style);
+                $held = self::clashes($hall->id, $date, $start, $end, $exceptFunctionIds)->first();
+
+                return ['hall' => $hall, 'capacity' => $capacity, 'rent' => (float) $hall->rentFor($hours), 'held' => $held,
+                    'status' => $held ? 'held' : ($capacity > 0 && $pax > $capacity ? 'small' : 'free')];
+            });
+    }
+
+    /**
+     * Every hold that could collide with a function the form is typing, for the next few months.
+     *
+     * The booking form is a page, not an API call: the desk is on the telephone and cannot wait
+     * for a round trip on every keystroke. A property's holds over a season are a small list,
+     * so the form carries them and answers the question as the date and the clock are typed.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function busy(int $days = 180, ?int $exceptEventId = null): Collection
+    {
+        return BanquetFunction::with('event')->whereDate('date', '>=', bdate()->toDateString())
+            ->whereDate('date', '<=', bdate()->copy()->addDays($days)->toDateString())
+            ->whereHas('event', fn ($q) => $q->whereIn('status', BanquetEvent::HOLDS)
+                ->when($exceptEventId, fn ($w) => $w->where('id', '!=', $exceptEventId)))
+            ->orderBy('date')->orderBy('start_time')->get()
+            ->map(fn ($f) => ['hall' => (int) $f->banquet_hall_id, 'date' => $f->date->toDateString(),
+                'start' => substr((string) $f->start_time, 0, 5), 'end' => substr((string) $f->end_time, 0, 5),
+                'event' => $f->event->event_no, 'title' => $f->event->title ?: $f->event->contact_name,
+                'status' => $f->event->status, 'fn' => $f->name])
+            ->values();
+    }
+
     /** @param Collection<object> $fns candidate functions (attrs + id) of one event */
     protected static function assertNoClash(Collection $fns, ?int $eventId): void
     {

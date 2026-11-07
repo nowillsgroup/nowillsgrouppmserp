@@ -137,6 +137,14 @@ export const SERVICES = [
 
 export const DIETS = { vegetarian: 'Vegetarian', vegan: 'Vegan', gluten_free: 'Gluten-free', coeliac: 'Coeliac', nut_allergy: 'Nut allergy', other: 'Other' };
 
+/** Holds that could collide with what the desk is typing: BanquetSalesService::busy(). */
+export const BUSY = [
+  { hall: 1, date: '2026-11-19', start: '19:00', end: '23:00', event: 'BQT-26039', title: 'Zenith Bank staff awards', status: 'definite', fn: 'Awards dinner' },
+  { hall: 3, date: '2026-11-21', start: '12:00', end: '16:00', event: 'BQT-26044', title: 'Ministry of Tourism workshop', status: 'tentative', fn: 'Workshop' },
+  { hall: 2, date: '2026-11-14', start: '18:00', end: '22:00', event: 'BQT-26037', title: 'Ashanti Gold gala', status: 'definite', fn: 'Gala dinner' },
+  { hall: 4, date: '2026-12-02', start: '08:30', end: '12:30', event: 'BQT-26051', title: 'Ghana Revenue Authority briefing', status: 'tentative', fn: 'Briefing' },
+];
+
 export const SERVICE_CATEGORIES = { av: 'Audio-visual', decor: 'Décor & flowers', entertainment: 'Entertainment', equipment: 'Equipment & furniture', staffing: 'Staffing', other: 'Other' };
 
 const CAPACITY_KEYS = Object.keys(SETUPS);
@@ -251,10 +259,17 @@ export function banquetContext(mode = 'new') {
     },
     old: (key, fallback = null) => fallback,
     route: (name, params) => {
+      // these three take a query string, not a record
+      const queryPath = { 'banquet.create': '/banquet/create', 'banquet.availability': '/banquet/availability', 'banquet.diary': '/banquet/diary' }[name];
+      if (queryPath) {
+        const query = Object.entries(params && typeof params === 'object' ? params : {})
+          .filter(([, value]) => value !== null && value !== undefined && value !== '')
+          .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&');
+        return query ? `${queryPath}?${query}` : queryPath;
+      }
       const id = params && typeof params === 'object' && 'id' in params ? params.id : (params ?? '');
       switch (name) {
         case 'banquet.index': return '/banquet';
-        case 'banquet.create': return '/banquet/create';
         case 'banquet.store': return '/banquet';
         case 'banquet.show': return `/banquet/${id}`;
         case 'banquet.update': return `/banquet/${id}`;
@@ -278,7 +293,13 @@ export function banquetContext(mode = 'new') {
     in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
     array_values: (value) => (value instanceof Coll ? value.items.slice() : Object.values(value ?? {})),
     array_merge: (...parts) => Object.assign({}, ...parts.map(part => part ?? {})),
-    array_filter: (list, fn) => (list ?? []).filter(item => (typeof fn === 'function' ? fn(item) : Boolean(item))),
+    array_filter: (list, fn) => {
+      const test = (value) => (typeof fn === 'function' ? fn(value) : Boolean(value));
+      if (list instanceof Coll) return list.items.filter(test);
+      if (Array.isArray(list)) return list.filter(test);
+      // a keyed array — array_filter(['pax' => null, 'hall' => 2]) keeps the truthy entries
+      return Object.fromEntries(Object.entries(list ?? {}).filter(([, value]) => test(value)));
+    },
     array_slice: (list, offset, length) => (list instanceof Coll ? list.items : list ?? []).slice(offset, length === undefined ? undefined : offset + length),
     implode: (glue, list) => (list instanceof Coll ? list.items : list ?? []).join(glue),
     is_numeric: (value) => value !== null && value !== '' && !Number.isNaN(Number(value)),
@@ -328,11 +349,68 @@ export function banquetContext(mode = 'new') {
       salesUsers: { 12: 'Efua Danso', 14: 'Kwame Asare', 19: 'Nadia Owusu' },
       hallData: hallData(),
       pkgData: pkgData(),
+      // the booking form answers the venue question as the desk types, from this list
+      busy: BUSY,
+      turnaround: 60,
       svcData: svcData(),
       halfDayHours,
       hallTax,
       // what the layout adds around the form
       title: mode === 'edit' ? `Edit ${EDIT_EVENT.event_no}` : 'New Banquet Enquiry',
+    },
+  };
+}
+
+/**
+ * The venue search: BanquetController::availability() rendered.
+ *
+ *   mixed  date 2026-11-19, 19:00–23:00, 120 guests at rounds — one venue held by a
+ *          definite wedding, two free, two too small for that set-up
+ *   idle   the page before the desk has typed anything: the prompt, and the turn-around note
+ */
+export function availabilityContext(variant = 'mixed') {
+  const base = banquetContext('new');
+  const turnaround = 60;
+  const searched = variant !== 'idle';
+  const slot = { date: '2026-11-19', start: '19:00', end: '23:00', pax: searched ? 120 : 0, style: 'banquet' };
+  const hours = (Number(slot.end.slice(0, 2)) * 60 + Number(slot.end.slice(3))) / 60
+    - (Number(slot.start.slice(0, 2)) * 60 + Number(slot.start.slice(3))) / 60;
+
+  // BUSY's hall-1 hold sits squarely on this slot; every other venue in BUSY is on another night
+  const clash = BUSY.find(row => row.hall === 1 && row.date === slot.date);
+  const heldFunction = clash && {
+    id: 4121, name: clash.fn, banquet_hall_id: clash.hall, date: clash.date,
+    start_time: clash.start, end_time: clash.end,
+    timeRange: () => `${clash.start}–${clash.end}`,
+    event: { event_no: clash.event, title: clash.title, contact_name: 'Zenith Bank Ghana', status: clash.status },
+  };
+
+  const rank = { free: 0, held: 1, small: 2 };
+  const rows = searched ? HALLS.map(hall => {
+    const capacity = hall.caps[slot.style] || hall.capacity;
+    const held = clash && clash.hall === hall.id ? heldFunction : null;
+    return {
+      hall: { id: hall.id, name: hall.name },
+      capacity,
+      rent: hours > 5 ? hall.full : hall.half,
+      held,
+      status: held ? 'held' : (capacity > 0 && slot.pax > capacity ? 'small' : 'free'),
+    };
+  }).sort((a, b) => rank[a.status] - rank[b.status] || a.hall.id - b.hall.id) : [];
+  const count = status => rows.filter(row => row.status === status).length;
+  const firstFree = rows.find(row => row.status === 'free');
+
+  return {
+    helpers: base.helpers,
+    fallbacks: base.fallbacks,
+    scope: {
+      ...base.scope,
+      date: slot.date, start: slot.start, end: slot.end, pax: slot.pax, style: slot.style, searched,
+      rows, freeCount: count('free'), heldCount: count('held'), smallCount: count('small'),
+      firstFreeHall: firstFree ? firstFree.hall.id : null,
+      turnaround,
+      setups: SETUPS,
+      title: 'Find a venue',
     },
   };
 }

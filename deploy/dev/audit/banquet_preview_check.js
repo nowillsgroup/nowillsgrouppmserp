@@ -7,8 +7,9 @@
  *
  * Two things this check is deliberately honest about:
  *
- *   1. the form knows capacity live and nothing about availability — the whole point of
- *      the preview is that a clash only shows up when the form is saved, and
+ *   1. the form knows capacity and venue availability live — the clash warning reads the
+ *      season's holds that came with the page, so a held room is flagged as the date and
+ *      clock are typed rather than when Save comes back, and
  *   2. the booking rules themselves (clash buffer, deposit gate, guarantee lock) are not
  *      exercised anywhere, because tests/ has none for banquet. The assertions below say
  *      what the screen does, not what the service promises.
@@ -132,13 +133,42 @@ ok('the venue rent follows the clock: half day, then full day',
   /Half-day rate/.test(fn.querySelector('.fn-rent')?.textContent ?? ''),
   fn.querySelector('.fn-rent')?.textContent);
 
-/* ── what the form does NOT know ─────────────────────────────────────────── */
+/* ── what the form knows about the room, as the desk types ───────────────── */
+// The form used to know nothing about what was already in a venue: a clash surfaced as a
+// validation error after Save. It now carries the season's holds and answers on the keystroke.
 const formScript = create.$$('script').map(script => script.textContent).join('\n');
-ok('the form prices the booking but cannot see what is already in the venue',
-  !/clash|availability|already held|overlap/i.test(formScript),
-  'no availability data reaches the form — a clash is an error on save, not a warning as you type');
-ok('nothing in the form reaches the server before it is submitted',
-  !/fetch\(|XMLHttpRequest/.test(formScript));
+const setSlot = (card, hall, date, start, end) => {
+  const venue = card.querySelector('[data-f=banquet_hall_id]');
+  venue.value = hall; create.fire(venue, 'change');
+  const day = card.querySelector('[data-f=date]'); day.value = date; create.fire(day);
+  const from = card.querySelector('[data-f=start_time]'); from.value = start; create.fire(from);
+  const to = card.querySelector('[data-f=end_time]'); to.value = end; create.fire(to);
+  return card.querySelector('.fn-avail');
+};
+ok('a venue already held that night is flagged before the form is saved', (() => {
+  const hint = setSlot(fn, '1', '2026-11-19', '19:00', '23:00');
+  return /BQT-26039/.test(hint.textContent) && /holds this venue 19:00–23:00/.test(hint.textContent);
+})(), fn.querySelector('.fn-avail')?.textContent);
+ok('a definite hold is shown in red', fn.querySelector('.fn-avail')?.classList.contains('text-red'));
+ok('a tentative hold is a warning, not a refusal', (() => {
+  const hint = setSlot(fn, '3', '2026-11-21', '12:00', '16:00');
+  return /BQT-26044/.test(hint.textContent) && /tentative/.test(hint.textContent)
+    && hint.classList.contains('text-amber') && !hint.classList.contains('text-red');
+})(), fn.querySelector('.fn-avail')?.textContent);
+ok('the turn-around is part of the test: 22:00 out blocks a 22:30 start', (() => {
+  const hint = setSlot(fn, '2', '2026-11-14', '22:30', '23:30');
+  return /BQT-26037/.test(hint.textContent) && /60 minutes/.test(hint.textContent);
+})(), fn.querySelector('.fn-avail')?.textContent);
+ok('a free venue says so rather than staying silent', (() => {
+  const hint = setSlot(fn, '2', '2026-11-19', '19:00', '23:00');
+  return /Free for this slot/.test(hint.textContent) && hint.classList.contains('text-green');
+})(), fn.querySelector('.fn-avail')?.textContent);
+ok('the answer is on the page — no round trip while the desk is on the telephone',
+  /const BUSY = \[/.test(formScript) && !/fetch\(|XMLHttpRequest/.test(formScript));
+ok('the form links out to the venue search', (() => {
+  const link = create.$('#findVenue');
+  return !!link && /Find a free venue/.test(link.textContent) && link.getAttribute('href') === '/banquet/availability';
+})());
 
 /* ── the estimate ────────────────────────────────────────────────────────── */
 ok('the estimate is a running total, not a promise',

@@ -1677,6 +1677,12 @@
         <span class="nav-label">Events &amp; Enquiries</span>
       </a>
     </div>
+    <div class="nav-item nav-link-item" data-nav-key="food-beverage.banquet.find-a-venue" data-nav-label="Find a Venue">
+      <a href="#" title="Find a Venue" data-route="banquet.availability">
+        <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
+        <span class="nav-label">Find a Venue</span>
+      </a>
+    </div>
     <div class="nav-item nav-link-item" data-nav-key="food-beverage.banquet.function-diary" data-nav-label="Function Diary">
       <a href="#" title="Function Diary" data-route="banquet.diary">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
@@ -3118,7 +3124,7 @@
       </section>
 
       <section class="bq-function-area" id="bqFunctionPlan" aria-labelledby="bqFunctionsTitle">
-      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div>
+      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><div class="flex items-center gap-1"><a class="btn btn-sm" href="/banquet/availability" id="findVenue"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg> Find a free venue</a><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div></div>
       <div id="fnList" class="bq-function-list" role="list" aria-label="Event functions"></div>
       <button type="button" class="btn bq-add-function" id="addFn" aria-controls="fnList"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Add another function</button>
       </section>
@@ -3147,7 +3153,7 @@
       <div class="field"><label>Name</label><input class="input" data-f="name" maxlength="120" placeholder="Reception, Day 1 plenary"></div>
       <div class="field"><label>Venue <span class="req">*</span></label><select class="input" data-f="banquet_hall_id" required><option value="">— Venue —</option><option value="1">The Grand Ballroom</option><option value="2">Oceanview Suite</option><option value="3">Garden Pavilion</option><option value="4">Conference Hall A</option><option value="5">Boardroom</option></select></div>
       <div class="field"><label>Date <span class="req">*</span></label><input type="date" class="input" data-f="date" required></div>
-      <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div></div>
+      <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div><span class="hint fn-avail" aria-live="polite"></span></div>
       <div class="field"><label>Set-up</label><select class="input" data-f="setup_style"><option value="theatre">Theatre</option><option value="classroom">Classroom</option><option value="banquet">Banquet (rounds)</option><option value="ushape">U-shape</option><option value="cocktail">Cocktail / standing</option><option value="boardroom">Boardroom</option></select></div>
       <div class="field"><label>Expected guests <span class="req">*</span></label><input type="number" min="1" max="10000" class="input" data-f="expected_pax" required><span class="hint fn-cap"></span></div>
       <div class="field"><label>Guaranteed guests</label><input type="number" min="1" max="10000" class="input" data-f="guaranteed_pax" placeholder="Final numbers"></div>
@@ -3185,6 +3191,7 @@
       <script>
       (function () {
       const HALLS = {"1":{"cap":400,"caps":{"theatre":400,"classroom":220,"banquet":350,"ushape":90,"cocktail":600,"boardroom":60},"half":6500,"full":11000},"2":{"cap":180,"caps":{"theatre":180,"classroom":100,"banquet":150,"ushape":60,"cocktail":240,"boardroom":40},"half":3800,"full":6200},"3":{"cap":200,"caps":{"theatre":200,"classroom":120,"banquet":180,"ushape":70,"cocktail":300,"boardroom":45},"half":4200,"full":7000},"4":{"cap":90,"caps":{"theatre":90,"classroom":60,"banquet":70,"ushape":40,"cocktail":120,"boardroom":34},"half":1900,"full":3200},"5":{"cap":18,"caps":{"theatre":18,"classroom":12,"banquet":0,"ushape":16,"cocktail":30,"boardroom":18},"half":900,"full":1500}}, PKGS = {"11":{"p":320,"min":50,"t":21,"n":"Gold Buffet"},"12":{"p":260,"min":40,"t":21,"n":"Silver Buffet"},"13":{"p":385,"min":30,"t":21,"n":"Plated three-course"},"14":{"p":460,"min":30,"t":21,"n":"Plated four-course"},"15":{"p":210,"min":60,"t":21,"n":"Cocktail reception"},"16":{"p":65,"min":20,"t":21,"n":"Coffee break"},"17":{"p":520,"min":80,"t":21,"n":"Gala dinner"},"18":{"p":95,"min":50,"t":21,"n":"House drinks package"},"19":{"p":140,"min":30,"t":21,"n":"Wine with dinner"},"20":{"p":210,"min":80,"t":21,"n":"Premium open bar"}}, SVCS = {"21":{"n":"PA system + 2 microphones","p":1800,"t":15,"u":"event"},"22":{"n":"LED wall 4m × 2.5m","p":5500,"t":15,"u":"event"},"23":{"n":"Stage lighting package","p":2400,"t":15,"u":"event"},"24":{"n":"Table centrepieces","p":120,"t":15,"u":"table"},"25":{"n":"Floral arch","p":3200,"t":15,"u":"event"},"26":{"n":"Live band (4 pieces)","p":7500,"t":15,"u":"event"},"27":{"n":"DJ + sound","p":3500,"t":15,"u":"event"},"28":{"n":"Round table (10 seats)","p":95,"t":15,"u":"table"},"29":{"n":"Chiavari chair","p":35,"t":15,"u":"chair"},"30":{"n":"Usher / hostess","p":320,"t":15,"u":"staff"},"31":{"n":"Security officer","p":380,"t":15,"u":"staff"},"32":{"n":"Cloakroom attendant","p":260,"t":15,"u":"staff"}}, HALF = 5, HALLTAX = 21;
+      const BUSY = [{"hall":1,"date":"2026-11-19","start":"19:00","end":"23:00","event":"BQT-26039","title":"Zenith Bank staff awards","status":"definite","fn":"Awards dinner"},{"hall":3,"date":"2026-11-21","start":"12:00","end":"16:00","event":"BQT-26044","title":"Ministry of Tourism workshop","status":"tentative","fn":"Workshop"},{"hall":2,"date":"2026-11-14","start":"18:00","end":"22:00","event":"BQT-26037","title":"Ashanti Gold gala","status":"definite","fn":"Gala dinner"},{"hall":4,"date":"2026-12-02","start":"08:30","end":"12:30","event":"BQT-26051","title":"Ghana Revenue Authority briefing","status":"tentative","fn":"Briefing"}], TURN = 60;
       const INIT = [{"id":4101,"name":"Traditional ceremony","banquet_hall_id":3,"date":"2026-12-12","start_time":"14:00","end_time":"17:00","setup_style":"theatre","expected_pax":150,"guaranteed_pax":150,"banquet_package_id":null,"rate_per_pax":0,"hall_rate":4200,"banquet_bar_package_id":null,"bar_rate_per_pax":0,"notes":"Elders seated at the front; two chairs for the officiants. Family provides the drinks — no corkage to be charged. Guarantee closed three days out.","locked":true,"dietary":[],"items":[{"banquet_service_id":21,"description":"PA system + 2 microphones","qty":1,"unit_price":1800,"tax_rate":15},{"banquet_service_id":29,"description":"Chiavari chair","qty":156,"unit_price":35,"tax_rate":15}]},{"id":4102,"name":"Reception & dinner","banquet_hall_id":1,"date":"2026-12-12","start_time":"19:00","end_time":"23:30","setup_style":"banquet","expected_pax":180,"guaranteed_pax":180,"banquet_package_id":11,"rate_per_pax":320,"hall_rate":11000,"banquet_bar_package_id":18,"bar_rate_per_pax":95,"notes":"Head table for 12 on the dais. Band to finish by 23:00 per the house rule; 600-standing for the cocktail hour before dinner.","locked":false,"dietary":[{"diet":"vegetarian","covers":12,"dish":"Vegetable jollof with grilled plantain"},{"diet":"coeliac","covers":2,"dish":"Grilled fish, gluten-free plate"},{"diet":"nut_allergy","covers":1,"dish":"No satay — plain grilled chicken"}],"items":[{"banquet_service_id":23,"description":"Stage lighting package","qty":1,"unit_price":2400,"tax_rate":15},{"banquet_service_id":24,"description":"Table centrepieces","qty":18,"unit_price":120,"tax_rate":15},{"banquet_service_id":26,"description":"Live band (4 pieces)","qty":1,"unit_price":7500,"tax_rate":15}]}];
       const list = document.getElementById('fnList'), fnTpl = document.getElementById('fnTpl').innerHTML, itTpl = document.getElementById('itemTpl').innerHTML, dietTpl = document.getElementById('dietTpl').innerHTML;
       const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -3247,6 +3254,16 @@
       button.title = button.disabled ? `A maximum of ${MAX_ITEMS} extras can be added to one function.` : '';
       }
       if (count) count.textContent = rows === 0 ? 'No extras yet' : `${rows} / ${MAX_ITEMS} extras`;
+      }
+      const mins = t => { const [h, m] = String(t || '').split(':').map(Number); return (h * 60 + m) || 0; };
+      /** The hold this function would collide with, allowing the turn-around either side. */
+      function clash(card) {
+      const hall = card.querySelector('[data-f=banquet_hall_id]').value;
+      const date = card.querySelector('[data-f=date]').value;
+      const start = card.querySelector('[data-f=start_time]').value, end = card.querySelector('[data-f=end_time]').value;
+      if (!hall || !date || !start || !end) return null;
+      return BUSY.find(b => String(b.hall) === String(hall) && b.date === date
+      && mins(b.start) - TURN < mins(end) && mins(b.end) + TURN > mins(start)) || null;
       }
       function hours(card) {
       const s = card.querySelector('[data-f=start_time]').value, e = card.querySelector('[data-f=end_time]').value;
@@ -3355,6 +3372,25 @@
       const capHint = card.querySelector('.fn-cap');
       capHint.textContent = hall ? `${capacity} seats in this set-up` : 'Select a venue to check capacity';
       capHint.classList.toggle('text-red', !!capacityWarning);
+      const held = clash(card);
+      const availHint = card.querySelector('.fn-avail');
+      if (availHint) {
+      const hasSlot = hallSelect.value && card.querySelector('[data-f=date]').value
+      && card.querySelector('[data-f=start_time]').value && card.querySelector('[data-f=end_time]').value;
+      if (held) {
+      availHint.textContent = `${held.event} holds this venue ${held.start}–${held.end} (${held.status}) — allow ${TURN} minutes to turn the room round.`;
+      availHint.classList.remove('text-green');
+      availHint.classList.toggle('text-red', held.status === 'definite' || held.status === 'completed');
+      availHint.classList.toggle('text-amber', !(held.status === 'definite' || held.status === 'completed'));
+      } else if (hasSlot) {
+      availHint.textContent = 'Free for this slot.';
+      availHint.classList.add('text-green');
+      availHint.classList.remove('text-red', 'text-amber');
+      } else {
+      availHint.textContent = '';
+      availHint.classList.remove('text-red', 'text-amber', 'text-green');
+      }
+      }
       const hoursBooked = hours(card);
       const defaultRent = hall ? (hoursBooked > HALF && hall.full > 0 ? hall.full : hall.half) : 0;
       const rentEl = card.querySelector('[data-f=hall_rate]');

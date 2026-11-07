@@ -543,6 +543,7 @@ return [
             ]],
             ['label' => 'Banquet', 'icon' => 'star', 'children' => [
                 ['label' => 'Events & Enquiries', 'route' => 'banquet.index', 'perm' => 'banquet.view', 'badge' => 'banquet_action'],
+                ['label' => 'Find a Venue', 'route' => 'banquet.availability', 'perm' => 'banquet.view'],
                 ['label' => 'Function Diary', 'route' => 'banquet.diary', 'perm' => 'banquet.view'],
                 ['label' => 'Function Sheet (BEO)', 'route' => 'banquet.sheet', 'perm' => 'banquet.view'],
                 ['label' => 'Venues', 'route' => 'masters.index', 'params' => ['banquet-halls'], 'perm' => 'banquet.setup'],

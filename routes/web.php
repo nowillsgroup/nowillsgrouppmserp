@@ -1612,6 +1612,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
         Route::get('/function-sheet', 'sheet')->middleware('perm:banquet.view')->name('sheet');
         Route::get('/settings', 'settings')->middleware('perm:banquet.setup')->name('settings');
         Route::post('/settings', 'saveSettings')->middleware('perm:banquet.setup')->name('settings.save');
+        Route::get('/availability', 'availability')->middleware('perm:banquet.view')->name('availability');
         Route::get('/create', 'create')->middleware('perm:banquet.manage')->name('create');
         Route::post('/', 'store')->middleware('perm:banquet.manage')->name('store');
         Route::get('/{event}', 'show')->middleware('perm:banquet.view')->name('show');

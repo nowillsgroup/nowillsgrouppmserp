@@ -69,7 +69,7 @@
     </section>
 
     <section class="bq-function-area" id="bqFunctionPlan" aria-labelledby="bqFunctionsTitle">
-      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div>
+      <div class="bq-functions-heading"><div><span class="bq-section-kicker">STEP 02 · FUNCTION PLAN</span><h2 id="bqFunctionsTitle">Plan the functions</h2><p>Add each venue session, guest count, menu and service extras.</p></div><div class="flex items-center gap-1"><a class="btn btn-sm" href="{{ route('banquet.availability', $event->event_date ? ['date' => $event->event_date->toDateString()] : []) }}" id="findVenue"><x-icon name="search"/> Find a free venue</a><span class="badge badge-slate" id="fnCount" aria-live="polite">1 function</span></div></div>
       <div id="fnList" class="bq-function-list" role="list" aria-label="Event functions"></div>
       <button type="button" class="btn bq-add-function" id="addFn" aria-controls="fnList"><x-icon name="plus"/> Add another function</button>
     </section>
@@ -98,7 +98,7 @@
     <div class="field"><label>Name</label><input class="input" data-f="name" maxlength="120" placeholder="Reception, Day 1 plenary"></div>
     <div class="field"><label>Venue <span class="req">*</span></label><select class="input" data-f="banquet_hall_id" required><option value="">— Venue —</option>@foreach($halls as $h)<option value="{{ $h->id }}">{{ $h->name }}</option>@endforeach</select></div>
     <div class="field"><label>Date <span class="req">*</span></label><input type="date" class="input" data-f="date" required></div>
-    <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div></div>
+    <div class="field"><label>From – to <span class="req">*</span></label><div class="flex gap-1"><input type="time" class="input" data-f="start_time" required><input type="time" class="input" data-f="end_time" required></div><span class="hint fn-avail" aria-live="polite"></span></div>
     <div class="field"><label>Set-up</label><select class="input" data-f="setup_style">@foreach(\App\Models\BanquetFunction::SETUPS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
     <div class="field"><label>Expected guests <span class="req">*</span></label><input type="number" min="1" max="10000" class="input" data-f="expected_pax" required><span class="hint fn-cap"></span></div>
     <div class="field"><label>Guaranteed guests</label><input type="number" min="1" max="10000" class="input" data-f="guaranteed_pax" placeholder="Final numbers"></div>
@@ -136,6 +136,7 @@
 <script>
 (function () {
   const HALLS = @json($hallData), PKGS = @json($pkgData), SVCS = @json($svcData), HALF = {{ $halfDayHours }}, HALLTAX = {{ $hallTax }};
+  const BUSY = @json($busy), TURN = {{ $turnaround }};
   const INIT = @json(array_values(old('functions', $functions)));
   const list = document.getElementById('fnList'), fnTpl = document.getElementById('fnTpl').innerHTML, itTpl = document.getElementById('itemTpl').innerHTML, dietTpl = document.getElementById('dietTpl').innerHTML;
   const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -198,6 +199,16 @@
       button.title = button.disabled ? `A maximum of ${MAX_ITEMS} extras can be added to one function.` : '';
     }
     if (count) count.textContent = rows === 0 ? 'No extras yet' : `${rows} / ${MAX_ITEMS} extras`;
+  }
+  const mins = t => { const [h, m] = String(t || '').split(':').map(Number); return (h * 60 + m) || 0; };
+  /** The hold this function would collide with, allowing the turn-around either side. */
+  function clash(card) {
+    const hall = card.querySelector('[data-f=banquet_hall_id]').value;
+    const date = card.querySelector('[data-f=date]').value;
+    const start = card.querySelector('[data-f=start_time]').value, end = card.querySelector('[data-f=end_time]').value;
+    if (!hall || !date || !start || !end) return null;
+    return BUSY.find(b => String(b.hall) === String(hall) && b.date === date
+      && mins(b.start) - TURN < mins(end) && mins(b.end) + TURN > mins(start)) || null;
   }
   function hours(card) {
     const s = card.querySelector('[data-f=start_time]').value, e = card.querySelector('[data-f=end_time]').value;
@@ -306,6 +317,25 @@
       const capHint = card.querySelector('.fn-cap');
       capHint.textContent = hall ? `${capacity} seats in this set-up` : 'Select a venue to check capacity';
       capHint.classList.toggle('text-red', !!capacityWarning);
+      const held = clash(card);
+      const availHint = card.querySelector('.fn-avail');
+      if (availHint) {
+        const hasSlot = hallSelect.value && card.querySelector('[data-f=date]').value
+          && card.querySelector('[data-f=start_time]').value && card.querySelector('[data-f=end_time]').value;
+        if (held) {
+          availHint.textContent = `${held.event} holds this venue ${held.start}–${held.end} (${held.status}) — allow ${TURN} minutes to turn the room round.`;
+          availHint.classList.remove('text-green');
+          availHint.classList.toggle('text-red', held.status === 'definite' || held.status === 'completed');
+          availHint.classList.toggle('text-amber', !(held.status === 'definite' || held.status === 'completed'));
+        } else if (hasSlot) {
+          availHint.textContent = 'Free for this slot.';
+          availHint.classList.add('text-green');
+          availHint.classList.remove('text-red', 'text-amber');
+        } else {
+          availHint.textContent = '';
+          availHint.classList.remove('text-red', 'text-amber', 'text-green');
+        }
+      }
       const hoursBooked = hours(card);
       const defaultRent = hall ? (hoursBooked > HALF && hall.full > 0 ? hall.full : hall.half) : 0;
       const rentEl = card.querySelector('[data-f=hall_rate]');

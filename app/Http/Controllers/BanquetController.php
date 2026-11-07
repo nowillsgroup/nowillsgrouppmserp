@@ -125,14 +125,73 @@ class BanquetController extends Controller
             'pkgData' => $pkgs->mapWithKeys(fn ($p) => [$p->id => ['p' => $p->price_per_pax, 'min' => $p->min_pax, 't' => $p->tax_rate, 'n' => $p->name]]),
             'svcData' => $svcs->mapWithKeys(fn ($s) => [$s->id => ['n' => $s->name, 'p' => $s->price, 't' => $s->tax_rate, 'u' => $s->unit]]),
             'halfDayHours' => (float) setting('banquet_half_day_hours', '5'), 'hallTax' => (float) setting('banquet_hall_tax_rate', '21'),
+            // every hold that could collide with what is being typed — the form answers on the keystroke
+            'busy' => Sales::busy(180, $e->exists ? $e->id : null), 'turnaround' => (int) setting('banquet_turnaround_minutes', '60'),
         ];
+    }
+
+    /**
+     * Find a venue: pax, date and clock in — the halls that answer, and why the rest do not.
+     */
+    public function availability(Request $request)
+    {
+        $date = $this->queryDate($request, 'date', bdate()->copy()->addDays(14)->toDateString());
+        $start = $this->queryTime($request, 'start', '19:00');
+        $end = $this->queryTime($request, 'end', '23:00');
+        if ($end <= $start) {
+            $end = self::hhmmShift($start, 4);
+        }
+        $pax = max(0, min(10000, (int) $request->query('pax', 0)));
+        $style = array_key_exists((string) $request->query('style'), BanquetFunction::SETUPS) ? (string) $request->query('style') : 'banquet';
+        $searched = $request->has('date') || $request->has('pax') || $request->has('start');
+
+        $rows = $searched ? Sales::availability($date, $start, $end, $pax, $style)
+            ->sortBy(fn ($r) => ['free' => 0, 'held' => 1, 'small' => 2][$r['status']])->values() : collect();
+        $free = $rows->where('status', 'free');
+
+        return view('banquet.availability', [
+            'date' => $date, 'start' => $start, 'end' => $end, 'pax' => $pax, 'style' => $style, 'searched' => $searched,
+            'rows' => $rows, 'freeCount' => $free->count(), 'heldCount' => $rows->where('status', 'held')->count(),
+            'smallCount' => $rows->where('status', 'small')->count(),
+            'firstFreeHall' => $free->first()['hall']->id ?? null,
+            'turnaround' => (int) setting('banquet_turnaround_minutes', '60'),
+            'setups' => BanquetFunction::SETUPS,
+        ]);
+    }
+
+    protected function queryDate(Request $request, string $key, string $fallback): string
+    {
+        $value = (string) $request->query($key, '');
+
+        try {
+            return $value !== '' ? Carbon::parse($value)->toDateString() : $fallback;
+        } catch (\Throwable) {
+            return $fallback;
+        }
+    }
+
+    protected function queryTime(Request $request, string $key, string $fallback): string
+    {
+        $value = (string) $request->query($key, '');
+
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $value) ? $value : $fallback;
+    }
+
+    protected static function hhmmShift(string $start, int $hours): string
+    {
+        [$h, $m] = array_map('intval', explode(':', $start));
+        $mins = min(23 * 60 + 59, $h * 60 + $m + $hours * 60);
+
+        return sprintf('%02d:%02d', intdiv($mins, 60), $mins % 60);
     }
 
     public function create(Request $request)
     {
         $e = new BanquetEvent(['event_type' => 'wedding', 'status' => 'enquiry', 'sales_user_id' => auth()->id(), 'source' => 'phone']);
-        $fn = [['id' => null, 'name' => '', 'banquet_hall_id' => (int) $request->input('hall') ?: null, 'date' => $request->input('date', bdate()->copy()->addDays(14)->toDateString()),
-            'start_time' => '19:00', 'end_time' => '23:00', 'setup_style' => 'banquet', 'expected_pax' => null, 'guaranteed_pax' => null, 'banquet_package_id' => null,
+        $fn = [['id' => null, 'name' => '', 'banquet_hall_id' => (int) $request->input('hall') ?: null, 'date' => $this->queryDate($request, 'date', bdate()->copy()->addDays(14)->toDateString()),
+            'start_time' => $this->queryTime($request, 'start', '19:00'), 'end_time' => $this->queryTime($request, 'end', '23:00'),
+            'setup_style' => array_key_exists((string) $request->query('style'), BanquetFunction::SETUPS) ? (string) $request->query('style') : 'banquet',
+            'expected_pax' => (int) $request->query('pax') ?: null, 'guaranteed_pax' => null, 'banquet_package_id' => null,
             'rate_per_pax' => null, 'hall_rate' => null, 'notes' => null, 'dietary' => [],
             'banquet_bar_package_id' => null, 'bar_rate_per_pax' => null, 'items' => []]];
 

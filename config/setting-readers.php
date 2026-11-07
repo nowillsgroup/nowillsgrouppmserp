@@ -23,7 +23,7 @@ return [
         'banquet_half_day_hours' => ['app/Http/Controllers/BanquetController.php', 'app/Models/BanquetHall.php'],
         'banquet_hall_tax_rate' => ['app/Http/Controllers/BanquetController.php', 'app/Services/BanquetSalesService.php'],
         'banquet_terms' => ['app/Http/Controllers/BanquetController.php'],
-        'banquet_turnaround_minutes' => ['app/Services/BanquetSalesService.php', 'resources/views/banquet/diary.blade.php', 'resources/views/banquet/sheet.blade.php'],
+        'banquet_turnaround_minutes' => ['app/Http/Controllers/BanquetController.php', 'app/Services/BanquetSalesService.php', 'resources/views/banquet/diary.blade.php', 'resources/views/banquet/sheet.blade.php'],
         'bd_benchmark_room_type' => ['app/Services/BusinessDevService.php'],
         'bd_discount_rate' => ['app/Services/BusinessDevService.php'],
         'bd_partner_notice_days' => ['app/Services/BusinessDevService.php'],
@@ -679,6 +679,6 @@ return [
         'families' => 4,
         'accessors' => 9,
         'map' => 374,
-        'files' => 1908,
+        'files' => 1909,
     ],
 ];
