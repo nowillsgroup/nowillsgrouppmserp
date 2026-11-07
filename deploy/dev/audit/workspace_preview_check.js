@@ -156,9 +156,23 @@ ok('the card prints no guest, no stay dates and no money',
     && $$('#wsGrid .ws-card .ws-rate-row').length === 0
     && $$('#wsGrid .ws-card .ws-guest-note').every(el => el.classList.contains('sr-only')),
   `${cards.length} cards, none printing a name, a date or a balance`);
-ok('only a room with nobody in it still says so, on the card face',
-  $$('#wsGrid .ws-card .ws-guest').every(box => box.classList.contains('vacant')),
-  `${$$('#wsGrid .ws-card .ws-guest').length} vacant blocks kept — VACANT · RACK RATE and Reserve Room`);
+// v10.25 a vacant room used to get a block of its own — VACANT · RACK RATE, the rate again at 18px, Reservice Room —
+// which made every vacant card taller than its neighbours. State is the badge, the rate is the photo chip, and
+// reserving is an action: it sits in the action row with the others, and every card is now the same two parts.
+ok('every card is the same two parts, whatever state it is in',
+  $$('#wsGrid .ws-card').every(card => card.children.length === 2
+    && card.children[0].classList.contains('ws-photo')
+    && card.children[1].classList.contains('ws-card-body'))
+    && $$('#wsGrid .ws-card .ws-guest').length === 0,
+  `${new Set($$('#wsGrid .ws-card').map(card => card.children.length)).size} shape(s) across ${cards.length} cards`);
+ok('an empty room offers its reservation as an action, not as a block',
+  $$('#wsGrid .ws-card[data-status="available"] .ws-actions .ws-reserve').length
+    === $$('#wsGrid .ws-card[data-status="available"]').length,
+  `${$$('#wsGrid .ws-card .ws-actions .ws-reserve').length} Reserve actions, none of them a block`);
+ok('and what the room is, is still in the sentence a screen reader and the sheet get',
+  $$('#wsGrid .ws-card .ws-guest-note').length === cards.length
+    && /Available, no guest on this date/.test($$('#wsGrid .ws-card[data-status="available"] .ws-guest-note')[0]?.textContent ?? ''),
+  $$('#wsGrid .ws-card[data-status="available"] .ws-guest-note')[0]?.textContent?.trim());
 ok('nor does the card keep dead rules for what it dropped',
   !/\.ws-stay\{/.test(wsStyle) && !/\.ws-nights\{/.test(wsStyle)
     && !/\.ws-rate-row\{/.test(wsStyle) && !/\.ws-guest-src\{/.test(wsStyle),
@@ -167,8 +181,8 @@ ok('and the narrow-card block that only served the rate row went too',
   !/@container wscard \(max-width:199px\)/.test(wsStyle),
   'one comment in its place, so the next reader knows why the 199px step is gone');
 ok('but every stay still reads out in full to a screen reader',
-  $$('#wsGrid .ws-card .ws-guest-note').length === $$('#wsGrid .ws-card[data-guest]').length
-    && $$('#wsGrid .ws-card .ws-guest-note').every(el =>
+  $$('#wsGrid .ws-card[data-guest] .ws-guest-note').length === $$('#wsGrid .ws-card[data-guest]').length
+    && $$('#wsGrid .ws-card[data-guest] .ws-guest-note').every(el =>
       /Guest .+/.test(el.textContent) && /Arrive .+, depart .+/.test(el.textContent)
       && /\d+ nights? at /.test(el.textContent)),
   $$('#wsGrid .ws-card .ws-guest-note')[0]?.textContent?.trim());
@@ -197,6 +211,21 @@ ok('and the amenity icons are not left behind as dead weight',
 ok('the dialog names every amenity the card used to draw in icons',
   $$('.ws-modal .ws-fac-chip').length > 0,
   `${$$('.ws-modal .ws-fac-chip').length} facility chips across the dialogs`);
+// v10.25 the polish pass: one line per head row, one action-bar height, one corner radius, and a keyboard ring.
+ok('the head cuts a long type name with an ellipsis instead of wrapping it',
+  /\.ws-card-head \.bold\.small,\.ws-card-head \.muted\.small\{[^}]*white-space:nowrap\}?[^}]*text-overflow:ellipsis/.test(wsStyle)
+    || (/\.ws-card-head \.bold\.small,\.ws-card-head \.muted\.small\{/.test(wsStyle)
+      && /text-overflow:ellipsis/.test(wsStyle.match(/\.ws-card-head \.bold\.small[^{]*\{[^}]*\}/)?.[0] ?? '')),
+  wsStyle.match(/\.ws-card-head \.bold\.small[^{]*\{[^}]*\}/)?.[0]);
+ok('the action bar is one height on every card',
+  /\.ws-actions\{[^}]*min-height:34px/.test(wsStyle)
+    && /\.ws-actions \.btn\{[^}]*min-height:26px/.test(wsStyle),
+  'a card with one action and a card with four are the same height');
+ok('and the card answers the keyboard, not only the mouse',
+  /\.ws-card:focus-within\{outline:2px solid/.test(wsStyle)
+    && /\.ws-card:hover\{[^}]*transform:translateY\(-1px\)/.test(wsStyle)
+    && /\.ws-card\{[^}]*border-radius:12px/.test(wsStyle),
+  'focus ring, a 1px lift on hover, and one corner radius for the whole board');
 ok('the buttons that fold are marked as secondary',
   $$('#wsGrid .ws-card .ws-actions .ws-act-minor').length >= 1
     && $$('#wsGrid .ws-card .ws-actions .ws-all .ws-act-label').length === cards.length,

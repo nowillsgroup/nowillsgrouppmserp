@@ -263,13 +263,12 @@
              open — puts that sentence on the sheet in place of the rows the screen gave up. --}}
         <span class="ws-guest-note sr-only">Guest {{ $stayGuestName }}{{ $roomSource ? ', '.$roomSource : '' }}{{ $isVip ? ', VIP' : '' }}{{ $stay->guest?->nationality ? ', '.$stay->guest->nationality : '' }}. Arrive {{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}, depart {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}, {{ $cardNights }} {{ $cardNights === 1 ? 'night' : 'nights' }} at {{ money($c['rate']) }} a night.@if ($cardDueLabel !== null) {{ $cardDueLabel }}.@endif</span>
         @else
-        <div class="ws-guest vacant">
-          <div class="muted small">{{ $c['status'] === 'occupied' ? 'OCCUPIED · NO LINKED STAY' : ($c['status'] === 'available' ? 'VACANT · RACK RATE' : 'ROOM UNAVAILABLE') }}</div>
-          <div class="ws-vacant-rate">{{ money($c['rate']) }} <small class="muted">/night</small></div>
-          @if ($c['status'] === 'available' && ! $isHistory && can_do('reservations.create'))
-            <a class="btn btn-sm btn-primary ws-reserve" href="{{ route('reservations.create', ['room' => $room->id, 'arrival' => $date->toDateString(), 'departure' => $date->copy()->addDay()->toDateString()]) }}" aria-label="Reserve room {{ $room->room_no }} for {{ $date->format('j F Y') }}">Reserve Room</a>
-          @endif
-        </div>
+        {{-- v10.25 an empty room used to get a block of its own — VACANT · RACK RATE, the rate again at 18px, and a
+             Reserve Room button — which made every vacant card taller than its neighbours and left the occupied ones
+             stretching to match. The state is the badge, the rate is the chip in the photo, and reserving is an
+             action, so it belongs in the action row with the others. What remains here is the sentence a screen
+             reader and the printed sheet use. --}}
+        <span class="ws-guest-note sr-only">{{ $c['status'] === 'occupied' ? 'Occupied, with no linked stay on this date.' : ($c['status'] === 'available' ? 'Available, no guest on this date, '.money($c['rate']).' a night.' : 'Not sellable on this date.') }}</span>
         @endif
 
         <div class="ws-actions">
@@ -296,6 +295,9 @@
               <input type="hidden" name="hk_status" value="dirty">
               <button type="submit" class="btn btn-sm btn-ghost" aria-label="Mark room {{ $room->room_no }} dirty" title="Mark current housekeeping status dirty"><x-icon name="broom"/> Mark Dirty</button>
             </form>
+          @endif
+          @if (! $stay && $c['status'] === 'available' && ! $isHistory && can_do('reservations.create'))
+            <a class="btn btn-sm btn-primary ws-reserve" href="{{ route('reservations.create', ['room' => $room->id, 'arrival' => $date->toDateString(), 'departure' => $date->copy()->addDay()->toDateString()]) }}" aria-label="Reserve room {{ $room->room_no }} for {{ $date->format('j F Y') }}">Reserve</a>
           @endif
           <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="{{ $room->id }}" aria-label="More actions for room {{ $room->room_no }}" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
         </div>
@@ -1419,8 +1421,9 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
    the row was density, and density is what a 2560px screen would otherwise lose. */
 @container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
-.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045);transition:box-shadow .16s ease,border-color .16s ease}
-.ws-card:hover{border-color:#cbd5e1;box-shadow:0 10px 24px rgba(15,23,42,.10)}
+.ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:box-shadow .16s ease,border-color .16s ease,transform .16s ease}
+.ws-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.10);transform:translateY(-1px)}
+.ws-card:focus-within{outline:2px solid #86c79b;outline-offset:2px}
 .ws-card[data-status="available"]{--ws-status-accent:#16a34a}
 .ws-card[data-status="reserved"]{--ws-status-accent:#f59e0b}
 .ws-card[data-status="occupied"]{--ws-status-accent:#3b82f6}
@@ -1428,13 +1431,17 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-card[data-status="maintenance"]{--ws-status-accent:#d97706}
 .ws-card[data-status="group_hold"]{--ws-status-accent:#2563eb}
 .ws-card[data-status="leased"],.ws-card[data-status="house_use"],.ws-card[data-status="other_block"]{--ws-status-accent:#64748b}
-.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:9px 10px 0;min-height:0;color:#fff}
+.ws-card-head{position:relative;z-index:2;display:flex;justify-content:space-between;gap:6px;padding:8px 9px 0;min-height:0;color:#fff}
 .ws-card-head>.flex{min-width:0;align-items:flex-start}
 .ws-card-head>.flex>div{min-width:0}
-.ws-card-head .text-right{max-width:54%;flex:0 0 auto}
+.ws-card-head .text-right{max-width:50%;flex:0 0 auto}
+/* v10.25 at five across the type name had 51px beside a badge allowed 54% of the card, so "Deluxe Sea View" wrapped
+   to three lines and pushed the room number out of line with its neighbours. One line each, cut with an ellipsis:
+   the card is a way of finding the room, and the dialog names the type in full. */
+.ws-card-head .bold.small,.ws-card-head .muted.small{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .ws-card-head .bold.small{color:#fff;text-shadow:0 1px 6px rgba(15,23,42,.5)}
 .ws-card-head .muted.small{color:rgba(255,255,255,.86);text-shadow:0 1px 6px rgba(15,23,42,.5)}
-.ws-card-head .badge{white-space:normal;padding:2px 5px;font-size:9px;letter-spacing:.2px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
+.ws-card-head .badge{white-space:normal;padding:1px 5px;font-size:8.5px;letter-spacing:.3px;box-shadow:0 1px 7px rgba(15,23,42,.28)}
 .ws-room-no{font-size:21px;font-weight:850;margin:0;line-height:1;color:#fff;text-shadow:0 1px 10px rgba(15,23,42,.55)}
 .ws-tag{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;letter-spacing:.2px;background:#fef3c7;color:#b45309;padding:2px 4px;border-radius:5px}
 .ws-hk-badge{display:inline-block;max-width:100%;margin-top:3px;padding:2px 5px;border-radius:5px;font-size:8.5px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere;box-shadow:0 1px 6px rgba(15,23,42,.24)}
@@ -1446,10 +1453,10 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-photo-img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .ws-photo:before{position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.16) 36%,rgba(15,23,42,.06) 60%,rgba(15,23,42,.66));content:"";pointer-events:none}
 .ws-photo-link{cursor:pointer;transition:filter .16s ease}
-.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:7px;padding:8px 10px}
-.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 8px;color:rgba(255,255,255,.94);font-size:10px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
+.ws-photo-foot{position:absolute;z-index:2;right:0;bottom:0;left:0;display:flex;align-items:flex-end;justify-content:space-between;gap:6px;padding:7px 9px}
+.ws-photo-meta{display:flex;flex-wrap:wrap;gap:2px 7px;color:rgba(255,255,255,.94);font-size:9.5px;font-weight:600;line-height:1.3;text-shadow:0 1px 6px rgba(15,23,42,.55)}
 .ws-photo-meta>span{display:inline-flex;align-items:center;gap:4px}
-.ws-photo-meta .i{width:13px;height:13px;flex:0 0 13px;color:rgba(255,255,255,.88)}
+.ws-photo-meta .i{width:12px;height:12px;flex:0 0 12px;color:rgba(255,255,255,.88)}
 .ws-photo-foot .ws-photo-rate{position:static;flex:0 0 auto}
 .ws-photo-link:hover{filter:saturate(1.08)}
 .ws-person-row{display:flex;flex-direction:column;gap:4px}
@@ -1460,22 +1467,21 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-person-row>.ws-assign-none{margin-left:34px;padding:7px 9px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;line-height:1.4}
 .ws-assign-none a{color:#166534;font-weight:650;text-decoration:underline;text-underline-offset:2px}
 .ws-checkin-blocker{display:block;margin-top:5px;padding:6px 8px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.35}
-.ws-photo-rate{position:absolute;z-index:1;right:9px;bottom:8px;background:rgba(255,255,255,.96);color:#14532d;font-weight:850;padding:3px 7px;border:1px solid rgba(255,255,255,.65);border-radius:7px;font-size:11.5px;box-shadow:0 2px 8px rgba(15,23,42,.16)}
+.ws-photo-rate{position:absolute;z-index:1;right:8px;bottom:7px;background:rgba(255,255,255,.97);color:#14532d;font-weight:800;padding:2px 6px;border:1px solid rgba(255,255,255,.7);border-radius:6px;font-size:11px;font-variant-numeric:tabular-nums;box-shadow:0 2px 8px rgba(15,23,42,.16)}
 .ws-photo-rate small{font-weight:650;color:#64748b}
 .ws-photo-rate.ws-rate-unset{color:#b45309;background:rgba(255,251,235,.96);border-color:rgba(253,230,138,.8)}
 .ws-photo-rate.ws-rate-unset small{color:#b45309}
-.ws-card-body{display:flex;flex-direction:column;padding-bottom:6px}
-.ws-guest{margin-top:0;padding:8px 10px 9px;border-top:1px solid #f1f5f9}
-.ws-guest.vacant{display:flex;flex-direction:column;justify-content:center;text-align:center;border-top-style:dashed;background:#f8fafc}
+.ws-card-body{display:flex;flex-direction:column;padding-bottom:0}
 .ws-avatar{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--c-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .ws-avatar.sm{width:28px;height:28px;flex-basis:28px;font-size:12px}
 .ws-avatar.vip{background:#b45309}
 .ws-due{color:#dc2626;font-weight:700}
 .ws-hold{display:block;color:#f59e0b;font-weight:600}
-.ws-vacant-rate{font-size:18px;font-weight:800;margin:2px 0 6px}
-.ws-reserve{width:calc(100% - 8px);margin:0 4px 4px}
-.ws-actions{display:flex;align-items:center;gap:4px;margin-top:auto;padding:7px 9px 2px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
-.ws-actions .btn{display:inline-flex;min-height:27px;align-items:center;justify-content:center;gap:4px;padding:4px 7px;border-radius:6px;font-size:10px;line-height:1.2;white-space:nowrap}
+/* v10.25 Reserve sits where the other primary actions sit — first in the row — and ··· keeps the far edge. Two auto
+   margins in one row would have split the free space and left the button floating in the middle. */
+.ws-reserve{margin-left:0}
+.ws-actions{display:flex;align-items:center;gap:5px;min-height:34px;margin-top:auto;padding:5px 8px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+.ws-actions .btn{display:inline-flex;min-height:26px;align-items:center;justify-content:center;gap:4px;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:650;line-height:1.2;white-space:nowrap}
 .ws-actions .btn .i{width:12px;height:12px;flex:0 0 12px}
 /* v10.17 the action row folds in three steps rather than one, because the controls are not one size.
    Measured at their own type: the primary button is ~80px, Reservation details ~119px, Mark Dirty ~85px,
