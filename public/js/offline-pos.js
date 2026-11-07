@@ -371,13 +371,16 @@
     state.sideItem = item;
     el.sidesTitle.textContent = 'Side dish for ' + item.name;
     var required = item.side_required === true;
-    // a side can be ordered more than once: the count sits at the end of its row (v9.31)
+    // v10.34 the sides are a shelf of cards, as they are on the online till: the terminal is tapped with a thumb, and a
+    // card is a target where a line of small print is not. Each card keeps .offline-pos-side-row, because that is what
+    // pickedSides() and stepSide() walk up to, and its count stays on the card it counts (v9.31).
     el.sidesList.innerHTML = (item.sides || []).map(function (side) {
-      return '<div class="offline-pos-side-row">' +
-        '<label class="offline-pos-side">' +
+      var rate = Number(side.rate) > 0 ? money(side.rate) : 'included';
+      return '<div class="offline-pos-side-row offline-pos-side-card">' +
+        '<label class="offline-pos-side offline-pos-side-pick">' +
           '<input type="checkbox" name="offlineSide" value="' + side.id + '" data-side-id="' + side.id + '">' +
-          '<span>' + esc(side.name) + '</span>' +
-          '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
+          '<span class="offline-pos-side-name">' + esc(side.name) + '</span>' +
+          '<span class="tiny offline-pos-side-rate">' + rate + '</span>' +
         '</label>' +
         '<span class="offline-pos-side-qty">' +
           '<button type="button" data-side-step="-1" aria-label="One fewer ' + esc(side.name) + '">−</button>' +

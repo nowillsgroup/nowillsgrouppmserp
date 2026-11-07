@@ -504,8 +504,20 @@ function sideDishNeeded(button) { return !!button && button.dataset.sidesRequire
  * One side dish in a picker: a tick, the rate, and a count (v9.31). A double portion is the same side twice — the
  * count is what the server prices, and it is posted as the id repeated, so nothing new has to be understood by it.
  */
-function sideChoiceRow(variant, checked) {
-  return `<div class="pos-side-row"><label class="check"><input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"${checked ? ' checked' : ''}> <span>${esc(variant.name)}</span> <span class="tiny muted">${Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included'}</span></label><span class="pos-side-qty"><button type="button" data-side-step="-1" aria-label="One fewer ${esc(variant.name)}">−</button><b data-side-count>1</b><button type="button" data-side-step="1" aria-label="One more ${esc(variant.name)}">+</button></span></div>`;
+/**
+ * One side dish in a picker. The side step draws it as a card (v10.33): the till is tapped with a thumb, and a card is a
+ * target where a line is a row of small print. The options step keeps the line, because it is reading a list of choices,
+ * not picking from a shelf. Both carry `.pos-side-row`, which is what the count code reads.
+ */
+function sideChoiceRow(variant, checked, asCard = false) {
+  const ticked = checked ? ' checked' : '';
+  const rate = Number(variant.rate) ? '+' + esc(posCurrencySymbol) + ' ' + Number(variant.rate).toFixed(2) : 'included';
+  const input = `<input type="checkbox" data-side-variant-id="${variant.id}" data-side-variant-name="${esc(variant.name)}" data-side-variant-rate="${variant.rate}" value="${variant.id}"${ticked}>`;
+  const qty = `<span class="pos-side-qty"><button type="button" data-side-step="-1" aria-label="One fewer ${esc(variant.name)}">−</button><b data-side-count>1</b><button type="button" data-side-step="1" aria-label="One more ${esc(variant.name)}">+</button></span>`;
+  if (asCard) {
+    return `<div class="pos-side-row pos-side-card"><label class="check pos-side-card-pick">${input}<span class="pos-side-card-name">${esc(variant.name)}</span><span class="tiny muted pos-side-card-rate">${rate}</span></label>${qty}</div>`;
+  }
+  return `<div class="pos-side-row"><label class="check">${input} <span>${esc(variant.name)}</span> <span class="tiny muted">${rate}</span></label>${qty}</div>`;
 }
 function pickedSideDishes(scope) {
   return [...document.querySelectorAll(scope + ' [data-side-variant-id]:checked')].map(input => ({
@@ -541,7 +553,7 @@ function openSideDishPicker(button, groups, variants) {
   if (title) title.textContent = 'Side dish for ' + button.dataset.name;
   const box = document.getElementById('sideDishChoices');
   if (box) {
-    box.innerHTML = `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0"><legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>${sideDishChoiceList.map(variant => sideChoiceRow(variant, false)).join('')}</fieldset>`;
+    box.innerHTML = `<fieldset class="field pos-side-cards" style="border:0;padding:0;margin:0"><legend class="bold small">Side dishes <span class="tiny muted">Tick one or more, or continue with none.</span></legend>${sideDishChoiceList.map(variant => sideChoiceRow(variant, false, true)).join('')}</fieldset>`;
   }
   document.getElementById('sideDishModal')?.classList.add('show');
 }
