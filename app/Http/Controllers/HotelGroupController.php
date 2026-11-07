@@ -43,6 +43,8 @@ class HotelGroupController extends Controller
             'licence' => LicenceService::stateFor($group),
             'licenceEditable' => $this->access->isPlatformAdmin($request->user()),
             'licenceRestricted' => $group->licensedModules() !== null,
+            'guestSurfaces' => \App\Support\LicenceSurfaces::byModule(), // v10.4: the guest pages and feeds that follow the same licence
+            'guestCoverage' => \App\Support\LicenceSurfaces::coverage(),
             'seatBasis' => $group->seatBasis(),
         ]);
     }

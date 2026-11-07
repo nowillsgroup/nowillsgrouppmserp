@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Hotel;
 use App\Models\HotelGroup;
 use App\Support\Tenant;
 
@@ -18,7 +19,9 @@ use App\Support\Tenant;
  * a tenant that never asked to be restricted. A list means exactly that list.
  *
  * Enforcement is in RequirePermission (the route) and in can_do() (the sidebar and the buttons), never
- * only in the UI: an unlicensed module answers 403 if somebody types its URL.
+ * only in the UI: an unlicensed module answers 403 if somebody types its URL. v10.4 adds the other
+ * half: the guest surfaces in config/licence.php ask allowsModule() from the global LicenceSurface
+ * middleware, and the REST API asks it in ApiAuthenticate once the bearer key has named the property.
  */
 class LicenceService
 {
@@ -63,7 +66,12 @@ class LicenceService
     /** The licence of the current tenant, or null when it is unrestricted. */
     public static function licence(): ?array
     {
-        $group = self::group();
+        return self::licenceOf(self::group());
+    }
+
+    /** The licence of one group, or null when it is unrestricted. */
+    public static function licenceOf(?HotelGroup $group): ?array
+    {
         if (! $group) {
             return null;
         }
@@ -74,6 +82,33 @@ class LicenceService
         }
 
         return self::$licences[(int) $group->id];
+    }
+
+    /**
+     * May this property use this module? The guest surfaces (config/licence.php) ask this, because a
+     * public page has no signed-in user whose permissions could be checked — the property itself is
+     * the only thing known when the page is refused.
+     */
+    public static function allowsModule(string $module, ?Hotel $hotel = null): bool
+    {
+        $hotel = $hotel ?? Tenant::hotel();
+        if (! $hotel) {
+            return true; // nothing to ask about (console, queue, a page that has not resolved its stay yet)
+        }
+
+        $licence = self::licenceOf(self::groupOf($hotel));
+
+        return $licence === null || in_array($module, $licence, true);
+    }
+
+    /** The group behind a property, read through the relation when it is already loaded. */
+    public static function groupOf(Hotel $hotel): ?HotelGroup
+    {
+        if ($hotel->relationLoaded('group')) {
+            return $hotel->group;
+        }
+
+        return $hotel->hotel_group_id ? HotelGroup::find($hotel->hotel_group_id) : null;
     }
 
     /** May the current tenant use the function behind this permission? */
@@ -123,10 +158,7 @@ class LicenceService
     protected static function group(): ?HotelGroup
     {
         $hotel = Tenant::hotel();
-        if (! $hotel) {
-            return null;
-        }
 
-        return $hotel->relationLoaded('group') ? $hotel->group : HotelGroup::find($hotel->hotel_group_id);
+        return $hotel ? self::groupOf($hotel) : null;
     }
 }

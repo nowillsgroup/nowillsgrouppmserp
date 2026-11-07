@@ -206,6 +206,23 @@ ok('ticking everything stores "everything", so later modules are not silently lo
 ok('the seat basis is a choice, not a hidden default', field('seat_basis')?.value === 'active', field('seat_basis')?.value);
 ok('and the named-user basis is spelled out', gbody.includes('every account holds a seat, switched off or not'));
 ok('what is left of the entitlement is spelled out', gbody.includes('3 left to open'));
+ok('the guest surfaces are said to follow the same licence', gbody.includes('The guest surfaces follow the same licence'));
+ok('and the reason is given: a guest carries no permission', gbody.includes('A guest is not signed in, so there is no permission to check'));
+{
+  const rows = [...gdoc.querySelectorAll('table')]
+    .find(t => t.textContent.includes('Guest surface'))
+    ?.querySelectorAll('tbody tr') || [];
+  ok('every guest surface is listed under the module that owns it', rows.length === 12, `${rows.length} rows`);
+  const rowFor = label => [...rows].find(r => r.textContent.includes(label));
+  ok('the QR table menu is a POS surface', rowFor('the QR table menu')?.textContent.includes('POS'));
+  ok('a licensed surface reads open', rowFor('the QR table menu')?.textContent.includes('open'));
+  ok('the activity voucher belongs to Spa & Activities', rowFor('the activity voucher')?.textContent.includes('Spa & Activities'));
+  ok('and reads 404, because that module was never bought', rowFor('the activity voucher')?.textContent.includes('404'));
+}
+ok('it says how much of the guest estate the URL decides by itself', gbody.includes('31 of the 36 are decided from the URL'));
+ok('it says a code or token in the URL is decided before the controller runs', gbody.includes('before the controller runs'));
+ok('and that a link which resolves its own stay is refused once it has', gbody.includes('once it has resolved'));
+ok('the REST API is included, after the key names the hotel', gbody.includes('after the bearer key has named the hotel'));
 ok('the defaults it hands down are named as such', gbody.includes('Defaults new properties inherit'));
 ok('the defaults carried are the group\'s own', field('country')?.value === 'Ghana' && field('currency')?.value === 'GHS' && field('timezone')?.value === 'Africa/Accra');
 ok('changing a default is said not to rewrite existing properties', gbody.includes('never rewrites a property that already exists'));

@@ -58,6 +58,7 @@ class ApiSpec
         'idempotency_in_progress' => [409, 'The first request with this key is still running'], 'validation_failed' => [422, 'See fields for each problem'],
         'idempotency_key_reused' => [422, 'Same Idempotency-Key, different body'], 'invalid_idempotency_key' => [422, 'Idempotency-Key must be 1–80 of A-Z a-z 0-9 _ - : .'], 'unprocessable' => [422, 'A business rule refused the request'],
         'rate_limited' => [429, 'Too many requests – honour Retry-After'], 'api_disabled' => [503, 'The hotel switched the API off'],
+        'module_not_licensed' => [403, 'The group licence does not include the module behind this endpoint'],
         'server_error' => [500, 'Unexpected error – quote request_id'],
     ];
 

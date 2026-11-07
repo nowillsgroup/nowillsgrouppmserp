@@ -5247,6 +5247,62 @@ ok('licensed_modules:' in read(os.path.join(ROOT, 'deploy/dev/preview/properties
 ok("ok('the modules that were never bought are unticked'" in read(os.path.join(ROOT, 'deploy/dev/audit/properties_preview_check.js')),
    'and the preview check holds the panel to exactly which modules are off')
 
+# ── 31. the licence reaches the guest, not only the signed-in screens (v10.4) ──────────
+licence_cfg = read(os.path.join(ROOT, 'config/licence.php'))
+licence_mw = read(os.path.join(ROOT, 'app/Http/Middleware/LicenceSurface.php'))
+licence_support = read(os.path.join(ROOT, 'app/Support/LicenceSurfaces.php'))
+licence_svc = read(os.path.join(ROOT, 'app/Services/LicenceService.php'))
+api_mw = read(os.path.join(ROOT, 'app/Http/Middleware/ApiAuthenticate.php'))
+bootstrap = read(os.path.join(ROOT, 'bootstrap/app.php'))
+
+ok("'surfaces' =>" in licence_cfg and "'always' =>" in licence_cfg and "'api' =>" in licence_cfg,
+   'one file says which module every guest surface belongs to, which ones a licence may never refuse, and the API map')
+ok(licence_cfg.count("'label' =>") >= licence_cfg.count("'module' =>") - 1,
+   'every surface carries the words the licence panel prints, so the panel never shows a path')
+ok(licence_cfg.count("'resolve' =>") >= 25,
+   'most surfaces say how to find the property before the controller runs')
+
+catalogue_modules = re.findall(r"^        '([^']+)' => \[", cat_block, re.M)
+named_modules = re.findall(r"'module' => '([^']+)'", licence_cfg) + re.findall(r"^        '/api/v1[^']*' => '([^']+)'", licence_cfg, re.M)
+unknown_modules = sorted({m for m in named_modules if m not in catalogue_modules})
+ok(not unknown_modules,
+   f'every module the guest surfaces name exists in the catalogue (unknown: {unknown_modules[:3]})')
+ok(len(set(named_modules)) >= 20,
+   f'the guest surfaces reach across the product, not a token few ({len(set(named_modules))} modules)')
+
+ok('$middleware->append(\\App\\Http\\Middleware\\LicenceSurface::class);' in bootstrap,
+   'the surface guard runs on every request, globally — a public route added later is covered by the config alone')
+ok('LicenceSurfaces::surfaceFor' in licence_mw and 'LicenceService::allowsModule' in licence_mw,
+   'the guard asks which surface a path is and whether the property is licensed for its module')
+ok('abort(404)' in licence_mw and 'abort(403)' not in licence_mw,
+   'an unlicensed module answers 404 — it must not confirm the outlet, device or voucher exists')
+ok("! empty($surface['after'])" in licence_mw and "isMethod('GET')" in licence_mw,
+   'a surface that resolves its own stay is checked again after the controller, for reads only')
+ok('public static function allowsModule' in licence_svc and 'public static function licenceOf' in licence_svc,
+   'the same licence question can be asked of a property, not only of the signed-in tenant')
+ok('public static function looksLikeGuest' in licence_support and 'LicenceSurfaces::looksLikeGuest' in licence_mw,
+   'a prefix shared with a signed-in screen is not mistaken for a guest request (a code is 2-20, a token is a token)')
+ok('public static function propertyFor' in licence_support and 'function longestMatch' in licence_support,
+   'the property is read from the path with a segment-aware longest match')
+ok("'sha256'" in licence_svc or 'sha256' in licence_support,
+   'a surface whose link is stored only as a hash can still name its property')
+ok('LicenceService::allowsModule' in api_mw and "'module_not_licensed'" in api_mw,
+   'the REST API asks the licence once the bearer key has named the hotel')
+ok("'module_not_licensed' => [403," in read(os.path.join(ROOT, 'app/Support/ApiSpec.php')),
+   'and the error is in the API catalogue the OpenAPI document prints')
+ok('LicenceSurfaces' not in read(os.path.join(ROOT, 'routes/web.php')),
+   'no route file carries its own copy of the map — config/licence.php is the only list')
+ok('public static function coverage' in licence_support and "$guestCoverage['fromUrl']" in acct3,
+   'the panel states how many guest surfaces the URL decides by itself, and the rest is not hand-waved')
+ok('$guestSurfaces' in acct3 and 'The guest surfaces follow the same licence' in acct3,
+   'the group account shows which guest pages follow the licence')
+ok('guestSurfaces:' in read(os.path.join(ROOT, 'deploy/dev/preview/properties-sample.mjs')),
+   'the preview carries them, so the panel can be seen')
+ok('licence_surface_check' in read(os.path.join(ROOT, 'deploy/dev/README.md')),
+   'the audit that proves every public route is classified is documented with the rest')
+ok(os.path.exists(os.path.join(ROOT, 'deploy/dev/audit/licence_surface_check.js')),
+   'and the audit exists')
+
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')

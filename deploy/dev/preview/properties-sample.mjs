@@ -252,6 +252,21 @@ export function groupAccountContext() {
       },
       licenceEditable: true,
       licenceRestricted: true,
+      // LicenceSurfaces::coverage(): how much of the guest estate the URL can decide by itself
+      guestCoverage: { fromUrl: 31, total: 36 },
+      // LicenceSurfaces::byModule(): the guest pages and feeds that follow the same licence
+      guestSurfaces: {
+        Reservations: ['the online booking engine'],
+        'Feedback & Reputation': ['the guest feedback form', 'the post-stay survey link'],
+        'Restaurant Reservations': ["the guest's table-booking link", 'the public table-booking page'],
+        POS: ['the QR table menu'],
+        'Self-Service Kiosk': ['the check-in kiosk screens'],
+        'Spa & Activities': ['the activity voucher'],
+        'Parking & Valet': ['the valet request link'],
+        Concierge: ['the guest mobile portal'],
+        'Privacy & Compliance': ['the privacy-notice form'],
+        'Online Payments': ['the return page a gateway sends the guest back to'],
+      },
       seatBasis: 'active',
       types: { hotel: 'Hotel', resort: 'Resort', guest_house: 'Guest house', service_apartment: 'Serviced apartment', restaurant: 'Restaurant', cafe: 'Café' },
       currentHotel: PROPERTIES[0],

@@ -3193,6 +3193,71 @@
       <button class="btn btn-primary"><svg class="i i-sm" aria-hidden="true"><use href="#i-key"/></svg> Save the licence</button>
       </form>
   
+
+      <p class="small mt-2"><b>The guest surfaces follow the same licence.</b> A guest is not signed in, so there is no permission to check — the property itself is the only thing known when the page is refused. 31 of the 36 are decided from the URL before the controller runs, so a write never happens; the rest are listed above and refused when their own link is resolved.</p>
+      <div class="table-wrap"><table class="table">
+      <thead><tr><th>Module</th><th>Guest surface</th><th>With this licence</th></tr></thead>
+      <tbody>
+    
+      
+      <tr><td class="small"><b>Reservations</b></td><td class="small">the online booking engine</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Feedback &amp; Reputation</b></td><td class="small">the guest feedback form</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+      <tr><td class="small"><b>Feedback &amp; Reputation</b></td><td class="small">the post-stay survey link</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Restaurant Reservations</b></td><td class="small">the guest's table-booking link</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+      <tr><td class="small"><b>Restaurant Reservations</b></td><td class="small">the public table-booking page</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>POS</b></td><td class="small">the QR table menu</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Self-Service Kiosk</b></td><td class="small">the check-in kiosk screens</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Spa &amp; Activities</b></td><td class="small">the activity voucher</td>
+      <td><span class="badge badge-slate">404</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Parking &amp; Valet</b></td><td class="small">the valet request link</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Concierge</b></td><td class="small">the guest mobile portal</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Privacy &amp; Compliance</b></td><td class="small">the privacy-notice form</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      
+      <tr><td class="small"><b>Online Payments</b></td><td class="small">the return page a gateway sends the guest back to</td>
+      <td><span class="badge badge-green">open</span></td></tr>
+      
+    
+      </tbody>
+      </table></div>
+      <p class="tiny muted">Where the property is in the URL (a hotel code, or a token that names its property) the answer is decided before the controller runs, so a write never happens. Where the link resolves its own stay, device or kiosk, a read is refused once it has resolved. The REST API asks the same question after the bearer key has named the hotel.</p>
       </div></div>
 
 
