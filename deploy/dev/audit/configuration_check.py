@@ -2805,7 +2805,8 @@ ok('id="capitalProjects"' in capital_view and 'Approved capital projects drawing
 ok('the money it has\n      already spent is in the ledger and so is counted once, as spent' in capital_view
    or 'counted once, as spent' in capital_view,
    'the screen says why nothing is counted twice')
-ok("empty: value => {" in read(os.path.join(ROOT, 'deploy/dev/preview/blade-render.mjs')),
+ok("empty: phpEmpty," in read(os.path.join(ROOT, 'deploy/dev/preview/blade-render.mjs'))
+   and 'export function phpEmpty(value) {' in read(os.path.join(ROOT, 'deploy/dev/preview/blade-render.mjs')),
    'the preview renderer understands empty(), so a condition is never defaulted into an empty cell')
 ok("implode: (glue, values)" in read(os.path.join(ROOT, 'deploy/dev/preview/blade-render.mjs')),
    'and implode(), which the commitment column uses to name its projects')
@@ -5605,7 +5606,7 @@ ok("$t->json('params')->nullable();" in mig410 and "hasColumn('report_views', 'p
    'a saved view and a schedule can both remember a report parameter — the shape of a slice stays the report\'s business')
 ok("'params' => 'array'" in view_model and "'params' => 'array'" in sched_model,
    'both models read it back as an array, so no view has to decode JSON by hand')
-ok("public const REPORT_PARAMS = ['slice', 'value'];" in report_ctrl
+ok("public const REPORT_PARAMS = ['slice', 'value', 'by', 'budget', 'month'];" in report_ctrl
    and 'public static function paramsFrom(array $input): ?array' in report_ctrl,
    'the parameters a form may set are a whitelist: a posted field cannot decide what a report reads')
 ok("'params' => ReportController::paramsFrom($d)," in schedule_svc,
@@ -5615,6 +5616,9 @@ ok("'params' => $view ? $view->params : ReportController::paramsFrom($d)," in sc
 ok('self::generate($s->report_key, $from, $to, $s->params ?? [])' in schedule_svc
    and '$s?->params ?? []' in schedule_svc,
    'and the parameters travel with the run — including the run that has no browser at all')
+ok("= (int) $this->param('budget');" in report_ctrl and "if ($this->param('month') !== null) {" in report_ctrl
+   and "if (request('month')) {" not in report_ctrl,
+   'and the budget and the month a Budget vs Actual screen was showing travel with the run, instead of being read off the request the file does not have')
 ok('public function withParams(array $params): static' in report_ctrl
    and 'protected function param(string $key): ?string' in report_ctrl
    and '(string) $this->param(\'slice\')' in report_ctrl,
@@ -5633,6 +5637,66 @@ ok("'Slice: '" not in sched_view and 'Scope: <b>' in sched_view,
 ok("fputcsv($out, [\n                'Portfolio total'" in prop_ctrl2
    and "$sum['occ']" in prop_ctrl2,
    'the register file closes with a total line, and its occupancy is the portfolio figure rather than an average')
+
+# ── 39. a slice read against its neighbour, and one empty() the whole preview agrees on (v10.12) ──
+grp_dash_view = read(os.path.join(ROOT, 'resources/views/group/dashboard.blade.php'))
+render_src = read(os.path.join(ROOT, 'deploy/dev/preview/blade-render.mjs'))
+consol_check = read(os.path.join(ROOT, 'deploy/dev/audit/reports_consolidated_preview_check.js'))
+preview_samples = sorted(f for f in os.listdir(os.path.join(ROOT, 'deploy/dev/preview')) if f.endswith('-sample.mjs'))
+
+ok("$by = in_array((string) $this->param('by'), ['brand', 'city'], true)" in report_ctrl
+   and "'by' => 'group_operating_summary'" not in report_ctrl,
+   'the report can be read by brand or by city and by nothing else: the parameter is a whitelist, not a column name')
+ok("$choices = [['label' => 'Show', 'choices' => $show], "
+   "['label' => 'Compare', 'choices' => $compare]];" in report_ctrl,
+   'the chips became two questions — which properties, and listed or compared — instead of one row of eleven')
+ok("['label' => 'One by one', 'url' => request()->fullUrlWithQuery(['by' => ''])" in report_ctrl,
+   'and going back to one by one is an empty parameter, so a saved view cannot keep a comparison it did not ask for')
+ok("if ($by !== null) {" in report_ctrl
+   and "->map(function ($group, $name) use ($rows) {" in report_ctrl
+   and "$rows = $rows->groupBy(fn ($r) => (string) ($r['_'.$by] ?? '') ?: 'Unassigned '.$by)" in report_ctrl,
+   'a comparison is the same rows gathered by brand or city, so a place with no brand is named rather than dropped')
+ok("'occ' => number_format($rooms ? $occupied * 100 / $rooms : 0, 1).'%'," in report_ctrl
+   and "'adr' => (float) ($occupied ? $roomRevToday / $occupied : 0)," in report_ctrl,
+   'occupancy and ADR are rebuilt from the rooms and the revenue, never averaged from the properties\' own ratios')
+ok("'share' => number_format($rows->sum('rev_mtd') ? $revMtd * 100 / $rows->sum('rev_mtd') : 0, 1).'%'," in report_ctrl
+   and "'sum' => ['properties', 'rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos']," in report_ctrl
+   and "'share' is deliberately not summed" in report_ctrl,
+   'each place carries its share of the group\'s month, and the share is kept out of the total line')
+ok("'_brand' => (string) $hotel->brand, '_city' => (string) $hotel->city," in report_ctrl,
+   'the row carries what it will be grouped by, so the comparison needs no second query')
+ok("'collections' => 'Collections', 'open_pos' => 'Open POS', 'licence' => 'Licence'," in report_ctrl
+   and "'open POS' => 'Open POS'" not in report_ctrl,
+   'and every column has a key: "Open POS" was a label wearing a key\'s clothes, so its cells could never print')
+ok('@foreach($data[\'choices\'] as $row)' in show_view and "$row['label']" in show_view,
+   'the report screen draws the rows from the data, so a third question would be data and not a blade edit')
+ok("route('reports.show', 'group_operating_summary')" in grp_dash_view
+   and "route('reports.show', ['group_operating_summary', 'by' => 'brand'])" in grp_dash_view
+   and grp_dash_view.count("can_do('reports.view')") >= 1,
+   'the group dashboard hands its own figures to the report engine, behind the permission that reads reports')
+ok('export function phpEmpty(value) {' in render_src
+   and "if (typeof value === 'boolean') return value === false;" in render_src
+   and 'empty: phpEmpty,' in render_src,
+   'empty() has one definition for the whole preview, and it agrees with PHP that false is empty')
+weak = [f for f in preview_samples
+        if 'empty: phpEmpty' not in read(os.path.join(ROOT, 'deploy/dev/preview', f))
+        and 'empty:' in read(os.path.join(ROOT, 'deploy/dev/preview', f))
+        and 'empty: null' not in read(os.path.join(ROOT, 'deploy/dev/preview', f))]
+ok(not weak, 'no sample keeps a private copy of empty(): ' + (', '.join(weak) if weak else 'all of them delegate'))
+ok('empty: value => value === undefined' not in ''.join(read(os.path.join(ROOT, 'deploy/dev/preview', f)) for f in preview_samples),
+   'and the weaker `undefined || null || \'\'` version that reported false as not-empty is gone')
+ok('const chipWith = (root, href) =>' in consol_check and 'const pressed = el =>' in consol_check
+   and ".getAttribute?.('aria-pressed')" not in consol_check,
+   'the preview check looks a chip up loudly: a missing chip used to read as `undefined` and pass')
+ok("showChips.filter(isOn).length === 1" in consol_check and "compareChips.filter(isOn).length === 1" in consol_check,
+   'and holds each row to exactly one chip in force, which is the assertion the eleven-lit chips slipped past')
+ok("reports-consolidated-compare" in read(os.path.join(ROOT, 'deploy/dev/previews/index.html'))
+   and "pathname === '/reports-consolidated-compare'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs'))
+   and "pathname === '/reports/group_operating_summary'" in read(os.path.join(ROOT, 'deploy/dev/management-dashboard-preview-server.mjs')),
+   'the comparison is a screen of its own, and the round report\'s own chips arrive somewhere instead of at a 404')
+ok('reportsConsolidatedCompareContext' in read(os.path.join(ROOT, 'deploy/dev/preview/reports-sample.mjs'))
+   and 'reports-consolidated-compare' in read(os.path.join(ROOT, 'deploy/dev/build-reports-preview.mjs')),
+   'and it is built from a sample like every other screen, so it can be looked at')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 

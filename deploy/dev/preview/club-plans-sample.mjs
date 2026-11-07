@@ -1,3 +1,5 @@
+import { phpEmpty } from './blade-render.mjs';
+
 /**
  * Sample data for the Health Club Plans & Settings preview.
  *
@@ -88,7 +90,7 @@ export function clubPlansContext() {
       collect: value => value,
       count: value => (Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
       isset: (...values) => values.every(value => value !== undefined && value !== null),
-      empty: value => value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length),
+      empty: phpEmpty,
       json_encode: value => JSON.stringify(value),
       in_array: (needle, haystack, strict = false) => {
         const list = Array.isArray(haystack) ? haystack : Object.values(haystack ?? {});

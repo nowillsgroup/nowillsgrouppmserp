@@ -203,6 +203,19 @@ const phpArray = (values) => {
   return values == null ? [] : [values];
 };
 
+/** PHP's empty(): false, 0, 0.0, '0', '', null, undefined, an empty array and an empty countable count as empty.
+ *  It lives here and nowhere else because fifteen sample contexts each used to define their own weaker copy
+ *  (`undefined || null || ''`) which reported `false` as *not* empty — so `@if(!empty($x['active']))` marked every
+ *  chip on a report as the chosen one, and the preview showed eleven selected slices at once. */
+export function phpEmpty(value) {
+  if (value instanceof Coll) return value.count() === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (value && typeof value === 'object') return Object.keys(value).length === 0;
+  if (typeof value === 'number') return value === 0;
+  if (typeof value === 'boolean') return value === false;
+  return value === undefined || value === null || value === '' || value === '0';
+}
+
 export const BASE_HELPERS = {
   array_column: (rows, key) => phpArray(rows).map(row => (row == null ? null : row[key])),
   array_filter: (values, predicate) => {
@@ -265,12 +278,7 @@ export const BASE_HELPERS = {
   // wherever a sample had not defined it by hand
   // PHP's empty() is a language construct, but a view writes it as a call; without it the renderer defaulted the
   // condition and printed the block anyway, which is how an empty cell reaches a preview looking like a real one
-  empty: value => {
-    if (value instanceof Coll) return value.count() === 0;
-    if (Array.isArray(value)) return value.length === 0;
-    if (value && typeof value === 'object') return Object.keys(value).length === 0;
-    return value === undefined || value === null || value === false || value === '' || value === 0 || value === '0';
-  },
+  empty: phpEmpty,
   // count() is a PHP builtin a view calls as a function. It was missing, so every `@if(count($x))` guard evaluated to
   // undefined — falsy — and the block behind it silently vanished from the preview instead of rendering. That is the
   // worst kind of preview bug: the screen looked deliberate.

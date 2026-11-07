@@ -235,7 +235,12 @@ export function groupDashboardContext() {
   const trend = [42100, 39800, 45600, 51200, 48900, 53400, 60100, 58700, 55300, 61900, 64200, 59800, 63500, 41250];
 
   return {
-    helpers: { ...helpers, max: (...values) => Math.max(...values.flat()) },
+    helpers: {
+      ...helpers,
+      max: (...values) => Math.max(...values.flat()),
+      // the group administrator this page belongs to: properties and reports, not the group screens
+      can_do: (key) => !['group.dashboard', 'groups.manage', 'groups.view'].includes(key),
+    },
     fallbacks: {},
     scope: {
       rows: new Coll([

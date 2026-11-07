@@ -6,7 +6,7 @@
  * mirrors the 'rooms' entry of config/masters.php; deploy/dev/audit/room_photos_check.py
  * fails if the two drift apart.
  */
-import { Coll } from './blade-render.mjs';
+import { Coll, phpEmpty } from './blade-render.mjs';
 
 /** The 'rooms' entry of config/masters.php (fields and columns, in order). */
 export const roomsDef = {
@@ -102,10 +102,7 @@ const errors = {
 /** The helpers the view calls. */
 const helpers = {
   collect: value => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
-  empty: value => value === undefined || value === null || value === false || value === 0 || value === ''
-    || (Array.isArray(value) && value.length === 0)
-    || (value instanceof Coll && value.isEmpty())
-    || (typeof value === 'object' && !(value instanceof Coll) && Object.keys(value).length === 0),
+  empty: phpEmpty,
   str_contains: (haystack, needle) => String(haystack ?? '').includes(String(needle ?? '')),
   old: (name, fallback = null) => fallback,
   route: (name, params) => routePath(name, params),

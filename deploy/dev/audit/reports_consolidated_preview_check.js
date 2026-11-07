@@ -90,9 +90,33 @@ ok('the other group reports are offered beside it', text.includes('Hotel Group R
 /* ── the slices: the same report for a brand or for a city (v10.10) ─────────── */
 const slices = [...doc.querySelectorAll('[data-testid="report-slices"] .rpt-chip')];
 const sliceText = a => clean(a);
+// a chip is looked up by its href and read through a helper that says "missing" out loud: the earlier form
+// `(querySelector(…) || {})` with an optional-called getAttribute turned a chip that was not there at all
+// into `undefined`, which compares equal to nothing and quietly passed for a page that had lost its chips
+const chipWith = (root, href) => [...root.querySelectorAll('[data-testid="report-slices"] a')]
+  .find(a => (a.getAttribute('href') || '').endsWith(href)) || null;
+const pressed = el => (el ? el.getAttribute('aria-pressed') : 'missing');
+const isOn = el => Boolean(el && el.classList.contains('is-on'));
 
-ok('the report can be sliced, not only read whole', slices.length === 8, `${slices.length} chips`);
-ok('the whole portfolio is the slice that is on', slices[0].classList.contains('is-on') && slices[0].getAttribute('aria-pressed') === 'true');
+ok('the report can be sliced, not only read whole', slices.length === 11, `${slices.length} chips`);
+ok('the chips are two questions, not one row of eleven', doc.querySelectorAll('[data-testid="report-slices"]').length === 1
+  && [...doc.querySelectorAll('[data-testid="report-slices"] > .small.muted')].map(el => clean(el).replace(':', '')).join('|') === 'Show|Compare',
+  [...doc.querySelectorAll('[data-testid="report-slices"] > .small.muted')].map(el => clean(el)).join('|'));
+ok('a chip can ask for a comparison instead', slices.some(a => /\?by=brand$/.test(a.getAttribute('href') || '')));
+ok('and the comparison that is off says so', pressed(chipWith(doc, 'by=brand')) === 'false', pressed(chipWith(doc, 'by=brand')));
+ok('the whole portfolio is the slice that is on', isOn(slices[0]) && pressed(slices[0]) === 'true');
+// v10.12 the rows are two questions and each has exactly one answer in force. Every sample context used to
+// report `false` as not-empty, so all eleven chips rendered as the chosen one and the screen said the report
+// was simultaneously sliced by a brand, a city and the whole portfolio. One chip on per row is the assertion
+// that would have caught it.
+const showChips = slices.filter(a => !(/\?by=/.test(a.getAttribute('href') || '')));
+const compareChips = slices.filter(a => /\?by=/.test(a.getAttribute('href') || ''));
+ok('one chip answers "which properties", not all of them', showChips.filter(isOn).length === 1,
+  showChips.filter(isOn).map(sliceText).join(' | '));
+ok('and one chip answers "listed or compared"', compareChips.filter(isOn).length === 1 && isOn(chipWith(doc, 'by=')),
+  compareChips.filter(isOn).map(sliceText).join(' | '));
+ok('a chip that is not in force does not carry the highlight',
+  slices.filter(isOn).length === 2, `${slices.filter(isOn).length} chips on`);
 ok('a brand slice is a link of its own', slices.some(a => /slice=brand&value=The%20Grove/.test(a.getAttribute('href') || '')));
 ok('a city slice is a link of its own', slices.some(a => /slice=city&value=Takoradi/.test(a.getAttribute('href') || '')));
 ok('every slice stays this report', slices.every(a => (a.getAttribute('href') || '').startsWith('/reports/group_operating_summary')));
@@ -104,6 +128,39 @@ ok('the chips are kept off the print sheet', doc.querySelector('[data-testid="re
 // v10.11 a slice is part of what a view or a schedule remembers, so "all" must be able to say "none"
 ok('the all-properties chip clears the slice explicitly, empty rather than absent',
   /slice=&value=$/.test(slices[0].getAttribute('href') || ''), slices[0].getAttribute('href'));
+/* ── the comparison: two slices read against each other (v10.12) ─────────────── */
+const cmp = new JSDOM(read('deploy/dev/previews/reports-consolidated-compare.html'), { url: 'https://preview.local/reports/group_operating_summary?by=brand' });
+const c = cmp.window.document;
+const ctext = clean(c.body);
+const ctable = c.querySelector('table');
+const chead = [...ctable.querySelectorAll('thead th')].map(th => clean(th));
+const crows = [...ctable.querySelectorAll('tbody tr')]
+  .map(tr => [...tr.querySelectorAll('td')].map(td => clean(td)))
+  .filter(cells => cells.length > 3);
+const ccell = (row, header) => row[chead.indexOf(header)];
+
+ok('the comparison is one row per place, not one per property', crows.length === 2, `${crows.length} rows`);
+ok('it names the grouping it used', chead.includes('Brand'));
+ok('each place says how many properties it holds', crows.every(r => ccell(r, 'Properties') === '2'));
+ok('and its own occupancy', ccell(crows.find(r => /Grove/.test(ccell(r, 'Brand'))), 'Occupancy') === '76.7%');
+ok('the share of the month adds up to the whole', (() => {
+  const total = crows.reduce((sum, r) => sum + parseFloat(ccell(r, 'Share of MTD')), 0);
+  return Math.abs(total - 100) < 0.05;
+})(), crows.map(r => ccell(r, 'Share of MTD')).join(' + '));
+const cfoot = [...ctable.querySelectorAll('tfoot tr')].map(tr => [...tr.querySelectorAll('td')].map(td => clean(td)))[0] || [];
+const ctotal = header => cfoot[chead.indexOf(header)];
+ok('the total line adds the properties', ctotal('Properties') === '4', ctotal('Properties'));
+ok('and the revenue', /GH₵ 1,855,600\.00/.test(ctotal('Revenue MTD')), ctotal('Revenue MTD'));
+ok('it does not add shares of a month together', ctotal('Share of MTD') === '', `"${ctotal('Share of MTD')}"`);
+ok('it does not add occupancies either', ctotal('Occupancy') === '', `"${ctotal('Occupancy')}"`);
+ok('the shut property is still named, not compared as a zero', ctext.includes('Nowills Kumasi City (KSI)') && !crows.some(r => /Kumasi/.test(ccell(r, 'Brand'))));
+ok('the comparison says what it is grouped by', ctext.includes('gathered by brand'));
+ok('the chip that is on says the comparison is the one in force', pressed(chipWith(c, 'by=brand')) === 'true', pressed(chipWith(c, 'by=brand')));
+ok('and only that chip is on, in either row', [...c.querySelectorAll('[data-testid="report-slices"] a')].filter(a => a.classList.contains('is-on')).length === 2,
+  [...c.querySelectorAll('[data-testid="report-slices"] a')].filter(a => a.classList.contains('is-on')).map(a => clean(a)).join(' | '));
+ok('the chip that is off does not claim to be the slice', pressed(chipWith(c, 'by=city')) === 'false', pressed(chipWith(c, 'by=city')));
+ok('and going back to one by one is a URL of its own', [...c.querySelectorAll('[data-testid="report-slices"] a')].some(a => /\?by=$/.test(a.getAttribute('href') || '')));
+
 if (failures.length) {
   console.error(`Consolidated report preview check: ${failures.length} failed, ${passed} passed`);
   for (const failure of failures) console.error(`  ✗ ${failure}`);

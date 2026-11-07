@@ -19,7 +19,7 @@ import { BladePreview } from './preview/blade-render.mjs';
 import { shell, nav, spriteSymbols } from './preview/app-shell.mjs';
 import {
   reportsLibraryContext, reportsDetailContext, reportsSavedViewsContext, reportsSchedulesContext, reportsAlertsContext, reportsAsOnContext,
-  reportsConsolidatedContext,
+  reportsConsolidatedContext, reportsConsolidatedCompareContext,
 } from './preview/reports-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -63,6 +63,11 @@ const screens = [
     // and into the engine that prints, exports and schedules.
     view: 'reports/show', file: 'reports-consolidated.html', title: 'Consolidated Operating Summary',
     crumbs: 'Reports / Consolidated Operating Summary', context: reportsConsolidatedContext,
+  },
+  {
+    // v10.12 the same figures gathered by brand: two of them read against each other
+    view: 'reports/show', file: 'reports-consolidated-compare.html', title: 'Consolidated Operating Summary',
+    crumbs: 'Reports / Consolidated Operating Summary / By brand', context: reportsConsolidatedCompareContext,
   },
 ];
 

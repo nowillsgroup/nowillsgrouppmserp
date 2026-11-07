@@ -131,9 +131,16 @@ ok('a scheduled e-mail falls back to the library instead of a 404',
   && /route\('reports\.index'\)/.test(mail));
 
 // ── what the links carry ────────────────────────────────────────────────────
-// show() reads from, to, view and export. Anything else a screen passes is dropped
-// on the way in, so the report opens on its default period instead of the caller's.
-const readParams = new Set(['from', 'to', 'view', 'export']);
+// show() reads from, to, view and export, and since v10.11 every parameter the controller lists in
+// REPORT_PARAMS (the slice and the grouping). Anything else a screen passes is dropped on the way in, so
+// the report opens on its default period instead of the caller's. The list is read out of the controller
+// rather than copied here: a copied list goes stale the round after it is written, and then a link that
+// works is reported as broken.
+const paramContract = (/public const REPORT_PARAMS = \[([^\]]*)\]/.exec(controller) || [, ''])[1]
+  .match(/'[a-z_]+'/g) || [];
+ok('the report\'s parameter contract is found in the controller, not guessed at here',
+  paramContract.length >= 3, paramContract.join(', '));
+const readParams = new Set(['from', 'to', 'view', 'export', ...paramContract.map(name => name.slice(1, -1))]);
 const dropped = [...extraParams].filter(([key]) => !readParams.has(key.split(': ')[1]));
 if (dropped.length) {
   notes.push(`links pass parameters show() does not read: ${dropped.map(([key, n]) => `${key} (×${n})`).join(', ')}`);

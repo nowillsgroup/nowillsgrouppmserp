@@ -758,8 +758,14 @@ class ReportController extends Controller
     /**
      * v10.11 the report parameters a view or a schedule may remember. A whitelist, because a saved
      * view posts a form and the last thing this engine needs is a form deciding what a report reads.
+     *
+     * v10.12 `by` joins the slice, and `budget`/`month` join both: the Budget vs Actual screen has always
+     * linked to its own Print / CSV with the budget and month it was showing, and those two were read
+     * straight off the request — so the link worked and the saved view and the scheduled run quietly
+     * reported on a different month. A parameter a screen can show is a parameter the engine must read
+     * through the same door, or the file is not the screen.
      */
-    public const REPORT_PARAMS = ['slice', 'value'];
+    public const REPORT_PARAMS = ['slice', 'value', 'by', 'budget', 'month'];
 
     /** The parameters of the run in progress — set by the screen (from the URL or a view) or a schedule. */
     protected array $params = [];
@@ -1964,7 +1970,7 @@ class ReportController extends Controller
     /** the budget a report is about: ?budget= (approved, this hotel) or the active budget of the date's fiscal year */
     protected function reportBudget(Carbon $to, string $kind = 'budget'): ?\App\Models\Budget
     {
-        $id = (int) request('budget');
+        $id = (int) $this->param('budget');
         if ($id && ($b = \App\Models\Budget::where('status', 'approved')->find($id))) {
             return $b;
         }
@@ -1987,8 +1993,10 @@ class ReportController extends Controller
         }
         $B = \App\Services\BudgetService::class;
         $month = $B::fyFor($to) === $b->fiscal_year ? $B::monthIndex($to) : 12;
-        if (request('month')) {
-            $month = min(12, max(1, (int) request('month')));
+        // Read through param(), so the month the screen was showing is the month the file, the saved view
+        // and the scheduled run all report on.
+        if ($this->param('month') !== null) {
+            $month = min(12, max(1, (int) $this->param('month')));
         }
         $d = $B::bva($b, $month, $B::active($b->fiscal_year, 'forecast'));
         $fmt = fn ($r, $sec, $code = '') => ['section' => $sec, 'code' => $code, 'account' => $r['name'], 'actual' => $r['actual'], 'budget' => $r['budget'], 'var' => $r['var'],
@@ -7466,18 +7474,31 @@ class ReportController extends Controller
             $hotels = $hotels->filter(fn ($h) => (string) ($slice[0] === 'brand' ? $h->brand : $h->city) === $slice[1])->values();
         }
 
+        // v10.12 two questions, two rows of chips: which properties ("Show") and whether they are
+        // compared side by side or listed one by one ("Compare"). A slice answers "one of these"; a
+        // grouping answers "these beside each other", which is the question a portfolio is read for.
+        $by = in_array((string) $this->param('by'), ['brand', 'city'], true) ? (string) $this->param('by') : null;
+
         // Both keys are always written, empty for "all": an empty parameter is how a sliced view is
         // told "no slice", where a missing one would leave the view's own slice in force.
-        $choices = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => '', 'value' => '']),
+        $show = [['label' => 'All properties', 'url' => request()->fullUrlWithQuery(['slice' => '', 'value' => '']),
             'count' => $portfolio->count(), 'active' => $slice === null]];
 
         foreach (['brand' => 'Brand', 'city' => 'City'] as $field => $label) {
             foreach ($portfolio->pluck($field)->filter()->unique()->sort()->values() as $name) {
-                $choices[] = ['label' => (string) $name, 'url' => request()->fullUrlWithQuery(['slice' => $field, 'value' => $name]),
+                $show[] = ['label' => (string) $name, 'url' => request()->fullUrlWithQuery(['slice' => $field, 'value' => $name]),
                     'count' => $portfolio->filter(fn ($h) => (string) $h->{$field} === (string) $name)->count(),
                     'active' => $slice === [$field, (string) $name]];
             }
         }
+
+        $compare = [
+            ['label' => 'One by one', 'url' => request()->fullUrlWithQuery(['by' => '']), 'count' => $hotels->count(), 'active' => $by === null],
+            ['label' => 'By brand', 'url' => request()->fullUrlWithQuery(['by' => 'brand']), 'count' => $hotels->pluck('brand')->filter()->unique()->count(), 'active' => $by === 'brand'],
+            ['label' => 'By city', 'url' => request()->fullUrlWithQuery(['by' => 'city']), 'count' => $hotels->pluck('city')->filter()->unique()->count(), 'active' => $by === 'city'],
+        ];
+
+        $choices = [['label' => 'Show', 'choices' => $show], ['label' => 'Compare', 'choices' => $compare]];
 
         $metrics = app(\App\Services\GroupMetricsService::class);
         $rows = collect();
@@ -7495,6 +7516,8 @@ class ReportController extends Controller
 
             $m = $metrics->row($hotel);
             $rows->push([
+                // carried for the comparison, not printed one by one: the columns decide what shows
+                '_brand' => (string) $hotel->brand, '_city' => (string) $hotel->city,
                 'property' => $hotel->name, 'code' => $hotel->code, 'status' => $hotel->statusLabel(),
                 'date' => $m['business_date']->format('d-m-Y'),
                 'rooms' => $m['rooms'], 'occupied' => $m['occupied'], 'occ' => number_format($m['occ'], 1).'%',
@@ -7503,6 +7526,60 @@ class ReportController extends Controller
                 'collections' => (float) $m['collections'], 'open_pos' => $m['open_pos'],
                 'licence' => $metrics->licenceLabel($hotel),
             ]);
+        }
+
+        // v10.12 the comparison: the same figures gathered by brand or by city, so two of them can be
+        // read against each other instead of one at a time. Occupancy and ADR are recomputed from the
+        // parts, never averaged — an average of four occupancies is a number about nothing.
+        if ($by !== null) {
+            $rows = $rows->groupBy(fn ($r) => (string) ($r['_'.$by] ?? '') ?: 'Unassigned '.$by)
+                ->map(function ($group, $name) use ($rows) {
+                    $rooms = (int) $group->sum('rooms');
+                    $occupied = (int) $group->sum('occupied');
+                    $revMtd = (float) $group->sum('rev_mtd');
+                    $roomRevToday = $group->sum(fn ($r) => $r['adr'] * $r['occupied']);
+
+                    return [
+                        'group' => $name, 'properties' => $group->count(),
+                        'rooms' => $rooms, 'occupied' => $occupied,
+                        'occ' => number_format($rooms ? $occupied * 100 / $rooms : 0, 1).'%',
+                        'in_house' => (int) $group->sum('in_house'), 'arrivals' => (int) $group->sum('arrivals'),
+                        'departures' => (int) $group->sum('departures'),
+                        'rev_today' => (float) $group->sum('rev_today'),
+                        'adr' => (float) ($occupied ? $roomRevToday / $occupied : 0),
+                        'rev_mtd' => $revMtd,
+                        // a share of the group's month, so "which brand carries the portfolio" is a column
+                        'share' => number_format($rows->sum('rev_mtd') ? $revMtd * 100 / $rows->sum('rev_mtd') : 0, 1).'%',
+                        'collections' => (float) $group->sum('collections'),
+                        'open_pos' => (int) $group->sum('open_pos'),
+                    ];
+                })->sortByDesc('rev_mtd')->values();
+
+            return [
+                'cols' => [
+                    'group' => $by === 'brand' ? 'Brand' : 'City', 'properties' => 'Properties',
+                    'rooms' => 'Sellable', 'occupied' => 'Occupied', 'occ' => 'Occupancy',
+                    'in_house' => 'In-house', 'arrivals' => 'Arr', 'departures' => 'Dep',
+                    'rev_today' => 'Revenue today', 'adr' => 'ADR', 'rev_mtd' => 'Revenue MTD', 'share' => 'Share of MTD',
+                    'collections' => 'Collections', 'open_pos' => 'Open POS',
+                ],
+                'rows' => $rows,
+                'money' => ['rev_today', 'adr', 'rev_mtd', 'collections'],
+                // 'share' is deliberately not summed: percentages do not add up to a portfolio
+                'sum' => ['properties', 'rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+                'summary' => [
+                    'Places compared' => (string) $rows->count(),
+                    'Properties trading' => (string) $rows->sum('properties'),
+                    'Group occupancy' => number_format($rows->sum('rooms') ? $rows->sum('occupied') * 100 / $rows->sum('rooms') : 0, 1).'%',
+                    'Revenue MTD' => (float) $rows->sum('rev_mtd'),
+                    'Properties shut' => (string) count($closed),
+                ],
+                'choices' => $choices,
+                'note' => 'The properties you may open, gathered by '.$by.' and each read on its own business date.'
+                    .($slice ? ' Within '.$slice[1].' only.' : '')
+                    .($closed === [] ? '' : ' Not in these totals, because nobody can post there: '
+                        .implode(', ', array_map(fn ($h) => $h->name.' ('.$h->code.')', $closed)).'.'),
+            ];
         }
 
         $rooms = (int) $rows->sum('rooms');

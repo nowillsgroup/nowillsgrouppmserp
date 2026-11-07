@@ -11,7 +11,7 @@
  * F&B day, housekeeping still turning rooms, and a laundry that has not opened yet (the
  * empty-state screen).
  */
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
 
@@ -25,8 +25,7 @@ const HELPERS = {
   old: (key, fallback = null) => fallback,
   collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
   count: (value) => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-  empty: (value) => value === undefined || value === null || value === ''
-    || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty()),
+  empty: phpEmpty,
   in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
   is_array: (value) => Array.isArray(value),
   array_values: (value) => (Array.isArray(value) ? value.slice() : Object.values(value ?? {})),

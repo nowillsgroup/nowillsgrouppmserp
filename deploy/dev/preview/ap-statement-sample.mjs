@@ -22,7 +22,7 @@
  *
  * "Today" is 7 November 2026; the period runs from 10 August.
  */
-import { SampleDate } from './blade-render.mjs';
+import { SampleDate, phpEmpty } from './blade-render.mjs';
 
 const TODAY = new SampleDate('2026-11-07T06:00:00Z');
 
@@ -101,7 +101,7 @@ export function apStatementContext({ from = '2026-08-10', to = '2026-11-07' } = 
       can_do: () => true,
       request: (key) => (key === undefined ? { except: () => ({}) } : (key === 'from' ? from : key === 'to' ? to : null)),
       isset: value => value !== undefined && value !== null,
-      empty: value => value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0),
+      empty: phpEmpty,
       collect: value => ({ items: Array.isArray(value) ? value : [], sum: (k) => (Array.isArray(value) ? value.reduce((t, r) => t + Number(r[k] ?? 0), 0) : 0) }),
       count: value => (Array.isArray(value) ? value.length : 0),
       e: value => String(value ?? ''),

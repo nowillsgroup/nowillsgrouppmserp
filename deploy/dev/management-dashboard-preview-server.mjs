@@ -117,6 +117,14 @@ const server = createServer(async (req, res) => {
     file = resolve(ROOT, 'deploy/dev/previews/laundry-prices.html');
   } else if (pathname === '/reports-consolidated' || pathname === '/__preview/reports-consolidated') {
     file = resolve(ROOT, 'deploy/dev/previews/reports-consolidated.html'); // v10.9 the group's own report
+  } else if (pathname === '/reports-consolidated-compare' || pathname === '/__preview/reports-consolidated-compare') {
+    file = resolve(ROOT, 'deploy/dev/previews/reports-consolidated-compare.html'); // v10.12 the same report, compared
+  } else if (pathname === '/reports/group_operating_summary' || pathname === '/__preview/reports/group_operating_summary') {
+    // v10.12 the report's own chips are links, so in the preview they have to arrive somewhere: "By brand" is the
+    // comparison (the only grouping this sample carries), everything else — a slice, "By city", "One by one" —
+    // lands back on the one-by-one page rather than on a 404 the reader would read as a broken screen.
+    const by = new URL(req.url ?? '/', 'http://preview.local').searchParams.get('by');
+    file = resolve(ROOT, `deploy/dev/previews/${by === 'brand' ? 'reports-consolidated-compare' : 'reports-consolidated'}.html`);
   } else if (pathname === '/reports-report-date' || pathname === '/__preview/reports-report-date') {
     file = resolve(ROOT, 'deploy/dev/previews/reports-report-date.html');
   } else if (pathname === '/reports-views' || pathname === '/__preview/reports-views') {

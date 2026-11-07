@@ -7,7 +7,7 @@
  * band, chosen nights, a stay-date range, a room-type-only rule, a percentage and a fixed amount —
  * and the room types carry the guard-rails the limits table edits. Only the numbers are fixed.
  */
-import { Coll } from './blade-render.mjs';
+import { Coll, phpEmpty } from './blade-render.mjs';
 
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
 
@@ -105,7 +105,7 @@ export function revenueRulesContext() {
       collect: value => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
       count: value => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : 0),
       isset: (...values) => values.every(value => value !== undefined && value !== null),
-      empty: value => value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length),
+      empty: phpEmpty,
       in_array: (needle, haystack, strict = false) => (haystack?.items ?? haystack ?? []).includes(needle),
       round: (value, places = 0) => { const factor = 10 ** places; return Math.round(Number(value ?? 0) * factor) / factor; },
       json: value => JSON.stringify(value),

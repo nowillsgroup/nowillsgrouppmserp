@@ -1,7 +1,15 @@
 @extends('layouts.app')
 @section('title', 'Group Dashboard')
 @section('crumbs') {{ $group?->name ?? 'Hotel group' }} / Consolidated view @endsection
-@section('actions')<span class="small muted">{{ $rows->count() }} properties · live</span>@endsection
+@section('actions')
+  <span class="small muted">{{ $rows->count() }} properties · live</span>
+  {{-- v10.12 the dashboard's figures, in the engine that prints, exports and schedules them: a group
+       administrator reading this page should not have to go looking for the report afterwards. --}}
+  @if(can_do('reports.view'))
+    <a class="btn" href="{{ route('reports.show', 'group_operating_summary') }}"><x-icon name="download" size="sm"/> Consolidated report</a>
+    <a class="btn btn-ghost" href="{{ route('reports.show', ['group_operating_summary', 'by' => 'brand']) }}"><x-icon name="layers" size="sm"/> Compare brands</a>
+  @endif
+@endsection
 @section('content')
 <div class="stats">
   <x-stat label="Group occupancy" :value="$totals['occ'].'%'" icon="bed" tone="blue" :sub="$totals['occupied'].' of '.$totals['rooms'].' sellable rooms'"/>

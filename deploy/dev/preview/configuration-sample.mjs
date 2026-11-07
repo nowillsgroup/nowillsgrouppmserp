@@ -14,7 +14,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
@@ -29,7 +29,7 @@ const HELPERS = {
   asset: (p) => `/${String(p ?? '').replace(/^\/+/, '')}`,
   old: (key, fallback = null) => fallback,
   count: (v) => (v instanceof Coll ? v.count() : Array.isArray(v) ? v.length : v && typeof v === 'object' ? Object.keys(v).length : 0),
-  empty: (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) || (v instanceof Coll && v.isEmpty()),
+  empty: phpEmpty,
   in_array: (needle, hay) => (hay instanceof Coll ? hay.items : hay ?? []).includes(needle),
   array_values: (v) => (Array.isArray(v) ? v.slice() : Object.values(v ?? {})),
   implode: (glue, v) => (v instanceof Coll ? v.items : v ?? []).join(glue),

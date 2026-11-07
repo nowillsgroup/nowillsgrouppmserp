@@ -8,7 +8,7 @@
  * screen composes exactly as it does in the application. Only the property and the
  * figures are fixed.
  */
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
 
@@ -158,8 +158,7 @@ const HELPERS = {
     return KeyedCollection.of(value ?? {});
   },
   count: value => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-  empty: value => value === undefined || value === null || value === ''
-    || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty()),
+  empty: phpEmpty,
   __static: (cls, method, ...args) => (method === 'resolve' ? [new SampleDate(`${BUSINESS_DATE}T00:00:00Z`), new SampleDate(`${BUSINESS_DATE}T00:00:00Z`)] : args[0] ?? ''),
   __const: (cls, name) => (name === 'RANGES' ? RANGES : []),
   e: value => String(value ?? ''),
@@ -405,15 +404,23 @@ export function reportsConsolidatedContext() {
         rows,
         // v10.10 the report can be sliced by brand and by city; the slices are links, so each one is a
         // URL that can be bookmarked, printed and scheduled like any other state of the report.
+        // v10.12 two questions, two rows: which properties, and listed or compared
         choices: [
-          { label: 'All properties', url: '/reports/group_operating_summary?slice=&value=', count: 5, active: true },
-          { label: 'The Grove', url: '/reports/group_operating_summary?slice=brand&value=The%20Grove', count: 2, active: false },
-          { label: 'Nowills', url: '/reports/group_operating_summary?slice=brand&value=Nowills', count: 2, active: false },
-          { label: 'Accra', url: '/reports/group_operating_summary?slice=city&value=Accra', count: 1, active: false },
-          { label: 'Takoradi', url: '/reports/group_operating_summary?slice=city&value=Takoradi', count: 1, active: false },
-          { label: 'Cape Coast', url: '/reports/group_operating_summary?slice=city&value=Cape%20Coast', count: 1, active: false },
-          { label: 'Tamale', url: '/reports/group_operating_summary?slice=city&value=Tamale', count: 1, active: false },
-          { label: 'Kumasi', url: '/reports/group_operating_summary?slice=city&value=Kumasi', count: 1, active: false },
+          { label: 'Show', choices: [
+            { label: 'All properties', url: '/reports/group_operating_summary?slice=&value=', count: 5, active: true },
+            { label: 'The Grove', url: '/reports/group_operating_summary?slice=brand&value=The%20Grove', count: 2, active: false },
+            { label: 'Nowills', url: '/reports/group_operating_summary?slice=brand&value=Nowills', count: 2, active: false },
+            { label: 'Accra', url: '/reports/group_operating_summary?slice=city&value=Accra', count: 1, active: false },
+            { label: 'Takoradi', url: '/reports/group_operating_summary?slice=city&value=Takoradi', count: 1, active: false },
+            { label: 'Cape Coast', url: '/reports/group_operating_summary?slice=city&value=Cape%20Coast', count: 1, active: false },
+            { label: 'Tamale', url: '/reports/group_operating_summary?slice=city&value=Tamale', count: 1, active: false },
+            { label: 'Kumasi', url: '/reports/group_operating_summary?slice=city&value=Kumasi', count: 1, active: false },
+          ] },
+          { label: 'Compare', choices: [
+            { label: 'One by one', url: '/reports/group_operating_summary?by=', count: 4, active: true },
+            { label: 'By brand', url: '/reports/group_operating_summary?by=brand', count: 2, active: false },
+            { label: 'By city', url: '/reports/group_operating_summary?by=city', count: 4, active: false },
+          ] },
         ],
         money: ['rev_today', 'adr', 'rev_mtd', 'collections'],
         sum: ['rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
@@ -426,6 +433,94 @@ export function reportsConsolidatedContext() {
         },
         note: 'Each property is read on its own business date, in its own books. Not in these totals, because nobody can post there: '
           + 'Nowills Kumasi City (KSI). Its history is untouched — licensing a module again puts it straight back in this report.',
+      },
+    },
+  };
+}
+
+/**
+ * The comparison: the same portfolio gathered by brand, so two of them are read against each other.
+ *
+ * Mirrors what r_group_operating_summary() returns when it is asked for `by=brand`: one row per brand,
+ * the ratios recomputed from the parts (never averaged), and a share of the group's month so "which
+ * brand carries the portfolio" is a column rather than mental arithmetic.
+ */
+export function reportsConsolidatedCompareContext() {
+  const from = new SampleDate('2026-11-01T00:00:00Z');
+  const to = new SampleDate('2026-11-07T00:00:00Z');
+
+  const cols = {
+    group: 'Brand', properties: 'Properties',
+    rooms: 'Sellable', occupied: 'Occupied', occ: 'Occupancy',
+    in_house: 'In-house', arrivals: 'Arr', departures: 'Dep',
+    rev_today: 'Revenue today', adr: 'ADR', rev_mtd: 'Revenue MTD', share: 'Share of MTD',
+    collections: 'Collections', open_pos: 'Open POS',
+  };
+
+  const rows = Coll.of([
+    {
+      group: 'Nowills', properties: 2, rooms: 160, occupied: 103, occ: '64.4%', in_house: 88, arrivals: 21, departures: 17,
+      rev_today: 41250, adr: 401, rev_mtd: 946800, share: '51.0%', collections: 45100, open_pos: 5,
+    },
+    {
+      group: 'The Grove', properties: 2, rooms: 120, occupied: 92, occ: '76.7%', in_house: 72, arrivals: 17, departures: 11,
+      rev_today: 44630, adr: 485.1, rev_mtd: 908800, share: '49.0%', collections: 42600, open_pos: 4,
+    },
+  ]);
+
+  const helpers = {
+    ...HELPERS,
+    is_int: () => false,
+    __static: (cls, method, ...args) => args[0] ?? '',
+    __const: (cls, name) => {
+      if (name === 'REPORTS') return REPORTS;
+      if (name === 'RANGES') return RANGES;
+      return [];
+    },
+  };
+
+  return {
+    helpers,
+    fallbacks: {},
+    scope: {
+      report: 'group_operating_summary',
+      title: 'Consolidated Operating Summary',
+      desc: 'Every property you may open, each on its own business date.',
+      mode: 'none',
+      range: 'custom',
+      from,
+      to,
+      views: Coll.of([]),
+      activeView: null,
+      allCols: cols,
+      data: {
+        cols,
+        rows,
+        choices: [
+          { label: 'Show', choices: [
+            { label: 'All properties', url: '/reports/group_operating_summary?slice=&value=&by=brand', count: 5, active: true },
+            { label: 'The Grove', url: '/reports/group_operating_summary?slice=brand&value=The%20Grove&by=brand', count: 2, active: false },
+            { label: 'Nowills', url: '/reports/group_operating_summary?slice=brand&value=Nowills&by=brand', count: 2, active: false },
+            { label: 'Takoradi', url: '/reports/group_operating_summary?slice=city&value=Takoradi&by=brand', count: 1, active: false },
+            { label: 'Accra', url: '/reports/group_operating_summary?slice=city&value=Accra&by=brand', count: 1, active: false },
+          ] },
+          { label: 'Compare', choices: [
+            { label: 'One by one', url: '/reports/group_operating_summary?by=', count: 4, active: false },
+            { label: 'By brand', url: '/reports/group_operating_summary?by=brand', count: 2, active: true },
+            { label: 'By city', url: '/reports/group_operating_summary?by=city', count: 4, active: false },
+          ] },
+        ],
+        money: ['rev_today', 'adr', 'rev_mtd', 'collections'],
+        sum: ['properties', 'rooms', 'occupied', 'in_house', 'arrivals', 'departures', 'rev_today', 'rev_mtd', 'collections', 'open_pos'],
+        summary: {
+          'Places compared': '2',
+          'Properties trading': '4',
+          'Group occupancy': '69.6%',
+          'Revenue MTD': 1855600,
+          'Properties shut': '1',
+        },
+        note: 'The properties you may open, gathered by brand and each read on its own business date. '
+          + 'Not in these totals, because nobody can post there: Nowills Kumasi City (KSI).',
       },
     },
   };

@@ -12,7 +12,7 @@
  * GETFund 2.5 + Tourism levy 1 = 21% — added on top of the entered price (exclusive mode),
  * exactly as ClubBillingService::tax() does.
  */
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
 
@@ -211,8 +211,7 @@ const HELPERS = {
   hotel: () => HOTEL,
   collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
   count: (value) => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-  empty: (value) => value === undefined || value === null || value === ''
-    || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty()),
+  empty: phpEmpty,
   in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
   array_filter: (value) => Object.fromEntries(Object.entries(value ?? {}).filter(([, entry]) => entry !== null && entry !== undefined && entry !== '')),
   array_values: (value) => (Array.isArray(value) ? value.slice() : Object.values(value ?? {})),

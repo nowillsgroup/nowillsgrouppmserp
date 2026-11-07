@@ -36,12 +36,16 @@
      They are links, so a slice can be bookmarked, printed and e-mailed like any other state of the
      report, and the chip that is on says which slice the figures below answer for. --}}
 @if(!empty($data['choices']))
+{{-- v10.12 one row per question the report asks of its scope: which properties ("Show"), and whether
+     they are compared or listed ("Compare"). A row is chips of links, so every state is a URL. --}}
 <div class="rpt-chips no-print" role="group" aria-label="Restrict this report" data-testid="report-slices">
-  <span class="small muted"><x-icon name="list"/> Show:</span>
-  @foreach($data['choices'] as $choice)
-    <a class="rpt-chip {{ !empty($choice['active']) ? 'is-on' : '' }}" href="{{ $choice['url'] }}"
-       aria-pressed="{{ !empty($choice['active']) ? 'true' : 'false' }}"
-       @if(!empty($choice['active'])) aria-current="true" @endif>{{ $choice['label'] }} <span>{{ $choice['count'] }}</span></a>
+  @foreach($data['choices'] as $row)
+    <span class="small muted"><x-icon name="list"/> {{ $row['label'] }}:</span>
+    @foreach($row['choices'] as $choice)
+      <a class="rpt-chip {{ !empty($choice['active']) ? 'is-on' : '' }}" href="{{ $choice['url'] }}"
+         aria-pressed="{{ !empty($choice['active']) ? 'true' : 'false' }}"
+         @if(!empty($choice['active'])) aria-current="true" @endif>{{ $choice['label'] }} <span>{{ $choice['count'] }}</span></a>
+    @endforeach
   @endforeach
 </div>
 @endif

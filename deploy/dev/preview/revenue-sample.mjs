@@ -8,7 +8,7 @@
  * chart, the four stat cards, the table and the totals compose exactly as they do in the
  * application. Only the property and the numbers are fixed.
  */
-import { Coll, SampleDate } from './blade-render.mjs';
+import { Coll, SampleDate, phpEmpty } from './blade-render.mjs';
 
 export const HOTEL = { name: 'The Grove Essipong Beach Resort', code: 'GROVE', currency_symbol: 'GH₵' };
 
@@ -117,8 +117,7 @@ export function revenueContext() {
       collect: value => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
       count: value => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
       isset: (...values) => values.every(value => value !== undefined && value !== null),
-      empty: value => value === undefined || value === null || value === ''
-        || (Array.isArray(value) && !value.length) || (value instanceof Coll && value.isEmpty()),
+      empty: phpEmpty,
       in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
       json: value => JSON.stringify(value),
       round: (value, places = 0) => { const factor = 10 ** places; return Math.round(Number(value ?? 0) * factor) / factor; },
