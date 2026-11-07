@@ -236,6 +236,42 @@ ok('with its side and its spice', /Side dishes: Extra chips \+10\.00/.test(cartL
   && /Hot/.test(cartLines()[beforeRefusal]));
 ok('total 435.00', text($('#cartTotal')) === '435.00');
 
+/* 8 ─ a side dish can be ordered twice ─────────────────────────────────────── */
+tile('Banku & Okro Stew').click();
+ok('every side carries a count', $$('#sideDishChoices .pos-side-row').length === 2
+  && $$('#sideDishChoices [data-side-step]').length === 4);
+const fishBox = $$('#sideDishChoices input[type=checkbox]').find(box => box.dataset.sideVariantName === 'Extra fish');
+const okroBox = $$('#sideDishChoices input[type=checkbox]').find(box => box.dataset.sideVariantName === 'Extra okro');
+const fishRow = fishBox.closest('.pos-side-row');
+ok('a side starts at one', fishRow.querySelector('[data-side-count]').textContent === '1');
+okroBox.checked = true;
+okroBox.closest('.pos-side-row').querySelector('[data-side-step="-1"]').click();
+ok('a count never falls below one', okroBox.closest('.pos-side-row').querySelector('[data-side-count]').textContent === '1');
+fishRow.querySelector('[data-side-step="1"]').click();
+ok('+ raises the count', fishRow.querySelector('[data-side-count]').textContent === '2');
+ok('and does not close the sheet', $('#sideDishModal').classList.contains('show'));
+fishRow.querySelector('[data-side-step="1"]').click();
+fishRow.querySelector('[data-side-step="-1"]').click();
+ok('the count comes back down', fishRow.querySelector('[data-side-count]').textContent === '2');
+$('#sideDishContinue').click();
+const bankuLine = cartLines()[4];
+ok('the line is added', cartLines().length === 5, `${cartLines().length} lines`);
+ok('58.00 + (28.00 × 2) + 8.00 = 122.00', /GH₵ 122\.00 each/.test(bankuLine), bankuLine);
+ok('the doubled side shows its count and what the two make',
+  /Extra fish ×2 \+56\.00/.test(bankuLine) && /Extra okro \+8\.00/.test(bankuLine), bankuLine);
+ok('the request repeats the id once per portion',
+  $$('#cartLines input[name*="items[4][variants]"]').map(input => input.value).join(',') === '7,7,8');
+ok('total 557.00', text($('#cartTotal')) === '557.00', text($('#cartTotal')));
+
+/* the same dish with a different count is a different line, not a second unit of the first */
+tile('Banku & Okro Stew').click();
+$$('#sideDishChoices input[type=checkbox]').find(box => box.dataset.sideVariantName === 'Extra fish').checked = true;
+$('#sideDishContinue').click();
+ok('one portion of the same dish is a line of its own', cartLines().length === 6, `${cartLines().length} lines`);
+ok('58.00 + 28.00 = 86.00', /GH₵ 86\.00 each/.test(cartLines()[5]), cartLines()[5]);
+ok('and it is posted as one unit', $$('#cartLines input[name*="items[5][variants]"]').map(input => input.value).join(',') === '7');
+ok('total 643.00', text($('#cartTotal')) === '643.00', text($('#cartTotal')));
+
 ok('the page ran without a script error', errors.length === 0, errors.join(' | '));
 
 console.log(`pos-terminal preview: ${passed} passed, ${failures.length} failed`);

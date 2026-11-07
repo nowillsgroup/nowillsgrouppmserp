@@ -2480,6 +2480,14 @@ body.dark .mk-legend { color: var(--c-text-2); }
 .pos-side-dish-choices .check:last-of-type { border-bottom: 0; }
 .pos-side-dish-choices .check input { flex: none; }
 .pos-side-dish-choices .check .tiny { margin-left: auto; text-align: right; }
+/* A side dish can be ordered more than once (v9.31): the count sits at the end of its own row. */
+.pos-side-row { display: flex; align-items: center; gap: .4rem; border-bottom: 1px solid var(--c-border); }
+.pos-side-row:last-of-type { border-bottom: 0; }
+.pos-side-row .check { flex: 1; min-width: 0; border-bottom: 0; }
+.pos-side-qty { display: inline-flex; align-items: center; gap: .18rem; flex: none; }
+.pos-side-qty button { width: 26px; height: 26px; padding: 0; border: 1px solid var(--c-border); border-radius: 7px; background: var(--c-surface, #fff); color: inherit; font-weight: 800; line-height: 1; cursor: pointer; }
+.pos-side-qty button:hover { border-color: var(--c-accent, #2563eb); }
+.pos-side-qty b { min-width: 1.05rem; text-align: center; font-size: .82rem; font-variant-numeric: tabular-nums; }
 .pos-menu-heading { display: grid; gap: .16rem; }
 .pos-menu-heading h2 { margin: 0; font-size: 1.2rem; letter-spacing: -.025em; }
 .pos-eyebrow { display: block; color: var(--c-muted); font-size: .63rem; font-weight: 800; letter-spacing: .12em; line-height: 1.3; }

@@ -272,7 +272,8 @@
       return '<div class="offline-pos-line">' +
         '<div><b>' + esc(line.name) + '</b>' +
         (line.sides && line.sides.length ? '<div class="tiny muted">Side dishes: ' + esc(line.sides.map(function (s) {
-          return s.name + (Number(s.rate) > 0 ? ' +' + Number(s.rate).toFixed(2) : ' included');
+          var qty = Math.max(1, Number(s.qty) || 1);
+          return s.name + (qty > 1 ? ' ×' + qty : '') + (Number(s.rate) > 0 ? ' +' + (Number(s.rate) * qty).toFixed(2) : ' included');
         }).join(' · ')) + '</div>' : '') +
         (line.notes ? '<div class="tiny muted">' + esc(line.notes) + '</div>' : '') +
         '</div>' +
@@ -323,10 +324,16 @@
 
   function addLine(item, sides) {
     var order = activeLocalOrder() || openLocalOrder(currentTableId());
-    var sideTotal = (sides || []).reduce(function (sum, side) { return sum + Number(side.rate || 0); }, 0);
+    var units = (sides || []).reduce(function (all, side) {
+      for (var n = 0; n < Math.max(1, Math.min(9, Number(side.qty) || 1)); n++) all.push(Number(side.id));
+      return all;
+    }, []);
+    var sideTotal = (sides || []).reduce(function (sum, side) {
+      return sum + Number(side.rate || 0) * Math.max(1, Math.min(9, Number(side.qty) || 1));
+    }, 0);
     var existing = order.lines.find(function (line) {
       return Number(line.menuItemId) === Number(item.id) &&
-        JSON.stringify((line.sideIds || []).slice().sort()) === JSON.stringify((sides || []).map(function (s) { return s.id; }).sort());
+        JSON.stringify((line.sideIds || []).slice().sort()) === JSON.stringify(units.slice().sort());
     });
     if (existing) {
       existing.qty += 1;
@@ -339,7 +346,7 @@
         rate: round(Number(item.price) + sideTotal),
         amount: round(Number(item.price) + sideTotal),
         sides: sides || [],
-        sideIds: (sides || []).map(function (s) { return s.id; }),
+        sideIds: units,
         notes: null
       });
     }
@@ -364,12 +371,20 @@
     state.sideItem = item;
     el.sidesTitle.textContent = 'Side dish for ' + item.name;
     var required = item.side_required === true;
+    // a side can be ordered more than once: the count sits at the end of its row (v9.31)
     el.sidesList.innerHTML = (item.sides || []).map(function (side) {
-      return '<label class="offline-pos-side">' +
-        '<input type="checkbox" name="offlineSide" value="' + side.id + '" data-side-id="' + side.id + '">' +
-        '<span>' + esc(side.name) + '</span>' +
-        '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
-      '</label>';
+      return '<div class="offline-pos-side-row">' +
+        '<label class="offline-pos-side">' +
+          '<input type="checkbox" name="offlineSide" value="' + side.id + '" data-side-id="' + side.id + '">' +
+          '<span>' + esc(side.name) + '</span>' +
+          '<span class="tiny">' + (Number(side.rate) > 0 ? money(side.rate) : 'included') + '</span>' +
+        '</label>' +
+        '<span class="offline-pos-side-qty">' +
+          '<button type="button" data-side-step="-1" aria-label="One fewer ' + esc(side.name) + '">−</button>' +
+          '<b data-side-count>1</b>' +
+          '<button type="button" data-side-step="1" aria-label="One more ' + esc(side.name) + '">+</button>' +
+        '</span>' +
+      '</div>';
     }).join('');
     if (el.sidesNote) {
       el.sidesNote.textContent = required
@@ -383,12 +398,30 @@
     if (first) first.focus();
   }
 
-  /** Every side ticked in the sheet, as the line stores them. */
+  /** Every side ticked in the sheet, each with the count beside it, as the line stores them. */
   function pickedSides() {
-    var ids = [].slice.call(el.sidesList.querySelectorAll('input:checked')).map(function (input) { return Number(input.value); });
-    return (state.sideItem && state.sideItem.sides ? state.sideItem.sides : []).filter(function (side) {
-      return ids.indexOf(Number(side.id)) !== -1;
+    var counts = {};
+    [].slice.call(el.sidesList.querySelectorAll('input:checked')).forEach(function (input) {
+      var row = input.closest('.offline-pos-side-row');
+      var count = row ? Number(row.querySelector('[data-side-count]').textContent) : 1;
+      counts[Number(input.value)] = Math.max(1, Math.min(9, count || 1));
     });
+    return (state.sideItem && state.sideItem.sides ? state.sideItem.sides : []).filter(function (side) {
+      return counts[Number(side.id)] !== undefined;
+    }).map(function (side) {
+      return { id: side.id, name: side.name, rate: side.rate, qty: counts[Number(side.id)] };
+    });
+  }
+
+  /** The − / + beside a side: ticking it first, then counting it. */
+  function stepSide(button) {
+    var row = button.closest('.offline-pos-side-row');
+    if (!row) return;
+    var box = row.querySelector('[data-side-id]');
+    var count = row.querySelector('[data-side-count]');
+    if (box && !box.checked) box.checked = true;
+    var next = Math.max(1, Math.min(9, (Number(count.textContent) || 1) + Number(button.dataset.sideStep)));
+    count.textContent = String(next);
   }
 
   function closeSideSheet() {
@@ -596,6 +629,13 @@
     closeSideSheet();
   });
   el.sidesCancel.addEventListener('click', closeSideSheet);
+  el.sidesList.addEventListener('click', function (event) {
+    var step = event.target.closest('[data-side-step]');
+    if (!step) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stepSide(step);
+  });
 
   document.querySelectorAll('[data-offline-sync-now]').forEach(function (button) {
     button.addEventListener('click', function () { core.flush({ force: true }).then(paintAll); });

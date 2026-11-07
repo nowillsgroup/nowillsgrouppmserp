@@ -1372,7 +1372,9 @@ class PosController extends Controller
                     'id' => $item->id, 'name' => $item->item_name, 'qty' => (float) $item->qty,
                     'status' => $item->is_pending ? 'pending' : $item->kitchen_status,
                     'ready_at' => $item->ready_at?->toIso8601String() ?? ($item->kitchen_status === 'ready' ? $item->updated_at?->toIso8601String() : null),
-                    'notes' => $item->notes, 'modifiers' => collect($item->modifiers ?? [])->pluck('name')->values()->all(),
+                    'notes' => $item->notes,
+                    // a doubled side dish shows its count on the board too (v9.31), not just here
+                    'modifiers' => collect($item->modifiers ?? [])->map(fn ($m) => $m['name'].(((int) ($m['qty'] ?? 1)) > 1 ? ' ×'.(int) $m['qty'] : ''))->values()->all(),
                     'serve_url' => route('pos.item.served', [$order, $item], false),
                 ])->values()->all(),
             ];

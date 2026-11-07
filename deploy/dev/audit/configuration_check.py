@@ -4562,11 +4562,12 @@ ok('function pickedSideDishes(scope)' in pt_view
    'one reader answers for both pickers, so a side ticked in either place is carried on')
 ok('openModifierPicker(button, sideDishGroups, sideDishChoiceList, picked);' in pt_view,
    'Continue carries the sides into the option picker instead of asking for them twice')
-ok("${preselectedIds.includes(Number(variant.id)) ? ' checked' : ''}" in pt_view,
+ok("sideChoiceRow(variant, preselectedIds.includes(Number(variant.id)))" in pt_view,
    'and they arrive already ticked')
 ok('if (count < Number(group.min) || count > Number(group.max))' in pt_view,
    'a required option group is still enforced before the dish is added')
-ok("const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0) + variants.reduce((sum, v) => sum + Number(v.rate || 0), 0);" in pt_view,
+ok("const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0)" in pt_view
+   and 'variants.reduce((sum, v) => sum + Number(v.rate || 0) * Math.max(1, Number(v.qty) || 1), 0);' in pt_view,
    'the sides are added to the plate price, so the line is what the guest pays')
 ok('Side dishes: ${c.variants.map(v => esc(v.name)' in pt_view,
    'the cart line names the sides it carries')
@@ -4632,7 +4633,7 @@ ok("'side_required' => (bool) $item->side_dish_required," in read(os.path.join(R
 off_js = read(os.path.join(ROOT, 'public/js/offline-pos.js'))
 ok("'<input type=\"checkbox\" name=\"offlineSide\"" in off_js,
    'the offline sheet ticks sides rather than picking one of one — the terminal and the QR menu always did')
-ok('function pickedSides()' in off_js and 'return ids.indexOf(Number(side.id)) !== -1;' in off_js,
+ok('function pickedSides()' in off_js and 'return counts[Number(side.id)] !== undefined;' in off_js,
    'and every side ticked travels with the line')
 ok('if (el.sidesSkip) el.sidesSkip.hidden = required;' in off_js,
    'a required side hides continue-with-none instead of accepting it')
@@ -4649,11 +4650,62 @@ ok("ok('the tile says the side is required'" in read(os.path.join(ROOT, 'deploy/
    'the offline terminal is checked the same way, through the shipped script')
 ok('whose side is required will not be added without one' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'the gallery says what the screen now proves')
-ok('sides are ticked, and a dish that insists on one' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+ok('sides are ticked and counted, and a dish that insists on one' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
    'and the offline card says the same of the sheet on a device with no connection')
 ok("sheet.querySelectorAll('input[type=\"checkbox\"]').forEach(box => { box.checked = true; });"
    in read(os.path.join(ROOT, 'deploy/dev/build-offline-pos-preview.js')),
    'the offline preview is built by ticking two sides, so the screenshot shows a line carrying both')
+
+# ── 26bb · a side dish ordered twice: counted, priced per unit, and said so everywhere ──
+pms_service = read(os.path.join(ROOT, 'app/Services/PosMenuVariantService.php'))
+ok('$counts[$id] = ($counts[$id] ?? 0) + 1;' in pms_service,
+   'the snapshot counts the ids it is given instead of de-duplicating them, so a double portion is two')
+ok("'price_delta' => $rate, 'qty' => $qty," in pms_service,
+   'each side carries its unit rate and its count beside it, so no screen has to re-read the request')
+ok('$amount += $rate * $qty;' in pms_service,
+   'and the line is priced per unit — 12.50 twice is 25.00, not 12.50')
+ok('public static function describe(iterable $sideDishes): string' in pms_service,
+   'one phrase for side dishes, used by the bill and the kitchen ticket alike')
+ok("$parts[] = $side['name'].($qty > 1 ? ' ×'.$qty : '');" in pms_service,
+   'which shows the count only when there is more than one')
+ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 'resources/views/pos/kot-lines.blade.php')),
+   'the kitchen ticket prints "Extra banku ×2" where the dish is plated')
+ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 'resources/views/pos/bill.blade.php')),
+   'and so does the guest bill')
+pt_qty = read(os.path.join(ROOT, 'resources/views/pos/terminal.blade.php'))
+ok('function sideChoiceRow(variant, checked)' in pt_qty and 'data-side-count' in pt_qty,
+   'the terminal builds one row per side with a count beside it, in both pickers')
+ok('function stepSide(button)' in pt_qty and "box.checked = true;" in pt_qty,
+   'the − / + ticks the side first, so counting it never leaves an unticked row')
+ok('variants.flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id))' in pt_qty,
+   'the line is identified and posted by units — the id repeated — so nothing new is asked of the server')
+ok('+ variants.reduce((sum, v) => sum + Number(v.rate || 0) * Math.max(1, Number(v.qty) || 1), 0);' in pt_qty,
+   'and priced by units')
+qr_qty = read(os.path.join(ROOT, 'resources/views/public/qrmenu.blade.php'))
+ok('function stepSide(button)' in qr_qty and 'sideIds' not in qr_qty,
+   'the guest phone counts its sides the same way')
+off_qty = read(os.path.join(ROOT, 'public/js/offline-pos.js'))
+ok('function stepSide(button)' in off_qty and 'return { id: side.id, name: side.name, rate: side.rate, qty: counts[Number(side.id)] };' in off_qty,
+   'a device with no connection counts them too, and keeps the count on the line')
+ok('var units = (sides || []).reduce(function (all, side) {' in off_qty,
+   'the queued ticket repeats the id once per portion, exactly as the online terminal does')
+ok("'modifiers' => collect($item->modifiers ?? [])->map(fn ($m) => $m['name'].(((int) ($m['qty'] ?? 1)) > 1 ? ' ×'.(int) $m['qty'] : ''))->values()->all()," in read(os.path.join(ROOT, 'app/Http/Controllers/PosController.php')),
+   'the running-order board shows the count rather than quietly listing the side once')
+pt_qty_check = read(os.path.join(ROOT, 'deploy/dev/audit/pos_terminal_preview_check.js'))
+ok("ok('the doubled side shows its count and what the two make'" in pt_qty_check,
+   'the preview check counts a side up in the terminal and holds the line to the price that makes')
+ok("ok('one portion of the same dish is a line of its own'" in pt_qty_check,
+   'and holds the same dish with a different count to a line of its own')
+ok("ok('the request repeats the id once per portion'" in pt_qty_check,
+   'posting the id twice, which is what the service counts')
+ok("ok('58.00 + (28.00 × 2) + 8.00 = 122.00'" in pt_qty_check,
+   'and the arithmetic of a double portion beside a single one')
+ok("ok('the chosen side dishes travel with their dish, the doubled one twice'" in read(os.path.join(ROOT, 'deploy/dev/audit/offline_pos_dom_check.js')),
+   'the offline terminal is held to the same payload')
+ok('a side can be counted twice' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'the gallery says the terminal counts sides')
+ok('sides are ticked and counted' in read(os.path.join(ROOT, 'deploy/dev/previews/index.html')),
+   'and says the offline sheet does too')
 
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".'")]
 ok(not split_briefs,

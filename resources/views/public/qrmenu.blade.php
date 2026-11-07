@@ -113,10 +113,12 @@ function groupsFor(item){ try { return JSON.parse(item.dataset.modifiers || '[]'
 function sidesFor(item){ try { return JSON.parse(item.dataset.variants || '[]'); } catch (e) { return []; } }
 /** A dish that comes with a side always asks the guest for it before it joins the order. */
 function addItem(item, modifiers = [], sides = []) {
-  const ids = modifiers.map(m => m.id).sort((a, b) => a - b), sideIds = sides.map(v => v.id).sort((a, b) => a - b);
-  const key = item.dataset.id + ':' + ids.join(',') + ':s:' + sideIds.join(',');
+  const ids = modifiers.map(m => m.id).sort((a, b) => a - b);
+  const units = sides.flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id)).sort((a, b) => a - b);
+  const key = item.dataset.id + ':' + ids.join(',') + ':s:' + units.join(',');
   if (!cart[key]) {
-    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0) + sides.reduce((sum, v) => sum + Number(v.rate || 0), 0);
+    const delta = modifiers.reduce((sum, m) => sum + Number(m.price_delta || 0), 0)
+      + sides.reduce((sum, v) => sum + Number(v.rate || 0) * Math.max(1, Number(v.qty) || 1), 0);
     cart[key] = { menu_id: item.dataset.id, name: item.dataset.name, price: +item.dataset.price + delta, qty: 0, modifiers, sides };
   }
   cart[key].qty = Math.min(20, cart[key].qty + 1);
@@ -125,13 +127,22 @@ function addItem(item, modifiers = [], sides = []) {
 /** The tick list for a dish's side dishes; a rate of 0 reads "included", never a charge. */
 function sideChoicesHtml(sides, preselected = [], legend = 'Tick one or more, or continue with none.'){
   if (!sides.length) return '';
-  const chosen = new Set((preselected || []).map(v => Number(v.id)));
+  const chosen = new Map((preselected || []).map(v => [Number(v.id), Math.max(1, Number(v.qty) || 1)]));
   return `<fieldset class="field pos-side-dish-choices" style="border:0;padding:0;margin:0 0 1rem"><legend class="bold small">Side dishes <span class="tiny muted">${legend}</span></legend>`
-    + sides.map(v => `<label class="check"><input type="checkbox" data-side-id="${v.id}" data-side-name="${esc(v.name)}" data-side-rate="${Number(v.rate) || 0}"${chosen.has(Number(v.id)) ? ' checked' : ''}> ${esc(v.name)} <span class="tiny muted">${Number(v.rate) ? '+' + fmt(Number(v.rate)) : 'included'}</span></label>`).join('')
+    + sides.map(v => `<div class="pos-side-row"><label class="check"><input type="checkbox" data-side-id="${v.id}" data-side-name="${esc(v.name)}" data-side-rate="${Number(v.rate) || 0}"${chosen.has(Number(v.id)) ? ' checked' : ''}> <span>${esc(v.name)}</span> <span class="tiny muted">${Number(v.rate) ? '+' + fmt(Number(v.rate)) : 'included'}</span></label><span class="pos-side-qty"><button type="button" data-side-step="-1" aria-label="One fewer ${esc(v.name)}">−</button><b data-side-count>${chosen.get(Number(v.id)) || 1}</b><button type="button" data-side-step="1" aria-label="One more ${esc(v.name)}">+</button></span></div>`).join('')
     + '</fieldset>';
 }
 function pickedSides(scope){
-  return [...document.querySelectorAll(scope + ' [data-side-id]:checked')].map(input => ({id: Number(input.dataset.sideId), name: input.dataset.sideName, rate: Number(input.dataset.sideRate) || 0}));
+  return [...document.querySelectorAll(scope + ' [data-side-id]:checked')].map(input => ({id: Number(input.dataset.sideId), name: input.dataset.sideName, rate: Number(input.dataset.sideRate) || 0,
+    qty: Math.max(1, Math.min(9, Number(input.closest('.pos-side-row')?.querySelector('[data-side-count]')?.textContent) || 1))}));
+}
+/** The − / + beside a side: ticking it first, then counting it (a double portion is the same side twice). */
+function stepSide(button){
+  const row = button.closest('.pos-side-row'); if (!row) return;
+  const box = row.querySelector('[data-side-id]'), count = row.querySelector('[data-side-count]');
+  if (box && !box.checked) box.checked = true;
+  const next = Math.max(1, Math.min(9, (Number(count?.textContent) || 1) + Number(button.dataset.sideStep)));
+  if (count) count.textContent = String(next);
 }
 function openSides(item){
   modifierTarget = item; modifierSides = sidesFor(item);
@@ -189,11 +200,13 @@ function draw(){
   document.getElementById('barCount').textContent = count; document.getElementById('barTotal').textContent = fmt(total);
   document.getElementById('sheetTotal').textContent = fmt(total);
   document.getElementById('sheetLines').innerHTML = lines.map(([key, l], i) => `<div class="cart-line" style="align-items:flex-start">
-    <div style="flex:1"><b class="small">${l.qty} × ${esc(l.name)}</b>${l.modifiers?.length ? `<div class="tiny muted">${l.modifiers.map(m => esc(m.name) + (Number(m.price_delta) ? ' ' + (Number(m.price_delta) > 0 ? '+' : '') + Number(m.price_delta).toFixed(2) : '')).join(' · ')}</div>` : ''}${l.sides?.length ? `<div class="tiny muted">Side dishes: ${l.sides.map(v => esc(v.name) + (Number(v.rate) ? ' +' + Number(v.rate).toFixed(2) : ' included')).join(' · ')}</div>` : ''}<input class="input input-sm mt-1" placeholder="Note (e.g. less spicy)" maxlength="120" name="items[${i}][notes]" value="${esc(l.notes||'')}" oninput="cart['${key}'].notes=this.value">
-    <input type="hidden" name="items[${i}][id]" value="${l.menu_id}"><input type="hidden" name="items[${i}][qty]" value="${l.qty}">${(l.modifiers || []).map(m => `<input type="hidden" name="items[${i}][modifiers][]" value="${m.id}">`).join('')}${(l.sides || []).map(v => `<input type="hidden" name="items[${i}][variants][]" value="${v.id}">`).join('')}</div><div class="qty"><button type="button" class="cart-adjust" data-key="${key}" data-d="-1">−</button><span class="n">${fmt(l.qty * l.price)}</span><button type="button" class="cart-adjust" data-key="${key}" data-d="1">+</button></div></div>`).join('');
+    <div style="flex:1"><b class="small">${l.qty} × ${esc(l.name)}</b>${l.modifiers?.length ? `<div class="tiny muted">${l.modifiers.map(m => esc(m.name) + (Number(m.price_delta) ? ' ' + (Number(m.price_delta) > 0 ? '+' : '') + Number(m.price_delta).toFixed(2) : '')).join(' · ')}</div>` : ''}${l.sides?.length ? `<div class="tiny muted">Side dishes: ${l.sides.map(v => esc(v.name) + (Math.max(1, Number(v.qty) || 1) > 1 ? ' ×' + Math.max(1, Number(v.qty)) : '') + (Number(v.rate) ? ' +' + (Number(v.rate) * Math.max(1, Number(v.qty) || 1)).toFixed(2) : ' included')).join(' · ')}</div>` : ''}<input class="input input-sm mt-1" placeholder="Note (e.g. less spicy)" maxlength="120" name="items[${i}][notes]" value="${esc(l.notes||'')}" oninput="cart['${key}'].notes=this.value">
+    <input type="hidden" name="items[${i}][id]" value="${l.menu_id}"><input type="hidden" name="items[${i}][qty]" value="${l.qty}">${(l.modifiers || []).map(m => `<input type="hidden" name="items[${i}][modifiers][]" value="${m.id}">`).join('')}${(l.sides || []).flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id)).map(id => `<input type="hidden" name="items[${i}][variants][]" value="${id}">`).join('')}</div><div class="qty"><button type="button" class="cart-adjust" data-key="${key}" data-d="-1">−</button><span class="n">${fmt(l.qty * l.price)}</span><button type="button" class="cart-adjust" data-key="${key}" data-d="1">+</button></div></div>`).join('');
   if (!count) closeSheet();
 }
 document.addEventListener('click', e => {
+  const step = e.target.closest('[data-side-step]');
+  if (step) { e.preventDefault(); e.stopPropagation(); stepSide(step); return; }
   const adjust = e.target.closest('.cart-adjust');
   if (adjust) { const line = cart[adjust.dataset.key]; if (line) { line.qty = Math.min(20, line.qty + Number(adjust.dataset.d)); if (line.qty <= 0) delete cart[adjust.dataset.key]; draw(); } return; }
   const item = e.target.closest('.qm-item'); if (!item) return;

@@ -102,8 +102,10 @@ await settle();
 click(document.querySelectorAll('[data-pos-items] .offline-pos-item')[0]);
 await settle();
 const sheet = document.querySelector('[data-pos-sides]');
-// v9.30 the sheet ticks sides, so the dish can carry a charged one and a free one together
+// v9.30 the sheet ticks sides, so the dish can carry a charged one and a free one together;
+// v9.31 it also counts them, so the screenshot shows a double portion beside an included one
 sheet.querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = true; });
+click(sheet.querySelector('.offline-pos-side-row [data-side-step="1"]'));
 click(document.querySelector('[data-pos-sides-add]'));
 await settle();
 

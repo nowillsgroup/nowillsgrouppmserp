@@ -145,14 +145,19 @@ ok('nothing is added to the ticket before the side is chosen', document.querySel
 const sideBoxes = sheet.querySelectorAll('input[type="checkbox"]');
 ok('the sides in the sheet are checkboxes, one per side', sideBoxes.length === 2, `found ${sideBoxes.length}`);
 sideBoxes.forEach(box => { box.checked = true; });
+// a double portion is the same side twice (v9.31): the count sits on the row
+const friesRow = sideBoxes[0].closest('.offline-pos-side-row');
+click(friesRow.querySelector('[data-side-step="1"]'));
+await settle();
+ok('the count beside a side rises', friesRow.querySelector('[data-side-count]').textContent === '2');
 click(document.querySelector('[data-pos-sides-add]'));
 await settle();
 lines = document.querySelectorAll('[data-pos-draft] .offline-pos-line');
 ok('the side dish completes the line', lines.length === 2, `lines: ${lines.length}`);
-ok('both sides are named on the line, the free one as included',
-  /French fries \+12\.50/.test(lines[1].textContent) && /Garden salad included/.test(lines[1].textContent),
+ok('both sides are named on the line, the doubled one with its count and the free one as included',
+  /French fries ×2 \+25\.00/.test(lines[1].textContent) && /Garden salad included/.test(lines[1].textContent),
   lines[1].textContent);
-ok('one charged side and one free side: 45.00 + 60.00 + 12.50 + 0.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 117.50',
+ok('45.00 + 60.00 + (12.50 × 2) + 0.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 130.00',
   document.querySelector('[data-pos-draft-total]').textContent);
 
 // ── a dish whose side dish is required ──────────────────────────────────────
@@ -172,13 +177,13 @@ click(document.querySelector('[data-pos-sides-add]'));
 await settle();
 lines = document.querySelectorAll('[data-pos-draft] .offline-pos-line');
 ok('with a side ticked it joins the ticket', lines.length === 3 && sheet.hidden);
-ok('the included side adds nothing: 117.50 + 40.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 157.50',
+ok('the included side adds nothing: 130.00 + 40.00', document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 170.00',
   document.querySelector('[data-pos-draft-total]').textContent);
 // this dish was only here to prove the rule; take it off again
 click(document.querySelectorAll('[data-pos-draft] [data-line-remove]')[2]);
 await settle();
 ok('the ticket is back to the two dishes it was', document.querySelectorAll('[data-pos-draft] .offline-pos-line').length === 2
-  && document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 117.50');
+  && document.querySelector('[data-pos-draft-total]').textContent === 'GH₵ 130.00');
 
 // ── sending queues the intent, not a network call ────────────────────────────
 click(document.querySelector('[data-pos-send]'));
@@ -193,7 +198,8 @@ ok('the order carries the business date the device was working', create.payload.
 ok('the ticket follows the same reference', kot.operation === 'pos.order.kot' && kot.payload.local_ref === create.payload.local_ref);
 ok('the ticket carries both dishes', (kot.payload.lines || []).length === 2, JSON.stringify(kot.payload.lines));
 const chicken = (kot.payload.lines || []).find(line => line.menu_item_id === 101);
-ok('the chosen side dishes travel with their dish', chicken && JSON.stringify(chicken.variants) === '[501,502]', JSON.stringify(chicken));
+ok('the chosen side dishes travel with their dish, the doubled one twice',
+  chicken && JSON.stringify(chicken.variants) === '[501,501,502]', JSON.stringify(chicken));
 ok('the ticket names quantities', (kot.payload.lines || []).every(line => line.qty >= 0.5));
 
 // ── the queue is on screen ───────────────────────────────────────────────────
