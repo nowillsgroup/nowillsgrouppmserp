@@ -18,7 +18,7 @@
   <div class="stat"><span class="ico" style="background:#eaf3ff;color:#267dca"><x-icon name="settings"/></span><div><div class="v">{{ number_format($coverage['keys']) }}</div><div class="l">settings tracked</div></div></div>
   <div class="stat"><span class="ico" style="background:#fff2df;color:#ec8c20"><x-icon name="alert"/></span><div><div class="v">{{ number_format($coverage['unset']) }}</div><div class="l">left on the built-in default</div></div></div>
   <div class="stat"><span class="ico" style="background:#f0f4ff;color:#3b5bdb"><x-icon name="swap"/></span><div><div class="v">{{ number_format($coverage['changed']) }}</div><div class="l">moved off the built-in default</div></div></div>
-  <div class="stat"><span class="ico" style="background:#fdf1f1;color:#c0392b"><x-icon name="alert"/></span><div><div class="v">{{ number_format($coverage['guarded']) }} of {{ number_format($coverage['modules']) }}</div><div class="l">modules whose settings are checked against each other</div></div></div>
+  <div class="stat"><span class="ico" style="background:#fdf1f1;color:#c0392b"><x-icon name="alert"/></span><div><div class="v">{{ number_format($coverage['guarded']) }} of {{ number_format($coverage['modules']) }}</div><div class="l">modules with at least one configuration check</div></div></div>
   <div class="stat"><span class="ico" style="background:#f4eefe;color:#7c4dff"><x-icon name="info"/></span><div><div class="v">{{ number_format($coverage['on_null']) }}</div><div class="l">read with no default to fall back on — <a href="{{ route('configuration.on-null') }}">what they run on</a></div></div></div>
   <div class="stat"><span class="ico" style="background:#eef7ff;color:#267dca"><x-icon name="clock"/></span><div><div class="v">{{ number_format($trail['rows']) }}</div><div class="l">value changes recorded — <a href="{{ route('configuration.history') }}">what it was before</a></div></div></div>
 </div>
@@ -66,7 +66,7 @@
     </span>
   </div>
   <div class="card-body">
-    <p class="small muted">These are conflicts between settings already saved on this property — a feature switched on whose dependency is switched off. Nothing is changed for you; each line names the screen that owns the value.</p>
+    <p class="small muted">These checks flag specific conflicts and policy choices in the saved configuration. They do not cover every possible issue. Nothing is changed for you; each line names the screen that owns the value.</p>
     @foreach($findings as $f)
       <div class="cfg-find cfg-find-{{ $f['severity'] }}">
         <span class="cfg-find-sev">{{ $f['severity_label'] }}</span>

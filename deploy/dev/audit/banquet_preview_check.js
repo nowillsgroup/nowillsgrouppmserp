@@ -320,6 +320,80 @@ for (const [name, page] of [['create', create], ['edit', edit]]) {
     Boolean(page.$('.bq-form-actions a[href]')) && Boolean(page.$('.bq-form-actions #saveEvent')));
 }
 
+/* ── the sheet reads down the clock (v10.35) ─────────────────────────────── */
+// The sample hands the form its functions in the order a desk keys them in — the evening reception first, the
+// afternoon ceremony second, which is how a wedding is actually booked. The plan is printed by the day and the clock.
+const keyedIn = (() => {
+  const match = /const INIT = (\[[\s\S]*?\]);\n/.exec(readFileSync(EDIT, 'utf8'));
+  return match ? JSON.parse(match[1]).map(f => f.id) : [];
+})();
+ok('the form was handed the evening function first, the way it was keyed in',
+  keyedIn.join(',') === '4102,4101', keyedIn.join(','));
+ok('and printed the afternoon ceremony first, because the sheet reads down the clock',
+  edit.$$('#fnList [data-f=start_time]').map(el => el.value).join(' ') === '14:00 19:00',
+  edit.$$('#fnList [data-f=start_time]').map(el => el.value).join(' '));
+ok('the numbering follows the clock, not the keying order',
+  edit.$('#fnList .fn-card [data-f=name]').id === 'bq-function-1-name'
+  && edit.$('#fnList .fn-card [data-f=name]').name === 'functions[0][name]',
+  edit.$('#fnList .fn-card [data-f=name]').id);
+ok('the venue and guests travel with the card, so function 1 is still the ceremony',
+  edit.$('#fnList .fn-card [data-f=banquet_hall_id]').value === '3'
+  && edit.$('#fnList .fn-card [data-f=expected_pax]').value === '150');
+
+// A clock that changes is the moment a card knows where it belongs in the day.
+const movedCard = edit.$('#fnList .fn-card');
+const movedClock = movedCard.querySelector('[data-f=start_time]');
+movedClock.value = '21:00';
+edit.fire(movedClock, 'change');
+ok('a later clock moves the card down the day', (() => {
+  const clocks = edit.$$('#fnList [data-f=start_time]').map(el => el.value).join(' ');
+  return clocks === '19:00 21:00'
+    && edit.$('#fnList .fn-card [data-f=banquet_hall_id]').value === '1';
+})(), edit.$$('#fnList [data-f=start_time]').map(el => el.value).join(' '));
+ok('and the renumbered card is submitted in its new place',
+  movedCard.querySelector('[data-f=name]').name === 'functions[1][name]'
+  && edit.$('#fnList .fn-card [data-f=name]').name === 'functions[0][name]',
+  movedCard.querySelector('[data-f=name]').name);
+movedClock.value = '14:00';
+edit.fire(movedClock, 'change');
+
+// Dates outrank times; card contents, labels and focus survive rearrangement.
+const dateField = movedCard.querySelector('[data-f=date]');
+const movedName = movedCard.querySelector('[data-f=name]');
+const originalName = movedName.value;
+dateField.focus();
+dateField.value = '2026-12-13';
+edit.fire(dateField, 'change');
+ok('a later date moves behind an earlier day even with an earlier time',
+  edit.$$('#fnList .fn-card').at(-1) === movedCard && movedName.value === originalName);
+ok('focus and labels still point to the moved card', edit.doc.activeElement === dateField
+  && movedCard.querySelector('[data-f=date]').closest('.field').querySelector('label').htmlFor === dateField.id
+  && edit.$('#fnList .fn-card [data-f=name]').closest('.field').querySelector('label').htmlFor === edit.$('#fnList .fn-card [data-f=name]').id);
+dateField.value = '2026-12-12';
+edit.fire(dateField, 'change');
+const receptionClock = edit.$$('#fnList .fn-card')[1].querySelector('[data-f=start_time]');
+receptionClock.value = '14:00';
+edit.fire(receptionClock, 'change');
+ok('equal date and time use the saved function id as a stable tie-break',
+  edit.$$('#fnList [data-f=id]').map(el => el.value).join(',') === '4101,4102');
+receptionClock.value = '19:00';
+edit.fire(receptionClock, 'change');
+
+// The rule is not a habit of one screen: it lives in the models, and every banquet list asks for it.
+const functionModel = readFileSync(resolve(ROOT, 'app/Models/BanquetFunction.php'), 'utf8');
+const eventModel = readFileSync(resolve(ROOT, 'app/Models/BanquetEvent.php'), 'utf8');
+const controllerSource = readFileSync(resolve(ROOT, 'app/Http/Controllers/BanquetController.php'), 'utf8');
+ok('the rule is the day, then the clock, then entry order — written once, on the function',
+  /scopeInTimeOrder[\s\S]{0,200}orderBy\('date'\)->orderBy\('start_time'\)->orderBy\('id'\)/.test(functionModel));
+ok('the event relation and the events list speak it too',
+  /hasMany\(BanquetFunction::class\)->inTimeOrder\(\)/.test(eventModel)
+  && /scopeInTimeOrder[\s\S]{0,200}orderBy\('event_date'\)->orderBy\('start_time'\)->orderBy\('id'\)/.test(eventModel));
+ok('all event stages are filtered before the same chronological order and pagination',
+  /match \(\$tab\) \{[\s\S]*?'closed' =>[\s\S]*?\};\s*\$q->inTimeOrder\(\);\s*\$events = \$q->paginate/.test(controllerSource)
+  && !/match \(\$tab\) \{[\s\S]*?orderBy[\s\S]*?\};\s*\$q->inTimeOrder/.test(controllerSource));
+ok('the function sheet asks the model for the order instead of spelling it out',
+  /whereHas\('event', fn \(\$q\) => \$q->whereIn\('status', \['tentative', 'definite', 'completed'\]\)\)->inTimeOrder\(\)->get\(\)/.test(controllerSource));
+
 if (failures.length) {
   console.log(`banquet preview check: ${failures.length} FAILED, ${passed} passed`);
   failures.slice(0, 12).forEach(failure => console.log(`  ✗ ${failure}`));

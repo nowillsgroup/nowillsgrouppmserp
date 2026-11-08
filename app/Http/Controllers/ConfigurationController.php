@@ -24,7 +24,8 @@ class ConfigurationController extends Controller
 {
     public function index(Request $request)
     {
-        $q = trim((string) $request->query('q', ''));
+        $query = $request->query('q', '');
+        $q = is_string($query) ? mb_substr(trim($query), 0, 150) : '';
         $groups = ConfigurationService::grouped($q !== '' ? $q : null);
 
         return view('configuration.index', [
@@ -69,7 +70,8 @@ class ConfigurationController extends Controller
     /** What each setting was before — the value trail behind "last changed by". */
     public function history(Request $request)
     {
-        $module = trim((string) $request->query('module', ''));
+        $requestedModule = $request->query('module', '');
+        $module = is_string($requestedModule) ? trim($requestedModule) : '';
         $module = $module === '' ? null : $module;
         $known = ConfigurationService::module($module ?? '');
 
@@ -103,6 +105,7 @@ class ConfigurationController extends Controller
         $facts = [
             'key' => $key, 'secret' => (bool) $row->was_secret, 'created' => (bool) $row->created,
             'was' => $row->was_secret ? ConfigurationService::HIDDEN : $row->old_value,
+            'was_raw' => $row->was_secret ? null : $row->old_value,
         ];
         $blocked = ConfigurationService::restoreBlocked($facts);
         $problem = $blocked === null ? ConfigurationService::restoreError($key, $row->old_value) : $blocked;

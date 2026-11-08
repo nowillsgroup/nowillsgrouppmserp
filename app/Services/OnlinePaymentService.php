@@ -760,7 +760,7 @@ class OnlinePaymentService
     {
         foreach (self::SECRETS as $k) {
             if (in_array($k, $clear)) {
-                Setting::where('key', $k)->delete();
+                Setting::where('key', $k)->get()->each->delete();
             } else {
                 MessageService::storeSecret($k, $data[$k] ?? null);
             }

@@ -194,17 +194,24 @@ class IptvController extends Controller
     protected function channelData(Request $r): array
     {
         return $r->validate(['number' => 'required|integer', 'name' => 'required|string|max:80', 'category' => 'required|string|max:14', 'language' => 'nullable|string|max:30',
-            'stream_url' => 'required|string|max:255', 'epg_id' => 'nullable|string|max:80']) + ['is_radio' => $r->boolean('is_radio'), 'is_active' => $r->boolean('is_active')];
+            'source_type' => 'nullable|in:stream,tuner', 'tuner_number' => 'nullable|integer|min:1|max:9999',
+            'stream_url' => 'nullable|string|max:255', 'epg_id' => 'nullable|string|max:80']) + ['is_radio' => $r->boolean('is_radio'), 'is_active' => $r->boolean('is_active')];
     }
 
     public function channelStore(Request $r)
     {
-        return $this->attempt(fn () => 'Channel '.IS::saveChannel($this->channelData($r), null, $r->user())->number.' added.', 'Saved.');
+        return $this->attempt(function () use ($r) {
+            $ch = IS::saveChannel($this->channelData($r), null, $r->user());
+            return 'Channel '.$ch->number.($ch->source_type === 'tuner' ? ' saved as a hidden tuner draft.' : ' added.');
+        }, 'Saved.');
     }
 
     public function channelUpdate(Request $r, TvChannel $tvchannel)
     {
-        return $this->attempt(fn () => 'Channel '.IS::saveChannel($this->channelData($r), $tvchannel, $r->user())->number.' saved.', 'Saved.');
+        return $this->attempt(function () use ($r, $tvchannel) {
+            $ch = IS::saveChannel($this->channelData($r), $tvchannel, $r->user());
+            return 'Channel '.$ch->number.($ch->source_type === 'tuner' ? ' saved as a hidden tuner draft.' : ' saved.');
+        }, 'Saved.');
     }
 
     public function channelDelete(Request $r, TvChannel $tvchannel)
@@ -219,7 +226,7 @@ class IptvController extends Controller
             $text = $r->hasFile('file') ? (string) file_get_contents($r->file('file')->getRealPath()) : (string) $r->input('text');
             $o = IS::importM3u($text, $r->user());
 
-            return "Line-up imported: {$o['created']} added, {$o['updated']} updated".($o['skipped'] ? ", {$o['skipped']} skipped (no name or an invalid stream)" : '').'.';
+            return "Line-up imported: {$o['created']} added, {$o['updated']} updated".($o['skipped'] ? ", {$o['skipped']} skipped (invalid, over the limit, or a tuner draft)" : '').'.';
         }, 'Imported.');
     }
 

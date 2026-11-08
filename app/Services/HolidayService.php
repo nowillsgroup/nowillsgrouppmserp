@@ -67,7 +67,7 @@ class HolidayService
     /** The stored calendar for a year, or the gazetted default when the property has not edited it. */
     public static function rows(int $year): array
     {
-        $json = json_decode((string) setting(self::key($year), ''), true);
+        $json = json_decode((string) setting('hr_holidays_'.$year, ''), true);
         if (is_array($json)) {
             return $json;
         }
@@ -82,7 +82,7 @@ class HolidayService
 
     public static function isCustom(int $year): bool
     {
-        return setting(self::key($year), '') !== '';
+        return setting('hr_holidays_'.$year, '') !== '';
     }
 
     /** ['date' => Carbon, 'name' => string, 'commemorative' => bool, 'holiday' => bool] for a year, sorted. */
@@ -172,7 +172,7 @@ class HolidayService
     /** Back to the gazetted default for the year. */
     public static function reset(int $year): void
     {
-        Setting::where('key', self::key($year))->delete();
+        Setting::where('key', self::key($year))->get()->each->delete();
         ActivityLogger::log('hr', 'holidays', "Public holidays for {$year} reset to the gazetted Ghana calendar");
     }
 

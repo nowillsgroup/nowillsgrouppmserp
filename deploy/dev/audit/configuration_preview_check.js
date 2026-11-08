@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { configurationHistoryContext } from '../preview/configuration-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const preview = (name) => path.join(ROOT, 'deploy/dev/previews', name);
@@ -87,7 +88,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/What it was before/.test(text(doc.body)), 'hub: the value trail is reachable from the hub action bar');
   ok(stats.includes('412'), 'hub: and the strip counts the value changes recorded against it');
   ok(stats.includes(`${GUARDED} of ${MODULE_COUNT}`), `hub: the strip says how many modules are checked against each other (${GUARDED} of ${MODULE_COUNT}), not that all are`);
-  ok(/modules whose settings are checked against each other/.test(text(doc.body)), 'hub: and says what that number means');
+  ok(/modules with at least one configuration check/.test(text(doc.body)), 'hub: and says what that number means');
   ok(!/Not yet behind a screen/.test(text(doc.body)), 'hub: the worklist panel is gone once the worklist is empty');
   ok(cards.some(c => /Linen & laundry par levels/.test(text(c)) && /changing it needs laundry.manage/.test(text(c))),
     'hub: a screen that only reads says which permission it takes to change it');
@@ -144,6 +145,16 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
     'findings: the payment finding links to the payments module page');
   ok(/Online payments/.test(text(pay)), 'findings: a finding names the module by its label, not its key');
 
+  win.close();
+}
+
+// The sample deliberately permits HTTP, so the new security advisory is visible.
+{
+  const win = load('configuration.html');
+  const body = text(win.document.body);
+  ok(/Plain HTTP webhook endpoints are allowed/.test(body), 'hub: the new API warning is visible');
+  ok(/does not mean an HTTP endpoint exists/.test(body), 'hub: the warning does not claim an endpoint exists');
+  ok(/Bank statements do not require a different finaliser/.test(body), 'hub: the bank reconciliation policy choice is visible');
   win.close();
 }
 
@@ -275,7 +286,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/Changed here/.test(text(doc.querySelector('.crumbs, .page-title, h2') || doc.body)),
     "changed: the page is the property's decisions, not the register again");
   const stats = [...doc.querySelectorAll('.stat .v')].map(text);
-  ok(stats.includes('48'), 'changed: it counts the settings moved off a built-in default');
+  ok(stats.includes('49'), 'changed: it counts the settings moved off a built-in default');
   ok(stats.includes('22') || stats.some((x) => Number(x) > 0 && Number(x) < MODULE_COUNT),
     'changed: and how many modules this property actually configured');
   ok(/Every other setting is running on the value\s+the code ships with/.test(text(doc.body).replace(/\s+/g, ' '))
@@ -286,7 +297,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(tables.length === 2, 'changed: the decisions are split into drifted and chosen, not mixed');
   const drifted = tables[0] ? [...tables[0].querySelectorAll('tbody tr')] : [];
   const chosen = tables[1] ? [...tables[1].querySelectorAll('tbody tr')] : [];
-  ok(drifted.length === 48, 'changed: every setting moved off its default is listed');
+  ok(drifted.length === 49, 'changed: every setting moved off its default is listed');
   ok(chosen.length > 0, 'changed: every setting with no default to move off is listed too');
   // the page's own headline counts are the rows it prints, so a row cannot appear or
   // vanish without the number moving with it
@@ -378,14 +389,15 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/what it was before/i.test(body), 'trail: the page says what it is');
   const stats = [...doc.querySelectorAll('.stat .v')].map(text);
   ok(stats.includes('412'), 'trail: it counts the value changes recorded');
-  ok(stats.includes('96 of 276'), 'trail: and how much of the register the trail covers, rather than implying all of it');
+  ok(stats.includes(`96 of ${configurationHistoryContext().scope.trail.keys_total}`), 'trail: and how much of the register the trail covers, rather than implying all of it');
 
   const rows = [...doc.querySelectorAll('tbody tr')];
-  ok(rows.length === 9, `trail: one row per recorded change (${rows.length})`);
+  ok(rows.length === configurationHistoryContext().scope.changes.length, `trail: one row per recorded change (${rows.length})`);
   const columnNames = [...doc.querySelectorAll('thead th')].map(text).join('|');
   ok(/Was\|Now/.test(columnNames), 'trail: the table has a "was" and a "now" column, not just "changed"');
 
   const rowFor = (key) => rows.find((r) => text(r).includes(key));
+  ok(/Human resources/.test(text(rowFor('hr_holidays_2026'))) && /cleared/.test(text(rowFor('hr_holidays_2026'))), 'trail: family calendar resets appear under their owning module');
   const hours = rowFor('cancel_free_hours');
   ok(/72/.test(text(hours)) && /48/.test(text(hours)),
     'trail: the row carries both values — 72 became 48, which no activity log could say');
@@ -411,12 +423,14 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(buttons.every((b) => /Put it back/.test(text(b))), 'trail: the action says what it does');
   const formFor = (key) => rowFor(key)?.querySelector('form');
   ok(Boolean(formFor('spa_slot_min')), 'trail: a typed setting that was changed can be put back');
+  ok(!formFor('booking_policy') && /previous value was truncated/.test(text(rowFor('booking_policy'))), 'trail: a truncated value cannot be restored as if complete');
+  ok(!formFor('loyalty_spend_per_point') && /outside the range/.test(text(rowFor('loyalty_spend_per_point'))), 'trail: a value outside the current form bounds cannot be restored');
   ok(!formFor('portal_wifi_password'), 'trail: a credential is never offered — only that it changed was recorded');
   ok(!formFor('banquet_guarantee_days'), 'trail: a module-owned setting is not offered here');
   ok(!formFor('pos_kot_print_mode'), 'trail: a setting that was first set is not a restore');
   ok(/owned by its module screen/.test(text(rowFor('banquet_guarantee_days'))),
     'trail: the row says where its rules live instead of offering a button that would fail');
-  ok(/a credential is not recorded here/.test(text(rowFor('portal_wifi_password'))),
+  ok(/credential values cannot be restored from this trail/.test(text(rowFor('portal_wifi_password'))),
     'trail: and a credential row says why it cannot come back');
   ok(/One action on this page: put it back/.test(body),
     'trail: the page states the one thing it can do, rather than claiming to be read-only');
@@ -455,7 +469,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   const theirs = fp(fs.readFileSync(preview('configuration-register.html'), 'utf8'));
   ok(/^[0-9A-F]{12}$/.test(mine), `handover: the fingerprint is twelve characters a person can compare (${mine})`);
   ok(mine === theirs, 'handover: the register prints the same fingerprint, so two sheets that disagree are two configurations');
-  ok(/the same fingerprint means the same configuration/.test(body), 'handover: it says how to use it');
+  ok(/indicator, not proof of identical configuration/.test(body), 'handover: it says how to use it');
 
   // the sheet and the page must say the same thing about the same configuration
   const changedWin = new JSDOM(fs.readFileSync(preview('configuration-changed.html'), 'utf8'));
@@ -475,7 +489,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
     `handover: it says what an unset value runs on (${noDefault} settings with no default)`);
   ok(/Online payment is switched on, but on the built-in test gateway/.test(body),
     'handover: the findings are printed in full, not as a count');
-  ok(new RegExp(`${GUARDED} of ${MODULE_COUNT} modules have settings the code compares with each other`).test(body),
+  ok(new RegExp(`${GUARDED} of ${MODULE_COUNT} modules have at least one automated configuration check`).test(body),
     'handover: it says how far the checks reach');
   // the sheet also states what the register does not hold: settings read behind a service
   // map. The number is recomputed here from the same two files the fixture reads.
@@ -517,7 +531,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   // would be built from a hash that could be used to guess one, and comparing the two sheets
   // above would still pass because both would be wrong in the same way.
   const sample = fs.readFileSync(path.join(ROOT, 'deploy/dev/preview/configuration-sample.mjs'), 'utf8');
-  ok(/k\.secret\) \{ lines\.push\(`\$\{k\.raw\}=credential:/.test(sample),
+  ok(/k\.secret\) return \[k\.raw, 'credential',/.test(sample),
     'handover: the fixture hashes a credential as set or unset, never its value');
 
   win.close();

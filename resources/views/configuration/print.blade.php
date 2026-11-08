@@ -5,7 +5,7 @@
   <div class="small">Property <b>{{ $hotel->name }}</b> ({{ $hotel->code }})</div>
   <div class="small">{{ $coverage['modules'] }} modules · {{ $coverage['keys'] }} settings tracked</div>
   <div class="small">Printed {{ $printedAt->format('d M Y H:i') }}</div>
-  <div class="small">Fingerprint <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
+  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
 @endsection
 @section('content')
 

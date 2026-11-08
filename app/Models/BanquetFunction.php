@@ -24,6 +24,19 @@ class BanquetFunction extends Model
             'fnb_tax_rate' => 'float', 'bar_tax_rate' => 'float', 'hall_tax_rate' => 'float', 'dietary' => 'array'];
     }
 
+    /**
+     * The order a banquet reads in: the day it happens, then the clock, then entry order as the last resort.
+     *
+     * Nothing in the module sorts by id and calls it a day (v10.35). A function is entered when the desk has the
+     * details, which is not the order the kitchen, the floor or the client meets it: an evening gala often gets
+     * keyed in before the morning ceremony, and a sheet that prints it first reads as if the day starts at 19:00.
+     * Two functions at the same clock still need a stable order, so the id settles it.
+     */
+    public function scopeInTimeOrder($q)
+    {
+        return $q->orderBy('date')->orderBy('start_time')->orderBy('id');
+    }
+
     public function event()
     {
         return $this->belongsTo(BanquetEvent::class, 'banquet_event_id');

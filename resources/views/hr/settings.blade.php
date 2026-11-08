@@ -4,6 +4,7 @@
 @section('actions')
   <a class="btn" href="{{ route('hr.attendance') }}"><x-icon name="chev"/> Attendance</a>
   <a class="btn btn-soft" href="{{ route('leave.index') }}"><x-icon name="calendar"/> Leave</a>
+  <a class="btn btn-soft" href="{{ route('hr.holidays') }}"><x-icon name="calendar"/> Public holidays</a>
 @endsection
 @section('content')
 

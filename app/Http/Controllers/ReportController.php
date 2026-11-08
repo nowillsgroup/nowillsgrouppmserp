@@ -3047,7 +3047,7 @@ class ReportController extends Controller
     {
         $days = Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1;
         $fns = \App\Models\BanquetFunction::with('items', 'event')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
-            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->get()->groupBy('banquet_hall_id');
+            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->inTimeOrder()->get()->groupBy('banquet_hall_id');
         $rows = \App\Models\BanquetHall::orderBy('sort')->orderBy('name')->get()->map(function ($h) use ($fns, $days) {
             $all = $fns->get($h->id, collect());
             $firm = $all->filter(fn ($f) => $f->event->status !== 'tentative');
@@ -3067,7 +3067,7 @@ class ReportController extends Controller
     protected function r_function_forecast($from, $to): array
     {
         $rows = \App\Models\BanquetFunction::with('event.company', 'hall', 'package', 'barPackage', 'items')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
-            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite']))->orderBy('date')->orderBy('start_time')->get()
+            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite']))->inTimeOrder()->get()
             ->map(fn ($f) => ['date' => $f->date->format('d-m-Y D'), 'time' => $f->timeRange(), 'venue' => $f->hall->name, 'event' => $f->event->event_no.' '.$f->event->title,
                 'fn' => $f->name, 'setup' => \App\Models\BanquetFunction::SETUPS[$f->setup_style] ?? $f->setup_style, 'pax' => $f->guaranteed_pax ?? $f->expected_pax,
                 'guar' => $f->guaranteed_pax !== null ? 'Yes' : 'due '.$f->guaranteeCutoff()->format('d M'), 'menu' => ($f->package?->name ?? ($f->rate_per_pax > 0 ? 'Custom' : '—')).($f->barPackage ? ' + '.$f->barPackage->name : ''),

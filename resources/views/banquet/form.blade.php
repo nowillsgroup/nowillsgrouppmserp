@@ -142,6 +142,7 @@
   const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const num = el => parseFloat(el.value) || 0;
   const MAX_FUNCTIONS = 30, MAX_ITEMS = 40, MAX_DIETS = 12;
+  let nextCardSequence = 0;
   const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', banquet_bar_package_id: 'Drinks package', bar_rate_per_pax: 'Drinks per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
   const itemLabels = {banquet_service_id: 'Service or equipment', description: 'Description', qty: 'Quantity', unit_price: 'Unit price', tax_rate: 'Tax rate'};
   const dietLabels = {diet: 'Diet', covers: 'Covers', dish: 'Dish served'};
@@ -153,7 +154,7 @@
       if (key === 'id') return;
       el.id = `bq-function-${i + 1}-${key}`;
       const label = el.closest('.field')?.querySelector('label');
-      if (label && !label.htmlFor) label.htmlFor = el.id;
+      if (label && el.closest('.field').querySelector('[data-f]') === el) label.htmlFor = el.id;
       el.setAttribute('aria-label', `${functionLabels[key] || key}, function ${i + 1}`);
     });
     card.querySelectorAll('.fn-item').forEach((row, j) => {
@@ -189,6 +190,32 @@
       addFunction.disabled = list.children.length >= MAX_FUNCTIONS;
       addFunction.title = addFunction.disabled ? `A maximum of ${MAX_FUNCTIONS} functions can be added to one event.` : '';
     }
+  }
+  /** What a card reads by: the day it happens, then the clock. A card with no date or clock yet sorts last. */
+  const clockKey = card => (card.querySelector('[data-f=date]').value || '9999-12-31') + ' '
+    + (card.querySelector('[data-f=start_time]').value || '99:99');
+  /**
+   * The function plan reads down the clock (v10.35): the cards are ordered by day, then start time, then the order they
+   * were keyed in — so an evening gala entered first does not sit above the morning ceremony, and the numbering follows
+   * the day the kitchen and the floor work to. The cards are moved, not rebuilt, so nothing typed is lost and the focus
+   * stays on the field the desk was in.
+   */
+  function sortFunctions() {
+    const cards = [...list.children];
+    const order = cards.map(card => ({ card, key: clockKey(card), id: card.querySelector('[data-f=id]').value }))
+      .sort((a, b) => {
+        if (a.key !== b.key) return a.key < b.key ? -1 : 1;
+        // Existing records use their database id, as on the printed sheets; new cards keep their creation order.
+        if (a.id && b.id && a.id !== b.id) return Number(a.id) - Number(b.id);
+        if (Boolean(a.id) !== Boolean(b.id)) return a.id ? -1 : 1;
+        return Number(a.card.dataset.sequence) - Number(b.card.dataset.sequence);
+      });
+    if (order.every((row, i) => row.card === cards[i])) return;
+    const active = document.activeElement;
+    const restoreFocus = active && list.contains(active) && active !== document.body;
+    order.forEach(row => list.appendChild(row.card));
+    renumber(); calc();
+    if (restoreFocus) active.focus({preventScroll: true});
   }
   function syncItemLimit(card) {
     const rows = card.querySelectorAll('.fn-item').length;
@@ -266,8 +293,10 @@
   function addFn(f) {
     if (list.children.length >= MAX_FUNCTIONS) return null;
     const t = document.createElement('div'); t.innerHTML = fnTpl; const card = t.firstElementChild; list.appendChild(card);
+    const isNew = !f;
+    card.dataset.sequence = nextCardSequence++;
     f = f || {};
-    if (!f.date && list.children.length > 1) { const prev = list.children[list.children.length - 2]; f = {banquet_hall_id: prev.querySelector('[data-f=banquet_hall_id]').value, date: prev.querySelector('[data-f=date]').value, start_time: '09:00', end_time: '17:00', setup_style: 'classroom'}; }
+    if (isNew && list.children.length > 1) { const prev = list.children[list.children.length - 2]; f = {banquet_hall_id: prev.querySelector('[data-f=banquet_hall_id]').value, date: prev.querySelector('[data-f=date]').value, start_time: '09:00', end_time: '17:00', setup_style: 'classroom'}; }
     for (const k of ['id', ...Object.keys(functionLabels)]) { const el = card.querySelector(`[data-f=${k}]`); if (el && f[k] !== null && f[k] !== undefined) el.value = f[k]; }
     if (f.locked) { card.querySelector('.fn-lock').hidden = false; card.querySelector('[data-f=guaranteed_pax]').min = f.guaranteed_pax; }
     (Array.isArray(f.items) ? f.items : []).forEach(it => addItem(card, it));
@@ -283,7 +312,9 @@
     card.querySelector('[data-f=banquet_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelector('[data-f=banquet_bar_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=bar_rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelectorAll('[data-f]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { names(card); calc(); }));
-    renumber(); calc(); return card;
+    // a committed date or start time is the moment the card knows where it belongs in the day
+    card.querySelectorAll('[data-f=date], [data-f=start_time]').forEach(el => el.addEventListener('change', sortFunctions));
+    renumber(); calc(); sortFunctions(); return card;
   }
   function estimateLine(label, detail, amount, bold = false) {
     const li = document.createElement('li');

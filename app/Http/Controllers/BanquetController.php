@@ -45,15 +45,17 @@ class BanquetController extends Controller
                 ->orWhereHas('company', fn ($company) => $company->where('name', 'like', '%'.$search.'%'))))
             ->when($type !== '', fn ($w) => $w->where('event_type', $type))
             ->when($salesFilter !== null, fn ($w) => $w->where('sales_user_id', $salesFilter));
+        // Apply the same chronology before pagination in every stage.
         match ($tab) {
-            'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today)->orderBy('event_date'),
-            'tentative' => $q->where('status', 'tentative')->orderBy('option_date'),
-            'enquiry' => $q->where('status', 'enquiry')->orderBy('event_date'),
-            'to_bill' => $q->where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today)->orderBy('end_date'),
-            'completed' => $q->where('status', 'completed')->orderByDesc('event_date'),
-            'closed' => $q->whereIn('status', ['lost', 'cancelled'])->orderByDesc('closed_at'),
-            default => $q->orderByDesc('event_date'),
+            'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today),
+            'tentative' => $q->where('status', 'tentative'),
+            'enquiry' => $q->where('status', 'enquiry'),
+            'to_bill' => $q->where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today),
+            'completed' => $q->where('status', 'completed'),
+            'closed' => $q->whereIn('status', ['lost', 'cancelled']),
+            default => $q,
         };
+        $q->inTimeOrder();
         $events = $q->paginate(25)->withQueryString();
 
         $open = BanquetEvent::with('functions.items')->whereIn('status', ['enquiry', 'tentative', 'definite'])->get();
@@ -409,9 +411,7 @@ class BanquetController extends Controller
         $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser');
 
         $focus = $request->integer('function');
-        $fns = $event->functions
-            ->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time)
-            ->values();
+        $fns = $event->functions;
 
         if ($focus > 0) {
             $fns = $fns->where('id', $focus)->values();
@@ -445,7 +445,7 @@ class BanquetController extends Controller
             }
         }
         $fns = BanquetFunction::with('event.company', 'hall', 'package', 'items.service.department')->whereDate('date', $date->toDateString())
-            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->orderBy('start_time')->get();
+            ->whereHas('event', fn ($q) => $q->whereIn('status', ['tentative', 'definite', 'completed']))->inTimeOrder()->get();
 
         return view('banquet.sheet', ['date' => $date, 'fns' => $fns, 'hotel' => Tenant::hotel()]);
     }

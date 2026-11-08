@@ -31,7 +31,9 @@ class LaundryService
 
     public static function hours(string $speed): int
     {
-        return max(1, (int) setting($speed === 'express' ? 'laundry_express_hours' : 'laundry_normal_hours', $speed === 'express' ? '6' : '24'));
+        return max(1, (int) ($speed === 'express'
+            ? setting('laundry_express_hours', '6')
+            : setting('laundry_normal_hours', '24')));
     }
 
     /** Laundry needs an in-house stay: the room's current guest. */

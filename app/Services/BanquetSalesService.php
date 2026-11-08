@@ -243,7 +243,7 @@ class BanquetSalesService
             ->whereDate('date', '<=', bdate()->copy()->addDays($days)->toDateString())
             ->whereHas('event', fn ($q) => $q->whereIn('status', BanquetEvent::HOLDS)
                 ->when($exceptEventId, fn ($w) => $w->where('id', '!=', $exceptEventId)))
-            ->orderBy('date')->orderBy('start_time')->get()
+            ->inTimeOrder()->get()
             ->map(fn ($f) => ['hall' => (int) $f->banquet_hall_id, 'date' => $f->date->toDateString(),
                 'start' => substr((string) $f->start_time, 0, 5), 'end' => substr((string) $f->end_time, 0, 5),
                 'event' => $f->event->event_no, 'title' => $f->event->title ?: $f->event->contact_name,
@@ -604,7 +604,7 @@ class BanquetSalesService
     {
         return BanquetFunction::with('event')->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
             ->whereHas('event', fn ($q) => $q->whereIn('status', $withEnquiries ? ['enquiry', 'tentative', 'definite', 'completed'] : ['tentative', 'definite', 'completed']))
-            ->orderBy('start_time')->get()->groupBy(fn ($f) => $f->banquet_hall_id.'|'.$f->date->toDateString());
+            ->inTimeOrder()->get()->groupBy(fn ($f) => $f->banquet_hall_id.'|'.$f->date->toDateString());
     }
 
     /** Events to bill + tentative holds whose option date is within two days (or gone). */

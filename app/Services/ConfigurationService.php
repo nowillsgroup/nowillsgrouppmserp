@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
  * One place that answers "what can be configured in this property, where is it
  * set, and what is it set to". The registry lives in config/settings.php; this
  * service joins it to the live `settings` rows and to the audit trail, so the
- * hub can never show a setting the code does not read (the configuration audit
- * proves that) and never hides one it does.
+ * configuration audit checks known literal and mapped reads; dynamically constructed
+ * reads can still be missed.
  *
  * Nothing here writes. Every screen listed belongs to the module that owns it —
  * one write path per setting.
@@ -104,16 +104,18 @@ class ConfigurationService
     /** Is this key a credential the register refuses to print? */
     public static function isSecretKey(string $key): bool
     {
-        return in_array($key, self::secrets(), true);
+        // The obsolete Robita token is no longer registered/read, but legacy values and
+        // older audit rows can still contain a credential and must never be exposed.
+        return $key === 'robita_access_token' || in_array($key, self::secrets(), true);
     }
 
     /**
      * The value trail: what each setting was before, newest first.
      *
-     * Written by App\Observers\SettingValueObserver on every write of a `settings` row, so
-     * every module is covered by one code path. A credential's value is never stored — the
-     * observer writes `Set — hidden` and the row carries `was_secret`, so this never has to
-     * guess and never has to decrypt anything to show a screen.
+     * Written by App\Observers\SettingValueObserver for model saves and deletes. Bulk SQL
+     * updates/deletes bypass model events and older history cannot be reconstructed.
+     * The observer masks credentials; the reader
+     * also respects today's credential classification for rows written before it changed.
      */
     public static function valueTrail(?string $module = null, int $limit = 60): array
     {
@@ -128,27 +130,39 @@ class ConfigurationService
             }
         }
 
-        $query = SettingChange::query()->latest('id')->take($limit);
+        $query = SettingChange::query()->with('user:id,name')->latest('id')->take($limit);
         if ($keys !== null) {
-            $query->whereIn('key', array_keys($keys));
+            $exact = array_values(array_filter(array_keys($keys), fn ($key) => ! str_ends_with($key, '_')));
+            $families = array_values(array_filter(array_keys($keys), fn ($key) => str_ends_with($key, '_')));
+            $query->where(function ($q) use ($exact, $families) {
+                $q->whereIn('key', $exact);
+                $column = $q->getQuery()->getGrammar()->wrap('key');
+                foreach ($families as $prefix) {
+                    // A literal prefix, not LIKE: underscores in setting keys are not wildcards.
+                    $q->orWhereRaw('substr('.$column.', 1, ?) = ?', [strlen($prefix), $prefix]);
+                }
+            });
         }
 
         $labels = self::labels();
         $out = [];
         foreach ($query->get() as $row) {
+            // Older rows may predate a key's classification as a credential.
+            $secret = (bool) $row->was_secret || self::isSecretKey((string) $row->key);
+            $label = self::labelForKey((string) $row->key, $labels);
             $out[] = [
                 'id' => $row->id,
                 'key' => $row->key,
-                'label' => $labels[$row->key]['label'] ?? $row->key,
-                'module' => $labels[$row->key]['module'] ?? null,
-                'module_label' => $labels[$row->key]['module_label'] ?? '—',
-                'was' => $row->created ? null : self::show($row->old_value),
-                'now' => $row->was_secret ? self::HIDDEN : ($row->new_value === null || trim((string) $row->new_value) === '' ? 'cleared' : self::show($row->new_value)),
-                'secret' => (bool) $row->was_secret,
+                'label' => $label['label'] ?? $row->key,
+                'module' => $label['module'] ?? null,
+                'module_label' => $label['module_label'] ?? '—',
+                'was' => $row->created ? null : ($secret && $row->old_value !== null && trim((string) $row->old_value) !== '' ? self::HIDDEN : ($secret ? null : self::show($row->old_value))),
+                'now' => $row->new_value === null || trim((string) $row->new_value) === '' ? 'cleared' : ($secret ? self::HIDDEN : self::show($row->new_value)),
+                'secret' => $secret,
                 'created' => (bool) $row->created,
                 'when' => $row->created_at,
                 'by' => $row->user?->name,
-                'was_raw' => $row->created || $row->was_secret ? null : $row->old_value,
+                'was_raw' => $row->created || $secret ? null : $row->old_value,
             ];
 
             // Can this one be put back? Ask before offering a button: a value the screen
@@ -203,7 +217,7 @@ class ConfigurationService
     public static function restoreBlocked(array $row): ?string
     {
         if (! empty($row['secret'])) {
-            return 'a credential is not recorded here — its value was never stored';
+            return 'credential values cannot be restored from this trail';
         }
         if (! self::canRestore((string) $row['key'])) {
             return 'this setting is owned by its module screen, which holds its own rules';
@@ -213,6 +227,12 @@ class ConfigurationService
         }
         if ($row['was'] === null) {
             return 'the value before this change was empty';
+        }
+        // Trail entries are clipped at 2,000 characters. Never restore a fragment
+        // as if it were the full setting, even if the fragment happens to validate.
+        $raw = $row['was_raw'] ?? null;
+        if (is_string($raw) && mb_strlen($raw) === 2001 && str_ends_with($raw, '…')) {
+            return 'the previous value was truncated in the trail — restore it from a backup or the owning screen';
         }
 
         return null;
@@ -230,7 +250,13 @@ class ConfigurationService
 
         switch ($spec['type']) {
             case 'number':
-                return is_numeric($v) && (float) $v >= 0 ? null : 'it is not a number this screen accepts';
+                [$min, $max] = \App\Http\Controllers\SettingController::BOUNDS[$key] ?? ['0', null];
+                return is_numeric($v) && (float) $v >= (float) $min && ($max === null || (float) $v <= (float) $max)
+                    ? null : 'it is outside the range this screen accepts';
+            case 'bool':
+                return in_array($v, ['0', '1'], true) ? null : 'it is not a valid switch value';
+            case 'text':
+                return mb_strlen($v) <= 120 ? null : 'it is longer than the screen accepts for this field';
             case 'select':
                 return is_array($spec['options']) && array_key_exists($v, $spec['options'])
                     ? null : 'that option no longer exists on the screen';
@@ -251,57 +277,50 @@ class ConfigurationService
     }
 
     /**
-     * A fingerprint of the whole configuration.
-     *
-     * Two handover sheets printed from the same configuration carry the same fingerprint, so
-     * a reader who has last quarter's sheet can tell at a glance whether anything moved —
-     * without diffing seventy pages. It is built from every registered key and its stored
-     * value, sorted, so neither the order of the registry nor the order of the rows matters;
-     * a key that is unset contributes its own line, so setting one changes the fingerprint.
-     *
-     * A credential contributes only whether one is stored. Its value never reaches a sheet,
-     * so it must not reach the hash either — otherwise the hash would be a way to guess it.
+     * Version 2 fingerprint of registered settings. Structured JSON avoids ambiguity
+     * between missing, null and empty values and between values containing newlines.
+     * Credentials contribute only set/unset, never a guessable hash of their value.
      */
     public static function fingerprint(): array
     {
         $values = self::values();
+        $records = [];
         $secrets = array_flip(self::secrets());
-        $lines = [];
-
-        foreach (array_keys(self::labels()) as $key) {
+        $keys = array_keys(self::labels());
+        sort($keys, SORT_STRING);
+        foreach ($keys as $key) {
             if (isset($secrets[$key])) {
                 $set = isset($values[$key]) && trim((string) $values[$key]) !== '';
-                $lines[] = $key.'=credential:'.($set ? 'set' : 'unset');
-                continue;
-            }
-
-            if (str_ends_with((string) $key, '_')) {
-                // a family prefix: the rows the property created under it, in key order
+                $records[] = [$key, 'credential', $set];
+            } elseif (str_ends_with((string) $key, '_')) {
                 $held = [];
                 foreach ($values as $k => $v) {
                     if (str_starts_with((string) $k, (string) $key)) {
-                        $held[$k] = (string) $v;
+                        $held[$k] = isset($secrets[(string) $k])
+                            ? ['credential', $v !== null && trim((string) $v) !== '']
+                            : ['value', $v === null ? null : (string) $v];
                     }
                 }
-                ksort($held);
-                foreach ($held as $k => $v) {
-                    $lines[] = $k.'='.$v;
+                ksort($held, SORT_STRING);
+                $members = [];
+                foreach ($held as $k => $value) {
+                    $members[] = [$k, $value];
                 }
-                $lines[] = $key.'=family:'.count($held);
-                continue;
+                $records[] = [$key, 'family', $members];
+            } else {
+                $records[] = array_key_exists($key, $values)
+                    ? [$key, 'value', $values[$key] === null ? null : (string) $values[$key]]
+                    : [$key, 'missing'];
             }
-
-            $lines[] = $key.'='.(string) ($values[$key] ?? '');
         }
 
-        sort($lines, SORT_STRING);
-        $full = sha1(implode("\n", $lines));
+        $full = hash('sha256', json_encode($records, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
         return [
             'full' => $full,
             'short' => strtoupper(substr($full, 0, 12)),
-            'keys' => count(array_keys(self::labels())),
-            'lines' => count($lines),
+            'keys' => count($keys),
+            'lines' => count($records),
             'at' => SettingChange::query()->latest('id')->value('created_at'),
         ];
     }
@@ -354,11 +373,39 @@ class ConfigurationService
         return $out;
     }
 
+    /** Resolve a concrete family key without losing which member changed. */
+    private static function labelForKey(string $key, array $labels): ?array
+    {
+        if (isset($labels[$key])) {
+            return $labels[$key] + ['registry_key' => $key];
+        }
+        $match = null;
+        $length = 0;
+        foreach ($labels as $prefix => $label) {
+            if (str_ends_with($prefix, '_') && str_starts_with($key, $prefix) && strlen($prefix) > $length) {
+                $match = $label;
+                $match['label'] .= ' ('.$key.')';
+                $match['registry_key'] = $prefix;
+                $length = strlen($prefix);
+            }
+        }
+
+        return $match;
+    }
+
     /** How the trail is doing: rows recorded, settings covered, and where it starts. */
     public static function trailCoverage(): array
     {
         $rows = SettingChange::query()->count();
-        $keys = (int) SettingChange::query()->distinct()->count('key');
+        $labels = self::labels();
+        $covered = [];
+        foreach (SettingChange::query()->distinct()->pluck('key') as $key) {
+            $registered = self::labelForKey((string) $key, $labels)['registry_key'] ?? null;
+            if ($registered !== null) {
+                $covered[$registered] = true;
+            }
+        }
+        $keys = count($covered);
         $first = SettingChange::query()->oldest('id')->value('created_at');
 
         return [
@@ -485,7 +532,9 @@ class ConfigurationService
             $hits = [];
             foreach ($values as $k => $v) {
                 if (str_starts_with($k, $key)) {
-                    $hits[substr($k, strlen($key))] = self::show($v);
+                    $hits[substr($k, strlen($key))] = self::isSecretKey((string) $k)
+                        ? (trim((string) $v) === '' ? '—' : self::HIDDEN)
+                        : self::show($v);
                 }
             }
             ksort($hits);
@@ -635,26 +684,39 @@ class ConfigurationService
         });
     }
 
+    /** Restrict the activity query to the same conventions as isChangeFor(). */
+    private static function moduleTrailQuery(array $spec)
+    {
+        return ActivityLog::with('user:id,name')->where(function ($q) use ($spec) {
+            $q->where(fn ($s) => $s->where('module', 'settings')->whereIn('action', $spec['actions']))
+                ->orWhere(fn ($m) => $m->whereIn('module', $spec['modules'])
+                    ->where(fn ($a) => $a->where('action', 'settings')
+                        ->orWhere('action', 'like', '%settings')
+                        ->orWhereIn('action', $spec['actions'])));
+        });
+    }
+
     /** The configuration changes on one module, newest first. */
     public static function historyFor(string $module, int $take = 12): Collection
     {
-        $spec = self::logSpec($module);
-        $rows = self::trailQuery()->latest('id')->take(400)
+        return self::moduleTrailQuery(self::logSpec($module))->latest('id')->take($take)
             ->get(['id', 'module', 'action', 'description', 'user_id', 'created_at']);
-
-        return $rows->filter(fn ($r) => self::isChangeFor($r, $spec))->take($take)->values();
     }
 
     /** Last change on each module, from across both logging conventions. */
     public static function lastChanged(): array
     {
-        $rows = self::trailQuery()->latest('id')->take(600)
+        // Matching depends only on module/action. The newest row for each pair is
+        // sufficient, even when another module has thousands of newer changes.
+        $ids = self::trailQuery()->select('module', 'action')->selectRaw('MAX(id) as latest_id')
+            ->groupBy('module', 'action')->pluck('latest_id');
+        $rows = ActivityLog::with('user:id,name')->whereIn('id', $ids)->latest('id')
             ->get(['id', 'module', 'action', 'description', 'user_id', 'created_at']);
 
         $map = [];
         foreach (array_keys(config('settings.modules', [])) as $key) {
             $spec = self::logSpec((string) $key);
-            foreach ($rows as $r) { // newest first, so the first hit wins
+            foreach ($rows as $r) {
                 if (self::isChangeFor($r, $spec)) {
                     $map[$key] = ['at' => $r->created_at, 'by' => $r->user?->name ?? 'System', 'what' => $r->description];
                     break;
@@ -961,7 +1023,7 @@ class ConfigurationService
         foreach (self::modules() as $m) {
             if (! $m['keys']) {
                 $rows[] = ['group' => $m['group'], 'module' => $m['label'], 'setting' => '—', 'key' => '',
-                    'value' => '', 'default' => '', 'state' => $m['open'] ? 'screen only' : 'no screen', 'screen' => $m['route'] ?? '—'];
+                    'value' => '', 'default' => '', 'state' => $m['open'] ? 'screen only' : 'no screen', 'screen' => $m['route'] ?? '—', 'read_in' => '—'];
 
                 continue;
             }
@@ -977,13 +1039,22 @@ class ConfigurationService
         return $rows;
     }
 
-    /** The register as CSV (Excel-safe: BOM so GH₵ and accented text survive). */
+    /** Neutralise formula-like cells for spreadsheets, while preserving ordinary numbers. */
+    private static function csvSafe($value): string
+    {
+        $value = (string) $value;
+
+        return ! is_numeric($value) && preg_match('/^(?:[\x00-\x20]*[=+\-@]|[\t\r\n])/', $value)
+            ? "'".$value : $value;
+    }
+
+    /** Spreadsheet-safe CSV; BOM lets GH₵ and accented text survive. */
     public static function csv(): string
     {
         $fh = fopen('php://temp', 'r+');
         fputcsv($fh, ['Group', 'Module', 'Setting', 'Key', 'Value', 'Built-in default', 'State', 'Screen', 'Read in']);
         foreach (self::rows() as $r) {
-            fputcsv($fh, [$r['group'], $r['module'], $r['setting'], $r['key'], $r['value'], $r['default'], $r['state'], $r['screen'], $r['read_in']]);
+            fputcsv($fh, array_map([self::class, 'csvSafe'], [$r['group'], $r['module'], $r['setting'], $r['key'], $r['value'], $r['default'], $r['state'], $r['screen'], $r['read_in']]), ',', '"', '');
         }
         rewind($fh);
         $out = stream_get_contents($fh);

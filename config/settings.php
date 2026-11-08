@@ -351,11 +351,14 @@ return [
         'laundry' => [
             'label' => 'Laundry',
             'group' => 'Rooms',
-            'route' => 'laundry.index',
+            'route' => 'laundry.prices',
             'perm' => 'laundry.view',
-            'brief' => 'The express surcharge and the turn-round promise the laundry desk sells. The express surcharge is 0–300 %.',
+            'edit' => 'laundry.manage',
+            'brief' => 'The express surcharge and the turn-round promise the laundry desk sells. The express surcharge is 0–300 %, normal turnaround 1–168 hours and express 1–48 hours; express may not exceed normal.',
             'keys' => [
                 'laundry_express_pct' => 'Express surcharge (%)',
+                'laundry_normal_hours' => 'Normal turnaround (hours)',
+                'laundry_express_hours' => 'Express turnaround (hours)',
             ],
         ],
         'linen' => [
@@ -887,6 +890,7 @@ return [
                 'hr_leave_sla_hours' => 'Leave sla hours',
                 'leave_count_all_days' => 'Leave count all days',
                 'hr_holiday_notify_days' => 'Announce a public holiday this many days ahead (0–60)',
+                'hr_holidays_' => 'Custom public holiday calendar by year (edit at Public Holidays)',
             ],
         ],
         'learning' => [

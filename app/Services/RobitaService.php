@@ -82,7 +82,7 @@ class RobitaService
         if (! Tenant::check()) {
             throw new RuntimeException('An active hotel context is required.');
         }
-        \App\Models\Setting::whereIn('key', ['robita_cloud_url', 'robita_access_token'])->delete();
+        \App\Models\Setting::whereIn('key', ['robita_cloud_url', 'robita_access_token'])->get()->each->delete();
         \App\Models\Setting::$version++;
         ActivityLogger::log('robita', 'legacy_config_removed', 'Ignored legacy cloud URL and token removed; no vendor request was sent');
     }

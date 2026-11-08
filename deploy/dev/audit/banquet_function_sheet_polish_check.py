@@ -92,7 +92,7 @@ class BanquetFunctionSheetPolishTest(unittest.TestCase):
         self.assertIn("catch (\\Throwable)", CONTROLLER)
         self.assertIn("BanquetFunction::with('event.company', 'hall', 'package', 'items.service.department')", CONTROLLER)
         self.assertIn("whereIn('status', ['tentative', 'definite', 'completed'])", CONTROLLER)
-        self.assertIn("->orderBy('start_time')->get()", CONTROLLER)
+        self.assertIn("->inTimeOrder()->get()", CONTROLLER)
         self.assertIn("Route::get('/function-sheet', 'sheet')->middleware('perm:banquet.view')->name('sheet')", ROUTES)
 
 

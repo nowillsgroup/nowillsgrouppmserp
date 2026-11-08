@@ -327,6 +327,17 @@ ok('parseRegistry' in sample, 'the preview parses the registry rather than dupli
 # the sample must not invent modules either: it counts what the registry holds
 ok("configurationIndexContext" in build and "configurationShowContext" in build, 'both hub screens are rendered')
 
+# Export, audit history and tenant ownership regressions.
+ok("'read_in' => '—'" in svc, 'CSV screen-only rows have the same columns as setting rows')
+ok("array_map([self::class, 'csvSafe']" in svc and 'private static function csvSafe' in svc,
+   'CSV neutralises spreadsheet formulas in every cell')
+ok("->groupBy('module', 'action')->pluck('latest_id')" in svc and "->take(600)" not in svc,
+   'last changed uses the latest row per action rather than a globally truncated trail')
+ok("orWhereRaw('substr('.$column.', 1, ?) = ?'" in svc and 'self::labelForKey((string) $row->key, $labels)' in svc,
+   'module value history includes literal-prefix family members and resolves their labels')
+ok("$c['restore_ok'] && can_do('settings.manage')" in read(os.path.join(VIEWS, 'history.blade.php')),
+   'read-only users are not offered a restore action they cannot perform')
+
 # ── 6. the checks: what this property's settings contradict ────────────────────────
 # A register tells you where a value is set. It can also tell you when two settings
 # already saved contradict each other — that is App/Support/ConfigurationChecks.php.
@@ -392,6 +403,68 @@ ok("$registered === true && (float) $s('banquet_hall_tax_rate', 21) <= 0" in che
 ok("$s('hk_credits_stayover', 1) < 1" in checks_src
    and "setting('hk_credits_stayover', 1)" in read(os.path.join(ROOT, 'app/Services/HousekeepingService.php')),
    'the housekeeping rule reads the credit the workload spread uses')
+
+# New advisories must remain grounded in the consuming code, not just in a fixture.
+cro_src = read(os.path.join(ROOT, 'app/Services/CroService.php'))
+fleet_src = read(os.path.join(ROOT, 'app/Services/FleetService.php'))
+tv_src = read(os.path.join(ROOT, 'app/Services/IptvService.php'))
+inbox_src = read(os.path.join(ROOT, 'app/Services/InboxService.php'))
+webhook_src = read(os.path.join(ROOT, 'app/Services/WebhookService.php'))
+checks_drivers = [read(os.path.join(ROOT, 'app/Services/Interfaces', f)) for f in ('TcpPbxDriver.php', 'TcpLockDriver.php')]
+ok("now()->addHours(self::cfg()['follow_up_hours'])" in cro_src and "now()->subDays(self::cfg()['expire_days'])" in cro_src,
+   'enquiry follow-up and expiry advisory uses the owning service timelines')
+ok("self::cfg()['speed_moving_kph']" in fleet_src and "self::cfg()['speed_limit_kph']" in fleet_src,
+   'fleet advisory compares the actual status and speeding thresholds')
+ok("self::cfg()['enabled'] && self::cfg()['portal_chat']" in inbox_src,
+   'portal chat depends on both inbox switches')
+ok("$today < $c['max_rentals']" in tv_src and "'movies' => $c['vod']" in tv_src,
+   'the TV shows enabled movies but refuses a new rental when its limit is zero')
+ok("! $cfg['allow_http']" in webhook_src and "! $cfg['allow_private']" in webhook_src,
+   'the developer checks refer to the webhook URL and delivery safeguards')
+ok(all("$host === '' || $port < 1 || $port > 65535" in d for d in checks_drivers),
+   'both TCP drivers reject a missing host or unusable port')
+
+# The next checks are grounded in their owning services and remain narrowly worded.
+kiosk_src = read(os.path.join(ROOT, 'app/Services/KioskService.php'))
+org_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/OrganiserPortalController.php'))
+org_src = read(os.path.join(ROOT, 'app/Services/OrganiserService.php'))
+payment_src = read(os.path.join(ROOT, 'app/Services/OnlinePaymentService.php'))
+upsell_src = read(os.path.join(ROOT, 'app/Services/UpsellService.php'))
+bankrec_src = read(os.path.join(ROOT, 'app/Services/BankRecService.php'))
+income_src = read(os.path.join(ROOT, 'app/Services/IncomeAuditService.php'))
+revenue_auth = read(os.path.join(ROOT, 'app/Services/RevenueAuthService.php'))
+hse_src = read(os.path.join(ROOT, 'app/Services/HseService.php'))
+privacy_src = read(os.path.join(ROOT, 'app/Services/PrivacyService.php'))
+formc_src = read(os.path.join(ROOT, 'app/Services/FormCService.php'))
+robita_src = read(os.path.join(ROOT, 'app/Services/RobitaService.php'))
+budget_src = read(os.path.join(ROOT, 'app/Services/BudgetService.php'))
+voucher_src = read(os.path.join(ROOT, 'app/Services/GiftVoucherService.php'))
+sales_src = read(os.path.join(ROOT, 'app/Services/SalesService.php'))
+ok("$c['walkin'] && $k->allow_walkin && OnlinePaymentService::enabled()" in kiosk_src,
+   'the kiosk only offers walk-ins when the payment service is available')
+ok("setting('organiser_pay', '1') === '1' && \App\Services\OnlinePaymentService::enabled()" in org_ctrl
+   and 'OnlinePaymentService::createBanquet' in org_src and 'if (! self::enabled())' in payment_src,
+   'the organiser payment form and creation path both depend on payment availability')
+ok("$cfg['enabled'] && $cfg['auto_email']" in upsell_src,
+   'the upsell email job depends on both feature switches')
+ok("self::cfg('bankrec_segregation') === '1'" in bankrec_src and 'someone else must finalise it' in bankrec_src,
+   'the bank reconciliation warning reflects the actual finalisation gate')
+ok("self::cfg('ia_four_eyes')" in income_src and "IncomeAuditService::cfg('ia_four_eyes')" in revenue_auth,
+   'income audit four-eyes controls both day closing and revenue approval')
+ok("! self::cfg()['issuer_differs'] || $p->requested_by !== $u->id" in hse_src,
+   'the permit warning reflects the actual separate-issuer gate')
+ok("if (! self::settings()['retention_enabled'])" in privacy_src and "self::runRetention('schedule')" in privacy_src,
+   'the privacy warning describes the scheduled sweep rather than manual retention')
+ok("where('deadline_at', '>', now())" in formc_src and "now()->addHours($cfg['alert_hours'])" in formc_src,
+   'a zero advance window cannot select a due-soon Form C')
+ok("self::cfg()['robita_auto_revoke'] !== '1'" in robita_src and 'local simulated credentials' in robita_src,
+   'the Robita advisory refers only to local credential records')
+ok("foreach (self::prefixList() as $p)" in budget_src and "$cfg['capex_control'] !== 'off'" in budget_src,
+   'capital budget controls classify asset accounts using the prefix list')
+ok("$min = max($type->min_value, $c['min'])" in voucher_src and "min($type->max_value, $c['max'])" in voucher_src,
+   'voucher limits are both enforced for open-amount vouchers')
+ok("$p[$i] <= $p[$i - 1]" in sales_src and "Each stage must have a higher probability" in sales_src,
+   'the sales advisory follows the screen validation')
 
 # wired: the service decorates, the controller passes, the views render
 ok('use App\Support\ConfigurationChecks;' in svc, 'the register service knows the checks')
@@ -567,8 +640,8 @@ ok(len(aliased) >= 15, f'the aliases are carried in the register, not patched in
 ok(dynamic <= 40, f'most trail calls name their action literally, so this section can read them ({dynamic} dynamic)')
 
 # the register page must use the same resolution, not a second list of names
-ok('private static function trailQuery' in log_spec and log_spec.count('self::trailQuery()') == 3,
-   'the module page, the register and the hub read the trail through one query')
+ok('private static function trailQuery' in log_spec and log_spec.count('self::trailQuery()') == 2 and 'self::moduleTrailQuery(self::logSpec($module))' in log_spec,
+   'the module history filters by its spec before limiting; register and hub use the shared trail query')
 ok("->orWhereIn('action', $actions)" in log_spec,
    'the query is not narrowed to `%settings` only — a module that logs an action of its own survives it')
 ok("$m['last']['what']" in read(os.path.join(VIEWS, 'index.blade.php')),
@@ -823,11 +896,11 @@ ok("'guarded' => count(array_filter($modules, fn ($m) => $m['rules'] > 0))" in s
    'the coverage strip counts the guarded modules from the same number')
 
 # the module page must distinguish "checked and clean" from "not checked"
-ok("No contradiction in this module's settings right now" in show_view
-   and "Nothing compares this module's settings with the rest of the configuration yet" in show_view,
+ok("No findings from this module's" in show_view
+   and "This module has no automated configuration checks yet" in show_view,
    'a module page that has no finding says whether anything looked, instead of implying it was checked')
 ok("$m['rules'] === 1 ? 'rule' : 'rules'" in show_view, 'and says how many rules looked')
-ok("$coverage['guarded']" in hub_view and 'checked against each other' in hub_view,
+ok("$coverage['guarded']" in hub_view and 'modules with at least one configuration check' in hub_view,
    'the hub states how many modules are checked against each other, out of how many')
 
 ok('parseRuleModules' in sample and "'public const MODULES = ['" in sample,
@@ -1034,8 +1107,12 @@ ok("$t->text('old_value')" in mig and "$t->text('new_value')" in mig,
    'a value keeps its full shape — a policy paragraph is not truncated by the column')
 ok("index(['hotel_id', 'key', 'created_at']" in mig, 'the trail is indexed by setting, so one key\'s history is one query')
 ok('dropIfExists' in mig, 'the migration can be rolled back')
-newest = sorted(os.listdir(os.path.join(ROOT, 'database/migrations')))[-1]
-ok(os.path.basename(MIGRATION) == newest, f'the trail migration runs last ({newest})')
+# Later schema-only migrations do not need to precede the trail. What matters is that
+# later migrations do not write settings through the observer before its table exists.
+trail_name = os.path.basename(MIGRATION)
+later = [name for name in sorted(os.listdir(os.path.join(ROOT, 'database/migrations'))) if name.endswith('.php') and name > trail_name]
+setting_writers = [name for name in later if re.search(r'\bSetting::(?:create|updateOrCreate|firstOrCreate|update)\s*\(', read(os.path.join(ROOT, 'database/migrations', name)))]
+ok(not setting_writers, 'later migrations do not write settings through the trail observer: ' + (', '.join(setting_writers) or 'none'))
 
 chg = read(CHANGE_MODEL) if os.path.exists(CHANGE_MODEL) else ''
 ok('class SettingChange extends Model' in chg, 'the trail has a model')
@@ -1061,20 +1138,20 @@ ok("'old_value' => $secret ? self::mask($old) : self::clip($old)" in obs
 ok("ConfigurationService::HIDDEN" in obs, 'a credential is stored as the same masked text the register prints')
 ok('private const MAX = 2000;' in obs and 'mb_substr($text, 0, self::MAX)' in obs,
    'a long value is clipped with a marker rather than silently stored in part')
-ok("'hotel_id' => $m->hotel_id" in obs, 'the trail row carries the property of the setting that changed')
+ok('$change->hotel_id = $m->hotel_id;' in obs and '$change->save();' in obs, 'the guarded hotel id is explicitly set from the setting before saving')
 
 prov = read(PROVIDER)
 ok('Models\\Setting::observe(\\App\\Observers\\SettingValueObserver::class);' in prov,
    'the observer is registered — an observer nobody registers records nothing')
 
 trail_src = svc[svc.find('public static function valueTrail'):svc.find('public static function labels')]
-ok("SettingChange::query()->latest('id')" in trail_src, 'the trail is read newest first')
-ok("$row->was_secret ? self::HIDDEN" in trail_src,
+ok("SettingChange::query()->with('user:id,name')->latest('id')" in trail_src, 'the trail is read newest first with its users')
+ok("(bool) $row->was_secret || self::isSecretKey((string) $row->key)" in trail_src and "$secret ? self::HIDDEN" in trail_src,
    'the page prints a credential as hidden even if a row ever carried a value')
 ok("=== '' ? 'cleared'" in trail_src or "'cleared'" in trail_src,
    'a value cleared back to nothing says "cleared" rather than printing an empty cell')
 ok("'by' => $row->user?->name" in trail_src, 'the page names the person, not a user id')
-ok("'was' => $row->created ? null : self::show($row->old_value)" in trail_src,
+ok("'was' => $row->created ? null :" in trail_src and "$secret ? null : self::show($row->old_value)" in trail_src,
    'a setting created by a person is shown as having been nothing, not as "was 0"')
 ok('public static function trailCoverage' in svc and "'keys_total' => count(self::labels())" in svc,
    'the page says how much of the register the trail covers, rather than implying all of it')
@@ -1137,7 +1214,7 @@ ok('! self::isSecretKey($key) && array_key_exists($key, self::typed())' in svc,
 
 blocked_src = svc[svc.find('public static function restoreBlocked'):svc.find('public static function restoreError')]
 for piece, label in (
-    ('a credential is not recorded here', 'a credential is refused, because only that it changed was recorded'),
+    ('credential values cannot be restored from this trail', 'a credential is refused even when older rows predate its classification'),
     ('owned by its module screen', 'a module-owned setting is refused, and told where its rules live'),
     ('there was nothing here before', 'a setting that was first set is not a "restore"'),
     ('the value before this change was empty', 'a value that was empty cannot be restored'),
@@ -1156,6 +1233,12 @@ ok('\\App\\Models\\Store::whereKey($v)->exists()' in err_src and '\\App\\Models\
 ok('FILTER_VALIDATE_EMAIL' in err_src and 'FILTER_VALIDATE_EMAIL' in read(os.path.join(ROOT, 'app/Http/Controllers/SettingController.php')),
    'an e-mail list is checked the way the form checks it')
 ok('mb_strlen($v) <= 5000' in err_src, 'a value longer than the form accepts is refused')
+ok('SettingController::BOUNDS[$key]' in err_src and '(float) $v <= (float) $max' in err_src,
+   'a numeric restore respects the form’s minimum and maximum')
+ok("in_array($v, ['0', '1'], true)" in err_src and 'mb_strlen($v) <= 120' in err_src,
+   'boolean and short text restores respect their form limits')
+ok("mb_strlen($raw) === 2001" in blocked_src and "str_ends_with($raw, '…')" in blocked_src,
+   'clipped historic values are never offered for restore')
 
 restore = read(CONTROLLER)
 restore_fn = restore[restore.find('public function restore'):restore.find('public function show')]
@@ -1185,7 +1268,7 @@ hv = re.sub(r'\s+', ' ', history_view)
 ok('Put it back' in hv, 'the trail offers the action')
 ok('@csrf' in history_view and "route('configuration.restore', $c['id'])" in history_view,
    'the form posts to the recorded change and carries the CSRF token')
-ok("@if($c['restore_ok'])" in history_view and "$c['restore_blocked']" in history_view,
+ok("@if($c['restore_ok'] && can_do('settings.manage'))" in history_view and "$c['restore_blocked']" in history_view,
    'a row that cannot be restored prints the reason instead of a button that would fail after the click')
 ok('One action on this page: put it back' in hv,
    'the page says what it can do, now that it can do something')
@@ -1203,18 +1286,16 @@ ok("'the value it had is no longer accepted'" in svc or 'no longer accepted' in 
 # compared by. Every number on it comes from the same service the screens read; the hash is
 # built from every registered key, so an unset key is part of it and setting one moves it.
 fp_src = svc[svc.find('public static function fingerprint'):svc.find('public static function credentialSummary')]
-ok('sha1(implode("\\n", $lines))' in fp_src and 'sort($lines, SORT_STRING)' in fp_src,
-   'the fingerprint is a sorted hash, so the order of the registry or the rows cannot change it')
+ok("hash('sha256', json_encode($records" in fp_src and 'sort($keys, SORT_STRING)' in fp_src,
+   'the version 2 fingerprint hashes deterministic structured records')
 ok("'short' => strtoupper(substr($full, 0, 12))" in fp_src,
    'it is printed as twelve characters a person can compare by eye')
-ok('foreach (array_keys(self::labels()) as $key)' in fp_src,
-   'every registered key contributes a line — a key added to the register changes the fingerprint')
-ok("$lines[] = $key.'='.(string) ($values[$key] ?? '');" in fp_src,
-   'an unset key contributes an empty line, so setting one for the first time changes the fingerprint')
-ok("$key.'=credential:'.($set ? 'set' : 'unset')" in fp_src,
-   'a credential contributes only whether one is stored — the hash can never be a way to guess it')
-ok("$lines[] = $key.'=family:'.count($held);" in fp_src,
-   'a family prefix contributes its rows and a count, so adding one row moves the hash')
+ok("$keys = array_keys(self::labels());" in fp_src and "[$key, 'missing']" in fp_src,
+   'every registered key contributes and missing is distinct from an empty value')
+ok("[$key, 'credential', $set]" in fp_src and "isset($secrets[(string) $k])" in fp_src,
+   'credentials contribute only whether set, including within families')
+ok("[$key, 'family', $members]" in fp_src and 'ksort($held, SORT_STRING)' in fp_src,
+   'family members are recorded in a deterministic structure')
 ok("'at' => SettingChange::query()->latest('id')->value('created_at')" in fp_src,
    'the fingerprint says when the configuration last moved')
 
@@ -1254,7 +1335,7 @@ for piece, label in (
     ('5 · Credentials', 'and the credential count without a hint of a value'),
     ('6 · What it was before', 'and the value trail'),
     ('7 · Sign-off', 'and room to sign it'),
-    ('the same fingerprint means the same configuration', 'it says how to compare two sheets'),
+    ('indicator, not proof of identical configuration', 'it says how to compare two version 2 sheets without claiming certainty'),
     ('not the same as "checked and clean"', 'and will not let an unchecked module read as verified'),
     ('a credential is stored encrypted and is not printed, exported or hashed here', 'and says a credential is not in the hash'),
     ('Prepared by', 'it has a signature line for whoever prepares it'),
@@ -1263,7 +1344,7 @@ for piece, label in (
     ok(piece in hv2, f'handover sheet: {label}')
 ok('collect(' not in hv2, 'the sheet joins its lists in the controller — a printable page needs no template helper')
 
-ok('function fingerprintOf' in sample and 'crypto.createHash(\'sha1\')' in sample and 'lines.sort()' in sample,
+ok('function fingerprintOf' in sample and 'crypto.createHash(\'sha256\')' in sample and 'JSON.stringify(records)' in sample,
    'preview: the fixture computes the fingerprint the same way, with a real hash')
 ok('fingerprint: fingerprintOf(modules)' in sample, 'preview: the fixture carries it into the page')
 
@@ -4674,7 +4755,7 @@ ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 're
 ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 'resources/views/pos/bill.blade.php')),
    'and so does the guest bill')
 pt_qty = read(os.path.join(ROOT, 'resources/views/pos/terminal.blade.php'))
-ok('function sideChoiceRow(variant, checked)' in pt_qty and 'data-side-count' in pt_qty,
+ok('function sideChoiceRow(variant, checked, asCard = false)' in pt_qty and 'data-side-count' in pt_qty,
    'the terminal builds one row per side with a count beside it, in both pickers')
 ok('function stepSide(button)' in pt_qty and "box.checked = true;" in pt_qty,
    'the − / + ticks the side first, so counting it never leaves an unticked row')
@@ -5707,6 +5788,31 @@ split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if l
 split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if line.lstrip().startswith(".\'")]
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
+
+# Dynamic ownership and deletion regressions: these paths used to escape the register/trail.
+laundry_src = read(os.path.join(ROOT, 'app/Services/LaundryService.php'))
+laundry_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/LaundryController.php'))
+holiday_src = read(os.path.join(ROOT, 'app/Services/HolidayService.php'))
+ok(all(k in modules['laundry']['keys'] and k in read_keys for k in ('laundry_normal_hours', 'laundry_express_hours')),
+   'laundry turnaround reads are literal and registered')
+ok(modules['laundry']['route'] == 'laundry.prices' and modules['laundry']['edit'] == 'laundry.manage',
+   'laundry opens the actual settings screen and states its manage permission')
+ok("'laundry_express_hours' => 'required|integer|min:1|max:48|lte:laundry_normal_hours'" in laundry_ctrl
+   and "LaundryService::hours('express') > \\App\\Services\\LaundryService::hours('normal')" in checks_src,
+   'laundry check uses effective hours and mirrors the ordering accepted by the owner')
+ok("hr_holidays_" in modules['hr']['keys'] and "setting('hr_holidays_'.$year, '')" in holiday_src
+   and "return 'hr_holidays_'.$year;" in holiday_src,
+   'holiday calendar family includes the same prefix used to write each year')
+ok('public function deleted(Model $m)' in obs and "'new_value' => null" in obs,
+   'setting model deletions enter the value trail')
+for source, fragment in (
+    (holiday_src, "Setting::where('key', self::key($year))->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Services/OnlinePaymentService.php')), "Setting::where('key', $k)->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Http/Controllers/MessageController.php')), "Setting::where('key', $k)->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Services/RobitaService.php')), "Setting::whereIn('key', ['robita_cloud_url', 'robita_access_token'])->get()->each->delete()"),
+):
+    ok(fragment in source, 'known settings reset/clear path dispatches model delete events')
+ok("$key === 'robita_access_token'" in svc, 'legacy Robita token is always masked, even for older audit rows')
 
 # ── report ─────────────────────────────────────────────────────────────────────────
 print(f'configuration check: {checks - len(failures)}/{checks} passed')

@@ -120,7 +120,9 @@ return [
         'hse_review_days' => ['app/Services/HseService.php'],
         'invoice_terms' => ['resources/views/emails/invoice.blade.php', 'resources/views/folios/invoice.blade.php'],
         'kiosk_breakfast' => ['app/Http/Controllers/KioskAdminController.php', 'app/Services/KioskService.php'],
+        'laundry_express_hours' => ['app/Services/LaundryService.php'],
         'laundry_express_pct' => ['app/Services/LaundryService.php'],
+        'laundry_normal_hours' => ['app/Services/LaundryService.php'],
         'lease_enforce_rent_cap' => ['app/Services/LeaseBillingService.php'],
         'lease_grace_days' => ['app/Services/LeaseBillingService.php'],
         'leave_count_all_days' => ['app/Http/Controllers/HrController.php', 'app/Services/LeaveService.php', 'resources/views/payroll/components.blade.php'],
@@ -285,6 +287,7 @@ return [
         'fb_sla_' => ['app/Services/CaseService.php'],
         'fs_shelf_' => ['app/Services/FoodSafetyService.php'],
         'gl_cat_' => ['app/Services/LedgerService.php'],
+        'hr_holidays_' => ['app/Services/HolidayService.php'],
         'sms_tpl_' => ['app/Services/MessageService.php'],
     ],
     'accessors' => [
@@ -675,10 +678,10 @@ return [
         'wvat_rate' => ['app/Services/WhtService.php'],
     ],
     'counts' => [
-        'keys' => 267,
-        'families' => 4,
+        'keys' => 269,
+        'families' => 5,
         'accessors' => 9,
         'map' => 374,
-        'files' => 1909,
+        'files' => 1910,
     ],
 ];

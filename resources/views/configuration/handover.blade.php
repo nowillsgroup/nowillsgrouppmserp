@@ -5,7 +5,7 @@
   <div class="small">Property <b>{{ $hotel->name }}</b> ({{ $hotel->code }})</div>
   <div class="small">{{ $coverage['modules'] }} modules · {{ $coverage['keys'] }} settings tracked</div>
   <div class="small">Printed {{ $printedAt->format('d M Y H:i') }}</div>
-  <div class="small">Fingerprint <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
+  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
 @endsection
 @section('content')
 
@@ -14,10 +14,10 @@
   all of that as it stands at the print time above, so an auditor, an owner or an incoming manager can check it line by
   line instead of asking somebody.</p>
 <p class="small muted"><b>The fingerprint.</b> {{ $fingerprint['short'] }} is computed from all {{ number_format($fingerprint['keys']) }}
-  settings and their stored values this minute. Print two sheets and compare the twelve characters: the same fingerprint
-  means the same configuration, whatever else changed in the meantime. A credential contributes only whether one is
-  stored — never its value — so the fingerprint cannot be used to guess one. The value trail on the last page says what
-  moved since the sheet before it.</p>
+  registered settings and their stored values this minute. Compare twelve characters on two version 2 sheets as a quick
+  indicator, not proof of identical configuration. Credentials contribute only whether one is stored, so rotating a
+  credential that remains set does not change the fingerprint. Module-table data and unregistered settings are excluded.
+  Version 2 uses a new encoding: it cannot be compared directly with sheets printed under the previous version.</p>
 
 <h3 class="cfg-print-group">1 · The decisions this property made</h3>
 <p class="small">{{ number_format($decisions['counts']['drifted']) }} settings were moved off the value the code ships with, and
@@ -92,15 +92,15 @@
 @endif
 
 <h3 class="cfg-print-group">4 · What is checked against what</h3>
-<p class="small">{{ count($guarded) }} of {{ $coverage['modules'] }} modules have settings the code compares with each other —
-  a log driver that sends nothing, a payment provider left on test, a spa slot loop that never advances. The other
-  {{ count($unguarded) }} are read, defaulted and trailed, but no contradiction between two of their settings would be
-  reported. That is not the same as "checked and clean", and this sheet does not say so.</p>
+<p class="small">{{ count($guarded) }} of {{ $coverage['modules'] }} modules have at least one automated configuration check —
+  for example, a log driver that sends nothing or a payment provider left on test. These checks cover specific cases,
+  not every possible issue. The other {{ count($unguarded) }} modules have no such check. That is not the same as "checked and clean"
+  for any module, and this sheet does not say so.</p>
 <p class="small">Beyond the modules: <b>{{ $mapGap }}</b> settings are read by the code through a service map — a
   default, a value and a behaviour, all real — and are not in this register yet, so this sheet can neither show them
   nor fingerprint them. They are named in the register's own audit rather than left out of it.</p>
-<p class="small muted"><b>Checked:</b> {{ $guardedNames }}</p>
-<p class="small muted"><b>Not checked against each other:</b> {{ $unguardedNames }}</p>
+<p class="small muted"><b>At least one check:</b> {{ $guardedNames }}</p>
+<p class="small muted"><b>No automated checks:</b> {{ $unguardedNames }}</p>
 
 <h3 class="cfg-print-group">5 · Credentials</h3>
 <p class="small">{{ $credentials['keys'] }} settings on this property are credentials, and {{ $credentials['set'] }} of them
@@ -112,7 +112,7 @@
 <h3 class="cfg-print-group">6 · What it was before</h3>
 <p class="small">{{ number_format($trail['rows']) }} value changes are recorded, covering {{ number_format($trail['keys']) }}
   of {{ number_format($trail['keys_total']) }} settings{{ $trail['since'] ? ', the earliest on '.$trail['since']->format('d M Y') : '' }}.
-  A change made before this trail existed is in the activity log by label only; this sheet does not pretend to have it.</p>
+  Earlier changes may appear in the activity log by label only; some may not have been logged. Bulk database writes bypass the value trail, and trail recording can fail without blocking the original write.</p>
 @if($recentChanges)
   <table class="table table-sm">
     <thead><tr><th style="width:18%">When</th><th style="width:26%">Setting</th><th>Was</th><th>Now</th><th>By</th></tr></thead>
@@ -140,7 +140,7 @@
     <tr><td><b>Changes agreed</b></td><td colspan="3"></td></tr>
   </tbody>
 </table>
-<p class="tiny muted">Exported from Settings › Configuration. Fingerprint {{ $fingerprint['short'] }} · {{ $fingerprint['lines'] }}
-  lines hashed · printed {{ $printedAt->format('d M Y H:i') }}. A credential is never printed: the sheet says whether one is
+<p class="tiny muted">Exported from Settings › Configuration. Fingerprint v2 {{ $fingerprint['short'] }} · {{ $fingerprint['lines'] }}
+  records hashed · printed {{ $printedAt->format('d M Y H:i') }}. A credential is never printed: the sheet says whether one is
   set, not what it is.</p>
 @endsection

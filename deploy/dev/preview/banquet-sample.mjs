@@ -198,20 +198,9 @@ const FUNCTION_SPECS = {
     expected_pax: null, guaranteed_pax: null, banquet_package_id: null,
     rate_per_pax: null, hall_rate: null, notes: null, dietary: [], banquet_bar_package_id: null, bar_rate_per_pax: null, items: [], locked: false,
   }],
+  // v10.35 the keying order a desk actually produces: the evening reception was booked first, the afternoon ceremony
+  // second. The form prints them down the clock, so the ceremony reads as function 1 whatever the order they arrived in.
   edit: () => [
-    {
-      id: 4101, name: 'Traditional ceremony', banquet_hall_id: 3, date: '2026-12-12',
-      start_time: '14:00', end_time: '17:00', setup_style: 'theatre',
-      expected_pax: 150, guaranteed_pax: 150, banquet_package_id: null,
-      rate_per_pax: 0, hall_rate: 4200, banquet_bar_package_id: null, bar_rate_per_pax: 0, notes: 'Elders seated at the front; two chairs for the officiants. '
-        + 'Family provides the drinks — no corkage to be charged. Guarantee closed three days out.',
-      locked: true,
-      dietary: [],
-      items: [
-        { banquet_service_id: 21, description: 'PA system + 2 microphones', qty: 1, unit_price: 1800, tax_rate: 15 },
-        { banquet_service_id: 29, description: 'Chiavari chair', qty: 156, unit_price: 35, tax_rate: 15 },
-      ],
-    },
     {
       id: 4102, name: 'Reception & dinner', banquet_hall_id: 1, date: '2026-12-12',
       start_time: '19:00', end_time: '23:30', setup_style: 'banquet',
@@ -228,6 +217,19 @@ const FUNCTION_SPECS = {
         { banquet_service_id: 23, description: 'Stage lighting package', qty: 1, unit_price: 2400, tax_rate: 15 },
         { banquet_service_id: 24, description: 'Table centrepieces', qty: 18, unit_price: 120, tax_rate: 15 },
         { banquet_service_id: 26, description: 'Live band (4 pieces)', qty: 1, unit_price: 7500, tax_rate: 15 },
+      ],
+    },
+    {
+      id: 4101, name: 'Traditional ceremony', banquet_hall_id: 3, date: '2026-12-12',
+      start_time: '14:00', end_time: '17:00', setup_style: 'theatre',
+      expected_pax: 150, guaranteed_pax: 150, banquet_package_id: null,
+      rate_per_pax: 0, hall_rate: 4200, banquet_bar_package_id: null, bar_rate_per_pax: 0, notes: 'Elders seated at the front; two chairs for the officiants. '
+        + 'Family provides the drinks — no corkage to be charged. Guarantee closed three days out.',
+      locked: true,
+      dietary: [],
+      items: [
+        { banquet_service_id: 21, description: 'PA system + 2 microphones', qty: 1, unit_price: 1800, tax_rate: 15 },
+        { banquet_service_id: 29, description: 'Chiavari chair', qty: 156, unit_price: 35, tax_rate: 15 },
       ],
     },
   ],
@@ -289,7 +291,6 @@ export function banquetContext(mode = 'new') {
     now: () => new SampleDate('2026-11-05T09:14:22Z'),
     collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
     count: (value) => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-    empty: (value) => (value instanceof Coll ? value.isEmpty() : Array.isArray(value) ? value.length === 0 : !value),
     in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
     array_values: (value) => (value instanceof Coll ? value.items.slice() : Object.values(value ?? {})),
     array_merge: (...parts) => Object.assign({}, ...parts.map(part => part ?? {})),

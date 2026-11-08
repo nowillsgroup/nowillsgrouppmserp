@@ -108,6 +108,7 @@ export function parseRegistry(file) {
 // ── the value fixture: what this property has actually set ────────────────────────────
 const SET = {
   hotel_name: 'The Grove Essipong Beach Resort',
+  api_allow_http: '1', // sample finding: plain HTTP endpoints are permitted
   booking_engine_enabled: '1',
   booking_policy: 'Free cancellation until 48 hours before check-in. After that the first night is charged.',
   cancel_free_hours: '48',
@@ -211,7 +212,10 @@ const SET = {
   spa_open: '09:00',
   spa_close: '21:00',
   spa_slot_min: '30',
+  hr_holidays_2026: '[["2026-03-06","Independence Day",false]]',
   laundry_express_pct: '50',
+  laundry_normal_hours: '24',
+  laundry_express_hours: '6',
   recreation_shift_required: '1',
   talent_offer_days: '7',
   talent_probation_months: '3',
@@ -396,6 +400,21 @@ function buildModules() {
       const set = secret
         ? String(SECRETS_SET[key] ?? '').trim() !== ''
         : v !== undefined && v !== null && String(v).trim() !== '';
+      if (family && !secret) {
+        const values = { ...SET, ...SECRETS_SET };
+        const allSecretKeys = new Set(modules.flatMap(module => module.secretKeys));
+        const hits = Object.keys(values).filter(k => k.startsWith(key)).sort().map(k => {
+          const value = values[k];
+          const display = allSecretKeys.has(k) ? (value != null && String(value).trim() !== '' ? HIDDEN : '—') : shown(value);
+          return `${k.slice(key.length)} = ${display}`;
+        });
+        return {
+          key: `${key}…`, raw: key, label, family: true, module: m.key, secret: false,
+          value: hits.length ? hits.join(' · ') : null, set: hits.length > 0,
+          state: hits.length ? 'set' : 'default', count: hits.length,
+          default: null, default_show: null, changed: false, ...readBy(key),
+        };
+      }
       if (secret) {
         // the same masking the service does — the value is never shaped, shortened or exported
         return {
@@ -486,11 +505,26 @@ export const ADVISORY_IDS = [
   'self_clock_from_anywhere', 'close_starts_after_today', 'excess_mileage_is_free', 'conversions_without_forex', 'surveys_without_cooldown', 'recreation_sales_without_a_shift',
   // round 17: six more — crm, digital, fs, leases, esg, partner
   'campaign_revenue_expires_the_day_it_is_sent', 'listings_are_always_overdue_for_audit', 'certificate_warning_arrives_on_the_last_day', 'rent_cap_not_enforced', 'emissions_approved_by_their_own_author', 'portal_switches_on_a_closed_portal',
+  'cro_follow_up_after_expiry', 'fleet_speed_marked_parked', 'inbox_chat_under_disabled_inbox', 'tv_rental_limit_zero',
+  'api_http_endpoints_allowed', 'api_private_endpoints_allowed', 'pbx_tcp_endpoint_missing', 'lock_tcp_endpoint_missing',
+  'kiosk_walkin_without_payment', 'organiser_pay_without_gateway', 'upsell_email_with_upsell_off', 'bankrec_same_person_finalises', 'income_audit_four_eyes_off', 'hse_permit_self_issue', 'privacy_scheduled_retention_off', 'formc_no_advance_alert', 'robita_no_auto_revoke', 'budget_capex_no_prefix', 'voucher_min_above_max', 'sales_stage_probabilities_unordered', 'laundry_express_slower_than_normal',
 ];
 
 // The six findings this property actually carries, as ConfigurationService::advisories()
 // returns them: decorated with the module's label and sorted blockers first.
 const FINDINGS = [
+  {
+    id: 'bankrec_same_person_finalises', severity: 'note', module: 'bankrec',
+    title: 'Bank statements do not require a different finaliser',
+    detail: 'The statement loader is not prevented by the segregation setting from finalising their own reconciliation. Other reconciliation checks and permissions still apply.',
+    keys: ['bankrec_segregation'],
+  },
+  {
+    id: 'api_http_endpoints_allowed', severity: 'note', module: 'developers',
+    title: 'Plain HTTP webhook endpoints are allowed',
+    detail: 'The webhook URL and delivery checks permit unencrypted HTTP while this option is on. Review it for the property; the setting alone does not mean an HTTP endpoint exists.',
+    keys: ['api_allow_http'],
+  },
   {
     id: 'payments_on_test_gateway', severity: 'blocker', module: 'payments',
     title: 'Online payment is switched on, but on the built-in test gateway',
@@ -814,11 +848,14 @@ export function configurationOnNullContext() {
 
 // ── the value trail: what each setting was before ──────────────────────────────────
 // ConfigurationService::valueTrail() reads App\Models\SettingChange, which
-// App\Observers\SettingValueObserver writes on every write of a settings row. The fixture
+// App\Observers\SettingValueObserver records observed model saves and deletes. The fixture
 // keeps the same shape — [key, was, now, by, iso, created?, secret?] — so the page renders
 // exactly as it does in the application. Note the second row: a credential records that it
 // changed and never what it is.
 const TRAIL = [
+  ['hr_holidays_2026', '[["2026-03-06","Independence Day",false]]', 'cleared', 'Yaw Antwi', '2026-11-05T09:30:00Z'],
+  ['booking_policy', 'A'.repeat(2000) + '…', 'Updated policy', 'Yaw Antwi', '2026-11-05T09:20:00Z'],
+  ['loyalty_spend_per_point', '0', '100', 'Yaw Antwi', '2026-11-05T09:10:00Z'],
   ['cancel_free_hours', '72', '48', 'Yaw Antwi', '2026-11-04T16:20:00Z'],
   ['pos_kot_print_mode', null, 'split', 'Chef Mani', '2026-11-04T12:02:00Z', true],
   ['portal_wifi_password', 'Set — hidden', 'Set — hidden', 'Efua Asante', '2026-11-04T09:12:00Z', false, true],
@@ -830,7 +867,7 @@ const TRAIL = [
   ['loyalty_point_value', '1', '0', 'System Administrator', '2026-10-31T07:45:00Z'],
 ];
 
-const TRAIL_COVERAGE = { rows: 412, keys: 96, keys_total: 276, since: at('2026-10-31T07:45:00Z') };
+const TRAIL_COVERAGE = { rows: 412, keys: 96, keys_total: new Set(parseRegistry(path.join(ROOT, 'config/settings.php')).modules.flatMap(m => m.keys.map(([key]) => key))).size, since: at('2026-10-31T07:45:00Z') };
 
 /**
  * The flat Settings form's typed keys — SettingController::KEYS. These are the only settings
@@ -850,13 +887,21 @@ function typedKeys() {
 }
 
 const TYPED = typedKeys();
+// Read the form's own numeric bounds instead of inventing a preview-only rule.
+const settingsSource = fs.readFileSync(path.join(ROOT, 'app/Http/Controllers/SettingController.php'), 'utf8');
+const boundsStart = settingsSource.indexOf('public const BOUNDS = [');
+const boundsBlock = settingsSource.slice(boundsStart, settingsSource.indexOf('\n    ];', boundsStart));
+const BOUNDS = Object.fromEntries([...boundsBlock.matchAll(/'([a-z0-9_]+)' => \['([0-9.]+)', '([0-9.]+)'\]/g)]
+  .map(m => [m[1], [Number(m[2]), Number(m[3])]]));
 
 /** ConfigurationService::restoreBlocked() — why a value cannot be put back, or null. */
 function restoreBlocked(row) {
-  if (row.secret) return 'a credential is not recorded here — its value was never stored';
+  if (row.secret) return 'credential values cannot be restored from this trail';
   if (!TYPED[row.key]) return 'this setting is owned by its module screen, which holds its own rules';
   if (row.created) return 'there was nothing here before — it was first set, not changed';
   if (row.was === null) return 'the value before this change was empty';
+  if (typeof row.was_raw === 'string' && [...row.was_raw].length === 2001 && row.was_raw.endsWith('…')) return 'the previous value was truncated in the trail — restore it from a backup or the owning screen';
+  if (TYPED[row.key].type === 'number' && BOUNDS[row.key] && (Number(row.was_raw) < BOUNDS[row.key][0] || Number(row.was_raw) > BOUNDS[row.key][1])) return 'the value it had is no longer accepted: it is outside the range this screen accepts';
   if (TYPED[row.key].type === 'number' && !/^-?\d+(\.\d+)?$/.test(String(row.was))) {
     return 'the value it had is no longer accepted: it is not a number this screen accepts';
   }
@@ -868,12 +913,17 @@ function valueTrail(module, limit = 60) {
   const labels = LABELS();
   const rows = [];
   for (const [key, was, now, by, iso, created, secret] of TRAIL) {
-    const at0 = labels[key];
+    let at0 = labels[key];
+    if (!at0) {
+      const prefix = Object.keys(labels).filter(k => k.endsWith('_') && key.startsWith(k))
+        .sort((a, b) => b.length - a.length)[0];
+      if (prefix) at0 = { ...labels[prefix], label: `${labels[prefix].label} (${key})` };
+    }
     if (!at0) continue;
     if (module && at0.module !== module) continue;
     const row = {
       id: rows.length + 1, key, label: at0.label, module: at0.module, module_label: at0.module_label,
-      was: created ? null : was, now, secret: Boolean(secret), created: Boolean(created),
+      was: created ? null : (typeof was === 'string' && was.length > 80 ? was.slice(0, 77) + '…' : was), now, secret: Boolean(secret), created: Boolean(created),
       when: at(iso), by, was_raw: created || secret ? null : was,
     };
     row.restore_blocked = restoreBlocked(row);
@@ -917,29 +967,25 @@ export function configurationHistoryModuleContext() {
   return configurationHistoryContext().scope;
 }
 
-/**
- * ConfigurationService::fingerprint() — the same twelve characters the application prints.
- *
- * Every registered key contributes one line: a stored value, an empty string when unset, a
- * family prefix as its rows plus a count, and a credential as only whether one is set. The
- * lines are sorted and hashed, so the sheet and the register agree and a credential's value
- * can never be recovered from the hash.
- */
-function fingerprintOf(modules) {
-  const lines = [];
-  for (const m of modules) {
-    for (const k of m.keys) {
-      if (k.secret) { lines.push(`${k.raw}=credential:${k.set ? 'set' : 'unset'}`); continue; }
-      if (k.family) { lines.push(`${k.raw}=family:${k.count}`); continue; }
-      lines.push(`${k.raw}=${k.set ? SET[k.raw] : ''}`);
+/** Version 2 fingerprint using the sample's raw setting values. */
+export function fingerprintOf(modules) {
+  const keys = [...new Map(modules.flatMap(m => m.keys).map(k => [k.raw, k])).values()];
+  // Registry keys are ASCII; compare by code unit like PHP SORT_STRING.
+  keys.sort((a, b) => a.raw < b.raw ? -1 : a.raw > b.raw ? 1 : 0);
+  const secrets = new Set(keys.filter(k => k.secret).map(k => k.raw));
+  const values = { ...SET, ...SECRETS_SET };
+  const records = keys.map(k => {
+    if (k.secret) return [k.raw, 'credential', k.set];
+    if (k.family) {
+      const members = Object.keys(values).filter(key => key.startsWith(k.raw)).sort()
+        .map(key => [key, secrets.has(key) ? ['credential', values[key] != null && String(values[key]).trim() !== ''] : ['value', values[key] == null ? null : String(values[key])]]);
+      return [k.raw, 'family', members];
     }
-  }
-  lines.sort();
-  const full = crypto.createHash('sha1').update(lines.join('\n')).digest('hex');
-  return {
-    full, short: full.slice(0, 12).toUpperCase(), keys: lines.length, lines: lines.length,
-    at: at('2026-11-04T16:20:00Z'),
-  };
+    return k.raw in SET ? [k.raw, 'value', SET[k.raw] == null ? null : String(SET[k.raw])] : [k.raw, 'missing'];
+  });
+  const full = crypto.createHash('sha256').update(JSON.stringify(records)).digest('hex');
+  return { full, short: full.slice(0, 12).toUpperCase(), keys: keys.length, lines: records.length,
+    at: at('2026-11-04T16:20:00Z') };
 }
 
 // Settings the code reads through a DEFAULTS map that the register does not hold: the same

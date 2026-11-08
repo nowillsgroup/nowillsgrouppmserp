@@ -40,7 +40,7 @@
   </div>
 </section>
 @php
-  $agendaFunctions = $cells->flatMap(fn ($items) => $items)->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time);
+  $agendaFunctions = $cells->flatMap(fn ($items) => $items)->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time.' '.str_pad((string) $f->id, 20, '0', STR_PAD_LEFT));
   $agendaByDay = $agendaFunctions->groupBy(fn ($f) => $f->date->toDateString());
   $dayCounts = $agendaByDay->map(fn ($items) => $items->count());
   $statusCounts = $agendaFunctions->countBy(fn ($f) => $f->event->status);
