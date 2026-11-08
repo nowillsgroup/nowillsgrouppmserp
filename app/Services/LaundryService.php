@@ -98,39 +98,104 @@ class LaundryService
     }
 
     /**
-     * Replace the order's items. Each line: laundry_item_id, service (wash|dryclean|press), qty, optional remark.
-     * Prices always come from the price list, never from the form.
+     * Describe the editable grid without discarding old or unusual lines. The
+     * fingerprint covers both the order and the catalogue used to render it.
      */
-    public static function setLines(LaundryOrder $o, array $lines, bool $log = true, ?string $speed = null): LaundryOrder
+    public static function itemEditState(LaundryOrder $o, $catalogue = null): array
+    {
+        $o->loadMissing('lines');
+        $catalogue ??= LaundryItem::orderBy('id')->get();
+        $items = $catalogue->keyBy('id');
+        $groups = $o->lines->groupBy(fn ($line) => $line->laundry_item_id === null ? 'missing-'.$line->id : (string) $line->laundry_item_id);
+        $current = $remarks = $rates = $names = $blocked = [];
+        $preserved = collect();
+        foreach ($groups as $lines) {
+            $itemId = $lines->first()->laundry_item_id;
+            $item = $itemId === null ? null : $items->get($itemId);
+            // The grid has one remark per garment and one cell per service. Do
+            // not flatten legacy duplicates or conflicting line remarks.
+            $frozen = ! $item || ! $item->is_active
+                || $lines->pluck('service')->unique()->count() !== $lines->count()
+                || $lines->map(fn ($line) => (string) ($line->remark ?? ''))->unique()->count() > 1
+                || $lines->pluck('item_name')->unique()->count() > 1
+                || $lines->contains(fn ($line) => (int) $line->qty < 1 || (int) $line->qty > 99 || (float) $line->rate < 0 || abs((float) $line->amount - round((float) $line->rate * (int) $line->qty, 2)) > 0.005
+                    || ($line->remark !== null && $line->remark !== trim($line->remark))
+                    || ! array_key_exists($line->service, LaundryItem::SERVICES) || $item->rate($line->service) === null);
+            if ($frozen) {
+                if ($itemId !== null) $blocked[$itemId] = true;
+                foreach ($lines as $line) $preserved->push($line);
+                continue;
+            }
+            foreach ($lines as $line) {
+                $current[$itemId][$line->service] = (int) $line->qty;
+                $names[$itemId] = $line->item_name;
+                $rates[$itemId][$line->service] = (float) $line->rate;
+                if ($line->remark !== null && $line->remark !== '') $remarks[$itemId] = $line->remark;
+            }
+        }
+        $snapshot = [
+            'status' => $o->status, 'speed' => $o->speed, 'subtotal' => (string) $o->subtotal,
+            'express_charge' => (string) $o->express_charge,
+            'lines' => $o->lines->map(fn ($l) => [$l->id, $l->laundry_item_id, $l->item_name, $l->service, $l->qty, (string) $l->rate, (string) $l->amount, $l->remark])->all(),
+            'catalogue' => $catalogue->map(fn ($i) => [$i->id, $i->name, $i->category, $i->is_active, (string) $i->wash_rate, (string) $i->dryclean_rate, (string) $i->press_rate])->all(),
+        ];
+
+        return ['current' => $current, 'remarks' => $remarks, 'savedRates' => $rates, 'savedNames' => $names, 'blockedItems' => $blocked,
+            'preservedLines' => $preserved, 'revision' => hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR))];
+    }
+
+    /** Replace editable cells, keeping recorded rates and explicitly retained legacy lines. */
+    public static function setLines(LaundryOrder $o, array $lines, bool $log = true, ?string $speed = null, ?string $revision = null, array $removePreserved = []): LaundryOrder
     {
         if ($speed !== null && ! array_key_exists($speed, self::SPEEDS)) {
             throw new RuntimeException('Choose a valid laundry speed.');
         }
-        $clean = [];
-        foreach ($lines as $l) {
-            $qty = (int) ($l['qty'] ?? 0);
-            if ($qty <= 0 || empty($l['laundry_item_id'])) {
-                continue;
-            }
-            $item = LaundryItem::where('is_active', true)->find((int) $l['laundry_item_id']);
-            $svc = (string) ($l['service'] ?? 'wash');
-            if (! $item || ! array_key_exists($svc, LaundryItem::SERVICES)) {
-                throw new RuntimeException('Unknown laundry item or service.');
-            }
-            $rate = $item->rate($svc);
-            if ($rate === null) {
-                throw new RuntimeException("{$item->name} isn't offered for ".strtolower(LaundryItem::SERVICES[$svc]).'.');
-            }
-            $qty = min($qty, 99);
-            $clean[] = ['laundry_item_id' => $item->id, 'item_name' => $item->name, 'service' => $svc, 'qty' => $qty, 'rate' => $rate,
-                'amount' => round($rate * $qty, 2), 'remark' => ! empty($l['remark']) ? mb_substr(trim($l['remark']), 0, 150) : null];
-        }
-
-        $updated = DB::transaction(function () use ($o, $clean, $speed) {
+        $updated = DB::transaction(function () use ($o, $lines, $speed, $revision, $removePreserved) {
             $locked = LaundryOrder::whereKey($o->id)->lockForUpdate()->firstOrFail();
             if (! $locked->isOpen()) {
                 throw new RuntimeException("Laundry {$locked->order_no} is {$locked->statusLabel()} and can't be changed.");
             }
+            $locked->setRelation('lines', $locked->lines()->lockForUpdate()->get());
+            $catalogue = LaundryItem::orderBy('id')->lockForUpdate()->get();
+            $state = self::itemEditState($locked, $catalogue);
+            if (($revision === null && $locked->lines->isNotEmpty()) || ($revision !== null && ! hash_equals($state['revision'], $revision))) {
+                throw new RuntimeException('The order or price list changed since this page was opened. Reload it before saving items.');
+            }
+            $removeIds = array_map('intval', $removePreserved);
+            $preservedIds = $state['preservedLines']->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if (count($removeIds) !== count(array_unique($removeIds)) || array_diff($removeIds, $preservedIds)) {
+                throw new RuntimeException('Invalid preserved laundry line selection. Reload the order and try again.');
+            }
+            $clean = [];
+            foreach ($state['preservedLines'] as $line) {
+                if (! in_array((int) $line->id, $removeIds, true)) {
+                    $clean[] = $line->only(['laundry_item_id', 'item_name', 'service', 'qty', 'rate', 'amount', 'remark']);
+                }
+            }
+            $items = $catalogue->keyBy('id');
+            $existing = $locked->lines->keyBy(fn ($line) => $line->laundry_item_id.':'.$line->service);
+            $seen = [];
+            foreach ($lines as $l) {
+                $qty = (int) ($l['qty'] ?? 0);
+                if ($qty <= 0 || empty($l['laundry_item_id'])) continue;
+                $id = (int) $l['laundry_item_id'];
+                $svc = (string) ($l['service'] ?? 'wash');
+                $key = $id.':'.$svc;
+                $item = $items->get($id);
+                if (isset($seen[$key]) || isset($state['blockedItems'][$id]) || ! $item || ! $item->is_active || ! array_key_exists($svc, LaundryItem::SERVICES) || $item->rate($svc) === null) {
+                    throw new RuntimeException('Unknown, duplicate or unavailable laundry item or service. Reload the order and try again.');
+                }
+                $seen[$key] = true;
+                $old = $existing->get($key);
+                $rate = $old ? (float) $old->rate : $item->rate($svc);
+                $qty = min($qty, 99);
+                $remark = trim((string) ($l['remark'] ?? ''));
+                $clean[] = ['laundry_item_id' => $id, 'item_name' => $old?->item_name ?? ($state['savedNames'][$id] ?? $item->name), 'service' => $svc, 'qty' => $qty, 'rate' => $rate,
+                    'amount' => round($rate * $qty, 2), 'remark' => $remark !== '' ? mb_substr($remark, 0, 150) : null];
+            }
+            $oldSpeed = $locked->speed;
+            $oldSubtotal = (float) $locked->subtotal;
+            $oldExpress = (float) $locked->express_charge;
             if ($speed !== null && $speed !== $locked->speed) {
                 $locked->speed = $speed;
                 $locked->promised_at = ($locked->collected_at ?? now())->copy()->addHours(self::hours($speed));
@@ -138,7 +203,15 @@ class LaundryService
             $locked->lines()->delete();
             $locked->lines()->createMany($clean);
             $sub = round(array_sum(array_column($clean, 'amount')), 2);
-            $exp = $locked->speed === 'express' ? round($sub * self::expressPct() / 100, 2) : 0.0;
+            // Existing express orders have no stored percentage. Preserve their
+            // exact charge if unchanged; otherwise use the recorded effective
+            // percentage (which may be approximate because of past rounding).
+            $exp = 0.0;
+            if ($locked->speed === 'express') {
+                $exp = $oldSpeed === 'express' && $oldSubtotal > 0
+                    ? ($sub === $oldSubtotal ? $oldExpress : round($sub * $oldExpress / $oldSubtotal, 2))
+                    : round($sub * self::expressPct() / 100, 2);
+            }
             $nextStatus = $clean ? 'processing' : 'collected';
             $locked->forceFill(['subtotal' => $sub, 'express_charge' => $exp, 'total' => round($sub + $exp, 2), 'pieces' => array_sum(array_column($clean, 'qty')),
                 'status' => $nextStatus, 'ready_at' => null])->save();

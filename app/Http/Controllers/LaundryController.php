@@ -101,18 +101,12 @@ class LaundryController extends Controller
     public function show(LaundryOrder $lorder)
     {
         $lorder->load('lines', 'room', 'stay.guest', 'folio', 'folioTransaction', 'paymentMode', 'guestRequest', 'creator', 'deliverer');
-        $current = [];
-        $remarks = [];
-        foreach ($lorder->lines as $l) {
-            $current[$l->laundry_item_id][$l->service] = $l->qty;
-            if ($l->remark) {
-                $remarks[$l->laundry_item_id] = $l->remark;
-            }
-        }
+        $edit = LaundryService::itemEditState($lorder);
 
         $quote = LaundryService::quote($lorder);
 
-        return view('laundry.show', ['o' => $lorder, 'items' => LaundryService::priceList(), 'current' => $current, 'remarks' => $remarks,
+        return view('laundry.show', ['o' => $lorder, 'items' => LaundryService::priceList(), 'current' => $edit['current'], 'remarks' => $edit['remarks'], 'savedRates' => $edit['savedRates'],
+            'savedNames' => $edit['savedNames'], 'blockedItems' => $edit['blockedItems'], 'preservedLines' => $edit['preservedLines'], 'editRevision' => $edit['revision'],
             'modes' => PaymentMode::where('is_active', true)->whereNotIn('type', ['city_ledger', 'online', 'gift_voucher'])->orderBy('id')->pluck('name', 'id'), 'expressPct' => LaundryService::expressPct(),
             'quote' => $quote, 'tax' => ['rate' => $quote['rate'], 'label' => LaundryService::taxLabel($lorder->total), 'inclusive' => $quote['inclusive']]]);
     }
@@ -125,9 +119,10 @@ class LaundryController extends Controller
     public function items(Request $request, LaundryOrder $lorder)
     {
         $request->validate(['q' => 'nullable|array', 'q.*' => 'array', 'q.*.*' => 'nullable|integer|min:0|max:99', 'r' => 'nullable|array', 'r.*' => 'nullable|string|max:150',
-            'speed' => 'nullable|in:normal,express']);
+            'speed' => 'nullable|in:normal,express', 'edit_revision' => 'required|string|size:64',
+            'remove_preserved' => 'nullable|array', 'remove_preserved.*' => 'required|integer|distinct|min:1']);
         try {
-            $o = LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'));
+            $o = LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'), $request->input('edit_revision'), $request->input('remove_preserved', []));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage())->withInput();
         } catch (ValidationException $e) {

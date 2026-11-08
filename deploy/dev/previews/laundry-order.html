@@ -164,16 +164,16 @@
     </div>
       </div>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-briefings" data-nav-label="Daily Briefings">
-      <a href="#" title="Daily Briefings" data-route="briefings.index">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-flash" data-nav-label="Daily Flash">
+      <a href="#" title="Daily Flash" data-route="briefings.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Daily Briefings</span>
+        <span class="nav-label">Daily Flash</span>
       </a>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-brief" data-nav-label="Executive Brief">
-      <a href="#" title="Executive Brief" data-route="briefings.exec">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-flash" data-nav-label="Executive Flash">
+      <a href="#" title="Executive Flash" data-route="briefings.exec">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Executive Brief</span>
+        <span class="nav-label">Executive Flash</span>
       </a>
     </div>
       </div>
@@ -3075,7 +3075,7 @@
         <button class="btn btn-danger" data-modal="cancelModal"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg> Cancel</button>
         </div>
       </div>
-      <div class="grid g-2-1">
+<div class="alert alert-info" role="note"><b>Sample preview.</b> Fictional laundry order; changes cannot be saved.</div>      <div class="grid g-2-1">
       <div>
       <div class="card"><div class="card-body">
       <div class="flex justify-between items-center"><div><div class="tiny muted">IN-HOUSE GUEST</div>
@@ -3088,20 +3088,24 @@
       <div><span>Bag / tag</span><b>B-2081</b><span class="tiny muted">6 pcs counted at pick-up</span></div>
       <div><span>Collected</span><b>05 Nov 2026, 07:15</b><span class="tiny muted">by Kofi Boateng</span></div>
       <div><span>Promised</span><b class="">06 Nov 2026, 07:15</b></div>
-      
-      
-      
-      
+
+
+
+
       <div class="span-all"><span>Notes</span><b>Guest needs the suit back for a wedding on Saturday — ring room 202 before delivery.</b></div>
-      
+
       </div>
       </div></div>
 
-  
+
       <form method="post" action="#" class="card" id="itemsCard">
+      <input type="hidden" name="edit_revision" value="sample-read-only">
       <div class="card-head"><h3>Items</h3><div class="flex gap-1 items-center small"><label class="check"><input type="radio" name="speed" value="normal"  checked> Normal</label><label class="check"><input type="radio" name="speed" value="express" > Express</label><button class="btn btn-primary btn-sm" id="saveItems"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Save items</button></div></div>
       <div class="card-body">
+      <p class="small muted">Previously itemised services keep their recorded unit price, even if the quantity changes. New services use the current price list. For existing express orders, changes use the recorded effective surcharge; past rounding can make that rate approximate.</p>
+
       <div class="table-wrap"><table class="table table-compact laundry-grid" id="laundryGrid" data-express="50"
+      data-original-speed="normal" data-original-subtotal="690" data-original-express="0"
       data-tax-rate="21" data-tax-inclusive="0" data-tax-label="VAT 15% + NHIL 2.5% + GETFund levy 2.5% + Tourism levy 1%">
       <thead><tr><th>Item</th><th class="num" style="width:130px">Wash &amp; iron</th><th class="num" style="width:130px">Dry clean</th><th class="num" style="width:130px">Press only</th><th>Remark (stain, damage…)</th></tr></thead>
       <tbody>
@@ -3110,15 +3114,19 @@
 
       <tr><td>Shirt</td>
 
+
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">60.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[1][wash]" data-rate="60" value="2" ></div></td>
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">150.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[1][dryclean]" data-rate="150" value="" ></div></td>
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">30.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[1][press]" data-rate="30" value="2" ></div></td>
 
-      <td><input class="input input-sm" name="r[1]" maxlength="150" value="Cuff button missing" ></td></tr>
+      <td><input class="input input-sm" name="r[1]" maxlength="150" value="Cuff button missing" ></td>
+
+      </tr>
 
       <tr><td>Trousers</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">70.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[2][wash]" data-rate="70" value="" ></div></td>
 
@@ -3126,9 +3134,12 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">35.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[2][press]" data-rate="35" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[2]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[2]" maxlength="150" value="" ></td>
+
+      </tr>
 
       <tr><td>Suit (2 pc)</td>
+
 
       <td class="num"><span class="muted">—</span></td>
 
@@ -3136,9 +3147,12 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">150.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[3][press]" data-rate="150" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[3]" maxlength="150" value="Ink mark on the sleeve" ></td></tr>
+      <td><input class="input input-sm" name="r[3]" maxlength="150" value="Ink mark on the sleeve" ></td>
+
+      </tr>
 
       <tr><td>Kurta</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">70.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[4][wash]" data-rate="70" value="" ></div></td>
 
@@ -3146,12 +3160,15 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">35.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[4][press]" data-rate="35" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[4]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[4]" maxlength="150" value="" ></td>
+
+      </tr>
 
 
       <tr class="group-row"><td colspan="5">Ladies</td></tr>
 
       <tr><td>Dress</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">110.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[5][wash]" data-rate="110" value="" ></div></td>
 
@@ -3159,9 +3176,12 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">60.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[5][press]" data-rate="60" value="1" ></div></td>
 
-      <td><input class="input input-sm" name="r[5]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[5]" maxlength="150" value="" ></td>
+
+      </tr>
 
       <tr><td>Blouse / top</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">60.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[6][wash]" data-rate="60" value="" ></div></td>
 
@@ -3169,9 +3189,12 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">30.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[6][press]" data-rate="30" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[6]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[6]" maxlength="150" value="" ></td>
+
+      </tr>
 
       <tr><td>Saree</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">150.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[7][wash]" data-rate="150" value="" ></div></td>
 
@@ -3179,12 +3202,15 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">90.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[7][press]" data-rate="90" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[7]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[7]" maxlength="150" value="" ></td>
+
+      </tr>
 
 
       <tr class="group-row"><td colspan="5">Kids</td></tr>
 
       <tr><td>Kids garment</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">35.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[8][wash]" data-rate="35" value="" ></div></td>
 
@@ -3192,12 +3218,15 @@
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">20.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[8][press]" data-rate="20" value="" ></div></td>
 
-      <td><input class="input input-sm" name="r[8]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[8]" maxlength="150" value="" ></td>
+
+      </tr>
 
 
       <tr class="group-row"><td colspan="5">Household</td></tr>
 
       <tr><td>Socks (pair)</td>
+
 
       <td class="num"><div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">25.00 ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[9][wash]" data-rate="25" value="" ></div></td>
 
@@ -3205,7 +3234,9 @@
 
       <td class="num"><span class="muted">—</span></td>
 
-      <td><input class="input input-sm" name="r[9]" maxlength="150" value="" ></td></tr>
+      <td><input class="input input-sm" name="r[9]" maxlength="150" value="" ></td>
+
+      </tr>
 
 
       </tbody>
@@ -3218,8 +3249,19 @@
       const calc = () => {
       let pcs = 0, sub = 0;
       grid.querySelectorAll('.lg-qty').forEach(i => { const q = parseInt(i.value || 0, 10) || 0; pcs += q; sub += q * parseFloat(i.dataset.rate); });
+      document.querySelectorAll('[data-preserved-line]').forEach(line => {
+      if (!line.checked) { pcs += Number(line.dataset.qty); sub += Number(line.dataset.amount); }
+      });
+      sub = Math.round(sub * 100) / 100;
       const sp = document.querySelector('[name=speed]:checked') || document.querySelector('select[name=speed]');
-      const exp = sp && sp.value === 'express' ? Math.round(sub * parseFloat(grid.dataset.express)) / 100 : 0;
+      const oldSub = Number(grid.dataset.originalSubtotal || 0);
+      const oldExpress = Number(grid.dataset.originalExpress || 0);
+      let exp = 0;
+      if (sp && sp.value === 'express') {
+      exp = grid.dataset.originalSpeed === 'express' && oldSub > 0
+      ? (sub === oldSub ? oldExpress : Math.round(sub * oldExpress / oldSub * 100) / 100)
+      : Math.round(sub * parseFloat(grid.dataset.express)) / 100;
+      }
       const rate = parseFloat(grid.dataset.taxRate || 0);
       const inclusive = grid.dataset.taxInclusive === '1';
       const listed = sub + exp;
@@ -3237,21 +3279,24 @@
       }
       };
       document.addEventListener('input', e => { if (e.target.matches('.lg-qty')) calc(); });
-      document.addEventListener('change', e => { if (e.target.name === 'speed') calc(); });
+      document.addEventListener('change', e => { if (e.target.name === 'speed' || e.target.matches('[data-preserved-line]')) calc(); });
+      document.addEventListener('DOMContentLoaded', calc);
       calc();
       })();
       </script>
+
+
       </div>
       </form>
-  
+
       </div>
       <div>
       <div class="card"><div class="card-head"><h3>Progress</h3></div><div class="card-body"><ul class="timeline" id="loTimeline">
       <li class="tl-info"><b>Collected</b><span>05 Nov 07:15 · 6 pcs</span></li>
       <li class="tl-info"><b>Itemised</b><span>6 pcs · GH₵ 690.00</span></li>
-    
-    
-    
+
+
+
       <li class="tl-info"><b>Due back</b><span>06 Nov 07:15 (in 22 hours)</span></li>
       </ul></div></div>
       <div class="card"><div class="card-body small muted">
@@ -3265,17 +3310,17 @@
       <div class="modal-body">
       <p class="m-0 mb-1">6 pcs · 690.00 + 144.90 tax = <b>GH₵ 834.90</b></p>
       <p class="tiny muted m-0 mb-1">VAT 15% + NHIL 2.5% + GETFund levy 2.5% + Tourism levy 1% · prices are before tax</p>
-    
+
       <div class="field span-all"><label for="loSettle">Settle</label>
       <select name="settle" id="loSettle" class="input" data-laundry-settle>
       <option value="room"  selected>Charge to room 202's folio</option>
       <option value="pay" >Pay now – GH₵ 834.90 at the counter, issue an invoice</option>
       </select></div>
-    
+
       <div id="laundryDirect-41" data-laundry-direct  hidden >
       <div id="laundrySingleTender-41" class="form-grid">
       <div class="field"><label>Paid by</label><select name="payment_mode_id" class="input" required data-payment-mode><option value="1">Cash</option><option value="2">Mobile Money — MTN</option><option value="3">Mobile Money — Telecel</option><option value="4">Visa / Mastercard</option><option value="5">Bank transfer</option></select></div>
-        
+
       <div class="form-grid span-all" data-momo-fields data-momo-mode-name="payment_mode_id" hidden>
       <div class="field "><label for="f_momo_network">MoMo Network</label><select name="momo_network" id="f_momo_network" disabled="disabled"><option value="">Select network</option><option value="MTN">MTN MoMo</option><option value="Telecel">Telecel Cash</option><option value="AirtelTigo">AT Money</option></select></div>
       <div class="field "><label for="f_momo_phone">MoMo number</label><input type="tel" name="momo_phone" id="f_momo_phone" value="" placeholder="024 123 4567" maxlength="30" inputmode="tel" autocomplete="tel" disabled="disabled"></div>
@@ -3283,7 +3328,7 @@
 
 
       <div class="field span-all"><label>Reference / transaction ID</label><input name="reference" class="input" maxlength="80" placeholder="optional"></div>
-        
+
       <div  class=&quot;span-all&quot; data-cheque-fields hidden>
       <div class="field span-all"><strong>Cheque details</strong><span class="hint">Complete these details when the payment mode is Cheque.</span></div>
       <div class="field "><label for="f_cheque_bank_name">Bank name</label><input type="text" name="cheque_bank_name" id="f_cheque_bank_name" value="" placeholder="" maxlength="100" autocomplete="organization" disabled="disabled"></div>
@@ -3293,7 +3338,7 @@
 
 
       </div>
-      
+
       <div id="laundrySplitTender-41" data-split-tender-widget data-single-id="laundrySingleTender-41"
       data-old-lines="[]" data-label="payment" class="mt-1">
       <button type="button" class="btn btn-sm" data-split-toggle>Split payment across methods</button>
@@ -3342,7 +3387,7 @@
     </main>
   </div>
 </div>
-<script>
+<script>document.addEventListener("submit", e => e.preventDefault());</script><script>
 (() => {
   const modal = document.getElementById('deliverModal');
   const settle = modal?.querySelector('[data-laundry-settle]');

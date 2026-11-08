@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BladePreview } from './preview/blade-render.mjs';
 import { shell, nav, spriteSymbols } from './preview/app-shell.mjs';
-import { laundryOrderContext, laundryPricesContext, laundrySettledContext, laundryIndexContext } from './preview/laundry-sample.mjs';
+import { laundryOrderContext, laundryPricesContext, laundrySettledContext, laundryIndexContext, laundryPreservationContext } from './preview/laundry-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const checkOnly = process.argv.includes('--check');
@@ -38,6 +38,11 @@ const screens = [
   {
     view: 'laundry/show', file: 'laundry-order.html', title: 'Laundry LND-000412', crumbs: 'Laundry & linen / LND-000412',
     context: laundryOrderContext,
+    sections: ['actions', 'content'],
+  },
+  {
+    view: 'laundry/show', file: 'laundry-preservation.html', title: 'Laundry LND-000412', crumbs: 'Laundry & linen / LND-000412',
+    context: laundryPreservationContext,
     sections: ['actions', 'content'],
   },
   {
@@ -82,13 +87,14 @@ for (const screen of screens) {
     process.exit(1);
   }
 
-  const html = shell(navHtml, sprite, indent(contentRaw), {
+  const notice = '<div class="alert alert-info" role="note"><b>Sample preview.</b> Fictional laundry order; changes cannot be saved.</div>';
+  const html = shell(navHtml, sprite, notice + indent(contentRaw), {
     title: screen.title,
     crumbs: screen.crumbs,
     actions: indent(actionsRaw, '        '),
     head: headRaw ? `  ${headRaw}\n` : '',
-    scripts: scriptsRaw + '\n',
-  });
+    scripts: '<script>document.addEventListener("submit", e => e.preventDefault());</script>' + scriptsRaw + '\n',
+  }).replace(/[ \t]+$/gm, '');
 
   const out = path.join(ROOT, 'deploy/dev/previews', screen.file);
   const previous = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : null;

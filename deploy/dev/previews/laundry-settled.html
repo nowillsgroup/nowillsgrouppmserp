@@ -164,16 +164,16 @@
     </div>
       </div>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-briefings" data-nav-label="Daily Briefings">
-      <a href="#" title="Daily Briefings" data-route="briefings.index">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-flash" data-nav-label="Daily Flash">
+      <a href="#" title="Daily Flash" data-route="briefings.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Daily Briefings</span>
+        <span class="nav-label">Daily Flash</span>
       </a>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-brief" data-nav-label="Executive Brief">
-      <a href="#" title="Executive Brief" data-route="briefings.exec">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-flash" data-nav-label="Executive Flash">
+      <a href="#" title="Executive Flash" data-route="briefings.exec">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Executive Brief</span>
+        <span class="nav-label">Executive Flash</span>
       </a>
     </div>
       </div>
@@ -3071,7 +3071,7 @@
         <a class="btn" href="#" target="_blank"><svg class="i" aria-hidden="true"><use href="#i-print"/></svg> Bag docket</a>
         </div>
       </div>
-      <div class="grid g-2-1">
+<div class="alert alert-info" role="note"><b>Sample preview.</b> Fictional laundry order; changes cannot be saved.</div>      <div class="grid g-2-1">
       <div>
       <div class="card"><div class="card-body">
       <div class="flex justify-between items-center"><div><div class="tiny muted">IN-HOUSE GUEST</div>
@@ -3088,22 +3088,22 @@
       <div><span>Delivered</span><b>05 Nov 2026, 12:20</b><span class="tiny muted">by Yaa Asantewaa</span></div>
       <div class="span-all"><span>Settled</span><b><a href="#">Folio FOL-004481</a> · invoice INV-002241</b>
       <span class="tiny muted">GH₵ 690.00 + GH₵ 144.90 tax (21%) = GH₵ 834.90 · paid across the counter by Mobile Money — MTN</span></div>
-      
+
       <div class="span-all"><span>Notes</span><b>Guest needs the suit back for a wedding on Saturday — ring room 202 before delivery.</b></div>
-      
+
       </div>
       </div></div>
 
-  
+
       <div class="card flush"><div class="card-head"><h3>Items</h3></div><div class="card-body table-wrap"><table class="table table-compact" id="loLines">
       <thead><tr><th>Item</th><th>Service</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Remark</th></tr></thead><tbody>
       <tr><td>Shirt</td><td>Wash &amp; iron</td><td class="num">2</td><td class="num">60.00</td><td class="num">120.00</td><td class="small muted">Cuff button missing</td></tr>
       <tr><td>Shirt</td><td>Press only</td><td class="num">2</td><td class="num">30.00</td><td class="num">60.00</td><td class="small muted"></td></tr>
       <tr><td>Suit (2 pc)</td><td>Dry clean</td><td class="num">1</td><td class="num">450.00</td><td class="num">450.00</td><td class="small muted">Ink mark on the sleeve</td></tr>
       <tr><td>Dress</td><td>Press only</td><td class="num">1</td><td class="num">60.00</td><td class="num">60.00</td><td class="small muted"></td></tr>
-    
+
       </tbody><tfoot><tr><td colspan="2" class="right">6 pcs</td><td colspan="3" class="num">Subtotal 690.00 + tax 144.90 = <b>GH₵ 834.90</b></td><td></td></tr></tfoot></table></div></div>
-  
+
       </div>
       <div>
       <div class="card"><div class="card-head"><h3>Progress</h3></div><div class="card-body"><ul class="timeline" id="loTimeline">
@@ -3111,8 +3111,8 @@
       <li class="tl-info"><b>Itemised</b><span>6 pcs · GH₵ 690.00</span></li>
       <li class="tl-ok"><b>Ready</b><span>05 Nov 12:05</span></li>
       <li class="tl-ok"><b>Delivered</b><span>05 Nov 12:20 – paid</span></li>
-    
-    
+
+
       </ul></div></div>
       <div class="card"><div class="card-body small muted">
       <b>How it's charged:</b> on delivery one <i>Laundry</i> line is posted — to the room folio, or, if the guest settles at the counter, to a paid invoice — and it carries the laundry tax (VAT 15% + NHIL 2.5% + GETFund levy 2.5% + Tourism levy 1%, revenue account 4060). Walk-in customers always pay on delivery and get a tax invoice. Prices always come from the price list.
@@ -3125,17 +3125,17 @@
       <div class="modal-body">
       <p class="m-0 mb-1">6 pcs · 690.00 + 144.90 tax = <b>GH₵ 834.90</b></p>
       <p class="tiny muted m-0 mb-1">VAT 15% + NHIL 2.5% + GETFund levy 2.5% + Tourism levy 1% · prices are before tax</p>
-    
+
       <div class="field span-all"><label for="loSettle">Settle</label>
       <select name="settle" id="loSettle" class="input" data-laundry-settle>
       <option value="room"  selected>Charge to room 202's folio</option>
       <option value="pay" >Pay now – GH₵ 834.90 at the counter, issue an invoice</option>
       </select></div>
-    
+
       <div id="laundryDirect-41" data-laundry-direct  hidden >
       <div id="laundrySingleTender-41" class="form-grid">
       <div class="field"><label>Paid by</label><select name="payment_mode_id" class="input" required data-payment-mode><option value="1">Cash</option><option value="2">Mobile Money — MTN</option><option value="3">Mobile Money — Telecel</option><option value="4">Visa / Mastercard</option><option value="5">Bank transfer</option></select></div>
-        
+
       <div class="form-grid span-all" data-momo-fields data-momo-mode-name="payment_mode_id" hidden>
       <div class="field "><label for="f_momo_network">MoMo Network</label><select name="momo_network" id="f_momo_network" disabled="disabled"><option value="">Select network</option><option value="MTN">MTN MoMo</option><option value="Telecel">Telecel Cash</option><option value="AirtelTigo">AT Money</option></select></div>
       <div class="field "><label for="f_momo_phone">MoMo number</label><input type="tel" name="momo_phone" id="f_momo_phone" value="" placeholder="024 123 4567" maxlength="30" inputmode="tel" autocomplete="tel" disabled="disabled"></div>
@@ -3143,7 +3143,7 @@
 
 
       <div class="field span-all"><label>Reference / transaction ID</label><input name="reference" class="input" maxlength="80" placeholder="optional"></div>
-        
+
       <div  class=&quot;span-all&quot; data-cheque-fields hidden>
       <div class="field span-all"><strong>Cheque details</strong><span class="hint">Complete these details when the payment mode is Cheque.</span></div>
       <div class="field "><label for="f_cheque_bank_name">Bank name</label><input type="text" name="cheque_bank_name" id="f_cheque_bank_name" value="" placeholder="" maxlength="100" autocomplete="organization" disabled="disabled"></div>
@@ -3153,7 +3153,7 @@
 
 
       </div>
-      
+
       <div id="laundrySplitTender-41" data-split-tender-widget data-single-id="laundrySingleTender-41"
       data-old-lines="[]" data-label="payment" class="mt-1">
       <button type="button" class="btn btn-sm" data-split-toggle>Split payment across methods</button>
@@ -3202,7 +3202,7 @@
     </main>
   </div>
 </div>
-<script>
+<script>document.addEventListener("submit", e => e.preventDefault());</script><script>
 (() => {
   const modal = document.getElementById('deliverModal');
   const settle = modal?.querySelector('[data-laundry-settle]');

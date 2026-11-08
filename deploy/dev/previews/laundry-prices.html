@@ -164,16 +164,16 @@
     </div>
       </div>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-briefings" data-nav-label="Daily Briefings">
-      <a href="#" title="Daily Briefings" data-route="briefings.index">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.daily-flash" data-nav-label="Daily Flash">
+      <a href="#" title="Daily Flash" data-route="briefings.index">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Daily Briefings</span>
+        <span class="nav-label">Daily Flash</span>
       </a>
     </div>
-    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-brief" data-nav-label="Executive Brief">
-      <a href="#" title="Executive Brief" data-route="briefings.exec">
+    <div class="nav-item nav-link-item" data-nav-key="dashboard.executive-flash" data-nav-label="Executive Flash">
+      <a href="#" title="Executive Flash" data-route="briefings.exec">
         <svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>
-        <span class="nav-label">Executive Brief</span>
+        <span class="nav-label">Executive Flash</span>
       </a>
     </div>
       </div>
@@ -3070,7 +3070,7 @@
         <button class="btn btn-primary" data-modal="priceModal" data-fid="" data-fname="" data-fcategory="gents" data-fwash_rate="" data-fdryclean_rate="" data-fpress_rate="" data-fsort_order=""><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Add item</button>
         </div>
       </div>
-      <div class="grid g-2-1">
+<div class="alert alert-info" role="note"><b>Sample preview.</b> Fictional laundry order; changes cannot be saved.</div>      <div class="grid g-2-1">
       <div class="card flush"><div class="card-body table-wrap"><table class="table" id="priceTable">
       <thead><tr><th>Item</th><th class="num">wash,Wash &amp; iron</th><th class="num">dryclean,Dry clean</th><th class="num">press,Press only</th><th></th></tr></thead><tbody>
 
@@ -3134,14 +3134,14 @@
       </tbody></table></div></div>
       <div>
       <div class="card"><div class="card-head"><h3>Laundry settings</h3></div><div class="card-body">
-  
+
       <form method="post" action="#" class="form-grid">
       <div class="field span-all"><label>Express surcharge (%)</label><input type="number" name="laundry_express_pct" min="0" max="300" step="0.5" class="input" value="50"></div>
       <div class="field"><label>Normal turnaround (h)</label><input type="number" name="laundry_normal_hours" min="1" max="168" class="input" value="24"></div>
       <div class="field"><label>Express turnaround (h)</label><input type="number" name="laundry_express_hours" min="1" max="48" class="input" value="6"></div>
       <button class="btn btn-primary span-all"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Save settings</button>
       </form>
-  
+
       </div></div>
       <div class="card" id="priceTax"><div class="card-body small">
       <div class="flex justify-between items-center"><b>Tax on laundry</b><span class="badge badge-green">21 %</span></div>
@@ -3166,7 +3166,7 @@
     </main>
   </div>
 </div>
-
+<script>document.addEventListener("submit", e => e.preventDefault());</script>
 
 <script>
 // The application's modal plumbing (public/js/app.js): a button that opens nothing

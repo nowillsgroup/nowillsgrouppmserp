@@ -202,6 +202,8 @@ export function laundryOrderContext() {
       o: order,
       items: grouped,
       current,
+      savedRates: Object.fromEntries(list.items.map(item => [item.id, { wash: null, dryclean: null, press: null, ...(item.id === 1 ? { wash: 60, press: 30 } : item.id === 3 ? { dryclean: 450 } : item.id === 5 ? { press: 60 } : {}) }])),
+      savedNames: {}, blockedItems: {}, preservedLines: Coll.of([]), editRevision: 'sample-read-only',
       remarks: { 1: 'Cuff button missing', 3: 'Ink mark on the sleeve' },
       modes,
       expressPct: 50,
@@ -212,6 +214,18 @@ export function laundryOrderContext() {
     },
     fallbacks: {},
   };
+}
+
+/** Price changes and a discontinued garment, shown as a read-only example. */
+export function laundryPreservationContext() {
+  const ctx = laundryOrderContext();
+  const preserved = { id: 15, laundry_item_id: 22, item_name: 'Evening jacket', service: 'dryclean', qty: 1, rate: 100, amount: 100, remark: 'Loose button at collection' };
+  ctx.scope.o = withMethods({ ...order, pieces: 7, subtotal: 790, total: 790, lines: Coll.of([...lines.items, preserved]) });
+  ctx.scope.items = { ...grouped, gents: Coll.of(grouped.gents.items.map(item => item.id === 1 ? withRate({ ...item, name: 'Shirt (new catalogue name)', wash: 90 }) : item)) };
+  ctx.scope.savedNames = { 1: 'Shirt' };
+  ctx.scope.preservedLines = Coll.of([preserved]);
+  ctx.scope.quote = { ...quote, listed: 790, net: 790, tax: 165.90, total: 955.90 };
+  return ctx;
 }
 
 /** The price list: what each garment costs and the tax every laundry charge carries. */

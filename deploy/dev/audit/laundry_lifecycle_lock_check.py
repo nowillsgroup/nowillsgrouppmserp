@@ -14,7 +14,7 @@ def method(source, name, next_marker):
 
 class LaundryLifecycleLockTest(unittest.TestCase):
     def test_guest_order_creation_revalidates_stay_before_creating_order(self):
-        body = method(SERVICE, "create", "/**\n     * Replace the order's items.")
+        body = method(SERVICE, "create", "public static function itemEditState(")
         reservation_lock = body.index("Reservation::whereKey($stay->reservation_id)->lockForUpdate()")
         stay_lock = body.index("ReservationRoom::whereKey($stay->id)->lockForUpdate()", reservation_lock)
         state = body.index("if ($stay->status !== 'checked_in' || ! $stay->room_id)", stay_lock)
@@ -38,7 +38,7 @@ class LaundryLifecycleLockTest(unittest.TestCase):
         self.assertIn("'ready_at' => null", body)
         controller = CONTROLLER[CONTROLLER.index("public function items("):CONTROLLER.index("public function ready(")]
         self.assertNotIn("$lorder->forceFill(['speed'", controller)
-        self.assertIn("LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'))", controller)
+        self.assertIn("LaundryService::setLines($lorder, $this->gridLines($request), true, $request->input('speed'), $request->input('edit_revision')", controller)
 
     def test_ready_transition_rechecks_status_and_contents_under_order_lock(self):
         body = method(SERVICE, "markReady", "/**\n     * Hand the laundry back.")

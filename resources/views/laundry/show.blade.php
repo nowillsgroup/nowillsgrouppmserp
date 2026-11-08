@@ -20,7 +20,7 @@
         <div class="bold" style="font-size:1.6rem" id="loPayable">{{ money($quote['total']) }}</div>
         <div class="tiny muted">{{ money($quote['listed'], false) }} {{ $quote['inclusive'] ? 'incl.' : '+' }} {{ $quote['rate'] > 0 ? 'tax '.money($quote['tax'], false) : 'no tax set for laundry' }}@if((float) $o->express_charge > 0) · incl. express {{ money($o->express_charge, false) }}@endif</div></div></div>
     <div class="kv-grid mt-2">
-      <div><span>Service</span><b>{{ \App\Services\LaundryService::SPEEDS[$o->speed] }}</b>@if($o->speed === 'express')<span class="tiny muted">+{{ rtrim(rtrim(number_format($expressPct, 2), '0'), '.') }} %</span>@endif</div>
+      <div><span>Service</span><b>{{ \App\Services\LaundryService::SPEEDS[$o->speed] }}</b>@if($o->speed === 'express')<span class="tiny muted">Recorded express charge {{ money($o->express_charge) }}</span>@endif</div>
       <div><span>Bag / tag</span><b>{{ $o->bag_no ?: '—' }}</b>@if($o->bag_pieces)<span class="tiny muted">{{ $o->bag_pieces }} pcs counted at pick-up{{ $o->pieces && $o->pieces !== $o->bag_pieces ? ' – itemised '.$o->pieces : '' }}</span>@endif</div>
       <div><span>Collected</span><b>{{ $o->collected_at?->format('d M Y, H:i') }}</b><span class="tiny muted">by {{ $o->creator?->name ?? '—' }}</span></div>
       <div><span>Promised</span><b class="{{ $o->isOverdue() ? 'text-red' : '' }}">{{ $o->promised_at?->format('d M Y, H:i') }}</b></div>
@@ -36,8 +36,23 @@
 
   @if($o->isOpen() && can_do('laundry.orders'))
   <form method="post" action="{{ route('laundry.items', $o) }}" class="card" id="itemsCard">@csrf
+    <input type="hidden" name="edit_revision" value="{{ $editRevision }}">
     <div class="card-head"><h3>Items</h3><div class="flex gap-1 items-center small"><label class="check"><input type="radio" name="speed" value="normal" @checked($o->speed === 'normal')> Normal</label><label class="check"><input type="radio" name="speed" value="express" @checked($o->speed === 'express')> Express</label><button class="btn btn-primary btn-sm" id="saveItems"><x-icon name="check"/> Save items</button></div></div>
-    <div class="card-body">@include('laundry._grid', ['readonly' => false])</div>
+    <div class="card-body">
+      <p class="small muted">Previously itemised services keep their recorded unit price, even if the quantity changes. New services use the current price list. For existing express orders, changes use the recorded effective surcharge; past rounding can make that rate approximate.</p>
+      @include('laundry._grid', ['readonly' => false, 'editOriginalSpeed' => $o->speed, 'editOriginalSubtotal' => $o->subtotal, 'editOriginalExpress' => $o->express_charge])
+      @if($preservedLines->isNotEmpty())
+        <div class="laundry-preserved">
+          <h4>Previously itemised lines</h4>
+          <p class="small muted">These lines are kept at their recorded quantities, prices and remarks because the item or service is unavailable, or the original lines cannot be represented safely in the grid. Select a line only if you intend to remove it.</p>
+          <div class="table-wrap"><table class="table table-compact"><thead><tr><th>Item</th><th>Service</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Remark</th><th>Remove</th></tr></thead><tbody>
+          @foreach($preservedLines as $line)
+            <tr><td>{{ $line->item_name }}</td><td>{{ \App\Models\LaundryItem::SERVICES[$line->service] ?? $line->service }}</td><td class="num">{{ $line->qty }}</td><td class="num">{{ money($line->rate, false) }}</td><td class="num">{{ money($line->amount, false) }}</td><td>{{ $line->remark ?: '—' }}</td><td><label class="check"><input type="checkbox" name="remove_preserved[]" value="{{ $line->id }}" data-preserved-line data-qty="{{ $line->qty }}" data-amount="{{ $line->amount }}"> <span class="sr-only">Remove {{ $line->item_name }} {{ $line->service }} line {{ $line->id }}</span></label></td></tr>
+          @endforeach
+          </tbody></table></div>
+        </div>
+      @endif
+    </div>
   </form>
   @else
   <div class="card flush"><div class="card-head"><h3>Items</h3></div><div class="card-body table-wrap"><table class="table table-compact" id="loLines">

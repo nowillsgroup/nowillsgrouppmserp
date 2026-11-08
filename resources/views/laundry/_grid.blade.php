@@ -1,16 +1,22 @@
 {{-- Price-list grid: qty per item × service. Vars: $items (grouped by category), $current [item][service] => qty, $remarks [item] => text, $expressPct, $readonly --}}
 <div class="table-wrap"><table class="table table-compact laundry-grid" id="laundryGrid" data-express="{{ $expressPct }}"
+  data-original-speed="{{ $editOriginalSpeed ?? '' }}" data-original-subtotal="{{ $editOriginalSubtotal ?? 0 }}" data-original-express="{{ $editOriginalExpress ?? 0 }}"
   data-tax-rate="{{ $tax['rate'] ?? 0 }}" data-tax-inclusive="{{ ! empty($tax['inclusive']) ? 1 : 0 }}" data-tax-label="{{ $tax['label'] ?? '' }}">
 <thead><tr><th>Item</th>@foreach(\App\Models\LaundryItem::SERVICES as $sk => $sl)<th class="num" style="width:130px">{{ $sl }}</th>@endforeach<th>Remark (stain, damage…)</th></tr></thead>
 <tbody>
 @foreach($items as $cat => $rows)
 <tr class="group-row"><td colspan="5">{{ \App\Models\LaundryItem::CATEGORIES[$cat] ?? ucfirst($cat) }}</td></tr>
 @foreach($rows as $it)
-<tr><td>{{ $it->name }}</td>
-@foreach(array_keys(\App\Models\LaundryItem::SERVICES) as $sk)
-<td class="num">@if(($r = $it->rate($sk)) !== null)<div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">{{ money($r, false) }} ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[{{ $it->id }}][{{ $sk }}]" data-rate="{{ $r }}" value="{{ ($current[$it->id][$sk] ?? 0) ?: '' }}" @disabled($readonly ?? false)></div>@else<span class="muted">—</span>@endif</td>
-@endforeach
-<td><input class="input input-sm" name="r[{{ $it->id }}]" maxlength="150" value="{{ $remarks[$it->id] ?? '' }}" @disabled($readonly ?? false)></td></tr>
+<tr><td>{{ $it->name }}@if(!empty($savedNames[$it->id]) && $savedNames[$it->id] !== $it->name)<div class="tiny muted">Recorded as {{ $savedNames[$it->id] }}</div>@endif</td>
+@if(!empty($blockedItems[$it->id]))
+  <td colspan="4" class="small muted">See previously itemised lines below.</td>
+@else
+  @foreach(array_keys(\App\Models\LaundryItem::SERVICES) as $sk)
+  <td class="num">@if(($r = $savedRates[$it->id][$sk] ?? $it->rate($sk)) !== null)<div class="flex items-center gap-1" style="justify-content:flex-end"><span class="tiny muted">{{ money($r, false) }} ×</span><input type="number" min="0" max="99" class="input input-sm lg-qty" style="width:58px" name="q[{{ $it->id }}][{{ $sk }}]" data-rate="{{ $r }}" value="{{ ($current[$it->id][$sk] ?? 0) ?: '' }}" @disabled($readonly ?? false)></div>@else<span class="muted">—</span>@endif</td>
+  @endforeach
+  <td><input class="input input-sm" name="r[{{ $it->id }}]" maxlength="150" value="{{ $remarks[$it->id] ?? '' }}" @disabled($readonly ?? false)></td>
+@endif
+</tr>
 @endforeach
 @endforeach
 </tbody>
@@ -23,8 +29,19 @@
   const calc = () => {
     let pcs = 0, sub = 0;
     grid.querySelectorAll('.lg-qty').forEach(i => { const q = parseInt(i.value || 0, 10) || 0; pcs += q; sub += q * parseFloat(i.dataset.rate); });
+    document.querySelectorAll('[data-preserved-line]').forEach(line => {
+      if (!line.checked) { pcs += Number(line.dataset.qty); sub += Number(line.dataset.amount); }
+    });
+    sub = Math.round(sub * 100) / 100;
     const sp = document.querySelector('[name=speed]:checked') || document.querySelector('select[name=speed]');
-    const exp = sp && sp.value === 'express' ? Math.round(sub * parseFloat(grid.dataset.express)) / 100 : 0;
+    const oldSub = Number(grid.dataset.originalSubtotal || 0);
+    const oldExpress = Number(grid.dataset.originalExpress || 0);
+    let exp = 0;
+    if (sp && sp.value === 'express') {
+      exp = grid.dataset.originalSpeed === 'express' && oldSub > 0
+        ? (sub === oldSub ? oldExpress : Math.round(sub * oldExpress / oldSub * 100) / 100)
+        : Math.round(sub * parseFloat(grid.dataset.express)) / 100;
+    }
     const rate = parseFloat(grid.dataset.taxRate || 0);
     const inclusive = grid.dataset.taxInclusive === '1';
     const listed = sub + exp;
@@ -42,7 +59,8 @@
     }
   };
   document.addEventListener('input', e => { if (e.target.matches('.lg-qty')) calc(); });
-  document.addEventListener('change', e => { if (e.target.name === 'speed') calc(); });
+  document.addEventListener('change', e => { if (e.target.name === 'speed' || e.target.matches('[data-preserved-line]')) calc(); });
+  document.addEventListener('DOMContentLoaded', calc);
   calc();
 })();
 </script>
