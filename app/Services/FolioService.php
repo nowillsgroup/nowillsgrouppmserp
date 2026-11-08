@@ -78,21 +78,28 @@ class FolioService
         });
     }
 
-    public static function payment(Folio $folio, float $amount, int $paymentModeId, ?string $reference = null, string $category = 'settlement', string $type = 'payment', ?array $cheque = null): FolioTransaction
+    /** $lockedMode, if supplied, must be validated and locked in the caller's transaction. */
+    public static function payment(Folio $folio, float $amount, int $paymentModeId, ?string $reference = null, string $category = 'settlement', string $type = 'payment', ?array $cheque = null, ?PaymentMode $lockedMode = null): FolioTransaction
     {
         if ($amount <= 0) {
             throw new RuntimeException('Amount must be greater than zero.');
         }
         ShiftService::assertOpen();
 
-        return DB::transaction(function () use ($folio, $amount, $paymentModeId, $reference, $category, $type, $cheque) {
+        return DB::transaction(function () use ($folio, $amount, $paymentModeId, $reference, $category, $type, $cheque, $lockedMode) {
             // Payments and refunds must serialize with checkout, folio close,
             // and other desk clicks. Without the row lock, two requests can
             // both validate a stale open folio and post against it.
             $folio = Folio::whereKey($folio->id)->lockForUpdate()->firstOrFail();
             self::assertOpen($folio);
-            if (GiftVoucherService::isVoucherMode($paymentModeId)) {
-                return GiftVoucherService::folioPayment($folio, $amount, $reference, $category, $type); // v3.8: the reference is the voucher code
+            // Checkout may pass the mode it just validated and locked. Re-querying
+            // its type with a non-locking read could see an older MySQL snapshot.
+            if ($lockedMode && ((int) $lockedMode->id !== $paymentModeId || (int) $lockedMode->hotel_id !== (int) $folio->hotel_id)) {
+                throw new RuntimeException('Payment mode does not match the folio.');
+            }
+            $voucher = $lockedMode ? $lockedMode->type === 'gift_voucher' : GiftVoucherService::isVoucherMode($paymentModeId);
+            if ($voucher) {
+                return GiftVoucherService::folioPayment($folio, $amount, $reference, $category, $type, $lockedMode ? $paymentModeId : null); // the reference is the voucher code
             }
 
             $attrs = [
@@ -106,7 +113,7 @@ class FolioService
                 'reference' => $reference,
                 'posted_by' => auth()->id(),
             ];
-            if (PaymentMode::whereKey($paymentModeId)->where('type', 'cheque')->exists()) {
+            if ($lockedMode ? $lockedMode->type === 'cheque' : PaymentMode::whereKey($paymentModeId)->where('type', 'cheque')->exists()) {
                 $attrs += [
                     'cheque_bank_name' => filled($cheque['bank_name'] ?? null) ? mb_substr(trim((string) $cheque['bank_name']), 0, 100) : null,
                     'cheque_number' => filled($cheque['number'] ?? null) ? mb_substr(trim((string) $cheque['number']), 0, 20) : null,
