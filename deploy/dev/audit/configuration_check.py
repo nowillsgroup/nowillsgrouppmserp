@@ -1034,8 +1034,12 @@ ok("$t->text('old_value')" in mig and "$t->text('new_value')" in mig,
    'a value keeps its full shape — a policy paragraph is not truncated by the column')
 ok("index(['hotel_id', 'key', 'created_at']" in mig, 'the trail is indexed by setting, so one key\'s history is one query')
 ok('dropIfExists' in mig, 'the migration can be rolled back')
-newest = sorted(os.listdir(os.path.join(ROOT, 'database/migrations')))[-1]
-ok(os.path.basename(MIGRATION) == newest, f'the trail migration runs last ({newest})')
+# Later schema-only migrations do not need to precede the trail. What matters is that
+# later migrations do not write settings through the observer before its table exists.
+trail_name = os.path.basename(MIGRATION)
+later = [name for name in sorted(os.listdir(os.path.join(ROOT, 'database/migrations'))) if name.endswith('.php') and name > trail_name]
+setting_writers = [name for name in later if re.search(r'\bSetting::(?:create|updateOrCreate|firstOrCreate|update)\s*\(', read(os.path.join(ROOT, 'database/migrations', name)))]
+ok(not setting_writers, 'later migrations do not write settings through the trail observer: ' + (', '.join(setting_writers) or 'none'))
 
 chg = read(CHANGE_MODEL) if os.path.exists(CHANGE_MODEL) else ''
 ok('class SettingChange extends Model' in chg, 'the trail has a model')
@@ -1156,6 +1160,12 @@ ok('\\App\\Models\\Store::whereKey($v)->exists()' in err_src and '\\App\\Models\
 ok('FILTER_VALIDATE_EMAIL' in err_src and 'FILTER_VALIDATE_EMAIL' in read(os.path.join(ROOT, 'app/Http/Controllers/SettingController.php')),
    'an e-mail list is checked the way the form checks it')
 ok('mb_strlen($v) <= 5000' in err_src, 'a value longer than the form accepts is refused')
+ok('SettingController::BOUNDS[$key]' in err_src and '(float) $v <= (float) $max' in err_src,
+   'a numeric restore respects the form’s minimum and maximum')
+ok("in_array($v, ['0', '1'], true)" in err_src and 'mb_strlen($v) <= 120' in err_src,
+   'boolean and short text restores respect their form limits')
+ok("mb_strlen($raw) === 2001" in blocked_src and "str_ends_with($raw, '…')" in blocked_src,
+   'clipped historic values are never offered for restore')
 
 restore = read(CONTROLLER)
 restore_fn = restore[restore.find('public function restore'):restore.find('public function show')]
@@ -4674,7 +4684,7 @@ ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 're
 ok('PosMenuVariantService::describe($sideDishes)' in read(os.path.join(ROOT, 'resources/views/pos/bill.blade.php')),
    'and so does the guest bill')
 pt_qty = read(os.path.join(ROOT, 'resources/views/pos/terminal.blade.php'))
-ok('function sideChoiceRow(variant, checked)' in pt_qty and 'data-side-count' in pt_qty,
+ok('function sideChoiceRow(variant, checked, asCard = false)' in pt_qty and 'data-side-count' in pt_qty,
    'the terminal builds one row per side with a count beside it, in both pickers')
 ok('function stepSide(button)' in pt_qty and "box.checked = true;" in pt_qty,
    'the − / + ticks the side first, so counting it never leaves an unticked row')

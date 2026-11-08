@@ -381,7 +381,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(stats.includes('96 of 276'), 'trail: and how much of the register the trail covers, rather than implying all of it');
 
   const rows = [...doc.querySelectorAll('tbody tr')];
-  ok(rows.length === 9, `trail: one row per recorded change (${rows.length})`);
+  ok(rows.length === 11, `trail: one row per recorded change (${rows.length})`);
   const columnNames = [...doc.querySelectorAll('thead th')].map(text).join('|');
   ok(/Was\|Now/.test(columnNames), 'trail: the table has a "was" and a "now" column, not just "changed"');
 
@@ -411,6 +411,8 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(buttons.every((b) => /Put it back/.test(text(b))), 'trail: the action says what it does');
   const formFor = (key) => rowFor(key)?.querySelector('form');
   ok(Boolean(formFor('spa_slot_min')), 'trail: a typed setting that was changed can be put back');
+  ok(!formFor('booking_policy') && /previous value was truncated/.test(text(rowFor('booking_policy'))), 'trail: a truncated value cannot be restored as if complete');
+  ok(!formFor('loyalty_spend_per_point') && /outside the range/.test(text(rowFor('loyalty_spend_per_point'))), 'trail: a value outside the current form bounds cannot be restored');
   ok(!formFor('portal_wifi_password'), 'trail: a credential is never offered — only that it changed was recorded');
   ok(!formFor('banquet_guarantee_days'), 'trail: a module-owned setting is not offered here');
   ok(!formFor('pos_kot_print_mode'), 'trail: a setting that was first set is not a restore');

@@ -28,7 +28,7 @@
     <p><b>One action on this page: put it back.</b> A value the property itself recorded can be restored — but only for
       the settings whose rules this area can check, which is the flat Settings form's typed, bounded keys. Everywhere else
       the module screen owns the rules, and the row says so rather than offering a button that would fail after the click.
-      A restore writes through the setting model, so it lands in this same trail under the name of whoever did it.</p>
+      Values over 2,000 characters are truncated in the trail; those cannot be restored from this page. A restore writes through the setting model, so it lands in this same trail under the name of whoever did it.</p>
   </div>
 </div>
 

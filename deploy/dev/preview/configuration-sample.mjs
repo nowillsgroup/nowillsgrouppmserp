@@ -819,6 +819,8 @@ export function configurationOnNullContext() {
 // exactly as it does in the application. Note the second row: a credential records that it
 // changed and never what it is.
 const TRAIL = [
+  ['booking_policy', 'A'.repeat(2000) + '…', 'Updated policy', 'Yaw Antwi', '2026-11-05T09:20:00Z'],
+  ['loyalty_spend_per_point', '0', '100', 'Yaw Antwi', '2026-11-05T09:10:00Z'],
   ['cancel_free_hours', '72', '48', 'Yaw Antwi', '2026-11-04T16:20:00Z'],
   ['pos_kot_print_mode', null, 'split', 'Chef Mani', '2026-11-04T12:02:00Z', true],
   ['portal_wifi_password', 'Set — hidden', 'Set — hidden', 'Efua Asante', '2026-11-04T09:12:00Z', false, true],
@@ -850,6 +852,12 @@ function typedKeys() {
 }
 
 const TYPED = typedKeys();
+// Read the form's own numeric bounds instead of inventing a preview-only rule.
+const settingsSource = fs.readFileSync(path.join(ROOT, 'app/Http/Controllers/SettingController.php'), 'utf8');
+const boundsStart = settingsSource.indexOf('public const BOUNDS = [');
+const boundsBlock = settingsSource.slice(boundsStart, settingsSource.indexOf('\n    ];', boundsStart));
+const BOUNDS = Object.fromEntries([...boundsBlock.matchAll(/'([a-z0-9_]+)' => \['([0-9.]+)', '([0-9.]+)'\]/g)]
+  .map(m => [m[1], [Number(m[2]), Number(m[3])]]));
 
 /** ConfigurationService::restoreBlocked() — why a value cannot be put back, or null. */
 function restoreBlocked(row) {
@@ -857,6 +865,8 @@ function restoreBlocked(row) {
   if (!TYPED[row.key]) return 'this setting is owned by its module screen, which holds its own rules';
   if (row.created) return 'there was nothing here before — it was first set, not changed';
   if (row.was === null) return 'the value before this change was empty';
+  if (typeof row.was_raw === 'string' && [...row.was_raw].length === 2001 && row.was_raw.endsWith('…')) return 'the previous value was truncated in the trail — restore it from a backup or the owning screen';
+  if (TYPED[row.key].type === 'number' && BOUNDS[row.key] && (Number(row.was_raw) < BOUNDS[row.key][0] || Number(row.was_raw) > BOUNDS[row.key][1])) return 'the value it had is no longer accepted: it is outside the range this screen accepts';
   if (TYPED[row.key].type === 'number' && !/^-?\d+(\.\d+)?$/.test(String(row.was))) {
     return 'the value it had is no longer accepted: it is not a number this screen accepts';
   }
@@ -873,7 +883,7 @@ function valueTrail(module, limit = 60) {
     if (module && at0.module !== module) continue;
     const row = {
       id: rows.length + 1, key, label: at0.label, module: at0.module, module_label: at0.module_label,
-      was: created ? null : was, now, secret: Boolean(secret), created: Boolean(created),
+      was: created ? null : (typeof was === 'string' && was.length > 80 ? was.slice(0, 77) + '…' : was), now, secret: Boolean(secret), created: Boolean(created),
       when: at(iso), by, was_raw: created || secret ? null : was,
     };
     row.restore_blocked = restoreBlocked(row);

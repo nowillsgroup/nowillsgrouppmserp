@@ -3092,204 +3092,240 @@
       <p><b>One action on this page: put it back.</b> A value the property itself recorded can be restored — but only for
       the settings whose rules this area can check, which is the flat Settings form's typed, bounded keys. Everywhere else
       the module screen owns the rules, and the row says so rather than offering a button that would fail after the click.
-      A restore writes through the setting model, so it lands in this same trail under the name of whoever did it.</p>
+      Values over 2,000 characters are truncated in the trail; those cannot be restored from this page. A restore writes through the setting model, so it lands in this same trail under the name of whoever did it.</p>
       </div>
       </div>
 
 
 
       <div class="card flush mb-2">
-      <div class="card-head"><h3>What it was before</h3><span class="badge badge-slate">9</span></div>
-  
+      <div class="card-head"><h3>What it was before</h3><span class="badge badge-slate">11</span></div>
+
       <div class="card-body table-wrap"><table class="table">
       <thead><tr><th>When</th><th>Module</th><th>Setting</th><th>Was</th><th>Now</th><th>By</th><th></th></tr></thead>
       <tbody>
-      
+
+      <tr>
+      <td class="small muted">05 Nov 2026 09:20</td>
+      <td class="small">
+
+      <a href="#">Property profile, policies &amp; guest switches</a>
+
+      </td>
+      <td class="bold">Cancellation policy shown by the booking engine <code class="small muted">booking_policy</code></td>
+      <td class="">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA…</td>
+      <td>Updated policy</td>
+      <td class="small muted">Yaw Antwi</td>
+      <td class="right">
+
+      <span class="tiny muted" title="the previous value was truncated in the trail — restore it from a backup or the owning screen">the previous value was truncated in the trail — restore it from a backup or the owning screen</span>
+
+      </td>
+      </tr>
+
+      <tr>
+      <td class="small muted">05 Nov 2026 09:10</td>
+      <td class="small">
+
+      <a href="#">Loyalty programme</a>
+
+      </td>
+      <td class="bold">Net spend that earns 1 point <code class="small muted">loyalty_spend_per_point</code></td>
+      <td class="">0</td>
+      <td>100</td>
+      <td class="small muted">Yaw Antwi</td>
+      <td class="right">
+
+      <span class="tiny muted" title="the value it had is no longer accepted: it is outside the range this screen accepts">the value it had is no longer accepted: it is outside the range this screen accepts</span>
+
+      </td>
+      </tr>
+
       <tr>
       <td class="small muted">04 Nov 2026 16:20</td>
       <td class="small">
-            
+
       <a href="#">Property profile, policies &amp; guest switches</a>
-            
+
       </td>
       <td class="bold">Free cancellation up to (hours before arrival) <code class="small muted">cancel_free_hours</code></td>
       <td class="">72</td>
       <td>48</td>
       <td class="small muted">Yaw Antwi</td>
       <td class="right">
-            
+
       <form method="post" action="#">
-                
+
       <button class="btn btn-soft btn-sm" title="Put Free cancellation up to (hours before arrival) back to the value it had before this change">
       <svg class="i i-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Put it back
       </button>
       </form>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">04 Nov 2026 12:02</td>
       <td class="small">
-            
+
       <a href="#">Point of sale &amp; KOT printing</a>
-            
+
       </td>
       <td class="bold">How KOTs are split across printers <code class="small muted">pos_kot_print_mode</code></td>
       <td class="muted">nothing — it was not set</td>
       <td>split</td>
       <td class="small muted">Chef Mani</td>
       <td class="right">
-            
+
       <span class="tiny muted" title="there was nothing here before — it was first set, not changed">there was nothing here before — it was first set, not changed</span>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">04 Nov 2026 09:12</td>
       <td class="small">
-            
+
       <a href="#">Guest portal</a>
-            
+
       </td>
       <td class="bold">Wi-Fi password shown to guests <code class="small muted">portal_wifi_password</code></td>
       <td class="">Set — hidden</td>
       <td>Set — hidden</td>
       <td class="small muted">Efua Asante</td>
       <td class="right">
-            
+
       <span class="tiny muted" title="a credential is not recorded here — its value was never stored">a credential is not recorded here — its value was never stored</span>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">03 Nov 2026 18:40</td>
       <td class="small">
-            
+
       <a href="#">Banquet &amp; events</a>
-            
+
       </td>
       <td class="bold">Guaranteed covers are fixed N days before the event <code class="small muted">banquet_guarantee_days</code></td>
       <td class="">7</td>
       <td>3</td>
       <td class="small muted">Yusuf Ibrahim</td>
       <td class="right">
-            
+
       <span class="tiny muted" title="this setting is owned by its module screen, which holds its own rules">this setting is owned by its module screen, which holds its own rules</span>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">03 Nov 2026 11:05</td>
       <td class="small">
-            
+
       <a href="#">SMS, WhatsApp &amp; social</a>
-            
+
       </td>
       <td class="bold">SMS gateway driver <code class="small muted">sms_driver</code></td>
       <td class="muted">nothing — it was not set</td>
       <td>log</td>
       <td class="small muted">Kwame Boateng</td>
       <td class="right">
-            
+
       <span class="tiny muted" title="this setting is owned by its module screen, which holds its own rules">this setting is owned by its module screen, which holds its own rules</span>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">02 Nov 2026 15:30</td>
       <td class="small">
-            
+
       <a href="#">Spa &amp; activities</a>
-            
+
       </td>
       <td class="bold">Booking slot (minutes) <code class="small muted">spa_slot_min</code></td>
       <td class="">45</td>
       <td>30</td>
       <td class="small muted">Grace Mensah</td>
       <td class="right">
-            
+
       <form method="post" action="#">
-                
+
       <button class="btn btn-soft btn-sm" title="Put Booking slot (minutes) back to the value it had before this change">
       <svg class="i i-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Put it back
       </button>
       </form>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">02 Nov 2026 10:00</td>
       <td class="small">
-            
+
       <a href="#">Online payments</a>
-            
+
       </td>
       <td class="bold">Deposit as a percentage of the stay <code class="small muted">pay_booking_deposit_pct</code></td>
       <td class="">25</td>
       <td>30</td>
       <td class="small muted">Yaw Antwi</td>
       <td class="right">
-            
+
       <span class="tiny muted" title="this setting is owned by its module screen, which holds its own rules">this setting is owned by its module screen, which holds its own rules</span>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">01 Nov 2026 20:15</td>
       <td class="small">
-            
+
       <a href="#">Property profile, policies &amp; guest switches</a>
-            
+
       </td>
       <td class="bold">Who receives the daily flash report (comma-separated) <code class="small muted">flash_report_emails</code></td>
       <td class="">accounts@nowills.example</td>
       <td>cleared</td>
       <td class="small muted">Meera Iyer</td>
       <td class="right">
-            
+
       <form method="post" action="#">
-                
+
       <button class="btn btn-soft btn-sm" title="Put Who receives the daily flash report (comma-separated) back to the value it had before this change">
       <svg class="i i-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Put it back
       </button>
       </form>
-            
+
       </td>
       </tr>
-      
+
       <tr>
       <td class="small muted">31 Oct 2026 07:45</td>
       <td class="small">
-            
+
       <a href="#">Loyalty programme</a>
-            
+
       </td>
       <td class="bold">Value of 1 point when redeemed <code class="small muted">loyalty_point_value</code></td>
       <td class="">1</td>
       <td>0</td>
       <td class="small muted">System Administrator</td>
       <td class="right">
-            
+
       <form method="post" action="#">
-                
+
       <button class="btn btn-soft btn-sm" title="Put Value of 1 point when redeemed back to the value it had before this change">
       <svg class="i i-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Put it back
       </button>
       </form>
-            
+
       </td>
       </tr>
-      
+
       </tbody>
       </table></div>
-  
+
       </div>
 
       <div class="card mb-2">

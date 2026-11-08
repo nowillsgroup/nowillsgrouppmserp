@@ -214,6 +214,12 @@ class ConfigurationService
         if ($row['was'] === null) {
             return 'the value before this change was empty';
         }
+        // Trail entries are clipped at 2,000 characters. Never restore a fragment
+        // as if it were the full setting, even if the fragment happens to validate.
+        $raw = $row['was_raw'] ?? null;
+        if (is_string($raw) && mb_strlen($raw) === 2001 && str_ends_with($raw, '…')) {
+            return 'the previous value was truncated in the trail — restore it from a backup or the owning screen';
+        }
 
         return null;
     }
@@ -230,7 +236,13 @@ class ConfigurationService
 
         switch ($spec['type']) {
             case 'number':
-                return is_numeric($v) && (float) $v >= 0 ? null : 'it is not a number this screen accepts';
+                [$min, $max] = \App\Http\Controllers\SettingController::BOUNDS[$key] ?? ['0', null];
+                return is_numeric($v) && (float) $v >= (float) $min && ($max === null || (float) $v <= (float) $max)
+                    ? null : 'it is outside the range this screen accepts';
+            case 'bool':
+                return in_array($v, ['0', '1'], true) ? null : 'it is not a valid switch value';
+            case 'text':
+                return mb_strlen($v) <= 120 ? null : 'it is longer than the screen accepts for this field';
             case 'select':
                 return is_array($spec['options']) && array_key_exists($v, $spec['options'])
                     ? null : 'that option no longer exists on the screen';

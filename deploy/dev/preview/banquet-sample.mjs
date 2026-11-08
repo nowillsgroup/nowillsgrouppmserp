@@ -291,7 +291,6 @@ export function banquetContext(mode = 'new') {
     now: () => new SampleDate('2026-11-05T09:14:22Z'),
     collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
     count: (value) => (value instanceof Coll ? value.count() : Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0),
-    empty: (value) => (value instanceof Coll ? value.isEmpty() : Array.isArray(value) ? value.length === 0 : !value),
     in_array: (needle, haystack) => (haystack instanceof Coll ? haystack.items : haystack ?? []).includes(needle),
     array_values: (value) => (value instanceof Coll ? value.items.slice() : Object.values(value ?? {})),
     array_merge: (...parts) => Object.assign({}, ...parts.map(part => part ?? {})),
