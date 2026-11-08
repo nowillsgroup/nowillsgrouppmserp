@@ -489,11 +489,18 @@ export const ADVISORY_IDS = [
   'campaign_revenue_expires_the_day_it_is_sent', 'listings_are_always_overdue_for_audit', 'certificate_warning_arrives_on_the_last_day', 'rent_cap_not_enforced', 'emissions_approved_by_their_own_author', 'portal_switches_on_a_closed_portal',
   'cro_follow_up_after_expiry', 'fleet_speed_marked_parked', 'inbox_chat_under_disabled_inbox', 'tv_rental_limit_zero',
   'api_http_endpoints_allowed', 'api_private_endpoints_allowed', 'pbx_tcp_endpoint_missing', 'lock_tcp_endpoint_missing',
+  'kiosk_walkin_without_payment', 'organiser_pay_without_gateway', 'upsell_email_with_upsell_off', 'bankrec_same_person_finalises', 'income_audit_four_eyes_off', 'hse_permit_self_issue', 'privacy_scheduled_retention_off', 'formc_no_advance_alert', 'robita_no_auto_revoke', 'budget_capex_no_prefix', 'voucher_min_above_max', 'sales_stage_probabilities_unordered',
 ];
 
 // The six findings this property actually carries, as ConfigurationService::advisories()
 // returns them: decorated with the module's label and sorted blockers first.
 const FINDINGS = [
+  {
+    id: 'bankrec_same_person_finalises', severity: 'note', module: 'bankrec',
+    title: 'Bank statements do not require a different finaliser',
+    detail: 'The statement loader is not prevented by the segregation setting from finalising their own reconciliation. Other reconciliation checks and permissions still apply.',
+    keys: ['bankrec_segregation'],
+  },
   {
     id: 'api_http_endpoints_allowed', severity: 'note', module: 'developers',
     title: 'Plain HTTP webhook endpoints are allowed',
@@ -937,16 +944,17 @@ export function configurationHistoryModuleContext() {
 }
 
 /** Version 2 fingerprint using the sample's raw setting values. */
-function fingerprintOf(modules) {
+export function fingerprintOf(modules) {
   const keys = [...new Map(modules.flatMap(m => m.keys).map(k => [k.raw, k])).values()];
   // Registry keys are ASCII; compare by code unit like PHP SORT_STRING.
   keys.sort((a, b) => a.raw < b.raw ? -1 : a.raw > b.raw ? 1 : 0);
   const secrets = new Set(keys.filter(k => k.secret).map(k => k.raw));
+  const values = { ...SET, ...SECRETS_SET };
   const records = keys.map(k => {
-    if (k.secret) return [k.raw, 'credential', k.raw in SET && String(SET[k.raw] ?? '').trim() !== ''];
+    if (k.secret) return [k.raw, 'credential', k.set];
     if (k.family) {
-      const members = Object.keys(SET).filter(key => key.startsWith(k.raw)).sort()
-        .map(key => [key, secrets.has(key) ? ['credential', SET[key] != null && String(SET[key]).trim() !== ''] : ['value', SET[key] == null ? null : String(SET[key])]]);
+      const members = Object.keys(values).filter(key => key.startsWith(k.raw)).sort()
+        .map(key => [key, secrets.has(key) ? ['credential', values[key] != null && String(values[key]).trim() !== ''] : ['value', values[key] == null ? null : String(values[key])]]);
       return [k.raw, 'family', members];
     }
     return k.raw in SET ? [k.raw, 'value', SET[k.raw] == null ? null : String(SET[k.raw])] : [k.raw, 'missing'];

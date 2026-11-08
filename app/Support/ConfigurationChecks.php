@@ -82,6 +82,18 @@ class ConfigurationChecks
         'api_private_endpoints_allowed' => 'developers',
         'pbx_tcp_endpoint_missing' => 'interfaces',
         'lock_tcp_endpoint_missing' => 'interfaces',
+        'kiosk_walkin_without_payment' => 'kiosks',
+        'organiser_pay_without_gateway' => 'organiser',
+        'upsell_email_with_upsell_off' => 'upsell',
+        'bankrec_same_person_finalises' => 'bankrec',
+        'income_audit_four_eyes_off' => 'audit',
+        'hse_permit_self_issue' => 'hse',
+        'privacy_scheduled_retention_off' => 'privacy',
+        'formc_no_advance_alert' => 'fg',
+        'robita_no_auto_revoke' => 'robita',
+        'budget_capex_no_prefix' => 'budgets',
+        'voucher_min_above_max' => 'vouchers',
+        'sales_stage_probabilities_unordered' => 'sales',
     ];
 
     /** The rules that look at one module. */
@@ -559,6 +571,88 @@ class ConfigurationChecks
                 'The TCP door-lock encoder has no usable host or port',
                 'The TCP lock driver rejects encoder commands without a host and a port from 1 to 65535. A configured endpoint still needs a successful hardware test.',
                 ['lock_enabled', 'lock_driver', 'lock_tcp_host', 'lock_tcp_port']);
+        }
+
+        // Kiosk walk-ins and organiser event payments use the shared payment service.
+        if ((string) $s('kiosk_enabled', '1') === '1' && (string) $s('kiosk_walkin', '1') === '1'
+            && ! \App\Services\OnlinePaymentService::enabled()) {
+            $add('kiosk_walkin_without_payment', 'warning', 'kiosks',
+                'Kiosk walk-in booking is enabled without online payments',
+                'Walk-in booking is hidden when the online payment service is unavailable. Check the shared payment settings; individual kiosks must also permit walk-ins.',
+                ['kiosk_enabled', 'kiosk_walkin', 'pay_enabled', 'pay_provider']);
+        }
+        if ((string) $s('organiser_enabled', '1') === '1' && (string) $s('organiser_pay', '1') === '1'
+            && ! \App\Services\OnlinePaymentService::enabled()) {
+            $add('organiser_pay_without_gateway', 'warning', 'organiser',
+                'Organiser payments are enabled without an online payment service',
+                'The event portal hides its online payment form when the shared payment service is unavailable. Bank transfer remains an alternative.',
+                ['organiser_enabled', 'organiser_pay', 'pay_enabled', 'pay_provider']);
+        }
+        if ((string) $s('upsell_enabled', '1') !== '1' && (string) $s('upsell_auto_email', '1') === '1') {
+            $add('upsell_email_with_upsell_off', 'note', 'upsell',
+                'Automatic upsell emails are enabled while upselling is off',
+                'The scheduled offer sender requires both switches. It does not send while upselling is off and will resume if the feature is enabled again.',
+                ['upsell_enabled', 'upsell_auto_email']);
+        }
+        if ((string) $s('bankrec_segregation', '0') !== '1') {
+            $add('bankrec_same_person_finalises', 'note', 'bankrec',
+                'Bank statements do not require a different finaliser',
+                'The statement loader is not prevented by the segregation setting from finalising their own reconciliation. Other reconciliation checks and permissions still apply.',
+                ['bankrec_segregation']);
+        }
+        if ((int) $s('ia_four_eyes', 1) === 0) {
+            $add('income_audit_four_eyes_off', 'note', 'audit',
+                'Income audit four-eyes separation is switched off',
+                'The same-person checks for closing a day signed by the auditor and approving a revenue request made by the approver are not enforced. Other permissions still apply.',
+                ['ia_four_eyes']);
+        }
+        if ((string) $s('hse_issuer_differs', '1') !== '1') {
+            $add('hse_permit_self_issue', 'note', 'hse',
+                'A permit requester can also issue their own work permit',
+                'The separate-issuer requirement is off. Issuing still requires the permit permission and the other permit checks.',
+                ['hse_issuer_differs']);
+        }
+        if ((int) $s('retention_enabled', 1) === 0) {
+            $add('privacy_scheduled_retention_off', 'note', 'privacy',
+                'The scheduled privacy retention sweep is switched off',
+                'The scheduled sweep skips this property even when retention periods are set. Review the manual retention process and whether automatic processing should be enabled.',
+                ['retention_enabled']);
+        }
+        if ((string) $s('formc_enabled', '1') === '1' && max(0, (int) $s('formc_alert_hours', '6')) === 0) {
+            $add('formc_no_advance_alert', 'warning', 'fg',
+                'Foreign-guest reporting has no advance due-soon window',
+                'A zero-hour window cannot select a pending report before its deadline for the due-soon alert. Overdue alerts remain separate and still depend on the scheduled job.',
+                ['formc_enabled', 'formc_alert_hours']);
+        }
+        if ((string) $s('robita_auto_revoke', '1') !== '1') {
+            $add('robita_no_auto_revoke', 'note', 'robita',
+                'Robita local credential records are not automatically revoked on checkout',
+                'Checkout and room-move hooks skip local cancellation when this switch is off. Expiry is a separate sweep. These are simulated records, not verified physical lock credentials.',
+                ['robita_auto_revoke']);
+        }
+        if ((string) $s('budget_capex_control', 'warn') !== 'off'
+            && ! preg_match('/[0-9A-Za-z]/', (string) $s('budget_capex_prefixes', '15'))) {
+            $add('budget_capex_no_prefix', 'warning', 'budgets',
+                'Capital budget control has no account-code prefixes to match',
+                'The capital control is on, but no usable prefix is configured, so no asset account is identified as capital by this prefix rule. Operating budget control is separate.',
+                ['budget_capex_control', 'budget_capex_prefixes']);
+        }
+        if ((string) $s('gv_enabled', '1') === '1'
+            && max(0, (float) $s('gv_min_value', '500')) > max(1, (float) $s('gv_max_value', '50000'))) {
+            $add('voucher_min_above_max', 'warning', 'vouchers',
+                'The minimum open-amount voucher exceeds the maximum',
+                'An open-amount voucher cannot meet both limits. Fixed-value vouchers have their own amount rules. Save valid limits on the voucher settings screen.',
+                ['gv_enabled', 'gv_min_value', 'gv_max_value']);
+        }
+        $prospect = (int) $s('sales_prob_prospect', '10');
+        $qualified = (int) $s('sales_prob_qualified', '25');
+        $proposal = (int) $s('sales_prob_proposal', '50');
+        $negotiation = (int) $s('sales_prob_negotiation', '75');
+        if ($prospect >= $qualified || $qualified >= $proposal || $proposal >= $negotiation) {
+            $add('sales_stage_probabilities_unordered', 'warning', 'sales',
+                'Sales stage probabilities do not increase through the pipeline',
+                'The sales settings screen requires each stage to have a higher probability than the one before it. Review imported or older values so weighted forecasts follow that policy.',
+                ['sales_prob_prospect', 'sales_prob_qualified', 'sales_prob_proposal', 'sales_prob_negotiation']);
         }
 
         // ── booking engine ────────────────────────────────────────────────────────

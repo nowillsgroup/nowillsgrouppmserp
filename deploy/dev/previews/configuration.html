@@ -3082,7 +3082,7 @@
       <div class="stat"><span class="ico" style="background:#eaf3ff;color:#267dca"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg></span><div><div class="v">612</div><div class="l">settings tracked</div></div></div>
       <div class="stat"><span class="ico" style="background:#fff2df;color:#ec8c20"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg></span><div><div class="v">488</div><div class="l">left on the built-in default</div></div></div>
       <div class="stat"><span class="ico" style="background:#f0f4ff;color:#3b5bdb"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg></span><div><div class="v">49</div><div class="l">moved off the built-in default</div></div></div>
-      <div class="stat"><span class="ico" style="background:#fdf1f1;color:#c0392b"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg></span><div><div class="v">36 of 71</div><div class="l">modules with at least one configuration check</div></div></div>
+      <div class="stat"><span class="ico" style="background:#fdf1f1;color:#c0392b"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg></span><div><div class="v">48 of 71</div><div class="l">modules with at least one configuration check</div></div></div>
       <div class="stat"><span class="ico" style="background:#f4eefe;color:#7c4dff"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg></span><div><div class="v">48</div><div class="l">read with no default to fall back on — <a href="#">what they run on</a></div></div></div>
       <div class="stat"><span class="ico" style="background:#eef7ff;color:#267dca"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span><div><div class="v">412</div><div class="l">value changes recorded — <a href="#">what it was before</a></div></div></div>
       </div>
@@ -3107,7 +3107,7 @@
       <div class="card-head">
       <h3><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg> What the settings contradict</h3>
       <span class="badge badge-red">
-      2 cannot work · 17 contradictions · 6 policy choices
+      2 cannot work · 17 contradictions · 7 policy choices
       </span>
       </div>
       <div class="card-body">
@@ -3290,6 +3290,15 @@
       <b>A day nobody marked is paid as a day worked</b>
       <p class="small">When the time register is not filled in, the day is paid as present rather than held as absent. That is a policy, not an error — but it is the difference between a payroll run nobody signed and one somebody did.</p>
       <a class="cfg-find-go" href="#">Payroll &rsaquo; fix it there</a>
+      </div>
+      </div>
+
+      <div class="cfg-find cfg-find-note">
+      <span class="cfg-find-sev">Policy choice</span>
+      <div class="cfg-find-body">
+      <b>Bank statements do not require a different finaliser</b>
+      <p class="small">The statement loader is not prevented by the segregation setting from finalising their own reconciliation. Other reconciliation checks and permissions still apply.</p>
+      <a class="cfg-find-go" href="#">Bank reconciliation &rsaquo; fix it there</a>
       </div>
       </div>
 

@@ -153,6 +153,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   const body = text(win.document.body);
   ok(/Plain HTTP webhook endpoints are allowed/.test(body), 'hub: the new API warning is visible');
   ok(/does not mean an HTTP endpoint exists/.test(body), 'hub: the warning does not claim an endpoint exists');
+  ok(/Bank statements do not require a different finaliser/.test(body), 'hub: the bank reconciliation policy choice is visible');
   win.close();
 }
 

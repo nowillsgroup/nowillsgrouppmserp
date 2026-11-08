@@ -424,6 +424,48 @@ ok("! $cfg['allow_http']" in webhook_src and "! $cfg['allow_private']" in webhoo
 ok(all("$host === '' || $port < 1 || $port > 65535" in d for d in checks_drivers),
    'both TCP drivers reject a missing host or unusable port')
 
+# The next checks are grounded in their owning services and remain narrowly worded.
+kiosk_src = read(os.path.join(ROOT, 'app/Services/KioskService.php'))
+org_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/OrganiserPortalController.php'))
+org_src = read(os.path.join(ROOT, 'app/Services/OrganiserService.php'))
+payment_src = read(os.path.join(ROOT, 'app/Services/OnlinePaymentService.php'))
+upsell_src = read(os.path.join(ROOT, 'app/Services/UpsellService.php'))
+bankrec_src = read(os.path.join(ROOT, 'app/Services/BankRecService.php'))
+income_src = read(os.path.join(ROOT, 'app/Services/IncomeAuditService.php'))
+revenue_auth = read(os.path.join(ROOT, 'app/Services/RevenueAuthService.php'))
+hse_src = read(os.path.join(ROOT, 'app/Services/HseService.php'))
+privacy_src = read(os.path.join(ROOT, 'app/Services/PrivacyService.php'))
+formc_src = read(os.path.join(ROOT, 'app/Services/FormCService.php'))
+robita_src = read(os.path.join(ROOT, 'app/Services/RobitaService.php'))
+budget_src = read(os.path.join(ROOT, 'app/Services/BudgetService.php'))
+voucher_src = read(os.path.join(ROOT, 'app/Services/GiftVoucherService.php'))
+sales_src = read(os.path.join(ROOT, 'app/Services/SalesService.php'))
+ok("$c['walkin'] && $k->allow_walkin && OnlinePaymentService::enabled()" in kiosk_src,
+   'the kiosk only offers walk-ins when the payment service is available')
+ok("setting('organiser_pay', '1') === '1' && \App\Services\OnlinePaymentService::enabled()" in org_ctrl
+   and 'OnlinePaymentService::createBanquet' in org_src and 'if (! self::enabled())' in payment_src,
+   'the organiser payment form and creation path both depend on payment availability')
+ok("$cfg['enabled'] && $cfg['auto_email']" in upsell_src,
+   'the upsell email job depends on both feature switches')
+ok("self::cfg('bankrec_segregation') === '1'" in bankrec_src and 'someone else must finalise it' in bankrec_src,
+   'the bank reconciliation warning reflects the actual finalisation gate')
+ok("self::cfg('ia_four_eyes')" in income_src and "IncomeAuditService::cfg('ia_four_eyes')" in revenue_auth,
+   'income audit four-eyes controls both day closing and revenue approval')
+ok("! self::cfg()['issuer_differs'] || $p->requested_by !== $u->id" in hse_src,
+   'the permit warning reflects the actual separate-issuer gate')
+ok("if (! self::settings()['retention_enabled'])" in privacy_src and "self::runRetention('schedule')" in privacy_src,
+   'the privacy warning describes the scheduled sweep rather than manual retention')
+ok("where('deadline_at', '>', now())" in formc_src and "now()->addHours($cfg['alert_hours'])" in formc_src,
+   'a zero advance window cannot select a due-soon Form C')
+ok("self::cfg()['robita_auto_revoke'] !== '1'" in robita_src and 'local simulated credentials' in robita_src,
+   'the Robita advisory refers only to local credential records')
+ok("foreach (self::prefixList() as $p)" in budget_src and "$cfg['capex_control'] !== 'off'" in budget_src,
+   'capital budget controls classify asset accounts using the prefix list')
+ok("$min = max($type->min_value, $c['min'])" in voucher_src and "min($type->max_value, $c['max'])" in voucher_src,
+   'voucher limits are both enforced for open-amount vouchers')
+ok("$p[$i] <= $p[$i - 1]" in sales_src and "Each stage must have a higher probability" in sales_src,
+   'the sales advisory follows the screen validation')
+
 # wired: the service decorates, the controller passes, the views render
 ok('use App\Support\ConfigurationChecks;' in svc, 'the register service knows the checks')
 ok('ConfigurationChecks::run()' in svc, 'the service runs the rules rather than restating them')
