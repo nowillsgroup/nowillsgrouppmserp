@@ -112,7 +112,7 @@
 <h3 class="cfg-print-group">6 · What it was before</h3>
 <p class="small">{{ number_format($trail['rows']) }} value changes are recorded, covering {{ number_format($trail['keys']) }}
   of {{ number_format($trail['keys_total']) }} settings{{ $trail['since'] ? ', the earliest on '.$trail['since']->format('d M Y') : '' }}.
-  A change made before this trail existed is in the activity log by label only; this sheet does not pretend to have it.</p>
+  Earlier changes may appear in the activity log by label only; some may not have been logged. Bulk database writes bypass the value trail, and trail recording can fail without blocking the original write.</p>
 @if($recentChanges)
   <table class="table table-sm">
     <thead><tr><th style="width:18%">When</th><th style="width:26%">Setting</th><th>Was</th><th>Now</th><th>By</th></tr></thead>

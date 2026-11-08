@@ -5789,6 +5789,31 @@ split_briefs = [i + 1 for i, line in enumerate(read(REGISTRY).splitlines()) if l
 ok(not split_briefs,
    f'each brief is written as one literal the checks can read whole (split at line {split_briefs[:3]})')
 
+# Dynamic ownership and deletion regressions: these paths used to escape the register/trail.
+laundry_src = read(os.path.join(ROOT, 'app/Services/LaundryService.php'))
+laundry_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/LaundryController.php'))
+holiday_src = read(os.path.join(ROOT, 'app/Services/HolidayService.php'))
+ok(all(k in modules['laundry']['keys'] and k in read_keys for k in ('laundry_normal_hours', 'laundry_express_hours')),
+   'laundry turnaround reads are literal and registered')
+ok(modules['laundry']['route'] == 'laundry.prices' and modules['laundry']['edit'] == 'laundry.manage',
+   'laundry opens the actual settings screen and states its manage permission')
+ok("'laundry_express_hours' => 'required|integer|min:1|max:48|lte:laundry_normal_hours'" in laundry_ctrl
+   and "LaundryService::hours('express') > \\App\\Services\\LaundryService::hours('normal')" in checks_src,
+   'laundry check uses effective hours and mirrors the ordering accepted by the owner')
+ok("hr_holidays_" in modules['hr']['keys'] and "setting('hr_holidays_'.$year, '')" in holiday_src
+   and "return 'hr_holidays_'.$year;" in holiday_src,
+   'holiday calendar family includes the same prefix used to write each year')
+ok('public function deleted(Model $m)' in obs and "'new_value' => null" in obs,
+   'setting model deletions enter the value trail')
+for source, fragment in (
+    (holiday_src, "Setting::where('key', self::key($year))->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Services/OnlinePaymentService.php')), "Setting::where('key', $k)->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Http/Controllers/MessageController.php')), "Setting::where('key', $k)->get()->each->delete()"),
+    (read(os.path.join(ROOT, 'app/Services/RobitaService.php')), "Setting::whereIn('key', ['robita_cloud_url', 'robita_access_token'])->get()->each->delete()"),
+):
+    ok(fragment in source, 'known settings reset/clear path dispatches model delete events')
+ok("$key === 'robita_access_token'" in svc, 'legacy Robita token is always masked, even for older audit rows')
+
 # ── report ─────────────────────────────────────────────────────────────────────────
 print(f'configuration check: {checks - len(failures)}/{checks} passed')
 print(f'  modules: {len(modules)} · groups: {len(groups)} · settings: {len(registry_keys)}')

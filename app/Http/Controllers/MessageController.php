@@ -52,7 +52,7 @@ class MessageController extends Controller
         }
         foreach (MessageService::SECRETS as $k) {
             if (in_array($k, $data['clear_secrets'] ?? [])) {
-                Setting::where('key', $k)->delete();
+                Setting::where('key', $k)->get()->each->delete();
             } else {
                 MessageService::storeSecret($k, $data[$k] ?? null);
             }

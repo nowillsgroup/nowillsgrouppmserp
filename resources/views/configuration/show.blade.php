@@ -101,7 +101,7 @@
   </table></div>
 </div>
 @else
-<div class="card mb-2"><div class="card-body small muted">This module configures itself on its own screen — venues, packages, plans or prices live in the module's tables rather than in the settings store. The register keeps it here so nothing is missing from the picture.</div></div>
+<div class="card mb-2"><div class="card-body small muted">This module configures itself on its own screen — venues, packages, plans or prices live in the module's tables rather than in the settings store. Those records are not listed or fingerprinted as settings here.</div></div>
 @endif
 
 <div class="card mb-2">
@@ -116,8 +116,8 @@
         <span>{{ $v['created'] ? 'was not set' : ($v['was'] ?? 'cleared') }} → {{ $v['now'] }} · {{ $v['by'] ?? 'not recorded' }} · {{ $v['when'] ? $v['when']->format('d M Y H:i') : '—' }}</span>
       </div>
     @empty
-      <p class="small muted">No value change has been recorded on this module yet. The activity log below says a save happened;
-        this trail fills in when a value is actually replaced.</p>
+      <p class="small muted">No value change has been recorded on this module yet. The activity log below may show saves;
+        missing or bypassed value-history entries cannot be reconstructed.</p>
     @endforelse
   </div>
 </div>
@@ -135,7 +135,7 @@
         <span>{{ $h->user?->name ?? 'System' }} · {{ $h->created_at?->format('d M Y H:i') }}</span>
       </div>
     @empty
-      <p class="small muted">Nothing has been changed here since the property was created.</p>
+      <p class="small muted">No matching activity has been recorded in the available log.</p>
     @endforelse
   </div>
 </div>

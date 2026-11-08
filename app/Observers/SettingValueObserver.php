@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Auth;
  * not say what the values were. So a reader could see "Updated hotel settings: Free
  * cancellation window" and still not know whether it went from 48 hours to 24 or to 72.
  *
- * One observer on the Setting model covers every module — all 69 screens write through
- * `Setting::updateOrCreate`, so nothing has to remember to log and nothing can forget.
+ * Model saves and deletes are observed. Bulk query updates/deletes bypass model events;
+ * paths that need value history must delete or update individual models.
  *
  * Three rules keep the trail honest rather than noisy:
  *   · a write that changed no value records nothing;
@@ -38,6 +38,29 @@ class SettingValueObserver
             $this->record($m);
         } catch (\Throwable $e) {
             report($e);   // the setting was saved; the trail's problem must not undo it
+        }
+    }
+
+    public function deleted(Model $m): void
+    {
+        try {
+            $key = (string) $m->key;
+            if ($key === '') {
+                return;
+            }
+            $secret = ConfigurationService::isSecretKey($key);
+            $change = new SettingChange([
+                'key' => $key,
+                'old_value' => $secret ? self::mask($m->value) : self::clip($m->value),
+                'new_value' => null,
+                'was_secret' => $secret,
+                'created' => false,
+                'user_id' => Auth::id(),
+            ]);
+            $change->hotel_id = $m->hotel_id;
+            $change->save();
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

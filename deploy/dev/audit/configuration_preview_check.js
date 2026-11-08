@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
+import { configurationHistoryContext } from '../preview/configuration-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const preview = (name) => path.join(ROOT, 'deploy/dev/previews', name);
@@ -388,14 +389,15 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/what it was before/i.test(body), 'trail: the page says what it is');
   const stats = [...doc.querySelectorAll('.stat .v')].map(text);
   ok(stats.includes('412'), 'trail: it counts the value changes recorded');
-  ok(stats.includes('96 of 276'), 'trail: and how much of the register the trail covers, rather than implying all of it');
+  ok(stats.includes(`96 of ${configurationHistoryContext().scope.trail.keys_total}`), 'trail: and how much of the register the trail covers, rather than implying all of it');
 
   const rows = [...doc.querySelectorAll('tbody tr')];
-  ok(rows.length === 11, `trail: one row per recorded change (${rows.length})`);
+  ok(rows.length === configurationHistoryContext().scope.changes.length, `trail: one row per recorded change (${rows.length})`);
   const columnNames = [...doc.querySelectorAll('thead th')].map(text).join('|');
   ok(/Was\|Now/.test(columnNames), 'trail: the table has a "was" and a "now" column, not just "changed"');
 
   const rowFor = (key) => rows.find((r) => text(r).includes(key));
+  ok(/Human resources/.test(text(rowFor('hr_holidays_2026'))) && /cleared/.test(text(rowFor('hr_holidays_2026'))), 'trail: family calendar resets appear under their owning module');
   const hours = rowFor('cancel_free_hours');
   ok(/72/.test(text(hours)) && /48/.test(text(hours)),
     'trail: the row carries both values — 72 became 48, which no activity log could say');

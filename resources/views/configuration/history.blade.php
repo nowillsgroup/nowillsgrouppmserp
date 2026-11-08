@@ -17,12 +17,12 @@
 
 <div class="card mb-2">
   <div class="card-body small">
-    <p><b>Every write of a setting records the value it replaced.</b> The activity log says a screen was saved and which
+    <p><b>The value trail records observed setting changes.</b> The activity log says a screen was saved and which
       settings it touched; it cannot say whether the free-cancellation window went from 48 hours to 24 or from 48 to 72.
-      This page can — because the trail is written by the setting model itself, every module is covered by one code path
-      and no screen has to remember to log.</p>
-    <p class="muted">The trail begins with this release: changes made before it are in the activity log by label but not
-      by value, and the page does not pretend otherwise. A value a seeder or a command wrote appears only when it replaced
+      This page shows changes recorded by the setting model on saves and deletes. Bulk database updates or deletes
+      bypass model events and may not appear; earlier missing entries cannot be recovered.</p>
+    <p class="muted">The trail begins with this release: earlier changes may appear in the activity log by label, but not
+      by value, and some changes may not have been logged at all. Recording can also fail without blocking the original save. A value a seeder or a command wrote appears only when it replaced
       something — filling a new property in for the first time is provisioning, not a decision. A credential records that
       it changed and never what it is.</p>
     <p><b>One action on this page: put it back.</b> A value the property itself recorded can be restored — but only for

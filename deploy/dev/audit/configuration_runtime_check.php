@@ -49,7 +49,7 @@ namespace App\Http\Controllers { class SettingController { public const KEYS = [
 namespace {
     function config($key, $default = null) {
         $config = ['settings' => ['modules' => [
-            'test' => ['label' => 'Test', 'keys' => ['one' => 'One', 'two' => 'Two', 'family_' => 'Family', 'password' => 'Password'], 'secret' => ['password']],
+            'test' => ['label' => 'Test', 'keys' => ['one' => 'One', 'two' => 'Two', 'family_' => 'Family', 'password' => 'Password', 'family_password' => 'Family password'], 'secret' => ['password', 'family_password']],
             'other' => ['label' => 'Other', 'keys' => ['other' => 'Other']],
         ]]];
         $v = $config;
@@ -87,7 +87,7 @@ namespace {
     check($history[1]['secret'] && $history[1]['was'] === Service::HIDDEN && $history[1]['now'] === Service::HIDDEN && $history[1]['was_raw'] === null, 'old credentials must be masked on read');
     check(!$history[1]['restore_ok'], 'historical credentials cannot be restored');
     $coverage = Service::trailCoverage();
-    check($coverage['rows'] === 4 && $coverage['keys'] === 3 && $coverage['keys_total'] === 5, 'coverage counts registered keys, not unknown keys or individual family members');
+    check($coverage['rows'] === 4 && $coverage['keys'] === 3 && $coverage['keys_total'] === 6, 'coverage counts registered keys, not unknown keys or individual family members');
     $log = (object) ['module' => 'transport', 'action' => 'wht_settings'];
     check(Service::isChangeFor($log, ['modules' => ['transport'], 'actions' => ['fleet']]), 'module settings log alias');
     check(!Service::isChangeFor($log, ['modules' => ['other'], 'actions' => ['fleet']]), 'unrelated activity log');
@@ -97,5 +97,21 @@ namespace {
     $credential = new Setting(); $credential->key = 'password';
     (new \App\Observers\SettingValueObserver())->saved($credential);
     check(SettingChange::$saved?->attributes['old_value'] === Service::HIDDEN && SettingChange::$saved?->attributes['new_value'] === Service::HIDDEN, 'observer masks credentials');
+    $family = Service::row('family_', 'Family', 'test', ['family_password' => 'do-not-expose', 'family_a' => 'hello']);
+    check($family['set'] && $family['count'] === 2 && str_contains($family['value'], Service::HIDDEN) && !str_contains($family['value'], 'do-not-expose'), 'family register rows must mask overlapping credentials');
+    $observer = new \App\Observers\SettingValueObserver();
+    $plain = new Setting(); $plain->value = 'previous';
+    $observer->deleted($plain);
+    check(SettingChange::$saved?->hotel_id === 42 && SettingChange::$saved?->attributes['old_value'] === 'previous' && SettingChange::$saved?->attributes['new_value'] === null && SettingChange::$saved?->attributes['created'] === false, 'deletion records previous value and actual tenant');
+    $credential->value = 'sensitive';
+    $observer->deleted($credential);
+    check(SettingChange::$saved?->attributes['old_value'] === Service::HIDDEN && SettingChange::$saved?->attributes['new_value'] === null && SettingChange::$saved?->attributes['was_secret'] === true, 'credential deletion must be masked');
+    $credential->key = 'robita_access_token';
+    $observer->deleted($credential);
+    check(SettingChange::$saved?->attributes['old_value'] === Service::HIDDEN && SettingChange::$saved?->attributes['was_secret'] === true, 'legacy credential deletion must be masked');
+    check(Service::isSecretKey('robita_access_token'), 'old legacy credential rows must be masked on read');
+    $plain->value = str_repeat('x', 2001);
+    $observer->deleted($plain);
+    check(mb_strlen(SettingChange::$saved?->attributes['old_value']) === 2001 && str_ends_with(SettingChange::$saved?->attributes['old_value'], '…'), 'deleted long values are clipped with marker');
     echo "configuration isolated PHP checks: $checks passed\n";
 }

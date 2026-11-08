@@ -14,6 +14,7 @@ namespace {
     function setting($key, $default = null) { global $values; return $values[$key] ?? $default; }
     function hotel() { return null; }
     function bdate() { return new class { public function toDateString(): string { return '2026-10-26'; } public function format($format): string { return '2026-10'; } }; }
+    require __DIR__.'/../../../app/Services/LaundryService.php';
     require __DIR__.'/../../../app/Support/ConfigurationChecks.php';
     use App\Support\ConfigurationChecks;
     $count = 0;
@@ -46,6 +47,7 @@ namespace {
         ['robita_no_auto_revoke', 'robita', [['robita_auto_revoke'=>'0'], true], [['robita_auto_revoke'=>'1'], false], [[], false]],
         ['budget_capex_no_prefix', 'budgets', [['budget_capex_prefixes'=>' , ; - '], true], [['budget_capex_prefixes'=>'15'], false], [['budget_capex_control'=>'off', 'budget_capex_prefixes'=>''], false], [['budget_capex_control'=>'invalid', 'budget_capex_prefixes'=>''], true], [[], false]],
         ['voucher_min_above_max', 'vouchers', [['gv_min_value'=>'501', 'gv_max_value'=>'500'], true], [['gv_min_value'=>'500', 'gv_max_value'=>'500'], false], [['gv_enabled'=>'0', 'gv_min_value'=>'501', 'gv_max_value'=>'500'], false], [[], false]],
+        ['laundry_express_slower_than_normal', 'laundry', [['laundry_express_hours'=>'25', 'laundry_normal_hours'=>'24'], true], [['laundry_express_hours'=>'24', 'laundry_normal_hours'=>'24'], false], [['laundry_express_hours'=>'0', 'laundry_normal_hours'=>'0'], false], [[], false]],
         ['sales_stage_probabilities_unordered', 'sales', [['sales_prob_qualified'=>'10'], true], [['sales_prob_proposal'=>'20'], true], [['sales_prob_negotiation'=>'49'], true], [[], false]],
     ];
     foreach ($cases as $case) {

@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
  * One place that answers "what can be configured in this property, where is it
  * set, and what is it set to". The registry lives in config/settings.php; this
  * service joins it to the live `settings` rows and to the audit trail, so the
- * hub can never show a setting the code does not read (the configuration audit
- * proves that) and never hides one it does.
+ * configuration audit checks known literal and mapped reads; dynamically constructed
+ * reads can still be missed.
  *
  * Nothing here writes. Every screen listed belongs to the module that owns it —
  * one write path per setting.
@@ -104,14 +104,17 @@ class ConfigurationService
     /** Is this key a credential the register refuses to print? */
     public static function isSecretKey(string $key): bool
     {
-        return in_array($key, self::secrets(), true);
+        // The obsolete Robita token is no longer registered/read, but legacy values and
+        // older audit rows can still contain a credential and must never be exposed.
+        return $key === 'robita_access_token' || in_array($key, self::secrets(), true);
     }
 
     /**
      * The value trail: what each setting was before, newest first.
      *
-     * Written by App\Observers\SettingValueObserver on every write of a `settings` row, so
-     * every module is covered by one code path. The observer masks credentials; the reader
+     * Written by App\Observers\SettingValueObserver for model saves and deletes. Bulk SQL
+     * updates/deletes bypass model events and older history cannot be reconstructed.
+     * The observer masks credentials; the reader
      * also respects today's credential classification for rows written before it changed.
      */
     public static function valueTrail(?string $module = null, int $limit = 60): array
@@ -529,7 +532,9 @@ class ConfigurationService
             $hits = [];
             foreach ($values as $k => $v) {
                 if (str_starts_with($k, $key)) {
-                    $hits[substr($k, strlen($key))] = self::show($v);
+                    $hits[substr($k, strlen($key))] = self::isSecretKey((string) $k)
+                        ? (trim((string) $v) === '' ? '—' : self::HIDDEN)
+                        : self::show($v);
                 }
             }
             ksort($hits);

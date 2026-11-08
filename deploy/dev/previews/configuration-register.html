@@ -12,9 +12,9 @@
       <div class="small"><b>TIN:</b> C0012345678</div>
     </div>
     <div class="right"><h2 style="color:#166534">Configuration register</h2><div class="small">Property <b>The Grove Essipong Beach Resort</b> (GROVE)</div>
-  <div class="small">71 modules · 612 settings tracked</div>
+  <div class="small">71 modules · 615 settings tracked</div>
   <div class="small">Printed 05 Nov 2026 08:10</div>
-  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">7FF560B36637</b></div></div>
+  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">402967FAA429</b></div></div>
   </div>
 <h3 class="cfg-print-group">What the settings contradict</h3>
 <table class="table table-sm">
@@ -1656,9 +1656,9 @@
     <div class="cfg-print-module">
       <div class="cfg-print-head">
         <b>Laundry</b>
-        <span class="small muted">laundry.index · 1 of 1 set</span>
+        <span class="small muted">laundry.prices · 3 of 3 set</span>
       </div>
-      <p class="tiny muted">The express surcharge and the turn-round promise the laundry desk sells. The express surcharge is 0–300 %.</p>
+      <p class="tiny muted">The express surcharge and the turn-round promise the laundry desk sells. The express surcharge is 0–300 %, normal turnaround 1–168 hours and express 1–48 hours; express may not exceed normal.</p>
 
         <table class="table table-sm">
           <thead><tr><th style="width:34%">Setting</th><th>Key</th><th>Value on this property</th><th>Built-in default</th></tr></thead>
@@ -1669,6 +1669,20 @@
               <td class="tiny muted"><code>laundry_express_pct</code></td>
               <td>50</td>
               <td class="small muted">50</td>
+            </tr>
+
+            <tr>
+              <td>Normal turnaround (hours)</td>
+              <td class="tiny muted"><code>laundry_normal_hours</code></td>
+              <td>24</td>
+              <td class="small muted">24</td>
+            </tr>
+
+            <tr>
+              <td>Express turnaround (hours)</td>
+              <td class="tiny muted"><code>laundry_express_hours</code></td>
+              <td>6</td>
+              <td class="small muted">6</td>
             </tr>
 
           </tbody>
@@ -3597,7 +3611,7 @@
     <div class="cfg-print-module">
       <div class="cfg-print-head">
         <b>Human resources</b>
-        <span class="small muted">hr.settings · 0 of 3 set</span>
+        <span class="small muted">hr.settings · 1 of 4 set</span>
       </div>
       <p class="tiny muted">Leave rules, the service-level for answering an HR query, how attendance is counted and how far ahead a public holiday is announced. An HR query is answered within 1–168 hours and a holiday is announced 0–60 days ahead.</p>
 
@@ -3624,6 +3638,13 @@
               <td class="tiny muted"><code>hr_holiday_notify_days</code></td>
               <td>not set</td>
               <td class="small muted">7</td>
+            </tr>
+
+            <tr>
+              <td>Custom public holiday calendar by year (edit at Public Holidays)</td>
+              <td class="tiny muted"><code>hr_holidays_…</code></td>
+              <td>2026 = [[&quot;2026-03-06&quot;,&quot;Independence Day&quot;,false]]</td>
+              <td class="small muted">—</td>
             </tr>
 
           </tbody>
@@ -4553,7 +4574,7 @@
     <div class="cfg-print-module">
       <div class="cfg-print-head">
         <b>Reputation &amp; feedback</b>
-        <span class="small muted">rep.settings · 7 of 15 set</span>
+        <span class="small muted">rep.settings · 8 of 15 set</span>
       </div>
       <p class="tiny muted">Review alerts, the response target by severity, who signs a reply, the goodwill ceiling and the survey cadence. NPS alert 0–10; rating alert 1–4; goodwill 0–1000000; response 1–48 minutes; survey cooldown 0–365 days.</p>
 
@@ -4641,7 +4662,7 @@
             <tr>
               <td>Response target by severity (minutes)</td>
               <td class="tiny muted"><code>fb_sla_…</code></td>
-              <td>not set</td>
+              <td>inhouse = 15</td>
               <td class="small muted">—</td>
             </tr>
 

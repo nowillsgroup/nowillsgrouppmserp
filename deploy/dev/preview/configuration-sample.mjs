@@ -212,7 +212,10 @@ const SET = {
   spa_open: '09:00',
   spa_close: '21:00',
   spa_slot_min: '30',
+  hr_holidays_2026: '[["2026-03-06","Independence Day",false]]',
   laundry_express_pct: '50',
+  laundry_normal_hours: '24',
+  laundry_express_hours: '6',
   recreation_shift_required: '1',
   talent_offer_days: '7',
   talent_probation_months: '3',
@@ -397,6 +400,21 @@ function buildModules() {
       const set = secret
         ? String(SECRETS_SET[key] ?? '').trim() !== ''
         : v !== undefined && v !== null && String(v).trim() !== '';
+      if (family && !secret) {
+        const values = { ...SET, ...SECRETS_SET };
+        const allSecretKeys = new Set(modules.flatMap(module => module.secretKeys));
+        const hits = Object.keys(values).filter(k => k.startsWith(key)).sort().map(k => {
+          const value = values[k];
+          const display = allSecretKeys.has(k) ? (value != null && String(value).trim() !== '' ? HIDDEN : '—') : shown(value);
+          return `${k.slice(key.length)} = ${display}`;
+        });
+        return {
+          key: `${key}…`, raw: key, label, family: true, module: m.key, secret: false,
+          value: hits.length ? hits.join(' · ') : null, set: hits.length > 0,
+          state: hits.length ? 'set' : 'default', count: hits.length,
+          default: null, default_show: null, changed: false, ...readBy(key),
+        };
+      }
       if (secret) {
         // the same masking the service does — the value is never shaped, shortened or exported
         return {
@@ -489,7 +507,7 @@ export const ADVISORY_IDS = [
   'campaign_revenue_expires_the_day_it_is_sent', 'listings_are_always_overdue_for_audit', 'certificate_warning_arrives_on_the_last_day', 'rent_cap_not_enforced', 'emissions_approved_by_their_own_author', 'portal_switches_on_a_closed_portal',
   'cro_follow_up_after_expiry', 'fleet_speed_marked_parked', 'inbox_chat_under_disabled_inbox', 'tv_rental_limit_zero',
   'api_http_endpoints_allowed', 'api_private_endpoints_allowed', 'pbx_tcp_endpoint_missing', 'lock_tcp_endpoint_missing',
-  'kiosk_walkin_without_payment', 'organiser_pay_without_gateway', 'upsell_email_with_upsell_off', 'bankrec_same_person_finalises', 'income_audit_four_eyes_off', 'hse_permit_self_issue', 'privacy_scheduled_retention_off', 'formc_no_advance_alert', 'robita_no_auto_revoke', 'budget_capex_no_prefix', 'voucher_min_above_max', 'sales_stage_probabilities_unordered',
+  'kiosk_walkin_without_payment', 'organiser_pay_without_gateway', 'upsell_email_with_upsell_off', 'bankrec_same_person_finalises', 'income_audit_four_eyes_off', 'hse_permit_self_issue', 'privacy_scheduled_retention_off', 'formc_no_advance_alert', 'robita_no_auto_revoke', 'budget_capex_no_prefix', 'voucher_min_above_max', 'sales_stage_probabilities_unordered', 'laundry_express_slower_than_normal',
 ];
 
 // The six findings this property actually carries, as ConfigurationService::advisories()
@@ -830,11 +848,12 @@ export function configurationOnNullContext() {
 
 // ── the value trail: what each setting was before ──────────────────────────────────
 // ConfigurationService::valueTrail() reads App\Models\SettingChange, which
-// App\Observers\SettingValueObserver writes on every write of a settings row. The fixture
+// App\Observers\SettingValueObserver records observed model saves and deletes. The fixture
 // keeps the same shape — [key, was, now, by, iso, created?, secret?] — so the page renders
 // exactly as it does in the application. Note the second row: a credential records that it
 // changed and never what it is.
 const TRAIL = [
+  ['hr_holidays_2026', '[["2026-03-06","Independence Day",false]]', 'cleared', 'Yaw Antwi', '2026-11-05T09:30:00Z'],
   ['booking_policy', 'A'.repeat(2000) + '…', 'Updated policy', 'Yaw Antwi', '2026-11-05T09:20:00Z'],
   ['loyalty_spend_per_point', '0', '100', 'Yaw Antwi', '2026-11-05T09:10:00Z'],
   ['cancel_free_hours', '72', '48', 'Yaw Antwi', '2026-11-04T16:20:00Z'],
@@ -848,7 +867,7 @@ const TRAIL = [
   ['loyalty_point_value', '1', '0', 'System Administrator', '2026-10-31T07:45:00Z'],
 ];
 
-const TRAIL_COVERAGE = { rows: 412, keys: 96, keys_total: 276, since: at('2026-10-31T07:45:00Z') };
+const TRAIL_COVERAGE = { rows: 412, keys: 96, keys_total: new Set(parseRegistry(path.join(ROOT, 'config/settings.php')).modules.flatMap(m => m.keys.map(([key]) => key))).size, since: at('2026-10-31T07:45:00Z') };
 
 /**
  * The flat Settings form's typed keys — SettingController::KEYS. These are the only settings
@@ -894,7 +913,12 @@ function valueTrail(module, limit = 60) {
   const labels = LABELS();
   const rows = [];
   for (const [key, was, now, by, iso, created, secret] of TRAIL) {
-    const at0 = labels[key];
+    let at0 = labels[key];
+    if (!at0) {
+      const prefix = Object.keys(labels).filter(k => k.endsWith('_') && key.startsWith(k))
+        .sort((a, b) => b.length - a.length)[0];
+      if (prefix) at0 = { ...labels[prefix], label: `${labels[prefix].label} (${key})` };
+    }
     if (!at0) continue;
     if (module && at0.module !== module) continue;
     const row = {

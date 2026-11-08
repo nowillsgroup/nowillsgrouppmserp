@@ -94,6 +94,7 @@ class ConfigurationChecks
         'budget_capex_no_prefix' => 'budgets',
         'voucher_min_above_max' => 'vouchers',
         'sales_stage_probabilities_unordered' => 'sales',
+        'laundry_express_slower_than_normal' => 'laundry',
     ];
 
     /** The rules that look at one module. */
@@ -653,6 +654,14 @@ class ConfigurationChecks
                 'Sales stage probabilities do not increase through the pipeline',
                 'The sales settings screen requires each stage to have a higher probability than the one before it. Review imported or older values so weighted forecasts follow that policy.',
                 ['sales_prob_prospect', 'sales_prob_qualified', 'sales_prob_proposal', 'sales_prob_negotiation']);
+        }
+
+        // Use the actual promised-hour calculation (including its minimum of one hour).
+        if (\App\Services\LaundryService::hours('express') > \App\Services\LaundryService::hours('normal')) {
+            $add('laundry_express_slower_than_normal', 'warning', 'laundry',
+                'Express laundry is promised later than normal laundry',
+                'Existing or imported turnaround values make the express promise longer than the normal promise. The prices screen permits equal times, but not express longer than normal.',
+                ['laundry_express_hours', 'laundry_normal_hours']);
         }
 
         // ── booking engine ────────────────────────────────────────────────────────
