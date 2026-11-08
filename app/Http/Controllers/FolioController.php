@@ -391,12 +391,25 @@ class FolioController extends Controller
 
     public function reopen(Folio $folio)
     {
-        abort_unless($folio->status === 'closed', 422);
-        if ($why = \App\Services\GstService::reopenBlocker($folio)) {
+        $why = DB::transaction(function () use ($folio) {
+            // Recheck after locking, so a stale reopen request cannot reopen a
+            // folio that was consolidated while the request was waiting.
+            $folio = Folio::whereKey($folio->id)->lockForUpdate()->firstOrFail();
+            abort_unless($folio->status === 'closed', 422);
+            if ($folio->consolidated_into_folio_id !== null) {
+                return 'This folio was consolidated into another reservation bill and cannot be reopened.';
+            }
+            if ($why = \App\Services\GstService::reopenBlocker($folio)) {
+                return $why;
+            }
+            $folio->update(['status' => 'open']);
+            ActivityLogger::log('folio', 'reopen', "Re-opened {$folio->folio_no} (invoice {$folio->invoice_no})", $folio);
+
+            return null;
+        });
+        if ($why) {
             return back()->with('error', $why);
         }
-        $folio->update(['status' => 'open']);
-        ActivityLogger::log('folio', 'reopen', "Re-opened {$folio->folio_no} (invoice {$folio->invoice_no})", $folio);
 
         return back()->with('success', 'Folio re-opened. Invoice number is retained.');
     }
