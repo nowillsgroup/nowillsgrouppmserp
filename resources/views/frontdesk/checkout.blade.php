@@ -84,7 +84,7 @@
   </section>
   <div class="checkout-alert-stack" aria-label="Departure checklist">
 @if($openPos->count())<div class="alert alert-warn"><x-icon name="alert"/><div><b>{{ $openPos->count() }} unsettled POS order(s)</b> for this room: @if(can_do('pos.view'))@foreach($openPos as $o)<a href="{{ route('pos.terminal', $o) }}">{{ $o->order_no }} ({{ $o->outlet->name }})</a> @endforeach — settle or post to room before check-out.@else Order details are restricted to POS-authorized staff; settle or post the outstanding orders before check-out.@endif</div></div>@endif
-@if(($openLaundry ?? collect())->count())<div class="alert alert-warn" id="laundryWarn"><x-icon name="shirt"/><div><b>{{ $openLaundry->count() }} laundry order(s) still open</b> for this room: @if(can_do('laundry.view'))@foreach($openLaundry as $lo)<a href="{{ route('laundry.show', $lo) }}">{{ $lo->order_no }}</a> ({{ $lo->statusLabel() }}{{ (float) $lo->total ? ', '.money($lo->total) : '' }}) @endforeach — deliver them now so the charge lands on this bill, or cancel them.@else Laundry order details are restricted to laundry-authorized staff; ask the laundry desk to deliver or cancel them before check-out.@endif</div></div>@endif
+@if(($openLaundry ?? collect())->count())<div class="alert alert-warn" id="laundryWarn"><x-icon name="shirt"/><div><b>{{ $openLaundry->count() }} laundry order(s) still open</b> for this room: @if(can_do('laundry.view'))@foreach($openLaundry as $lo)<a href="{{ route('laundry.show', $lo) }}">{{ $lo->order_no }}</a> ({{ $lo->statusLabel() }}{{ (float) $lo->total ? ', '.money($lo->total) : '' }}) @endforeach — deliver and settle them, or cancel them, before check-out.@else Laundry order details are restricted to laundry-authorized staff; ask the laundry desk to deliver and settle or cancel them before check-out.@endif</div></div>@endif
 @if(($openParking ?? collect())->count())<div class="alert alert-info" id="parkingWarn"><x-icon name="key"/><div><b>{{ $openParking->count() }} active parking session(s) for this stay.</b> @if(can_do('parking.view') || can_do('parking.operate') || can_do('parking.validate') || can_do('parking.manage'))@foreach($openParking as $pk)<a href="{{ route('parking.session', $pk) }}">{{ $pk->plate }}</a> ({{ $pk->number }}{{ $pk->key_tag ? ', key tag '.$pk->key_tag : '' }}) @endforeach — parking nights so far are already on this bill, and nothing more is charged for today. @if($openParking->where('is_valet', true)->count())Ask whether to call the car up now.@endif @else Session and vehicle details require parking permission. Parking nights are already included in the bill; nothing more is charged for today.@endif</div></div>@endif
 @if(($deskOpen ?? collect())->count() || ($deskItems ?? collect())->count())<div class="alert alert-warn" id="deskWarn"><x-icon name="mail"/><div>
   @if($deskOpen->count())@if(can_do('desk.messages'))<b>Hand over before the guest leaves:</b> @foreach($deskOpen as $dm){{ $dm->isParcel() ? '📦 parcel' : '✉ message' }} {{ $dm->message_no }} from {{ $dm->from_name }}@if(! $loop->last), @endif @endforeach. <a href="{{ route('desk.messages', ['q' => $stay->room?->room_no]) }}">Open messages</a> – undelivered messages lapse at check-out; parcels stay on the list to be forwarded.@else{{ $deskOpen->count() }} guest message(s) or parcel(s) need desk attention before departure; message details are restricted.@endif @endif
@@ -121,10 +121,10 @@
   <div>
     <div class="card"><div class="card-head"><h3>Summary</h3></div><div class="card-body">
       <p class="small">Opening this screen did not post a night. {{ $canViewFolio ? $checkoutQuote : 'Unposted room charges are included in the projected settlement amount above.' }}</p>
-      @php $postable = $holds['pos']['count'] || $holds['trips']['count'] || $holds['laundry']['count']; @endphp
+      @php $postable = $holds['pos']['count'] || $holds['trips']['count']; @endphp
       @if ($holds['blocking'] > 0)
       <div class="alert alert-warning" style="margin:8px 0">
-        <b>Check-out is refused until these reach the bill:</b>
+        <b>Check-out is refused until these are resolved:</b>
         <ul class="small" style="margin:4px 0 6px 18px">
           @if ($holds['pos']['count'])
           <li>{{ $holds['pos']['count'] }} unsettled outlet bill(s) — @if(can_do('pos.view')){{ money($holds['pos']['total']) }}@else amount details restricted @endif</li>
@@ -145,7 +145,7 @@
         @if ($postable)
         <form method="post" action="{{ route('frontdesk.prepare', $stay) }}">@csrf
           <button class="btn btn-warning btn-sm">Post outstanding charges to this bill</button>
-          <span class="small muted">Outlet bills, laundry and transport go onto the folio at their own totals. Activities need the operator; Form C is filed from GRC.</span>
+          <span class="small muted">Eligible outlet bills and transport go onto the folio at their own totals. Resolve laundry in Laundry; activities need the operator and Form C is filed from GRC.</span>
         </form>
         @else
         <span class="small muted">Nothing here can be posted automatically — clear the items above in their own screens first.</span>

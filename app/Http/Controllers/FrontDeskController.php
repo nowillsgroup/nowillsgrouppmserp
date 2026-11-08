@@ -792,6 +792,9 @@ class FrontDeskController extends Controller
             $lockedStay->setRelation('reservation', $reservation);
             $lockedStay->setRelation('room', $room);
             $stay = $lockedStay;
+            // Check before any folio lock: laundry delivery locks its order before
+            // the folio, so the reverse order here could deadlock.
+            StayService::assertLaundryClear($stay);
             StayService::postPendingNights($stay, bdate());
             $folio = FolioService::lockOpen($stay->fresh()->folio);
             // A locking read is current even if this outer transaction has an
@@ -864,7 +867,7 @@ class FrontDeskController extends Controller
         return redirect()->to(\App\Http\Controllers\Auth\LoginController::home(auth()->user()))->with('success', $message);
     }
 
-    /** Post every outstanding outlet bill, laundry order and transport trip onto the folio. */
+    /** Post eligible outlet bills and transport trips; laundry is resolved in its own workflow. */
     public function prepareBill(ReservationRoom $stay)
     {
         abort_unless($stay->status === 'checked_in', 404);

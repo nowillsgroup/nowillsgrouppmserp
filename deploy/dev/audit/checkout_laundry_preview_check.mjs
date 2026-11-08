@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+const doc = new JSDOM(fs.readFileSync('deploy/dev/previews/checkout-laundry.html', 'utf8')).window.document;
+const content = s => doc.querySelector(s)?.textContent.replace(/\s+/g, ' ').trim() ?? '';
+assert.match(doc.title, /^Check-out · Room 202/);
+assert.match(content('[role="note"]'), /Sample preview only/);
+assert.match(content('.checkout-metric.holds'), /Action needed/);
+assert.match(content('#laundryWarn'), /1 laundry order.*Processing.*deliver and settle.*cancel/);
+assert.match(content('.checkout-form'), /Settlement/);
+assert.match(content('.alert-warning'), /Check-out is refused.*1 open laundry order.*Nothing here can be posted automatically/);
+assert.doesNotMatch(content('.alert-warning'), /Post outstanding charges to this bill/);
+console.log('7 sample checkout preview assertions passed.');

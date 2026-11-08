@@ -55,7 +55,7 @@
       <td>{{ $s->reservation->guest->full_name }}</td>
       <td>{{ $s->room->room_no ?? '—' }}</td>
       <td>{{ $s->status !== 'checked_in' ? 'Checked out' : ($due === null ? 'No folio' : money($due)) }}</td>
-      <td class="small">{{ $s->status !== 'checked_in' ? '—' : (($holds['trips']['count'] || $holds['activities']['count']) ? 'Checkout blocked' : 'No hold on file') }}</td>
+      <td class="small">{{ $s->status !== 'checked_in' ? '—' : (($holds['blocking'] ?? 0) > 0 ? 'Checkout blocked' : 'No hold on file') }}</td>
     </tr>
   @empty
     <tr><td colspan="5">No departures on file.</td></tr>

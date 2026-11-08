@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FolioTransaction;
 use App\Models\FormCRecord;
 use App\Models\KeyCard;
+use App\Models\LaundryOrder;
 use App\Models\PosOrder;
 use App\Models\Reservation;
 use App\Models\ReservationRoom;
@@ -278,8 +279,8 @@ class StayService
             ? 'Activities that would block checkout: '.money($holds['activities']['total']).' ('.$holds['activities']['count'].'). They are not on the bill.'
             : 'Activities that would block checkout: none.';
         $parts[] = $holds['laundry']['count']
-            ? 'Open laundry not posted by checkout: '.money($holds['laundry']['total']).' ('.$holds['laundry']['count'].').'
-            : 'Open laundry not posted by checkout: none.';
+            ? 'Open laundry blocks checkout: '.$holds['laundry']['count'].' order(s). Deliver and settle or cancel each order first.'
+            : 'Open laundry blocking checkout: none.';
         if ($holds['formc']['count']) {
             $parts[] = 'Form C '.$holds['formc']['form_no'].' is still pending and would block checkout.';
         }
@@ -312,19 +313,32 @@ class StayService
             'laundry' => ['count' => $laundry->count(), 'total' => round((float) $laundry->sum('total'), 2)],
             'pos' => ['count' => $pos->count(), 'total' => round((float) $pos->sum('total'), 2)],
             'formc' => ['count' => $fc ? 1 : 0, 'total' => 0.0, 'form_no' => $fc?->form_no],
-            // Only these four actually refuse a checkout. Open laundry is posted
-            // separately and does not hold the guest at the desk.
-            'blocking' => ($pos->count() ? 1 : 0) + $trips->count() + $acts->count() + ($fc ? 1 : 0),
+            // Match the operational checkout guards, including unresolved laundry.
+            'blocking' => ($pos->count() ? 1 : 0) + $trips->count() + $acts->count() + $laundry->count() + ($fc ? 1 : 0),
         ];
     }
 
     /**
+     * Call inside a transaction after locking the reservation and stay, before
+     * locking the folio. Laundry collection takes the same stay lock. A current
+     * read is needed even if an outer MySQL transaction has an older snapshot.
+     */
+    public static function assertLaundryClear(ReservationRoom $stay): void
+    {
+        $open = LaundryOrder::where('reservation_room_id', $stay->id)->whereIn('status', LaundryOrder::OPEN)
+            ->orderBy('id')->lockForUpdate()->get(['id']);
+        if ($open->isNotEmpty()) {
+            throw new RuntimeException($open->count().' laundry order(s) are still open. Deliver and settle or cancel them before check-out.');
+        }
+    }
+
+    /**
      * Post everything still sitting outside the folio onto it, so a departure
-     * can actually check out: unsettled outlet bills, pending laundry and
-     * transport trips billed to the room. Anything that needs a human first
-     * (guest QR items awaiting confirmation, laundry not yet processed, an
-     * activity waiting on its operator, Form C) is reported as skipped rather
-     * than forced. Returns counts, totals and the skip reasons.
+     * can actually check out: unsettled outlet bills and transport trips billed
+     * to the room. Laundry must be delivered or cancelled in its own workflow;
+     * preparing a bill must not claim garments were handed back. Anything that
+     * needs a human first is reported as skipped rather than forced. Returns
+     * counts, totals and the skip reasons.
      */
     public static function assembleBill(ReservationRoom $stay): array
     {
@@ -343,14 +357,9 @@ class StayService
                 $done['pos']++;
                 $done['pos_total'] += (float) $o->total;
             }
-            foreach (LaundryService::pendingForStay($stay->id) as $o) {
-                if (! in_array($o->status, ['processing', 'ready'], true) || (float) $o->total <= 0) {
-                    $done['skipped'][] = "laundry {$o->order_no} is {$o->statusLabel()}";
-                    continue;
-                }
-                LaundryService::deliver($o);
-                $done['laundry']++;
-                $done['laundry_total'] += (float) $o->total;
+            $laundryCount = LaundryService::pendingForStay($stay->id)->count();
+            if ($laundryCount) {
+                $done['skipped'][] = $laundryCount.' open laundry order(s) require delivery and settlement or cancellation in Laundry';
             }
             $done['trips'] = TransportService::postPendingForStay($stay);
         });
@@ -489,6 +498,8 @@ class StayService
             if ($stay->status !== 'checked_in') {
                 throw new RuntimeException('Stay is not checked in.');
             }
+            // Open laundry always blocks checkout, including force callers.
+            self::assertLaundryClear($stay);
             self::postPendingNights($stay, bdate());
             $folio = $stay->folio()->first();
             $pendingPos = \App\Models\PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->count();

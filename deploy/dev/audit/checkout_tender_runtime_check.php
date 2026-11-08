@@ -13,6 +13,8 @@ namespace App\Services {
     }
     class StayService {
         public static int $checkouts = 0;
+        public static bool $laundryBlocked = false;
+        public static function assertLaundryClear($stay): void { if (self::$laundryBlocked) throw new \RuntimeException('Open laundry blocks checkout'); }
         public static function postPendingNights($stay, $date): void { FolioService::charge($stay->folio, 'room', 'Night', 10, false); }
         public static function checkOut($stay, $force = false) {
             if (abs($stay->folio->balance()) > 0.009) throw new \RuntimeException('Balance remains');
@@ -87,6 +89,12 @@ namespace {
     $reject(['settle' => 'payment', 'payments' => [['amount' => 40, 'payment_mode_id' => $inactive->id], ['amount' => 60, 'payment_mode_id' => $cash->id]]], false, 'payments.0.payment_mode_id');
     $reject(['settle' => 'payment', 'payments' => [['amount' => 40, 'payment_mode_id' => $cash->id], ['amount' => 60, 'payment_mode_id' => $voucher->id]]], false, 'payments');
     $check(\App\Services\StayService::$checkouts === 0, 'invalid tender called checkout');
+    [$stay, $folio] = $makeStay(); $request->data = ['settle' => 'payment', 'payment_mode_id' => $cash->id];
+    \App\Services\StayService::$laundryBlocked = true;
+    try { $controller->checkOut($request, $stay); throw new \RuntimeException('Checkout should have blocked'); }
+    catch (\RuntimeException $e) { $check(str_contains($e->getMessage(), 'Open laundry blocks'), 'wrong laundry guard failure'); }
+    $check($stay->fresh()->status === 'checked_in' && $folio->transactions()->count() === 1 && \App\Services\StayService::$checkouts === 0, 'blocked checkout posted a night, payment or checkout');
+    \App\Services\StayService::$laundryBlocked = false;
     [$stay, $folio] = $makeStay(); $request->data = ['settle' => 'payment', 'payment_mode_id' => $cash->id, 'reference' => 'receipt'];
     $check($controller->checkOut($request, $stay) === 'success' && $stay->fresh()->status === 'checked_out', 'valid single payment failed');
     $entry = $folio->transactions()->where('category', 'settlement')->first();

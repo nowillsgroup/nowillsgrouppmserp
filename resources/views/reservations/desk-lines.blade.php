@@ -117,9 +117,10 @@
               $holdLabels = [];
               if ($holds && $holds['pos']['count']) $holdLabels[] = 'POS '.$holds['pos']['count'];
               if ($holds && $holds['trips']['count']) $holdLabels[] = 'Transport '.$holds['trips']['count'];
+              if ($holds && $holds['laundry']['count']) $holdLabels[] = 'Laundry '.$holds['laundry']['count'];
               if ($holds && $holds['activities']['count']) $holdLabels[] = 'Activities '.$holds['activities']['count'];
               if ($holds && $holds['formc']['count']) $holdLabels[] = 'Form C pending';
-              $canPostBills = $canCheckout && $holds && ($holds['pos']['count'] || $holds['trips']['count'] || $holds['laundry']['count']);
+              $canPostBills = $canCheckout && $holds && ($holds['pos']['count'] || $holds['trips']['count']);
               $roomStatus = $s->room ? ucfirst(str_replace('_', ' ', $s->room->hk_status)) : 'Unassigned';
               $prepLabel = $s->status === 'checked_in' ? (! $canSeeCheckoutPrep ? 'Front desk follow-up' : (($holds['blocking'] ?? 0) > 0 ? 'Checkout follow-up' : 'Checkout review')) : ($s->status === 'checked_out' ? 'Completed' : 'Not checked in');
               $prepTone = $s->status === 'checked_in' ? (! $canSeeCheckoutPrep ? 'pending' : (($holds['blocking'] ?? 0) > 0 ? 'attention' : 'ready')) : ($s->status === 'checked_out' ? 'complete' : 'pending');
@@ -153,7 +154,6 @@
                   @if(!$canSeeCheckoutPrep)<span class="departure-prep-note">Checkout hold details are available to Front Desk staff.</span>
                   @elseif($holds['blocking'] > 0)<span class="departure-prep-note">Resolve {{ implode(' · ', $holdLabels) }} before checkout.</span>
                   @else<span class="departure-prep-note">No operational checkout holds are on file. Complete final review in the existing checkout flow.</span>@endif
-                  @if($holds && $holds['laundry']['count'])<span class="departure-prep-note">{{ $holds['laundry']['count'] }} laundry item(s) still need posting; laundry does not block checkout.</span>@endif
                 @elseif($s->status === 'checked_out')
                   <span class="departure-prep-note">Checkout is recorded. Room turnover follows the existing checkout process.</span>
                 @else
@@ -165,7 +165,7 @@
                 <a class="btn btn-sm" href="{{ route('reservations.stay', $s) }}" aria-label="Open stay for {{ $guestName }}">Open stay</a>
                 @if($canViewFolio && $folio)<a class="btn btn-sm" href="{{ route('folios.show', $folio) }}" aria-label="Open folio for {{ $guestName }}">Folio</a><a class="btn btn-sm" href="{{ route('folios.invoice', $folio) }}" target="_blank" rel="noopener" aria-label="Open invoice for {{ $guestName }}">Invoice</a>@endif
                 @if($s->status === 'checked_in' && $canCheckout)
-                  @if($canPostBills)<form method="post" action="{{ route('frontdesk.prepare', $s) }}" class="departure-post-bills">@csrf<button class="btn btn-sm btn-warning" title="Post eligible outlet, laundry and transport bills to the folio" aria-label="Post eligible bills for {{ $guestName }}">Post bills</button></form>@endif
+                  @if($canPostBills)<form method="post" action="{{ route('frontdesk.prepare', $s) }}" class="departure-post-bills">@csrf<button class="btn btn-sm btn-warning" title="Post eligible outlet and transport bills to the folio" aria-label="Post eligible bills for {{ $guestName }}">Post bills</button></form>@endif
                   <a class="btn btn-sm btn-primary" href="{{ route('frontdesk.checkout', $s) }}" aria-label="Check out {{ $guestName }} for reservation {{ $reservation?->reservation_no }}">Check out</a>
                 @endif
               </td>
@@ -348,9 +348,9 @@
         <td>{{ $bal === null ? 'No folio' : money($bal) }}</td>
         @if(($mode ?? '') === 'departure')
           @php $holds = $s->status === 'checked_in' ? \App\Services\StayService::checkoutHolds($s) : null; @endphp
-          <td class="small">@if($s->status === 'reserved')Not checked in.@elseif($s->status === 'checked_out')Checked out.@elseif($holds['blocking'] > 0)Checkout blocked.@if($holds['pos']['count']) POS {{ $holds['pos']['count'] }} ({{ money($holds['pos']['total']) }}).@endif @if($holds['trips']['count']) Transport {{ money($holds['trips']['total']) }}.@endif @if($holds['activities']['count']) Activity {{ money($holds['activities']['total']) }}.@endif @if($holds['formc']['count']) Form C {{ $holds['formc']['form_no'] }}.@endif
-            @if($holds['pos']['count'] || $holds['trips']['count'] || $holds['laundry']['count'])
-            <form method="post" action="{{ route('frontdesk.prepare', $s) }}" style="display:inline">@csrf<button class="btn btn-sm btn-warning" title="Post outlet bills, laundry and transport onto the folio">Post to bill</button></form>
+          <td class="small">@if($s->status === 'reserved')Not checked in.@elseif($s->status === 'checked_out')Checked out.@elseif($holds['blocking'] > 0)Checkout blocked.@if($holds['pos']['count']) POS {{ $holds['pos']['count'] }} ({{ money($holds['pos']['total']) }}).@endif @if($holds['trips']['count']) Transport {{ money($holds['trips']['total']) }}.@endif @if($holds['laundry']['count']) Laundry {{ $holds['laundry']['count'] }} order(s).@endif @if($holds['activities']['count']) Activity {{ money($holds['activities']['total']) }}.@endif @if($holds['formc']['count']) Form C {{ $holds['formc']['form_no'] }}.@endif
+            @if($holds['pos']['count'] || $holds['trips']['count'])
+            <form method="post" action="{{ route('frontdesk.prepare', $s) }}" style="display:inline">@csrf<button class="btn btn-sm btn-warning" title="Post outlet bills and transport onto the folio">Post to bill</button></form>
             @endif @else No hold on file.@endif</td>
           <td class="small">@if($s->status !== 'checked_in')—@else @php $due = \App\Services\StayService::quoteCheckoutFigures($s)['due']; @endphp {{ $due === null ? 'No folio' : money($due) }}<div class="tiny muted">Not posted</div>@endif</td>
         @endif
