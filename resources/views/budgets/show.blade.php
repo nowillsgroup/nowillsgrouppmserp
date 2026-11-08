@@ -193,11 +193,11 @@
       <p class="small" id="fundingShort" style="margin:0"><x-icon name="alert"/>
         <b>{{ money($funding['short']) }}</b> of the money promised from the FF&amp;E reserve is more than the reserve holds.
         @if($funding['cash'] !== null)It holds <b>{{ money($funding['cash']) }}</b> in cash, so even the cash does not cover what the
-        reserve has already promised.@endif
+        reserve has already promised. @endif
         Fund the reserve, move the project to a later year, or ask the owner for a capital call.</p>
     @elseif($funding['accrued'] !== null)
       <p class="small" id="fundingCovered" style="margin:0"><x-icon name="check"/>The reserve holds
-        {{ money($funding['accrued']) }} accrued@if($funding['cash'] !== null) and {{ money($funding['cash']) }} in cash@endif, which covers
+        {{ money($funding['accrued']) }} accrued @if($funding['cash'] !== null) and {{ money($funding['cash']) }} in cash @endif, which covers
         everything promised from it.</p>
     @endif
     @if($funding['untracked'] > 0)
@@ -211,12 +211,12 @@
 <form method="post" action="{{ route('budgets.grid', $b) }}" id="gridForm">@csrf
 <div class="card flush">
   <div class="card-head"><h3>{{ $b->name }}</h3>
-    <span class="muted small">Amounts in {{ hotel()->currency_symbol }} · {{ $b->isCapital() ? 'money committed to assets, positive; it never enters the profit and loss' : 'income positive, expenses positive' }}@if($canEdit) · Tab across the months; use ⋯ on a row to spread an annual total@endif</span>
+    <span class="muted small">Amounts in {{ hotel()->currency_symbol }} · {{ $b->isCapital() ? 'money committed to assets, positive; it never enters the profit and loss' : 'income positive, expenses positive' }} @if($canEdit) · Tab across the months; use ⋯ on a row to spread an annual total @endif</span>
     @if($canEdit)<button class="btn btn-primary btn-sm ml-auto" id="saveGridBtn"><x-icon name="check" size="sm"/> Save changes</button>@endif
   </div>
   <div class="card-body table-wrap"><table class="table table-compact bg-grid" id="budgetGrid">
     <thead><tr><th>Code</th><th style="min-width:180px">Account</th>
-      @foreach($labels as $m => $l)<th class="num {{ in_array($m, $locked) ? 'bg-locked' : '' }}">{{ $l }}@if(in_array($m, $locked))<div class="tiny muted">actual</div>@endif</th>@endforeach
+      @foreach($labels as $m => $l)<th class="num {{ in_array($m, $locked) ? 'bg-locked' : '' }}">{{ $l }} @if(in_array($m, $locked))<div class="tiny muted">actual</div>@endif</th>@endforeach
       <th class="num">Total</th><th class="num" title="Posted actuals for the previous fiscal year">Last year</th><th class="num" title="Posted actuals this year to date">Actual YTD</th>@if($canEdit)<th></th>@endif</tr></thead>
     <tbody>
     @foreach($secLabels as $sec => $label)
@@ -226,7 +226,7 @@
         @php $a = $accounts[$l->account_head_id]; $ly = array_sum($lastYear[$a->id] ?? []); $ytd = array_sum($actuals[$a->id] ?? []); @endphp
         <tr data-acct="{{ $a->code }}" data-sec="{{ $sec }}">
           <td class="muted small">{{ $a->code }}</td>
-          <td>{{ $a->name }}@if($a->id === $roomAccount) <span class="tiny muted" title="Can be driven by the rooms statistics">⚙ stats</span>@endif
+          <td>{{ $a->name }} @if($a->id === $roomAccount) <span class="tiny muted" title="Can be driven by the rooms statistics">⚙ stats</span>@endif
             @if($canEdit)<input class="input input-sm bg-note" name="note[{{ $a->id }}]" value="{{ $l->note }}" placeholder="assumption…" maxlength="190">@elseif($l->note)<div class="tiny muted">{{ $l->note }}</div>@endif</td>
           @foreach(range(1, 12) as $m)
             @if($canEdit && ! in_array($m, $locked))
@@ -276,7 +276,7 @@
     @foreach($labels as $m => $l)
       @php $s = $stats[$m] ?? null; $as = $actualStats[$m]; $edit = $canEdit && ! in_array($m, $locked); if ($s) { $sumA += $s->rooms_available; $sumS += $s->roomsSold(); $sumR += $s->roomRevenue(); } @endphp
       <tr data-month="{{ $m }}">
-        <td>{{ $l }}@if(in_array($m, $locked)) <span class="tiny muted">actual</span>@endif</td>
+        <td>{{ $l }} @if(in_array($m, $locked)) <span class="tiny muted">actual</span>@endif</td>
         @if($edit)
           <td class="num"><input class="input input-sm bg-cell" name="s[{{ $m }}][rooms_available]" value="{{ $s?->rooms_available }}" inputmode="numeric"></td>
           <td class="num"><input class="input input-sm bg-cell" name="s[{{ $m }}][occupancy]" value="{{ $s ? $raw($s->occupancy) : '' }}" inputmode="decimal"></td>
@@ -310,12 +310,12 @@
   <div class="kv-grid small">
     <div class="kv"><span>Version</span><b>{{ $b->budget_no }} · {{ $b->kindLabel() }}</b></div>
     <div class="kv"><span>Fiscal year</span><b>{{ $b->fyLabel() }}</b></div>
-    <div class="kv"><span>Built from</span><b>{{ \App\Models\Budget::METHODS[$b->method] ?? $b->method }}@if($b->parent) – {{ $b->parent->budget_no }}@endif</b></div>
+    <div class="kv"><span>Built from</span><b>{{ \App\Models\Budget::METHODS[$b->method] ?? $b->method }} @if($b->parent) – {{ $b->parent->budget_no }} @endif</b></div>
     <div class="kv"><span>Growth</span><b>{{ sprintf('revenue %+.1f %% · expenses %+.1f %%', $b->growth_income, $b->growth_expense) }}</b></div>
     <div class="kv"><span>Prepared by</span><b>{{ $b->creator?->name ?? '—' }}</b></div>
-    <div class="kv"><span>Approved by</span><b>{{ $b->approver?->name ?? '—' }}@if($b->approved_at) · {{ $b->approved_at->format('d M Y') }}@endif @if($approval['needed'] === 2)<span class="tiny muted">(first)</span>@endif</b></div>
+    <div class="kv"><span>Approved by</span><b>{{ $b->approver?->name ?? '—' }} @if($b->approved_at) · {{ $b->approved_at->format('d M Y') }} @endif @if($approval['needed'] === 2)<span class="tiny muted">(first)</span>@endif</b></div>
     @if($approval['needed'] === 2 || $b->second_approved_by)
-    <div class="kv"><span>Second approval</span><b>{{ $b->secondApprover?->name ?? ($b->status === 'submitted' ? 'awaiting the second approver' : '—') }}@if($b->second_approved_at) · {{ $b->second_approved_at->format('d M Y') }}@endif</b></div>
+    <div class="kv"><span>Second approval</span><b>{{ $b->secondApprover?->name ?? ($b->status === 'submitted' ? 'awaiting the second approver' : '—') }} @if($b->second_approved_at) · {{ $b->second_approved_at->format('d M Y') }} @endif</b></div>
     @endif
     @if($approval['threshold'] > 0)
     <div class="kv"><span>Approval threshold</span><b>{{ money($approval['threshold']) }} – {{ $approval['size'] >= $approval['threshold'] ? 'two approvers' : 'one approver' }}</b></div>

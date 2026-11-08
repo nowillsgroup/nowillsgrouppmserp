@@ -44,7 +44,7 @@
   </div></div>
 @else
   <div class="card mt-2"><div class="card-head"><h3>{{ $freeCount }} {{ $freeCount === 1 ? 'venue is' : 'venues are' }} free</h3>
-    <span class="small muted">{{ \Carbon\Carbon::parse($date)->format('D d M Y') }} · {{ $start }}–{{ $end }}@if($pax) · {{ number_format($pax) }} guests@endif · {{ $setups[$style] }}</span></div>
+    <span class="small muted">{{ \Carbon\Carbon::parse($date)->format('D d M Y') }} · {{ $start }}–{{ $end }} @if($pax) · {{ number_format($pax) }} guests @endif · {{ $setups[$style] }}</span></div>
     <div class="card-body">
       <p class="bq-free-note" id="faSummary">{{ $freeCount }} free · {{ $heldCount }} held for another event · {{ $smallCount }} too small for {{ $setups[$style] }} at {{ number_format($pax) }} guests. Turn-around: {{ $turnaround }} minutes.</p>
 

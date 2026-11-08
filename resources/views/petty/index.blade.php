@@ -44,7 +44,7 @@
         last night audit — {{ money($tie['waiting']) }} still to post. The ledger and the tins describe the same money.</p>
     @else
       <p class="small text-red" id="pettyTieState" style="margin:.6rem 0 0"><x-icon name="alert"/>{{ money($tie['unexplained']) }} of the {{ money($tie['gap']) }} difference is neither posted nor waiting to post:
-        @foreach($tie['with_gap'] as $g){{ $g['float']->name }} {{ money($g['unexplained'], false) }}@if(! $loop->last), @endif@endforeach.
+        @foreach($tie['with_gap'] as $g){{ $g['float']->name }} {{ money($g['unexplained'], false) }} @if(! $loop->last), @endif @endforeach.
         Something moved in a tin without reaching its ledger account — re-run the night audit or find the movement before the tin is counted again.</p>
     @endif
     <div class="table-wrap" style="margin-top:.6rem"><table class="table table-compact" id="tinTable">
@@ -84,7 +84,7 @@
         and the {{ $receipt['with'] }} receipts cover {{ money($receipt['with_amount']) }}. Nothing left the tins without something behind it.</p>
     @else
       <p class="small text-red" id="receiptTieState" style="margin:.6rem 0 0"><x-icon name="alert"/>{{ $receipt['missing'] }} spend{{ $receipt['missing'] === 1 ? '' : 's' }} over {{ money($receipt['threshold']) }} with no receipt and no reason
-        @foreach($receipt['missing_rows'] as $m)— {{ $m['txn_no'] }} {{ $m['float'] }} {{ money($m['amount'], false) }}{{ $m['age'] !== null ? ' ('.$m['age'].' days old)' : '' }}@if(! $loop->last), @endif@endforeach.
+        @foreach($receipt['missing_rows'] as $m)— {{ $m['txn_no'] }} {{ $m['float'] }} {{ money($m['amount'], false) }}{{ $m['age'] !== null ? ' ('.$m['age'].' days old)' : '' }} @if(! $loop->last), @endif @endforeach.
         {{ money($receipt['missing_amount']) }} left the tin and nothing here says what for — attach the receipt, or write the reason on the voucher.</p>
     @endif
     <div class="table-wrap" style="margin-top:.6rem"><table class="table table-compact" id="receiptRows">
@@ -94,7 +94,7 @@
         <td>{{ dmy($e['date']) }}</td>
         <td class="num {{ $e['age'] > 30 ? 'text-red' : 'muted' }}">{{ $e['age'] }} d</td>
         <td class="small">{{ $e['float'] }}</td>
-        <td class="bold">{{ $e['txn_no'] }}@if($e['status'] === 'pending') <span class="tiny muted">pending</span>@endif</td>
+        <td class="bold">{{ $e['txn_no'] }} @if($e['status'] === 'pending') <span class="tiny muted">pending</span>@endif</td>
         <td class="small">{{ $e['payee'] }}</td>
         <td class="small">{{ $e['head'] }}</td>
         <td class="num">{{ money($e['amount'], false) }}</td>
@@ -154,7 +154,7 @@
     <tbody>
     @foreach($approvals['txns'] as $t)
       <tr data-txn="{{ $t->txn_no }}"><td><b>{{ $t->txn_no }}</b><div class="tiny muted">{{ $t->typeLabel() }} over the limit</div></td><td class="small">{{ $t->float->name }}</td>
-        <td class="small">{{ $t->party() }} · {{ $t->description }}@if($t->head)<div class="tiny muted">{{ $t->head->label }}</div>@endif @if($t->receipt_path)<a class="tiny" href="{{ route('petty.txn.receipt', $t) }}" target="_blank">receipt</a>@endif</td>
+        <td class="small">{{ $t->party() }} · {{ $t->description }} @if($t->head)<div class="tiny muted">{{ $t->head->label }}</div>@endif @if($t->receipt_path)<a class="tiny" href="{{ route('petty.txn.receipt', $t) }}" target="_blank">receipt</a>@endif</td>
         <td class="num">{{ money($t->amount, false) }}</td><td class="small">{{ dmy($t->date) }}<div class="tiny muted">{{ $t->creator?->name }}</div></td>
         <td class="nowrap">@if(can_do('petty.approve'))<form method="post" action="{{ route('petty.txn.approve', $t) }}" style="display:inline">@csrf<button class="btn btn-sm btn-primary" data-approve="{{ $t->txn_no }}">Approve</button></form>
           <button class="btn btn-sm" data-modal="reasonModal" data-action="{{ route('petty.txn.reject', $t) }}" data-title="Reject {{ $t->txn_no }}">Reject</button>@endif</td></tr>

@@ -66,7 +66,7 @@ return new class extends Migration
             $t->boolean('is_active')->default(true);
             $t->timestamps();
             $t->unique(['channel_connection_id', 'room_type_id']);
-            $t->unique(['channel_connection_id', 'channel_room_code']);
+            $t->unique(['channel_connection_id', 'channel_room_code'], 'chan_room_code_unique');
         });
 
                 if (Schema::hasTable('channel_rate_maps')) {

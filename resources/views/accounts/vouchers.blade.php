@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Vouchers')
 @section('crumbs') Accounts / Voucher Register @endsection
-@section('actions')@if(can_do('accounts.manage'))<button class="btn btn-danger" data-modal="vModal" data-ftype="payment"><x-icon name="minus"/> Payment (Expense)</button><button class="btn btn-success" data-modal="vModal" data-ftype="receipt"><x-icon name="plus"/> Receipt (Income)</button>@endif @endsection
+@section('actions') @if(can_do('accounts.manage'))<button class="btn btn-danger" data-modal="vModal" data-ftype="payment"><x-icon name="minus"/> Payment (Expense)</button><button class="btn btn-success" data-modal="vModal" data-ftype="receipt"><x-icon name="plus"/> Receipt (Income)</button>@endif @endsection
 @section('content')
 
 <div class="stats"><x-stat label="Receipts" :value="money($rec)" icon="money" tone="green" sub="money in, by the head that took it"/><x-stat label="Payments" :value="money($pay)" icon="wallet" tone="red" sub="money out, by the head it was charged to"/><x-stat label="Net" :value="money($rec - $pay)" icon="chart" tone="blue" :sub="'for the period '.dmy($from).' – '.dmy($to)"/><x-stat label="Vouchers" :value="count($vouchers)" icon="receipt" tone="slate" sub="every receipt and payment written in the period"/></div>
@@ -17,12 +17,12 @@
   </div>
   @if($tie['ties'])
     <p class="small" id="voucherTieState" style="margin:.6rem 0 0"><x-icon name="check"/>Every voucher dated on or before {{ dmy($tie['posted_through']) }} is in the general ledger,
-      at its own head, for {{ money($tie['expected_abs']) }} of movement.@if($tie['unposted'] > 0) {{ $tie['unposted'] }} {{ $tie['unposted'] === 1 ? 'voucher is' : 'vouchers are' }} dated after that day and
-      {{ $tie['unposted'] === 1 ? 'is' : 'are' }} excluded here: {{ $tie['unposted'] === 1 ? 'it has' : 'they have' }} not been posted yet.@endif</p>
+      at its own head, for {{ money($tie['expected_abs']) }} of movement. @if($tie['unposted'] > 0) {{ $tie['unposted'] }} {{ $tie['unposted'] === 1 ? 'voucher is' : 'vouchers are' }} dated after that day and
+      {{ $tie['unposted'] === 1 ? 'is' : 'are' }} excluded here: {{ $tie['unposted'] === 1 ? 'it has' : 'they have' }} not been posted yet. @endif</p>
   @else
     <p class="small text-red" id="voucherTieState" style="margin:.6rem 0 0"><x-icon name="alert"/>The register expects {{ money($tie['expected']) }} and the ledger has {{ money($tie['actual']) }} —
       a difference of {{ money($tie['diff_abs']) }}. The heads that disagree are
-      @foreach($tie['drift'] as $d){{ $d['head'] }} (register {{ money($d['expected'], false) }}, ledger {{ money($d['actual'], false) }})@if(! $loop->last), @endif@endforeach
+      @foreach($tie['drift'] as $d){{ $d['head'] }} (register {{ money($d['expected'], false) }}, ledger {{ money($d['actual'], false) }}) @if(! $loop->last), @endif @endforeach
       — a voucher the sync has not posted, or one posted twice. Check the sync failures on the general ledger page before the period is closed.</p>
   @endif
   </div>
@@ -69,7 +69,7 @@ the receipt heads its income, and a company receipt is not income at all — it 
 <x-field name="supplier_id" label="Supplier" type="select" :options="$suppliers"/>
 <x-field name="party_name" label="Party name (if not supplier)"/><x-field name="reference" label="Bill / Ref no."/>
 <x-field name="narration" label="Narration" class="span-all"/>
-<p class="small muted span-all">Payment: Dr the account head, Cr the payment mode's cash/bank account. Receipt: the reverse. Posted to the general ledger once the day is closed. @if(can_do('gl.journal'))For entries without cash/bank movement use a <a href="{{ route('gl.journals.create') }}">manual journal</a>.@endif</p>
+<p class="small muted span-all">Payment: Dr the account head, Cr the payment mode's cash/bank account. Receipt: the reverse. Posted to the general ledger once the day is closed. @if(can_do('gl.journal'))For entries without cash/bank movement use a <a href="{{ route('gl.journals.create') }}">manual journal</a>. @endif</p>
 </div>
 <div class="modal-foot"><button type="button" class="btn" data-close>Close</button><button class="btn btn-primary">Save Voucher</button></div></form></div></div>
 @endsection

@@ -23,7 +23,7 @@
     @endif
   </p>
   @if(count($drawn) > 0)
-    <p class="small text-red" id="cashBookDrawn" style="margin:.3rem 0 0"><x-icon name="alert"/>@foreach($drawn as $mode){{ $mode }}@if(! $loop->last), @endif@endforeach
+    <p class="small text-red" id="cashBookDrawn" style="margin:.3rem 0 0"><x-icon name="alert"/>@foreach($drawn as $mode){{ $mode }} @if(! $loop->last), @endif @endforeach
       {{ count($drawn) === 1 ? 'closes' : 'close' }} below zero. A drawer cannot pay out more than it held, so either a refund was taken from the wrong mode or the
       opening balance is short — check the day's payments against the float before the day is banked.</p>
   @endif
@@ -35,7 +35,7 @@
 <thead><tr><th>Mode</th><th class="num">Brought forward</th><th class="num">Receipts</th><th class="num">Payments</th><th class="num">Carried forward</th></tr></thead><tbody>
 @forelse($modes as $m)
 <tr data-mode="{{ $m['mode'] }}">
-  <td class="bold">{{ $m['mode'] }}@if($m['over'])<div class="tiny text-red">below zero</div>@endif</td>
+  <td class="bold">{{ $m['mode'] }} @if($m['over'])<div class="tiny text-red">below zero</div>@endif</td>
   <td class="num">{{ money($m['open'], false) }}</td>
   <td class="num">{{ $m['in'] ? money($m['in'], false) : '—' }}</td>
   <td class="num">{{ $m['out'] ? money($m['out'], false) : '—' }}</td>

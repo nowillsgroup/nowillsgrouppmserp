@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', $property->name)
-@section('crumbs')<a href="{{ route('properties.index') }}">Properties</a> / {{ $property->code }}@endsection
+@section('crumbs')<a href="{{ route('properties.index') }}">Properties</a> / {{ $property->code }} @endsection
 @section('actions')
   @if($canManage)<a class="btn" href="{{ route('properties.edit', $property) }}"><x-icon name="edit" size="sm"/> Edit profile</a>@endif
   @if($property->isLive() && (int) $property->id !== (int) hotel()?->id)
@@ -62,7 +62,7 @@
 
     <div class="card mt-2"><div class="card-head"><h3>Who may enter</h3><span class="small muted">Staff belong to the property; grants are extra</span></div>
       <div class="card-body">
-        <p class="small"><b>{{ $ownStaff->count() }}</b> staff account(s) belong to this property@if($access['group_admins']) and <b>{{ $access['group_admins'] }}</b> group administrator(s) may enter it @endif.</p>
+        <p class="small"><b>{{ $ownStaff->count() }}</b> staff account(s) belong to this property @if($access['group_admins']) and <b>{{ $access['group_admins'] }}</b> group administrator(s) may enter it @endif.</p>
         @if($members->isEmpty())
           <p class="small muted">Nobody has been granted cross-property access yet.</p>
         @else

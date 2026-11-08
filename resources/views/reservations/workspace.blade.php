@@ -228,7 +228,7 @@
           implode(' ', $c['amenities']),
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif@if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
+      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif @if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
           {{-- v10.26 the facilities read down the left edge of the picture instead of as a row of glyphs under it:
@@ -279,7 +279,7 @@
              worth are all in the dialog the card opens — and in the rack. What stays here is one sr-only sentence,
              so a screen reader still hears the guest, the stay and the money, and print — which has no dialog to
              open — puts that sentence on the sheet in place of the rows the screen gave up. --}}
-        <span class="ws-guest-note sr-only">Guest {{ $stayGuestName }}{{ $roomSource ? ', '.$roomSource : '' }}{{ $isVip ? ', VIP' : '' }}{{ $stay->guest?->nationality ? ', '.$stay->guest->nationality : '' }}. Arrive {{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}, depart {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}, {{ $cardNights }} {{ $cardNights === 1 ? 'night' : 'nights' }} at {{ money($c['rate']) }} a night.@if ($cardDueLabel !== null) {{ $cardDueLabel }}.@endif</span>
+        <span class="ws-guest-note sr-only">Guest {{ $stayGuestName }}{{ $roomSource ? ', '.$roomSource : '' }}{{ $isVip ? ', VIP' : '' }}{{ $stay->guest?->nationality ? ', '.$stay->guest->nationality : '' }}. Arrive {{ \Illuminate\Support\Carbon::parse($stay->arrival_date)->format($stayDateFormat($stay)) }}, depart {{ \Illuminate\Support\Carbon::parse($stay->departure_date)->format($stayDateFormat($stay)) }}, {{ $cardNights }} {{ $cardNights === 1 ? 'night' : 'nights' }} at {{ money($c['rate']) }} a night. @if ($cardDueLabel !== null) {{ $cardDueLabel }}. @endif</span>
         @else
         {{-- v10.25 an empty room used to get a block of its own — VACANT · RACK RATE, the rate again at 18px, and a
              Reserve Room button — which made every vacant card taller than its neighbours and left the occupied ones
@@ -399,7 +399,7 @@
           @else
             <span class="ws-cal-day disabled" aria-disabled="true" title="Outside the selectable date range">
           @endif
-            @if ($inRange){{ $day }}@else
+            @if ($inRange){{ $day }} @else
               <span aria-hidden="true">{{ $day }}</span><span class="sr-only">{{ \Illuminate\Support\Carbon::parse($ds)->format('l, j F Y') }}, outside selectable date range{{ $hasA ? ', arrivals' : '' }}{{ $hasD ? ', departures' : '' }}</span>
             @endif
             <span class="ws-cal-dots" aria-hidden="true">@if($hasA)<i class="dot-a"></i>@endif @if($hasD)<i class="dot-d"></i>@endif</span>
@@ -423,7 +423,7 @@
         @foreach ($statusSummary as $label => [$n, $color])
         @php $statusFilterKey = $roomStatusKeys[$label] ?? null; @endphp
         <tr><td><span class="dot" style="background:{{ $color }}"></span>
-          @if ($statusFilterKey)<button type="button" class="ws-status-filter" data-ws-status-filter="{{ $statusFilterKey }}" aria-label="Filter room board to {{ strtolower($label) }} rooms ({{ $n }})" aria-pressed="{{ $selectedStatus === $statusFilterKey ? 'true' : 'false' }}">{{ $label }}</button>@else{{ $label }}@endif
+          @if ($statusFilterKey)<button type="button" class="ws-status-filter" data-ws-status-filter="{{ $statusFilterKey }}" aria-label="Filter room board to {{ strtolower($label) }} rooms ({{ $n }})" aria-pressed="{{ $selectedStatus === $statusFilterKey ? 'true' : 'false' }}">{{ $label }}</button>@else{{ $label }} @endif
         </td><td class="text-right bold">{{ $n }}</td></tr>
         @endforeach
         </tbody>
@@ -452,7 +452,7 @@
         @endif
           <span class="ws-avatar sm">{{ $guestInitial($s) }}</span>
           <span><b>{{ $guestDisplayName($s) }}</b>
-            <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation?->businessSource?->name ?? 'Direct' }}@if ($canViewHousekeeping && $s->room && $s->room->hk_status && ! in_array($s->room->hk_status, ['clean', 'inspected'], true)) · Current housekeeping: {{ $housekeepingLabel($s->room->hk_status) }}@endif</span></span>
+            <span class="muted small">{{ $s->room?->room_no ? 'Rm '.$s->room->room_no : 'Unassigned' }} · {{ max(1, \Illuminate\Support\Carbon::parse($s->arrival_date)->diffInDays(\Illuminate\Support\Carbon::parse($s->departure_date))) }}n · {{ $s->reservation?->businessSource?->name ?? 'Direct' }} @if ($canViewHousekeeping && $s->room && $s->room->hk_status && ! in_array($s->room->hk_status, ['clean', 'inspected'], true)) · Current housekeeping: {{ $housekeepingLabel($s->room->hk_status) }} @endif</span></span>
         @if ($canCheckIn || can_do('reservations.view'))</a>@else</div>@endif
         @if ($isToday && $s->status === 'reserved' && $s->room_id && can_do('frontdesk.checkin') && ! $canCheckIn)
           <div class="ws-checkin-blocker ws-assign-none">Check-in blocked: {{ $checkInBlockReason($s->room, $inventoryBlocks) }} Resolve the issue or have an authorized user reassign the stay.</div>

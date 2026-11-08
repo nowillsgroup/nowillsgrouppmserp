@@ -67,7 +67,7 @@
         <x-icon name="check"/>No line on any live claim was older than {{ $windowDoc['oldest'] }} days when it was submitted; the window is {{ $windowDoc['window'] }} days.
       @else
         <x-icon name="alert"/>{{ $windowDoc['late'] }} line{{ $windowDoc['late'] === 1 ? '' : 's' }} totalling {{ money($windowDoc['late_amount']) }} {{ $windowDoc['late'] === 1 ? 'was' : 'were' }} older than the {{ $windowDoc['window'] }}-day window when the claim was submitted:
-        @foreach($windowDoc['rows'] as $l){{ $l['claim_no'] }} {{ $l['staff'] }} {{ money($l['amount'], false) }} ({{ $l['age'] }} days)@if(! $loop->last), @endif@endforeach.
+        @foreach($windowDoc['rows'] as $l){{ $l['claim_no'] }} {{ $l['staff'] }} {{ money($l['amount'], false) }} ({{ $l['age'] }} days) @if(! $loop->last), @endif @endforeach.
       @endif
     </p>
   </div>
@@ -118,7 +118,7 @@
     @forelse($claims as $c)
       <tr data-claim="{{ $c->claim_no }}" data-status="{{ $c->status }}">
         <td><a href="{{ route('claims.show', $c) }}" class="bold">{{ $c->claim_no }}</a></td><td>{{ $c->employee?->name }}<div class="tiny muted">{{ $c->employee?->department?->name }}</div></td>
-        <td class="small">{{ $c->title }}@if($c->status === 'rejected' && $c->reject_reason)<div class="tiny text-red">{{ $c->reject_reason }}</div>@endif</td><td class="small">{{ $c->lines_count }}</td>
+        <td class="small">{{ $c->title }} @if($c->status === 'rejected' && $c->reject_reason)<div class="tiny text-red">{{ $c->reject_reason }}</div>@endif</td><td class="small">{{ $c->lines_count }}</td>
         <td class="num">{{ money($c->total, false) }}</td><td class="num">{{ (float) $c->vat_total ? money($c->vat_total, false) : '' }}</td>
         <td>{!! status_badge($c->status) !!}</td>
         <td class="num {{ $c->waiting === null ? 'muted' : ($c->waiting > 30 ? 'text-red bold' : '') }}">

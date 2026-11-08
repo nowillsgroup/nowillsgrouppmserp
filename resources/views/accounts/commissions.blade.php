@@ -25,8 +25,8 @@
       still due or void carries one. The status column can be read as it stands.</p>
   @else
     <p class="small text-red" id="commissionTieState" style="margin:.6rem 0 0"><x-icon name="alert"/>@if($doc['missing'] > 0){{ $doc['missing'] }} commission{{ $doc['missing'] === 1 ? ' is' : 's are' }} marked paid with no voucher:
-      @foreach($doc['missing_rows'] as $d){{ $d['company'] }} {{ money($d['amount'], false) }}@if(! $loop->last), @endif@endforeach — the money left the bank but nothing here records it.@endif
-      @if($doc['stray'] > 0) {{ $doc['stray'] }} commission{{ $doc['stray'] === 1 ? '' : 's' }} that {{ $doc['stray'] === 1 ? 'is' : 'are' }} not paid {{ $doc['stray'] === 1 ? 'carries' : 'carry' }} a voucher anyway.@endif
+      @foreach($doc['missing_rows'] as $d){{ $d['company'] }} {{ money($d['amount'], false) }} @if(! $loop->last), @endif @endforeach — the money left the bank but nothing here records it. @endif
+      @if($doc['stray'] > 0) {{ $doc['stray'] }} commission{{ $doc['stray'] === 1 ? '' : 's' }} that {{ $doc['stray'] === 1 ? 'is' : 'are' }} not paid {{ $doc['stray'] === 1 ? 'carries' : 'carry' }} a voucher anyway. @endif
       Reconcile these against the voucher register before the agents' statement goes out.</p>
   @endif
   </div>

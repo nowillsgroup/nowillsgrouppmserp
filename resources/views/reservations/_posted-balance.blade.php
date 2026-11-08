@@ -23,8 +23,8 @@
     <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Folio</th><th scope="col">Context</th><th scope="col">Status / document</th><th scope="col" class="num">Posted balance</th></tr></thead><tbody>
       @foreach($summary['details'] as $detail)
       <tr><td><a href="{{ route('folios.show', $detail['id']) }}">{{ $detail['number'] }}</a></td>
-        <td>@if($detail['stay_id']){{ $detail['room_no'] ? 'Room '.$detail['room_no'] : 'Stay #'.$detail['stay_id'] }}@else Reservation / unassigned @endif</td>
-        <td>{{ ucfirst($detail['status']) }}@if($detail['type'] === 'credit_note') · Credit note@endif @if($detail['invoice_no']) · {{ $detail['invoice_no'] }}@endif</td>
+        <td>@if($detail['stay_id']){{ $detail['room_no'] ? 'Room '.$detail['room_no'] : 'Stay #'.$detail['stay_id'] }} @else Reservation / unassigned @endif</td>
+        <td>{{ ucfirst($detail['status']) }} @if($detail['type'] === 'credit_note') · Credit note @endif @if($detail['invoice_no']) · {{ $detail['invoice_no'] }} @endif</td>
         <td class="num">{{ $detail['balance'] < 0 ? money(abs($detail['balance'])).' credit' : money($detail['balance']) }}</td></tr>
       @endforeach
     </tbody></table></div>

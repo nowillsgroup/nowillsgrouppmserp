@@ -46,8 +46,8 @@
             <tr>
               <td>{{ $k['label'] }}</td>
               <td class="tiny muted"><code>{{ $k['key'] }}</code></td>
-              <td>{{ $k['set'] ? $k['value'] : 'not set' }}@if($k['secret']) <span class="tiny muted">credential</span>@endif</td>
-              <td class="small {{ $k['changed'] ? '' : 'muted' }}">{{ $k['default_show'] ?? '—' }}@if($k['changed']) ·changed@endif</td>
+              <td>{{ $k['set'] ? $k['value'] : 'not set' }} @if($k['secret']) <span class="tiny muted">credential</span>@endif</td>
+              <td class="small {{ $k['changed'] ? '' : 'muted' }}">{{ $k['default_show'] ?? '—' }} @if($k['changed']) ·changed @endif</td>
             </tr>
           @endforeach
           </tbody>

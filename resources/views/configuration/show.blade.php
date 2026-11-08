@@ -25,7 +25,7 @@
       @endif
       <span>Group: {{ $m['group'] }}</span>
       @if($m['route'])
-        <span>Screen: <a href="{{ $m['reachable'] ? route($m['route']) : '#' }}">{{ $m['route'] }}</a>@if($m['perm']) · opens with <code>{{ $m['perm'] }}</code>@endif@if($m['edit'] && $m['edit'] !== $m['perm']) · changing it needs <code>{{ $m['edit'] }}</code>@endif</span>
+        <span>Screen: <a href="{{ $m['reachable'] ? route($m['route']) : '#' }}">{{ $m['route'] }}</a>@if($m['perm']) · opens with <code>{{ $m['perm'] }}</code>@endif @if($m['edit'] && $m['edit'] !== $m['perm']) · changing it needs <code>{{ $m['edit'] }}</code>@endif</span>
       @else
         <span>Screen: none yet — these settings are read by the code but nothing edits them</span>
       @endif
@@ -79,7 +79,7 @@
     <tbody>
     @foreach($m['keys'] as $k)
       <tr>
-        <td class="bold">{{ $k['label'] }}@if($k['secret']) <span class="tiny muted">credential</span>@endif</td>
+        <td class="bold">{{ $k['label'] }} @if($k['secret']) <span class="tiny muted">credential</span>@endif</td>
         <td class="small muted"><code>{{ $k['key'] }}</code></td>
         <td class="{{ $k['set'] ? '' : 'muted' }}">{{ $k['set'] ? $k['value'] : ($k['secret'] ? 'Not set' : ($k['default_show'] ?? ($k['unset_show'] ?? 'nothing — read with no default'))) }}</td>
         <td class="small {{ $k['default_show'] === null ? 'muted' : '' }}">{{ $k['default_show'] ?? '—' }}</td>

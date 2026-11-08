@@ -23,13 +23,13 @@
     <p class="small text-red" id="cityLedgerTieState" style="margin:.6rem 0 0"><x-icon name="alert"/>The list totals {{ money($tie['list']) }}
       but the ageing at {{ dmy($tie['as_of']) }} says {{ money($tie['ageing']) }} — a difference of {{ money(abs($tie['diff'])) }}.
       @if($tie['drift']) The rows that disagree are
-        @foreach($tie['drift'] as $d){{ $d['name'] }} (list {{ money($d['list'], false) }}, ageing {{ money($d['ageing'], false) }})@if(! $loop->last), @endif@endforeach
-        — open each ledger and check its charges and receipts before this list goes out.@else
-        The rows agree one by one, so the difference is in a company the ageing lists and this list does not.@endif</p>
+        @foreach($tie['drift'] as $d){{ $d['name'] }} (list {{ money($d['list'], false) }}, ageing {{ money($d['ageing'], false) }}) @if(! $loop->last), @endif @endforeach
+        — open each ledger and check its charges and receipts before this list goes out. @else
+        The rows agree one by one, so the difference is in a company the ageing lists and this list does not. @endif</p>
   @endif
   </div>
   @if($tie['over_limit'] > 0)
-    <p class="small" id="cityLedgerLimit" style="margin:.3rem 0 0"><x-icon name="shield"/>@if($tie['over_limit'] === 1)One of these companies is over its credit limit and the ageing names it.@else{{ $tie['over_limit'] }} of these companies are over their credit limits, and the ageing names them.@endif</p>
+    <p class="small" id="cityLedgerLimit" style="margin:.3rem 0 0"><x-icon name="shield"/>@if($tie['over_limit'] === 1)One of these companies is over its credit limit and the ageing names it. @else{{ $tie['over_limit'] }} of these companies are over their credit limits, and the ageing names them. @endif</p>
   @endif
 </div>
 
@@ -37,7 +37,7 @@
 <thead><tr><th>Company / Agent</th><th>Type</th><th>Contact</th><th class="num">Credit limit</th><th class="num">Billed</th><th class="num">Received</th><th class="num">Outstanding</th><th></th></tr></thead><tbody>
 @forelse($companies as $c)
 <tr data-company="{{ $c->id }}" class="{{ $c->quiet ? 'quiet-row' : '' }}">
-  <td class="bold">{{ $c->name }}@if($c->flag)<div class="tiny {{ $c->flag === 'OVER LIMIT' ? 'text-red' : 'muted' }}">{{ $c->flag }}</div>@endif</td>
+  <td class="bold">{{ $c->name }} @if($c->flag)<div class="tiny {{ $c->flag === 'OVER LIMIT' ? 'text-red' : 'muted' }}">{{ $c->flag }}</div>@endif</td>
   <td>{{ ucfirst(str_replace('_',' ',$c->type)) }}</td>
   <td class="small">{{ $c->contact_person }} {{ $c->phone }}</td>
   <td class="num">{{ $c->credit_limit ? money($c->credit_limit, false) : '—' }}</td>

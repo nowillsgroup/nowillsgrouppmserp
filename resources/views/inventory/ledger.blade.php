@@ -108,7 +108,7 @@
       <p class="small" id="ldGapsState" style="margin:.6rem 0 0"><x-icon name="alert"/>
         The largest is {{ $gaps['worst']['qty'] }} {{ $gaps['worst']['unit'] }} of {{ $gaps['worst']['item'] }} on
         {{ dmy($gaps['worst']['date']) }}, {{ $gaps['worst']['type'] }} {{ money($gaps['worst']['value']) }}@if($gaps['worst']['user'])
-        by {{ $gaps['worst']['user'] }}@endif@if($gaps['worst']['remarks']) — “{{ $gaps['worst']['remarks'] }}”@endif.
+        by {{ $gaps['worst']['user'] }} @endif @if($gaps['worst']['remarks']) — “{{ $gaps['worst']['remarks'] }}” @endif.
         A wastage or an adjustment is a legitimate movement; one with no reference and no department is a number somebody typed,
         and it is {{ $gaps['share_label'] }} — {{ money($gaps['value']) }} with no receipt, issue note or supplier document to ask about.
       </p>

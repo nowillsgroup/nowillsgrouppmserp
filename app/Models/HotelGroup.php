@@ -101,7 +101,7 @@ class HotelGroup extends Model
 
         return User::query()
             ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
-            ->where(function ($q) use ($ids, $this) {
+            ->where(function ($q) use ($ids) {
                 $q->whereIn('hotel_id', $ids)->orWhere('hotel_group_id', $this->id);
             })
             // v10.6 a property licensed for no modules is closed: its people keep their accounts and

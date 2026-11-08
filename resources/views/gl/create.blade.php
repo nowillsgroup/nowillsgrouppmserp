@@ -15,7 +15,7 @@
 </div></div>
 <div class="card flush"><div class="card-head"><h3>Lines</h3><button type="button" class="btn btn-sm" id="addLine"><x-icon name="plus" size="sm"/> Add line</button></div>
 <div class="card-body table-wrap"><table class="table gl-lines" id="jvLines">
-<thead><tr><th style="width:32%">Account</th><th style="width:16%">Cost centre@if($requireCc) <span class="req">*</span>@endif</th><th>Memo</th><th class="num" style="width:13%">Debit</th><th class="num" style="width:13%">Credit</th><th style="width:40px"></th></tr></thead><tbody>
+<thead><tr><th style="width:32%">Account</th><th style="width:16%">Cost centre @if($requireCc) <span class="req">*</span>@endif</th><th>Memo</th><th class="num" style="width:13%">Debit</th><th class="num" style="width:13%">Credit</th><th style="width:40px"></th></tr></thead><tbody>
 @foreach($rows as $i => $r)
 <tr><td><select class="input input-sm" name="lines[{{ $i }}][account_head_id]"><option value="">— Select account —</option>@foreach($opts as $type => $as)<optgroup label="{{ \App\Models\AccountHead::TYPES[$type] ?? $type }}">@foreach($as as $a)<option value="{{ $a->id }}" data-type="{{ $a->type }}" @selected(($r['account_head_id'] ?? null) == $a->id)>{{ $a->label }}</option>@endforeach</optgroup>@endforeach</select></td>
 <td><select class="input input-sm cc" name="lines[{{ $i }}][department_id]"><option value="">— none —</option>@foreach($departments as $id => $nm)<option value="{{ $id }}" @selected(($r['department_id'] ?? null) == $id)>{{ $nm }}</option>@endforeach</select></td>

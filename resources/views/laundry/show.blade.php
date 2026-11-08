@@ -44,7 +44,7 @@
     <thead><tr><th>Item</th><th>Service</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Remark</th></tr></thead><tbody>
     @forelse($o->lines as $l)<tr><td>{{ $l->item_name }}</td><td>{{ \App\Models\LaundryItem::SERVICES[$l->service] ?? $l->service }}</td><td class="num">{{ $l->qty }}</td><td class="num">{{ money($l->rate, false) }}</td><td class="num">{{ money($l->amount, false) }}</td><td class="small muted">{{ $l->remark }}</td></tr>
     @empty<tr><td colspan="6" class="muted center">No items.</td></tr>@endforelse
-    </tbody><tfoot><tr><td colspan="2" class="right">{{ $o->pieces }} pcs</td><td colspan="3" class="num">Subtotal {{ money($o->subtotal, false) }}@if((float) $o->express_charge) + express {{ money($o->express_charge, false) }} = {{ money($o->total, false) }}@endif@if($quote['rate'] > 0) + tax {{ money($quote['tax'], false) }}@endif = <b>{{ money($quote['total']) }}</b></td><td></td></tr></tfoot></table></div></div>
+    </tbody><tfoot><tr><td colspan="2" class="right">{{ $o->pieces }} pcs</td><td colspan="3" class="num">Subtotal {{ money($o->subtotal, false) }}@if((float) $o->express_charge) + express {{ money($o->express_charge, false) }} = {{ money($o->total, false) }} @endif @if($quote['rate'] > 0) + tax {{ money($quote['tax'], false) }}@endif = <b>{{ money($quote['total']) }}</b></td><td></td></tr></tfoot></table></div></div>
   @endif
 </div>
 <div>
