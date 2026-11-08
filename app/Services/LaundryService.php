@@ -55,15 +55,12 @@ class LaundryService
         if ($type === 'walk_in' && ! trim((string) ($d['guest_name'] ?? ''))) {
             throw new RuntimeException('Enter the customer\'s name.');
         }
-        $req = ! empty($d['guest_request_id']) ? GuestRequest::find($d['guest_request_id']) : null;
-        if ($req && ($req->category !== 'laundry' || ! in_array($req->status, GuestRequest::OPEN))) {
-            throw new RuntimeException('That guest request is not an open laundry request.');
-        }
-        if ($req && $stay && (int) $req->reservation_room_id !== (int) $stay->id) {
-            throw new RuntimeException('That laundry request belongs to another room.');
+        $requestId = ! empty($d['guest_request_id']) ? (int) $d['guest_request_id'] : null;
+        if ($requestId && ! $stay) {
+            throw new RuntimeException('A guest pickup request can only be collected for its in-house room, not a walk-in customer.');
         }
 
-        $order = DB::transaction(function () use ($d, $type, $speed, $stay, $req) {
+        $order = DB::transaction(function () use ($d, $type, $speed, $stay, $requestId) {
             if ($stay) {
                 $reservation = Reservation::whereKey($stay->reservation_id)->lockForUpdate()->firstOrFail();
                 $stay = ReservationRoom::whereKey($stay->id)->lockForUpdate()->firstOrFail();
@@ -72,6 +69,24 @@ class LaundryService
                 }
                 $stay->setRelation('reservation', $reservation);
                 $stay->load(['guest', 'room']);
+            }
+            $req = null;
+            if ($requestId) {
+                // Delivery and cancellation lock an order before its request.
+                // Take existing order locks in that same order, then re-read the
+                // request under lock. The stay lock serializes new collections.
+                $existing = LaundryOrder::where('guest_request_id', $requestId)->where('status', '!=', 'cancelled')
+                    ->orderBy('id')->lockForUpdate()->get(['id']);
+                $req = GuestRequest::whereKey($requestId)->lockForUpdate()->first();
+                if (! $req || $req->category !== 'laundry' || ! in_array($req->status, GuestRequest::OPEN, true)) {
+                    throw new RuntimeException('That guest request is no longer an open laundry request. Refresh the pickup list.');
+                }
+                if ((int) $req->reservation_room_id !== (int) $stay->id) {
+                    throw new RuntimeException('That laundry request belongs to another room.');
+                }
+                if ($existing->isNotEmpty() || $req->linked_type !== null || $req->linked_id !== null) {
+                    throw new RuntimeException('That laundry request is already linked to an order or another task. Refresh the pickup list.');
+                }
             }
             $o = LaundryOrder::create([
                 'order_no' => Numbering::next('laundry_order'), 'type' => $type, 'speed' => $speed, 'status' => 'collected',
@@ -86,7 +101,10 @@ class LaundryService
                 self::setLines($o, $d['lines'], false);
             }
             if ($req) {
-                GuestPortalService::transition($req, 'start', "Laundry collected – order {$o->order_no}, ready by ".$o->promised_at->format('d M H:i'));
+                if ($req->status !== 'in_progress') {
+                    $req = GuestPortalService::transition($req, 'start', "Laundry collected – order {$o->order_no}, ready by ".$o->promised_at->format('d M H:i'));
+                }
+                // An already in-progress request keeps its existing staff note.
                 $req->forceFill(['linked_type' => 'LaundryOrder', 'linked_id' => $o->id])->save();
             }
             ActivityLogger::log('laundry', 'create', "Laundry {$o->order_no} collected: ".$o->whoLabel().($speed === 'express' ? ' (express)' : ''), $o);
@@ -386,7 +404,8 @@ class LaundryService
             }
             $o->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'delivered_by' => auth()->id(), 'folio_id' => $folio->id,
                 'folio_transaction_id' => $tx->id, 'payment_mode_id' => $direct && ! $payments ? $paymentModeId : null])->save();
-            if ($o->guest_request_id && ($req = GuestRequest::find($o->guest_request_id)) && in_array($req->status, GuestRequest::OPEN)) {
+            if ($o->guest_request_id && ($req = GuestRequest::whereKey($o->guest_request_id)->lockForUpdate()->first())
+                && $req->linked_type === 'LaundryOrder' && (int) $req->linked_id === (int) $o->id && in_array($req->status, GuestRequest::OPEN, true)) {
                 GuestPortalService::transition($req, 'done', "Laundry delivered – {$o->pieces} pcs");
             }
             ActivityLogger::log('laundry', 'deliver', "Laundry {$o->order_no} delivered – ".money($quote['total'])
@@ -404,7 +423,8 @@ class LaundryService
                 throw new RuntimeException("Laundry {$locked->order_no} is already {$locked->statusLabel()}.");
             }
             $locked->forceFill(['status' => 'cancelled', 'cancel_reason' => mb_substr($reason, 0, 190)])->save();
-            if ($locked->guest_request_id && ($req = GuestRequest::find($locked->guest_request_id)) && in_array($req->status, GuestRequest::OPEN, true)) {
+            if ($locked->guest_request_id && ($req = GuestRequest::whereKey($locked->guest_request_id)->lockForUpdate()->first())
+                && $req->linked_type === 'LaundryOrder' && (int) $req->linked_id === (int) $locked->id && in_array($req->status, GuestRequest::OPEN, true)) {
                 GuestPortalService::transition($req, 'decline', 'Laundry order cancelled: '.$reason);
             }
             ActivityLogger::log('laundry', 'cancel', "Laundry {$locked->order_no} cancelled: {$reason}", $locked);

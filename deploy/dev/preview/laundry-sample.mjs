@@ -127,7 +127,7 @@ const HELPERS = {
   route: () => '#',
   asset: (path) => `/${String(path ?? '').replace(/^\/+/, '')}`,
   money: (value, symbol = true) => `${symbol ? 'GH₵ ' : ''}${Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-  number_format: (value) => Number(value ?? 0).toLocaleString('en-US'),
+  number_format: (value, decimals = 0) => Number(value ?? 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
   bdate: () => at(BUSINESS_DATE),
   now: () => new SampleDate('2026-11-05T09:20:00Z'),
   collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
@@ -138,6 +138,7 @@ const HELPERS = {
   json_encode: (value) => JSON.stringify(value ?? null),
   str_replace: (search, replace, subject) => String(subject ?? '').split(search).join(replace),
   strtolower: (value) => String(value ?? '').toLowerCase(),
+  str_contains: (haystack, needle) => String(haystack ?? '').includes(String(needle ?? '')),
   strtoupper: (value) => String(value ?? '').toUpperCase(),
   ucfirst: (value) => { const text = String(value ?? ''); return text.charAt(0).toUpperCase() + text.slice(1); },
   substr: (value, start, length) => String(value ?? '').substr(start, length),
@@ -214,6 +215,18 @@ export function laundryOrderContext() {
     },
     fallbacks: {},
   };
+}
+
+/** A guest pickup already being handled, ready to collect for its own stay. */
+export function laundryRequestContext() {
+  const req = { id: 61, request_no: 'GR-00234', reservation_room_id: 71, room: ROOM,
+    item: 'Express laundry (same day)', notes: 'Please collect after breakfast', status: 'in_progress',
+    created_at: at('2026-11-05T07:30:00Z') };
+  const ctx = laundryOrderContext();
+  ctx.helpers = { ...HELPERS, old: (key, fallback = null) => key === 'q' ? Object.fromEntries(list.items.map(item => [item.id, { wash: 0, dryclean: 0, press: 0 }])) : fallback };
+  Object.assign(ctx.scope, { req, requestUnavailable: false, stays: Coll.of([{ id: 71, room: ROOM, guest: GUEST }, { id: 72, room: { room_no: '305' }, guest: { full_name: 'Kofi Adjei' } }]),
+    requests: Coll.of([req]), stayId: 71, hours: { normal: 24, express: 6 } });
+  return ctx;
 }
 
 /** Price changes and a discontinued garment, shown as a read-only example. */

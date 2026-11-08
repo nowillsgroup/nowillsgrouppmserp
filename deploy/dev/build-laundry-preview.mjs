@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BladePreview } from './preview/blade-render.mjs';
 import { shell, nav, spriteSymbols } from './preview/app-shell.mjs';
-import { laundryOrderContext, laundryPricesContext, laundrySettledContext, laundryIndexContext, laundryPreservationContext } from './preview/laundry-sample.mjs';
+import { laundryOrderContext, laundryPricesContext, laundrySettledContext, laundryIndexContext, laundryPreservationContext, laundryRequestContext } from './preview/laundry-sample.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const checkOnly = process.argv.includes('--check');
@@ -35,6 +35,11 @@ const indent = (html, pad = '      ') => html.trimEnd()
   .join('\n');
 
 const screens = [
+  {
+    view: 'laundry/create', file: 'laundry-request.html', title: 'Collect Laundry', crumbs: 'Laundry & linen / Collect',
+    context: laundryRequestContext,
+    sections: ['actions', 'content'],
+  },
   {
     view: 'laundry/show', file: 'laundry-order.html', title: 'Laundry LND-000412', crumbs: 'Laundry & linen / LND-000412',
     context: laundryOrderContext,
@@ -77,7 +82,7 @@ for (const screen of screens) {
   try {
     const renderer = new BladePreview({ root: ROOT, ctx, log });
     contentRaw = renderer.section(screen.view, 'content', ctx.scope);
-    actionsRaw = renderer.section(screen.view, 'actions', ctx.scope);
+    actionsRaw = screen.view === 'laundry/create' ? '' : renderer.section(screen.view, 'actions', ctx.scope);
     headRaw = renderer.push(screen.view, 'head', ctx.scope);
     scriptsRaw = renderer.push(screen.view, 'scripts', ctx.scope);
     // The itemising grid carries its own live total script.

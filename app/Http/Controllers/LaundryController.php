@@ -47,6 +47,7 @@ class LaundryController extends Controller
     protected static function waiting($q)
     {
         return $q->where('category', 'laundry')->whereIn('status', GuestRequest::OPEN)
+            ->whereNull('linked_type')->whereNull('linked_id')
             ->whereNotIn('id', LaundryOrder::whereNotNull('guest_request_id')->where('status', '!=', 'cancelled')->select('guest_request_id'));
     }
 
@@ -61,7 +62,7 @@ class LaundryController extends Controller
         $req = $request->filled('request') ? self::waiting(GuestRequest::query())->find((int) $request->input('request')) : null;
 
         return view('laundry.create', [
-            'stays' => $this->stays(), 'items' => LaundryService::priceList(), 'req' => $req,
+            'stays' => $this->stays(), 'items' => LaundryService::priceList(), 'req' => $req, 'requestUnavailable' => $request->filled('request') && ! $req,
             'requests' => self::waiting(GuestRequest::with('room'))->orderBy('id')->get(),
             'stayId' => (int) ($req?->reservation_room_id ?? $request->input('stay')), 'expressPct' => LaundryService::expressPct(),
             'hours' => ['normal' => LaundryService::hours('normal'), 'express' => LaundryService::hours('express')],
@@ -93,7 +94,13 @@ class LaundryController extends Controller
             'notes' => 'nullable|string|max:500', 'guest_request_id' => 'nullable|integer|owned:guest_requests',
             'q' => 'nullable|array', 'q.*' => 'array', 'q.*.*' => 'nullable|integer|min:0|max:99', 'r' => 'nullable|array', 'r.*' => 'nullable|string|max:150',
         ]);
-        $o = LaundryService::create($data + ['lines' => $this->gridLines($request)]);
+        try {
+            $o = LaundryService::create($data + ['lines' => $this->gridLines($request)]);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first())->withInput();
+        }
 
         return redirect()->route('laundry.show', $o)->with('success', "Laundry {$o->order_no} created".($o->pieces ? " – {$o->pieces} pcs, ".money($o->total) : ' – add the items when the bag is sorted').'.');
     }
