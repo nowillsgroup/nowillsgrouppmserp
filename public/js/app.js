@@ -26,6 +26,17 @@
     button.addEventListener('click', () => {
       group.classList.remove('flyout-dismissed');
       const open = group.classList.toggle('open');
+      // Search deliberately reveals multiple matching paths; otherwise keep only
+      // one open group at each level without closing its ancestors.
+      if (open && !moduleSearch?.value.trim()) {
+        Array.from(group.parentElement.children).forEach(sibling => {
+          if (sibling === group || !sibling.classList.contains('nav-group')) return;
+          sibling.classList.remove('open');
+          sibling.querySelector(':scope > button')?.setAttribute('aria-expanded', 'false');
+          syncFlyoutDescendants(sibling, false);
+          if (sibling.dataset.navKey) localStorage.setItem(navStateKey + ':' + sibling.dataset.navKey, 'closed');
+        });
+      }
       const flyoutVisible = document.body.classList.contains('sidebar-collapsed')
         && window.innerWidth > 860
         && group.matches(':hover, :focus-within');
@@ -79,6 +90,19 @@
         if (group.matches(':hover, :focus-within')) placeCollapsedFlyout();
       }, { passive: true });
     }
+  });
+  // Older saved state may have several siblings open. Prefer the current page's
+  // path, then the first saved open group, and clear the remaining siblings.
+  const groupParents = new Set($$('.nav-group', nav || document).map(group => group.parentElement));
+  groupParents.forEach(parent => {
+    const openGroups = Array.from(parent.children).filter(child => child.classList.contains('nav-group') && child.classList.contains('open'));
+    const keep = openGroups.find(group => group.querySelector('.nav-link-item.active')) || openGroups[0];
+    openGroups.forEach(group => {
+      if (group === keep) return;
+      group.classList.remove('open');
+      group.querySelector(':scope > button')?.setAttribute('aria-expanded', 'false');
+      if (group.dataset.navKey) localStorage.setItem(navStateKey + ':' + group.dataset.navKey, 'closed');
+    });
   });
   const navToggleButtons = $$('[data-toggle-nav]');
   const closeNavButtons = $$('[data-close-nav]');

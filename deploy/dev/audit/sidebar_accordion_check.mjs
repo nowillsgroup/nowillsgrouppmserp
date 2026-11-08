@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { JSDOM, VirtualConsole } from 'jsdom';
+
+const script = fs.readFileSync('public/js/app.js', 'utf8');
+const group = (key, children, open = false) => `<div class="nav-item nav-group${open ? ' open' : ''}" data-nav-key="${key}" data-nav-label="${key}"><button aria-expanded="${open}">${key}</button><div class="nav-sub">${children}</div></div>`;
+const link = (key, active = false) => `<div class="nav-item nav-link-item${active ? ' active' : ''}" data-nav-label="${key}"><a href="#${key}">${key}</a></div>`;
+const html = `<!doctype html><body><aside id="primary-sidebar"><div class="nav-search"><input id="navModuleSearch"><button data-clear-nav-search></button></div><nav class="nav">${group('one', group('one-a', link('current', true), true) + group('one-b', link('report')), true)}<div class="nav-section-label">Other</div>${group('two', group('two-a', link('report two')) + group('two-b', link('other')))}${group('three', link('third'))}<p data-nav-search-empty hidden></p></nav></aside><button data-toggle-nav></button><button data-collapse-sidebar></button></body>`;
+const create = (saved = {}, width = 1200) => {
+  const errors = [];
+  const vc = new VirtualConsole(); vc.on('jsdomError', error => errors.push(error.message));
+  const dom = new JSDOM(html, { url: 'http://example.test/', runScripts: 'dangerously', virtualConsole: vc });
+  Object.defineProperty(dom.window, 'innerWidth', { value: width, writable: true });
+  for (const [key, value] of Object.entries(saved)) dom.window.localStorage.setItem(key, value);
+  dom.window.eval(script);
+  assert.deepEqual(errors, []);
+  return dom;
+};
+const key = name => `nowills-nav-state:${name}`;
+const find = (doc, name) => doc.querySelector(`[data-nav-key="${name}"]`);
+const click = (doc, name) => find(doc, name).querySelector(':scope > button').click();
+const open = (doc, name) => find(doc, name).classList.contains('open');
+const expanded = (doc, name) => find(doc, name).querySelector(':scope > button').getAttribute('aria-expanded');
+
+const dom = create({ [key('one')]: 'open', [key('two')]: 'open', [key('one-b')]: 'open' });
+const { document: doc, localStorage, Event } = dom.window;
+assert.equal(open(doc, 'one'), true, 'active page path wins over old saved siblings');
+assert.equal(open(doc, 'two'), false, 'old saved top-level siblings are normalized');
+assert.equal(open(doc, 'one-a'), true);
+assert.equal(open(doc, 'one-b'), false, 'active child wins within its parent');
+assert.equal(localStorage.getItem(key('two')), 'closed');
+click(doc, 'two');
+assert.equal(open(doc, 'one'), false, 'opening another top-level category closes the first across section labels');
+assert.equal(expanded(doc, 'one'), 'false');
+assert.equal(open(doc, 'two'), true);
+assert.equal(expanded(doc, 'two'), 'true');
+assert.equal(localStorage.getItem(key('one')), 'closed');
+click(doc, 'two-a'); click(doc, 'two-b');
+assert.equal(open(doc, 'two'), true, 'opening a nested menu keeps its parent open');
+assert.equal(open(doc, 'two-a'), false);
+assert.equal(expanded(doc, 'two-a'), 'false');
+assert.equal(open(doc, 'two-b'), true);
+assert.equal(localStorage.getItem(key('two-a')), 'closed');
+click(doc, 'two-b');
+assert.equal(open(doc, 'two-b'), false, 'a menu can be closed by clicking it again');
+click(doc, 'two-a');
+const search = doc.querySelector('#navModuleSearch');
+search.value = 'report'; search.dispatchEvent(new Event('input', { bubbles: true }));
+assert.equal(open(doc, 'one'), true, 'search reveals matching paths in multiple categories');
+assert.equal(open(doc, 'two'), true);
+assert.equal(find(doc, 'one-b').classList.contains('nav-search-hidden'), false);
+assert.equal(find(doc, 'two-a').classList.contains('nav-search-hidden'), false);
+search.value = ''; search.dispatchEvent(new Event('input', { bubbles: true }));
+assert.equal(open(doc, 'one'), false, 'clearing search restores the pre-search accordion');
+assert.equal(open(doc, 'two'), true);
+assert.equal(open(doc, 'two-a'), true);
+const saved = Object.fromEntries(Array.from({ length: localStorage.length }, (_, i) => { const k = localStorage.key(i); return [k, localStorage.getItem(k)]; }));
+dom.window.close();
+
+const reloaded = create(saved);
+assert.equal(open(reloaded.window.document, 'one'), true, 'current page stays visible after navigation/reload');
+assert.equal(open(reloaded.window.document, 'two'), false, 'current page still has only one top-level menu');
+reloaded.window.close();
+
+const mobile = create({}, 600);
+click(mobile.window.document, 'two'); click(mobile.window.document, 'three');
+assert.equal(open(mobile.window.document, 'two'), false, 'mobile closes previous category');
+assert.equal(open(mobile.window.document, 'three'), true);
+mobile.window.close();
+
+const compact = create({ 'nowills-sidebar-collapsed': '1' });
+click(compact.window.document, 'two'); click(compact.window.document, 'two-a'); click(compact.window.document, 'two-b');
+assert.equal(open(compact.window.document, 'two-a'), false, 'compact nested groups are exclusive');
+assert.equal(open(compact.window.document, 'two-b'), true);
+compact.window.close();
+console.log('Sidebar accordion runtime assertions passed.');
