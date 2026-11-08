@@ -861,7 +861,7 @@ const BOUNDS = Object.fromEntries([...boundsBlock.matchAll(/'([a-z0-9_]+)' => \[
 
 /** ConfigurationService::restoreBlocked() — why a value cannot be put back, or null. */
 function restoreBlocked(row) {
-  if (row.secret) return 'a credential is not recorded here — its value was never stored';
+  if (row.secret) return 'credential values cannot be restored from this trail';
   if (!TYPED[row.key]) return 'this setting is owned by its module screen, which holds its own rules';
   if (row.created) return 'there was nothing here before — it was first set, not changed';
   if (row.was === null) return 'the value before this change was empty';
@@ -927,29 +927,24 @@ export function configurationHistoryModuleContext() {
   return configurationHistoryContext().scope;
 }
 
-/**
- * ConfigurationService::fingerprint() — the same twelve characters the application prints.
- *
- * Every registered key contributes one line: a stored value, an empty string when unset, a
- * family prefix as its rows plus a count, and a credential as only whether one is set. The
- * lines are sorted and hashed, so the sheet and the register agree and a credential's value
- * can never be recovered from the hash.
- */
+/** Version 2 fingerprint using the sample's raw setting values. */
 function fingerprintOf(modules) {
-  const lines = [];
-  for (const m of modules) {
-    for (const k of m.keys) {
-      if (k.secret) { lines.push(`${k.raw}=credential:${k.set ? 'set' : 'unset'}`); continue; }
-      if (k.family) { lines.push(`${k.raw}=family:${k.count}`); continue; }
-      lines.push(`${k.raw}=${k.set ? SET[k.raw] : ''}`);
+  const keys = [...new Map(modules.flatMap(m => m.keys).map(k => [k.raw, k])).values()];
+  // Registry keys are ASCII; compare by code unit like PHP SORT_STRING.
+  keys.sort((a, b) => a.raw < b.raw ? -1 : a.raw > b.raw ? 1 : 0);
+  const secrets = new Set(keys.filter(k => k.secret).map(k => k.raw));
+  const records = keys.map(k => {
+    if (k.secret) return [k.raw, 'credential', k.raw in SET && String(SET[k.raw] ?? '').trim() !== ''];
+    if (k.family) {
+      const members = Object.keys(SET).filter(key => key.startsWith(k.raw)).sort()
+        .map(key => [key, secrets.has(key) ? ['credential', SET[key] != null && String(SET[key]).trim() !== ''] : ['value', SET[key] == null ? null : String(SET[key])]]);
+      return [k.raw, 'family', members];
     }
-  }
-  lines.sort();
-  const full = crypto.createHash('sha1').update(lines.join('\n')).digest('hex');
-  return {
-    full, short: full.slice(0, 12).toUpperCase(), keys: lines.length, lines: lines.length,
-    at: at('2026-11-04T16:20:00Z'),
-  };
+    return k.raw in SET ? [k.raw, 'value', SET[k.raw] == null ? null : String(SET[k.raw])] : [k.raw, 'missing'];
+  });
+  const full = crypto.createHash('sha256').update(JSON.stringify(records)).digest('hex');
+  return { full, short: full.slice(0, 12).toUpperCase(), keys: keys.length, lines: records.length,
+    at: at('2026-11-04T16:20:00Z') };
 }
 
 // Settings the code reads through a DEFAULTS map that the register does not hold: the same

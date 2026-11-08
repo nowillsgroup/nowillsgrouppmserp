@@ -68,8 +68,7 @@ class SettingValueObserver
 
         $secret = ConfigurationService::isSecretKey($key);
 
-        SettingChange::create([
-            'hotel_id' => $m->hotel_id,
+        $change = new SettingChange([
             'key' => $key,
             'old_value' => $secret ? self::mask($old) : self::clip($old),
             'new_value' => $secret ? self::mask($new) : self::clip($new),
@@ -77,6 +76,10 @@ class SettingValueObserver
             'created' => $created,
             'user_id' => Auth::id(),
         ]);
+        // hotel_id is guarded against mass assignment. Use the setting's actual owner,
+        // including for background work with no current tenant (or a different one).
+        $change->hotel_id = $m->hotel_id;
+        $change->save();
     }
 
     /** A credential's value never reaches the trail — only whether one is set. */

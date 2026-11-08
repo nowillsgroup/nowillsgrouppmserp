@@ -418,7 +418,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(!formFor('pos_kot_print_mode'), 'trail: a setting that was first set is not a restore');
   ok(/owned by its module screen/.test(text(rowFor('banquet_guarantee_days'))),
     'trail: the row says where its rules live instead of offering a button that would fail');
-  ok(/a credential is not recorded here/.test(text(rowFor('portal_wifi_password'))),
+  ok(/credential values cannot be restored from this trail/.test(text(rowFor('portal_wifi_password'))),
     'trail: and a credential row says why it cannot come back');
   ok(/One action on this page: put it back/.test(body),
     'trail: the page states the one thing it can do, rather than claiming to be read-only');
@@ -457,7 +457,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   const theirs = fp(fs.readFileSync(preview('configuration-register.html'), 'utf8'));
   ok(/^[0-9A-F]{12}$/.test(mine), `handover: the fingerprint is twelve characters a person can compare (${mine})`);
   ok(mine === theirs, 'handover: the register prints the same fingerprint, so two sheets that disagree are two configurations');
-  ok(/the same fingerprint means the same configuration/.test(body), 'handover: it says how to use it');
+  ok(/indicator, not proof of identical configuration/.test(body), 'handover: it says how to use it');
 
   // the sheet and the page must say the same thing about the same configuration
   const changedWin = new JSDOM(fs.readFileSync(preview('configuration-changed.html'), 'utf8'));
@@ -519,7 +519,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   // would be built from a hash that could be used to guess one, and comparing the two sheets
   // above would still pass because both would be wrong in the same way.
   const sample = fs.readFileSync(path.join(ROOT, 'deploy/dev/preview/configuration-sample.mjs'), 'utf8');
-  ok(/k\.secret\) \{ lines\.push\(`\$\{k\.raw\}=credential:/.test(sample),
+  ok(/k\.secret\) return \[k\.raw, 'credential',/.test(sample),
     'handover: the fixture hashes a credential as set or unset, never its value');
 
   win.close();

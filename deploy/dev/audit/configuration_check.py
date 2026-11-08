@@ -327,6 +327,17 @@ ok('parseRegistry' in sample, 'the preview parses the registry rather than dupli
 # the sample must not invent modules either: it counts what the registry holds
 ok("configurationIndexContext" in build and "configurationShowContext" in build, 'both hub screens are rendered')
 
+# Export, audit history and tenant ownership regressions.
+ok("'read_in' => '—'" in svc, 'CSV screen-only rows have the same columns as setting rows')
+ok("array_map([self::class, 'csvSafe']" in svc and 'private static function csvSafe' in svc,
+   'CSV neutralises spreadsheet formulas in every cell')
+ok("->groupBy('module', 'action')->pluck('latest_id')" in svc and "->take(600)" not in svc,
+   'last changed uses the latest row per action rather than a globally truncated trail')
+ok("orWhereRaw('substr('.$column.', 1, ?) = ?'" in svc and 'self::labelForKey((string) $row->key, $labels)' in svc,
+   'module value history includes literal-prefix family members and resolves their labels')
+ok("$c['restore_ok'] && can_do('settings.manage')" in read(os.path.join(VIEWS, 'history.blade.php')),
+   'read-only users are not offered a restore action they cannot perform')
+
 # ── 6. the checks: what this property's settings contradict ────────────────────────
 # A register tells you where a value is set. It can also tell you when two settings
 # already saved contradict each other — that is App/Support/ConfigurationChecks.php.
@@ -567,8 +578,8 @@ ok(len(aliased) >= 15, f'the aliases are carried in the register, not patched in
 ok(dynamic <= 40, f'most trail calls name their action literally, so this section can read them ({dynamic} dynamic)')
 
 # the register page must use the same resolution, not a second list of names
-ok('private static function trailQuery' in log_spec and log_spec.count('self::trailQuery()') == 3,
-   'the module page, the register and the hub read the trail through one query')
+ok('private static function trailQuery' in log_spec and log_spec.count('self::trailQuery()') == 2 and 'self::moduleTrailQuery(self::logSpec($module))' in log_spec,
+   'the module history filters by its spec before limiting; register and hub use the shared trail query')
 ok("->orWhereIn('action', $actions)" in log_spec,
    'the query is not narrowed to `%settings` only — a module that logs an action of its own survives it')
 ok("$m['last']['what']" in read(os.path.join(VIEWS, 'index.blade.php')),
@@ -1065,20 +1076,20 @@ ok("'old_value' => $secret ? self::mask($old) : self::clip($old)" in obs
 ok("ConfigurationService::HIDDEN" in obs, 'a credential is stored as the same masked text the register prints')
 ok('private const MAX = 2000;' in obs and 'mb_substr($text, 0, self::MAX)' in obs,
    'a long value is clipped with a marker rather than silently stored in part')
-ok("'hotel_id' => $m->hotel_id" in obs, 'the trail row carries the property of the setting that changed')
+ok('$change->hotel_id = $m->hotel_id;' in obs and '$change->save();' in obs, 'the guarded hotel id is explicitly set from the setting before saving')
 
 prov = read(PROVIDER)
 ok('Models\\Setting::observe(\\App\\Observers\\SettingValueObserver::class);' in prov,
    'the observer is registered — an observer nobody registers records nothing')
 
 trail_src = svc[svc.find('public static function valueTrail'):svc.find('public static function labels')]
-ok("SettingChange::query()->latest('id')" in trail_src, 'the trail is read newest first')
-ok("$row->was_secret ? self::HIDDEN" in trail_src,
+ok("SettingChange::query()->with('user:id,name')->latest('id')" in trail_src, 'the trail is read newest first with its users')
+ok("(bool) $row->was_secret || self::isSecretKey((string) $row->key)" in trail_src and "$secret ? self::HIDDEN" in trail_src,
    'the page prints a credential as hidden even if a row ever carried a value')
 ok("=== '' ? 'cleared'" in trail_src or "'cleared'" in trail_src,
    'a value cleared back to nothing says "cleared" rather than printing an empty cell')
 ok("'by' => $row->user?->name" in trail_src, 'the page names the person, not a user id')
-ok("'was' => $row->created ? null : self::show($row->old_value)" in trail_src,
+ok("'was' => $row->created ? null :" in trail_src and "$secret ? null : self::show($row->old_value)" in trail_src,
    'a setting created by a person is shown as having been nothing, not as "was 0"')
 ok('public static function trailCoverage' in svc and "'keys_total' => count(self::labels())" in svc,
    'the page says how much of the register the trail covers, rather than implying all of it')
@@ -1141,7 +1152,7 @@ ok('! self::isSecretKey($key) && array_key_exists($key, self::typed())' in svc,
 
 blocked_src = svc[svc.find('public static function restoreBlocked'):svc.find('public static function restoreError')]
 for piece, label in (
-    ('a credential is not recorded here', 'a credential is refused, because only that it changed was recorded'),
+    ('credential values cannot be restored from this trail', 'a credential is refused even when older rows predate its classification'),
     ('owned by its module screen', 'a module-owned setting is refused, and told where its rules live'),
     ('there was nothing here before', 'a setting that was first set is not a "restore"'),
     ('the value before this change was empty', 'a value that was empty cannot be restored'),
@@ -1195,7 +1206,7 @@ hv = re.sub(r'\s+', ' ', history_view)
 ok('Put it back' in hv, 'the trail offers the action')
 ok('@csrf' in history_view and "route('configuration.restore', $c['id'])" in history_view,
    'the form posts to the recorded change and carries the CSRF token')
-ok("@if($c['restore_ok'])" in history_view and "$c['restore_blocked']" in history_view,
+ok("@if($c['restore_ok'] && can_do('settings.manage'))" in history_view and "$c['restore_blocked']" in history_view,
    'a row that cannot be restored prints the reason instead of a button that would fail after the click')
 ok('One action on this page: put it back' in hv,
    'the page says what it can do, now that it can do something')
@@ -1213,18 +1224,16 @@ ok("'the value it had is no longer accepted'" in svc or 'no longer accepted' in 
 # compared by. Every number on it comes from the same service the screens read; the hash is
 # built from every registered key, so an unset key is part of it and setting one moves it.
 fp_src = svc[svc.find('public static function fingerprint'):svc.find('public static function credentialSummary')]
-ok('sha1(implode("\\n", $lines))' in fp_src and 'sort($lines, SORT_STRING)' in fp_src,
-   'the fingerprint is a sorted hash, so the order of the registry or the rows cannot change it')
+ok("hash('sha256', json_encode($records" in fp_src and 'sort($keys, SORT_STRING)' in fp_src,
+   'the version 2 fingerprint hashes deterministic structured records')
 ok("'short' => strtoupper(substr($full, 0, 12))" in fp_src,
    'it is printed as twelve characters a person can compare by eye')
-ok('foreach (array_keys(self::labels()) as $key)' in fp_src,
-   'every registered key contributes a line — a key added to the register changes the fingerprint')
-ok("$lines[] = $key.'='.(string) ($values[$key] ?? '');" in fp_src,
-   'an unset key contributes an empty line, so setting one for the first time changes the fingerprint')
-ok("$key.'=credential:'.($set ? 'set' : 'unset')" in fp_src,
-   'a credential contributes only whether one is stored — the hash can never be a way to guess it')
-ok("$lines[] = $key.'=family:'.count($held);" in fp_src,
-   'a family prefix contributes its rows and a count, so adding one row moves the hash')
+ok("$keys = array_keys(self::labels());" in fp_src and "[$key, 'missing']" in fp_src,
+   'every registered key contributes and missing is distinct from an empty value')
+ok("[$key, 'credential', $set]" in fp_src and "isset($secrets[(string) $k])" in fp_src,
+   'credentials contribute only whether set, including within families')
+ok("[$key, 'family', $members]" in fp_src and 'ksort($held, SORT_STRING)' in fp_src,
+   'family members are recorded in a deterministic structure')
 ok("'at' => SettingChange::query()->latest('id')->value('created_at')" in fp_src,
    'the fingerprint says when the configuration last moved')
 
@@ -1264,7 +1273,7 @@ for piece, label in (
     ('5 · Credentials', 'and the credential count without a hint of a value'),
     ('6 · What it was before', 'and the value trail'),
     ('7 · Sign-off', 'and room to sign it'),
-    ('the same fingerprint means the same configuration', 'it says how to compare two sheets'),
+    ('indicator, not proof of identical configuration', 'it says how to compare two version 2 sheets without claiming certainty'),
     ('not the same as "checked and clean"', 'and will not let an unchecked module read as verified'),
     ('a credential is stored encrypted and is not printed, exported or hashed here', 'and says a credential is not in the hash'),
     ('Prepared by', 'it has a signature line for whoever prepares it'),
@@ -1273,7 +1282,7 @@ for piece, label in (
     ok(piece in hv2, f'handover sheet: {label}')
 ok('collect(' not in hv2, 'the sheet joins its lists in the controller — a printable page needs no template helper')
 
-ok('function fingerprintOf' in sample and 'crypto.createHash(\'sha1\')' in sample and 'lines.sort()' in sample,
+ok('function fingerprintOf' in sample and 'crypto.createHash(\'sha256\')' in sample and 'JSON.stringify(records)' in sample,
    'preview: the fixture computes the fingerprint the same way, with a real hash')
 ok('fingerprint: fingerprintOf(modules)' in sample, 'preview: the fixture carries it into the page')
 

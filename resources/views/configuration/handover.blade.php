@@ -5,7 +5,7 @@
   <div class="small">Property <b>{{ $hotel->name }}</b> ({{ $hotel->code }})</div>
   <div class="small">{{ $coverage['modules'] }} modules · {{ $coverage['keys'] }} settings tracked</div>
   <div class="small">Printed {{ $printedAt->format('d M Y H:i') }}</div>
-  <div class="small">Fingerprint <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
+  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">{{ $fingerprint['short'] }}</b></div>
 @endsection
 @section('content')
 
@@ -14,10 +14,10 @@
   all of that as it stands at the print time above, so an auditor, an owner or an incoming manager can check it line by
   line instead of asking somebody.</p>
 <p class="small muted"><b>The fingerprint.</b> {{ $fingerprint['short'] }} is computed from all {{ number_format($fingerprint['keys']) }}
-  settings and their stored values this minute. Print two sheets and compare the twelve characters: the same fingerprint
-  means the same configuration, whatever else changed in the meantime. A credential contributes only whether one is
-  stored — never its value — so the fingerprint cannot be used to guess one. The value trail on the last page says what
-  moved since the sheet before it.</p>
+  registered settings and their stored values this minute. Compare twelve characters on two version 2 sheets as a quick
+  indicator, not proof of identical configuration. Credentials contribute only whether one is stored, so rotating a
+  credential that remains set does not change the fingerprint. Module-table data and unregistered settings are excluded.
+  Version 2 uses a new encoding: it cannot be compared directly with sheets printed under the previous version.</p>
 
 <h3 class="cfg-print-group">1 · The decisions this property made</h3>
 <p class="small">{{ number_format($decisions['counts']['drifted']) }} settings were moved off the value the code ships with, and
@@ -140,7 +140,7 @@
     <tr><td><b>Changes agreed</b></td><td colspan="3"></td></tr>
   </tbody>
 </table>
-<p class="tiny muted">Exported from Settings › Configuration. Fingerprint {{ $fingerprint['short'] }} · {{ $fingerprint['lines'] }}
-  lines hashed · printed {{ $printedAt->format('d M Y H:i') }}. A credential is never printed: the sheet says whether one is
+<p class="tiny muted">Exported from Settings › Configuration. Fingerprint v2 {{ $fingerprint['short'] }} · {{ $fingerprint['lines'] }}
+  records hashed · printed {{ $printedAt->format('d M Y H:i') }}. A credential is never printed: the sheet says whether one is
   set, not what it is.</p>
 @endsection

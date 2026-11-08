@@ -61,13 +61,15 @@
           <td>{{ $c['now'] }}</td>
           <td class="small muted">{{ $c['by'] ?? 'not recorded' }}</td>
           <td class="right">
-            @if($c['restore_ok'])
+            @if($c['restore_ok'] && can_do('settings.manage'))
               <form method="post" action="{{ route('configuration.restore', $c['id']) }}">
                 @csrf
                 <button class="btn btn-soft btn-sm" title="Put {{ $c['label'] }} back to the value it had before this change">
                   <x-icon name="refresh" size="sm"/> Put it back
                 </button>
               </form>
+            @elseif($c['restore_ok'])
+              <span class="tiny muted">Requires settings management permission</span>
             @else
               <span class="tiny muted" title="{{ $c['restore_blocked'] }}">{{ $c['restore_blocked'] }}</span>
             @endif
