@@ -350,8 +350,10 @@ class FolioController extends Controller
     public function discount(Request $request, Folio $folio)
     {
         $data = $request->validate(['mode' => 'required|in:amount,percent', 'value' => 'required|numeric|min:0.01', 'reason' => 'required|string|max:200']);
-        $amount = $data['mode'] === 'percent' ? round($folio->totals()['charges'] * min(100, $data['value']) / 100, 2) : (float) $data['value'];
-        FolioService::discount($folio, $amount, $data['reason']);
+        $tx = $data['mode'] === 'percent'
+            ? FolioService::discountPercent($folio, (float) $data['value'], $data['reason'])
+            : FolioService::discount($folio, (float) $data['value'], $data['reason']);
+        $amount = (float) $tx->amount;
         ActivityLogger::log('folio', 'discount', 'Discount '.money($amount)." on {$folio->folio_no}: {$data['reason']}", $folio);
 
         return back()->with('success', 'Discount applied.');
@@ -361,7 +363,6 @@ class FolioController extends Controller
     {
         $data = $request->validate(['company_id' => 'required|integer|owned:companies', 'override_reason' => 'nullable|string|max:200']);
         FolioService::transferToCityLedger($folio, (int) $data['company_id'], $data['override_reason'] ?? null);
-        $folio->update(['company_id' => $data['company_id']]);
         ActivityLogger::log('folio', 'transfer', "Transferred {$folio->folio_no} balance to city ledger", $folio);
 
         return back()->with('success', 'Balance transferred to city ledger.');
@@ -452,18 +453,34 @@ class FolioController extends Controller
             'tx' => 'required|array|min:1', 'tx.*' => 'integer|owned:folio_transactions',
             'target' => ['required', 'regex:/^(new|\d+)$/'], 'reason' => 'required|string|max:200',
         ]);
-        abort_unless($folio->status === 'open', 422, 'Folio is closed.');
         $moved = DB::transaction(function () use ($data, $folio) {
-            if ($data['target'] === 'new') {
+            $sourceId = (int) $folio->id;
+            $targetId = $data['target'] === 'new' ? null : (int) $data['target'];
+            if ($targetId === $sourceId) {
+                throw new \RuntimeException('Target folio must be a different, open folio.');
+            }
+            // Lock both existing folios in a stable order before their lines, so
+            // opposite-direction moves and concurrent close/post cannot cross.
+            $ids = $targetId === null ? [$sourceId] : [$sourceId, $targetId];
+            sort($ids, SORT_NUMERIC);
+            $locked = [];
+            foreach ($ids as $id) {
+                $locked[$id] = Folio::whereKey($id)->lockForUpdate()->firstOrFail();
+            }
+            $folio = $locked[$sourceId];
+            if ($folio->status !== 'open') {
+                throw new \RuntimeException('Source folio is closed.');
+            }
+            if ($targetId === null) {
                 $target = FolioService::openStandalone(['type' => 'guest', 'guest_id' => $folio->guest_id, 'company_id' => $folio->company_id,
                     'reservation_id' => $folio->reservation_id, 'reservation_room_id' => $folio->reservation_room_id]);
             } else {
-                $target = Folio::lockForUpdate()->findOrFail((int) $data['target']);
-                if ($target->id === $folio->id || $target->status !== 'open') {
+                $target = $locked[$targetId];
+                if ($target->status !== 'open') {
                     throw new \RuntimeException('Target folio must be a different, open folio.');
                 }
             }
-            $lines = $folio->transactions()->whereIn('id', $data['tx'])->where('is_void', false)->lockForUpdate()->get();
+            $lines = $folio->transactions()->whereIn('id', $data['tx'])->where('is_void', false)->orderBy('id')->lockForUpdate()->get();
             if ($lines->count() !== count(array_unique($data['tx']))) {
                 throw new \RuntimeException('Some selected lines are void or do not belong to this folio.');
             }

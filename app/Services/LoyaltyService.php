@@ -85,13 +85,19 @@ class LoyaltyService
         }
 
         return DB::transaction(function () use ($folio, $points) {
+            // Close and void also take folio before guest; keep one lock order.
+            $folio = FolioService::lockOpen($folio);
+            if (! $folio->guest_id) {
+                throw new RuntimeException('This folio has no guest profile.');
+            }
+            $balance = $folio->totals(FolioService::lockedTransactions($folio))['balance'];
             $guest = Guest::lockForUpdate()->findOrFail($folio->guest_id);
             if ($guest->loyalty_points < $points) {
                 throw new RuntimeException("{$guest->full_name} has only {$guest->loyalty_points} points.");
             }
             $value = round($points * self::pointValue(), 2);
-            if ($value > $folio->balance() + 0.009) {
-                throw new RuntimeException('Redemption value '.money($value).' exceeds the folio balance '.money($folio->balance()).'.');
+            if ($value > $balance + 0.009) {
+                throw new RuntimeException('Redemption value '.money($value).' exceeds the folio balance '.money($balance).'.');
             }
             $tx = FolioService::discount($folio, $value, "Loyalty redemption ({$points} pts)");
             $tx->update(['source_type' => 'loyalty', 'source_id' => $points]);
