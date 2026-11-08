@@ -3078,13 +3078,42 @@
       <li><span>Charges including tax</span><b>GH₵ 2,760.00</b></li>
 
       <li><span>Discounts and allowances (subtracted)</span><b>GH₵ 0.00</b></li>
-      <li><span>Payments and transfers (subtracted)</span><b>GH₵ 1,000.00</b></li>
+      <li><span>Payments and transfers (subtracted)</span><b>GH₵ 1,920.00</b></li>
 
-      <li><span class="bold">Posted balance</span><b>GH₵ 1,760.00</b></li>
+      <li><span class="bold">Posted balance</span><b>GH₵ 840.00</b></li>
     </ul>
     <p class="tiny muted">Read-only overview, not a final bill or checkout quote. Room folios are still settled separately.</p>
+    <button type="button" class="btn btn-sm" data-modal="reservationBalanceDetails" aria-haspopup="dialog" aria-controls="reservationBalanceDetails">View folio breakdown</button>
   </div>
 </div>
+
+<div class="modal" id="reservationBalanceDetails" role="dialog" aria-modal="true" aria-labelledby="reservationBalanceDetailsTitle"><div class="modal-box">
+  <div class="modal-head"><h3 id="reservationBalanceDetailsTitle">Reservation folio breakdown</h3><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close dialog" title="Close dialog"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+  <div class="modal-body">
+    <p class="small muted">These are posted balances, not checkout quotes. Existing invoices remain unchanged.</p>
+    <p class="alert alert-info">1 room folio(s) have an invoice number. They remain on the existing room-by-room workflow.</p>
+    <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Folio</th><th scope="col">Context</th><th scope="col">Status / document</th><th scope="col" class="num">Posted balance</th></tr></thead><tbody>
+
+      <tr><td><a href="#">FOL-00124</a></td>
+        <td> Reservation / unassigned </td>
+        <td>Open </td>
+        <td class="num">GH₵ 1,000.00 credit</td></tr>
+
+      <tr><td><a href="#">FOL-00125</a></td>
+        <td>Room 202</td>
+        <td>Closed  · INV-00372</td>
+        <td class="num">GH₵ 0.00</td></tr>
+
+      <tr><td><a href="#">FOL-00126</a></td>
+        <td>Room 203</td>
+        <td>Open </td>
+        <td class="num">GH₵ 1,840.00</td></tr>
+
+    </tbody></table></div>
+  </div>
+  <div class="modal-foot"><button type="button" class="btn" data-close>Close</button></div>
+</div></div>
+
 </div>
     </main>
   </div>

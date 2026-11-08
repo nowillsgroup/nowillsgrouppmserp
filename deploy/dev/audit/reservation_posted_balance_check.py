@@ -6,7 +6,8 @@ def read(path): return (ROOT / path).read_text()
 class ReservationPostedBalanceTests(unittest.TestCase):
     def test_summary_includes_scoped_folios_and_uses_folio_math(self):
         service = read('app/Services/ReservationBillingService.php')
-        self.assertIn("loadMissing('folios.transactions')", service)
+        self.assertIn("'folios.transactions'", service)
+        self.assertIn("'folios.stay.room'", service)
         self.assertIn('$folio->totals($folio->transactions)', service)
         for key in ['charges', 'opening', 'discount', 'payments', 'refunds', 'balance']:
             self.assertIn("'" + key + "'", service)

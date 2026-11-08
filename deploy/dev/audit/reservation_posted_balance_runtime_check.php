@@ -1,5 +1,5 @@
 <?php
-/** Tests posted reservation aggregation with actual Folio totals; no DB or checkout is exercised. */
+/** Tests posted reservation aggregation with actual Folio totals and SQLite tenant isolation; checkout is not exercised. */
 $root = dirname(__DIR__, 3);
 $temporaryLink = ! is_file($root.'/vendor/autoload.php') && ! file_exists($root.'/build/app');
 if ($temporaryLink) symlink('../app', $root.'/build/app');
@@ -49,13 +49,20 @@ $check($summary['folios'] === 0 && $summary['balance'] === 0.0, 'empty reservati
 // Verify database relation loading, reservation boundaries and the tenant scope.
 $db = $capsule->getConnection();
 $db->statement('CREATE TABLE reservations (id INTEGER PRIMARY KEY, hotel_id INTEGER)');
-$db->statement('CREATE TABLE folios (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, type TEXT, status TEXT)');
+$db->statement('CREATE TABLE rooms (id INTEGER PRIMARY KEY, hotel_id INTEGER, room_no TEXT)');
+$db->statement('CREATE TABLE reservation_rooms (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, room_id INTEGER)');
+$db->statement('CREATE TABLE folios (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, reservation_room_id INTEGER, folio_no TEXT, invoice_no TEXT, type TEXT, status TEXT)');
 $db->statement('CREATE TABLE folio_transactions (id INTEGER PRIMARY KEY, hotel_id INTEGER, folio_id INTEGER, type TEXT, category TEXT, amount NUMERIC, tax_amount NUMERIC DEFAULT 0, is_void INTEGER DEFAULT 0)');
 $db->table('reservations')->insert([['id' => 1, 'hotel_id' => 1], ['id' => 2, 'hotel_id' => 1]]);
+$db->table('rooms')->insert([['id' => 1, 'hotel_id' => 1, 'room_no' => '202'], ['id' => 2, 'hotel_id' => 2, 'room_no' => '999']]);
+$db->table('reservation_rooms')->insert([['id' => 1, 'hotel_id' => 1, 'reservation_id' => 1, 'room_id' => 1], ['id' => 2, 'hotel_id' => 2, 'reservation_id' => 1, 'room_id' => 2]]);
 $db->table('folios')->insert([
-    ['id' => 1, 'hotel_id' => 1, 'reservation_id' => 1, 'type' => 'guest', 'status' => 'open'],
-    ['id' => 2, 'hotel_id' => 1, 'reservation_id' => 2, 'type' => 'guest', 'status' => 'open'],
-    ['id' => 3, 'hotel_id' => 2, 'reservation_id' => 1, 'type' => 'guest', 'status' => 'open'],
+    ['id' => 1, 'hotel_id' => 1, 'reservation_id' => 1, 'reservation_room_id' => null, 'folio_no' => 'A', 'invoice_no' => null, 'type' => 'guest', 'status' => 'open'],
+    ['id' => 2, 'hotel_id' => 1, 'reservation_id' => 2, 'reservation_room_id' => null, 'folio_no' => 'B', 'invoice_no' => null, 'type' => 'guest', 'status' => 'open'],
+    ['id' => 3, 'hotel_id' => 2, 'reservation_id' => 1, 'reservation_room_id' => null, 'folio_no' => 'C', 'invoice_no' => null, 'type' => 'guest', 'status' => 'open'],
+    ['id' => 4, 'hotel_id' => 1, 'reservation_id' => 1, 'reservation_room_id' => 1, 'folio_no' => 'D', 'invoice_no' => 'INV-1', 'type' => 'guest', 'status' => 'closed'],
+    ['id' => 5, 'hotel_id' => 1, 'reservation_id' => 1, 'reservation_room_id' => 1, 'folio_no' => 'E', 'invoice_no' => 'CN-1', 'type' => 'credit_note', 'status' => 'closed'],
+    ['id' => 6, 'hotel_id' => 1, 'reservation_id' => 1, 'reservation_room_id' => 2, 'folio_no' => 'F', 'invoice_no' => null, 'type' => 'guest', 'status' => 'open'],
 ]);
 $db->table('folio_transactions')->insert([
     ['id' => 1, 'hotel_id' => 1, 'folio_id' => 1, 'type' => 'payment', 'category' => 'advance', 'amount' => 75, 'tax_amount' => 0, 'is_void' => 0],
@@ -66,6 +73,12 @@ $db->table('folio_transactions')->insert([
 $hotel = new \App\Models\Hotel; $hotel->forceFill(['id' => 1, 'timezone' => 'UTC']); \App\Support\Tenant::set($hotel);
 $loaded = Reservation::findOrFail(1);
 $summary = ReservationBillingService::postedSummary($loaded);
-$check($summary['folios'] === 1 && $summary['payments'] === 75.0 && $summary['balance'] === -75.0, 'reservation or tenant isolation failed');
+$check($summary['folios'] === 4 && $summary['payments'] === 75.0 && $summary['balance'] === -75.0, 'reservation or tenant isolation failed');
+$check($summary['room_invoices'] === 1, 'room invoice count must exclude credit notes and other tenants');
+$details = collect($summary['details'])->keyBy('number');
+$check($details['A']['stay_id'] === null && $details['A']['balance'] === -75.0, 'unassigned reservation advance missing');
+$check($details['D']['room_no'] === '202' && $details['D']['invoice_no'] === 'INV-1' && $details['D']['status'] === 'closed', 'room invoice provenance missing');
+$check($details['E']['type'] === 'credit_note' && $details['E']['invoice_no'] === 'CN-1', 'credit note should remain distinguishable');
+$check($details['F']['room_no'] === null, 'foreign tenant room details must not leak');
 \App\Support\Tenant::set(null);
 echo "{$checks} reservation posted balance assertions passed (in-memory models and SQLite).\n";
