@@ -134,10 +134,8 @@ ${content}
     console.log(`${screen.file}: unknown ${[...log.unknownComponents, ...log.unknownDirectives].join(', ')}`);
   }
 
-  // Keep generated trail examples free of whitespace-only lines introduced by Blade conditionals.
-  if (screen.file === 'configuration-history.html' || screen.file === 'configuration-handover.html') {
-    html = html.replace(/[ \t]+$/gm, '');
-  }
+  // Blade conditionals may leave trailing spaces; keep every generated page clean.
+  html = html.replace(/[ \t]+$/gm, '');
   if (before === html) console.log(`${screen.file} is up to date`);
   else if (checkOnly) { console.error(`${screen.file} is stale — run node deploy/dev/build-configuration-preview.mjs`); failures += 1; }
   else { fs.writeFileSync(outPath, html); console.log(`wrote deploy/dev/previews/${screen.file} (${html.length} bytes)`); }

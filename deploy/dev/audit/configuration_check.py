@@ -404,6 +404,26 @@ ok("$s('hk_credits_stayover', 1) < 1" in checks_src
    and "setting('hk_credits_stayover', 1)" in read(os.path.join(ROOT, 'app/Services/HousekeepingService.php')),
    'the housekeeping rule reads the credit the workload spread uses')
 
+# New advisories must remain grounded in the consuming code, not just in a fixture.
+cro_src = read(os.path.join(ROOT, 'app/Services/CroService.php'))
+fleet_src = read(os.path.join(ROOT, 'app/Services/FleetService.php'))
+tv_src = read(os.path.join(ROOT, 'app/Services/IptvService.php'))
+inbox_src = read(os.path.join(ROOT, 'app/Services/InboxService.php'))
+webhook_src = read(os.path.join(ROOT, 'app/Services/WebhookService.php'))
+checks_drivers = [read(os.path.join(ROOT, 'app/Services/Interfaces', f)) for f in ('TcpPbxDriver.php', 'TcpLockDriver.php')]
+ok("now()->addHours(self::cfg()['follow_up_hours'])" in cro_src and "now()->subDays(self::cfg()['expire_days'])" in cro_src,
+   'enquiry follow-up and expiry advisory uses the owning service timelines')
+ok("self::cfg()['speed_moving_kph']" in fleet_src and "self::cfg()['speed_limit_kph']" in fleet_src,
+   'fleet advisory compares the actual status and speeding thresholds')
+ok("self::cfg()['enabled'] && self::cfg()['portal_chat']" in inbox_src,
+   'portal chat depends on both inbox switches')
+ok("$today < $c['max_rentals']" in tv_src and "'movies' => $c['vod']" in tv_src,
+   'the TV shows enabled movies but refuses a new rental when its limit is zero')
+ok("! $cfg['allow_http']" in webhook_src and "! $cfg['allow_private']" in webhook_src,
+   'the developer checks refer to the webhook URL and delivery safeguards')
+ok(all("$host === '' || $port < 1 || $port > 65535" in d for d in checks_drivers),
+   'both TCP drivers reject a missing host or unusable port')
+
 # wired: the service decorates, the controller passes, the views render
 ok('use App\Support\ConfigurationChecks;' in svc, 'the register service knows the checks')
 ok('ConfigurationChecks::run()' in svc, 'the service runs the rules rather than restating them')
@@ -834,11 +854,11 @@ ok("'guarded' => count(array_filter($modules, fn ($m) => $m['rules'] > 0))" in s
    'the coverage strip counts the guarded modules from the same number')
 
 # the module page must distinguish "checked and clean" from "not checked"
-ok("No contradiction in this module's settings right now" in show_view
-   and "Nothing compares this module's settings with the rest of the configuration yet" in show_view,
+ok("No findings from this module's" in show_view
+   and "This module has no automated configuration checks yet" in show_view,
    'a module page that has no finding says whether anything looked, instead of implying it was checked')
 ok("$m['rules'] === 1 ? 'rule' : 'rules'" in show_view, 'and says how many rules looked')
-ok("$coverage['guarded']" in hub_view and 'checked against each other' in hub_view,
+ok("$coverage['guarded']" in hub_view and 'modules with at least one configuration check' in hub_view,
    'the hub states how many modules are checked against each other, out of how many')
 
 ok('parseRuleModules' in sample and "'public const MODULES = ['" in sample,

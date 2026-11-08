@@ -52,15 +52,15 @@
 @elseif($m['rules'] ?? 0)
 <div class="card mb-2">
   <div class="card-body small muted">
-    No contradiction in this module's settings right now — checked by {{ $m['rules'] }}
-    {{ $m['rules'] === 1 ? 'rule' : 'rules' }} that compares them with the rest of the configuration.
+    No findings from this module's {{ $m['rules'] }} configuration
+    {{ $m['rules'] === 1 ? 'rule' : 'rules' }} right now. Other issues may not be covered.
   </div>
 </div>
 @else
 <div class="card mb-2">
   <div class="card-body small muted">
-    Nothing compares this module's settings with the rest of the configuration yet. They are listed here, and each one is
-    read, defaulted and trailed — but a contradiction between two of them would not be reported.
+    This module has no automated configuration checks yet. Its settings are listed here, but a conflict or risky policy
+    in this module would not be reported by these checks.
   </div>
 </div>
 @endif

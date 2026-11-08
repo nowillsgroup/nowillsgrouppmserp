@@ -92,15 +92,15 @@
 @endif
 
 <h3 class="cfg-print-group">4 · What is checked against what</h3>
-<p class="small">{{ count($guarded) }} of {{ $coverage['modules'] }} modules have settings the code compares with each other —
-  a log driver that sends nothing, a payment provider left on test, a spa slot loop that never advances. The other
-  {{ count($unguarded) }} are read, defaulted and trailed, but no contradiction between two of their settings would be
-  reported. That is not the same as "checked and clean", and this sheet does not say so.</p>
+<p class="small">{{ count($guarded) }} of {{ $coverage['modules'] }} modules have at least one automated configuration check —
+  for example, a log driver that sends nothing or a payment provider left on test. These checks cover specific cases,
+  not every possible issue. The other {{ count($unguarded) }} modules have no such check. That is not the same as "checked and clean"
+  for any module, and this sheet does not say so.</p>
 <p class="small">Beyond the modules: <b>{{ $mapGap }}</b> settings are read by the code through a service map — a
   default, a value and a behaviour, all real — and are not in this register yet, so this sheet can neither show them
   nor fingerprint them. They are named in the register's own audit rather than left out of it.</p>
-<p class="small muted"><b>Checked:</b> {{ $guardedNames }}</p>
-<p class="small muted"><b>Not checked against each other:</b> {{ $unguardedNames }}</p>
+<p class="small muted"><b>At least one check:</b> {{ $guardedNames }}</p>
+<p class="small muted"><b>No automated checks:</b> {{ $unguardedNames }}</p>
 
 <h3 class="cfg-print-group">5 · Credentials</h3>
 <p class="small">{{ $credentials['keys'] }} settings on this property are credentials, and {{ $credentials['set'] }} of them

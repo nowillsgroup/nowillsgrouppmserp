@@ -87,7 +87,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/What it was before/.test(text(doc.body)), 'hub: the value trail is reachable from the hub action bar');
   ok(stats.includes('412'), 'hub: and the strip counts the value changes recorded against it');
   ok(stats.includes(`${GUARDED} of ${MODULE_COUNT}`), `hub: the strip says how many modules are checked against each other (${GUARDED} of ${MODULE_COUNT}), not that all are`);
-  ok(/modules whose settings are checked against each other/.test(text(doc.body)), 'hub: and says what that number means');
+  ok(/modules with at least one configuration check/.test(text(doc.body)), 'hub: and says what that number means');
   ok(!/Not yet behind a screen/.test(text(doc.body)), 'hub: the worklist panel is gone once the worklist is empty');
   ok(cards.some(c => /Linen & laundry par levels/.test(text(c)) && /changing it needs laundry.manage/.test(text(c))),
     'hub: a screen that only reads says which permission it takes to change it');
@@ -144,6 +144,15 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
     'findings: the payment finding links to the payments module page');
   ok(/Online payments/.test(text(pay)), 'findings: a finding names the module by its label, not its key');
 
+  win.close();
+}
+
+// The sample deliberately permits HTTP, so the new security advisory is visible.
+{
+  const win = load('configuration.html');
+  const body = text(win.document.body);
+  ok(/Plain HTTP webhook endpoints are allowed/.test(body), 'hub: the new API warning is visible');
+  ok(/does not mean an HTTP endpoint exists/.test(body), 'hub: the warning does not claim an endpoint exists');
   win.close();
 }
 
@@ -275,7 +284,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(/Changed here/.test(text(doc.querySelector('.crumbs, .page-title, h2') || doc.body)),
     "changed: the page is the property's decisions, not the register again");
   const stats = [...doc.querySelectorAll('.stat .v')].map(text);
-  ok(stats.includes('48'), 'changed: it counts the settings moved off a built-in default');
+  ok(stats.includes('49'), 'changed: it counts the settings moved off a built-in default');
   ok(stats.includes('22') || stats.some((x) => Number(x) > 0 && Number(x) < MODULE_COUNT),
     'changed: and how many modules this property actually configured');
   ok(/Every other setting is running on the value\s+the code ships with/.test(text(doc.body).replace(/\s+/g, ' '))
@@ -286,7 +295,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
   ok(tables.length === 2, 'changed: the decisions are split into drifted and chosen, not mixed');
   const drifted = tables[0] ? [...tables[0].querySelectorAll('tbody tr')] : [];
   const chosen = tables[1] ? [...tables[1].querySelectorAll('tbody tr')] : [];
-  ok(drifted.length === 48, 'changed: every setting moved off its default is listed');
+  ok(drifted.length === 49, 'changed: every setting moved off its default is listed');
   ok(chosen.length > 0, 'changed: every setting with no default to move off is listed too');
   // the page's own headline counts are the rows it prints, so a row cannot appear or
   // vanish without the number moving with it
@@ -477,7 +486,7 @@ const severityCount = (sev) => FINDING_ROWS.filter((f) => f.severity === sev).le
     `handover: it says what an unset value runs on (${noDefault} settings with no default)`);
   ok(/Online payment is switched on, but on the built-in test gateway/.test(body),
     'handover: the findings are printed in full, not as a count');
-  ok(new RegExp(`${GUARDED} of ${MODULE_COUNT} modules have settings the code compares with each other`).test(body),
+  ok(new RegExp(`${GUARDED} of ${MODULE_COUNT} modules have at least one automated configuration check`).test(body),
     'handover: it says how far the checks reach');
   // the sheet also states what the register does not hold: settings read behind a service
   // map. The number is recomputed here from the same two files the fixture reads.

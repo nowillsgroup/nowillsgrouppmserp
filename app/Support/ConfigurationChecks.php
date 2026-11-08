@@ -74,6 +74,14 @@ class ConfigurationChecks
         'rent_cap_not_enforced' => 'leases',
         'emissions_approved_by_their_own_author' => 'esg',
         'portal_switches_on_a_closed_portal' => 'partner',
+        'cro_follow_up_after_expiry' => 'cro',
+        'fleet_speed_marked_parked' => 'fleet',
+        'inbox_chat_under_disabled_inbox' => 'inbox',
+        'tv_rental_limit_zero' => 'iptv',
+        'api_http_endpoints_allowed' => 'developers',
+        'api_private_endpoints_allowed' => 'developers',
+        'pbx_tcp_endpoint_missing' => 'interfaces',
+        'lock_tcp_endpoint_missing' => 'interfaces',
     ];
 
     /** The rules that look at one module. */
@@ -490,6 +498,67 @@ class ConfigurationChecks
                 'The partner portal is closed, but its controls are still switched on',
                 'Paying, amending and cancelling are read only once the portal is live, so these three read as available and none of them can be reached. Turning the portal back on will bring them with it.',
                 ['partner_enabled', 'partner_pay', 'partner_amend', 'partner_cancel']);
+        }
+
+        // Default enquiry follow-up is calculated in hours; expiry uses created_at in days.
+        if ((int) $s('cro_follow_up_hours', '24') > (int) $s('cro_expire_days', '14') * 24) {
+            $add('cro_follow_up_after_expiry', 'warning', 'cro',
+                'The default follow-up falls after the enquiry expiry window',
+                'An open enquiry can lapse as no response before its default follow-up is due. Staff can choose an earlier follow-up, and the expiry job runs on its own schedule.',
+                ['cro_follow_up_hours', 'cro_expire_days']);
+        }
+
+        // Fleet status and speeding use separate thresholds on the same GPS speed.
+        if (max(1, (int) $s('transport_speed_moving_kph', '5')) > max(1, (int) $s('transport_speed_limit_kph', '80'))) {
+            $add('fleet_speed_marked_parked', 'warning', 'fleet',
+                'A speeding vehicle can still be shown as parked',
+                'The moving threshold is above the speeding threshold. Speeds between them are reported as speeding but the live status can still say parked.',
+                ['transport_speed_moving_kph', 'transport_speed_limit_kph']);
+        }
+
+        if ((string) $s('inbox_enabled', '1') !== '1' && (string) $s('inbox_portal_chat', '1') === '1') {
+            $add('inbox_chat_under_disabled_inbox', 'note', 'inbox',
+                'Portal chat is enabled under a disabled guest inbox',
+                'Portal chat requires both switches. It will not be offered while the inbox is off, but will become available again when the inbox is enabled.',
+                ['inbox_enabled', 'inbox_portal_chat']);
+        }
+
+        if ((string) $s('tv_enabled', '1') === '1' && (string) $s('tv_vod_enabled', '1') === '1'
+            && max(0, min(20, (int) $s('tv_max_rentals', '5'))) === 0) {
+            $add('tv_rental_limit_zero', 'warning', 'iptv',
+                'TV movie rentals are enabled but the rental limit is zero',
+                'The movie feature can be shown when active titles exist, but a new rental is refused at a zero limit. Existing active rentals can still be reopened.',
+                ['tv_enabled', 'tv_vod_enabled', 'tv_max_rentals']);
+        }
+
+        // These are intentional test/on-premise options, not proof that any endpoint is unsafe.
+        if ((string) $s('api_allow_http', '0') === '1') {
+            $add('api_http_endpoints_allowed', 'note', 'developers',
+                'Plain HTTP webhook endpoints are allowed',
+                'The webhook URL and delivery checks permit unencrypted HTTP while this option is on. Review it for the property; the setting alone does not mean an HTTP endpoint exists.',
+                ['api_allow_http']);
+        }
+        if ((string) $s('api_allow_private', '0') === '1') {
+            $add('api_private_endpoints_allowed', 'note', 'developers',
+                'Private network addresses are allowed for outbound integrations',
+                'Webhook and channel URL checks allow private or internal addresses when this option is on. This can be needed on-premise, but broadens access to internal services; review the setting and endpoints.',
+                ['api_allow_private']);
+        }
+
+        // TCP drivers reject these commands before opening a connection if host or port is missing.
+        if ((string) $s('pbx_enabled', '1') === '1' && (string) $s('pbx_driver', 'demo') === 'tcp'
+            && ($blank('pbx_tcp_host') || (int) $s('pbx_tcp_port', '0') < 1 || (int) $s('pbx_tcp_port', '0') > 65535)) {
+            $add('pbx_tcp_endpoint_missing', 'warning', 'interfaces',
+                'The TCP PABX command link has no usable host or port',
+                'The TCP PABX driver rejects commands without a host and a port from 1 to 65535. Call-detail capture uses its own settings and is not assessed by this check.',
+                ['pbx_enabled', 'pbx_driver', 'pbx_tcp_host', 'pbx_tcp_port']);
+        }
+        if ((string) $s('lock_enabled', '1') === '1' && (string) $s('lock_driver', 'demo') === 'tcp'
+            && ($blank('lock_tcp_host') || (int) $s('lock_tcp_port', '0') < 1 || (int) $s('lock_tcp_port', '0') > 65535)) {
+            $add('lock_tcp_endpoint_missing', 'warning', 'interfaces',
+                'The TCP door-lock encoder has no usable host or port',
+                'The TCP lock driver rejects encoder commands without a host and a port from 1 to 65535. A configured endpoint still needs a successful hardware test.',
+                ['lock_enabled', 'lock_driver', 'lock_tcp_host', 'lock_tcp_port']);
         }
 
         // ── booking engine ────────────────────────────────────────────────────────

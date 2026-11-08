@@ -3068,7 +3068,7 @@
         </div>
         <div class="actions">
         <a class="btn btn-primary" href="#"><svg class="i" aria-hidden="true"><use href="#i-settings"/></svg> Open the screen</a>
-  
+
         <a class="btn" href="#"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg> All modules</a>
         </div>
       </div>
@@ -3080,14 +3080,14 @@
       <div class="card-body">
       <p class="small muted">The gateway, the keys, the deposit the booking engine takes and how long a payment link stays open. The booking deposit is 1–100 % of the stay, the room is held 15–1440 minutes while the guest pays, and a link stays payable 1–720 hours.</p>
       <div class="cfg-meta">
-      
+
       <span><b>8</b> of 15 settings set on this property</span>
       <span><b>3</b> moved off the built-in default</span>
-      
+
       <span>Group: Finance</span>
-      
+
       <span>Screen: <a href="#">payments.settings</a> · opens with <code>payments.settings</code></span>
-      
+
       </div>
       </div>
       </div>
@@ -3096,7 +3096,7 @@
       <div class="card mb-2 cfg-findings">
       <div class="card-head"><h3><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg> What this module's settings contradict</h3><span class="badge badge-red">1</span></div>
       <div class="card-body">
-    
+
       <div class="cfg-find cfg-find-blocker">
       <span class="cfg-find-sev">Cannot work</span>
       <div class="cfg-find-body">
@@ -3105,7 +3105,7 @@
       <span class="cfg-find-keys">Reads <code>pay_enabled · pay_provider</code></span>
       </div>
       </div>
-    
+
       </div>
       </div>
 
@@ -3113,211 +3113,211 @@
 
       <div class="card flush mb-2">
       <div class="card-head"><h3>Every setting this module reads</h3><span class="badge badge-slate">15</span></div>
-  
+
       <div class="card-body small muted" style="padding-bottom:0">
       5 of these are credentials. They are stored encrypted and the register only ever says whether one is set —
       the screen is the place that reads one back, and it never shows it either.
       </div>
-  
+
       <div class="card-body table-wrap"><table class="table">
       <thead><tr><th>Setting</th><th>Key</th><th>On this property</th><th>Built-in default</th><th>State</th><th>Read in</th></tr></thead>
       <tbody>
-    
+
       <tr>
       <td class="bold">Mobile-money gateway base URL</td>
       <td class="small muted"><code>momo_base_url</code></td>
       <td class="muted">—</td>
       <td class="small ">—</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/Payments/MoMoGateway.php">MoMoGateway</td>
       </tr>
-    
+
       <tr>
       <td class="bold">The booking engine takes a deposit</td>
       <td class="small muted"><code>pay_booking_deposit</code></td>
       <td class="">On</td>
       <td class="small ">none</td>
       <td>
-          
+
       <span class="badge badge-blue">Changed</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Deposit as a percentage of the stay</td>
       <td class="small muted"><code>pay_booking_deposit_pct</code></td>
       <td class="">30</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-green">Set</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php · resources/views/public/booking.blade.php">OnlinePaymentService, booking.blade</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Hold the room for (minutes) while the guest pays</td>
       <td class="small muted"><code>pay_booking_hold_minutes</code></td>
       <td class="">20</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-green">Set</span>
-          
+
       </td>
       <td class="small muted" title="app/Http/Controllers/BookingEngineController.php">BookingEngineController</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Online payment is live</td>
       <td class="small muted"><code>pay_enabled</code></td>
       <td class="">On</td>
       <td class="small ">Off</td>
       <td>
-          
+
       <span class="badge badge-blue">Changed</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">A payment link stays payable for (hours)</td>
       <td class="small muted"><code>pay_link_hours</code></td>
       <td class="">24</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-green">Set</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php · resources/views/payments/_request-modal.blade.php">OnlinePaymentService, _request-modal.blade</td>
       </tr>
-    
+
       <tr>
       <td class="bold">In-house guests may pay from the portal</td>
       <td class="small muted"><code>pay_portal_enabled</code></td>
       <td class="muted">On</td>
       <td class="small ">On</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Http/Controllers/GuestPortalController.php">GuestPortalController</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Payment provider</td>
       <td class="small muted"><code>pay_provider</code></td>
       <td class="">paystack</td>
       <td class="small ">demo</td>
       <td>
-          
+
       <span class="badge badge-blue">Changed</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Razorpay key ID</td>
       <td class="small muted"><code>pay_razorpay_key_id</code></td>
       <td class="muted">nothing — the service reads it bare in OnlinePaymentService</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php · app/Services/Payments/RazorpayGateway.php">OnlinePaymentService, RazorpayGateway</td>
       </tr>
-    
+
       <tr>
       <td class="bold">E-mail a receipt after an online payment</td>
       <td class="small muted"><code>pay_receipt_email</code></td>
       <td class="muted">On</td>
       <td class="small ">On</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Paystack secret key (stored encrypted) <span class="tiny muted">credential</span></td>
       <td class="small muted"><code>pay_paystack_secret</code></td>
       <td class="">Set — hidden</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-green">Set (hidden)</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Razorpay key secret (stored encrypted) <span class="tiny muted">credential</span></td>
       <td class="small muted"><code>pay_razorpay_key_secret</code></td>
       <td class="muted">Not set</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Razorpay webhook signing secret (stored encrypted) <span class="tiny muted">credential</span></td>
       <td class="small muted"><code>pay_razorpay_webhook_secret</code></td>
       <td class="muted">Not set</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Stripe secret key (stored encrypted) <span class="tiny muted">credential</span></td>
       <td class="small muted"><code>pay_stripe_secret</code></td>
       <td class="">Set — hidden</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-green">Set (hidden)</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       <tr>
       <td class="bold">Stripe webhook signing secret (stored encrypted) <span class="tiny muted">credential</span></td>
       <td class="small muted"><code>pay_stripe_webhook_secret</code></td>
       <td class="muted">Not set</td>
       <td class="small muted">—</td>
       <td>
-          
+
       <span class="badge badge-slate">Default</span>
-          
+
       </td>
       <td class="small muted" title="app/Services/OnlinePaymentService.php">OnlinePaymentService</td>
       </tr>
-    
+
       </tbody>
       </table></div>
       </div>
@@ -3329,31 +3329,31 @@
       <a class="btn btn-soft btn-sm" href="#" style="margin-left:auto">Full trail</a>
       </div>
       <div class="card-body">
-    
+
       <div class="cfg-change">
       <b>Deposit as a percentage of the stay</b>
       <span>25 → 30 · Yaw Antwi · 02 Nov 2026 10:00</span>
       </div>
-    
+
       </div>
       </div>
 
       <div class="card">
       <div class="card-head"><h3>Changes to this module</h3>
-    
+
       </div>
       <div class="card-body">
-    
+
       <div class="cfg-change">
       <b>Updated online payment provider</b>
       <span>Nana Ama Owusu · 03 Nov 2026 09:05</span>
       </div>
-    
+
       <div class="cfg-change">
       <b>Updated online payment provider</b>
       <span>Daniel Ofori · 11 Oct 2026 15:40</span>
       </div>
-    
+
       </div>
       </div>
     </main>

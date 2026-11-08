@@ -108,6 +108,7 @@ export function parseRegistry(file) {
 // ── the value fixture: what this property has actually set ────────────────────────────
 const SET = {
   hotel_name: 'The Grove Essipong Beach Resort',
+  api_allow_http: '1', // sample finding: plain HTTP endpoints are permitted
   booking_engine_enabled: '1',
   booking_policy: 'Free cancellation until 48 hours before check-in. After that the first night is charged.',
   cancel_free_hours: '48',
@@ -486,11 +487,19 @@ export const ADVISORY_IDS = [
   'self_clock_from_anywhere', 'close_starts_after_today', 'excess_mileage_is_free', 'conversions_without_forex', 'surveys_without_cooldown', 'recreation_sales_without_a_shift',
   // round 17: six more — crm, digital, fs, leases, esg, partner
   'campaign_revenue_expires_the_day_it_is_sent', 'listings_are_always_overdue_for_audit', 'certificate_warning_arrives_on_the_last_day', 'rent_cap_not_enforced', 'emissions_approved_by_their_own_author', 'portal_switches_on_a_closed_portal',
+  'cro_follow_up_after_expiry', 'fleet_speed_marked_parked', 'inbox_chat_under_disabled_inbox', 'tv_rental_limit_zero',
+  'api_http_endpoints_allowed', 'api_private_endpoints_allowed', 'pbx_tcp_endpoint_missing', 'lock_tcp_endpoint_missing',
 ];
 
 // The six findings this property actually carries, as ConfigurationService::advisories()
 // returns them: decorated with the module's label and sorted blockers first.
 const FINDINGS = [
+  {
+    id: 'api_http_endpoints_allowed', severity: 'note', module: 'developers',
+    title: 'Plain HTTP webhook endpoints are allowed',
+    detail: 'The webhook URL and delivery checks permit unencrypted HTTP while this option is on. Review it for the property; the setting alone does not mean an HTTP endpoint exists.',
+    keys: ['api_allow_http'],
+  },
   {
     id: 'payments_on_test_gateway', severity: 'blocker', module: 'payments',
     title: 'Online payment is switched on, but on the built-in test gateway',

@@ -14,22 +14,22 @@
     <div class="right"><h2 style="color:#166534">Configuration handover</h2><div class="small">Property <b>The Grove Essipong Beach Resort</b> (GROVE)</div>
   <div class="small">71 modules · 612 settings tracked</div>
   <div class="small">Printed 05 Nov 2026 09:20</div>
-  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">8B29FCFE8594</b></div></div>
+  <div class="small">Fingerprint v2 <b class="cfg-fingerprint">A72D05570E22</b></div></div>
   </div>
 <p class="small"><b>What this sheet is.</b> A property's configuration is not the settings somebody remembers changing: it is
   every value the property stores, every value it does not, and what the code does when nobody set one. This sheet states
   all of that as it stands at the print time above, so an auditor, an owner or an incoming manager can check it line by
   line instead of asking somebody.</p>
-<p class="small muted"><b>The fingerprint.</b> 8B29FCFE8594 is computed from all 612
+<p class="small muted"><b>The fingerprint.</b> A72D05570E22 is computed from all 612
   registered settings and their stored values this minute. Compare twelve characters on two version 2 sheets as a quick
   indicator, not proof of identical configuration. Credentials contribute only whether one is stored, so rotating a
   credential that remains set does not change the fingerprint. Module-table data and unregistered settings are excluded.
   Version 2 uses a new encoding: it cannot be compared directly with sheets printed under the previous version.</p>
 
 <h3 class="cfg-print-group">1 · The decisions this property made</h3>
-<p class="small">48 settings were moved off the value the code ships with, and
+<p class="small">49 settings were moved off the value the code ships with, and
   24 were filled in where the code has no default at all — across
-  21 modules. Everything else on this property is running on the code's own
+  22 modules. Everything else on this property is running on the code's own
   default, which is not a decision anybody here made and which moves when the product is updated.</p>
 
 <table class="table table-sm">
@@ -342,6 +342,13 @@
       <td class="small">Response target for an in-house guest (minutes) <code class="tiny">fb_sla_inhouse</code></td>
       <td class="small">15</td>
       <td class="small muted">2</td>
+    </tr>
+
+    <tr>
+      <td class="small">Developers &amp; API</td>
+      <td class="small">Allow plain-HTTP webhook URLs (payloads travel unencrypted) <code class="tiny">api_allow_http</code></td>
+      <td class="small">On</td>
+      <td class="small muted">Off</td>
     </tr>
 
     <tr>
@@ -952,6 +959,13 @@
 
       <tr>
         <td class="small">Policy choice</td>
+        <td><b>Plain HTTP webhook endpoints are allowed</b></td>
+        <td class="small">Developers &amp; API</td>
+        <td class="small">The webhook URL and delivery checks permit unencrypted HTTP while this option is on. Review it for the property; the setting alone does not mean an HTTP endpoint exists.</td>
+      </tr>
+
+      <tr>
+        <td class="small">Policy choice</td>
         <td><b>The partner portal is closed, but its controls are still switched on</b></td>
         <td class="small">Travel-agent portal</td>
         <td class="small">Paying, amending and cancelling are read only once the portal is live, so these three read as available and none of them can be reached.</td>
@@ -960,20 +974,20 @@
     </tbody>
   </table>
   <p class="tiny muted">2 findings mean a feature cannot work as configured;
-    17 are contradictions between saved settings; 5 are policy
+    17 are contradictions between saved settings; 6 are policy
     choices recorded so they are seen.</p>
 
 
 <h3 class="cfg-print-group">4 · What is checked against what</h3>
-<p class="small">30 of 71 modules have settings the code compares with each other —
-  a log driver that sends nothing, a payment provider left on test, a spa slot loop that never advances. The other
-  41 are read, defaulted and trailed, but no contradiction between two of their settings would be
-  reported. That is not the same as "checked and clean", and this sheet does not say so.</p>
+<p class="small">36 of 71 modules have at least one automated configuration check —
+  for example, a log driver that sends nothing or a payment provider left on test. These checks cover specific cases,
+  not every possible issue. The other 35 modules have no such check. That is not the same as "checked and clean"
+  for any module, and this sheet does not say so.</p>
 <p class="small">Beyond the modules: <b>0</b> settings are read by the code through a service map — a
   default, a value and a behaviour, all real — and are not in this register yet, so this sheet can neither show them
   nor fingerprint them. They are named in the register's own audit rather than left out of it.</p>
-<p class="small muted"><b>Checked:</b> Property profile, policies &amp; guest switches · Desk operations &amp; shifts · Guest portal · Parking &amp; valet · Recreation outlet · Vehicle rentals · Housekeeping · Spa &amp; activities · Food safety &amp; HACCP · Purchasing &amp; requisitions · Banquet &amp; events · Digital marketing · Guest CRM &amp; campaigns · Loyalty programme · City ledger &amp; credit control · General ledger mapping · GRA VAT &amp; e-invoicing · Month-end close · Online payments · Payables controls · Payroll · Quality assurance · Rostering · Time clock · ESG &amp; sustainability · Leases &amp; contracts · Reputation &amp; feedback · Forex dealing · SMS, WhatsApp &amp; social · Travel-agent portal</p>
-<p class="small muted"><b>Not checked against each other:</b> Central reservations · Concierge desk · Dining reservations · Fleet · Guest messaging inbox · In-room television · Self-service kiosk · Transport &amp; trips · Utilities &amp; energy · Laundry · Linen &amp; laundry par levels · F&amp;B cost control · Automated reports · Packages · Point of sale &amp; KOT printing · Requisitions · Event organiser portal · Business development · Sales &amp; accounts · Membership club · Revenue management · Upselling · Bank reconciliation · Budgets · Expense claims · Income audit · Petty cash · Service charge · Treasury · Vouchers &amp; gift cards · Health, safety &amp; environment permits · Human resources · Learning &amp; development · Talent &amp; recruitment · Compliance register · Privacy &amp; retention · Security · Developers &amp; API · Foreign guests &amp; forex · Robita smart locks · Interfaces &amp; hardware</p>
+<p class="small muted"><b>At least one check:</b> Property profile, policies &amp; guest switches · Central reservations · Desk operations &amp; shifts · Fleet · Guest messaging inbox · Guest portal · In-room television · Parking &amp; valet · Recreation outlet · Vehicle rentals · Housekeeping · Spa &amp; activities · Food safety &amp; HACCP · Purchasing &amp; requisitions · Banquet &amp; events · Digital marketing · Guest CRM &amp; campaigns · Loyalty programme · City ledger &amp; credit control · General ledger mapping · GRA VAT &amp; e-invoicing · Month-end close · Online payments · Payables controls · Payroll · Quality assurance · Rostering · Time clock · ESG &amp; sustainability · Leases &amp; contracts · Reputation &amp; feedback · Developers &amp; API · Forex dealing · Interfaces &amp; hardware · SMS, WhatsApp &amp; social · Travel-agent portal</p>
+<p class="small muted"><b>No automated checks:</b> Concierge desk · Dining reservations · Self-service kiosk · Transport &amp; trips · Utilities &amp; energy · Laundry · Linen &amp; laundry par levels · F&amp;B cost control · Automated reports · Packages · Point of sale &amp; KOT printing · Requisitions · Event organiser portal · Business development · Sales &amp; accounts · Membership club · Revenue management · Upselling · Bank reconciliation · Budgets · Expense claims · Income audit · Petty cash · Service charge · Treasury · Vouchers &amp; gift cards · Health, safety &amp; environment permits · Human resources · Learning &amp; development · Talent &amp; recruitment · Compliance register · Privacy &amp; retention · Security · Foreign guests &amp; forex · Robita smart locks</p>
 
 <h3 class="cfg-print-group">5 · Credentials</h3>
 <p class="small">14 settings on this property are credentials, and 9 of them
@@ -1091,7 +1105,7 @@
     <tr><td><b>Changes agreed</b></td><td colspan="3"></td></tr>
   </tbody>
 </table>
-<p class="tiny muted">Exported from Settings › Configuration. Fingerprint v2 8B29FCFE8594 · 612
+<p class="tiny muted">Exported from Settings › Configuration. Fingerprint v2 A72D05570E22 · 612
   records hashed · printed 05 Nov 2026 09:20. A credential is never printed: the sheet says whether one is
   set, not what it is.</p>
 </div>
