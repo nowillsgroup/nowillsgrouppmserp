@@ -16,22 +16,22 @@ class CheckoutHookIsolationTest(unittest.TestCase):
         self.assertIn("foreach ([", method)
         self.assertGreaterEqual(method.count("self::runPostCheckoutHook($hook)"), 1)
         for hook in [
-            "GuestPortalService::closeForStay($out)",
-            "UpsellService::onCheckout($out)",
-            "CallAccountingService::onCheckOut($out)",
-            "KeyCardService::onCheckOut($out)",
-            "HousekeepingTask::where('room_id', $out->room_id)",
+            "GuestPortalService::closeForStay($current)",
+            "UpsellService::onCheckout($current)",
+            "CallAccountingService::onCheckOut($current)",
+            "KeyCardService::onCheckOut($current)",
+            "HousekeepingTask::where('room_id', $current->room_id)",
         ]:
             self.assertIn(hook, method)
         self.assertIn("catch (\\Throwable $e)", SERVICE[SERVICE.index("protected static function runPostCheckoutHook"):])
 
     def test_housekeeping_and_guest_followups_use_the_isolated_runner(self):
         method = SERVICE[SERVICE.index("public static function checkOut("):SERVICE.index("protected static function doCheckOut(")]
-        housekeep = method.index("HousekeepingTask::where('room_id', $out->room_id)")
+        housekeep = method.index("HousekeepingTask::where('room_id', $current->room_id)")
         hook_loop = method.index("] as $hook)")
         self.assertLess(housekeep, hook_loop)
         self.assertIn("self::runPostCheckoutHook(fn () => MessageService::autoThankYou", method)
-        self.assertIn("self::runPostCheckoutHook(fn () => FeedbackService::scheduleFor($out->reservation))", method)
+        self.assertIn("self::runPostCheckoutHook(fn () => FeedbackService::scheduleFor($current->reservation))", method)
 
 
 if __name__ == "__main__":

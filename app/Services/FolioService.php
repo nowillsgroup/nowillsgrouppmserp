@@ -193,15 +193,16 @@ class FolioService
             ]);
             if (! $openingOnly) {
                 LoyaltyService::earn($folio);
+                if (! $folio->isCreditNote()) {
+                    // Snapshot the buyer and date inside the same transaction; the
+                    // external E-VAT submission is deferred until its outer commit.
+                    GstService::onClose($folio);
+                }
             }
 
             return $folio;
         });
         $folio->setRawAttributes($closedFolio->getAttributes(), true);
-        if (! $openingOnly && ! $folio->isCreditNote()) {
-            GstService::onClose($folio); // v3.0: invoice date, buyer snapshot, E-VAT stamp (outside the transaction – may call the GRA VSDC)
-        }
-
         return $folio;
     }
 }
