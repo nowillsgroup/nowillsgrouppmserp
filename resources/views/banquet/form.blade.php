@@ -190,6 +190,27 @@
       addFunction.title = addFunction.disabled ? `A maximum of ${MAX_FUNCTIONS} functions can be added to one event.` : '';
     }
   }
+  /** What a card reads by: the day it happens, then the clock. A card with no date or clock yet sorts last. */
+  const clockKey = card => (card.querySelector('[data-f=date]').value || '9999-12-31') + ' '
+    + (card.querySelector('[data-f=start_time]').value || '99:99');
+  /**
+   * The function plan reads down the clock (v10.35): the cards are ordered by day, then start time, then the order they
+   * were keyed in — so an evening gala entered first does not sit above the morning ceremony, and the numbering follows
+   * the day the kitchen and the floor work to. The cards are moved, not rebuilt, so nothing typed is lost and the focus
+   * stays on the field the desk was in.
+   */
+  function sortFunctions() {
+    const cards = [...list.children];
+    const order = cards.map((card, i) => ({ card, i, key: clockKey(card) }))
+      .sort((a, b) => (a.key === b.key ? a.i - b.i : a.key < b.key ? -1 : 1));
+    if (order.every((row, i) => row.card === cards[i])) return;
+    const active = document.activeElement;
+    const focusCard = active && list.contains(active) ? active.closest('.fn-card') : null;
+    const focusKey = focusCard && active.dataset.f ? active.dataset.f : null;
+    order.forEach(row => list.appendChild(row.card));
+    renumber(); calc();
+    if (focusCard && focusKey) focusCard.querySelector(`[data-f=${focusKey}]`)?.focus();
+  }
   function syncItemLimit(card) {
     const rows = card.querySelectorAll('.fn-item').length;
     const button = card.querySelector('.fn-additem');
@@ -283,7 +304,9 @@
     card.querySelector('[data-f=banquet_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelector('[data-f=banquet_bar_package_id]').addEventListener('change', e => { const p = PKGS[e.target.value]; card.querySelector('[data-f=bar_rate_per_pax]').value = p ? p.p : ''; calc(); });
     card.querySelectorAll('[data-f]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { names(card); calc(); }));
-    renumber(); calc(); return card;
+    // a committed date or start time is the moment the card knows where it belongs in the day
+    card.querySelectorAll('[data-f=date], [data-f=start_time]').forEach(el => el.addEventListener('change', sortFunctions));
+    renumber(); calc(); sortFunctions(); return card;
   }
   function estimateLine(label, detail, amount, bold = false) {
     const li = document.createElement('li');

@@ -34,9 +34,20 @@ class BanquetEvent extends Model
 
     public const SOURCES = ['phone' => 'Phone', 'email' => 'E-mail', 'walk_in' => 'Walk-in', 'website' => 'Website', 'agent' => 'Agent / planner', 'repeat' => 'Repeat client', 'referral' => 'Referral'];
 
+    /**
+     * The order the events themselves read in: the day, then the clock, then entry order.
+     *
+     * A list ordered by event_date alone leaves two events on the same day in whatever order they were keyed in,
+     * which is how an evening gala ends up printed above a morning breakfast (v10.35).
+     */
+    public function scopeInTimeOrder($q)
+    {
+        return $q->orderBy('event_date')->orderBy('start_time')->orderBy('id');
+    }
+
     public function functions()
     {
-        return $this->hasMany(BanquetFunction::class)->orderBy('date')->orderBy('start_time')->orderBy('id');
+        return $this->hasMany(BanquetFunction::class)->inTimeOrder();
     }
 
     public function salesUser()

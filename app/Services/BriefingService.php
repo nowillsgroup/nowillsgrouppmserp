@@ -954,7 +954,8 @@ class BriefingService
     private static function buildBanquet(Carbon $d, array $c): array
     {
         $ds = $d->toDateString();
-        $events = BanquetEvent::with(['hall', 'company'])->whereDate('event_date', $ds)->orderBy('start_time')->get();
+        // the day's floor reads down the clock: two events at the same hour keep the order they were keyed in (v10.35)
+        $events = BanquetEvent::with(['hall', 'company'])->whereDate('event_date', $ds)->orderBy('start_time')->orderBy('id')->get();
         $live = $events->whereNotIn('status', ['cancelled', 'lost']);
         $value = $live->sum(fn ($e) => $e->total());
 
@@ -967,7 +968,7 @@ class BriefingService
         $depositsDue = $live->filter(fn ($e) => $e->deposit_due_date && $e->deposit_due_date->lte($d) && $e->depositsReceived() <= 0);
         $beoMissing = $live->whereNull('beo_published_at')->count();
         $pax = (int) $live->sum(fn ($e) => $e->pax());
-        $unpublished = $live->filter(fn ($e) => ! $e->beo_published_at)->sortBy('start_time');
+        $unpublished = $live->filter(fn ($e) => ! $e->beo_published_at)->sortBy(fn ($e) => $e->start_time.' · '.str_pad((string) $e->id, 10, '0', STR_PAD_LEFT));
 
         return [
             'headline' => [
