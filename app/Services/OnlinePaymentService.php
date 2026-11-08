@@ -367,20 +367,45 @@ class OnlinePaymentService
         };
     }
 
-    /** Where the money goes: the link's folio if open; else the in-house stay folio, else the reservation's advance folio. */
+    /**
+     * Resolve and lock the receiving folio inside the caller's transaction.
+     * Reservation → stay → folio matches check-in/checkout; current locking
+     * reads also avoid an older MySQL repeatable-read snapshot. The link's
+     * explicit open folio still takes priority, followed by the in-house room,
+     * then the reservation advance folio.
+     */
     public static function targetFolio(OnlinePayment $p): Folio
     {
-        if ($p->folio_id && ($f = Folio::find($p->folio_id)) && $f->status === 'open') {
-            return $f;
+        if (DB::transactionLevel() < 1) {
+            throw new RuntimeException('A payment target must be selected inside a transaction.');
         }
         if ($p->reservation_id) {
-            $stay = ReservationRoom::where('reservation_id', $p->reservation_id)->where('status', 'checked_in')->orderBy('id')->first();
-            if ($stay && ($f = Folio::where('reservation_room_id', $stay->id)->where('status', 'open')->orderBy('id')->first())) {
+            Reservation::whereKey($p->reservation_id)->lockForUpdate()->firstOrFail();
+            $stay = ReservationRoom::where('reservation_id', $p->reservation_id)->where('status', 'checked_in')->orderBy('id')->lockForUpdate()->first();
+            // Lock all possible candidates in ID order. In particular, do not
+            // lock an explicitly linked closed folio and then a lower-ID room
+            // folio: folio moves lock multiple folios in ascending order.
+            $folios = Folio::where(function ($q) use ($p, $stay) {
+                $q->where('reservation_id', $p->reservation_id);
+                if ($stay) {
+                    $q->orWhere('reservation_room_id', $stay->id);
+                }
+                if ($p->folio_id) {
+                    $q->orWhere('id', $p->folio_id);
+                }
+            })->orderBy('id')->lockForUpdate()->get();
+            if ($p->folio_id && ($f = $folios->first(fn ($f) => (int) $f->id === (int) $p->folio_id && $f->status === 'open'))) {
+                return $f;
+            }
+            if ($stay && ($f = $folios->first(fn ($f) => (int) $f->reservation_room_id === (int) $stay->id && $f->status === 'open'))) {
                 return $f;
             }
 
-            return Folio::where('reservation_id', $p->reservation_id)->whereNull('reservation_room_id')->where('status', 'open')->orderBy('id')->first()
+            return $folios->first(fn ($f) => (int) $f->reservation_id === (int) $p->reservation_id && $f->reservation_room_id === null && $f->status === 'open')
                 ?? FolioService::openStandalone(['reservation_id' => $p->reservation_id, 'guest_id' => $p->guest_id, 'type' => 'guest']);
+        }
+        if ($p->folio_id && ($f = Folio::whereKey($p->folio_id)->lockForUpdate()->first()) && $f->status === 'open') {
+            return $f;
         }
 
         return FolioService::openStandalone(['guest_id' => $p->guest_id, 'type' => 'guest']); // original folio closed meanwhile: a credit folio
