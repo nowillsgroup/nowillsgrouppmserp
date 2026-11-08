@@ -15,6 +15,7 @@ namespace {
     } finally { if ($temporaryLink) unlink($root.'/build/app'); }
 
     use App\Models\Folio;
+    use App\Models\FolioTransaction;
     use App\Models\Hotel;
     use App\Models\Reservation;
     use App\Services\ReservationBillConsolidator;
@@ -35,17 +36,19 @@ namespace {
     $app->bind('db.schema', fn () => DB::connection()->getSchemaBuilder());
     DB::connection()->setTransactionManager(new DatabaseTransactionsManager());
     DB::statement('CREATE TABLE reservations (id INTEGER PRIMARY KEY, hotel_id INTEGER)');
-    DB::statement('CREATE TABLE reservation_rooms (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, status TEXT)');
+    DB::statement('CREATE TABLE rooms (id INTEGER PRIMARY KEY, hotel_id INTEGER, room_no TEXT)');
+    DB::statement('CREATE TABLE reservation_rooms (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, room_id INTEGER, status TEXT)');
     DB::statement('CREATE TABLE folios (id INTEGER PRIMARY KEY, hotel_id INTEGER, reservation_id INTEGER, reservation_room_id INTEGER, folio_no TEXT, type TEXT, status TEXT, invoice_no TEXT, closed_at TEXT, closed_by INTEGER, created_at TEXT, updated_at TEXT)');
     DB::statement('CREATE TABLE folio_transactions (id INTEGER PRIMARY KEY, hotel_id INTEGER, folio_id INTEGER, business_date TEXT, type TEXT, category TEXT, description TEXT, amount NUMERIC, tax_amount NUMERIC DEFAULT 0, source_type TEXT, source_id INTEGER, opening_date TEXT, is_void INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT)');
     $migration = require $root.'/database/migrations/2026_11_08_000460_reservation_bill_consolidation.php';
     $migration->up(); $migration->up();
     $hotel = new Hotel; $hotel->forceFill(['id' => 1, 'timezone' => 'UTC']); Tenant::set($hotel);
     DB::table('reservations')->insert([['id' => 1, 'hotel_id' => 1], ['id' => 2, 'hotel_id' => 2]]);
+    DB::table('rooms')->insert([['id' => 1, 'hotel_id' => 1, 'room_no' => '202'], ['id' => 2, 'hotel_id' => 1, 'room_no' => '203']]);
     DB::table('reservation_rooms')->insert([
-        ['id' => 10, 'hotel_id' => 1, 'reservation_id' => 1, 'status' => 'checked_out'],
-        ['id' => 11, 'hotel_id' => 1, 'reservation_id' => 1, 'status' => 'checked_out'],
-        ['id' => 12, 'hotel_id' => 2, 'reservation_id' => 2, 'status' => 'checked_out'],
+        ['id' => 10, 'hotel_id' => 1, 'reservation_id' => 1, 'room_id' => 1, 'status' => 'checked_out'],
+        ['id' => 11, 'hotel_id' => 1, 'reservation_id' => 1, 'room_id' => 2, 'status' => 'checked_out'],
+        ['id' => 12, 'hotel_id' => 2, 'reservation_id' => 2, 'room_id' => null, 'status' => 'checked_out'],
     ]);
     DB::table('folios')->insert([
         ['id' => 1, 'hotel_id' => 1, 'reservation_id' => 1, 'reservation_room_id' => null, 'folio_no' => 'MASTER', 'type' => 'guest', 'status' => 'open'],
@@ -112,6 +115,12 @@ namespace {
     $tx = DB::table('folio_transactions')->where('id', 3)->first();
     $check($record->source_folio_id === 3 && $record->target_folio_id === 1 && $record->actor_user_id === 7, 'provenance is incorrect');
     $check($tx->business_date === '2026-01-03' && $tx->source_type === 'night' && $tx->source_id === 33 && (float) $tx->tax_amount === 20.0, 'posting metadata changed');
+    $loadedLine = FolioTransaction::with('consolidationTransfer.sourceFolio.stay.room')->findOrFail(3);
+    $check($loadedLine->consolidationTransfer->sourceFolio->folio_no === 'ROOM-2' && $loadedLine->consolidationTransfer->sourceFolio->stay->room->room_no === '203', 'folio and room attribution missing');
+    $check(FolioTransaction::with('consolidationTransfer')->findOrFail(1)->consolidationTransfer === null, 'untransferred advance acquired a false origin');
+    $check(Folio::with('consolidatedInto')->findOrFail(2)->consolidatedInto->folio_no === 'MASTER', 'source folio does not point to the combined target');
+    DB::table('reservation_bill_transfers')->insert(['hotel_id' => 2, 'reservation_id' => 2, 'folio_transaction_id' => 1, 'source_folio_id' => 4, 'target_folio_id' => 1, 'actor_user_id' => null, 'created_at' => now()]);
+    $check(FolioTransaction::with('consolidationTransfer')->findOrFail(1)->consolidationTransfer === null, 'foreign tenant origin was exposed');
     $check(Folio::find(1)->status === 'open' && Folio::find(1)->invoice_no === null, 'consolidation issued an invoice or closed target');
     $controller = new \App\Http\Controllers\FolioController;
     $response = $controller->reopen(Folio::findOrFail(2));
@@ -122,6 +131,9 @@ namespace {
     $expect($run, 'closed or invoiced');
     $expect(fn () => $migration->down(), 'Cannot remove');
     $check(DB::table('folios')->where('id', 4)->value('status') === 'open', 'another hotel was modified');
+    DB::table('folios')->where('id', 2)->delete();
+    $orphan = FolioTransaction::with('consolidationTransfer.sourceFolio')->findOrFail(2)->consolidationTransfer;
+    $check($orphan->sourceFolio === null && $orphan->source_folio_id === 2, 'source identifier was lost when a folio is removed');
     DB::table('reservation_bill_transfers')->delete();
     DB::table('folios')->update(['consolidated_into_folio_id' => null]);
     $migration->down();

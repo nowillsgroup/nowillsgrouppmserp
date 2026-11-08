@@ -86,6 +86,11 @@ class Folio extends Model
         return $this->belongsTo(User::class, 'closed_by');
     }
 
+    public function consolidatedInto()
+    {
+        return $this->belongsTo(Folio::class, 'consolidated_into_folio_id');
+    }
+
     public function transactions()
     {
         return $this->hasMany(FolioTransaction::class);

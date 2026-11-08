@@ -126,8 +126,8 @@ class FolioController extends Controller
 
     public function show(Folio $folio)
     {
-        $folio->load(['guest', 'company', 'stay.room', 'stay.roomType', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company']);
-        $transactions = $folio->transactions()->with('paymentMode', 'poster', 'company')->orderBy('business_date')->orderBy('id')->get();
+        $folio->load(['guest', 'company', 'stay.room', 'stay.roomType', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company', 'consolidatedInto']);
+        $transactions = $folio->transactions()->with('paymentMode', 'poster', 'company', 'consolidationTransfer.sourceFolio.stay.room')->orderBy('business_date')->orderBy('id')->get();
         $totals = $folio->totals($transactions);
         $canPost = $folio->status === 'open' && can_do('folio.post');
         $canPay = $folio->status === 'open' && can_do('folio.payment');
@@ -425,8 +425,8 @@ class FolioController extends Controller
     public function invoice(Folio $folio)
     {
         $folio->load('guest', 'company', 'closedBy', 'stay.room', 'stay.roomType', 'stay.ratePlan', 'stay.guest', 'stay.reservation.guest', 'stay.reservation.company', 'reservation.guest', 'reservation.company', 'reservation.rooms.room', 'reservation.rooms.roomType', 'reservation.rooms.ratePlan', 'original');
-        $tx = $folio->status === 'cancelled' ? $folio->transactions()->with('paymentMode')->orderBy('business_date')->orderBy('id')->get()
-            : $folio->activeTransactions()->with('paymentMode')->orderBy('business_date')->orderBy('id')->get();
+        $tx = $folio->status === 'cancelled' ? $folio->transactions()->with('paymentMode', 'consolidationTransfer.sourceFolio.stay.room')->orderBy('business_date')->orderBy('id')->get()
+            : $folio->activeTransactions()->with('paymentMode', 'consolidationTransfer.sourceFolio.stay.room')->orderBy('business_date')->orderBy('id')->get();
 
         // v4.3: tax summary by category and rate (VAT / NHIL / GETFund / Tourism Levy), same grouping as E-VAT and the VAT return
         return view('folios.invoice', ['folio' => $folio, 'tx' => $tx, 'totals' => $folio->totals(), 'lines' => \App\Services\GstService::lines($folio), 'gst' => $folio->gstTotals()]);

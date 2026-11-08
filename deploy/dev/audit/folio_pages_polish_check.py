@@ -122,7 +122,7 @@ class FolioShowPolishTest(unittest.TestCase):
     def test_detail_reuses_loaded_transactions_for_totals(self):
         self.assertIn('public function totals(?Collection $transactions = null): array', FOLIO_MODEL)
         self.assertIn("($transactions ?? $this->transactions()->get())->where('is_void', false)", FOLIO_MODEL)
-        self.assertIn("$transactions = $folio->transactions()->with('paymentMode', 'poster', 'company')", CONTROLLER)
+        self.assertIn("$transactions = $folio->transactions()->with('paymentMode', 'poster', 'company', 'consolidationTransfer.sourceFolio.stay.room')", CONTROLLER)
         self.assertIn('$totals = $folio->totals($transactions);', CONTROLLER)
         self.assertIn("'transactions' => $transactions,", CONTROLLER)
 
