@@ -389,10 +389,10 @@ class GiftVoucherService
      * A folio payment / refund made with the Gift Voucher payment mode (called by FolioService::payment). The voucher code is
      * the payment reference. A refund puts the money back on the voucher (only what this folio took from it).
      */
-    public static function folioPayment(Folio $folio, float $amount, ?string $code, string $category = 'settlement', string $type = 'payment'): FolioTransaction
+    public static function folioPayment(Folio $folio, float $amount, ?string $code, string $category = 'settlement', string $type = 'payment', ?int $modeId = null): FolioTransaction
     {
         $v = self::mustFind($code);
-        $modeId = self::modeId();
+        $modeId ??= self::modeId();
 
         return DB::transaction(function () use ($folio, $amount, $v, $modeId, $category, $type) {
             $tx = $folio->transactions()->create([

@@ -20,6 +20,7 @@ use App\Services\ActivityLogger;
 use App\Services\AvailabilityService;
 use App\Services\CityLedgerService;
 use App\Services\ReservationDeskService;
+use App\Services\ReservationBillingService;
 use App\Services\ReservationAmendmentService;
 use App\Services\CancellationService;
 use App\Services\FolioService;
@@ -450,6 +451,7 @@ class ReservationController extends Controller
             'noshowQuote' => CancellationService::quote($reservation, $noShowPending, 'noshow'),
             'commissions' => $reservation->commissions()->with('company')->get(),
             'advances' => $advances,
+            'postedReservationBalance' => can_do('folio.view') ? ReservationBillingService::postedSummary($reservation) : null,
             'amendments' => $reservation->amendments()->with('user')->get(),
             'paymentModes' => PaymentMode::where('is_active', true)->where('type', '!=', 'city_ledger')->pluck('name', 'id'),
             'freeRooms' => $reservation->rooms->where('status', 'reserved')->mapWithKeys(fn ($s) => [$s->id => AvailabilityService::reservationRooms($s->arrival_date, $s->departure_date, null, $s->id)]),

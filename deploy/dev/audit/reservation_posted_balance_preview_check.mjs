@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+const html = fs.readFileSync('deploy/dev/previews/reservation-posted-balance.html', 'utf8');
+for (const text of ['<title>Reservation RES-00124', 'Sample component preview only', 'Reservation posted balance', 'GH₵ 2,760.00', 'GH₵ 1,920.00', 'GH₵ 840.00', 'FOL-00124', 'Room 202', 'INV-00372', '1 room folio(s) have an invoice number', 'Room folios are still settled separately']) assert.ok(html.includes(text), text);
+const dom = new JSDOM(html, { runScripts: 'dangerously' });
+const doc = dom.window.document;
+const modal = doc.querySelector('#reservationBalanceDetails');
+assert.equal(modal.classList.contains('show'), false);
+doc.querySelector('[data-modal="reservationBalanceDetails"]').click();
+assert.equal(modal.classList.contains('show'), true);
+modal.querySelector('[data-close]').click();
+assert.equal(modal.classList.contains('show'), false);
+console.log('14 sample reservation posted balance preview assertions passed.');

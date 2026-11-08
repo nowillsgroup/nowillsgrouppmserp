@@ -342,7 +342,7 @@ class LaundryService
         return $cancelled;
     }
 
-    /** Orders still with the laundry for a stay – shown as a warning at check-out. */
+    /** Orders still with the laundry for a stay – these block check-out. */
     public static function pendingForStay(int $stayId)
     {
         return LaundryOrder::where('reservation_room_id', $stayId)->whereIn('status', LaundryOrder::OPEN)->orderBy('id')->get();

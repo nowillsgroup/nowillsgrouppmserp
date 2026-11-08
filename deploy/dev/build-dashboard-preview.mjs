@@ -42,13 +42,21 @@ const log = {
 };
 const ctx = sampleContext({ version });
 const renderer = new BladePreview({ root: ROOT, ctx, log });
+// The three mix builders use PHP loops and array appends beyond this renderer's
+// faithful subset. Their precomputed sample equivalents are supplied by the fixture;
+// do not partially execute those blocks and overwrite a correct chart with empty data.
+const runPhp = renderer.runPhp.bind(renderer);
+renderer.runPhp = (code, scope) => {
+  if (['$revenueSlices = collect([', '$sourcePalette = [', '$posStatusMeta = ['].some(marker => String(code).includes(marker))) return;
+  return runPhp(code, scope);
+};
 const contentRaw = renderer.section('dashboard', 'content', ctx.scope);
 const actionsRaw = renderer.section('dashboard', 'actions', ctx.scope);
 const crumbsRaw = renderer.section('dashboard', 'crumbs', ctx.scope);
 
 const indent = (html, pad = '      ') => html.trimEnd()
   .split('\n')
-  .map(line => (line.trim() ? pad + line.trimStart() : line))
+  .map(line => (line.trim() ? pad + line.trimStart() : ''))
   .join('\n');
 
 const { menu, navHtml } = nav();
@@ -61,7 +69,7 @@ const html = shell(navHtml, spriteSymbols(), indent(contentRaw), {
 /* ── render report ────────────────────────────────────────────────────────── */
 
 const uniq = (list) => [...new Set(list)];
-console.log(`rendered dashboard.blade.php + dashboard/management-overview + dashboard/management-trends`);
+console.log(`rendered dashboard.blade.php + dashboard/management-overview + dashboard/management-trends + dashboard/management-pulse`);
 console.log(`  echoes evaluated ....... ${log.expressions}`);
 console.log(`  fallback values ........ ${log.fallbacks}`);
 if (log.failed.length) {

@@ -295,7 +295,27 @@ class GstService
     {
         $f->forceFill(['invoice_date' => $f->invoice_date ?? bdate()->toDateString()] + self::snapshot($f))->save();
         if (EInvoiceService::eligible($f) && setting('gst_einvoice_auto', '1') === '1') {
-            EInvoiceService::generate($f);
+            // Pending is durable with the invoice; delay the retry sweep while the
+            // immediate post-commit submission is running. A process lost after
+            // commit leaves the invoice available to the existing retry job.
+            $f->forceFill(['irn_status' => 'pending', 'irn_next_try_at' => now()->addMinutes(5)])->save();
+            $invoice = $f->invoice_no;
+            $hotelId = $f->hotel_id;
+            $tenantId = \App\Support\Tenant::id();
+            \Illuminate\Support\Facades\DB::afterCommit(function () use ($f, $invoice, $hotelId, $tenantId) {
+                try {
+                    if (\App\Support\Tenant::id() !== $tenantId) {
+                        throw new \RuntimeException('E-VAT submission skipped: tenant context changed before commit.');
+                    }
+                    $fresh = Folio::where('hotel_id', $hotelId)->find($f->id);
+                    if ($fresh && $fresh->invoice_no === $invoice && EInvoiceService::eligible($fresh)) {
+                        EInvoiceService::generate($fresh);
+                        $f->setRawAttributes($fresh->getAttributes(), true);
+                    }
+                } catch (\Throwable $e) {
+                    report($e); // never report a committed close as failed
+                }
+            });
         }
     }
 

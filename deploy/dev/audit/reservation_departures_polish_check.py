@@ -81,7 +81,7 @@ class ReservationDeparturesPolishTest(unittest.TestCase):
         self.assertIn("\\App\\Services\\StayService::quoteCheckoutFigures($s)", LINES)
         self.assertIn('Resolve {{ implode(\' · \', $holdLabels) }} before checkout.', LINES)
         self.assertIn('Estimated after checkout', LINES)
-        self.assertIn('laundry does not block checkout', LINES)
+        self.assertIn("$holdLabels[] = 'Laundry '", LINES)
         self.assertIn("$canSeeCheckoutPrep = can_do('frontdesk.view') || $canCheckout", LINES)
 
     def test_sensitive_fields_and_operational_actions_remain_permission_gated(self):

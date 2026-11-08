@@ -130,6 +130,7 @@
         if ($count > 0) $posRows->push(['label' => $meta['label'], 'value' => $count, 'color' => $meta['color']]);
       }
       $posMixTotal = (int) $posOrderStatusToday->sum();
+      $posStatusLabel = $posRows->map(fn ($row) => $row['label'].' '.$row['value'])->implode('; ');
       $posStops = [];
       $posAngle = 0;
       if ($posMixTotal > 0) {
@@ -145,7 +146,7 @@
       <div class="dash-mix-card-head"><div><h3 id="dashPosMixTitle">POS checks · today</h3><p>Open, billed and settled checks · void and merged checks excluded.</p></div><span class="dash-mix-period">Business date</span></div>
       @if($posMixTotal > 0)
       <div class="dash-mix-content">
-        <div class="dash-mix-donut" role="img" aria-label="POS checks today: {{ $posMixTotal }} total. {{ $posRows->map(fn ($row) => $row['label'].' '.$row['value'])->implode('; ') }}." style="background:{{ $posGradient }}"><span><strong>{{ number_format($posMixTotal) }}</strong><small>checks today</small></span></div>
+        <div class="dash-mix-donut" role="img" aria-label="POS checks today: {{ $posMixTotal }} total. {{ $posStatusLabel }}." style="background:{{ $posGradient }}"><span><strong>{{ number_format($posMixTotal) }}</strong><small>checks today</small></span></div>
         <ul class="dash-mix-legend">
           @foreach($posRows as $row)
           <li><span class="dash-mix-swatch" style="--slice-color:{{ $row['color'] }}"></span><span class="dash-mix-label">{{ $row['label'] }}</span><strong>{{ number_format($row['value']) }}</strong><small>{{ number_format($row['value'] / $posMixTotal * 100, 1) }}%</small></li>

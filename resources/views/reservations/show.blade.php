@@ -235,13 +235,16 @@
     </ul></div></div>
     @endif
     @if(can_do('upsell.view') && \App\Services\UpsellService::enabled())@include('upsell._reservation')@endif
+    @if($postedReservationBalance !== null)
+      @include('reservations._posted-balance', ['summary' => $postedReservationBalance])
+    @endif
     @php $est = $r->rooms->whereNotIn('status',['cancelled','no_show'])->sum(fn($s) => ($s->rate + $s->extra_charge) * $s->nights); @endphp
     <div class="card"><div class="card-head"><h3>Estimate</h3></div><div class="card-body">
       <ul class="list">
         <li><span>Room charges ({{ $r->nights }}N)</span><b>{{ money($est) }}</b></li>
         @if($r->discount_pct > 0)<li><span>Discount {{ $r->discount_pct }}%</span><b>- {{ money($est * $r->discount_pct / 100) }}</b></li>@endif
-        <li><span>Advance received</span><b class="text-green">{{ money($advances->sum('amount')) }}</b></li>
-        <li><span>Balance (excl. tax & extras)</span><b>{{ money($est * (1 - $r->discount_pct/100) - $advances->sum('amount')) }}</b></li>
+        <li><span>Payments and transfers (before refunds)</span><b class="text-green">{{ money($advances->sum('amount')) }}</b></li>
+        <li><span>Estimate less payments (excl. tax, extras & refunds)</span><b>{{ money($est * (1 - $r->discount_pct/100) - $advances->sum('amount')) }}</b></li>
       </ul>
     </div></div>
   </div>

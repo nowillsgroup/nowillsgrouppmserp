@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FolioTransaction;
 use App\Models\FormCRecord;
 use App\Models\KeyCard;
+use App\Models\LaundryOrder;
 use App\Models\PosOrder;
 use App\Models\Reservation;
 use App\Models\ReservationRoom;
@@ -62,42 +63,43 @@ class StayService
     public static function checkIn(ReservationRoom $stay, int $roomId): ReservationRoom
     {
         $in = self::doCheckIn($stay, $roomId);
-        try {
-            GuestPortalService::onCheckIn($in);
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        try {
-            FormCService::onCheckIn($in); // v3.4: foreign national → Form C due within 24 h
-        } catch (\Throwable $e) {
-            report($e); // never blocks a check-in
-        }
-        try {
-            GuestMessageService::onCheckIn($in); // v3.5: messages / parcels that arrived before the guest are announced
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        try {
-            CallAccountingService::onCheckIn($in); // v3.7: PABX check-in – extension opened with the default class of service
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        try {
-            KeyCardService::onCheckIn($in);        // v3.7: key cards encoded automatically when configured
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        try {
-            RobitaService::onCheckIn($in);         // v7.57: the room lock is provisioned for the stay
-        } catch (\Throwable $e) {
-            report($e); // never blocks a check-in
-        }
-        try {
-            IptvService::onCheckIn($in);           // v7.1: TV PIN issued; the room TV shows the personalised welcome
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
+        self::afterStayCommit($in, 'checked_in', function (ReservationRoom $current) {
+            try {
+                GuestPortalService::onCheckIn($current);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                FormCService::onCheckIn($current); // v3.4: foreign national → Form C due within 24 h
+            } catch (\Throwable $e) {
+                report($e); // never blocks a check-in
+            }
+            try {
+                GuestMessageService::onCheckIn($current); // v3.5: messages / parcels that arrived before the guest are announced
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                CallAccountingService::onCheckIn($current); // v3.7: PABX check-in – extension opened with the default class of service
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                KeyCardService::onCheckIn($current);        // v3.7: key cards encoded automatically when configured
+            } catch (\Throwable $e) {
+                report($e);
+            }
+            try {
+                RobitaService::onCheckIn($current);         // v7.57: the room lock is provisioned for the stay
+            } catch (\Throwable $e) {
+                report($e); // never blocks a check-in
+            }
+            try {
+                IptvService::onCheckIn($current);           // v7.1: TV PIN issued; the room TV shows the personalised welcome
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
         return $in;
     }
 
@@ -277,8 +279,8 @@ class StayService
             ? 'Activities that would block checkout: '.money($holds['activities']['total']).' ('.$holds['activities']['count'].'). They are not on the bill.'
             : 'Activities that would block checkout: none.';
         $parts[] = $holds['laundry']['count']
-            ? 'Open laundry not posted by checkout: '.money($holds['laundry']['total']).' ('.$holds['laundry']['count'].').'
-            : 'Open laundry not posted by checkout: none.';
+            ? 'Open laundry blocks checkout: '.$holds['laundry']['count'].' order(s). Deliver and settle or cancel each order first.'
+            : 'Open laundry blocking checkout: none.';
         if ($holds['formc']['count']) {
             $parts[] = 'Form C '.$holds['formc']['form_no'].' is still pending and would block checkout.';
         }
@@ -311,19 +313,32 @@ class StayService
             'laundry' => ['count' => $laundry->count(), 'total' => round((float) $laundry->sum('total'), 2)],
             'pos' => ['count' => $pos->count(), 'total' => round((float) $pos->sum('total'), 2)],
             'formc' => ['count' => $fc ? 1 : 0, 'total' => 0.0, 'form_no' => $fc?->form_no],
-            // Only these four actually refuse a checkout. Open laundry is posted
-            // separately and does not hold the guest at the desk.
-            'blocking' => ($pos->count() ? 1 : 0) + $trips->count() + $acts->count() + ($fc ? 1 : 0),
+            // Match the operational checkout guards, including unresolved laundry.
+            'blocking' => ($pos->count() ? 1 : 0) + $trips->count() + $acts->count() + $laundry->count() + ($fc ? 1 : 0),
         ];
     }
 
     /**
+     * Call inside a transaction after locking the reservation and stay, before
+     * locking the folio. Laundry collection takes the same stay lock. A current
+     * read is needed even if an outer MySQL transaction has an older snapshot.
+     */
+    public static function assertLaundryClear(ReservationRoom $stay): void
+    {
+        $open = LaundryOrder::where('reservation_room_id', $stay->id)->whereIn('status', LaundryOrder::OPEN)
+            ->orderBy('id')->lockForUpdate()->get(['id']);
+        if ($open->isNotEmpty()) {
+            throw new RuntimeException($open->count().' laundry order(s) are still open. Deliver and settle or cancel them before check-out.');
+        }
+    }
+
+    /**
      * Post everything still sitting outside the folio onto it, so a departure
-     * can actually check out: unsettled outlet bills, pending laundry and
-     * transport trips billed to the room. Anything that needs a human first
-     * (guest QR items awaiting confirmation, laundry not yet processed, an
-     * activity waiting on its operator, Form C) is reported as skipped rather
-     * than forced. Returns counts, totals and the skip reasons.
+     * can actually check out: unsettled outlet bills and transport trips billed
+     * to the room. Laundry must be delivered or cancelled in its own workflow;
+     * preparing a bill must not claim garments were handed back. Anything that
+     * needs a human first is reported as skipped rather than forced. Returns
+     * counts, totals and the skip reasons.
      */
     public static function assembleBill(ReservationRoom $stay): array
     {
@@ -342,14 +357,9 @@ class StayService
                 $done['pos']++;
                 $done['pos_total'] += (float) $o->total;
             }
-            foreach (LaundryService::pendingForStay($stay->id) as $o) {
-                if (! in_array($o->status, ['processing', 'ready'], true) || (float) $o->total <= 0) {
-                    $done['skipped'][] = "laundry {$o->order_no} is {$o->statusLabel()}";
-                    continue;
-                }
-                LaundryService::deliver($o);
-                $done['laundry']++;
-                $done['laundry_total'] += (float) $o->total;
+            $laundryCount = LaundryService::pendingForStay($stay->id)->count();
+            if ($laundryCount) {
+                $done['skipped'][] = $laundryCount.' open laundry order(s) require delivery and settlement or cancellation in Laundry';
             }
             $done['trips'] = TransportService::postPendingForStay($stay);
         });
@@ -403,31 +413,64 @@ class StayService
     public static function checkOut(ReservationRoom $stay, bool $force = false): ReservationRoom
     {
         $out = self::doCheckOut($stay, $force);
-        // Run every post-commit hook independently: a failure in one subsystem
-        // must not leave the others (or the caller) believing checkout failed.
-        foreach ([
-            fn () => GuestPortalService::closeForStay($out),
-            fn () => UpsellService::onCheckout($out),       // v4.1: unconfirmed early / late requests lapse
-            fn () => SecurityService::onCheckOut($out),     // v4.2: expected visitors lapse, visitors still inside are flagged
-            fn () => FormCService::onCheckOut($out),        // v3.4: the departure now has to be reported to the FRRO
-            fn () => WakeupService::onCheckOut($out),       // v3.5: pending wake-up calls are cancelled
-            fn () => GuestMessageService::onCheckOut($out), // v3.5: undelivered messages lapse (parcels stay to be forwarded)
-            fn () => CallAccountingService::onCheckOut($out), // v3.7: extension barred on the PABX
-            fn () => KeyCardService::onCheckOut($out),        // v3.7: the stay's key cards stop working
-            fn () => RobitaService::onCheckOut($out),         // v7.57: revoke the door credential, not just let it expire
-            fn () => IptvService::onCheckOut($out),           // v7.1: end TV session, rentals and welcome screen
-            fn () => \App\Models\HousekeepingTask::where('room_id', $out->room_id)->whereDate('task_date', bdate()->toDateString())
-                ->where('status', 'pending')->where('task_type', 'cleaning')
-                ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]),
-        ] as $hook) {
-            self::runPostCheckoutHook($hook);
-        }
-        if ($out->reservation->status === 'checked_out') {
-            self::runPostCheckoutHook(fn () => MessageService::autoThankYou($out->reservation, $out->folio()->first()));
-            self::runPostCheckoutHook(fn () => FeedbackService::scheduleFor($out->reservation)); // v3.1
-        }
-
+        self::afterStayCommit($out, 'checked_out', function (ReservationRoom $current) {
+            // Run every post-commit hook independently: a failure in one subsystem
+            // must not leave the others (or the caller) believing checkout failed.
+            foreach ([
+                fn () => GuestPortalService::closeForStay($current),
+                fn () => UpsellService::onCheckout($current),       // v4.1: unconfirmed early / late requests lapse
+                fn () => SecurityService::onCheckOut($current),     // v4.2: expected visitors lapse, visitors still inside are flagged
+                fn () => FormCService::onCheckOut($current),        // v3.4: the departure now has to be reported to the FRRO
+                fn () => WakeupService::onCheckOut($current),       // v3.5: pending wake-up calls are cancelled
+                fn () => GuestMessageService::onCheckOut($current), // v3.5: undelivered messages lapse (parcels stay to be forwarded)
+                fn () => CallAccountingService::onCheckOut($current), // v3.7: extension barred on the PABX
+                fn () => KeyCardService::onCheckOut($current),        // v3.7: the stay's key cards stop working
+                fn () => RobitaService::onCheckOut($current),         // v7.57: revoke the door credential, not just let it expire
+                fn () => IptvService::onCheckOut($current),           // v7.1: end TV session, rentals and welcome screen
+                fn () => \App\Models\HousekeepingTask::where('room_id', $current->room_id)->whereDate('task_date', bdate()->toDateString())
+                    ->where('status', 'pending')->where('task_type', 'cleaning')
+                    ->update(['task_type' => 'departure', 'credits' => HousekeepingService::credits('departure')]),
+            ] as $hook) {
+                self::runPostCheckoutHook($hook);
+            }
+            if ($current->reservation->status === 'checked_out') {
+                self::runPostCheckoutHook(fn () => MessageService::autoThankYou($current->reservation, $current->folio()->first()));
+                self::runPostCheckoutHook(fn () => FeedbackService::scheduleFor($current->reservation)); // v3.1
+            }
+        });
         return $out;
+    }
+
+    /**
+     * Nested transactions are not commits. Run side effects only after the outermost
+     * transaction succeeds, retaining the business date of offline replay. Re-read
+     * under the tenant scope so an intervening state/room change is not acted on.
+     */
+    protected static function afterStayCommit(ReservationRoom $stay, string $status, callable $callback): void
+    {
+        $id = $stay->id;
+        $roomId = $stay->room_id;
+        $hotelId = $stay->hotel_id;
+        $tenantId = \App\Support\Tenant::id();
+        try {
+            $businessDate = bdate()->copy();
+            DB::afterCommit(function () use ($id, $roomId, $hotelId, $tenantId, $status, $businessDate, $callback) {
+                try {
+                    if (\App\Support\Tenant::id() !== $tenantId) {
+                        throw new RuntimeException('Stay hook skipped: tenant context changed before commit.');
+                    }
+                    $current = ReservationRoom::where('hotel_id', $hotelId)->find($id);
+                    if (! $current || $current->status !== $status || (int) $current->room_id !== (int) $roomId) {
+                        return;
+                    }
+                    \App\Support\BusinessDateContext::run($businessDate, fn () => $callback($current));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Report a post-commit failure without changing the result of the committed checkout. */
@@ -455,6 +498,8 @@ class StayService
             if ($stay->status !== 'checked_in') {
                 throw new RuntimeException('Stay is not checked in.');
             }
+            // Open laundry always blocks checkout, including force callers.
+            self::assertLaundryClear($stay);
             self::postPendingNights($stay, bdate());
             $folio = $stay->folio()->first();
             $pendingPos = \App\Models\PosOrder::where('reservation_room_id', $stay->id)->whereIn('status', ['open', 'billed'])->count();

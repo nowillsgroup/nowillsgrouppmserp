@@ -413,7 +413,7 @@ export function sampleContext({ version = '' } = {}) {
     revenueSlices, revenueMixTotal, revenueMixHasAdjustments: true,
     revenueGradient: stopsFor(revenueSlices.items, revenueMixTotal),
     sourceRows, sourceMixTotal, sourceGradient: stopsFor(sourceRows.items, sourceMixTotal),
-    posRows, posMixTotal, posGradient: stopsFor(posRows.items, posMixTotal),
+    posRows, posMixTotal, posStatusLabel: posRows.items.map(row => `${row.label} ${row.value}`).join('; '), posGradient: stopsFor(posRows.items, posMixTotal),
     bs: budget,
     tbToCome: 6, tbLate: 2, tbWait: 3, trToday: 4,
   };

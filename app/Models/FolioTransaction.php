@@ -41,6 +41,12 @@ class FolioTransaction extends Model
         return $this->belongsTo(Folio::class);
     }
 
+    /** Source recorded when a reservation bill was consolidated, if any. */
+    public function consolidationTransfer()
+    {
+        return $this->hasOne(ReservationBillTransfer::class, 'folio_transaction_id');
+    }
+
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);

@@ -41,6 +41,7 @@ const VIEWS = [
   'resources/views/dashboard.blade.php',
   'resources/views/dashboard/management-overview.blade.php',
   'resources/views/dashboard/management-trends.blade.php',
+  'resources/views/dashboard/management-pulse.blade.php',
 ];
 
 check('the dashboard preview has been built', existsSync(resolve(ROOT, PREVIEW)), PREVIEW);
@@ -99,6 +100,18 @@ for (const [label, selector] of sections) {
   check(`${label} is rendered`, Boolean(doc.querySelector(selector)), selector);
 }
 
+// Information architecture: urgent work and today's operations precede analysis.
+const sectionOrder = ['.dash-exec-hero', '.dash-exec-kpi-grid', '.dash-section-nav', '#dashAttention', '#dashOperations', '#dashPerformance', '#dashDepartments', '#dashSnapshots'];
+for (let i = 1; i < sectionOrder.length; i += 1) {
+  const before = doc.querySelector(sectionOrder[i - 1]);
+  const after = doc.querySelector(sectionOrder[i]);
+  check(`${sectionOrder[i - 1]} precedes ${sectionOrder[i]}`, Boolean(before && after && (before.compareDocumentPosition(after) & 4)));
+}
+for (const link of doc.querySelectorAll('.dash-section-nav a')) {
+  check(`section link ${link.getAttribute('href')} has a destination`, Boolean(doc.querySelector(link.getAttribute('href'))));
+}
+check('department metrics retain all ten sample areas', doc.querySelectorAll('.dash-management-card').length === 10);
+
 check('six executive KPI tiles', doc.querySelectorAll('.dash-exec-kpi').length === 6,
   `${doc.querySelectorAll('.dash-exec-kpi').length}`);
 check('the action centre lists real work', doc.querySelectorAll('.dash-alert-list li').length >= 20,
@@ -112,6 +125,8 @@ check('14 occupancy bars', doc.querySelectorAll('.dash-chart-grid .dash-chart-pa
   `${doc.querySelectorAll('.dash-chart-grid .dash-chart-panel:last-child .col').length}`);
 check('three mix charts', doc.querySelectorAll('.dash-mix-card').length === 3,
   `${doc.querySelectorAll('.dash-mix-card').length}`);
+check('every mix chart has a populated gradient', [...doc.querySelectorAll('.dash-mix-donut')].every(el => /conic-gradient\([^)]*deg/.test(el.getAttribute('style') ?? '')));
+check('POS chart preserves the sample status details', /Open 4; Billed 6; Settled 16/.test(doc.querySelector('[aria-labelledby="dashPosMixTitle"] [role="img"]')?.getAttribute('aria-label') ?? ''));
 check('every mix legend totals 100%', [...doc.querySelectorAll('.dash-mix-card')].every((card) => {
   const pcts = [...card.querySelectorAll('.dash-mix-legend small')]
     .map(el => Number(el.textContent.replace('%', '').trim()))

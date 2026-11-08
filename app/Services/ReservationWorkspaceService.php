@@ -404,6 +404,9 @@ class ReservationWorkspaceService
                 if ($holds['pos']['count']) {
                     $blocked[] = $pl($holds['pos']['count'], 'unsettled POS order').$amt((float) $holds['pos']['total']);
                 }
+                if ($holds['laundry']['count']) {
+                    $blocked[] = $pl($holds['laundry']['count'], 'open laundry order');
+                }
                 if ($holds['trips']['count']) {
                     $blocked[] = $pl($holds['trips']['count'], 'transport trip').' not on the bill'.$amt((float) $holds['trips']['total']);
                 }

@@ -218,7 +218,9 @@ class EInvoiceService
         if (! self::enabled()) {
             return [0, 0];
         }
-        $q = Folio::where('status', 'closed')->where(fn ($w) => $w->where('irn_status', 'pending')
+        $q = Folio::where('status', 'closed')->where(fn ($w) => $w
+            ->where(fn ($x) => $x->where('irn_status', 'pending')
+                ->where(fn ($due) => $due->whereNull('irn_next_try_at')->orWhere('irn_next_try_at', '<=', now())))
             ->orWhere(fn ($x) => $x->where('irn_status', 'failed')->where('irn_retryable', true)->where('irn_next_try_at', '<=', now())));
         foreach ($q->orderBy('invoice_date')->orderBy('id')->limit(100)->get() as $f) { // oldest first: invoices before their credit notes
             self::generate($f, null) ? $ok++ : $bad++;

@@ -14,8 +14,8 @@
     @if($folio->stay && $folio->stay->status === 'checked_in' && can_do('frontdesk.checkout'))<a class="btn btn-warning" href="{{ route('frontdesk.checkout', $folio->stay) }}"><x-icon name="logout"/> Check-out</a>@endif
   @else
     @if($folio->invoice_no && $folio->status !== 'cancelled')<a class="btn btn-primary" href="{{ route('folios.invoice', $folio) }}" target="_blank" rel="noopener"><x-icon name="print"/> {{ $folio->isCreditNote() ? 'Credit note' : 'Invoice' }} {{ $folio->invoice_no }}</a>@endif
-    @if($folio->status === 'closed' && can_do('folio.credit_note') && ! $folio->isCreditNote())<a class="btn" href="{{ route('gst.credit_note.create', $folio) }}" id="creditNoteBtn"><x-icon name="swap"/> Issue credit note</a>@endif
-    @if($folio->status === 'closed' && can_do('folio.void') && ! \App\Services\GstService::reopenBlocker($folio))<form method="post" action="{{ route('folios.reopen', $folio) }}" data-confirm="Re-open this closed folio? This is logged.">@csrf<button class="btn">Re-open</button></form>@endif
+    @if($folio->status === 'closed' && $folio->invoice_no && can_do('folio.credit_note') && ! $folio->isCreditNote())<a class="btn" href="{{ route('gst.credit_note.create', $folio) }}" id="creditNoteBtn"><x-icon name="swap"/> Issue credit note</a>@endif
+    @if($folio->status === 'closed' && ! $folio->consolidated_into_folio_id && can_do('folio.void') && ! \App\Services\GstService::reopenBlocker($folio))<form method="post" action="{{ route('folios.reopen', $folio) }}" data-confirm="Re-open this closed folio? This is logged.">@csrf<button class="btn">Re-open</button></form>@endif
     @if($folio->status === 'closed' && $folio->invoice_no && can_do('gst.manage') && ! \App\Services\GstService::cancelBlocker($folio))<button class="btn btn-danger" data-modal="gstCancelModal" id="gstCancelBtn"><x-icon name="x"/> Cancel {{ $folio->isCreditNote() ? 'note' : 'invoice' }}</button>@endif
   @endif
   <button class="btn" data-modal="mailModal" title="E-mail {{ $folio->invoice_no ? 'invoice' : 'statement' }} to guest"><x-icon name="mail"/> E-mail</button>
@@ -27,6 +27,9 @@
   $folioGuest = $folio->guest ?? $folio->stay?->guest ?? $linkedReservation?->guest;
   $folioCompany = $folio->company ?? $linkedReservation?->company;
 @endphp
+@if($folio->consolidated_into_folio_id)
+<div class="alert alert-info mb-1"><x-icon name="info"/><div><b>Consolidated folio.</b> Its entries were moved to @if($folio->consolidatedInto)<a href="{{ route('folios.show', $folio->consolidatedInto) }}">{{ $folio->consolidatedInto->folio_no }}</a>@else folio #{{ $folio->consolidated_into_folio_id }}@endif. This source is retained for history and cannot be reopened.</div></div>
+@endif
 @if($openingTx)
 <div class="alert alert-info mb-1"><x-icon name="info"/><div><b>Opening receivable as at {{ $openingTx->opening_date?->format('d M Y') }}.</b> The source outstanding balance and reference are retained; historical revenue, tax, payment/refund and GL activity were not replayed. The opening trial balance establishes the receivable control once. This row cannot be voided or moved.</div></div>
 @endif
@@ -48,6 +51,7 @@
           @if($folio->status === 'open' && can_do('folio.split'))<td>@if(! $t->is_void && ! $t->isOpening() && $t->source_type !== 'pos_complimentary')<input type="checkbox" class="txsel" name="tx[]" value="{{ $t->id }}" form="moveForm" aria-label="Select {{ $t->description }} transaction dated {{ $t->business_date->format('d M Y') }}" onchange="txCount()">@endif</td>@endif
           <td class="nowrap"><time datetime="{{ $t->business_date->toDateString() }}">{{ $t->business_date->format('d M Y') }}</time>@if($t->created_at)<div class="tiny muted"><time datetime="{{ $t->created_at->toIso8601String() }}">Posted {{ $t->created_at->format('d M Y') }} · {{ $t->created_at->format('H:i') }}</time></div>@endif</td>
           <td>{{ $t->description }} @if($t->source_type === 'pos_complimentary')<span class="badge badge-slate">Informational · no charge</span>@endif @if($t->reference)<span class="tiny muted">#{{ $t->reference }}</span>@endif @if($t->isOpening())<span class="badge badge-amber">opening · {{ $t->opening_date?->format('d M Y') }}</span>@endif @if($t->paymentMode)<span class="badge badge-slate">{{ $t->paymentMode->name }}</span>@endif @if($t->company)<span class="badge badge-blue">{{ $t->company->name }}</span>@endif
+            @include('folios._line-origin', ['transaction' => $t])
             @if($t->due_date)<div class="tiny muted">Source due {{ $t->due_date->format('d M Y') }}</div>@endif
             @if($t->cheque_number)<div class="tiny muted">Cheque {{ $t->cheque_number }} · {{ $t->cheque_bank_name ?: 'Bank not recorded' }}{{ $t->cheque_bank_branch ? ' · '.$t->cheque_bank_branch : '' }}</div>@endif
             @if($t->is_void)<div class="tiny text-red">Void: {{ $t->void_reason }}</div>@endif</td>
