@@ -29,7 +29,7 @@ class BriefingController extends Controller
             'packs' => $visible->values(),
             'hidden' => $packs->where('can', false)->count(),
             'canExec' => BriefingService::can('exec', $request->user()),
-            'signoffs' => BriefingService::signoffs(bdate()),
+            'visibleSigned' => $visible->where('signed', true)->count(),
             'date' => bdate(),
         ]);
     }
@@ -126,13 +126,13 @@ class BriefingController extends Controller
     private function streamCsv(array $p): StreamedResponse
     {
         $date = $p['date'];
-        $heading = $p['is_exec'] ? 'Daily executive brief' : $p['label'].' — daily briefing';
+        $heading = $p['is_exec'] ? 'Daily Flash — Executive' : $p['label'].' — Daily Flash';
         $signoff = $p['is_exec']
             ? $p['signed_count'].' of '.$p['pack_count'].' departments signed'
             : ($p['signoff']
                 ? 'Signed by '.($p['signoff']->user?->name ?? 'a manager').' at '.$p['signoff']->signed_at?->format('H:i')
                 : 'Not signed');
-        $name = Str::slug(($p['is_exec'] ? 'executive brief' : $p['label'].' briefing').' '.$date->toDateString());
+        $name = Str::slug(($p['is_exec'] ? 'executive flash' : $p['label'].' daily flash').' '.$date->toDateString());
 
         return response()->streamDownload(function () use ($p, $heading, $signoff) {
             $out = fopen('php://output', 'w');
@@ -191,7 +191,7 @@ class BriefingController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('briefings.show', ['pack' => $pack])->with('success', 'Signed. The general manager can see that you have read today\'s briefing.');
+        return redirect()->route('briefings.show', ['pack' => $pack])->with('success', 'Signed. The general manager can see that you have read today\'s flash.');
     }
 
     /** Business date for the screen: today unless a valid past date is asked for. */

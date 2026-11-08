@@ -270,8 +270,8 @@ return [
                 ['label' => 'Scheduled Reports', 'route' => 'reports.schedules', 'perm' => 'reports.schedule'],
                 ['label' => 'KPI Alerts', 'route' => 'reports.alerts', 'perm' => 'reports.alerts', 'badge' => 'kpi_alerts'],
             ]],
-            ['label' => 'Daily Briefings', 'route' => 'briefings.index', 'perm' => 'reports.exec,reports.view,frontdesk.view,housekeeping.view,fnb.view,pos.kitchen,banquet.view,sales.view,revenue.view,club.view,laundry.view,maintenance.manage,security.view,hr.view,accounts.view,feedback.view,interfaces.view,inventory.view,transport.view,parking.view'],
-            ['label' => 'Executive Brief', 'route' => 'briefings.exec', 'perm' => 'reports.exec'],
+            ['label' => 'Daily Flash', 'route' => 'briefings.index', 'perm' => 'reports.exec,reports.view,frontdesk.view,housekeeping.view,fnb.view,pos.kitchen,banquet.view,sales.view,revenue.view,club.view,laundry.view,maintenance.manage,security.view,hr.view,accounts.view,feedback.view,interfaces.view,inventory.view,transport.view,parking.view'],
+            ['label' => 'Executive Flash', 'route' => 'briefings.exec', 'perm' => 'reports.exec'],
         ]],
         // OPERATIONS: Front Office
         ['label' => 'Front Office', 'icon' => 'bell', 'section' => 'OPERATIONS', 'children' => [

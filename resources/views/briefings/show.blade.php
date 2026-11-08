@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title', $pack['title'])
-@section('crumbs') <a href="{{ route('briefings.index') }}">Daily briefings</a> / {{ $pack['label'] }} @endsection
+@section('crumbs') <a href="{{ route('briefings.index') }}">Daily Flash</a> / {{ $pack['label'] }} @endsection
 @section('actions')
   @if($date->toDateString() !== $today->toDateString())
     <a class="btn btn-soft" href="{{ route('briefings.show', ['pack' => $pack['key']]) }}"><x-icon name="refresh"/> Today</a>
@@ -9,17 +9,17 @@
   <a class="btn btn-soft" href="{{ route('briefings.csv', ['pack' => $pack['key'], 'date' => $date->toDateString()]) }}"><x-icon name="download"/> Excel / CSV</a>
   <a class="btn" href="{{ route('briefings.print', ['pack' => $pack['key'], 'date' => $date->toDateString()]) }}"><x-icon name="print"/> Print</a>
   @if(can_do('reports.exec'))
-    <a class="btn btn-soft" href="{{ route('briefings.exec') }}"><x-icon name="hotel"/> Executive brief</a>
+    <a class="btn btn-soft" href="{{ route('briefings.exec', ['date' => $date->toDateString()]) }}"><x-icon name="hotel"/> Executive flash</a>
   @endif
 @endsection
 @section('content')
 
 @if(count($packs) > 1)
-  <div class="brf-switch" role="navigation" aria-label="Other briefings you can read">
+  <div class="brf-switch" role="navigation" aria-label="Other department flashes you can read">
     @foreach($packs as $p)
-      <a class="brf-switch-link {{ $p['key'] === $pack['key'] ? 'is-current' : '' }}" href="{{ route('briefings.show', ['pack' => $p['key']]) }}">
+      <a class="brf-switch-link {{ $p['key'] === $pack['key'] ? 'is-current' : '' }}" href="{{ route('briefings.show', ['pack' => $p['key'], 'date' => $date->toDateString()]) }}">
         <x-icon :name="$p['icon']"/><span>{{ $p['label'] }}</span>
-        @if($p['signed'])<span class="brf-switch-dot" title="Signed"></span>@endif
+        @if($date->toDateString() === $today->toDateString() && $p['signed'])<span class="brf-switch-dot" title="Signed today"></span>@endif
       </a>
     @endforeach
   </div>
@@ -55,7 +55,7 @@
     @endforeach
 
     <div class="card brf-watch">
-      <div class="card-head"><h3>On the head's desk</h3><span class="small muted">what the briefing is telling them to do</span></div>
+      <div class="card-head"><h3>On the head's desk</h3><span class="small muted">what the flash is telling them to do</span></div>
       <div class="card-body">
         @if(count($pack['watch']))
           <ul class="brf-list">
@@ -98,10 +98,10 @@
           <form method="POST" action="{{ route('briefings.sign', $pack['key']) }}" class="brf-sign-form">
             @csrf
             <input class="input" type="text" name="note" maxlength="500" placeholder="Optional note for the GM — a cause, an ask, a correction">
-            <button class="btn btn-primary" type="submit"><x-icon name="check"/> Sign this briefing</button>
+            <button class="btn btn-primary" type="submit"><x-icon name="check"/> Sign this flash</button>
           </form>
         @else
-          <p class="small muted" style="margin:0">Only today's briefing can be signed off.</p>
+          <p class="small muted" style="margin:0">Only today's flash can be signed off.</p>
         @endif
       </div>
     </div>

@@ -20,7 +20,15 @@ const at = (iso) => new SampleDate(iso.includes('T') ? iso : `${iso}T09:00:00Z`)
 const day = at(BUSINESS_DATE);
 
 const HELPERS = {
-  route: () => '#',
+  route: (name, params = {}) => {
+    const key = typeof params === 'string' ? params : params?.pack;
+    if (name === 'briefings.index') return '/briefing-hub.html';
+    if (name === 'briefings.show' && PACKS.some(p => p[0] === key)) return `/briefing-${key}.html`;
+    if (name === 'briefings.exec') return '/briefing-exec.html';
+    if (name === 'briefings.book') return '/briefing-book.html';
+    if (name === 'briefings.print' && key === 'fnb') return '/briefing-print.html';
+    return '#';
+  },
   asset: (path) => `/${String(path ?? '').replace(/^\/+/, '')}`,
   old: (key, fallback = null) => fallback,
   collect: (value) => (value instanceof Coll ? value : Coll.of(Array.isArray(value) ? value : Object.values(value ?? {}))),
@@ -273,7 +281,7 @@ function fnbPack() {
 
   return {
     key: 'fnb', label: 'Food & Beverage', role: 'F&B Manager', icon: 'cup', perm: 'fnb.view',
-    title: 'F&B Manager — daily briefing', date: day, is_exec: false,
+    title: 'F&B Manager — Daily Flash', date: day, is_exec: false,
     signoff: signoffFor('Kwame Asare', '10:05', 'Beach bar fridge 2 down — engineering called.'),
     headline: [
       st('Net sales', 'GH₵ 51,594.00', '▲ 3,110.00 vs last week', 'green', 'money'),
@@ -313,7 +321,7 @@ function fnbPack() {
 function housekeepingPack() {
   return {
     key: 'housekeeping', label: 'Housekeeping', role: 'Executive Housekeeper', icon: 'broom', perm: 'housekeeping.view',
-    title: 'Executive Housekeeper — daily briefing', date: day, is_exec: false,
+    title: 'Executive Housekeeper — Daily Flash', date: day, is_exec: false,
     signoff: signoffFor('Efua Danso', '08:40'),
     headline: [
       st('Rooms ready', '96', 'clean or inspected of 129', 'green', 'bed'),
@@ -359,7 +367,7 @@ function housekeepingPack() {
 function laundryEarlyPack() {
   return {
     key: 'laundry', label: 'Laundry & Linen', role: 'Laundry Manager', icon: 'shirt', perm: 'laundry.view',
-    title: 'Laundry Manager — daily briefing', date: day, is_exec: false, signoff: null,
+    title: 'Laundry Manager — Daily Flash', date: day, is_exec: false, signoff: null,
     headline: [
       st('Orders taken', '0', '0 pieces', 'blue', 'shirt'),
       st('Delivered today', '0', '0 pieces', 'slate', 'check'),
@@ -440,7 +448,7 @@ function execPack() {
 
   return {
     key: 'exec', label: 'Executive brief', role: 'General Manager & CEO', icon: 'hotel', perm: 'reports.exec',
-    title: 'Daily executive brief — General Manager & CEO', date: day, is_exec: true,
+    title: 'Daily Flash — Executive', date: day, is_exec: true,
     signed_count: 11, pack_count: 18,
     headline: [
       st('Occupancy', '84.5 %', '▲ 6.1 pts vs last week', 'green', 'bed'),
@@ -561,7 +569,7 @@ function financePack() {
 
   return {
     key: 'finance', label: 'Finance & Accounts', role: 'Financial Controller', icon: 'wallet', perm: 'accounts.view',
-    title: 'Financial Controller — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Financial Controller — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Ama Boakye', '09:50', 'Drawer 3 short GH₵ 40 — being followed up.'),
     headline: [
       st('Collected', 'GH₵ 231,760.00', '142 receipts', 'green', 'wallet'),
@@ -610,7 +618,7 @@ function financePack() {
 function hrPack() {
   return {
     key: 'hr', label: 'People & HR', role: 'Human Resources Manager', icon: 'users', perm: 'hr.view',
-    title: 'Human Resources Manager — daily briefing', date: day, is_exec: false, house: HOUSE, signoff: null,
+    title: 'Human Resources Manager — Daily Flash', date: day, is_exec: false, house: HOUSE, signoff: null,
     headline: [
       st('Headcount', '131', 'active employees', 'blue', 'users'),
       st('On duty today', '118', '131 rostered shifts', 'green', 'check'),
@@ -669,7 +677,7 @@ function hrPack() {
 function parkingPack() {
   return {
     key: 'parking', label: 'Parking & Valet', role: 'Parking Supervisor', icon: 'truck', perm: 'parking.view',
-    title: 'Parking Supervisor — daily briefing', date: day, is_exec: false, house: HOUSE, signoff: null,
+    title: 'Parking Supervisor — Daily Flash', date: day, is_exec: false, house: HOUSE, signoff: null,
     headline: [
       st('Cars in today', '64', '48 in the bays now', 'blue', 'car'),
       st('Bays in use', '60.0 %', '80 bays in total', 'green', 'home'),
@@ -726,7 +734,7 @@ function parkingPack() {
 function frontOfficePack() {
   return {
     key: 'frontoffice', label: 'Front Office', role: 'Front Office Manager', icon: 'bell', perm: 'frontdesk.view',
-    title: 'Front Office Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Front Office Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Akosua Mensah', '09:12', 'Two rooms released late — noted.'),
     headline: [
       st('In house', '109 rooms', '218 guests', 'blue', 'bed'),
@@ -787,7 +795,7 @@ function frontOfficePack() {
 function securityPack() {
   return {
     key: 'security', label: 'Security', role: 'Security Manager', icon: 'shield', perm: 'security.view',
-    title: 'Security Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Security Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Daniel Owusu', '06:50'),
     headline: [
       st('Visitors booked in', '46', '8 on site now', 'blue', 'id'),
@@ -844,7 +852,7 @@ function securityPack() {
 function kitchenPack() {
   return {
     key: 'kitchen', label: 'Kitchen', role: 'Executive Chef', icon: 'coffee', perm: 'pos.kitchen',
-    title: 'Executive Chef — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Executive Chef — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Chef Ibrahim Musah', '10:20'),
     headline: [
       st('Tickets fired', '214', 'all printed', 'green', 'print'),
@@ -897,7 +905,7 @@ function kitchenPack() {
 function storesPack() {
   return {
     key: 'stores', label: 'Purchasing & Stores', role: 'Purchasing & Stores Manager', icon: 'box', perm: 'inventory.view',
-    title: 'Purchasing & Stores Manager — daily briefing', date: day, is_exec: false, house: HOUSE, signoff: null,
+    title: 'Purchasing & Stores Manager — Daily Flash', date: day, is_exec: false, house: HOUSE, signoff: null,
     headline: [
       st('Issued today', 'GH₵ 14,710.00', '14 store issues', 'green', 'box'),
       st('Requisitions waiting', '5', 'GH₵ 21,400.00 estimated', 'amber', 'mail'),
@@ -960,7 +968,7 @@ function revenuePack() {
 
   return {
     key: 'revenue', label: 'Revenue', role: 'Revenue Manager', icon: 'chart', perm: 'revenue.view',
-    title: 'Revenue Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Revenue Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Selorm Agbeko', '07:55'),
     headline: [
       st('Tonight', '84.5 %', '109 of 129 sellable', 'blue', 'bed'),
@@ -1013,7 +1021,7 @@ function revenuePack() {
 function maintenancePack() {
   return {
     key: 'maintenance', label: 'Engineering', role: 'Chief Engineer', icon: 'tool', perm: 'maintenance.manage',
-    title: 'Chief Engineer — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Chief Engineer — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Kofi Mensah', '08:15', 'Chiller 2 on bypass.'),
     headline: [
       st('Jobs raised', '14', '2 urgent', 'red', 'tool'),
@@ -1067,7 +1075,7 @@ function maintenancePack() {
 function salesPack() {
   return {
     key: 'sales', label: 'Sales', role: 'Sales Manager', icon: 'trend', perm: 'sales.view',
-    title: 'Sales Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Sales Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Akosua Mensah', '08:05'),
     headline: [
       st('Open pipeline', 'GH₵ 486,300.00', '23 live enquiries', 'blue', 'trend'),
@@ -1127,7 +1135,7 @@ function salesPack() {
 function guestExpPack() {
   return {
     key: 'guestexp', label: 'Guest Experience', role: 'Guest Relations Manager', icon: 'star', perm: 'feedback.view',
-    title: 'Guest Relations Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Guest Relations Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Efua Appiah', '08:40', 'Two long-stay guests to be seen personally.'),
     headline: [
       st('Feedback received', '31', '4.4 / 5 average', 'blue', 'star'),
@@ -1179,7 +1187,7 @@ function guestExpPack() {
 function banquetPack() {
   return {
     key: 'banquet', label: 'Banquet', role: 'Banquet Manager', icon: 'layers', perm: 'banquet.view',
-    title: 'Banquet Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Banquet Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Yaw Antwi', '07:45', 'Two rooms short for the Osei wedding.'),
     headline: [
       st('Events today', '3', '1 cancelled', 'blue', 'layers'),
@@ -1231,7 +1239,7 @@ function banquetPack() {
 function fleetPack() {
   return {
     key: 'fleet', label: 'Transport & Fleet', role: 'Transport Supervisor', icon: 'car', perm: 'transport.view',
-    title: 'Transport Supervisor — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Transport Supervisor — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Yaw Antwi', '07:35', 'Hilux grounded — fitness expired, booked for the test on Monday.'),
     headline: [
       st('Trips today', '26', '71 passengers · 8 pick-ups', 'blue', 'car'),
@@ -1330,7 +1338,7 @@ function fleetPack() {
 function recreationPack() {
   return {
     key: 'recreation', label: 'Spa & Recreation', role: 'Recreation Manager', icon: 'dumbbell', perm: 'club.view',
-    title: 'Recreation Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'Recreation Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Efua Appiah', '08:05', 'Gate sheet reconciled at 07:50; the short shift is the unbanked float.'),
     headline: [
       st('Takings', 'GH₵ 8,940.00', '63 tickets sold', 'green', 'money'),
@@ -1417,7 +1425,7 @@ function recreationPack() {
 function itPack() {
   return {
     key: 'it', label: 'IT', role: 'IT Manager', icon: 'link', perm: 'interfaces.view',
-    title: 'IT Manager — daily briefing', date: day, is_exec: false, house: HOUSE,
+    title: 'IT Manager — Daily Flash', date: day, is_exec: false, house: HOUSE,
     signoff: signoffFor('Nana Yeboah', '08:30', 'PBX gateway replaced at 06:40.'),
     headline: [
       st('Interface commands', '1,842', '3 failed', 'red', 'link'),
@@ -1475,7 +1483,7 @@ export function briefingHubContext() {
     packs: packIndex(BRIEFS),
     hidden: 2,
     canExec: true,
-    signoffs: Coll.of(PACKS.filter(p => p[4]).map(p => ({ department_key: p[0], user: { name: p[5] } }))),
+    visibleSigned: PACKS.filter(p => p[4]).length,
     date: day,
   });
 }
@@ -1712,7 +1720,7 @@ function bookPackFrom([key, label, role, icon, signed, signedBy, signedAt, note]
   const sections = [btable(`${key}-main`, spec.title, spec.note, spec.cols, spec.rows)];
 
   return {
-    key, label, role, icon, perm: `${key}.view`, title: `${role} — daily briefing`, date: day,
+    key, label, role, icon, perm: `${key}.view`, title: `${role} — Daily Flash`, date: day,
     house: HOUSE, is_exec: false, signoff: signed ? signoffFor(signedBy, signedAt, note) : null,
     headline: spec.head.map(([l, v, s, t, i]) => st(l, v, s, t, i)),
     sections,

@@ -1,11 +1,11 @@
 @extends('layouts.app')
-@section('title', 'Daily executive brief')
-@section('crumbs') <a href="{{ route('briefings.index') }}">Daily briefings</a> / Executive brief @endsection
+@section('title', 'Daily Flash — Executive')
+@section('crumbs') <a href="{{ route('briefings.index') }}">Daily Flash</a> / Executive flash @endsection
 @section('actions')
   @if($date->toDateString() !== $today->toDateString())
     <a class="btn btn-soft" href="{{ route('briefings.exec') }}"><x-icon name="refresh"/> Today</a>
   @endif
-  <a class="btn btn-soft" href="{{ route('briefings.book', ['date' => $date->toDateString()]) }}"><x-icon name="layers"/> Briefing book</a>
+  <a class="btn btn-soft" href="{{ route('briefings.book', ['date' => $date->toDateString()]) }}"><x-icon name="layers"/> Flash book</a>
   <a class="btn" href="{{ route('briefings.exec.csv', ['date' => $date->toDateString()]) }}"><x-icon name="download"/> Excel / CSV</a>
   <a class="btn" href="{{ route('briefings.exec.print', ['date' => $date->toDateString()]) }}"><x-icon name="print"/> Print</a>
 @endsection

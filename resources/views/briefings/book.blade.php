@@ -1,6 +1,6 @@
 @extends('layouts.print')
-@section('title', 'Daily briefing book')
-@section('doctitle', 'Daily briefing book')
+@section('title', 'Daily Flash book')
+@section('doctitle', 'Daily Flash book')
 @section('docmeta')
   <div class="small">Business date <b>{{ $date->format('D j M Y') }}</b></div>
   <div class="small">General Manager &amp; CEO</div>
@@ -18,7 +18,7 @@
   <div class="card-body">
     <ol class="brf-book-list">
       <li>
-        <a href="#book-exec"><b>Executive brief</b></a>
+        <a href="#book-exec"><b>Executive flash</b></a>
         <span class="small muted">General Manager &amp; CEO — every department on one scorecard</span>
         <span class="brf-book-state">{{ $exec['signed_count'] }} of {{ $exec['pack_count'] }} signed</span>
       </li>
@@ -37,7 +37,7 @@
 <div class="brf-book-part" id="book-exec">
   <div class="brf-book-head">
     <div>
-      <h2>Executive brief</h2>
+      <h2>Executive flash</h2>
       <div class="small muted">General Manager &amp; CEO · business date {{ $exec['date']->format('D j M Y') }}</div>
     </div>
     <div class="brf-book-state {{ $exec['signed_count'] === $exec['pack_count'] ? 'is-signed' : 'is-open' }}">{{ $exec['signed_count'] }} of {{ $exec['pack_count'] }} departments signed</div>

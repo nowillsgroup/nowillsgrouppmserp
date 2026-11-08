@@ -208,14 +208,14 @@ for key, pack in packs.items():
 # the sidebar must offer the hub to every head: the menu item's perm list is any-of,
 # so it has to contain every pack permission plus the executive key.
 menu = catalogue[catalogue.find("'menu'"):]
-hub = re.search(r"\['label' => 'Daily Briefings', 'route' => 'briefings\.index', 'perm' => '([^']+)'\]", menu)
+hub = re.search(r"\['label' => 'Daily Flash', 'route' => 'briefings\.index', 'perm' => '([^']+)'\]", menu)
 ok(hub is not None, 'menu: the hub is in the sidebar')
 if hub:
     offered = {p.strip() for p in hub.group(1).split(',')}
     for key, pack in packs.items():
         ok(pack['perm'] in offered, f'menu: a head with only {pack["perm"]} can see the hub')
     ok('reports.exec' in offered, 'menu: an executive with only reports.exec can see the hub')
-ok(re.search(r"\['label' => 'Executive Brief', 'route' => 'briefings\.exec', 'perm' => 'reports\.exec'\]", menu) is not None,
+ok(re.search(r"\['label' => 'Executive Flash', 'route' => 'briefings\.exec', 'perm' => 'reports\.exec'\]", menu) is not None,
    'menu: the executive brief is in the sidebar behind reports.exec')
 
 # ── 4. the routes the module asks for ───────────────────────────────────────────────

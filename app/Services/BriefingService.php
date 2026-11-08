@@ -174,7 +174,7 @@ class BriefingService
 
         return array_merge([
             'key' => $key, 'label' => $p['label'], 'role' => $p['role'], 'icon' => $p['icon'],
-            'perm' => $p['perm'], 'title' => $p['role'].' — daily briefing', 'date' => $d,
+            'perm' => $p['perm'], 'title' => $p['role'].' — Daily Flash', 'date' => $d,
             'house' => self::houseSection($core),
             'signoff' => self::signoffFor($key, $d),
             'is_exec' => false,
@@ -188,7 +188,7 @@ class BriefingService
 
         return array_merge([
             'key' => 'exec', 'label' => self::EXEC['label'], 'role' => self::EXEC['role'], 'icon' => self::EXEC['icon'],
-            'perm' => self::EXEC['perm'], 'title' => 'Daily executive brief — General Manager & CEO', 'date' => $d,
+            'perm' => self::EXEC['perm'], 'title' => 'Daily Flash — Executive', 'date' => $d,
             'is_exec' => true,
         ], self::buildExec($d, $core));
     }

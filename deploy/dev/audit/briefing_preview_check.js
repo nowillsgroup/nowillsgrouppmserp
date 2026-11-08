@@ -47,11 +47,11 @@ const band = (doc, key) => doc.querySelector(`[data-band="${key}"]`);
   ok(cards.filter(c => /Not signed/.test(text(c.querySelector('.badge')))).length === 7,
     'hub: unsigned packs are called out, not hidden');
   ok(doc.querySelectorAll('.brf-exec-card').length === 1, 'hub: the executive brief has its own entry');
-  ok(/11\/18 signed/.test(text(doc.querySelector('.brf-exec-card'))), 'hub: the executive card counts the sign-offs');
-  ok(/18 department packs/.test(text(doc.querySelector('.brf-intro'))), 'hub: the hub states how many packs exist');
-  ok(/11 signed today/.test(text(doc.querySelector(".brf-intro"))), 'hub: the hub counts today\'s signatures');
-  ok(/further briefing/.test(text(doc.body)), 'hub: packs the user may not read are counted, not shown');
-  ok(cards.every(c => (c.getAttribute('href') ?? '').length > 0), 'hub: every card opens its pack');
+  ok(/11\/18 visible signed/.test(text(doc.querySelector('.brf-exec-card'))), 'hub: the executive card counts the sign-offs');
+  ok(/18\s*Visible departments/.test(text(doc.querySelector('.flash-summary'))), 'hub: the hub states how many packs exist');
+  ok(/11\s*Signed today/.test(text(doc.querySelector(".flash-summary"))), 'hub: the hub counts today\'s signatures');
+  ok(/further department flash/.test(text(doc.body)), 'hub: packs the user may not read are counted, not shown');
+  ok(cards.every(c => (c.querySelector('.flash-card-actions a')?.getAttribute('href') ?? '').length > 0), 'hub: every card opens its pack');
   ok(doc.querySelectorAll('.brf-card').length === 18 && !/Manager daily pack/.test(text(doc.body)),
     'hub: each card carries the real description of the pack');
   const weeks = [...doc.querySelectorAll('.brf-card-week')];
@@ -137,7 +137,7 @@ const band = (doc, key) => doc.querySelector(`[data-band="${key}"]`);
 
   ok(/Laundry Manager/.test(text(doc.querySelector('.brf-masthead'))), 'laundry: the pack is the laundry manager\'s');
   ok(/Not signed/.test(text(doc.querySelector('.brf-masthead-side'))), 'laundry: an unsigned pack says so');
-  ok(/Sign this briefing/.test(text(doc.body)), 'laundry: the sign button is offered before signing');
+  ok(/Sign this flash/.test(text(doc.body)), 'laundry: the sign button is offered before signing');
   ok(/No linen movement recorded/.test(text(doc.body)), 'laundry: an empty table states why it is empty');
   ok(/Nothing for the desk to chase/.test(text(doc.body)), 'laundry: an empty list states why it is empty');
   ok(/Nothing is flagged against this department today/.test(text(doc.body)), 'laundry: an empty watch list says nothing is flagged');
@@ -226,7 +226,7 @@ const band = (doc, key) => doc.querySelector(`[data-band="${key}"]`);
   const win = load('briefing-print.html');
   const doc = win.document;
 
-  ok(/F&B Manager — daily briefing/.test(text(doc.querySelector('.print-head'))), 'print: the sheet is titled with the pack');
+  ok(/F&B Manager — Daily Flash/.test(text(doc.querySelector('.print-head'))), 'print: the sheet is titled with the pack');
   ok(/Business date/.test(text(doc.querySelector('.print-head'))), 'print: the sheet is dated');
   ok(/Printed /.test(text(doc.querySelector('.print-head'))), 'print: the sheet says when it was printed');
   ok(doc.querySelectorAll('.brf-headline .stat').length === 6, 'print: the headline figures print');
@@ -659,7 +659,7 @@ const band = (doc, key) => doc.querySelector(`[data-band="${key}"]`);
   const win = load('briefing-book.html');
   const doc = win.document;
 
-  ok(/Daily briefing book/.test(text(doc.querySelector('.print-head'))), 'book: the document is titled on every page head');
+  ok(/Daily Flash book/.test(text(doc.querySelector('.print-head'))), 'book: the document is titled on every page head');
   ok(/General Manager & CEO/.test(text(doc.querySelector('.print-head'))), 'book: the document says who it is for');
   ok(/Business date/.test(text(doc.querySelector('.print-head'))), 'book: the document is dated');
 
@@ -700,7 +700,7 @@ const band = (doc, key) => doc.querySelector(`[data-band="${key}"]`);
 // ── the two exports reachable from the screens ───────────────────────────────────────
 {
   const hub = load('briefing-hub.html').document;
-  ok(/Briefing book/.test(text(hub.body)), 'hub: the GM can open the whole book from the hub');
+  ok(/Flash book/.test(text(hub.body)), 'hub: the GM can open the whole book from the hub');
 
   const fnb = load('briefing-fnb.html').document;
   ok(/Excel \/ CSV/.test(text(fnb.body)), 'pack: a head can export their own figures to a spreadsheet');

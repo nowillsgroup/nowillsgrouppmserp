@@ -69,28 +69,28 @@ const indent = (html, pad = '      ') => html.trimEnd()
   .join('\n');
 
 const screens = [
-  { view: 'briefings/index', file: 'briefing-hub.html', title: 'Daily briefings', crumbs: 'Reports / Daily briefings', context: briefingHubContext },
-  { view: 'briefings/show', file: 'briefing-fnb.html', title: 'F&B Manager — daily briefing', crumbs: 'Daily briefings / Food & Beverage', context: briefingFnbContext },
-  { view: 'briefings/show', file: 'briefing-housekeeping.html', title: 'Executive Housekeeper — daily briefing', crumbs: 'Daily briefings / Housekeeping', context: briefingHousekeepingContext },
-  { view: 'briefings/show', file: 'briefing-laundry.html', title: 'Laundry Manager — daily briefing', crumbs: 'Daily briefings / Laundry & Linen', context: briefingLaundryContext },
-  { view: 'briefings/show', file: 'briefing-finance.html', title: 'Financial Controller — daily briefing', crumbs: 'Daily briefings / Finance & Accounts', context: briefingFinanceContext },
-  { view: 'briefings/show', file: 'briefing-banquet.html', title: 'Banquet Manager — daily briefing', crumbs: 'Daily briefings / Banquet', context: briefingBanquetContext },
-  { view: 'briefings/show', file: 'briefing-it.html', title: 'IT Manager — daily briefing', crumbs: 'Daily briefings / IT', context: briefingItContext },
-  { view: 'briefings/show', file: 'briefing-sales.html', title: 'Sales Manager — daily briefing', crumbs: 'Daily briefings / Sales', context: briefingSalesContext },
-  { view: 'briefings/show', file: 'briefing-guestexp.html', title: 'Guest Relations Manager — daily briefing', crumbs: 'Daily briefings / Guest Experience', context: briefingGuestExpContext },
-  { view: 'briefings/show', file: 'briefing-revenue.html', title: 'Revenue Manager — daily briefing', crumbs: 'Daily briefings / Revenue', context: briefingRevenueContext },
-  { view: 'briefings/show', file: 'briefing-maintenance.html', title: 'Chief Engineer — daily briefing', crumbs: 'Daily briefings / Engineering', context: briefingMaintenanceContext },
-  { view: 'briefings/show', file: 'briefing-kitchen.html', title: 'Executive Chef — daily briefing', crumbs: 'Daily briefings / Kitchen', context: briefingKitchenContext },
-  { view: 'briefings/show', file: 'briefing-stores.html', title: 'Purchasing & Stores Manager — daily briefing', crumbs: 'Daily briefings / Purchasing & Stores', context: briefingStoresContext },
-  { view: 'briefings/show', file: 'briefing-frontoffice.html', title: 'Front Office Manager — daily briefing', crumbs: 'Daily briefings / Front Office', context: briefingFrontOfficeContext },
-  { view: 'briefings/show', file: 'briefing-security.html', title: 'Security Manager — daily briefing', crumbs: 'Daily briefings / Security', context: briefingSecurityContext },
-  { view: 'briefings/show', file: 'briefing-hr.html', title: 'Human Resources Manager — daily briefing', crumbs: 'Daily briefings / People & HR', context: briefingHrContext },
-  { view: 'briefings/show', file: 'briefing-parking.html', title: 'Parking Supervisor — daily briefing', crumbs: 'Daily briefings / Parking & Valet', context: briefingParkingContext },
-  { view: 'briefings/show', file: 'briefing-fleet.html', title: 'Transport Supervisor — daily briefing', crumbs: 'Daily briefings / Transport & Fleet', context: briefingFleetContext },
-  { view: 'briefings/show', file: 'briefing-recreation.html', title: 'Recreation Manager — daily briefing', crumbs: 'Daily briefings / Spa & Recreation', context: briefingRecreationContext },
-  { view: 'briefings/exec', file: 'briefing-exec.html', title: 'Daily executive brief', crumbs: 'Daily briefings / Executive brief', context: briefingExecContext },
-  { view: 'briefings/print', file: 'briefing-print.html', title: 'F&B Manager — daily briefing', crumbs: 'Daily briefings / Print', context: briefingPrintContext, raw: true },
-  { view: 'briefings/book', file: 'briefing-book.html', title: 'Daily briefing book', crumbs: 'Daily briefings / Book', context: briefingBookContext, raw: true },
+  { view: 'briefings/index', file: 'briefing-hub.html', title: 'Daily Flash', crumbs: 'Reports / Daily Flash', context: briefingHubContext },
+  { view: 'briefings/show', file: 'briefing-fnb.html', title: 'F&B Manager — Daily Flash', crumbs: 'Daily Flash / Food & Beverage', context: briefingFnbContext },
+  { view: 'briefings/show', file: 'briefing-housekeeping.html', title: 'Executive Housekeeper — Daily Flash', crumbs: 'Daily Flash / Housekeeping', context: briefingHousekeepingContext },
+  { view: 'briefings/show', file: 'briefing-laundry.html', title: 'Laundry Manager — Daily Flash', crumbs: 'Daily Flash / Laundry & Linen', context: briefingLaundryContext },
+  { view: 'briefings/show', file: 'briefing-finance.html', title: 'Financial Controller — Daily Flash', crumbs: 'Daily Flash / Finance & Accounts', context: briefingFinanceContext },
+  { view: 'briefings/show', file: 'briefing-banquet.html', title: 'Banquet Manager — Daily Flash', crumbs: 'Daily Flash / Banquet', context: briefingBanquetContext },
+  { view: 'briefings/show', file: 'briefing-it.html', title: 'IT Manager — Daily Flash', crumbs: 'Daily Flash / IT', context: briefingItContext },
+  { view: 'briefings/show', file: 'briefing-sales.html', title: 'Sales Manager — Daily Flash', crumbs: 'Daily Flash / Sales', context: briefingSalesContext },
+  { view: 'briefings/show', file: 'briefing-guestexp.html', title: 'Guest Relations Manager — Daily Flash', crumbs: 'Daily Flash / Guest Experience', context: briefingGuestExpContext },
+  { view: 'briefings/show', file: 'briefing-revenue.html', title: 'Revenue Manager — Daily Flash', crumbs: 'Daily Flash / Revenue', context: briefingRevenueContext },
+  { view: 'briefings/show', file: 'briefing-maintenance.html', title: 'Chief Engineer — Daily Flash', crumbs: 'Daily Flash / Engineering', context: briefingMaintenanceContext },
+  { view: 'briefings/show', file: 'briefing-kitchen.html', title: 'Executive Chef — Daily Flash', crumbs: 'Daily Flash / Kitchen', context: briefingKitchenContext },
+  { view: 'briefings/show', file: 'briefing-stores.html', title: 'Purchasing & Stores Manager — Daily Flash', crumbs: 'Daily Flash / Purchasing & Stores', context: briefingStoresContext },
+  { view: 'briefings/show', file: 'briefing-frontoffice.html', title: 'Front Office Manager — Daily Flash', crumbs: 'Daily Flash / Front Office', context: briefingFrontOfficeContext },
+  { view: 'briefings/show', file: 'briefing-security.html', title: 'Security Manager — Daily Flash', crumbs: 'Daily Flash / Security', context: briefingSecurityContext },
+  { view: 'briefings/show', file: 'briefing-hr.html', title: 'Human Resources Manager — Daily Flash', crumbs: 'Daily Flash / People & HR', context: briefingHrContext },
+  { view: 'briefings/show', file: 'briefing-parking.html', title: 'Parking Supervisor — Daily Flash', crumbs: 'Daily Flash / Parking & Valet', context: briefingParkingContext },
+  { view: 'briefings/show', file: 'briefing-fleet.html', title: 'Transport Supervisor — Daily Flash', crumbs: 'Daily Flash / Transport & Fleet', context: briefingFleetContext },
+  { view: 'briefings/show', file: 'briefing-recreation.html', title: 'Recreation Manager — Daily Flash', crumbs: 'Daily Flash / Spa & Recreation', context: briefingRecreationContext },
+  { view: 'briefings/exec', file: 'briefing-exec.html', title: 'Daily Flash — Executive', crumbs: 'Daily Flash / Executive flash', context: briefingExecContext },
+  { view: 'briefings/print', file: 'briefing-print.html', title: 'F&B Manager — Daily Flash', crumbs: 'Daily Flash / Print', context: briefingPrintContext, raw: true },
+  { view: 'briefings/book', file: 'briefing-book.html', title: 'Daily Flash book', crumbs: 'Daily Flash / Book', context: briefingBookContext, raw: true },
 ];
 
 let failures = 0;
@@ -115,7 +115,7 @@ for (const screen of screens) {
 <link rel="stylesheet" href="/css/app.css">
 <style>body{background:#eef1f6}.print-head>div{min-width:0}.print-head .small{overflow-wrap:anywhere}</style>
 </head><body>
-<div class="print-bar no-print"><button class="btn btn-primary" onclick="window.print()">Print</button></div>
+<div class="print-bar no-print"><span>Sample preview — fictional data; not for filing.</span> <button class="btn btn-primary" onclick="window.print()">Print</button></div>
 <div class="print-page">
   <div class="print-head">
     <div><h2>The Grove Essipong Beach Resort</h2>
@@ -157,13 +157,16 @@ ${content}
     process.exit(1);
   }
 
-  const html = shell(navHtml, sprite, indent(contentRaw), {
+  // Preview-only: sample figures and sign-off controls must never be mistaken for live data.
+  const sampleNotice = '<div class="alert alert-info" role="note"><b>Sample preview.</b> Fictional data; sign-offs cannot be saved.</div>';
+  let html = shell(navHtml, sprite, sampleNotice + indent(contentRaw), {
     title: screen.title,
     crumbs: screen.crumbs,
     actions: indent(actionsRaw, '        '),
     head: headRaw ? `  ${headRaw}\n` : '',
-    scripts: scriptsRaw + '\n',
+    scripts: '<script>document.addEventListener("submit", e => { if (!e.target.closest("dialog")) e.preventDefault(); });</script>' + scriptsRaw + '\n',
   });
+  if (screen.view === 'briefings/index') html = html.replace(/[ \t]+$/gm, '');
 
   const out = path.join(ROOT, 'deploy/dev/previews', screen.file);
   const previous = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : null;

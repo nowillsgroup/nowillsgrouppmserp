@@ -1,6 +1,6 @@
 @extends('layouts.print')
 @section('title', $pack['title'])
-@section('doctitle', $pack['is_exec'] ? 'Daily executive brief' : $pack['role'].' — daily briefing')
+@section('doctitle', $pack['is_exec'] ? 'Daily Flash — Executive' : $pack['role'].' — Daily Flash')
 @section('docmeta')
   <div class="small">Business date <b>{{ $pack['date']->format('D j M Y') }}</b></div>
   <div class="small">{{ $pack['is_exec'] ? 'General Manager & CEO' : $pack['role'] }}</div>
