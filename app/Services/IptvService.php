@@ -1020,11 +1020,22 @@ class IptvService
         $name = trim((string) ($d['name'] ?? ''));
         self::need($name !== '', 'Enter the channel name.');
         self::need(isset(TvChannel::CATEGORIES[$d['category'] ?? '']), 'Choose the category.');
+        $source = $d['source_type'] ?? 'stream';
+        self::need(in_array($source, ['stream', 'tuner'], true), 'Choose a valid channel source.');
         $url = trim((string) ($d['stream_url'] ?? ''));
-        self::need(self::validStream($url), 'Enter the stream address, e.g. udp://@239.10.0.1:1234 or https://…/index.m3u8.');
+        $tunerNumber = filter_var($d['tuner_number'] ?? null, FILTER_VALIDATE_INT);
+        if ($source === 'tuner') {
+            self::need($tunerNumber !== false && $tunerNumber >= 1 && $tunerNumber <= 9999, 'Enter the TV tuner channel number, from 1 to 9999.');
+            // A browser cannot tune coax on its own. Keep mappings as drafts until a verified TV integration exists.
+            // Retain any previously configured stream when staging a tuner mapping.
+        } else {
+            self::need(self::validStream($url), 'Enter the stream address, e.g. udp://@239.10.0.1:1234 or https://…/index.m3u8.');
+            $tunerNumber = $tunerNumber !== false ? $tunerNumber : null;
+        }
         $f = ['number' => $no, 'name' => mb_substr($name, 0, 80), 'category' => $d['category'], 'language' => mb_substr(trim((string) ($d['language'] ?? '')), 0, 30) ?: null,
-            'stream_url' => $url, 'epg_id' => mb_substr(trim((string) ($d['epg_id'] ?? '')), 0, 80) ?: null, 'is_radio' => ! empty($d['is_radio']) || $d['category'] === 'radio',
-            'is_active' => ! empty($d['is_active'])];
+            'source_type' => $source, 'tuner_number' => $tunerNumber, 'stream_url' => $url,
+            'epg_id' => mb_substr(trim((string) ($d['epg_id'] ?? '')), 0, 80) ?: null, 'is_radio' => ! empty($d['is_radio']) || $d['category'] === 'radio',
+            'is_active' => $source === 'stream' && ! empty($d['is_active'])];
         $ch ? $ch->update($f) : $ch = TvChannel::create($f);
         self::flush();
         ActivityLogger::log('iptv', 'channel', "Channel {$ch->number} {$ch->name} saved", $ch);
@@ -1089,10 +1100,16 @@ class IptvService
                     }
                     $no = (int) ($pending['tvg-chno'] ?? 0);
                     $ch = $no >= 1 && $no <= 9999 ? TvChannel::where('number', $no)->first() : TvChannel::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+                    // Importing a stream must not silently replace a staged tuner mapping.
+                    if ($ch && $ch->source_type === 'tuner') {
+                        $out['skipped']++;
+                        $pending = null;
+                        continue;
+                    }
                     $no = $ch?->number ?? ($no >= 1 && $no <= 9999 ? $no : ++$next);
                     $next = max($next, $no);
                     $cat = self::guessCategory((string) ($pending['group-title'] ?? ''), $name);
-                    $f = ['number' => $no, 'name' => $name, 'category' => $cat, 'language' => mb_substr((string) ($pending['tvg-language'] ?? ''), 0, 30) ?: $ch?->language,
+                    $f = ['number' => $no, 'name' => $name, 'category' => $cat, 'source_type' => 'stream', 'language' => mb_substr((string) ($pending['tvg-language'] ?? ''), 0, 30) ?: $ch?->language,
                         'stream_url' => mb_substr($line, 0, 255), 'epg_id' => mb_substr((string) ($pending['tvg-id'] ?? ''), 0, 80) ?: $ch?->epg_id, 'is_radio' => $cat === 'radio',
                         'is_active' => true];
                     $ch ? $ch->update($f) : TvChannel::create($f);
@@ -1110,7 +1127,7 @@ class IptvService
     public static function exportM3u(): string
     {
         $out = "#EXTM3U\n";
-        foreach (TvChannel::where('is_active', true)->orderBy('number')->get() as $c) {
+        foreach (TvChannel::where('is_active', true)->where('source_type', 'stream')->orderBy('number')->get() as $c) {
             $attr = fn ($v) => str_replace('"', "'", (string) $v);
             $out .= '#EXTINF:-1 tvg-chno="'.$c->number.'"'.($c->epg_id ? ' tvg-id="'.$attr($c->epg_id).'"' : '').($c->language ? ' tvg-language="'.$attr($c->language).'"' : '')
                 .' group-title="'.$attr($c->categoryLabel()).'",'.str_replace(["\r", "\n"], ' ', $c->name)."\n".$c->stream_url."\n";
@@ -1269,7 +1286,7 @@ class IptvService
     {
         $nn = self::nowNext();
 
-        return TvChannel::where('is_active', true)->orderBy('number')->get()->map(fn ($c) => ['id' => $c->id, 'no' => $c->number, 'name' => $c->name, 'cat' => $c->category,
+        return TvChannel::where('is_active', true)->where('source_type', 'stream')->orderBy('number')->get()->map(fn ($c) => ['id' => $c->id, 'no' => $c->number, 'name' => $c->name, 'cat' => $c->category,
             'cat_label' => $c->categoryLabel(), 'lang' => $c->language, 'url' => $c->stream_url, 'radio' => $c->is_radio,
             'now' => ($p = $nn[$c->id]['now'] ?? null) ? ['title' => $p->title, 'from' => $p->starts_at->format('H:i'), 'to' => $p->ends_at->format('H:i'), 'desc' => $p->description] : null,
             'next' => ($p = $nn[$c->id]['next'] ?? null) ? ['title' => $p->title, 'from' => $p->starts_at->format('H:i')] : null])->all();
