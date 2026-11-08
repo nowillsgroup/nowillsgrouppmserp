@@ -357,6 +357,28 @@ ok('and the renumbered card is submitted in its new place',
 movedClock.value = '14:00';
 edit.fire(movedClock, 'change');
 
+// Dates outrank times; card contents, labels and focus survive rearrangement.
+const dateField = movedCard.querySelector('[data-f=date]');
+const movedName = movedCard.querySelector('[data-f=name]');
+const originalName = movedName.value;
+dateField.focus();
+dateField.value = '2026-12-13';
+edit.fire(dateField, 'change');
+ok('a later date moves behind an earlier day even with an earlier time',
+  edit.$$('#fnList .fn-card').at(-1) === movedCard && movedName.value === originalName);
+ok('focus and labels still point to the moved card', edit.doc.activeElement === dateField
+  && movedCard.querySelector('[data-f=date]').closest('.field').querySelector('label').htmlFor === dateField.id
+  && edit.$('#fnList .fn-card [data-f=name]').closest('.field').querySelector('label').htmlFor === edit.$('#fnList .fn-card [data-f=name]').id);
+dateField.value = '2026-12-12';
+edit.fire(dateField, 'change');
+const receptionClock = edit.$$('#fnList .fn-card')[1].querySelector('[data-f=start_time]');
+receptionClock.value = '14:00';
+edit.fire(receptionClock, 'change');
+ok('equal date and time use the saved function id as a stable tie-break',
+  edit.$$('#fnList [data-f=id]').map(el => el.value).join(',') === '4101,4102');
+receptionClock.value = '19:00';
+edit.fire(receptionClock, 'change');
+
 // The rule is not a habit of one screen: it lives in the models, and every banquet list asks for it.
 const functionModel = readFileSync(resolve(ROOT, 'app/Models/BanquetFunction.php'), 'utf8');
 const eventModel = readFileSync(resolve(ROOT, 'app/Models/BanquetEvent.php'), 'utf8');
@@ -366,12 +388,9 @@ ok('the rule is the day, then the clock, then entry order — written once, on t
 ok('the event relation and the events list speak it too',
   /hasMany\(BanquetFunction::class\)->inTimeOrder\(\)/.test(eventModel)
   && /scopeInTimeOrder[\s\S]{0,200}orderBy\('event_date'\)->orderBy\('start_time'\)->orderBy\('id'\)/.test(eventModel));
-ok('every stage of the events list asks for the clock order, not just the day',
-  ["'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today)->inTimeOrder()",
-    "'tentative' => $q->where('status', 'tentative')->orderBy('option_date')->inTimeOrder()",
-    "'enquiry' => $q->where('status', 'enquiry')->inTimeOrder()",
-    "'to_bill' => $q->where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today)->orderBy('end_date')->inTimeOrder()",
-    'default => $q->inTimeOrder()'].every(line => controllerSource.includes(line)));
+ok('all event stages are filtered before the same chronological order and pagination',
+  /match \(\$tab\) \{[\s\S]*?'closed' =>[\s\S]*?\};\s*\$q->inTimeOrder\(\);\s*\$events = \$q->paginate/.test(controllerSource)
+  && !/match \(\$tab\) \{[\s\S]*?orderBy[\s\S]*?\};\s*\$q->inTimeOrder/.test(controllerSource));
 ok('the function sheet asks the model for the order instead of spelling it out',
   /whereHas\('event', fn \(\$q\) => \$q->whereIn\('status', \['tentative', 'definite', 'completed'\]\)\)->inTimeOrder\(\)->get\(\)/.test(controllerSource));
 

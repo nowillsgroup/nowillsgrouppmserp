@@ -49,7 +49,7 @@ class BanquetWorkspacePolishTest(unittest.TestCase):
         self.assertIn('id="bqFunctionPlan"', FORM)
         self.assertIn('class="bq-fn-items-scroll"', FORM)
         self.assertIn('class="fn-items-count tiny muted"', FORM)
-        self.assertIn('const MAX_FUNCTIONS = 30, MAX_ITEMS = 40;', FORM)
+        self.assertIn('const MAX_FUNCTIONS = 30, MAX_ITEMS = 40, MAX_DIETS = 12;', FORM)
         self.assertIn('list.children.length >= MAX_FUNCTIONS', FORM)
         self.assertIn('tbody.children.length >= MAX_ITEMS', FORM)
         self.assertIn('class="card sticky-side bq-estimate"', FORM)

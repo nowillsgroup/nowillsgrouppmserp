@@ -142,6 +142,7 @@
   const fmt = v => Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const num = el => parseFloat(el.value) || 0;
   const MAX_FUNCTIONS = 30, MAX_ITEMS = 40, MAX_DIETS = 12;
+  let nextCardSequence = 0;
   const functionLabels = {name: 'Function name', banquet_hall_id: 'Venue', date: 'Function date', start_time: 'Start time', end_time: 'End time', setup_style: 'Set-up style', expected_pax: 'Expected guests', guaranteed_pax: 'Guaranteed guests', banquet_package_id: 'Menu package', rate_per_pax: 'Rate per guest', banquet_bar_package_id: 'Drinks package', bar_rate_per_pax: 'Drinks per guest', hall_rate: 'Venue rent', notes: 'Kitchen and set-up notes'};
   const itemLabels = {banquet_service_id: 'Service or equipment', description: 'Description', qty: 'Quantity', unit_price: 'Unit price', tax_rate: 'Tax rate'};
   const dietLabels = {diet: 'Diet', covers: 'Covers', dish: 'Dish served'};
@@ -153,7 +154,7 @@
       if (key === 'id') return;
       el.id = `bq-function-${i + 1}-${key}`;
       const label = el.closest('.field')?.querySelector('label');
-      if (label && !label.htmlFor) label.htmlFor = el.id;
+      if (label && el.closest('.field').querySelector('[data-f]') === el) label.htmlFor = el.id;
       el.setAttribute('aria-label', `${functionLabels[key] || key}, function ${i + 1}`);
     });
     card.querySelectorAll('.fn-item').forEach((row, j) => {
@@ -201,15 +202,20 @@
    */
   function sortFunctions() {
     const cards = [...list.children];
-    const order = cards.map((card, i) => ({ card, i, key: clockKey(card) }))
-      .sort((a, b) => (a.key === b.key ? a.i - b.i : a.key < b.key ? -1 : 1));
+    const order = cards.map(card => ({ card, key: clockKey(card), id: card.querySelector('[data-f=id]').value }))
+      .sort((a, b) => {
+        if (a.key !== b.key) return a.key < b.key ? -1 : 1;
+        // Existing records use their database id, as on the printed sheets; new cards keep their creation order.
+        if (a.id && b.id && a.id !== b.id) return Number(a.id) - Number(b.id);
+        if (Boolean(a.id) !== Boolean(b.id)) return a.id ? -1 : 1;
+        return Number(a.card.dataset.sequence) - Number(b.card.dataset.sequence);
+      });
     if (order.every((row, i) => row.card === cards[i])) return;
     const active = document.activeElement;
-    const focusCard = active && list.contains(active) ? active.closest('.fn-card') : null;
-    const focusKey = focusCard && active.dataset.f ? active.dataset.f : null;
+    const restoreFocus = active && list.contains(active) && active !== document.body;
     order.forEach(row => list.appendChild(row.card));
     renumber(); calc();
-    if (focusCard && focusKey) focusCard.querySelector(`[data-f=${focusKey}]`)?.focus();
+    if (restoreFocus) active.focus({preventScroll: true});
   }
   function syncItemLimit(card) {
     const rows = card.querySelectorAll('.fn-item').length;
@@ -287,8 +293,10 @@
   function addFn(f) {
     if (list.children.length >= MAX_FUNCTIONS) return null;
     const t = document.createElement('div'); t.innerHTML = fnTpl; const card = t.firstElementChild; list.appendChild(card);
+    const isNew = !f;
+    card.dataset.sequence = nextCardSequence++;
     f = f || {};
-    if (!f.date && list.children.length > 1) { const prev = list.children[list.children.length - 2]; f = {banquet_hall_id: prev.querySelector('[data-f=banquet_hall_id]').value, date: prev.querySelector('[data-f=date]').value, start_time: '09:00', end_time: '17:00', setup_style: 'classroom'}; }
+    if (isNew && list.children.length > 1) { const prev = list.children[list.children.length - 2]; f = {banquet_hall_id: prev.querySelector('[data-f=banquet_hall_id]').value, date: prev.querySelector('[data-f=date]').value, start_time: '09:00', end_time: '17:00', setup_style: 'classroom'}; }
     for (const k of ['id', ...Object.keys(functionLabels)]) { const el = card.querySelector(`[data-f=${k}]`); if (el && f[k] !== null && f[k] !== undefined) el.value = f[k]; }
     if (f.locked) { card.querySelector('.fn-lock').hidden = false; card.querySelector('[data-f=guaranteed_pax]').min = f.guaranteed_pax; }
     (Array.isArray(f.items) ? f.items : []).forEach(it => addItem(card, it));

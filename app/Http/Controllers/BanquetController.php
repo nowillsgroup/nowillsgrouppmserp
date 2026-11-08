@@ -45,18 +45,17 @@ class BanquetController extends Controller
                 ->orWhereHas('company', fn ($company) => $company->where('name', 'like', '%'.$search.'%'))))
             ->when($type !== '', fn ($w) => $w->where('event_type', $type))
             ->when($salesFilter !== null, fn ($w) => $w->where('sales_user_id', $salesFilter));
-        // Every stage reads down the clock (v10.35): the day first, then the time the event starts, then the order it was
-        // keyed in. Ordering on event_date alone leaves two events on the same day in entry order, which is how an
-        // evening gala gets printed above a morning ceremony.
+        // Apply the same chronology before pagination in every stage.
         match ($tab) {
-            'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today)->inTimeOrder(),
-            'tentative' => $q->where('status', 'tentative')->orderBy('option_date')->inTimeOrder(),
-            'enquiry' => $q->where('status', 'enquiry')->inTimeOrder(),
-            'to_bill' => $q->where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today)->orderBy('end_date')->inTimeOrder(),
-            'completed' => $q->where('status', 'completed')->orderByDesc('event_date')->orderBy('start_time')->orderBy('id'),
-            'closed' => $q->whereIn('status', ['lost', 'cancelled'])->orderByDesc('closed_at')->orderByDesc('id'),
-            default => $q->inTimeOrder(),
+            'upcoming' => $q->where('status', 'definite')->whereDate('end_date', '>=', $today),
+            'tentative' => $q->where('status', 'tentative'),
+            'enquiry' => $q->where('status', 'enquiry'),
+            'to_bill' => $q->where('status', 'definite')->whereNull('billed_at')->whereDate('end_date', '<=', $today),
+            'completed' => $q->where('status', 'completed'),
+            'closed' => $q->whereIn('status', ['lost', 'cancelled']),
+            default => $q,
         };
+        $q->inTimeOrder();
         $events = $q->paginate(25)->withQueryString();
 
         $open = BanquetEvent::with('functions.items')->whereIn('status', ['enquiry', 'tentative', 'definite'])->get();
@@ -252,10 +251,7 @@ class BanquetController extends Controller
     public function edit(BanquetEvent $event)
     {
         abort_unless($event->isEditable(), 403);
-        // the relation is already in time order; sorting the collection again keeps the cards in that order whatever
-        // an eager load did to it (v10.35) — the sheet the desk fills in reads down the clock, not the keying order
-        $fns = $event->functions()->with('items')->get()
-            ->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time.' · '.str_pad((string) $f->id, 10, '0', STR_PAD_LEFT))->values()->map(fn ($f) => ['id' => $f->id, 'name' => $f->name, 'banquet_hall_id' => $f->banquet_hall_id, 'date' => $f->date->toDateString(),
+        $fns = $event->functions()->with('items')->get()->map(fn ($f) => ['id' => $f->id, 'name' => $f->name, 'banquet_hall_id' => $f->banquet_hall_id, 'date' => $f->date->toDateString(),
             'start_time' => substr($f->start_time, 0, 5), 'end_time' => substr($f->end_time, 0, 5), 'setup_style' => $f->setup_style, 'expected_pax' => $f->expected_pax,
             'guaranteed_pax' => $f->guaranteed_pax, 'banquet_package_id' => $f->banquet_package_id, 'rate_per_pax' => $f->rate_per_pax, 'hall_rate' => $f->hall_rate, 'notes' => $f->notes,
             'dietary' => $f->dietary ?? [],
@@ -415,10 +411,7 @@ class BanquetController extends Controller
         $event->load('functions.items.service.department', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser');
 
         $focus = $request->integer('function');
-        // the same rule the relation speaks, spelled out for a collection: the day, the clock, then entry
-        $fns = $event->functions
-            ->sortBy(fn ($f) => $f->date->toDateString().' '.$f->start_time.' · '.str_pad((string) $f->id, 10, '0', STR_PAD_LEFT))
-            ->values();
+        $fns = $event->functions;
 
         if ($focus > 0) {
             $fns = $fns->where('id', $focus)->values();

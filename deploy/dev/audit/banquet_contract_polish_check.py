@@ -55,7 +55,7 @@ class BanquetContractPolishTest(unittest.TestCase):
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, VIEW)
-        self.assertIn("'functions.items', 'functions.hall', 'functions.package', 'company', 'salesUser'", CONTROLLER)
+        self.assertIn("'functions.items', 'functions.hall', 'functions.package', 'functions.barPackage', 'company', 'salesUser'", CONTROLLER)
         self.assertIn("Route::get('/{event}/quote', 'quote')->middleware('perm:banquet.view')->name('quote')", ROUTES)
 
     def test_contract_document_has_accessible_details_and_safe_empty_state(self):

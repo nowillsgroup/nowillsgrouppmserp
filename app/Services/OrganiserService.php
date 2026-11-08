@@ -298,7 +298,7 @@ class OrganiserService
             ->where(fn ($q) => $q->when($u->company_id, fn ($w) => $w->orWhere('company_id', $u->company_id))
                 ->when($u->banquet_event_id, fn ($w) => $w->orWhere('id', $u->banquet_event_id))
                 ->orWhereRaw('LOWER(contact_email) = ?', [Str::lower($u->email)]))
-            ->orderBy('event_date')->orderBy('id')->get();
+            ->inTimeOrder()->get();
     }
 
     public static function ownEvent(OrganiserUser $u, BanquetEvent $e): void
@@ -681,7 +681,7 @@ class OrganiserService
     public static function staffDashboard(): array
     {
         $since = now()->subDays(30);
-        $events = BanquetEvent::where('portal_enabled', true)->with('functions')->get();
+        $events = BanquetEvent::where('portal_enabled', true)->with('functions')->inTimeOrder()->get();
         $open = $events->filter(fn ($e) => $e->isOpen() && ! $e->billed_at);
 
         return [
@@ -697,7 +697,7 @@ class OrganiserService
                 'guests' => OrganiserAttendee::count(),
                 'failed' => OrganiserAudit::whereIn('action', ['login_failed', 'locked', 'login_blocked'])->where('created_at', '>=', now()->subDays(7))->count(),
             ],
-            'upcoming' => $open->filter(fn ($e) => ($e->end_date?->toDateString() ?? '9999') >= bdate()->toDateString())->sortBy('event_date')->take(8)->values(),
+            'upcoming' => $open->filter(fn ($e) => ($e->end_date?->toDateString() ?? '9999') >= bdate()->toDateString())->take(8)->values(),
             'pending' => OrganiserRequest::with('company', 'organiserUser', 'event')->where('status', 'pending')->orderBy('created_at')->limit(8)->get(),
             'recent' => OrganiserAudit::with('company', 'organiserUser', 'event')->orderByDesc('id')->limit(12)->get(),
         ];
