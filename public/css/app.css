@@ -16,7 +16,7 @@
   --shadow-lg: 0 20px 50px rgba(15,23,42,.18);
   --font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --side-w: 244px; --top-h: 60px;
+  --side-w: 232px; --top-h: 60px;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html { font-size: 14px; -webkit-text-size-adjust: 100%; }
@@ -2237,7 +2237,7 @@ body.dark .notify-count { box-shadow: 0 0 0 2px var(--c-side); }
   --shadow-sm: 0 1px 2px rgba(21,49,31,.045), 0 3px 9px rgba(21,49,31,.035);
   --shadow: 0 2px 5px rgba(21,49,31,.055), 0 9px 24px rgba(21,49,31,.055);
   --shadow-lg: 0 24px 60px rgba(15,42,26,.2);
-  --side-w: 244px;
+  --side-w: 232px;
   --top-h: 64px;
 }
 html { scroll-behavior: smooth; }
