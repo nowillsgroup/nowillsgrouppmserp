@@ -240,3 +240,35 @@ body.dark .dash-mix-period{background:var(--c-bg)}
 @media(max-width:860px){.dash-mix-grid{grid-template-columns:1fr}.dash-mix-content{grid-template-columns:minmax(126px,158px) minmax(0,1fr)}}
 @media(max-width:420px){.dash-mix-card{padding:.8rem}.dash-mix-content{grid-template-columns:minmax(105px,128px) minmax(0,1fr);gap:.65rem}.dash-mix-legend{gap:.4rem}.dash-mix-legend li{gap:.3rem;font-size:.61rem}.dash-mix-legend strong{font-size:.61rem}.dash-mix-legend small{min-width:26px;font-size:.57rem}}
 @media(prefers-reduced-motion:reduce){.dash-mix-card{transition:none}}
+
+/* Dashboard hierarchy: scan the business day first, then investigate performance. */
+.dashboard-page{max-width:1760px}
+.dash-section-nav{display:flex;align-items:center;gap:.28rem;flex-wrap:wrap;margin:-.2rem 0 1.15rem;padding:.48rem .6rem;border:1px solid var(--c-border);border-radius:12px;background:var(--c-surface);box-shadow:var(--shadow-sm)}
+.dash-section-nav-label{padding:0 .55rem;color:var(--c-muted);font-size:.62rem;font-weight:800;letter-spacing:.1em;white-space:nowrap}
+.dash-section-nav a{display:inline-flex;align-items:center;min-height:34px;padding:.4rem .7rem;border-radius:8px;color:var(--c-text-2);font-size:.75rem;font-weight:700;text-decoration:none}
+.dash-section-nav a:hover{background:var(--c-primary-50);color:var(--c-primary-600)}
+.dash-section-nav a:focus-visible{outline:2px solid var(--c-primary);outline-offset:1px}
+#dashAttention,#dashOperations,#dashPerformance,#dashDepartments,#dashSnapshots{scroll-margin-top:1rem}
+.dash-operations-section{margin-top:1.5rem}
+.dash-operations-section .dash-section-heading,.dash-management-heading,.dash-module-section .dash-section-heading{margin-bottom:.8rem}
+.dash-operations-section .dash-section-heading h2,.dash-management-heading h2,.dash-module-section .dash-section-heading h2{font-size:1.08rem;letter-spacing:-.025em}
+.dash-alert-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dash-alert-list li{min-height:54px}
+.dash-exec-kpi>strong,.dash-management-metric strong{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.dash-management-card-head h3{overflow:visible;text-overflow:clip;white-space:normal;line-height:1.25}
+.dash-management-metric{flex-wrap:wrap}
+.dash-management-metric span{overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.dash-management-card p{font-size:.7rem;line-height:1.45}
+.dash-management-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.dash-management-card{min-height:164px}
+.dash-main-grid{margin-bottom:0}
+#dashPerformance{margin-top:1.55rem}
+#dashDepartments{margin-top:1.55rem}
+@media(max-width:1450px){.dash-management-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.dash-alert-list{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-management-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:860px){.dash-management-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.dash-section-nav{gap:.15rem;padding:.4rem}.dash-section-nav-label{width:100%;padding:.25rem .5rem}.dash-section-nav a{min-height:38px;padding:.45rem .55rem}.dash-alert-list,.dash-management-grid{grid-template-columns:1fr}.dash-management-card{min-height:138px}}
+/* Keep long labels and amounts available instead of clipping away information. */
+.dash-management-grid{grid-auto-rows:1fr}
+.dash-mix-label{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
+.dash-mix-donut strong{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.1}

@@ -9,11 +9,20 @@
   </div>
 @endsection
 @push('head')
-<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v14">
+<link rel="stylesheet" href="{{ asset('css/dashboard.css') }}?v={{ config('pms.version') }}-dashboard-layout-v15">
 @endpush
 @section('content')
 <div class="dashboard-page">
 @include('dashboard.management-overview')
+
+<nav class="dash-section-nav" aria-label="Dashboard sections">
+  <span class="dash-section-nav-label">ON THIS PAGE</span>
+  <a href="#dashAttention">Action centre</a>
+  <a href="#dashOperations">Today’s operations</a>
+  <a href="#dashPerformance">Performance</a>
+  @if($managementModules)<a href="#dashDepartments">Departments</a>@endif
+  @if(can_do('transport.fleet') || can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('banquet.view'))<a href="#dashSnapshots">Snapshots</a>@endif
+</nav>
 
 {{-- v5.4 KPI alert events + pinned report views --}}
 @php $kpiEv = can_do('reports.alerts') ? \App\Services\KpiService::openEvents() : collect(); $pinned = can_do('reports.view') ? \App\Services\ReportScheduleService::viewsFor(auth()->user())->where('user_id', auth()->id())->where('is_pinned', true) : collect(); @endphp
@@ -150,8 +159,8 @@
   </div>
 </section>
 
-@include('dashboard.management-trends')
-
+<section class="dash-operations-section dash-section" id="dashOperations" aria-labelledby="dashOperationsHeading">
+  <div class="dash-section-heading"><div><span class="dash-section-kicker">THE BUSINESS DAY</span><h2 id="dashOperationsHeading">Today’s operations</h2><p>Guest movement, room status and recent activity.</p></div></div>
 <div class="grid g-2-1 dash-main-grid">
   <div class="dash-main-column">
     @if(can_do('frontdesk.view'))
@@ -232,11 +241,13 @@
     @endif
   </aside>
 </div>
+</section>
 
+<div id="dashPerformance">@include('dashboard.management-trends')</div>
+<div id="dashDepartments">@include('dashboard.management-pulse')</div>
 
-
-@if(can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('banquet.view'))
-<section class="dash-section dash-module-section" aria-labelledby="dashModulesHeading">
+@if(can_do('transport.fleet') || can_do('budget.view') || can_do('calls.view') || can_do('keys.view') || can_do('vouchers.view') || can_do('security.view') || can_do('utilities.view') || can_do('compliance.view') || can_do('banquet.view'))
+<section class="dash-section dash-module-section" id="dashSnapshots" aria-labelledby="dashModulesHeading">
   <div class="dash-section-heading"><div><span class="dash-section-kicker">MORE PROPERTY SIGNALS</span><h2 id="dashModulesHeading">Department snapshots</h2><p>Finance, guest services, facilities and upcoming events.</p></div></div>
   <div class="dash-module-grid">
     @if(can_do('transport.fleet') && $fleetCost)
