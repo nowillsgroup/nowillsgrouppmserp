@@ -1,6 +1,6 @@
 # Nowills PMS — Hotel Property Management System
 
-A complete, multi-property hotel PMS built with **PHP 8.3+ / Laravel 13 / MySQL (or MariaDB)**.
+A complete, multi-property hotel PMS built with **PHP 8.4+ / Laravel 13 / MySQL (or MariaDB)**.
 **No Node.js, no Docker, no build step** — plain Blade templates, one CSS file and one vanilla-JS file.
 It runs on any shared host with PHP and MySQL.
 
@@ -2731,7 +2731,7 @@ Per outlet: **Masters › POS Outlets › "Consumes stock from"** chooses the st
 ## Installation
 
 ### Requirements
-PHP ≥ 8.3 with the `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `fileinfo` and `gd` extensions; MySQL ≥ 5.7 or MariaDB ≥ 10.3; Composer 2.
+PHP ≥ 8.4.1 with the `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `fileinfo` and `gd` extensions; MySQL ≥ 5.7 or MariaDB ≥ 10.3; Composer 2.
 
 > **On cPanel / shared hosting, with no SSH and no Composer?** Use the browser installer instead of the
 > commands below — see **[docs/INSTALL-CPANEL.md](docs/INSTALL-CPANEL.md)**. Upload the project, create a

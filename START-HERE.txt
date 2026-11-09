@@ -51,7 +51,7 @@ The steps are different enough to have their own guide:
 
 The short version:
   1. Create the website in CyberPanel, issue SSL (Let's Encrypt).
-  2. Set the site to PHP 8.3+ (Manage -> Change PHP).
+  2. Set the site to PHP 8.4+ (Manage -> Change PHP).
   3. Create a database under the site user (Databases -> Create Database).
   4. Clone the repo into the site folder as the SITE USER (not root):
        su - <site-user> -c "git clone https://github.com/nowillsgroup/nowillsgrouppmserp.git <site-folder>"
