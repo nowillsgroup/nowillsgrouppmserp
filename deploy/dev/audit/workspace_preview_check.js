@@ -89,48 +89,66 @@ ok('the facts under the picture are the room’s own',
 ok('the body holds the action row and nothing else',
   cards.every(card => card.querySelector('.ws-card-body .ws-actions'))
     && $$('#wsGrid .ws-card .ws-amen').length === 0);
+/* ── changing rooms: drag a stay onto a destination room card ───────────────── */
+ok('every room card is a drop target for a stay',
+  cards.every(card => /^\d+$/.test(card.dataset.dropRoom ?? '') && (card.dataset.roomNo ?? '').length > 0));
+const moveHandles = $$('.ws-drag-handle[data-stay]');
+ok('stays that can be re-placed carry a drag handle on their card',
+  moveHandles.length >= 1
+    && moveHandles.every(handle => handle.getAttribute('draggable') === 'true'
+      && /^\d+$/.test(handle.dataset.stay ?? '')
+      && handle.dataset.room === handle.closest('.ws-card')?.dataset.dropRoom
+      && ['0', '1'].includes(handle.dataset.inhouse ?? '')));
+ok('the handle is a real button with an accessible name and an icon',
+  moveHandles.every(handle => handle.tagName === 'BUTTON'
+    && /Change room/.test(handle.getAttribute('aria-label') ?? '')
+    && /^\d+$/.test(handle.dataset.roomNo ?? '')
+    && Boolean(handle.querySelector('.i, svg'))));
+ok('the board carries a polite live region for move results',
+  $('#wsActionStatus')?.getAttribute('role') === 'status'
+    && $('#wsActionStatus')?.getAttribute('aria-live') === 'polite');
+const previewHtml = readFileSync(FILE, 'utf8');
+ok('the drop posts the stay and the destination room as JSON, with the CSRF token',
+  previewHtml.includes('X-CSRF-TOKEN')
+    && previewHtml.includes("JSON.stringify({stay_id: Number(selected.stay), room_id: Number(card.dataset.dropRoom)})"),
+  'the payload contract the tape-chart endpoint expects');
+
 // v10.13 five across: a front desk scans the house by state, so the board is read across the row rather
 // than down it. The card was cut to fit — and each step down keeps a card at a legible width instead of
 // squeezing five into a phone.
 const wsStyle = $('style')?.textContent ?? '';
-ok('the board fits five rooms across', /\.ws-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+ok('the board fits six rooms across', /\.ws-grid\{[^}]*grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/.test(wsStyle),
   wsStyle.match(/\.ws-grid\{[^}]*\}/)?.[0]);
-ok('and a grouped board fits five across too', /\.ws-group-grid\{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/.test(wsStyle),
+ok('and a grouped board fits six across too', /\.ws-group-grid\{[^}]*grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/.test(wsStyle),
   wsStyle.match(/\.ws-group-grid\{[^}]*\}/)?.[0]);
-ok('the grid steps down to four, three, two and one as the screen narrows',
-  [[1399, 4], [1023, 3], [767, 2], [479, 1]].every(([width, count]) =>
+ok('the grid steps down to five, four, three, two and one as the screen narrows',
+  [[1599, 5], [1339, 4], [1079, 3], [819, 2], [559, 1]].every(([width, count]) =>
     new RegExp(`@media \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle)),
-  [[1399, 4], [1023, 3], [767, 2], [479, 1]]
+  [[1599, 5], [1339, 4], [1079, 3], [819, 2], [559, 1]]
     .map(([w, c]) => `${w}px→${c}`).join(' · '));
-// v10.14 the column count follows the board, not the window: the sidebar and the rail take 576px between them,
-// so a 1500px window holds a 908px board and the viewport query used to call that four.
+// v10.14 the column count follows the board, not the window: the sidebar is all that competes for width once
+// the rail sits underneath; the board's own width decides how wide a card actually is.
 ok('the board is a query container, so the count is its own width',
   /\.ws-main\{[^}]*container-type:inline-size/.test(wsStyle)
     && /\.ws-main\{[^}]*container-name:wsboard/.test(wsStyle),
   wsStyle.match(/\.ws-main\{[^}]*\}/)?.[0]);
 ok('the ladder is re-run against the board\'s width, after the viewport fallback',
-  [[799, 4], [639, 3], [479, 2], [319, 1]].every(([width, count]) =>
+  [[1319, 5], [1097, 4], [875, 3], [653, 2], [431, 1]].every(([width, count]) =>
     new RegExp(`@container wsboard \\(max-width:${width}px\\)\\{\\.ws-grid\\{grid-template-columns:${count === 1 ? 'minmax\\(0,1fr\\)' : `repeat\\(${count},minmax\\(0,1fr\\)\\)`}`).test(wsStyle))
-    && wsStyle.lastIndexOf('@container wsboard (max-width:799px)') > wsStyle.indexOf('@media (max-width:1399px){.ws-grid'),
-  [[799, 4], [639, 3], [479, 2], [319, 1]].map(([w, c]) => `${w}px→${c}`).join(' · '));
-ok('a board wide enough for more than five never settles for five fat cards',
-  /@container wsboard \(min-width:1600px\)\{\.ws-grid\{grid-template-columns:repeat\(6/.test(wsStyle)
-    && /@container wsboard \(min-width:1900px\)\{\.ws-grid\{grid-template-columns:repeat\(7/.test(wsStyle),
-  'six from a 1600px board, seven from 1900px');
-// v10.15 the rail steps aside where the board is already down to four, not at 1200 where it forced three,
-// and it spreads into its own columns underneath instead of running as one tall strip.
-ok('the rail steps aside before it squeezes the board into three',
-  /@container wsscreen \(max-width:1068px\)\{\.ws-body\{grid-template-columns:1fr/.test(wsStyle),
-  wsStyle.match(/@container wsscreen \(max-width:1068px\)\{[\s\S]{0,160}/)?.[0]?.replace(/\s+/g, ' '));
-ok('and the board keeps every column it had while the rail is beside it',
-  /\.ws-body\{display:grid;grid-template-columns:1fr 320px/.test(wsStyle));
-// v10.16 the anchored rail is ranked: what needs acting on first is first. A row-flowed grid put the second
-// item to the RIGHT of the first, which reads as second-best; multi-column keeps the ranking in the order you
-// read. The check holds both the mechanism and the meaning.
-ok('the stacked rail keeps its ranking in the reading order',
-  /\.ws-rail\{display:block;columns:260px/.test(wsStyle)
-    && /\.ws-rail-card\{break-inside:avoid/.test(wsStyle)
-    && /@container wsscreen \(max-width:1068px\)\{[\s\S]{0,200}\.ws-rail\{display:block/.test(wsStyle),
+    && wsStyle.lastIndexOf('@container wsboard (max-width:1319px)') > wsStyle.indexOf('@media (max-width:1599px){.ws-grid'),
+  [[1319, 5], [1097, 4], [875, 3], [653, 2], [431, 1]].map(([w, c]) => `${w}px→${c}`).join(' · '));
+ok('a board wide enough for more than six never settles for six fat cards',
+  /@container wsboard \(min-width:1550px\)\{\.ws-grid\{grid-template-columns:repeat\(7/.test(wsStyle)
+    && /@container wsboard \(min-width:1770px\)\{\.ws-grid\{grid-template-columns:repeat\(8/.test(wsStyle),
+  'seven from a 1550px board, eight from 1770px');
+// v10.17 the rail no longer sits beside the board at all: it is one full-width block under it, in a grid that
+// packs as many cards per row as the page allows, needs attention first.
+ok('the board gets the whole page — one column of body',
+  /\.ws-body\{display:grid;grid-template-columns:1fr[;}]/.test(wsStyle)
+    && !/\.ws-body\{[^}]*1fr 320px/.test(wsStyle),
+  wsStyle.match(/\.ws-body\{[^}]*\}/)?.[0]);
+ok('and the rail lays out under the board, full width, at least 300px per card',
+  /\.ws-rail\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(300px,1fr\)\)/.test(wsStyle),
   wsStyle.match(/\.ws-rail\{[^}]*\}/g)?.join(' | '));
 const railOrder = $$('.ws-rail .ws-rail-card')
   .map(card => (card.querySelector('.ws-rail-title')?.textContent ?? '').replace(/\s+/g, ' ').trim());
@@ -353,6 +371,9 @@ ok('it hides when there is no order to state, and outside the rack',
 ok('printing gives the board its own count instead of the screen\'s',
   /@media print\{[\s\S]{0,900}\.ws-grid,\.ws-group-grid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/.test(wsStyle),
   wsStyle.match(/@media print\{[\s\S]{0,220}/)?.[0]?.replace(/\s+/g, ' '));
+ok('and the sheet leaves the move status line off the paper too',
+  /@media print\{[\s\S]{0,260}\.ws-action-status\{display:none!important\}/.test(wsStyle),
+  'the live region is screen furniture');
 ok('and the sheet leaves the sort chip and the action rows off the paper',
   /@media print\{[\s\S]{0,200}\.ws-rack-sortstate\{display:none!important\}/.test(wsStyle),
   'three across, no screen controls');
@@ -361,7 +382,7 @@ ok('and paper puts the guest name back, because a sheet has no dialog to open',
   /@media print\{[\s\S]{0,2000}#wsGrid \.ws-guest-note\{position:static;display:block/.test(wsStyle),
   'the sr-only sentence is printed as a line of its own on the sheet');
 ok('the grouped board answers to the same container',
-  /@container wsboard \(max-width:799px\)\{\.ws-group-grid\{/.test(wsStyle));
+  /@container wsboard \(max-width:1319px\)\{\.ws-group-grid\{/.test(wsStyle));
 ok('nothing on the card face is hidden to buy the fifth column',
   /\.ws-photo-meta>span:nth-child\(3\)\{display:none\}/.test(wsStyle) === false
     && /\.ws-hk-prefix\{position:absolute/.test(wsStyle) === false,
