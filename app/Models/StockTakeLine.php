@@ -22,6 +22,11 @@ class StockTakeLine extends Model
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
     }
 
+    public function stockTake()
+    {
+        return $this->belongsTo(StockTake::class);
+    }
+
     public function varianceQty(): ?float
     {
         return $this->counted_qty === null ? null : round($this->counted_qty - $this->system_qty, 2);

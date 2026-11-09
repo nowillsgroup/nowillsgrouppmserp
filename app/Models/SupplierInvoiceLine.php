@@ -19,4 +19,9 @@ class SupplierInvoiceLine extends Model
     {
         return $this->belongsTo(AccountHead::class, 'account_head_id');
     }
+
+    public function invoice()
+    {
+        return $this->belongsTo(SupplierInvoice::class, 'supplier_invoice_id');
+    }
 }

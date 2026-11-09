@@ -129,9 +129,10 @@ class GuestRequestController extends Controller
 
     public function assign(Request $request, GuestRequest $greq)
     {
-        $data = $request->validate(['assigned_to' => 'nullable|integer|exists:users,id']);
-        $user = $data['assigned_to'] ? User::where('hotel_id', Tenant::id())->where('is_active', true)->find($data['assigned_to']) : null;
-        if ($data['assigned_to'] && ! $user) {
+        // validate() omits nullable keys absent from the input — coalesce before reading
+        $assignedTo = $request->validate(['assigned_to' => 'nullable|integer|exists:users,id'])['assigned_to'] ?? null;
+        $user = $assignedTo ? User::where('hotel_id', Tenant::id())->where('is_active', true)->find($assignedTo) : null;
+        if ($assignedTo && ! $user) {
             return back()->with('error', 'Pick a staff member of this property.');
         }
         $greq->forceFill(['assigned_to' => $user?->id])->save();

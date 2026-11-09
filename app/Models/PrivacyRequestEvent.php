@@ -22,4 +22,9 @@ class PrivacyRequestEvent extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function request()
+    {
+        return $this->belongsTo(PrivacyRequest::class, 'privacy_request_id');
+    }
 }

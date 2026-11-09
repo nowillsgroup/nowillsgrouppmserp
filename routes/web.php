@@ -1033,13 +1033,15 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
                 Route::post('/geofences', 'geofenceStore')->name('geofences.store');
                 Route::post('/geofences/{geofence}/toggle', 'geofenceToggle')->name('geofences.toggle');
                 Route::post('/geofences/{geofence}/delete', 'geofenceDelete')->name('geofences.delete');
-                Route::post('/geofence-events/{event}/ack', 'geofenceAck')->name('geofences.ack');
+                // v10.12 `{event}` collided with the shared Route::model('event', BanquetEvent) binding — the dispatcher
+                // then injected a blank FleetGeofenceEvent and the save() below INSERTed a row missing geofence_id. Renamed.
+                Route::post('/geofence-events/{geofenceEvent}/ack', 'geofenceAck')->name('geofences.ack');
                 Route::get('/work-order/{record}/print', 'workOrderPrint')->whereNumber('record')->name('work-order.print');
                 Route::get('/cost-statement', 'costStatement')->name('cost-statement');
                 Route::get('/cost-statement/export', 'exportStatement')->name('cost-statement.export');
                 Route::post('/inspections', 'inspectionStore')->name('inspections.store');
                 Route::post('/incidents', 'incidentStore')->name('incidents.store');
-                Route::post('/incidents/{incident}/status', 'incidentStatus')->whereNumber('incident')->name('incidents.status');
+                Route::post('/incidents/{vehicleIncident}/status', 'incidentStatus')->whereNumber('vehicleIncident')->name('incidents.status'); // renamed: {incident} was shadowed by Route::model('incident', SecurityIncident)
                 Route::get('/settings', 'settings')->name('settings');
                 Route::post('/settings', 'saveSettings')->name('settings.save');
             });
@@ -1727,7 +1729,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
     // v7.40 ESS review desk
     Route::controller(Controllers\EssController::class)->middleware('perm:hr.manage')->group(function () {
         Route::get('/hr/ess', 'desk')->name('hr.ess');
-        Route::post('/hr/ess/requests/{req}', 'decide')->whereNumber('req')->name('hr.ess.decide');
+        Route::post('/hr/ess/requests/{hrReq}', 'decide')->whereNumber('hrReq')->name('hr.ess.decide'); // renamed: {req} was shadowed by Route::model('req', Requisition)
         Route::post('/hr/ess/documents/{doc}', 'reviewDoc')->whereNumber('doc')->name('hr.ess.doc');
         Route::post('/hr/ess/announce', 'announce')->name('hr.ess.announce');
     });
@@ -1920,7 +1922,7 @@ Route::middleware(['auth', 'tenant', 'twofactor'])->group(function () {
             Route::post('/settings', 'saveSettings')->name('settings.save');
             Route::post('/', 'store')->name('store');
             Route::post('/vehicles', 'vehicleStore')->name('vehicles.store');
-            Route::post('/vehicles/{vehicle}', 'vehicleUpdate')->whereNumber('vehicle')->name('vehicles.update');
+            Route::post('/vehicles/{rentalVehicle}', 'vehicleUpdate')->whereNumber('rentalVehicle')->name('vehicles.update'); // renamed: {vehicle} was shadowed by Route::model('vehicle', Vehicle)
             Route::post('/{rental}/pickup', 'pickup')->whereNumber('rental')->name('pickup');
             Route::post('/{rental}/return', 'return')->whereNumber('rental')->name('return');
             Route::post('/{rental}/cancel', 'cancel')->whereNumber('rental')->name('cancel');

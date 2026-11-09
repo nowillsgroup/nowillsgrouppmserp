@@ -37,7 +37,7 @@ class GroupPeopleService
     {
         $hotelIds = $group->hotels()->pluck('id');
 
-        return User::where(function ($q) use ($hotelIds, $group) {
+        return User::where(function ($q) use ($hotelIds, $group) { // audit-ok: group people list — this group's property ids and gid only
             $q->whereIn('hotel_id', $hotelIds)->orWhere('hotel_group_id', $group->id);
         })->with('role')->orderBy('name')->get();
     }
@@ -195,7 +195,7 @@ class GroupPeopleService
 
     public function activeGroupAdmins(HotelGroup $group): int
     {
-        return User::where('hotel_group_id', $group->id)->where('is_group_admin', true)->where('is_active', true)->count();
+        return User::where('hotel_group_id', $group->id)->where('is_group_admin', true)->where('is_active', true)->count(); // audit-ok: group admin headcount, this group's gid only
     }
 
     /** The roles a person could be given at their home property, for the form on the group's people screen. */

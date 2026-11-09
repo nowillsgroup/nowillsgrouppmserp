@@ -264,10 +264,10 @@ class FleetController extends Controller
         return back()->with('success', "Geofence “{$name}” deleted with its crossing history.");
     }
 
-    public function geofenceAck(FleetGeofenceEvent $event)
+    public function geofenceAck(FleetGeofenceEvent $geofenceEvent)
     {
-        if (! $event->acknowledged_at) {
-            $event->forceFill(['acknowledged_at' => now(), 'acknowledged_by' => auth()->id()])->save();
+        if (! $geofenceEvent->acknowledged_at) {
+            $geofenceEvent->forceFill(['acknowledged_at' => now(), 'acknowledged_by' => auth()->id()])->save();
         }
 
         return back()->with('success', 'Crossing acknowledged.');
@@ -592,20 +592,20 @@ class FleetController extends Controller
     }
 
     /** Move an incident along — investigate, close, or reopen it. A status change always carries a note. */
-    public function incidentStatus(Request $request, VehicleIncident $incident)
+    public function incidentStatus(Request $request, VehicleIncident $vehicleIncident)
     {
         $d = $request->validate([
             'status' => ['required', Rule::in(array_keys(VehicleIncident::STATUSES))],
             'note' => 'required|string|min:4|max:255',
         ]);
-        $was = $incident->status;
-        $incident->forceFill([
+        $was = $vehicleIncident->status;
+        $vehicleIncident->forceFill([
             'status' => $d['status'],
             'closure_note' => $d['note'],
             'closed_at' => $d['status'] === 'closed' ? now() : null,
         ])->save();
-        ActivityLogger::log('transport', 'fleet', sprintf('Incident on %s: %s → %s — %s', $incident->vehicle?->code,
-            VehicleIncident::STATUSES[$was] ?? $was, VehicleIncident::STATUSES[$d['status']], $d['note']), $incident);
+        ActivityLogger::log('transport', 'fleet', sprintf('Incident on %s: %s → %s — %s', $vehicleIncident->vehicle?->code,
+            VehicleIncident::STATUSES[$was] ?? $was, VehicleIncident::STATUSES[$d['status']], $d['note']), $vehicleIncident);
 
         return back()->with('success', 'Incident marked '.mb_strtolower(VehicleIncident::STATUSES[$d['status']]).'.');
     }
@@ -740,7 +740,8 @@ class FleetController extends Controller
                 $state = $trackers->get($v->id);
                 $maint = FS::maintenanceState($v);
                 $next = $maint['overdue']->first() ?? $maint['soon']->first();
-                $labels = FS::STATES[$state['state']] ?? null;
+                // $state is null for vehicles without a tracker — do not read $state['state'] unguarded (streamed 500)
+                $labels = $state ? (FS::STATES[$state['state']] ?? null) : null;
 
                 $this->csvRow($out, [$v->code, $v->name, $v->reg_no, $v->type, $v->is_active ? 'Yes' : 'No',
                     $state ? ($labels[0] ?? $state['state']) : 'No device',

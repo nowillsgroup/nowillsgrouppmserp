@@ -99,7 +99,7 @@ class HotelGroup extends Model
         $ids = $this->hotels()->pluck('id');
         $dark = $this->darkPropertyIds();
 
-        return User::query()
+        return User::query() // audit-ok: group seat licence count — the group's own properties only
             ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
             ->where(function ($q) use ($ids) {
                 $q->whereIn('hotel_id', $ids)->orWhere('hotel_group_id', $this->id);
@@ -126,7 +126,7 @@ class HotelGroup extends Model
             return [];
         }
 
-        return User::query()
+        return User::query() // audit-ok: group seat licence for closed (module-less) properties of this group
             ->when($this->seatBasis() === 'active', fn ($q) => $q->where('is_active', true))
             ->whereIn('hotel_id', $dark)->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }

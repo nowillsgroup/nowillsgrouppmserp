@@ -66,7 +66,7 @@ the tree is clean.
 
 - **No Composer needed** — all dependencies are pre-installed in `build/vendor/`
 - **No SSH needed** — the web installer handles everything
-- **PHP version** — requires PHP 8.3+ (check cPanel → Select PHP Version → MultiPHP Manager)
+- **PHP version** — requires PHP 8.4+ (check cPanel → Select PHP Version → MultiPHP Manager)
 - **Required extensions** — `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `ctype`, `json`, `dom`, `xml`, `fileinfo`
 - **Database** — MySQL 5.7+ or MariaDB 10.3+
 - **Backup** — always backup your database before running migrations
@@ -74,7 +74,7 @@ the tree is clean.
 ## Troubleshooting
 
 ### Installer shows "PHP Version Error"
-- In cPanel, go to **MultiPHP Manager** and select PHP 8.3 or 8.4 for your domain
+- In cPanel, go to **MultiPHP Manager** and select PHP 8.4 for your domain
 
 ### Installer shows "Missing Extensions"
 - In cPanel, go to **MultiPHP INI Editor** or contact your host to enable the required extensions

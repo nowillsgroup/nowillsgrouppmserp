@@ -1,2 +1,4 @@
+# Nowills PMS is a private, per-property application. It has no public content —
+# every screen sits behind a login — so keep the whole product out of search indexes.
 User-agent: *
-Disallow:
+Disallow: /

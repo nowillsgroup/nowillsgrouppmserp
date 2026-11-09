@@ -7,6 +7,7 @@ use App\Models\HousekeepingTask;
 use App\Models\MinibarItem;
 use App\Services\HousekeepingService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 /**
  * Phone-first screen for room attendants ("My rooms") and supervisors (inspection queue).
@@ -51,7 +52,11 @@ class HkMobileController extends Controller
     public function start(HousekeepingTask $task)
     {
         $this->authorizeTask($task);
-        HousekeepingService::start($task);
+        try {
+            HousekeepingService::start($task);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Room {$task->room?->room_no}: cleaning started.");
     }
@@ -59,7 +64,11 @@ class HkMobileController extends Controller
     public function dnd(HousekeepingTask $task)
     {
         $this->authorizeTask($task);
-        HousekeepingService::dnd($task);
+        try {
+            HousekeepingService::dnd($task);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Room {$task->room?->room_no} marked DND. Try again later.");
     }
@@ -68,7 +77,11 @@ class HkMobileController extends Controller
     {
         $this->authorizeTask($task);
         $data = $request->validate(['checked' => 'nullable|array', 'checked.*' => 'string|max:120', 'notes' => 'nullable|string|max:200']);
-        HousekeepingService::complete($task, $data['checked'] ?? [], $data['notes'] ?? null);
+        try {
+            HousekeepingService::complete($task, $data['checked'] ?? [], $data['notes'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Room {$task->room?->room_no} done.".(setting('hk_require_inspection', '1') === '1' ? ' Waiting for inspection.' : ''));
     }

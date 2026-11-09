@@ -94,16 +94,16 @@ class RentalController extends Controller
         return back()->with('success', "{$v->reg_no} added to the rental fleet.");
     }
 
-    public function vehicleUpdate(Request $request, RentalVehicle $vehicle)
+    public function vehicleUpdate(Request $request, RentalVehicle $rentalVehicle) // renamed from {vehicle}: custom Route::model('vehicle', Vehicle) shadowed the param
     {
         $data = $request->validate([
             'status' => ['required', 'in:available,rented,maintenance,retired'],
             'daily_rate' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
-        $vehicle->update($data);
+        $rentalVehicle->update($data);
 
-        return back()->with('success', "{$vehicle->reg_no} updated.");
+        return back()->with('success', "{$rentalVehicle->reg_no} updated.");
     }
 
     public function store(Request $request)

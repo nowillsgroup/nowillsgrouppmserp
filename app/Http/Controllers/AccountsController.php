@@ -57,7 +57,7 @@ class AccountsController extends Controller
             return ['head' => $first->head?->name ?? '—', 'type' => $first->type, 'vouchers' => $g->count(),
                 'in' => round((float) $g->where('type', 'receipt')->sum('amount'), 2),
                 'out' => round((float) $g->where('type', 'payment')->sum('amount'), 2)];
-        })->each(fn (&$r) => $r['net'] = round($r['in'] - $r['out'], 2))->sortBy('head')->values();
+        })->transform(function ($r) { $r['net'] = round($r['in'] - $r['out'], 2); return $r; })->sortBy('head')->values();
 
         // the tie: each head's vouchers dated on or before the posted-through day against that head's posted movement.
         // A voucher dated after it is not late — the day is simply not closed — so those are counted and named apart.
@@ -74,7 +74,7 @@ class AccountsController extends Controller
             ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
             ->select('account_head_id', DB::raw('SUM(debit - credit) as amt'))->groupBy('account_head_id')->pluck('amt', 'account_head_id');
         $ledger = $expected->map(fn ($r, $id) => $r + ['actual' => round((float) ($actual[$id] ?? 0), 2)])
-            ->each(fn (&$r) => $r['diff'] = round($r['expected'] - $r['actual'], 2))->sortBy('head')->values();
+            ->transform(function ($r) { $r['diff'] = round($r['expected'] - $r['actual'], 2); return $r; })->sortBy('head')->values();
         $tie = ['from' => $from, 'to' => $to, 'posted_through' => $cut,
             'posted' => $postedVouchers->count(), 'unposted' => $vouchers->count() - $postedVouchers->count(),
             'expected' => round((float) $ledger->sum('expected'), 2), 'actual' => round((float) $ledger->sum('actual'), 2),
@@ -238,7 +238,7 @@ class AccountsController extends Controller
         $tie['diff'] = round($tie['ledger'] - $tie['ageing'], 2);
         $tie['ties'] = abs($tie['diff']) <= 0.005;
 
-        return view('accounts.company', compact('company', 'rows', 'paymentModes', 'splitModes', 'tie', 'asOf'));
+        return view('accounts.company', compact('company', 'rows', 'paymentModes', 'splitModes', 'tie', 'asOf', 'closing'));
     }
 
     public function companyReceipt(Request $request, Company $company)
@@ -414,6 +414,7 @@ class AccountsController extends Controller
         $otherIncome = Voucher::with('head')->where('type', 'receipt')->whereNull('company_id')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()->groupBy('head.name')->map->sum('amount');
         $expenses = Voucher::with('head')->where('type', 'payment')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()->groupBy('head.name')->map->sum('amount');
         $totalIncome = $income->sum() + $otherIncome->sum();
+        $exp = $expenses->sum();
 
         $net = round($totalIncome - $exp, 2);
         // v9.10 the statement says whether the ledger posted the same period: same money, read from the documents here and

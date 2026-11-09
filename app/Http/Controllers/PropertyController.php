@@ -396,12 +396,18 @@ class PropertyController extends Controller
     {
         $this->authoriseManage($request->user(), $hotel);
         $data = $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
+            // The endpoint must apply the same rule the picker shows: the person's group matches this
+            // property's group, or they are ungrouped and will be adopted (grantCandidates semantics).
+            'user_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($hotel) {
+                if (! $this->grantableUsers($hotel)->whereKey($value)->exists()) {
+                    $fail('That person cannot be granted this property.');
+                }
+            }],
             'role_id' => 'nullable|integer|exists:roles,id',
             'is_default' => 'nullable|boolean',
         ]);
 
-        $this->properties->grantAccess($hotel, User::findOrFail($data['user_id']), $request->user(), $data['role_id'] ?: null, $request->boolean('is_default'));
+        $this->properties->grantAccess($hotel, User::findOrFail($data['user_id']), $request->user(), $data['role_id'] ?: null, $request->boolean('is_default')); // audit-ok: $data['user_id'] validated as grantable above (same group or ungrouped)
 
         return back()->with('success', 'Access granted. It takes effect at their next sign-in or switch.');
     }
@@ -451,20 +457,26 @@ class PropertyController extends Controller
         return [
             'staff' => $staff,
             'granted' => $granted,
-            'group_admins' => $hotel->hotel_group_id ? User::where('hotel_group_id', $hotel->hotel_group_id)->where('is_group_admin', true)->count() : 0,
+                'group_admins' => $hotel->hotel_group_id ? User::where('hotel_group_id', $hotel->hotel_group_id)->where('is_group_admin', true)->count() : 0, // audit-ok: group admin headcount for THIS group
             'total' => $staff + $granted,
         ];
     }
 
-    /** People who could be granted this property: the group's own people, plus ungrouped accounts. */
-    protected function grantCandidates(Hotel $hotel)
+    /** People who could be granted this property: the group's own people, plus ungrouped accounts. One rule for the picker and the validator. */
+    protected function grantableUsers(Hotel $hotel)
     {
         $hotelIds = Hotel::where('hotel_group_id', $hotel->hotel_group_id)->pluck('id')->push($hotel->id)->unique();
 
-        return User::where('is_active', true)
+        return User::where('is_active', true) // audit-ok: grantableUsers — group admin grants across the group's own properties
             ->where(function ($q) use ($hotel, $hotelIds) {
                 $q->whereIn('hotel_id', $hotelIds)->orWhere('hotel_group_id', $hotel->hotel_group_id)->orWhereNull('hotel_group_id');
-            })
+            });
+    }
+
+    /** The picker rows for the grant form. */
+    protected function grantCandidates(Hotel $hotel)
+    {
+        return $this->grantableUsers($hotel)
             ->orderBy('name')->limit(200)->get(['id', 'name', 'username', 'hotel_id']);
     }
 

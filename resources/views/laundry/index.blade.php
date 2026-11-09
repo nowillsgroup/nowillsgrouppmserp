@@ -25,7 +25,10 @@
 <td>@if($o->type === 'walk_in'){{ $o->guest_name }} <span class="badge badge-slate">Walk-in</span>@else<b>{{ $o->room?->room_no }}</b> · {{ $o->guest_name }}@endif</td>
 <td class="small">{{ $o->bag_no ?: '—' }}@if($o->bag_pieces && ! $o->pieces)<div class="tiny muted">{{ $o->bag_pieces }} pcs counted</div>@endif</td>
 <td class="num">{{ $o->pieces ?: '—' }}</td>
-<td class="num bold">@if((float) $o->total)@php $q = \App\Services\LaundryService::quote($o); @endphp{{ money($q['total']) }}@if($q['rate'] > 0)<div class="tiny muted">{{ money($q['listed'], false) }} + tax</div>@endif @else — @endif</td>
+<td class="num bold">@if((float) $o->total)
+@php($quote = \App\Services\LaundryService::quote($o))
+{{ money($quote['total']) }}@if($quote['rate'] > 0)<div class="tiny muted">{{ money($quote['listed'], false) }} + tax</div>@endif
+@else — @endif</td>
 <td class="small {{ $o->isOverdue() ? 'text-red bold' : '' }}">{{ $o->status === 'delivered' ? 'Delivered '.$o->delivered_at?->format('d M H:i') : $o->promised_at?->format('d M, H:i') }}</td>
 <td><span class="badge badge-{{ \App\Models\LaundryOrder::TONES[$o->status] }}">{{ $o->statusLabel() }}</span>@if($o->isOverdue()) <span class="badge badge-red">Overdue</span>@endif</td></tr>
 @empty<tr><td colspan="7"><x-empty text="No laundry orders here." icon="shirt"/></td></tr>@endforelse

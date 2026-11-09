@@ -18,4 +18,9 @@ class RmSnapshot extends Model
     {
         return ['snapshot_date' => 'date', 'stay_date' => 'date', 'revenue' => 'decimal:2'];
     }
+
+    public function roomType()
+    {
+        return $this->belongsTo(RoomType::class);
+    }
 }

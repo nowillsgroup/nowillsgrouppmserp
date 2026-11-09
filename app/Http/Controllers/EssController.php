@@ -114,12 +114,12 @@ class EssController extends Controller
         ]);
     }
 
-    public function decide(Request $request, HrProfileUpdate $req)
+    public function decide(Request $request, HrProfileUpdate $hrReq) // renamed from {req}: custom Route::model('req', Requisition) shadowed the param
     {
         $data = $request->validate(['action' => ['required', 'in:approve,reject'], 'note' => ['nullable', 'string', 'max:500']]);
         $data['action'] === 'approve'
-            ? Ess::approve($req, $data['note'] ?? null, Auth::user())
-            : Ess::reject($req, $data['note'] ?? null, Auth::user());
+            ? Ess::approve($hrReq, $data['note'] ?? null, Auth::user())
+            : Ess::reject($hrReq, $data['note'] ?? null, Auth::user());
 
         return back()->with('success', 'The profile change request has been '.$data['action'].'d.');
     }
