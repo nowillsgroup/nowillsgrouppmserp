@@ -63,34 +63,37 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-search{width:230px;max-width:min(100%,260px)}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
-.ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
+.ws-body{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.ws-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:start}
 /* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
-   to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
-   two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
-   cards only makes shorter ones.
+   to a row meant scrolling past two thirds of it to find the one dirty room. Six across, then five, four,
+   three, two and one — and the card was cut to that size in the same round, because a wide grid of full-size
+   cards only makes shorter ones. The right-hand rail (needs attention, calendar, arrivals, departures and the
+   rest) now lays out full-width under the board, so the board gets the whole page; the ladders below are drawn
+   against the board's own width and re-run against the screen's width as a fallback.
 
-   v10.14 the count is the board's own width, not the window's. The sidebar takes 244px and the needs-attention
-   rail another 332px, so a perfectly ordinary 1500px window leaves a 908px board — wide enough for five cards
-   of 180px, which the old viewport query still called four, and a 1250px window left three. The ladder below
-   is a fallback for browsers without container queries; where they are understood the same ladder is re-run
-   against .ws-main's width, which is the only number that decides how wide a card actually is.
+   v10.14 the count is the board's own width, not the window's — the sidebar is all that competes for width
+   once the rail sits underneath. The ladder below is a fallback for browsers without container queries; where
+   they are understood the same ladder is re-run against .ws-main's width, which is the only number that
+   decides how wide a card actually is.
 
-   The thresholds are card widths written backwards: five across needs a board of 800px to leave each card
-   150px ((800 − 4×12) / 5), four needs 640, three 480, two 320. So a 1500px window — a 908px board once the
-   sidebar and the rail have had theirs — holds five cards of 172px, and five is what it shows. */
-@media (max-width:1399px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:1023px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:767px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:479px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (max-width:799px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container wsboard (max-width:639px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container wsboard (max-width:479px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container wsboard (max-width:319px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
-/* a board wider than five cards of 190px gets a sixth and a seventh rather than five fat ones: the point of
+   The thresholds are card widths written backwards: six across needs a board of 1320px to leave each card
+   205px ((1320 − 5×12) / 6), five needs 1100, four needs 880, three needs 660, two needs 440. Seven across
+   starts at 1550px and eight at 1770px. */
+@media (max-width:1599px){.ws-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1339px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1079px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:819px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:559px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:1319px){.ws-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container wsboard (max-width:1097px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:875px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:653px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:431px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+/* a board wider than six cards of 205px gets a seventh and an eighth rather than six fat ones: the point of
    the row was density, and density is what a 2560px screen would otherwise lose. */
-@container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
-@container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1550px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1770px){.ws-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:box-shadow .16s ease,border-color .16s ease,transform .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.10);transform:translateY(-1px)}
 .ws-card:focus-within{outline:2px solid #86c79b;outline-offset:2px}
@@ -190,6 +193,25 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
 .ws-all:hover{border-color:#86c79b;background:#ecfdf3;color:#14532d}
 .ws-extend-form{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+/* ── change-room drag & drop: drag the stay's handle onto a destination room card ──
+   The board is the same data as the tape chart; the drop posts to the same endpoint and gets the same
+   re-check server side. The handle keeps a word at every width the action row does, folds to an icon at
+   379px like the rest, and both the source card and every destination get a visible state while a move
+   is in flight so the board never looks dead mid-drag. */
+.ws-action-status{margin:0 0 8px;padding:6px 10px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:12px;font-weight:600}
+.ws-action-status:empty{display:none}
+.ws-drag-handle{display:inline-flex;min-height:26px;align-items:center;justify-content:center;gap:4px;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:650;line-height:1.2;white-space:nowrap;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;cursor:grab}
+.ws-drag-handle .i{width:12px;height:12px;flex:0 0 12px}
+.ws-drag-handle:hover{background:#dbeafe;border-color:#93c5fd;color:#1e3a8a}
+.ws-drag-handle:focus-visible{outline:3px solid #2563eb;outline-offset:1px}
+.ws-drag-handle:active{cursor:grabbing}
+.ws-drag-handle.ws-source-selected{outline:3px solid #2563eb;outline-offset:1px;background:#dbeafe;border-color:#2563eb}
+@container wscard (max-width:379px){.ws-drag-handle .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}}
+body.dragging .ws-drag-handle{cursor:grabbing}
+body.dragging .ws-card[data-drop-room]{outline:2px dashed #93c5fd;outline-offset:-2px}
+.ws-card.drop-over{outline:3px solid #2563eb!important;outline-offset:-3px;box-shadow:0 0 0 4px rgba(37,99,235,.18)}
+.ws-card.ws-drop-source{opacity:.55}
+.ws-card.ws-kbd-dest:focus-visible{outline:3px solid #2563eb;outline-offset:-3px;box-shadow:0 0 0 4px rgba(37,99,235,.18)}
 .ws-inline-action{margin:0}
 .ws-checkin-blocker{flex-basis:100%}
 .ws-extend-form input{min-height:30px;max-width:140px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:7px;font-size:11px;font-variant-numeric:tabular-nums}
@@ -201,7 +223,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-empty-title{margin:0 0 4px;font-size:15px;font-weight:800}
 .ws-empty-copy p{margin:0 0 9px}
 .ws-empty-copy p:last-child{margin-bottom:0}
-.ws-rail{display:flex;flex-direction:column;gap:10px}
+.ws-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;align-items:start}
 .ws-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .ws-rail-card{overflow:hidden;border-radius:12px;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rail-card .card-body{padding:14px}
@@ -279,18 +301,10 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
 @container wsscreen (max-width:908px){.ws-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}}
-/* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
-   was still beside the board but the board was too narrow for four cards, so the row went down to three wide
-   ones and then jumped back to five the moment the window crossed 1200. The rail steps aside where the board
-   is already down to four.
-
-   v10.16 it steps aside on the screen's width rather than the window's, and it flows DOWN its columns instead
-   of across them: the rail is ranked — what needs acting on first is first — and a row-flowed grid puts the
-   second item to the right of the first, which reads as second-best. Multi-column keeps the ranking in the
-   reading order, which is the only order this list has. */
-@container wsscreen (max-width:1068px){.ws-body{grid-template-columns:1fr}
-  .ws-rail{display:block;columns:260px;column-gap:10px}
-  .ws-rail-card{break-inside:avoid;margin:0 0 10px}}
+/* v10.15/v10.16 the rail used to step aside on narrow screens. v10.17 the rail leaves the side entirely: it
+   now lays out full-width under the board in .ws-body's single column, in a grid that keeps each card at least
+   300px and packs as many per row as the page allows — needs attention first, then the calendar, then the
+   lists. The v10.16 note still holds for the reading order below the board. */
 @container wsscreen (max-width:688px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container wsscreen (max-width:388px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}
@@ -360,6 +374,13 @@ body.dark .ws-actions .btn-ghost:hover{border-color:#3b5946;background:#193525;c
 body.dark .ws-actions .ws-all{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-actions .ws-all:hover{background:#234630;color:#d7f5df}
 body.dark .ws-extend-form input{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
+body.dark .ws-action-status{background:#172554;border-color:#1e40af;color:#bfdbfe}
+body.dark .ws-drag-handle{background:#172554;border-color:#1e40af;color:#93c5fd}
+body.dark .ws-drag-handle:hover{background:#1e3a8a;border-color:#3b82f6;color:#dbeafe}
+body.dark .ws-drag-handle.ws-source-selected{background:#1e3a8a;outline-color:#60a5fa}
+body.dark.dragging .ws-card[data-drop-room]{outline-color:#3b82f6}
+body.dark .ws-card.drop-over{outline-color:#60a5fa!important;box-shadow:0 0 0 4px rgba(96,165,250,.25)}
+body.dark .ws-card.ws-kbd-dest:focus-visible{outline-color:#60a5fa}
 body.dark .ws-fac-more{color:#86efac}
 body.dark .ws-fac-more summary:focus-visible{outline-color:#86efac}
 body.dark .ws-vip-filter{border-color:var(--c-border)}
@@ -398,17 +419,19 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
-@media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:479px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (max-width:799px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container wsboard (max-width:639px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container wsboard (max-width:479px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container wsboard (max-width:319px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (min-width:1600px){.ws-group-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
-@container wsboard (min-width:1900px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.ws-group-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:start}
+@media (max-width:1599px){.ws-group-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1339px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1079px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:819px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:559px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:1319px){.ws-group-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container wsboard (max-width:1097px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:875px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:653px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:431px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (min-width:1550px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1770px){.ws-group-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
@@ -525,6 +548,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 }
 @media print{
   .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys,.ws-rack-sortstate{display:none!important}
+  .ws-action-status{display:none!important}
   /* v10.18 paper has its own width: without this the sheet inherited whatever the screen's container said,
      so printing from a wide window put five 150px cards on A4 and printing from a narrow one put two. Three
      across is what a portrait sheet holds at a size the room number and the guest are still readable at. */
@@ -571,6 +595,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></symbol>
 <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23Z"/></symbol>
 <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
+<symbol id="i-cart" viewBox="0 0 24 24"><path d="M2 3h2l.4 2M5.4 5h16.2l-1.7 8.5a2 2 0 0 1-2 1.5H8.1a2 2 0 0 1-2-1.6L4.2 5"/><path d="M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></symbol>
 <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
 <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
 <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
@@ -3800,10 +3825,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-body">
       <div class="ws-main">
   
+      <p class="ws-action-status" id="wsActionStatus" role="status" aria-live="polite"></p>
       <div class="ws-grid" id="wsGrid" role="region" aria-label="Room board for 5 November 2026">
     
       
-      <div class="ws-card" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Kwesi Mensah" data-guest-meta="Direct · Ghana" data-nights="3" data-due="GH₵ 1,860.00 due">
+      <div class="ws-card" data-drop-room="101" data-room-no="101" data-status="occupied" data-type="4" data-floor="1" data-source="Direct" data-hk="dirty" data-vip="0" data-search="101 Standard Garden STG Ground RES-24117 Direct Kwesi Mensah +233 24 000 0000 kwesi@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Kwesi Mensah" data-guest-meta="Direct · Ghana" data-nights="3"  data-due="GH₵ 1,860.00 due">
       <div class="ws-photo ws-photo-link" data-room="101" role="button" tabindex="0" aria-label="Room 101, Standard Garden, occupied, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal101" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -3850,10 +3876,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Kwesi Mensah, Direct, Ghana. Arrive 03 Nov, depart 06 Nov, 3 nights at GH₵ 620.00 a night. GH₵ 1,860.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Kwesi Mensah, Direct, Ghana. Arrive 03 Nov, depart 06 Nov, 3 nights at GH₵ 620.00 a night.  GH₵ 1,860.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241170" data-room="101" data-room-no="101" data-label="Kwesi Mensah" data-inhouse="1" aria-label="Change room for Kwesi Mensah, currently room 101. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 101"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
@@ -3874,7 +3901,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="available" data-type="4" data-floor="1" data-source="" data-hk="clean" data-vip="0" data-search="102 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-card" data-drop-room="102" data-room-no="102" data-status="available" data-type="4" data-floor="1" data-source="" data-hk="clean" data-vip="0" data-search="102 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg" >
       <div class="ws-photo ws-photo-link" data-room="102" role="button" tabindex="0" aria-label="Room 102, Standard Garden, available, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal102" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
           
@@ -3927,6 +3954,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
+          
       <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 102 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="102">
@@ -3943,7 +3971,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Adjoa Boateng" data-guest-meta="Booking.com · Ghana" data-nights="2" data-due="GH₵ 1,240.00 due">
+      <div class="ws-card" data-drop-room="103" data-room-no="103" data-status="reserved" data-type="4" data-floor="1" data-source="Booking.com" data-hk="inspected" data-vip="0" data-search="103 Standard Garden STG Ground RES-24126 OTA-24126 Booking.com Adjoa Boateng +233 24 000 0000 adjoa@example.com Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Adjoa Boateng" data-guest-meta="Booking.com · Ghana" data-nights="2"  data-due="GH₵ 1,240.00 due">
       <div class="ws-photo ws-photo-link" data-room="103" role="button" tabindex="0" aria-label="Room 103, Standard Garden, reserved, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal103" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
           
@@ -3990,10 +4018,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Adjoa Boateng, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 620.00 a night. GH₵ 1,240.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Adjoa Boateng, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 620.00 a night.  GH₵ 1,240.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241260" data-room="103" data-room-no="103" data-label="Adjoa Boateng" data-inhouse="0" aria-label="Change room for Adjoa Boateng, currently room 103. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 103"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
@@ -4014,7 +4043,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="available" data-type="9" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="104 Family Room FAM Ground Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-drop-room="104" data-room-no="104" data-status="available" data-type="9" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="104 Family Room FAM Ground Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Ground" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg" >
       <div class="ws-photo ws-photo-link" data-room="104" role="button" tabindex="0" aria-label="Room 104, Family Room, available, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4068,6 +4097,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
           
           
+          
       <a class="btn btn-sm btn-primary ws-reserve" href="#" aria-label="Reserve room 104 for 5 November 2026">Reserve</a>
           
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="104" aria-label="More actions for room 104" aria-haspopup="dialog" aria-controls="roomModal104" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
@@ -4076,7 +4106,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="maintenance" data-type="4" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="105 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Maintenance" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-card" data-drop-room="105" data-room-no="105" data-status="maintenance" data-type="4" data-floor="1" data-source="" data-hk="dirty" data-vip="0" data-search="105 Standard Garden STG Ground Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Garden" data-floor-name="Ground" data-status-label="Maintenance" data-photo="/preview-assets/room-204-bath.jpg" >
       <div class="ws-photo ws-photo-link" data-room="105" role="button" tabindex="0" aria-label="Room 105, Standard Garden, maintenance, GH₵ 620.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(188,32%,28%), hsl(228,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4130,13 +4160,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
           
           
+          
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="105" aria-label="More actions for room 105" aria-haspopup="dialog" aria-controls="roomModal105" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Sarah Osei" data-guest-meta="Expedia · VIP · United Kingdom" data-nights="4" data-due="GH₵ 3,800.00 due">
+      <div class="ws-card" data-drop-room="201" data-room-no="201" data-status="occupied" data-type="3" data-floor="2" data-source="Expedia" data-hk="clean" data-vip="1" data-search="201 Deluxe Sea View DSV First RES-24101 OTA-24101 Expedia Sarah Osei +233 24 000 0000 sarah@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Sarah Osei" data-guest-meta="Expedia · VIP · United Kingdom" data-nights="4"  data-due="GH₵ 3,800.00 due">
       <div class="ws-photo ws-photo-link" data-room="201" role="button" tabindex="0" aria-label="Room 201, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal201" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4183,10 +4214,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Sarah Osei, Expedia, VIP, United Kingdom. Arrive 02 Nov, depart 06 Nov, 4 nights at GH₵ 950.00 a night. GH₵ 3,800.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Sarah Osei, Expedia, VIP, United Kingdom. Arrive 02 Nov, depart 06 Nov, 4 nights at GH₵ 950.00 a night.  GH₵ 3,800.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241010" data-room="201" data-room-no="201" data-label="Sarah Osei" data-inhouse="1" aria-label="Change room for Sarah Osei, currently room 201. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 201"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
@@ -4207,7 +4239,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Yaw Antwi" data-guest-meta="Corporate · Ashanti Gold · Ghana" data-nights="1" data-due="GH₵ 950.00 due">
+      <div class="ws-card" data-drop-room="202" data-room-no="202" data-status="reserved" data-type="3" data-floor="2" data-source="Corporate · Ashanti Gold" data-hk="clean" data-vip="0" data-search="202 Deluxe Sea View DSV First RES-24129 Corporate · Ashanti Gold Yaw Antwi +233 24 000 0000 yaw@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Reserved" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Yaw Antwi" data-guest-meta="Corporate · Ashanti Gold · Ghana" data-nights="1"  data-due="GH₵ 950.00 due">
       <div class="ws-photo ws-photo-link" data-room="202" role="button" tabindex="0" aria-label="Room 202, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal202" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4254,10 +4286,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Yaw Antwi, Corporate · Ashanti Gold, Ghana. Arrive 05 Nov, depart 06 Nov, 1 night at GH₵ 950.00 a night. GH₵ 950.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Yaw Antwi, Corporate · Ashanti Gold, Ghana. Arrive 05 Nov, depart 06 Nov, 1 night at GH₵ 950.00 a night.  GH₵ 950.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241290" data-room="202" data-room-no="202" data-label="Yaw Antwi" data-inhouse="0" aria-label="Change room for Yaw Antwi, currently room 202. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 202"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
@@ -4278,7 +4311,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="available" data-type="12" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Standard Double SDB First Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Double" data-floor-name="First" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg">
+      <div class="ws-card" data-drop-room="203" data-room-no="203" data-status="available" data-type="12" data-floor="2" data-source="" data-hk="inspected" data-vip="0" data-search="203 Standard Double SDB First Garden view Air conditioning Wi-Fi Smart TV Desk Safe" data-type-name="Standard Double" data-floor-name="First" data-status-label="Available" data-photo="/preview-assets/room-204-bath.jpg" >
       <div class="ws-photo ws-photo-link" data-room="203" role="button" tabindex="0" aria-label="Room 203, Standard Double, available, GH₵ 0.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal203" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(204,32%,28%), hsl(244,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4331,6 +4364,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
+          
       <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 203 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="203">
@@ -4347,7 +4381,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Fatima Alhassan" data-guest-meta="Direct · Nigeria" data-nights="2" data-due="GH₵ 1,900.00 due">
+      <div class="ws-card" data-drop-room="204" data-room-no="204" data-status="occupied" data-type="3" data-floor="2" data-source="Direct" data-hk="clean" data-vip="0" data-search="204 Deluxe Sea View DSV First RES-24122 Direct Fatima Alhassan +233 24 000 0000 fatima@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="First" data-status-label="Occupied" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Fatima Alhassan" data-guest-meta="Direct · Nigeria" data-nights="2"  data-due="GH₵ 1,900.00 due">
       <div class="ws-photo ws-photo-link" data-room="204" role="button" tabindex="0" aria-label="Room 204, Deluxe Sea View, occupied, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal204" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4394,10 +4428,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Fatima Alhassan, Direct, Nigeria. Arrive 04 Nov, depart 06 Nov, 2 nights at GH₵ 950.00 a night. GH₵ 1,900.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Fatima Alhassan, Direct, Nigeria. Arrive 04 Nov, depart 06 Nov, 2 nights at GH₵ 950.00 a night.  GH₵ 1,900.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241220" data-room="204" data-room-no="204" data-label="Fatima Alhassan" data-inhouse="1" aria-label="Change room for Fatima Alhassan, currently room 204. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 204"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
@@ -4418,7 +4453,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="out_of_order" data-type="9" data-floor="2" data-source="" data-hk="dirty" data-vip="0" data-search="205 Family Room FAM First Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="First" data-status-label="Out of order" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-drop-room="205" data-room-no="205" data-status="out_of_order" data-type="9" data-floor="2" data-source="" data-hk="dirty" data-vip="0" data-search="205 Family Room FAM First Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="First" data-status-label="Out of order" data-photo="/preview-assets/room-204-bed.jpg" >
       <div class="ws-photo ws-photo-link" data-room="205" role="button" tabindex="0" aria-label="Room 205, Family Room, out of order, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4472,13 +4507,14 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
           
           
+          
       <button type="button" class="btn btn-sm btn-ghost ws-all" data-room="205" aria-label="More actions for room 205" aria-haspopup="dialog" aria-controls="roomModal205" aria-expanded="false">··· <span class="ws-act-label">All actions</span></button>
       </div>
       </div>
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Michael Addo" data-guest-meta="Travel agent · Sunseekers · VIP · Ghana" data-nights="5" data-due="GH₵ 8,250.00 due">
+      <div class="ws-card" data-drop-room="301" data-room-no="301" data-status="occupied" data-type="7" data-floor="3" data-source="Travel agent · Sunseekers" data-hk="clean" data-vip="1" data-search="301 Executive Suite EXS Second RES-24088 Travel agent · Sunseekers Michael Addo +233 24 000 0000 michael@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bed.jpg" data-guest="Michael Addo" data-guest-meta="Travel agent · Sunseekers · VIP · Ghana" data-nights="5"  data-due="GH₵ 8,250.00 due">
       <div class="ws-photo ws-photo-link" data-room="301" role="button" tabindex="0" aria-label="Room 301, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal301" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4525,10 +4561,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Michael Addo, Travel agent · Sunseekers, VIP, Ghana. Arrive 01 Nov, depart 06 Nov, 5 nights at GH₵ 1,650.00 a night. GH₵ 8,250.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Michael Addo, Travel agent · Sunseekers, VIP, Ghana. Arrive 01 Nov, depart 06 Nov, 5 nights at GH₵ 1,650.00 a night.  GH₵ 8,250.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="240880" data-room="301" data-room-no="301" data-label="Michael Addo" data-inhouse="1" aria-label="Change room for Michael Addo, currently room 301. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 301"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
@@ -4549,7 +4586,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Grace Owusu" data-guest-meta="Direct · Ghana" data-nights="2" data-due="GH₵ 4,950.00 due">
+      <div class="ws-card" data-drop-room="302" data-room-no="302" data-status="occupied" data-type="7" data-floor="3" data-source="Direct" data-hk="dirty" data-vip="0" data-search="302 Executive Suite EXS Second RES-24109 Direct Grace Owusu +233 24 000 0000 grace@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Lounge Coffee machine Bathrobe Butler service Dining table Hairdryer Bath tub" data-type-name="Executive Suite" data-floor-name="Second" data-status-label="Occupied" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Grace Owusu" data-guest-meta="Direct · Ghana" data-nights="2"  data-due="GH₵ 4,950.00 due">
       <div class="ws-photo ws-photo-link" data-room="302" role="button" tabindex="0" aria-label="Room 302, Executive Suite, occupied, GH₵ 1,650.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal302" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(329,32%,28%), hsl(9,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4596,10 +4633,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Grace Owusu, Direct, Ghana. Arrive 03 Nov, depart 05 Nov, 2 nights at GH₵ 1,650.00 a night. GH₵ 4,950.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Grace Owusu, Direct, Ghana. Arrive 03 Nov, depart 05 Nov, 2 nights at GH₵ 1,650.00 a night.  GH₵ 4,950.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241090" data-room="302" data-room-no="302" data-label="Grace Owusu" data-inhouse="1" aria-label="Change room for Grace Owusu, currently room 302. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm" style="background:#ea580c;color:#fff" href="#" aria-label="Check out room 302"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Check-Out</a>
             
@@ -4620,7 +4658,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Daniel Kusi" data-guest-meta="Website · Ghana" data-nights="3" data-due="GH₵ 3,540.00 due">
+      <div class="ws-card" data-drop-room="303" data-room-no="303" data-status="reserved" data-type="9" data-floor="3" data-source="Website" data-hk="clean" data-vip="0" data-search="303 Family Room FAM Second RES-24131 Website Daniel Kusi +233 24 000 0000 daniel@example.com Garden view Air conditioning Wi-Fi Smart TV Bunk beds Safe Kitchenette Sofa bed Desk Hairdryer" data-type-name="Family Room" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-balcony.jpg" data-guest="Daniel Kusi" data-guest-meta="Website · Ghana" data-nights="3"  data-due="GH₵ 3,540.00 due">
       <div class="ws-photo ws-photo-link" data-room="303" role="button" tabindex="0" aria-label="Room 303, Family Room, reserved, GH₵ 1,180.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal303" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(63,32%,28%), hsl(103,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-balcony.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4667,10 +4705,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Daniel Kusi, Website, Ghana. Arrive 05 Nov, depart 08 Nov, 3 nights at GH₵ 1,180.00 a night. GH₵ 3,540.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Daniel Kusi, Website, Ghana. Arrive 05 Nov, depart 08 Nov, 3 nights at GH₵ 1,180.00 a night.  GH₵ 3,540.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241310" data-room="303" data-room-no="303" data-label="Daniel Kusi" data-inhouse="0" aria-label="Change room for Daniel Kusi, currently room 303. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 303"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
@@ -4691,7 +4730,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="available" data-type="11" data-floor="3" data-source="" data-hk="touch_up" data-vip="0" data-search="304 Standard Single SGL Second Garden view Air conditioning Wi-Fi Desk Safe" data-type-name="Standard Single" data-floor-name="Second" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg">
+      <div class="ws-card" data-drop-room="304" data-room-no="304" data-status="available" data-type="11" data-floor="3" data-source="" data-hk="touch_up" data-vip="0" data-search="304 Standard Single SGL Second Garden view Air conditioning Wi-Fi Desk Safe" data-type-name="Standard Single" data-floor-name="Second" data-status-label="Available" data-photo="/preview-assets/room-204-bed.jpg" >
       <div class="ws-photo ws-photo-link" data-room="304" role="button" tabindex="0" aria-label="Room 304, Standard Single, available, GH₵ 480.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal304" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(157,32%,28%), hsl(197,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bed.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4744,6 +4783,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       <div class="ws-actions">
           
           
+          
       <form method="POST" action="#" class="ws-inline-action ws-act-minor" data-confirm="Mark room 304 dirty? This updates its current housekeeping status.">
               
       <input type="hidden" name="rooms[]" value="304">
@@ -4760,7 +4800,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
       </div>
     
       
-      <div class="ws-card" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Linda Eshun" data-guest-meta="Booking.com · Ghana" data-nights="2" data-due="GH₵ 1,900.00 due">
+      <div class="ws-card" data-drop-room="305" data-room-no="305" data-status="reserved" data-type="3" data-floor="3" data-source="Booking.com" data-hk="dirty" data-vip="0" data-search="305 Deluxe Sea View DSV Second RES-24133 OTA-24133 Booking.com Linda Eshun +233 24 000 0000 linda@example.com Sea view Air conditioning Wi-Fi Smart TV Mini bar Safe Balcony Coffee machine Bathrobe Room service Desk Hairdryer" data-type-name="Deluxe Sea View" data-floor-name="Second" data-status-label="Reserved" data-photo="/preview-assets/room-204-bath.jpg" data-guest="Linda Eshun" data-guest-meta="Booking.com · Ghana" data-nights="2"  data-due="GH₵ 1,900.00 due">
       <div class="ws-photo ws-photo-link" data-room="305" role="button" tabindex="0" aria-label="Room 305, Deluxe Sea View, reserved, GH₵ 950.00 a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal305" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl(141,32%,28%), hsl(181,28%,42%))">
       <img class="ws-photo-img" src="/preview-assets/room-204-bath.jpg" alt="" loading="lazy" decoding="async">
           
@@ -4807,10 +4847,11 @@ body.dark a.ws-attention-row:hover{background:#193525}
 
         
         
-      <span class="ws-guest-note sr-only">Guest Linda Eshun, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 950.00 a night. GH₵ 1,900.00 due.</span>
+      <span class="ws-guest-note sr-only">Guest Linda Eshun, Booking.com, Ghana. Arrive 05 Nov, depart 07 Nov, 2 nights at GH₵ 950.00 a night.  GH₵ 1,900.00 due. </span>
         
 
       <div class="ws-actions">
+      <button type="button" class="ws-drag-handle" draggable="true" data-stay="241330" data-room="305" data-room-no="305" data-label="Linda Eshun" data-inhouse="0" aria-label="Change room for Linda Eshun, currently room 305. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span class="ws-act-label">Change room</span></button>
           
       <a class="btn btn-sm btn-primary" style="background:#16a34a" href="#" aria-label="Check in room 305"><svg class="i" aria-hidden="true"><use href="#i-login"/></svg> Check-In</a>
             
@@ -4905,7 +4946,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-01" aria-label="Sunday, 1 November 2026" >
           
-      1
+      1 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -4913,7 +4954,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-02" aria-label="Monday, 2 November 2026" >
           
-      2
+      2 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -4921,7 +4962,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-03" aria-label="Tuesday, 3 November 2026" >
           
-      3
+      3 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -4929,7 +4970,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-04" aria-label="Wednesday, 4 November 2026" >
           
-      4
+      4 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -4937,7 +4978,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day selected today" data-ws-nav href="/reservations/workspace?date=2026-11-05" aria-label="Thursday, 5 November 2026, business date, arrivals, departures"  aria-current="page" >
           
-      5
+      5 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> <i class="dot-d"></i></span>
       </a>
         
@@ -4945,7 +4986,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-06" aria-label="Friday, 6 November 2026, arrivals, departures" >
           
-      6
+      6 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> <i class="dot-d"></i></span>
       </a>
         
@@ -4953,7 +4994,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-07" aria-label="Saturday, 7 November 2026, arrivals" >
           
-      7
+      7 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -4961,7 +5002,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-08" aria-label="Sunday, 8 November 2026, arrivals" >
           
-      8
+      8 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -4969,7 +5010,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-09" aria-label="Monday, 9 November 2026, departures" >
           
-      9
+      9 
       <span class="ws-cal-dots" aria-hidden="true"> <i class="dot-d"></i></span>
       </a>
         
@@ -4977,7 +5018,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-10" aria-label="Tuesday, 10 November 2026" >
           
-      10
+      10 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -4985,7 +5026,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-11" aria-label="Wednesday, 11 November 2026, arrivals" >
           
-      11
+      11 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -4993,7 +5034,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-12" aria-label="Thursday, 12 November 2026, departures" >
           
-      12
+      12 
       <span class="ws-cal-dots" aria-hidden="true"> <i class="dot-d"></i></span>
       </a>
         
@@ -5001,7 +5042,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-13" aria-label="Friday, 13 November 2026" >
           
-      13
+      13 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5009,7 +5050,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-14" aria-label="Saturday, 14 November 2026, arrivals" >
           
-      14
+      14 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -5017,7 +5058,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-15" aria-label="Sunday, 15 November 2026" >
           
-      15
+      15 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5025,7 +5066,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-16" aria-label="Monday, 16 November 2026" >
           
-      16
+      16 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5033,7 +5074,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-17" aria-label="Tuesday, 17 November 2026, departures" >
           
-      17
+      17 
       <span class="ws-cal-dots" aria-hidden="true"> <i class="dot-d"></i></span>
       </a>
         
@@ -5041,7 +5082,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-18" aria-label="Wednesday, 18 November 2026" >
           
-      18
+      18 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5049,7 +5090,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-19" aria-label="Thursday, 19 November 2026, arrivals" >
           
-      19
+      19 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -5057,7 +5098,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-20" aria-label="Friday, 20 November 2026" >
           
-      20
+      20 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5065,7 +5106,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-21" aria-label="Saturday, 21 November 2026" >
           
-      21
+      21 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5073,7 +5114,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-22" aria-label="Sunday, 22 November 2026, departures" >
           
-      22
+      22 
       <span class="ws-cal-dots" aria-hidden="true"> <i class="dot-d"></i></span>
       </a>
         
@@ -5081,7 +5122,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-23" aria-label="Monday, 23 November 2026" >
           
-      23
+      23 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5089,7 +5130,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-24" aria-label="Tuesday, 24 November 2026, arrivals" >
           
-      24
+      24 
       <span class="ws-cal-dots" aria-hidden="true"><i class="dot-a"></i> </span>
       </a>
         
@@ -5097,7 +5138,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-25" aria-label="Wednesday, 25 November 2026" >
           
-      25
+      25 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5105,7 +5146,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-26" aria-label="Thursday, 26 November 2026" >
           
-      26
+      26 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5113,7 +5154,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-27" aria-label="Friday, 27 November 2026" >
           
-      27
+      27 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5121,7 +5162,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-28" aria-label="Saturday, 28 November 2026, departures" >
           
-      28
+      28 
       <span class="ws-cal-dots" aria-hidden="true"> <i class="dot-d"></i></span>
       </a>
         
@@ -5129,7 +5170,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-29" aria-label="Sunday, 29 November 2026" >
           
-      29
+      29 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5137,7 +5178,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
           
       <a class="ws-cal-day  " data-ws-nav href="/reservations/workspace?date=2026-11-30" aria-label="Monday, 30 November 2026" >
           
-      30
+      30 
       <span class="ws-cal-dots" aria-hidden="true"> </span>
       </a>
         
@@ -5240,7 +5281,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
         
       <span class="ws-avatar sm">A</span>
       <span><b>Adjoa Boateng</b>
-      <span class="muted small">Rm 103 · 2n · Booking.com</span></span>
+      <span class="muted small">Rm 103 · 2n · Booking.com </span></span>
       </a>
         
         
@@ -5252,7 +5293,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
         
       <span class="ws-avatar sm">Y</span>
       <span><b>Yaw Antwi</b>
-      <span class="muted small">Rm 202 · 1n · Corporate · Ashanti Gold</span></span>
+      <span class="muted small">Rm 202 · 1n · Corporate · Ashanti Gold </span></span>
       </a>
         
         
@@ -5264,7 +5305,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
         
       <span class="ws-avatar sm">D</span>
       <span><b>Daniel Kusi</b>
-      <span class="muted small">Rm 303 · 3n · Website</span></span>
+      <span class="muted small">Rm 303 · 3n · Website </span></span>
       </a>
         
         
@@ -5276,7 +5317,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
         
       <span class="ws-avatar sm">L</span>
       <span><b>Linda Eshun</b>
-      <span class="muted small">Rm 305 · 2n · Booking.com · Current housekeeping: Dirty</span></span>
+      <span class="muted small">Rm 305 · 2n · Booking.com  · Current housekeeping: Dirty </span></span>
       </a>
         
         
@@ -5288,7 +5329,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
         
       <span class="ws-avatar sm">N</span>
       <span><b>Nana Ampofo</b>
-      <span class="muted small">Unassigned · 2n · Direct</span></span>
+      <span class="muted small">Unassigned · 2n · Direct </span></span>
       </a>
         
         
@@ -6754,6 +6795,122 @@ body.dark a.ws-attention-row:hover{background:#193525}
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') closeRoomModal();
     else trapRoomModalFocus(event);
+  });
+
+  /* ── change room: drag a stay onto a destination room card ─────────────────
+     Same endpoint as the tape chart (frontdesk.tapechart.drop): reserved stays are re-placed, in-house
+     moves mark the current room vacant and dirty. The server re-checks clashes and outages under a lock,
+     so a drop that looked legal a second ago still gets a clean message instead of a broken board.
+     Keyboard: Enter/Space on the handle picks the stay up, arrows walk the visible cards (with up/down
+     jumping a row at the grid's measured column count), Enter/Space drops, Escape cancels. */
+  const moveStatus = document.getElementById('wsActionStatus');
+  let moveDrag = null;
+  let moveKeyboard = false;
+  const setMoveStatus = message => { if (moveStatus) moveStatus.textContent = message; };
+  const moveDestinations = () => [...document.querySelectorAll('#wsGrid .ws-card[data-drop-room]:not([hidden])')]
+    .filter(card => !moveDrag || card.dataset.dropRoom !== String(moveDrag.room));
+  const clearMoveState = () => {
+    document.body.classList.remove('dragging');
+    document.querySelectorAll('.ws-card.drop-over').forEach(card => card.classList.remove('drop-over'));
+    document.querySelectorAll('.ws-card.ws-drop-source').forEach(card => card.classList.remove('ws-drop-source'));
+    document.querySelectorAll('.ws-card.ws-kbd-dest').forEach(card => { card.classList.remove('ws-kbd-dest'); card.removeAttribute('tabindex'); });
+    document.querySelectorAll('.ws-drag-handle.ws-source-selected').forEach(handle => handle.classList.remove('ws-source-selected'));
+    moveKeyboard = false;
+  };
+  const cancelMove = message => { moveDrag = null; clearMoveState(); setMoveStatus(message); };
+  const completeMoveDrop = card => {
+    if (!moveDrag || !card) return;
+    const selected = moveDrag;
+    const destinationNo = card.dataset.roomNo;
+    moveDrag = null;
+    clearMoveState();
+    if (card.dataset.dropRoom === String(selected.room)) {
+      setMoveStatus(`${selected.label} is already in room ${destinationNo}.`);
+      return;
+    }
+    const inhouse = selected.inhouse === '1';
+    const verb = inhouse ? 'Move in-house guest' : 'Assign';
+    const impact = inhouse ? '\nThe current room will be marked vacant and dirty.' : '';
+    if (!confirm(`${verb} ${selected.label} to room ${destinationNo}?${impact}`)) {
+      setMoveStatus('Room change cancelled.');
+      return;
+    }
+    setMoveStatus(`Updating room for ${selected.label}…`);
+    fetch("#", {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content},
+      body: JSON.stringify({stay_id: Number(selected.stay), room_id: Number(card.dataset.dropRoom)})
+    }).then(response => response.json().then(data => ({ok: response.ok, data})))
+      .then(({ok, data}) => {
+        if (ok) { setMoveStatus(data.message || 'Room updated.'); location.reload(); }
+        else setMoveStatus(data.message || Object.values(data.errors || {})[0] || 'The stay could not be moved to that room.');
+      })
+      .catch(() => setMoveStatus('Network error. The room was not changed; please try again.'));
+  };
+  document.querySelectorAll('.ws-drag-handle[data-stay]').forEach(handle => {
+    handle.addEventListener('dragstart', event => {
+      moveDrag = handle.dataset;
+      moveKeyboard = false;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', handle.dataset.stay);
+      document.body.classList.add('dragging');
+      handle.closest('.ws-card')?.classList.add('ws-drop-source');
+      setMoveStatus(`Moving ${handle.dataset.label}. Drop it on a destination room.`);
+    });
+    handle.addEventListener('dragend', () => { if (moveDrag) cancelMove('Move cancelled.'); });
+    handle.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      if (moveDrag && moveDrag.stay === handle.dataset.stay) { cancelMove('Move cancelled.'); return; }
+      if (moveDrag) return;
+      moveDrag = handle.dataset;
+      moveKeyboard = true;
+      handle.classList.add('ws-source-selected');
+      handle.closest('.ws-card')?.classList.add('ws-drop-source');
+      document.body.classList.add('dragging');
+      const destinations = moveDestinations();
+      destinations.forEach(card => { card.setAttribute('tabindex', '0'); card.classList.add('ws-kbd-dest'); });
+      setMoveStatus(`Selected ${handle.dataset.label}. Use the arrow keys to choose a destination room and press Enter; press Escape to cancel.`);
+      destinations[0]?.focus();
+    });
+  });
+  document.querySelectorAll('#wsGrid .ws-card[data-drop-room]').forEach(card => {
+    card.addEventListener('dragover', event => {
+      if (!moveDrag) return;
+      if (card.dataset.dropRoom === String(moveDrag.room)) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'; return; }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      card.classList.add('drop-over');
+    });
+    card.addEventListener('dragleave', event => { if (!card.contains(event.relatedTarget)) card.classList.remove('drop-over'); });
+    card.addEventListener('drop', event => {
+      event.preventDefault();
+      card.classList.remove('drop-over');
+      if (!moveDrag) return;
+      if (card.dataset.dropRoom === String(moveDrag.room)) { cancelMove(`${moveDrag.label} is already in room ${card.dataset.roomNo}.`); return; }
+      completeMoveDrop(card);
+    });
+    card.addEventListener('keydown', event => {
+      if (!moveDrag || !moveKeyboard) return;
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      completeMoveDrop(card);
+    });
+  });
+  document.addEventListener('keydown', event => {
+    if (!moveDrag || !moveKeyboard) return;
+    if (event.key === 'Escape') { event.preventDefault(); cancelMove('Move cancelled.'); return; }
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const destinations = moveDestinations();
+    if (!destinations.length) return;
+    const gridEl = document.getElementById('wsGrid');
+    const columns = Math.max(1, Math.floor(getComputedStyle(gridEl).gridTemplateColumns.split(' ').filter(Boolean).length));
+    const delta = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns}[event.key];
+    const index = destinations.indexOf(document.activeElement?.closest?.('#wsGrid .ws-card'));
+    if (index < 0) return;
+    event.preventDefault();
+    const next = destinations[index + delta];
+    if (next) next.focus();
   });
 
   applyWsFilters();

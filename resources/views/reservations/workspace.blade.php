@@ -35,6 +35,7 @@
   $canViewHousekeeping = can_do('housekeeping.view') || can_do('housekeeping.attendant') || can_do('housekeeping.manage');
   $selectedVip = ($filters['vip'] ?? '') === '1';
   $searchQuery = is_string($filters['q'] ?? null) ? trim($filters['q']) : '';
+  $canMoveRooms = ! $isHistory && (can_do('frontdesk.roommove') || can_do('reservations.edit'));
   $roomStatusLabels = ['available' => 'Available', 'reserved' => 'Reserved', 'occupied' => 'Occupied', 'out_of_order' => 'Out of Order', 'out_of_service' => 'Out of Service', 'leased' => 'Leased', 'maintenance' => 'Maintenance', 'house_use' => 'House Use', 'group_hold' => 'Group Hold', 'other_block' => 'Other Block'];
   $roomStatusKeys = array_flip($roomStatusLabels);
   $attentionItems = $attention ?? [];
@@ -199,6 +200,7 @@
 <div class="ws-body">
   <div class="ws-main">
   {{-- ── Room board ── --}}
+  @if ($canMoveRooms)<p class="ws-action-status" id="wsActionStatus" role="status" aria-live="polite"></p>@endif
   <div class="ws-grid" id="wsGrid" role="region" aria-label="Room board for {{ $date->format('j F Y') }}">
     @forelse ($cards as $c)
       @php
@@ -228,7 +230,7 @@
           implode(' ', $c['amenities']),
         ], fn ($value) => is_scalar($value) && trim((string) $value) !== ''))));
       @endphp
-      <div class="ws-card" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif @if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
+      <div class="ws-card" data-drop-room="{{ $room->id }}" data-room-no="{{ $room->room_no }}" data-status="{{ $c['status'] }}" data-type="{{ $room->room_type_id }}" data-floor="{{ $room->floor_id }}" data-source="{{ $roomSource }}" data-hk="{{ $canViewHousekeeping ? $room->hk_status : '' }}" data-vip="{{ $isVip ? '1' : '0' }}" data-search="{{ $searchText }}" data-type-name="{{ $room->roomType?->name }}" data-floor-name="{{ $room->floor?->name }}" data-status-label="{{ str_replace('_', ' ', ucfirst((string) $c['status'])) }}" data-photo="{{ $cardPhoto }}"@if ($stay) data-guest="{{ $stayGuestName }}" data-guest-meta="{{ $roomSource }}{{ $isVip ? ' · VIP' : '' }}{{ $stay->guest?->nationality ? ' · '.$stay->guest->nationality : '' }}" data-nights="{{ $cardNights }}"@endif @if ($cardDueLabel !== null) data-due="{{ $cardDueLabel }}"@endif>
         <div class="ws-photo ws-photo-link" data-room="{{ $room->id }}" role="button" tabindex="0" aria-label="Room {{ $room->room_no }}, {{ $room->roomType?->name ?? 'room' }}, {{ str_replace('_', ' ', $c['status']) }}, {{ money($c['rate']) }} a night. Open room details" aria-haspopup="dialog" aria-controls="roomModal{{ $room->id }}" aria-expanded="false" title="Room details" style="background:linear-gradient(135deg, hsl({{ ($room->room_type_id * 47) % 360 }},32%,28%), hsl({{ ($room->room_type_id * 47 + 40) % 360 }},28%,42%))">
           @if ($cardPhoto)<img class="ws-photo-img" src="{{ $cardPhoto }}" alt="" loading="lazy" decoding="async">@endif
           {{-- v10.26 the facilities read down the left edge of the picture instead of as a row of glyphs under it:
@@ -290,6 +292,7 @@
         @endif
 
         <div class="ws-actions">
+          @if ($canMoveRooms && $stay && in_array($stay->status, ['reserved', 'checked_in'], true))<button type="button" class="ws-drag-handle" draggable="true" data-stay="{{ $stay->id }}" data-room="{{ $room->id }}" data-room-no="{{ $room->room_no }}" data-label="{{ $stayGuestName }}" data-inhouse="{{ $stay->status === 'checked_in' ? '1' : '0' }}" aria-label="Change room for {{ $stayGuestName }}, currently room {{ $room->room_no }}. Drag onto a destination room, or press Enter to pick the stay up and then choose a room with the arrow keys." title="Change room — drag onto a destination room"><x-icon name="swap"/><span class="ws-act-label">Change room</span></button>@endif
           @if ($stay && $stay->status === 'reserved')
             @if ($isToday && $c['status'] === 'reserved' && $room->status === 'vacant' && ! isset($inventoryBlocks[$room->id]) && can_do('frontdesk.checkin'))<a class="btn btn-sm btn-primary" style="background:#16a34a" href="{{ route('frontdesk.checkin', $stay) }}" aria-label="Check in room {{ $room->room_no }}"><x-icon name="login"/> Check-In</a>
             @elseif ($isToday && ($c['status'] !== 'reserved' || $room->status !== 'vacant' || isset($inventoryBlocks[$room->id])) && can_do('frontdesk.checkin'))<span class="ws-checkin-blocker">Check-in blocked: {{ $checkInBlockReason($room, $inventoryBlocks) }}</span>@endif
@@ -1355,6 +1358,122 @@
     else trapRoomModalFocus(event);
   });
 
+  /* ── change room: drag a stay onto a destination room card ─────────────────
+     Same endpoint as the tape chart (frontdesk.tapechart.drop): reserved stays are re-placed, in-house
+     moves mark the current room vacant and dirty. The server re-checks clashes and outages under a lock,
+     so a drop that looked legal a second ago still gets a clean message instead of a broken board.
+     Keyboard: Enter/Space on the handle picks the stay up, arrows walk the visible cards (with up/down
+     jumping a row at the grid's measured column count), Enter/Space drops, Escape cancels. */
+  const moveStatus = document.getElementById('wsActionStatus');
+  let moveDrag = null;
+  let moveKeyboard = false;
+  const setMoveStatus = message => { if (moveStatus) moveStatus.textContent = message; };
+  const moveDestinations = () => [...document.querySelectorAll('#wsGrid .ws-card[data-drop-room]:not([hidden])')]
+    .filter(card => !moveDrag || card.dataset.dropRoom !== String(moveDrag.room));
+  const clearMoveState = () => {
+    document.body.classList.remove('dragging');
+    document.querySelectorAll('.ws-card.drop-over').forEach(card => card.classList.remove('drop-over'));
+    document.querySelectorAll('.ws-card.ws-drop-source').forEach(card => card.classList.remove('ws-drop-source'));
+    document.querySelectorAll('.ws-card.ws-kbd-dest').forEach(card => { card.classList.remove('ws-kbd-dest'); card.removeAttribute('tabindex'); });
+    document.querySelectorAll('.ws-drag-handle.ws-source-selected').forEach(handle => handle.classList.remove('ws-source-selected'));
+    moveKeyboard = false;
+  };
+  const cancelMove = message => { moveDrag = null; clearMoveState(); setMoveStatus(message); };
+  const completeMoveDrop = card => {
+    if (!moveDrag || !card) return;
+    const selected = moveDrag;
+    const destinationNo = card.dataset.roomNo;
+    moveDrag = null;
+    clearMoveState();
+    if (card.dataset.dropRoom === String(selected.room)) {
+      setMoveStatus(`${selected.label} is already in room ${destinationNo}.`);
+      return;
+    }
+    const inhouse = selected.inhouse === '1';
+    const verb = inhouse ? 'Move in-house guest' : 'Assign';
+    const impact = inhouse ? '\nThe current room will be marked vacant and dirty.' : '';
+    if (!confirm(`${verb} ${selected.label} to room ${destinationNo}?${impact}`)) {
+      setMoveStatus('Room change cancelled.');
+      return;
+    }
+    setMoveStatus(`Updating room for ${selected.label}…`);
+    fetch(@json(route('frontdesk.tapechart.drop')), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content},
+      body: JSON.stringify({stay_id: Number(selected.stay), room_id: Number(card.dataset.dropRoom)})
+    }).then(response => response.json().then(data => ({ok: response.ok, data})))
+      .then(({ok, data}) => {
+        if (ok) { setMoveStatus(data.message || 'Room updated.'); location.reload(); }
+        else setMoveStatus(data.message || Object.values(data.errors || {})[0] || 'The stay could not be moved to that room.');
+      })
+      .catch(() => setMoveStatus('Network error. The room was not changed; please try again.'));
+  };
+  document.querySelectorAll('.ws-drag-handle[data-stay]').forEach(handle => {
+    handle.addEventListener('dragstart', event => {
+      moveDrag = handle.dataset;
+      moveKeyboard = false;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', handle.dataset.stay);
+      document.body.classList.add('dragging');
+      handle.closest('.ws-card')?.classList.add('ws-drop-source');
+      setMoveStatus(`Moving ${handle.dataset.label}. Drop it on a destination room.`);
+    });
+    handle.addEventListener('dragend', () => { if (moveDrag) cancelMove('Move cancelled.'); });
+    handle.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      if (moveDrag && moveDrag.stay === handle.dataset.stay) { cancelMove('Move cancelled.'); return; }
+      if (moveDrag) return;
+      moveDrag = handle.dataset;
+      moveKeyboard = true;
+      handle.classList.add('ws-source-selected');
+      handle.closest('.ws-card')?.classList.add('ws-drop-source');
+      document.body.classList.add('dragging');
+      const destinations = moveDestinations();
+      destinations.forEach(card => { card.setAttribute('tabindex', '0'); card.classList.add('ws-kbd-dest'); });
+      setMoveStatus(`Selected ${handle.dataset.label}. Use the arrow keys to choose a destination room and press Enter; press Escape to cancel.`);
+      destinations[0]?.focus();
+    });
+  });
+  document.querySelectorAll('#wsGrid .ws-card[data-drop-room]').forEach(card => {
+    card.addEventListener('dragover', event => {
+      if (!moveDrag) return;
+      if (card.dataset.dropRoom === String(moveDrag.room)) { if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'; return; }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      card.classList.add('drop-over');
+    });
+    card.addEventListener('dragleave', event => { if (!card.contains(event.relatedTarget)) card.classList.remove('drop-over'); });
+    card.addEventListener('drop', event => {
+      event.preventDefault();
+      card.classList.remove('drop-over');
+      if (!moveDrag) return;
+      if (card.dataset.dropRoom === String(moveDrag.room)) { cancelMove(`${moveDrag.label} is already in room ${card.dataset.roomNo}.`); return; }
+      completeMoveDrop(card);
+    });
+    card.addEventListener('keydown', event => {
+      if (!moveDrag || !moveKeyboard) return;
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      completeMoveDrop(card);
+    });
+  });
+  document.addEventListener('keydown', event => {
+    if (!moveDrag || !moveKeyboard) return;
+    if (event.key === 'Escape') { event.preventDefault(); cancelMove('Move cancelled.'); return; }
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const destinations = moveDestinations();
+    if (!destinations.length) return;
+    const gridEl = document.getElementById('wsGrid');
+    const columns = Math.max(1, Math.floor(getComputedStyle(gridEl).gridTemplateColumns.split(' ').filter(Boolean).length));
+    const delta = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns}[event.key];
+    const index = destinations.indexOf(document.activeElement?.closest?.('#wsGrid .ws-card'));
+    if (index < 0) return;
+    event.preventDefault();
+    const next = destinations[index + delta];
+    if (next) next.focus();
+  });
+
   applyWsFilters();
 })();
 </script>
@@ -1411,34 +1530,37 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-search{width:230px;max-width:min(100%,260px)}
 .ws-filters .ws-search{flex:1 1 230px;width:auto;min-width:min(100%,220px);max-width:none;min-height:36px;border-radius:8px}
 .ws-search:focus{border-color:#15803d;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
-.ws-body{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
-.ws-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
+.ws-body{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+.ws-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:start}
 /* v10.13 the board is read across, not down: a front desk scans the house by state, and two-and-a-bit cards
-   to a row meant scrolling past two thirds of it to find the one dirty room. Five across, then four, three,
-   two and one — and the card was cut to that size in the same round, because a five-across grid of full-size
-   cards only makes shorter ones.
+   to a row meant scrolling past two thirds of it to find the one dirty room. Six across, then five, four,
+   three, two and one — and the card was cut to that size in the same round, because a wide grid of full-size
+   cards only makes shorter ones. The right-hand rail (needs attention, calendar, arrivals, departures and the
+   rest) now lays out full-width under the board, so the board gets the whole page; the ladders below are drawn
+   against the board's own width and re-run against the screen's width as a fallback.
 
-   v10.14 the count is the board's own width, not the window's. The sidebar takes 244px and the needs-attention
-   rail another 332px, so a perfectly ordinary 1500px window leaves a 908px board — wide enough for five cards
-   of 180px, which the old viewport query still called four, and a 1250px window left three. The ladder below
-   is a fallback for browsers without container queries; where they are understood the same ladder is re-run
-   against .ws-main's width, which is the only number that decides how wide a card actually is.
+   v10.14 the count is the board's own width, not the window's — the sidebar is all that competes for width
+   once the rail sits underneath. The ladder below is a fallback for browsers without container queries; where
+   they are understood the same ladder is re-run against .ws-main's width, which is the only number that
+   decides how wide a card actually is.
 
-   The thresholds are card widths written backwards: five across needs a board of 800px to leave each card
-   150px ((800 − 4×12) / 5), four needs 640, three 480, two 320. So a 1500px window — a 908px board once the
-   sidebar and the rail have had theirs — holds five cards of 172px, and five is what it shows. */
-@media (max-width:1399px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:1023px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:767px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:479px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (max-width:799px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container wsboard (max-width:639px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container wsboard (max-width:479px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container wsboard (max-width:319px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
-/* a board wider than five cards of 190px gets a sixth and a seventh rather than five fat ones: the point of
+   The thresholds are card widths written backwards: six across needs a board of 1320px to leave each card
+   205px ((1320 − 5×12) / 6), five needs 1100, four needs 880, three needs 660, two needs 440. Seven across
+   starts at 1550px and eight at 1770px. */
+@media (max-width:1599px){.ws-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1339px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1079px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:819px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:559px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:1319px){.ws-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container wsboard (max-width:1097px){.ws-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:875px){.ws-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:653px){.ws-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:431px){.ws-grid{grid-template-columns:minmax(0,1fr)}}
+/* a board wider than six cards of 205px gets a seventh and an eighth rather than six fat ones: the point of
    the row was density, and density is what a 2560px screen would otherwise lose. */
-@container wsboard (min-width:1600px){.ws-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
-@container wsboard (min-width:1900px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1550px){.ws-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1770px){.ws-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .ws-card{position:relative;display:flex;min-width:0;flex-direction:column;overflow:hidden;container-type:inline-size;container-name:wscard;border:1px solid #e2e8f0;border-top:3px solid var(--ws-status-accent,#94a3b8);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:box-shadow .16s ease,border-color .16s ease,transform .16s ease}
 .ws-card:hover{border-color:#cbd5e1;box-shadow:0 8px 20px rgba(15,23,42,.10);transform:translateY(-1px)}
 .ws-card:focus-within{outline:2px solid #86c79b;outline-offset:2px}
@@ -1538,6 +1660,25 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-all{margin-left:auto;border:1px solid #d1e7d7;background:#f5fbf6;color:#14532d;font-weight:750}
 .ws-all:hover{border-color:#86c79b;background:#ecfdf3;color:#14532d}
 .ws-extend-form{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+/* ── change-room drag & drop: drag the stay's handle onto a destination room card ──
+   The board is the same data as the tape chart; the drop posts to the same endpoint and gets the same
+   re-check server side. The handle keeps a word at every width the action row does, folds to an icon at
+   379px like the rest, and both the source card and every destination get a visible state while a move
+   is in flight so the board never looks dead mid-drag. */
+.ws-action-status{margin:0 0 8px;padding:6px 10px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:12px;font-weight:600}
+.ws-action-status:empty{display:none}
+.ws-drag-handle{display:inline-flex;min-height:26px;align-items:center;justify-content:center;gap:4px;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:650;line-height:1.2;white-space:nowrap;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;cursor:grab}
+.ws-drag-handle .i{width:12px;height:12px;flex:0 0 12px}
+.ws-drag-handle:hover{background:#dbeafe;border-color:#93c5fd;color:#1e3a8a}
+.ws-drag-handle:focus-visible{outline:3px solid #2563eb;outline-offset:1px}
+.ws-drag-handle:active{cursor:grabbing}
+.ws-drag-handle.ws-source-selected{outline:3px solid #2563eb;outline-offset:1px;background:#dbeafe;border-color:#2563eb}
+@container wscard (max-width:379px){.ws-drag-handle .ws-act-label{position:absolute;width:1px;height:1px;overflow:hidden;white-space:nowrap;clip-path:inset(50%)}}
+body.dragging .ws-drag-handle{cursor:grabbing}
+body.dragging .ws-card[data-drop-room]{outline:2px dashed #93c5fd;outline-offset:-2px}
+.ws-card.drop-over{outline:3px solid #2563eb!important;outline-offset:-3px;box-shadow:0 0 0 4px rgba(37,99,235,.18)}
+.ws-card.ws-drop-source{opacity:.55}
+.ws-card.ws-kbd-dest:focus-visible{outline:3px solid #2563eb;outline-offset:-3px;box-shadow:0 0 0 4px rgba(37,99,235,.18)}
 .ws-inline-action{margin:0}
 .ws-checkin-blocker{flex-basis:100%}
 .ws-extend-form input{min-height:30px;max-width:140px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:7px;font-size:11px;font-variant-numeric:tabular-nums}
@@ -1549,7 +1690,7 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-empty-title{margin:0 0 4px;font-size:15px;font-weight:800}
 .ws-empty-copy p{margin:0 0 9px}
 .ws-empty-copy p:last-child{margin-bottom:0}
-.ws-rail{display:flex;flex-direction:column;gap:10px}
+.ws-rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;align-items:start}
 .ws-modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .ws-rail-card{overflow:hidden;border-radius:12px;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rail-card .card-body{padding:14px}
@@ -1627,18 +1768,10 @@ a.ws-kpi:focus-visible{z-index:1;outline:3px solid #15803d;outline-offset:2px}
 .ws-quick-tile:hover{transform:translateY(-1px);border-color:#86c79b;background:#f0fdf4;color:#14532d;box-shadow:0 5px 12px rgba(20,83,45,.08)}
 .ws-quick-tile:focus-visible{outline:3px solid #15803d;outline-offset:2px}
 @container wsscreen (max-width:908px){.ws-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}}
-/* v10.15 the rail used to step aside at 1200px, which left a dead band above it: between 1200 and 1264 the rail
-   was still beside the board but the board was too narrow for four cards, so the row went down to three wide
-   ones and then jumped back to five the moment the window crossed 1200. The rail steps aside where the board
-   is already down to four.
-
-   v10.16 it steps aside on the screen's width rather than the window's, and it flows DOWN its columns instead
-   of across them: the rail is ranked — what needs acting on first is first — and a row-flowed grid puts the
-   second item to the right of the first, which reads as second-best. Multi-column keeps the ranking in the
-   reading order, which is the only order this list has. */
-@container wsscreen (max-width:1068px){.ws-body{grid-template-columns:1fr}
-  .ws-rail{display:block;columns:260px;column-gap:10px}
-  .ws-rail-card{break-inside:avoid;margin:0 0 10px}}
+/* v10.15/v10.16 the rail used to step aside on narrow screens. v10.17 the rail leaves the side entirely: it
+   now lays out full-width under the board in .ws-body's single column, in a grid that keeps each card at least
+   300px and packs as many per row as the page allows — needs attention first, then the calendar, then the
+   lists. The v10.16 note still holds for the reading order below the board. */
 @container wsscreen (max-width:688px){.ws-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container wsscreen (max-width:388px){
   .ws-head{align-items:flex-start;flex-direction:column;gap:9px;padding:14px}
@@ -1708,6 +1841,13 @@ body.dark .ws-actions .btn-ghost:hover{border-color:#3b5946;background:#193525;c
 body.dark .ws-actions .ws-all{border-color:#3b5946;background:#193525;color:#86efac}
 body.dark .ws-actions .ws-all:hover{background:#234630;color:#d7f5df}
 body.dark .ws-extend-form input{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
+body.dark .ws-action-status{background:#172554;border-color:#1e40af;color:#bfdbfe}
+body.dark .ws-drag-handle{background:#172554;border-color:#1e40af;color:#93c5fd}
+body.dark .ws-drag-handle:hover{background:#1e3a8a;border-color:#3b82f6;color:#dbeafe}
+body.dark .ws-drag-handle.ws-source-selected{background:#1e3a8a;outline-color:#60a5fa}
+body.dark.dragging .ws-card[data-drop-room]{outline-color:#3b82f6}
+body.dark .ws-card.drop-over{outline-color:#60a5fa!important;box-shadow:0 0 0 4px rgba(96,165,250,.25)}
+body.dark .ws-card.ws-kbd-dest:focus-visible{outline-color:#60a5fa}
 body.dark .ws-fac-more{color:#86efac}
 body.dark .ws-fac-more summary:focus-visible{outline-color:#86efac}
 body.dark .ws-vip-filter{border-color:var(--c-border)}
@@ -1746,17 +1886,19 @@ a.ws-head-stat:hover,a.ws-head-stat:focus-visible{background:rgba(255,255,255,.2
 .ws-group-head{display:flex;align-items:center;gap:9px;margin:4px 0 9px;color:#14532d;font-size:11px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
 .ws-group-head:after{flex:1;height:1px;background:#e2e8f0;content:""}
 .ws-group-count{padding:1px 8px;border-radius:999px;background:#ecfdf3;color:#166534;font-size:11px;font-variant-numeric:tabular-nums;font-weight:750;letter-spacing:0}
-.ws-group-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:start}
-@media (max-width:1399px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:1023px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:767px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:479px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (max-width:799px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container wsboard (max-width:639px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container wsboard (max-width:479px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container wsboard (max-width:319px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
-@container wsboard (min-width:1600px){.ws-group-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
-@container wsboard (min-width:1900px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.ws-group-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:start}
+@media (max-width:1599px){.ws-group-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1339px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:1079px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:819px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:559px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (max-width:1319px){.ws-group-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container wsboard (max-width:1097px){.ws-group-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container wsboard (max-width:875px){.ws-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container wsboard (max-width:653px){.ws-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container wsboard (max-width:431px){.ws-group-grid{grid-template-columns:minmax(0,1fr)}}
+@container wsboard (min-width:1550px){.ws-group-grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@container wsboard (min-width:1770px){.ws-group-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 .ws-rack{min-width:0}
 .ws-rack-scroll{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.045)}
 .ws-rack-table{width:100%;min-width:840px;border-collapse:collapse;font-size:12px}
@@ -1873,6 +2015,7 @@ body.dark a.ws-attention-row:hover{background:#193525}
 }
 @media print{
   .ws-cmd,.ws-rail,.ws-head-side,.ws-actions,.ws-rack-actions,.ws-keys,.ws-rack-sortstate{display:none!important}
+  .ws-action-status{display:none!important}
   /* v10.18 paper has its own width: without this the sheet inherited whatever the screen's container said,
      so printing from a wide window put five 150px cards on A4 and printing from a narrow one put two. Three
      across is what a portrait sheet holds at a size the room number and the guest are still readable at. */
