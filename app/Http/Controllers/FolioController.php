@@ -380,7 +380,12 @@ class FolioController extends Controller
     public function close(Folio $folio)
     {
         abort_if($folio->stay && $folio->stay->status === 'checked_in', 422, 'Use check-out to close an in-house folio.');
-        $folio = FolioService::close($folio);
+        try {
+            $folio = FolioService::close($folio);
+        } catch (RuntimeException $e) {
+            // v10.12 an already-closed folio (or a nonzero balance) is a routine operator error, not a 500
+            return redirect()->route('folios.show', $folio)->with('error', $e->getMessage());
+        }
         ActivityLogger::log('folio', 'close', "Closed {$folio->folio_no}, invoice {$folio->invoice_no}", $folio);
         if (! $folio->invoice_no) {
             return redirect()->route('folios.show', $folio)->with('success', 'Opening receivable settled. No new tax invoice was issued for the historical balance.');

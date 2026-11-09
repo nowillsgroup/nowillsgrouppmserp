@@ -42,7 +42,7 @@ class PurchaseController extends Controller
             return $grn > 0 ? $grn : ($po->status === 'received' ? round((float) $po->total, 2) : 0.0);
         };
 
-        $orders = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])
+        $orders = PurchaseOrder::with(['supplier', 'store', 'bill' => $onLedger])
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->boolean('late'), fn ($q) => $q->whereIn('status', ['approved', 'partial'])->whereDate('expected_date', '<', $asOf))
             ->latest('po_date')->latest('id')->paginate(25)->withQueryString();
@@ -88,11 +88,11 @@ class PurchaseController extends Controller
             'blocked' => $blocked->count(), 'blocked_value' => round((float) $blocked->sum(fn ($r) => (float) $r['po']->total), 2),
             'blocked_rows' => $blocked->take(10)->map(fn ($r) => ['po_no' => $r['po']->po_no, 'supplier' => $r['po']->supplier?->name,
                 'total' => round((float) $r['po']->total, 2), 'why' => $r['why']])->all(),
-            'user_level' => ProcurementService::userLevel(), 'limits' => ProcurementService::limits(),
+            'user_level' => ProcurementService::userLevel($request->user()), 'limits' => ProcurementService::limits(),
             'segregation' => setting('po_segregation', '0') === '1'];
 
         // 3. the match: a receipt and the bill for it must be the same money, order by order
-        $matched = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();
+        $matched = PurchaseOrder::with(['supplier', 'store', 'bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();
         $matchReceived = $receivedOf($matched->pluck('id')->all());
         $matchRows = $matched->map(function ($po) use ($matchReceived, $receivedFor) {
             $received = $receivedFor($po, $matchReceived);

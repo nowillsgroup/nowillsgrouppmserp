@@ -154,6 +154,8 @@ class HrController extends Controller
 
     public function savePhoto(Request $request, Employee $employee)
     {
+        // $request->file() is null on empty POSTs — validate so the service signature is always satisfied
+        $request->validate(['photo' => 'required|image|mimes:jpeg,png,webp|max:5120']);
         EmployeeSelfService::savePhoto($employee, $request->file('photo'), Auth::user());
 
         return back()->with('success', "Photograph saved for {$employee->name}.");

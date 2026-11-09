@@ -37,7 +37,8 @@ class StockTakeController extends Controller
 
         $posted = $all->where('status', 'posted');
         $drafts = $all->where('status', 'draft');
-        $postedLines = $lines->only($posted->pluck('id')->all())->flatten(1);
+        // grouped rows are collections of lines, not models — Eloquent Collection::only() would try getDictionary() on them
+        $postedLines = collect($posted->pluck('id')->all())->flatMap(fn ($id) => $lines[$id] ?? collect())->values();
         $countedLines = $postedLines->filter(fn ($l) => $l->counted_qty !== null);
         $variance = ['value' => round((float) $posted->sum(fn ($t) => $summary[$t->id]['value']), 2),
             'short' => round((float) $posted->sum(fn ($t) => $summary[$t->id]['short']), 2),

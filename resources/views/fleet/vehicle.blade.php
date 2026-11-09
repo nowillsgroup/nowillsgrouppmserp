@@ -13,8 +13,9 @@
   $expiring = $v->expiringPapers(\App\Services\TransportService::cfg()['paper_days']);
   $lastFix = $positions->first();
   $tracker = $trackers->firstWhere('is_active', true) ?? $trackers->first();
-  $state = $tracker ? \App\Services\FleetService::trackerState($tracker, $lastFix) : 'never';
-  $stateLabel = \App\Services\FleetService::STATES[$state] ?? [$state, 'slate'];
+  // $state is the controller's maintenanceState() workload array — do not shadow it with the tracker-state string
+  $trackerState = $tracker ? \App\Services\FleetService::trackerState($tracker, $lastFix) : 'never';
+  $stateLabel = \App\Services\FleetService::STATES[$trackerState] ?? [$trackerState, 'slate'];
 @endphp
 
 <div class="stats">

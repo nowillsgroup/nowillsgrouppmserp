@@ -250,15 +250,16 @@ class TreasuryController extends Controller
         return $this->attempt(fn () => TS::saveLine($this->lineData($r), $r->user()), 'Forecast line added.');
     }
 
-    public function updateLine(Request $r, CashForecastLine $line)
+    // route param is {fline}: it must match the method param name for implicit binding, otherwise a fresh CashForecastLine was injected
+    public function updateLine(Request $r, CashForecastLine $fline)
     {
-        return $this->attempt(fn () => TS::saveLine($this->lineData($r), $r->user(), $line), 'Forecast line updated.');
+        return $this->attempt(fn () => TS::saveLine($this->lineData($r), $r->user(), $fline), 'Forecast line updated.');
     }
 
-    public function deleteLine(CashForecastLine $line)
+    public function deleteLine(CashForecastLine $fline)
     {
-        ActivityLogger::log('treasury', 'forecast', 'Forecast line removed: '.$line->description, $line);
-        $line->delete();
+        ActivityLogger::log('treasury', 'forecast', 'Forecast line removed: '.$fline->description, $fline);
+        $fline->delete();
 
         return back()->with('success', 'Forecast line removed.');
     }

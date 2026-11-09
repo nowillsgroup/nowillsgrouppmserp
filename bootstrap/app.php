@@ -18,7 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Trust only the reverse proxies that actually front this app — never the wildcard.
+        // The client IP is a security input here (API-key IP allow-list, per-IP rate limiters,
+        // audit log), so a client-spoofed X-Forwarded-For must not be believed. Set the real
+        // proxy addresses (comma-separated IPs/CIDRs) in TRUSTED_PROXIES; defaults to loopback
+        // (Apache/LiteSpeed on the same host). On Cloudflare/behind a CDN set the CDN ranges.
+        $proxies = array_values(array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1')))));
+        $middleware->trustProxies(at: $proxies);
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         // v10.4: a guest surface of a module the group is not licensed for answers 404 before the
         // controller runs. Global (not on the route) so a public route added later is covered by

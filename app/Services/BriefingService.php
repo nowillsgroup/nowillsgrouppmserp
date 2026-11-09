@@ -9,6 +9,7 @@ use App\Models\BanquetEvent;
 use App\Models\CarRental;
 use App\Models\Driver;
 use App\Models\BriefingSignoff;
+use App\Models\ClubDayPass;
 use App\Models\ClubTicketSale;
 use App\Models\Department;
 use App\Models\Employee;
@@ -190,6 +191,8 @@ class BriefingService
             'key' => 'exec', 'label' => self::EXEC['label'], 'role' => self::EXEC['role'], 'icon' => self::EXEC['icon'],
             'perm' => self::EXEC['perm'], 'title' => 'Daily executive brief — General Manager & CEO', 'date' => $d,
             'is_exec' => true,
+            // the print view always renders the house band first — same contract as the department packs
+            'house' => self::houseSection($core),
         ], self::buildExec($d, $core));
     }
 
@@ -2340,8 +2343,8 @@ class BriefingService
         // Cash: everything that came in, plus the drawers that were counted.
         $folioPay = FolioTransaction::with('paymentMode')->where('is_void', false)->whereDate('business_date', $ds)->where('type', 'payment')->get(['payment_mode_id', 'amount']);
         $posPay = PosPayment::with('paymentMode')->where('kind', 'payment')->whereDate('business_date', $ds)->get(['payment_mode_id', 'amount']);
-        $modes = collect($folioPay->map(fn ($p) => ['payment_mode_id' => $p->payment_mode_id, 'amount' => (float) $p->amount, 'paymentMode' => $p->paymentMode])->all()
-            ->concat($posPay->map(fn ($p) => ['payment_mode_id' => $p->payment_mode_id, 'amount' => (float) $p->amount, 'paymentMode' => $p->paymentMode])->all()))
+        $modes = $folioPay->map(fn ($p) => ['payment_mode_id' => $p->payment_mode_id, 'amount' => (float) $p->amount, 'paymentMode' => $p->paymentMode])
+            ->concat($posPay->map(fn ($p) => ['payment_mode_id' => $p->payment_mode_id, 'amount' => (float) $p->amount, 'paymentMode' => $p->paymentMode]))
             ->groupBy(fn ($p) => $p['paymentMode']?->name ?? 'Unspecified')
             ->map(fn ($g, $n) => ['mode' => $n, 'count' => $g->count(), 'amount' => (float) $g->sum('amount')])->sortByDesc('amount')->values();
         $refunds = (float) FolioTransaction::where('is_void', false)->whereDate('business_date', $ds)->where('type', 'refund')->sum('amount');

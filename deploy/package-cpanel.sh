@@ -12,14 +12,20 @@
 # committed at HEAD — never a stray .env, a working-tree edit or .git itself.
 #
 # What is excluded by default, and why:
-#   docs/screenshots/    84 MB of documentation images, never used at runtime
-#   docs/AUDIT-REPORT.md enumerates known weaknesses; not for a live server
-#   tests/               6 MB, dev only
+#   docs/AUDIT-*.md, docs/NOWILLS-PMS-CODEBASE-AUDIT-*.md, docs/TEST-STATUS.md and the
+#                       module audit reports — these enumerate known weaknesses; they are
+#                       not for a live server (a shared host may be read by neighbour tenants)
+#   deploy/dev/         the 39 MB development runtime (WASM PHP), 174 preview HTML
+#                       snapshots and the audit/attack harness — development tooling only
+#   tests/              dev only (skip with --with-tests)
 #   .github/ .editorconfig .gitattributes .npmrc phpunit.xml   dev tooling
 #
-# What is deliberately INCLUDED:
+# Not excluded (deliberately INCLUDED):
 #   build/vendor/        the Composer packages — this is what removes the need
-#                        for Composer on the server
+#                        for Composer on the server. The development packages inside it
+#                        (phpunit, pint, faker, …) are removed again in step 2c below.
+#   deploy/installers/   the one-time web installer templates, copied to the web root
+#   docs/                everything EXCEPT the internal audit reports listed above
 #   .htaccess .env.example  the shared-hosting fallback and the env template
 #
 set -euo pipefail
@@ -69,9 +75,30 @@ EXCLUDES=(
     ':(exclude).gitattributes'
     ':(exclude).npmrc'
     ':(exclude)phpunit.xml'
+    ':(exclude)deploy/dev/**'
 )
 [ "$WITH_TESTS" -eq 0 ] && EXCLUDES+=(':(exclude)tests/**')
-[ "$WITH_DOCS" -eq 0 ]  && EXCLUDES+=(':(exclude)docs/AUDIT-REPORT.md')
+# The deploy/ tree is dev/build tooling. git pathspec cannot re-include a path under an
+# excluded directory, so list the dev parts individually; deploy/installers/*.php.txt
+# stays tracked in the archive because step 2b copies them to the web root.
+EXCLUDES+=(
+    ':(exclude)deploy/dev/**'
+    ':(exclude)deploy/tizen-tv/**'
+    ':(exclude)deploy/cyberpanel/**'
+    ':(exclude)deploy/package-cpanel.sh'
+    ':(exclude)deploy/nginx.conf'
+    ':(exclude)deploy/crontab.txt'
+    ':(exclude)deploy/apache-vhost.conf'
+)
+# Internal audit documents enumerate known weaknesses; keep them off the server.
+# (docs/*AUDIT*.md matches every tracked audit report; docs/AUDIT-2026-11-09.md is
+# untracked and never reaches the archive.)
+if [ "$WITH_DOCS" -eq 0 ]; then
+    EXCLUDES+=(
+        ':(exclude)docs/*AUDIT*.md'
+        ':(exclude)docs/TEST-STATUS.md'
+    )
+fi
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -100,6 +127,99 @@ do
     mkdir -p "$ROOT/$d"
     [ -e "$ROOT/$d/.gitkeep" ] || : > "$ROOT/$d/.gitkeep"
 done
+
+# ── 2c. Strip the development packages that ship inside build/vendor ──────────
+# build/vendor is committed as-is, so the archive would otherwise carry phpunit,
+# pint, faker and their dependencies on the live server. They are unreachable from
+# the production roots (chillerlan/php-qrcode, laravel/framework, laravel/tinker),
+# verified against composer.lock. The autoloader's eager `files` map and the
+# installed.json manifest are pruned alongside the package directories so the app
+# boots without them. If python3 is missing, or a listed package has since become
+# a production dependency, that package is kept — the package is still valid.
+# Regenerate with: python3 -c 'see docs/AUDIT-2026-11-09.md §5.1'
+cat > "$STAGE/strip-dev.py" <<'PYEOF'
+import json, os, re, sys, shutil
+root = sys.argv[1]
+vendor = os.path.join(root, 'build', 'vendor')
+lock = json.load(open(os.path.join(root, 'composer.lock')))
+prod_names = {p['name'] for p in lock['packages']}
+skip = ["fakerphp/faker","filp/whoops","hamcrest/hamcrest-php","laravel/agent-detector","laravel/pail",
+        "laravel/pao","laravel/pint","mockery/mockery","myclabs/deep-copy","nunomaduro/collision",
+        "phar-io/manifest","phar-io/version","phpunit/php-code-coverage","phpunit/php-file-iterator",
+        "phpunit/php-invoker","phpunit/php-text-template","phpunit/php-timer","phpunit/phpunit",
+        "sebastian/cli-parser","sebastian/comparator","sebastian/complexity","sebastian/diff",
+        "sebastian/environment","sebastian/exporter","sebastian/global-state","sebastian/lines-of-code",
+        "sebastian/object-enumerator","sebastian/object-reflector","sebastian/recursion-context",
+        "sebastian/type","sebastian/version","staabm/side-effects-detector","theseer/tokenizer"]
+drop = []
+for name in skip:
+    if name in prod_names:
+        print(f"  keep {name} (now a production dependency)")
+        continue
+    path = os.path.join(vendor, name)
+    if os.path.isdir(path):
+        drop.append(name)
+    else:
+        print(f"  note {name} not present under build/vendor")
+for name in drop:
+    shutil.rmtree(os.path.join(vendor, name))
+    # the empty vendor/<namespace>/ directory the package left behind
+    namespace = os.path.join(vendor, name.split('/', 1)[0])
+    if os.path.isdir(namespace):
+        try:
+            os.rmdir(namespace)
+        except OSError:
+            pass  # still holds other packages — keep it
+
+# vendor/bin proxies of dropped packages would be left dangling
+dev_lock = {p['name']: (p.get('bin') or []) for p in lock.get('packages-dev', [])}
+removed_bin = 0
+for name in drop:
+    for bin_entry in dev_lock.get(name, []):
+        stub = os.path.join(vendor, 'bin', os.path.basename(bin_entry))
+        for candidate in (stub, stub + '.bat'):
+            if os.path.isfile(candidate) or os.path.islink(candidate):
+                os.remove(candidate)
+                removed_bin += 1
+
+def prune_files_map(path):
+    if not os.path.exists(path):
+        return 0
+    src = open(path).read()
+    out, removed = [], 0
+    for line in src.splitlines(keepends=True):
+        if any(('/' + name + '/') in line for name in drop):
+            removed += 1
+            continue
+        out.append(line)
+    open(path, 'w').write(''.join(out))
+    return removed
+
+n1 = prune_files_map(os.path.join(vendor, 'composer', 'autoload_files.php'))
+n2 = prune_files_map(os.path.join(vendor, 'composer', 'autoload_static.php'))
+
+# composer 2 manifest used by Laravel's package discovery
+manifest = os.path.join(vendor, 'composer', 'installed.json')
+data = json.load(open(manifest))
+plist = data.get('packages', data if isinstance(data, list) else [])
+kept = [p for p in plist if p.get('name') not in set(drop)]
+removed = len(plist) - len(kept)
+if 'packages' in data:
+    data['packages'] = kept
+    json.dump(data, open(manifest, 'w'), indent=4)
+print(f"  stripped {len(drop)} dev packages ({removed} from installed.json, {n1 + n2} eager autoload entries, {removed_bin} bin proxies)")
+PYEOF
+if command -v python3 >/dev/null 2>&1; then
+    python3 "$STAGE/strip-dev.py" "$ROOT"
+    rm -f "$STAGE/strip-dev.py"
+    # Nothing that used to require a dev package may remain in the eager file map.
+    if grep -E "phpunit|mockery|collision|pao|deep-copy|agent-detector|faker|hamcrest|whoops|pint|pail" "$ROOT/build/vendor/composer/autoload_files.php" "$ROOT/build/vendor/composer/autoload_static.php" | grep -v termwind >/dev/null; then
+        echo "  WARNING: eager autoload still references development packages" >&2
+    fi
+else
+    echo "  WARNING: python3 not available — leaving build/vendor untouched" >&2
+    rm -f "$STAGE/strip-dev.py"
+fi
 
 # ── 2b. Put the installer back where the wizard expects it ───────────────────
 # The installers are committed as deploy/installers/*.php.txt and are gitignored at

@@ -354,7 +354,7 @@ class BudgetController extends Controller
         return view('budgets.variance', ['b' => $budget, 'month' => $month, 'wl' => $wl, 'period' => $period,
             'labels' => BudgetService::monthLabels($budget->fiscal_year), 'cfg' => BudgetService::cfg(),
             'signoff' => BudgetService::signoffFor($budget, $period), 'blockers' => BudgetService::signOffBlockers($budget, $month),
-            'people' => \App\Models\User::orderBy('name')->get(['id', 'name'])]);
+            'people' => \App\Models\User::visibleToHotel()->orderBy('name')->get(['id', 'name'])]);
     }
 
     public function explain(Request $request, Budget $budget)

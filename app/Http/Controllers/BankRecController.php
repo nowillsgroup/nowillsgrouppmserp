@@ -14,7 +14,9 @@ use RuntimeException;
 /** v4.6 Accounts › Bank Reconciliation: statements (CSV / manual), matching, bank-only entries, the reconciliation statement. */
 class BankRecController extends Controller
 {
-    protected function attempt(callable $fn, ?string $ok = null)
+    // v10.12 $ok may be a static success string or a Closure receiving the $fn result (same contract
+    // as the other module controllers); bookFees passes a Closure and previously TypeError'd.
+    protected function attempt(callable $fn, string|callable|null $ok = null)
     {
         try {
             $r = $fn();
@@ -22,7 +24,7 @@ class BankRecController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return $r instanceof \Symfony\Component\HttpFoundation\Response ? $r : back()->with('success', $ok);
+        return $r instanceof \Symfony\Component\HttpFoundation\Response ? $r : back()->with('success', is_callable($ok) ? $ok($r) : $ok);
     }
 
     public function index(Request $request)

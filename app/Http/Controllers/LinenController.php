@@ -11,6 +11,7 @@ use App\Services\ActivityLogger;
 use App\Services\LinenService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class LinenController extends Controller
 {
@@ -143,7 +144,11 @@ class LinenController extends Controller
     public function bill(Request $request, LinenBatch $lbatch)
     {
         $data = $request->validate(['supplier_ref' => 'nullable|string|max:60', 'tax_rate' => 'nullable|numeric|min:0|max:100', 'doc_date' => 'nullable|date']);
-        $bill = LinenService::bill($lbatch, $data);
+        try {
+            $bill = LinenService::bill($lbatch, $data);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Supplier bill {$bill->doc_no} created for ".money($bill->total).'.');
     }

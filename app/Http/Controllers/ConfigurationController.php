@@ -176,6 +176,7 @@ class ConfigurationController extends Controller
             'guardedNames' => implode(' · ', array_column(array_values(array_filter($modules, fn ($m) => ($m['rules'] ?? 0) > 0)), 'label')),
             'unguardedNames' => implode(' · ', array_column(array_values(array_filter($modules, fn ($m) => ($m['rules'] ?? 0) === 0)), 'label')),
             'trail' => ConfigurationService::trailCoverage(),
+            'mapGap' => ConfigurationService::mapGapCount(),
             'recentChanges' => ConfigurationService::valueTrail(null, 12),
             'hotel' => hotel(),
             'printedAt' => now(),
