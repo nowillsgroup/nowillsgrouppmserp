@@ -337,17 +337,20 @@ class UtilityService
     }
 
     /** occupied room-nights, guest-nights and revenue per business date – night audit figures where the day is closed */
-    public static function occupancy(string $from, string $to): array
+    public static function occupancy(string $from, string $to, bool $withGuests = true): array
     {
+        // The dashboard cost-of-yesterday card needs revenue and rooms only; the stays scan feeds the guest-night figure.
         $audits = NightAudit::whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->get()->keyBy(fn ($a) => $a->business_date->toDateString());
-        $stays = ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)
-            ->get(['arrival_date', 'departure_date', 'adults', 'children']);
+        $stays = $withGuests
+            ? ReservationRoom::whereIn('status', ['checked_in', 'checked_out'])->whereDate('arrival_date', '<=', $to)->whereDate('departure_date', '>', $from)
+                ->get(['arrival_date', 'departure_date', 'adults', 'children'])
+            : null;
         $out = [];
         for ($d = Carbon::parse($from); $d->toDateString() <= $to; $d->addDay()) {
             $k = $d->toDateString();
-            $in = $stays->filter(fn ($s) => $s->arrival_date->toDateString() <= $k && $s->departure_date->toDateString() > $k);
+            $in = $stays ? $stays->filter(fn ($s) => $s->arrival_date->toDateString() <= $k && $s->departure_date->toDateString() > $k) : null;
             $a = $audits->get($k);
-            $out[$k] = ['rooms' => $a ? (int) $a->rooms_occupied : $in->count(), 'guests' => (int) $in->sum(fn ($s) => $s->adults + $s->children),
+            $out[$k] = ['rooms' => $a ? (int) $a->rooms_occupied : ($in ? $in->count() : 0), 'guests' => $in ? (int) $in->sum(fn ($s) => $s->adults + $s->children) : 0,
                 'revenue' => $a ? round((float) $a->room_revenue + (float) $a->other_revenue, 2) : 0.0];
         }
 
@@ -374,9 +377,9 @@ class UtilityService
     }
 
     /** KPI table per day plus totals: energy per occupied room, water per guest night, cost per room, cost % of revenue, CO2 per room */
-    public static function kpis(string $from, string $to): array
+    public static function kpis(string $from, string $to, bool $withGuests = true): array
     {
-        $occ = self::occupancy($from, $to);
+        $occ = self::occupancy($from, $to, $withGuests);
         $daily = self::daily($from, $to);
         $ef = self::cfg()['ef'];
         $rows = [];
@@ -513,7 +516,8 @@ class UtilityService
         $d = bdate()->toDateString();
         $y = bdate()->copy()->subDay()->toDateString();
         $active = UtilityMeter::where('is_active', true)->count();
-        $k = $active ? self::kpis($y, $y)['total'] : null;
+        // The dashboard Engineering card shows yesterday's cost only, so guests and the stays scan are not needed.
+        $k = $active ? self::kpis($y, $y, false)['total'] : null;
 
         return ['meters' => $active, 'read_today' => $active - self::missing($d)->count(), 'missing_yesterday' => $active ? self::missing($y, true)->count() : 0,
             'anomalies' => $active ? self::openAnomalies()->count() : 0, 'yesterday' => $k];

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Read-only HTTP smoke audit for the live Channel Manager screens."""
 import argparse
+import os
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -31,10 +33,47 @@ class Document(HTMLParser):
             self.actions.append((tag, attrs.get('aria-label'), attrs.get('title')))
 
 
+
+import re as _re
+import http.cookiejar as _cookiejar
+from urllib.request import build_opener as _build_opener, HTTPCookieProcessor as _HTTPCookieProcessor
+from urllib.parse import urlencode as _urlencode
+
+_JAR = _cookiejar.CookieJar()
+_OPENER = _build_opener(_HTTPCookieProcessor(_JAR))
+
+
+def _dev_login(base: str) -> None:
+    """Sign in to the dev server so the check sees real pages.
+
+    The cached preview session used by deploy/dev/serve.mjs can rot (database
+    sessions expire), so log in explicitly with the same env-tunable dev
+    credentials the dev server itself uses (PMS_DEV_HOTEL / PMS_DEV_USER /
+    PMS_DEV_PASS, defaulting to the NOWILLS demo admin).
+    """
+    base = base.rstrip("/")
+    proto = urlsplit(base).scheme or "http"
+    headers = {"Accept": "text/html", "User-Agent": "Nowills-PMS-audit/1.0", "X-Forwarded-Proto": proto}
+    with _OPENER.open(Request(base + "/login", headers=headers), timeout=60) as response:
+        html = response.read().decode("utf-8", "replace")
+    token = _re.search(r'name="_token" value="([^"]+)"', html)
+    assert token, "login page did not render a CSRF token"
+    import os as _os
+    body = _urlencode({
+        "_token": token.group(1),
+        "hotel_code": _os.environ.get("PMS_DEV_HOTEL", "NOWILLS"),
+        "username": _os.environ.get("PMS_DEV_USER", "admin"),
+        "password": _os.environ.get("PMS_DEV_PASS", "Admin@123"),
+    }).encode()
+    request = Request(base + "/login", data=body, headers={**headers, "Content-Type": "application/x-www-form-urlencoded"})
+    with _OPENER.open(request, timeout=60) as response:
+        final = response.geturl()
+    assert "/login" not in urlsplit(final).path, f"dev-server login failed (landed on {final})"
+
 def fetch(base, path):
     url = base.rstrip('/') + path
     try:
-        with urlopen(Request(url, headers={'User-Agent': 'Nowills-Channel-Manager-audit/1.0'}), timeout=60) as response:
+        with _OPENER.open(Request(url, headers={'User-Agent': 'Nowills-Channel-Manager-audit/1.0', 'X-Forwarded-Proto': urlsplit(url).scheme or 'http'}), timeout=60) as response:
             body = response.read().decode('utf-8', 'replace')
             status = response.status
     except (HTTPError, URLError, TimeoutError) as exc:
@@ -53,11 +92,12 @@ def fetch(base, path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--base', default='http://127.0.0.1:8004')
+    parser.add_argument('--base', default=os.environ.get('PMS_BASE_URL', 'http://127.0.0.1:8004'))
     parser.add_argument('--connection', default='1', help='existing non-simulator channel connection id')
     parser.add_argument('--simulator', default='3', help='existing sandbox connection id')
     parser.add_argument('--message', default='9', help='existing attention inbox message id')
     args = parser.parse_args()
+    _dev_login(args.base)
 
     body, doc = fetch(args.base, '/channel-manager')
     for marker in ('Channel activity at a glance', 'id="connTable"', 'id="recentOta"', 'id="overbookTable"'):

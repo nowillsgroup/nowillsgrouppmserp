@@ -8,7 +8,8 @@ CONTROLLER = (ROOT / 'app/Http/Controllers/ShiftController.php').read_text()
 SERVICE = (ROOT / 'app/Services/ShiftService.php').read_text()
 VIEW = (ROOT / 'resources/views/shifts/index.blade.php').read_text()
 SHIFT_REPORT_VIEW = (ROOT / 'resources/views/shifts/show.blade.php').read_text()
-REPORT_CONTROLLER = (ROOT / 'app/Http/Controllers/ReportController.php').read_text()
+# v10.x the report library was split out of ReportController into per-module trait files under app/Http/Controllers/Reports/; the cash-flow labels live in BillingReports
+REPORT_CONTROLLER = (ROOT / 'app/Http/Controllers/Reports/BillingReports.php').read_text()
 
 
 class CashierCashBalanceTest(unittest.TestCase):

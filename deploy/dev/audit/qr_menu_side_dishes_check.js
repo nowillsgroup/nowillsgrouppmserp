@@ -58,7 +58,7 @@ assert.match(elements.sideTitle.textContent, /Side dish for Grilled chicken/);
 assert.equal((elements.sideChoices.innerHTML.match(/type="checkbox" data-side-id=/g) || []).length, 2,
   'The guest sheet offers one checkbox per side dish');
 assert.match(elements.sideChoices.innerHTML, /\+GH₵ 12\.50/, 'A priced side dish shows its rate');
-assert.match(elements.sideChoices.innerHTML, /Garden salad <span class="tiny muted">included<\/span>/,
+assert.match(elements.sideChoices.innerHTML, /Garden salad<\/span> <span class="tiny muted">included<\/span>/,
   'A side dish with no rate is shown as included');
 assert.match(elements.sideChoices.innerHTML, /Tick one or more, or continue with none\./);
 
@@ -73,14 +73,14 @@ assert.deepEqual([...lines[0].sides], [], 'No side dish means an empty side list
 // 3. Ticking sides adds their rates, and a 0-rate side still rides with the line.
 context.cart = {};
 context.openSides(tile(JSON.stringify(sides)));
-checkedSides = sides.map(v => ({dataset: {sideId: String(v.id), sideName: v.name, sideRate: String(v.rate)}}));
+checkedSides = sides.map(v => ({dataset: {sideId: String(v.id), sideName: v.name, sideRate: String(v.rate)}, closest: () => ({querySelector: () => ({textContent: '1'})})}));
 onSideContinue();
 lines = Object.values(context.cart);
 assert.equal(lines[0].price, 72.5, 'Only the priced side dish adds to the dish price');
 assert.deepEqual([...lines[0].sides.map(v => v.id)], [12, 18], 'The included side dish is still sent with the line');
 
 // 4. The same dish with different sides stays a separate line.
-checkedSides = [{dataset: {sideId: '12', sideName: 'Fries', sideRate: '12.5'}}];
+checkedSides = [{dataset: {sideId: '12', sideName: 'Fries', sideRate: '12.5'}, closest: () => ({querySelector: () => ({textContent: '1'})})}];
 context.openSides(tile(JSON.stringify(sides)));
 onSideContinue();
 assert.equal(Object.values(context.cart).length, 2, 'A different side selection is its own line');
@@ -88,7 +88,7 @@ assert.equal(Object.values(context.cart).length, 2, 'A different side selection 
 // 5. A dish with options too: the sides come pre-ticked into the options sheet and are kept.
 context.cart = {};
 const groups = JSON.stringify([{id: 5, name: 'Spice', min: 0, max: 2, required: false, options: []}]);
-checkedSides = [{dataset: {sideId: '18', sideName: 'Garden salad', sideRate: '0'}}];
+checkedSides = [{dataset: {sideId: '18', sideName: 'Garden salad', sideRate: '0'}, closest: () => ({querySelector: () => ({textContent: '1'})})}];
 context.openSides(tile(JSON.stringify(sides), groups));
 onSideContinue();
 assert.equal(sideSheet.hidden, true, 'The side sheet closes before the options sheet opens');
@@ -96,7 +96,7 @@ assert.equal(modifierSheet.hidden, false, 'The options sheet opens after the sid
 assert.equal((elements.modifierChoices.innerHTML.match(/checked/g) || []).length, 1,
   'The side chosen above arrives pre-ticked in the options sheet');
 assert.match(elements.modifierChoices.innerHTML, /Chosen above — change if needed\./);
-checkedSides = [{dataset: {sideId: '18', sideName: 'Garden salad', sideRate: '0'}}];
+checkedSides = [{dataset: {sideId: '18', sideName: 'Garden salad', sideRate: '0'}, closest: () => ({querySelector: () => ({textContent: '1'})})}];
 onModifierAdd();
 lines = Object.values(context.cart);
 assert.equal(lines.length, 1, 'Adding from the options sheet keeps one line');

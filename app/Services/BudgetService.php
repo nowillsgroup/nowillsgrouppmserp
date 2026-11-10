@@ -1496,7 +1496,7 @@ class BudgetService
      * Month + year-to-date comparison of an approved budget with the ledger. The month in progress is compared with the
      * budget pro-rated to the closed days; months before go-live are shown but not compared nor counted in YTD.
      */
-    public static function bva(Budget $b, int $month, ?Budget $forecast = null): array
+    public static function bva(Budget $b, int $month, ?Budget $forecast = null, bool $withRoomStats = true): array
     {
         if ($b->isCapital()) {
             throw new RuntimeException('A capital plan is not compared with the profit and loss – its spend to date is on the plan itself.');
@@ -1580,8 +1580,10 @@ class BudgetService
                     'ytd_from' => $ytdFrom, 'flagged' => $rows->where('flag', true)->count(), 'cost_centre' => $b->department?->label() ?? '#'.$b->department_id],
             ];
         }
-        $as = self::actualStats($b->fiscal_year);
-        $st = $b->stats()->get()->keyBy('month');
+        // The room KPI block reads stay rows and the sellable-room calendar; the dashboard snapshot
+        // card shows revenue/GOP/flagged only, so callers that do not display the KPI grid can skip it.
+        $as = $withRoomStats ? self::actualStats($b->fiscal_year) : null;
+        $st = $withRoomStats ? $b->stats()->get()->keyBy('month') : null;
         $kpi = function (array $ms) use ($as, $st, $fac) {
             $A = ['available' => 0, 'sold' => 0, 'revenue' => 0.0];
             $B = ['available' => 0.0, 'sold' => 0.0, 'revenue' => 0.0];
@@ -1601,9 +1603,9 @@ class BudgetService
 
             return ['actual' => $fmt($A), 'budget' => $fmt($B)];
         };
-        $kpis = ['month' => $kpi([$month]), 'ytd' => $kpi($ytdMonths)];
+        $kpis = $withRoomStats ? ['month' => $kpi([$month]), 'ytd' => $kpi($ytdMonths)] : null;
         // an un-started month: show the full-month budget KPIs
-        if ($future && ($s = $st[$month] ?? null)) {
+        if ($withRoomStats && $future && ($s = $st[$month] ?? null)) {
             $kpis['month']['budget'] = ['available' => $s->rooms_available, 'sold' => $s->roomsSold(), 'revenue' => $s->roomRevenue(), 'occupancy' => round($s->occupancy, 1), 'adr' => $s->adr, 'revpar' => $s->revpar()];
         }
 
@@ -1661,7 +1663,7 @@ class BudgetService
             return ['budget' => null, 'pending' => $pending];
         }
         $m = self::monthIndex($cut);
-        $d = self::bva($b, $m);
+        $d = self::bva($b, $m, null, false);
 
         return ['budget' => $b, 'month' => $m, 'cutoff' => $cut, 'revenue' => $d['totals']['revenue'], 'gop' => $d['totals']['gop'], 'flagged' => $d['meta']['flagged'], 'pending' => $pending];
     }

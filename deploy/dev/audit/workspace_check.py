@@ -144,8 +144,9 @@ class WorkspaceTest(unittest.TestCase):
 
     def test_the_card_leads_with_the_room(self):
         # the picture is the card; the facts are laid over it
-        self.assertIn('.ws-photo{position:relative;aspect-ratio:16/10', VIEW)
-        self.assertIn("minmax(min(348px,100%),1fr)", VIEW)
+        self.assertIn('.ws-photo{position:relative;aspect-ratio:16/11;min-height:104px;max-height:172px', VIEW)
+        self.assertIn('.ws-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))', VIEW)
+        self.assertIn('@media (max-width:559px){.ws-grid{grid-template-columns:minmax(0,1fr)}}', VIEW, 'the board must collapse to one column on narrow screens')
         # the board fetches the card-sized copy; the dialog the picture itself
         self.assertIn("'photo' => $room->images->first()?->url('thumb'),", SERVICE)
         self.assertIn("'photo_full' => $room->images->first()?->url(),", SERVICE)

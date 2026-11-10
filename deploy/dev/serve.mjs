@@ -931,25 +931,27 @@ const server = Bun.serve({
     }
 
     const ab = method === 'GET' || method === 'HEAD' ? new Uint8Array(0) : new Uint8Array(await req.arrayBuffer());
+    const hadOwnSession = (req.headers.get('cookie') ?? '').includes('nowills-pms-session');
+    let injectedPreviewSession = false;
     let reqHeaders = req.headers;
-    if (DEV_LOGIN && !(reqHeaders.get('cookie') ?? '').includes('nowills-pms-session')) {
+    if (DEV_LOGIN && !hadOwnSession) {
       try {
         const auth = await ensureDevLogin();
         reqHeaders = new Headers(reqHeaders);
         reqHeaders.set('cookie', [reqHeaders.get('cookie'), auth].filter(Boolean).join('; '));
+        injectedPreviewSession = true;
         process.stderr.write(`[pms-serve] inject → ${auth.split('; ').map((c) => c.slice(0, c.indexOf('=') + 6)).join(' | ')}\n`);
       } catch (err) {
         process.stderr.write(`[pms-serve] auto-login failed: ${String(err?.message ?? err)}\n`);
       }
     }
-    const { srv, rawHeaders } = headersToServer(reqHeaders, url, method, ab.byteLength);
-    srv.SCRIPT_NAME = scriptName;
-    srv.SCRIPT_FILENAME = script;
-    srv.PHP_SELF = scriptName;
-
-    try {
+    const runPhp = async (headers) => {
+      const { srv, rawHeaders } = headersToServer(headers, url, method, ab.byteLength);
+      srv.SCRIPT_NAME = scriptName;
+      srv.SCRIPT_FILENAME = script;
+      srv.PHP_SELF = scriptName;
       await phpReady;
-      const resp = await run(() =>
+      return run(() =>
         php.run({
           scriptPath: script,
           relativeUri: url.pathname + url.search,
@@ -960,6 +962,28 @@ const server = Bun.serve({
           env: { HOME: '/tmp' },
         })
       );
+    };
+
+    try {
+      let resp = await runPhp(reqHeaders);
+      // The cached preview sign-in can stop being accepted (database sessions are
+      // pruned while the runtime keeps running). If an injected request bounces to
+      // /login, drop the cached session, sign in once more, and retry a safe method.
+      if (DEV_LOGIN && injectedPreviewSession && (method === 'GET' || method === 'HEAD')) {
+        const bounced = (resp.httpStatusCode | 0) === 302 && /\/login\/?$/.test(new URL(flattenHeaders(resp.headers).get('location') ?? '', 'http://localhost').pathname);
+        if (bounced) {
+          process.stderr.write('[pms-serve] injected preview session refused — refreshing sign-in once\n');
+          devCookies = null;
+          try {
+            const auth = await ensureDevLogin();
+            const retryHeaders = new Headers(req.headers);
+            retryHeaders.set('cookie', [retryHeaders.get('cookie'), auth].filter(Boolean).join('; '));
+            resp = await runPhp(retryHeaders);
+          } catch (err) {
+            process.stderr.write(`[pms-serve] re-login failed: ${String(err?.message ?? err)}\n`);
+          }
+        }
+      }
       const head = previewFriendly(flattenHeaders(resp.headers));
       const status = resp.httpStatusCode || 200;
       let body = method === 'HEAD' ? null : resp.bytes;

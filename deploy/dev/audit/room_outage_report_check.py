@@ -2,14 +2,15 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
-REPORT = (ROOT / "app/Http/Controllers/ReportController.php").read_text()
+# v10.x the report library was split out of ReportController into per-module traits under app/Http/Controllers/Reports/
+REPORT = (ROOT / "app/Http/Controllers/Reports/FrontOfficeReports.php").read_text()
 SCHEMA = (ROOT / "database/migrations/2026_01_01_007300_reservation_desk.php").read_text()
 
 
 class RoomOutageReportTest(unittest.TestCase):
     def test_report_queries_real_columns_and_overlapping_date_ranges(self):
         start = REPORT.index("protected function r_room_outages(")
-        end = REPORT.index("protected function r_stock_take_lines(", start)
+        end = REPORT.index("protected function r_source(", start)
         body = REPORT[start:end]
         for field in ("starts_on", "ends_on", "room_id", "reason", "status", "created_by", "notes"):
             self.assertIn(field, body)

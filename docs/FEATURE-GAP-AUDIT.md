@@ -1,7 +1,7 @@
 # Nowills PMS — feature and module gap audit
 
-**Audited:** 14 October 2026 (baseline reconciliation) · 11 October 2026 (follow-up) · 8 October 2026 (initial baseline) · 29 October 2026 (live-code metadata refresh) · 30 October 2026 (verified source refresh) · 31 October 2026 (Arena worktree refresh)
-**Branch / verified application source:** `arena/141a9d9d-nowillsgrouppmserp` @ `57ff142a53670ed46c4358f946bceea2fdd0969e` (base commit plus this branch's uncommitted worktree as of 31 October 2026) — `config('pms.version')` 7.77.0, Laravel 13.33.0 on PHP 8.5.11
+**Audited:** 14 October 2026 (baseline reconciliation) · 11 October 2026 (follow-up) · 8 October 2026 (initial baseline) · 29 October 2026 (live-code metadata refresh) · 30 October 2026 (verified source refresh) · 31 October 2026 (Arena worktree refresh) · 9 November 2026 (Arena worktree refresh)
+**Branch / verified application source:** `arena/7d9d68ab-nowillsgrouppmserp` @ `c3c6a7bdafe851fb6f19b1dae32706b4bd35916a` (this branch's base commit; the worktree carries the same verified tree as of 9 November 2026) — `config('pms.version')` 7.77.0, Laravel 13.33.0 on PHP 8.5.11
 **Audit type:** full code read + parity check against the pre-October Nowills PMS/ERP feature set  
 **Audit method:** every module's routes/controllers/services/views read from source; the gap checklist below enumerates every area where the old PMS/ERP behaved differently or did more; package requirements verified against `composer.json` and runtime checks — the application ships no npm build, so there is no root `package.json`; the only one in the repository is `deploy/dev/package.json`, which belongs to the dev runtime, and the front end is plain CSS and JavaScript under `public/`.
 
@@ -14,9 +14,9 @@
 > ships and the document keeps saying it is missing, which is exactly what had happened to four of the items below.
 > Facts come from `deploy/dev/audit/gap_facts.php` and the route list, and either is regenerated when `config/pms.php`
 > is newer than the dump, so a stale dump can never report the old system as the live one.
-> Last run: **365 checks passed; 0 discrepancies** (31 October 2026). The source commit is read from this header and tested for existence and ancestry; the checker does not pin a historical commit from another branch.
+> Last run: **365 checks passed; 0 discrepancies** (9 November 2026). The source commit is read from this header and tested for existence and ancestry; the checker does not pin a historical commit from another branch.
 
-**System under audit:** Nowills PMS — Laravel 13.33 PHP property-management system. 54 modules, 370 pages (count refreshed 29 October 2026 against the live menu — see docs/MODULES.md). Ghana-specific (Act 1151 tax from 1 January 2026: VAT 15% + NHIL 2.5% + GETFund 2.5% on one tax-exclusive base — 20%, down from 21.9% when the levies cascaded — plus the 1% Tourism Levy collected for GTA, with the COVID-19 Health Recovery Levy repealed and the flat-rate scheme abolished; GRA e-invoicing; per-property VAT registration), multi-property, group-wide.
+**System under audit:** Nowills PMS — Laravel 13.33 PHP property-management system. 57 modules, 390 pages (count refreshed 9 November 2026 against the live menu — see docs/MODULES.md). Ghana-specific (Act 1151 tax from 1 January 2026: VAT 15% + NHIL 2.5% + GETFund 2.5% on one tax-exclusive base — 20%, down from 21.9% when the levies cascaded — plus the 1% Tourism Levy collected for GTA, with the COVID-19 Health Recovery Levy repealed and the flat-rate scheme abolished; GRA e-invoicing; per-property VAT registration), multi-property, group-wide.
 
 ---
 

@@ -13,8 +13,8 @@ class FrontDeskGrcPolishTest(unittest.TestCase):
     def test_print_card_has_clear_reservation_identity_and_stay_sections(self):
         for marker in (
             "@extends('layouts.print')", "@section('doctitle', 'Guest Registration Card')",
-            'id="guestRegistrationCard"', 'aria-labelledby="grcIdentityTitle"',
-            'aria-labelledby="grcIdentityDocumentTitle"', 'aria-labelledby="grcStayTitle"',
+            'id="guestRegistrationCard"', 'aria-labelledby="grcGuestTitle"',
+            'aria-labelledby="grcIdTitle"', 'aria-labelledby="grcStayTitle"',
             'Reservation <b>{{ $stay->reservation->reservation_no }}</b>',
             'Scheduled departure', 'Room rate', 'Booking source',
         ):
@@ -23,10 +23,11 @@ class FrontDeskGrcPolishTest(unittest.TestCase):
 
     def test_contact_identity_empty_values_and_address_are_rendered_safely(self):
         for marker in (
-            "$address = collect([", "->filter(fn ($part) => filled($part))",
+            "collect([$g->nationality, $idType])->filter()",
+            "@if($g->address && $g->city), @endif",
             "config('pms.id_types.'.$g->id_type, $g->id_type)",
             'Mobile', 'Email', 'Nationality', 'Passport number', 'Visa expiry',
-            'Not provided', 'Guest TIN',
+            '{{ $g->email ? \'\' : \'blank\' }}', 'Guest TIN',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, VIEW)
@@ -34,12 +35,13 @@ class FrontDeskGrcPolishTest(unittest.TestCase):
 
     def test_signature_status_documents_terms_and_print_metadata_are_available(self):
         for marker in (
-            "Signature <b>{{ $stay->grc_signed_at ? 'On file' : 'Pending' }}</b>",
-            'Guest signature on file', 'E-signed {{ $stay->grc_signed_at->format',
-            'Front-office representative', 'Document types on file',
-            "setting('grc_terms')", 'Guest declaration &amp; terms',
+            "{{ $stay->grc_signed_at ? 'E-signed '.$stay->grc_signed_at->format('d M Y H:i') : 'Guest signature pending' }}",
+            '<span class="grc-chip pending">Signature required</span>',
+            '<img src="{{ $signature }}" alt="Guest signature">',
+            'Front-office representative', 'scan(s) on file',
+            "setting('grc_terms')", 'Guest declaration',
             "now()->format('d M Y H:i')", '@media print',
-            '@media(max-width:700px)', 'break-inside:avoid',
+            '@media(max-width:760px)', 'break-inside:avoid',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, VIEW)

@@ -3479,7 +3479,7 @@ ok("$tie = ['as_of' => $asOf, 'ledger' => $closing, 'ageing' => round((float) ($
    'the tie is the ledger closing against the ageing outstanding')
 ok("$tie['ties'] = abs($tie['diff']) <= 0.005;" in company_ledger_fn,
    'tied at half a cent, the tolerance the other statements use')
-ok("compact('company', 'rows', 'paymentModes', 'splitModes', 'tie', 'asOf')" in company_ledger_fn,
+ok("compact('company', 'rows', 'paymentModes', 'splitModes', 'tie', 'asOf', 'closing')" in company_ledger_fn,
    'the date reaches the view, so the screen can say what it was read at')
 ok('id="companyTie"' in company_view_src,
    'the page states the tie in its own card')
@@ -3645,7 +3645,7 @@ ok('return phpTrue(v);' in read(os.path.join(ROOT, 'deploy/dev/preview/blade-ren
 # whether the two agreed — so a week whose sync had not run printed the same numbers as a week that had. v9.10 it prints the
 # ledger's figure beside each side and names the line that is out; it also states its own result and margin, and clamps the
 # period it is asked about.
-pnl_fn = company_controller.split('public function pnl(', 1)[-1][:3600]
+pnl_fn = company_controller.split('public function pnl(', 1)[-1][:4800]
 gl_move_fn = company_controller.split('protected function glMovement(', 1)[-1][:900]
 ok('protected function glMovement(string $from, string $to, string $type): float' in company_controller,
    'the ledger\'s movement for a period is one query, by the nature of the account it landed in')
@@ -3715,7 +3715,7 @@ ok("$rec = round((float) $vouchers->where('type', 'receipt')->sum('amount'), 2);
    'the register totals its own receipts and payments')
 ok("$byHead = $vouchers->groupBy('account_head_id')" in vouchers_fn and "'out' => round((float) $g->where('type', 'payment')->sum('amount'), 2)" in vouchers_fn,
    'and analyses them by account head, receipts and payments apart')
-ok("->each(fn (&$r) => $r['net'] = round($r['in'] - $r['out'], 2))->sortBy('head')->values();" in vouchers_fn,
+ok("})->transform(function ($r) { $r['net'] = round($r['in'] - $r['out'], 2); return $r; })->sortBy('head')->values();" in vouchers_fn,
    'each head keeping the net of its two columns')
 ok("$cut = LedgerService::cutoff();" in vouchers_fn and "$postedVouchers = $vouchers->filter(fn ($v) => $v->date->toDateString() <= $cut);" in vouchers_fn,
    'the tie is over the vouchers whose day is closed, not over every voucher written')
@@ -4053,7 +4053,7 @@ ok("'largest' => $set->first()?->po_no, 'largest_value' => round((float) ($set->
    'each level names the largest order it holds, so the matrix is evidence and not a threshold table')
 ok("$blocked = $drafts->map(fn ($po) => ['po' => $po, 'why' => ProcurementService::approvalBlocker($po)])" in po_fn,
    'and the orders the reader may not sign are found with the same blocker the approve button runs')
-ok("$matched = PurchaseOrder::with('supplier', 'store', ['bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();" in po_fn,
+ok("$matched = PurchaseOrder::with(['supplier', 'store', 'bill' => $onLedger])->whereIn('status', ['received', 'partial', 'closed'])->get();" in po_fn,
    'the match is taken over the orders whose goods arrived, short-closed ones included')
 ok("'largest' => $matchRows->sortByDesc('received')->first(), 'unbilled' => $matchRows->filter(fn ($r) => $r['billed'] <= 0.005)->count()];" in po_fn,
    'a receipt with no bill at all is counted as a break rather than as a missing row')
@@ -5093,7 +5093,14 @@ ok('$canSuspendGroup' in group_view,
 settings_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/SettingController.php'))
 ok('app(\\App\\Services\\PropertyService::class)->create($user->group, $data +' in settings_ctrl,
    'the old "add property" shortcut now goes through the same service, so the entitlement and the audit trail apply')
-reports = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php'))
+# v10.x the report library was split out of ReportController into per-module trait files under
+# app/Http/Controllers/Reports/; the pins below follow the code, so read the controller and the traits as one surface
+reports = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php')) + '\n'.join(
+    read(os.path.join(ROOT, 'app/Http/Controllers/Reports', name))
+    for name in sorted(os.listdir(os.path.join(ROOT, 'app/Http/Controllers/Reports')))
+    if name.endswith('.php'))
+ok('HotelGroupOwnerReportingReports' in read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php')),
+   'the group owner reports are used by the report controller')
 ok("HotelGroup::with('managementCompany')" not in reports and 'managementCompanyName()' in reports,
    'the group report reads a group column that exists instead of a relation that never did')
 ok("'start' => $r->agreement_start" not in reports and "'start' => $r->effective_from" in reports,
@@ -5568,7 +5575,11 @@ ok("ok('the group dashboard is titled for the group'" in read(os.path.join(ROOT,
 # are not, and the reason is structural rather than lucky — every figure in ReportController comes
 # from the current tenant's scope. Pinned here so a future "add the group's other hotels" edit has to
 # pass this check and think about licensing before it can.
-report_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php'))
+# the consolidated-report pins follow the v10.x split of ReportController into app/Http/Controllers/Reports/*.php
+report_ctrl = read(os.path.join(ROOT, 'app/Http/Controllers/ReportController.php')) + '\n'.join(
+    read(os.path.join(ROOT, 'app/Http/Controllers/Reports', name))
+    for name in sorted(os.listdir(os.path.join(ROOT, 'app/Http/Controllers/Reports')))
+    if name.endswith('.php'))
 ok('Hotel::' not in report_ctrl,
    'no report reaches across properties: every figure in ReportController is the current tenant\'s, so a shut property cannot be added into another property\'s total')
 ok('HotelGroup::orderBy(' not in report_ctrl and 'HotelGroup::whereIn(' in report_ctrl,

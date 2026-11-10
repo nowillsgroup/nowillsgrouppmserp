@@ -13,11 +13,11 @@ the release notes in `deploy/dev/serve.mjs`, and `deploy/dev/audit/modules_doc_c
 |---|---|
 | **5** | sections |
 | **12** | top-level groups |
-| **54** | modules |
-| **370** | pages |
+| **57** | modules |
+| **390** | pages |
 
 Counted from the live `config('pms.menu')` registry and reconciled against it page for page on
-20 Oct 2026: a page is any node below module level that carries a `route`; a module that is itself a
+9 Nov 2026: a page is any node below module level that carries a `route`; a module that is itself a
 link (Dashboard, Group Dashboard, Night Audit) counts as a module, not a page. **Every count, name
 and order below is the live menu**, and each group heading carries its own page count. A document
 routed per record rather than as a menu page (a ticket sale receipt) is named in prose under its
@@ -30,24 +30,27 @@ counts, names, order, section keys, permission keys and every URI the prose name
 ---
 
 
-## Dashboard & Operations
+## Dashboard
 
-`DASHBOARD` section · **4 modules** · 4 menu pages
+`DASHBOARD` section · **7 modules** · 4 menu pages
 
-- **Dashboard** — direct link
+- **Overview** — direct link
+- **My Shift** — direct link
 - **Group Dashboard** — direct link
 - **Night Audit** — direct link
 - **Reports** — 4 pages
   - All Reports · My Reports & Saved Views · Scheduled Reports · KPI Alerts
+- **Daily Briefings** — direct link
+- **Executive Brief** — direct link
 
-## Front Office & Guest Services
+## Front Office
 
-`OPERATIONS` section · **10 modules** · 65 menu pages
+`OPERATIONS` section · **10 modules** · 67 menu pages
 
-- **Front Office** — 9 pages
-  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline Request Capture · Desktop Sync
-- **Desk Operations** — 7 pages
-  - Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
+- **Front Desk** — 10 pages
+  - Room View · Tape Chart · Walk-in Check-in · Arrivals · In-House Guests · Departures · Guest Requests · Offline POS Terminal · Offline Request Capture · Desktop Sync
+- **Desk Operations** — 8 pages
+  - My Shift · Shift Log Book · Shift Hand-over · Wake-up Calls · Messages & Parcels · Traces · Lost & Found · Desk Settings
 - **Reservations** — 8 pages
   - Reservation Workspace · New Reservation · Reservation List · Availability · Group Blocks · Rate Calendar · Channel Manager · iCal Feeds
 - **Central Reservations** — 6 pages
@@ -72,7 +75,7 @@ counts, names, order, section keys, permission keys and every URI the prose name
 - **Guests & CRM** — 12 pages
   - Guest Profiles · Companies / Agents · Rate Contracts · Feedback & Reputation · Guest Cases · Loyalty Program · Privacy & Data · Marketing Dashboard · Campaigns · Guest Segments · Automations · Promo Codes
 - **Sales & Marketing** — 9 pages
-  - Sales Dashboard · Accounts · Opportunities · Sales Diary · Sales Targets · Marketing Calendar · Marketing Budget · Collateral Library · Sales Settings
+  - Overview · Accounts · Opportunities · Sales Diary · Sales Targets · Marketing Calendar · Marketing Budget · Collateral Library · Sales Settings
 - **Digital Marketing** — 7 pages
   - Digital Dashboard · Content Calendar · Paid Campaigns · Tracked Links · Channels & Listings · Influencers · Digital Settings
 - **Business Development** — 6 pages
@@ -84,9 +87,9 @@ counts, names, order, section keys, permission keys and every URI the prose name
 - **Organiser Portal** — 6 pages
   - Organiser Dashboard · Requests & Approvals · Portal Events · Organiser Logins · Portal Activity · Portal Settings
 
-## Revenue & Financial Management
+## Finance
 
-`FINANCE` section · **7 modules** · 53 menu pages
+`FINANCE` section · **7 modules** · 54 menu pages
 
 - **Revenue** — 4 pages
   - Revenue Dashboard · Pricing Grid · Pricing Rules · Upselling
@@ -96,8 +99,8 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - Cashier Dashboard · Shift Register
 - **Income Audit** — 4 pages
   - Audit Days · Authorisations · Room Count · Room Discrepancies
-- **Accounts** — 24 pages
-  - Vouchers · City Ledger · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation (imports CSV, Excel .xlsx, SWIFT MT940 and ISO 20022 camt.052/053 — v7.48, see [`BANK-STATEMENT-FORMATS.md`](BANK-STATEMENT-FORMATS.md)) · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
+- **Accounts** — 25 pages
+  - Vouchers · City Ledger · Receivables Ageing · Credit Control · Agent Commissions · Supplier Bills (AP) · Supplier Payments · Withholding Tax (GRA) · AP Ageing · Cash Book · Bank Reconciliation (imports CSV, Excel .xlsx, SWIFT MT940 and ISO 20022 camt.052/053 — v7.48, see [`BANK-STATEMENT-FORMATS.md`](BANK-STATEMENT-FORMATS.md)) · Petty Cash · Expense Claims · Profit & Loss (operational) · General Ledger · Budgets · Budget vs Actual · Journal Entries · Period Close · Accruals & Prepayments · Recurring Journals · Year-end Close · Balance Sheet · Chart of Accounts · GL Mapping
 - **Treasury** — 6 pages
   - Cash Position · Banking & Transfers · Cheque Registers · 13-week Cash Forecast · Cash-flow Statement · Bank Accounts
 - **Owner Reporting** — 6 pages
@@ -115,18 +118,18 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## Food & Beverage
 
-`OPERATIONS` section · **6 modules** · 57 menu pages
+`OPERATIONS` section · **6 modules** · 60 menu pages
 
-- **POS / Restaurant** — 14 pages
-  - POS Terminal · Orders & Bills · Floor Plan & Waitlist · Table Reservations · Kitchen Display · KOT Printers · Print Station · Menu Items · Menu Categories · Outlets · Tables · Table QR Codes · Modifiers & Add-ons · Reservation Settings
+- **POS / Restaurant** — 15 pages
+  - Food & Beverage Service Shift · POS Terminal · Orders & Bills · Floor Plan & Waitlist · Table Reservations · Kitchen Display · KOT Printers · Print Station · Menu Items · Menu Categories · Outlets · Tables · Table QR Codes · Modifiers & Add-ons · Reservation Settings
 - **Packages & Meals** — 4 pages
   - Package Dashboard · Meal Desk · Entitlements · Catalogue & Inclusions
-- **Banquet** — 7 pages
-  - Events & Enquiries · Function Diary · Function Sheet (BEO) · Venues · Menu Packages · Services & Equipment · Banquet Settings
+- **Banquet** — 8 pages
+  - Events & Enquiries · Find a Venue · Function Diary · Function Sheet (BEO) · Venues · Menu Packages · Services & Equipment · Banquet Settings
 - **Food Safety** — 7 pages
   - Food Safety Dashboard · Temperature Logs · HACCP Checklists · Allergen Matrix · Food Waste Log · Prep Labels · Food Handler Certificates
-- **F&B Cost Control** — 9 pages
-  - Cost Dashboard · Recipe Cards & Plate Cost · Menu Engineering · Food & Beverage Cost · Usage Variance · Menu Pricing · Yield Tests · Staff Meals · Cost Settings
+- **F&B Cost Control** — 10 pages
+  - Cost Dashboard · Recipe Cards & Plate Cost · Menu Engineering · Side Dishes Sold · Food & Beverage Cost · Usage Variance · Menu Pricing · Yield Tests · Staff Meals · Cost Settings
 - **Inventory** — 16 pages
   - Stock Summary · Requisitions · Budgets & Par Levels · Purchase Orders · RFQs & Quotations · Goods Receipts (GRN) · Supplier Price Lists · Supplier Scorecard · Stock Issue / Adjust · Stock Ledger · Stock Take (Physical Count) · Re-order Suggestions · Recipes (F&B costing) · Items · Suppliers · Stores
 
@@ -143,7 +146,7 @@ counts, names, order, section keys, permission keys and every URI the prose name
 
 ## Facilities & Security
 
-`OPERATIONS` section · **4 modules** · 18 menu pages
+`OPERATIONS` section · **4 modules** · 19 menu pages
 
 - **Engineering** — 3 pages
   - Utilities & Energy · Daily Meter Readings · Licences & Compliance
@@ -151,29 +154,29 @@ counts, names, order, section keys, permission keys and every URI the prose name
   - Visitors · Gate Passes · Incident Register · Watch List
 - **Transport** — 14 pages
   - Dispatch Board · Trips · My Trips (driver) · Fleet & Papers · Fleet Management · Live Vehicle Tracking · Maintenance & Repairs · Fuel & Efficiency · Vehicle Expenses · Vehicles · Drivers · Tariff Card · Transport Settings · Fleet Settings
-- **Car Rental** — 2 pages
-  - Rental Desk · Rental Fleet
+- **Car Rental** — 3 pages
+  - Rental Desk · Rental Fleet · Rental Settings
 
 ## Wellness & Recreation
 
-`OPERATIONS` section · **3 modules** · 13 menu pages
+`OPERATIONS` section · **3 modules** · 16 menu pages
 
 - **Health Club** — 7 pages
   - Club Dashboard · Check-in Desk · Members · Billing & Renewals · Class Timetable · Day Passes · Plans & Settings
-- **Recreation Outlet** — 3 pages · v7.38
-  - Ticket Outlet · Ticket Sales · Ticket Types
+- **Recreation Outlet** — 6 pages
+  - Ticket Outlet · Ticket Gate · Outlet Shift · Outlet Day Report · Ticket Sales · Ticket Types
   - POS ticketing for walk-ins; club memberships are untouched by it. Each sale prints its own receipt at `/recreation/sales/{sale}/receipt`, which is a document per record rather than a menu page.
 - **Spa & Activities** — 3 pages
   - Appointments · Services & Activities · Treatment Rooms
 
-## HR & Workforce
+## HR & Payroll
 
-`PEOPLE` section · **3 modules** · 40 menu pages
+`PEOPLE` section · **3 modules** · 41 menu pages
 
 - **Talent Management** — 9 pages
   - Talent Dashboard · Vacancies · Applicants · New Starters · Appraisals · Discipline & Grievances · Exits & Turnover · Establishment · Talent Settings
-- **HR & Payroll** — 24 pages
-  - Employees · Attendance · Monthly Register · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · HR Self-Service Desk · My Profile · My Documents · My Announcements · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
+- **Workforce** — 25 pages
+  - Employees · Attendance · Monthly Register · HR Settings · **Public Holidays** (v7.43, Act 601 / Act 1142 calendar) · Leave Requests · Duty Roster · Time Clock · Time Clock Kiosk · Service Charge & Tips · Payroll Runs · Salary Advances · Statutory Returns · Pay Components · Leave Types · Departments · HR Self-Service Desk · My Profile · My Documents · My Announcements · My Payslips & Leave · My Roster & Time Clock · My Training & SOPs · My Appraisal · My Expense Claims
   - Employee self-service links require an active linked employee record; the HR Self-Service Desk requires `hr.manage`.
 - **Learning & SOPs** — 7 pages
   - L&D Dashboard · Training Matrix · Training Sessions · Training Records · Courses & Requirements · SOP Library · L&D Settings
@@ -189,11 +192,11 @@ counts, names, order, section keys, permission keys and every URI the prose name
 - **Sustainability & ESG** — 13 pages
   - ESG Dashboard · Carbon & HCMI · Waste · Refrigerants (F-gas) · Green Stay · Targets · Initiatives · People & Community · Certification · Policies · Carbon Statements · Annual ESG Report · ESG Settings
 
-## Administration & Configuration
+## Administration
 
-`GOVERNANCE` section · **2 modules** · 19 menu pages
+`GOVERNANCE` section · **2 modules** · 23 menu pages
 
 - **Masters** — 8 pages
   - Room Types · Rooms · Floors · Rate Plans · Taxes · Business Sources · Payment Modes · Item Categories
-- **Administration** — 11 pages
-  - Users · Roles & Permissions · Hotel Settings · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Import & Export Data
+- **System Admin** — 15 pages
+  - Users · Roles & Permissions · Configuration · Hotel Settings · Properties · Group Account · Group People · Activity Log · E-mail Log · SMS / WhatsApp Settings · Online Payment Settings · SMS / WhatsApp Log · API & Webhooks · Database Backup · Import & Export Data

@@ -28,7 +28,18 @@ try {
 }
 
 /** Development-only pages, never presented as a screen. */
-const EXEMPT = new Set(['index.html']);
+const EXEMPT = new Set([
+  'index.html',
+  // Component galleries for features that are not built yet (combined billing,
+  // reservation posted balance, IPTV tuner drafts, laundry checkout hand-off).
+  // Their builders inject a visible "sample preview" notice on purpose and the
+  // dedicated per-preview checks pin it, so the banner must stay on screen.
+  'checkout-laundry.html',
+  'folio-origin.html',
+  'folio-page.html',
+  'iptv-channel-draft.html',
+  'reservation-posted-balance.html',
+]);
 
 const PHRASES = [
   /preview/i,

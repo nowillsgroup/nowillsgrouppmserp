@@ -13,7 +13,8 @@
  *
  * Run: node deploy/dev/audit/reports_wiring_check.js
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const VIEWS = [
   'resources/views/reports/index.blade.php',
@@ -231,7 +232,11 @@ ok('the download is guarded against formula injection', /preg_match\('\/\^\[=\+\
 ok('an as-on download is named for its single day', /\$mode === 'date' \? \$to->format\('Ymd'\)/.test(showBody));
 
 // A report with no generator is a 500; a generator with no report is dead code.
-const generators = [...controller.matchAll(/protected function r_([a-z_0-9]+)\(/g)].map(([, name]) => name);
+// The generators live in the domain trait files under app/Http/Controllers/Reports,
+// which ReportController mixes in — not in the controller itself.
+const REPORTS_DIR = 'app/Http/Controllers/Reports';
+const traitFiles = existsSync(REPORTS_DIR) ? readdirSync(REPORTS_DIR).filter((n) => n.endsWith('.php')) : [];
+const generators = traitFiles.flatMap((name) => [...read(join(REPORTS_DIR, name)).matchAll(/protected function r_([a-z_0-9]+)\(/g)].map(([, slug]) => slug));
 const slugs = new Set(entries.map((entry) => entry.slug));
 const generatorNames = new Set(generators);
 const noGenerator = [...slugs].filter((slug) => !generatorNames.has(slug));

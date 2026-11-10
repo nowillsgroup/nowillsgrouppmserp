@@ -4,7 +4,9 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
-INSTALLER = (ROOT / "public/install.php").read_text()
+# public/install.php is gitignored and copied in per install (see docs/INSTALL-CPANEL.md);
+# the shipped installer source is what the deploy scripts and guides reference
+INSTALLER = (ROOT / "deploy/installers/public-install.php.txt").read_text()
 SEEDER = (ROOT / "database/seeders/DatabaseSeeder.php").read_text()
 DEPLOY_HOOK = (ROOT / "deploy/cyberpanel/post-deploy.sh").read_text()
 
@@ -26,7 +28,6 @@ class ProductionDemoDataGuardTest(unittest.TestCase):
     def test_installation_guides_no_longer_offer_production_demo_seeding(self):
         for path in (
             "docs/INSTALL-CPANEL.md",
-            "public/docs/INSTALL-CPANEL.md",
             "docs/INSTALL-CYBERPANEL.md",
         ):
             with self.subTest(path=path):

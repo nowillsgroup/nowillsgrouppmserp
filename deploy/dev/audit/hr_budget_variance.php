@@ -18,7 +18,7 @@ use App\Services\PayrollService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
-$run = \App\Models\PayrollRun::where('run_no', env('RUN', 'PAY-2026-10'))->firstOrFail();
+$run = \App\Models\PayrollRun::where('run_no', getenv('PMS_HR_RUN') ?: getenv('RUN') ?: 'PAY-2026-10')->firstOrFail();
 $budget = BudgetService::active(BudgetService::fyFor($run->period_start));
 $salaries = AccountHead::sys('salaries');
 $month = BudgetService::monthIndex($run->period_start);
@@ -29,7 +29,21 @@ $original = (float) $line->{$cell};
 /** Fetch a page as the dev server's signed-in user and report which markers it carries. */
 function page(string $path, array $markers): array
 {
-    $html = (string) shell_exec('curl -s -m 120 '.escapeshellarg('http://127.0.0.1:8000'.$path));
+    static $ctx = null;
+    if ($ctx === null) {
+        $base = rtrim(getenv('PMS_BASE_URL') ?: 'http://127.0.0.1:8000', '/');
+        $proto = (string) parse_url($base, PHP_URL_SCHEME) ?: 'http';
+        $hdr = $proto === 'https' ? '' : ' -H '.escapeshellarg('X-Forwarded-Proto: http');
+        $jar = (string) tempnam(sys_get_temp_dir(), 'pms-hr-jar');
+        $login = (string) shell_exec('curl -s -m 30'.$hdr.' -c '.escapeshellarg($jar).' '.escapeshellarg($base.'/login'));
+        if (preg_match('/name="_token" value="([^"]+)"/', $login, $m)) {
+            $post = http_build_query(['_token' => $m[1], 'hotel_code' => getenv('PMS_DEV_HOTEL') ?: 'NOWILLS', 'username' => getenv('PMS_DEV_USER') ?: 'admin', 'password' => getenv('PMS_DEV_PASS') ?: 'Admin@123']);
+            shell_exec('curl -s -m 30'.$hdr.' -b '.escapeshellarg($jar).' -c '.escapeshellarg($jar).' -o /dev/null -d '.escapeshellarg($post).' '.escapeshellarg($base.'/login'));
+        }
+        $ctx = [$base, $hdr, $jar];
+    }
+    [$base, $hdr, $jar] = $ctx;
+    $html = (string) shell_exec('curl -s -m 120'.$hdr.' -b '.escapeshellarg($jar).' '.escapeshellarg($base.$path));
     $out = [];
     foreach ($markers as $m) {
         $out[$m] = str_contains($html, $m);

@@ -189,11 +189,11 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertIn("Needs a person", HUB_VIEW)
 
     def test_the_service_worker_caches_only_what_it_can_serve(self):
-        self.assertIn("nowills-pms-v4", SW)
+        self.assertIn("nowills-pms-v5", SW)   # CACHE bumps with every caching-model change
         for asset in ("/js/offline-core.js", "/js/offline-pos.js", "/js/offline-frontdesk.js", "/css/offline.css"):
             with self.subTest(asset=asset):
                 self.assertIn(asset, SW)
-        self.assertIn("const WORKSPACES = ['/offline', '/offline/pos', '/offline/housekeeping', '/offline/guest-requests', '/offline/frontdesk', '/offline/queue']", SW)
+        self.assertIn("const WORKSPACES = ['/offline', '/offline/pos', '/offline/housekeeping', '/offline/guest-requests', '/offline/frontdesk', '/offline/queue', '/offline/preparation', '/offline/reconciliation', '/offline/desktop']", SW)
         self.assertIn("if (request.method !== 'GET') return;", SW, "a POST is never served from the cache")
         self.assertIn("response.redirected", SW, "a redirect to sign-in must not become the offline copy")
         self.assertIn("self.skipWaiting()", SW)
@@ -548,7 +548,7 @@ class OfflineCoreCheck(unittest.TestCase):
         self.assertIn("Not in this browser — keep a tab open", HUB_VIEW,
                       "a browser without Background Sync is told the truth")
         self.assertIn("data-hub-health-refresh", HUB_VIEW)
-        self.assertIn("nowills-pms-v4", SW)
+        self.assertIn("nowills-pms-v5", SW)   # CACHE bumps with every caching-model change
 
     def test_the_hub_is_covered_by_a_harness(self):
         harness = ROOT / "deploy/dev/audit/offline_hub_check.js"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression checks for the tenant-aware Menu Items catalog."""
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -52,7 +53,7 @@ class MenuItemsPolishTest(unittest.TestCase):
             "'cost' => round((float) ($variant['cost'] ?? 0), 2)",
             "'variants_present'",
             "syncMenuItemVariants($row, $variants)",
-            "DB::transaction(function () use ($row, $data, $variants)",
+            "DB::transaction(function () use ($row, $data, $variants, $request, $master)",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, CONTROLLER)
@@ -86,8 +87,8 @@ class MenuItemsPolishTest(unittest.TestCase):
         for marker in (
             'data-variants=',
             'name="items[${mi}][variants][]"',
-            "const sideIds = variants.map(v => v.id)",
-            "variants.reduce((sum, v) => sum + Number(v.rate || 0), 0)",
+            "const sideIds = variants.flatMap(v => Array(Math.max(1, Math.min(9, Number(v.qty) || 1))).fill(v.id)).sort((a, b) => a - b);",
+            "variants.reduce((sum, v) => sum + Number(v.rate || 0) * Math.max(1, Number(v.qty) || 1), 0)",
             'data-side-variant-id=',
             'Side dishes <span class="tiny muted">',
             # The side-dish step: its own popup the moment a dish with sides is tapped.
@@ -105,9 +106,11 @@ class MenuItemsPolishTest(unittest.TestCase):
                 self.assertIn(marker, POS_VIEW)
         self.assertIn("'type' => 'side_dish'", VARIANT_SERVICE)
         self.assertIn("'price_delta' => $rate", VARIANT_SERVICE)
-        self.assertNotIn("'cost' =>", VARIANT_SERVICE)
-        self.assertIn("'rate' => (float) $v->rate", POS_VIEW)
+        # the cost rides in the internal snapshot for food-cost/margin (v9.34) and must never reach a screen
+        self.assertIn("'cost' => round((float) $variant->cost, 2),", VARIANT_SERVICE)
         self.assertNotIn("'cost' =>", POS_VIEW)
+        self.assertNotIn("'cost' =>", KOT_LINES)
+        self.assertNotIn("'cost' =>", POS_BILL)
         self.assertIn('Side dishes:', KOT_LINES)
         self.assertIn('Side dishes:', POS_BILL)
 
@@ -143,18 +146,29 @@ class MenuItemsPolishTest(unittest.TestCase):
 
     def test_terminal_preview_shows_the_side_dish_step(self):
         preview = (ROOT / "deploy/dev/previews/pos-terminal.html").read_text()
+        # the picker's rows are rendered at runtime by sideChoiceRow(); the static preview pins the
+        # shipped markup and data the picker builds from, plus the order line that already ran through it
         for marker in (
-            'id="sideDishModal"', 'Side dish for Grilled chicken',
+            'id="sideDishModal"',
+            "'Side dish for ' + button.dataset.name",           # the modal title is "Side dish for <dish>" by construction
             'Continue with none if the guest does not want one.',
-            'Rate and cost are optional in the menu master',
-            'Garden salad <span class="tiny muted">included</span>',
-            'Side dishes: French fries +12.50',
+            'Garden salad&quot;,&quot;rate&quot;:0',            # the included (rate-0) side ships in the tile's variants payload
+            '<span class="tiny muted">${rate}</span>',          # rate-0 sides render as "included" in that span
+            "' included'",                                       # both sideChoiceRow and the cart line mark a zero-rate side
+            'Side dish: Extra chips +10.00 · Medium',           # the sent line, rendered by the order loop
+            "Side dishes: ${c.variants.map(",                   # the draft cart line template
             'side dish with no rate is already included in the item price',
             '3 sides', '2 sides',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, preview)
-        self.assertNotIn('<form method="post"', preview, 'the preview must not post to a live route')
+        # the master form is what carries the rate/cost hint; the preview only carries the terminal
+        self.assertIn('<b>Rate and cost are optional</b>', MENU_FORM)
+        for form in re.findall(r'<form[^>]*>', preview):
+            action = re.search(r'action="([^"]*)"', form)
+            # the builder stubs routes to "#…"; compForm's action is blank because the screen sets it from data-comp-url
+            self.assertTrue(action is None or action.group(1) == '' or action.group(1).startswith('#'),
+                            'the preview must not post to a live route: %s' % form)
         self.assertNotIn('type="checkbox" checked>', preview, 'every preview control is disabled, not interactive')
         self.assertNotIn('UI-only preview', preview, 'the preview shows the screen, not a notice about it')
         self.assertIn('<!-- ', preview, 'provenance stays in a comment')

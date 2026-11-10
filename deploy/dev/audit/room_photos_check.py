@@ -35,7 +35,10 @@ FORM = read("resources/views/masters/form.blade.php")
 GALLERY = read("resources/views/masters/room-photos.blade.php")
 INDEX = read("resources/views/masters/index.blade.php")
 DESK = read("app/Http/Controllers/ReservationDeskController.php")
-REPORT = read("app/Http/Controllers/ReportController.php")
+# v10.x the report library was split out of ReportController into per-module trait files under
+# app/Http/Controllers/Reports/; the register pin below follows the code, so read both surfaces
+REPORT = read("app/Http/Controllers/ReportController.php") + "\n" + "\n".join(
+    read(str(path)) for path in sorted((ROOT / "app/Http/Controllers/Reports").glob("*.php")))
 CSS = read("public/css/app.css")
 SAMPLE = read("deploy/dev/preview/rooms-sample.mjs")
 

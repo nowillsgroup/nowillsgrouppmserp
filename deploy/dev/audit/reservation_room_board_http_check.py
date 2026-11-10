@@ -56,10 +56,47 @@ class BoardPage(HTMLParser):
             self.in_card = False
 
 
+
+import re as _re
+import http.cookiejar as _cookiejar
+from urllib.request import build_opener as _build_opener, HTTPCookieProcessor as _HTTPCookieProcessor
+from urllib.parse import urlencode as _urlencode
+
+_JAR = _cookiejar.CookieJar()
+_OPENER = _build_opener(_HTTPCookieProcessor(_JAR))
+
+
+def _dev_login(base: str) -> None:
+    """Sign in to the dev server so the check sees real pages.
+
+    The cached preview session used by deploy/dev/serve.mjs can rot (database
+    sessions expire), so log in explicitly with the same env-tunable dev
+    credentials the dev server itself uses (PMS_DEV_HOTEL / PMS_DEV_USER /
+    PMS_DEV_PASS, defaulting to the NOWILLS demo admin).
+    """
+    base = base.rstrip("/")
+    proto = urlsplit(base).scheme or "http"
+    headers = {"Accept": "text/html", "User-Agent": "Nowills-PMS-audit/1.0", "X-Forwarded-Proto": proto}
+    with _OPENER.open(Request(base + "/login", headers=headers), timeout=60) as response:
+        html = response.read().decode("utf-8", "replace")
+    token = _re.search(r'name="_token" value="([^"]+)"', html)
+    assert token, "login page did not render a CSRF token"
+    import os as _os
+    body = _urlencode({
+        "_token": token.group(1),
+        "hotel_code": _os.environ.get("PMS_DEV_HOTEL", "NOWILLS"),
+        "username": _os.environ.get("PMS_DEV_USER", "admin"),
+        "password": _os.environ.get("PMS_DEV_PASS", "Admin@123"),
+    }).encode()
+    request = Request(base + "/login", data=body, headers={**headers, "Content-Type": "application/x-www-form-urlencoded"})
+    with _OPENER.open(request, timeout=60) as response:
+        final = response.geturl()
+    assert "/login" not in urlsplit(final).path, f"dev-server login failed (landed on {final})"
+
 def fetch(base: str, path: str) -> tuple[int, str, str]:
-    request = Request(base + path, headers={"Accept": "text/html", "User-Agent": "Nowills-PMS-room-board-audit/1.0"})
+    request = Request(base + path, headers={"Accept": "text/html", "User-Agent": "Nowills-PMS-room-board-audit/1.0", "X-Forwarded-Proto": urlsplit(base + path).scheme or "http"})
     try:
-        with urlopen(request, timeout=45) as response:
+        with _OPENER.open(request, timeout=45) as response:
             return response.status, response.geturl(), response.read().decode("utf-8", errors="replace")
     except HTTPError as error:
         return error.code, error.geturl(), error.read().decode("utf-8", errors="replace")
@@ -81,6 +118,7 @@ def main() -> int:
     parser.add_argument("--base", default=os.environ.get("PMS_BASE_URL", "http://127.0.0.1:8000"), help="development server base URL")
     args = parser.parse_args()
     base = args.base.rstrip("/")
+    _dev_login(base)
 
     try:
         preview_home, _ = page("/", base)

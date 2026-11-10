@@ -71,8 +71,10 @@ class RevenueDashboardPolishTest(unittest.TestCase):
         self.assertIn("$pk = fn ($v) => $v === null ?", VIEW)
         self.assertIn("$pickup1Values = array_filter(array_column($rows, 'pickup1'), fn ($value) => $value !== null)", VIEW)
         self.assertIn("$pickup7Values = array_filter(array_column($rows, 'pickup7'), fn ($value) => $value !== null)", VIEW)
-        self.assertIn("count($pickup1Values) ? array_sum($pickup1Values) : '—'", VIEW)
-        self.assertIn("count($pickup7Values) ? array_sum($pickup7Values) : '—'", VIEW)
+        # the view hoists the counts into $pk1/$pk7 so the em-dash total and the "partial window" asterisk share one number
+        self.assertIn("$pk1 = count($pickup1Values); $pk7 = count($pickup7Values);", VIEW)
+        self.assertIn("$pk1 ? array_sum($pickup1Values) : '—'", VIEW)
+        self.assertIn("$pk7 ? array_sum($pickup7Values) : '—'", VIEW)
 
     def test_nightly_table_keeps_forecast_columns_and_date_specific_pricing_action(self):
         for heading in ('Booked', 'Held', 'Occ %', 'ADR', 'Revenue', 'Pickup 1d', 'Pickup 7d', 'Forecast', 'Fcst revenue'):

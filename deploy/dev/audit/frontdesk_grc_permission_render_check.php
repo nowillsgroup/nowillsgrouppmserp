@@ -42,10 +42,10 @@ try {
             $checks += [
                 'actual registration card and reservation render' => str_contains($html, 'id="guestRegistrationCard"')
                     && str_contains($html, e($stay->reservation->reservation_no)),
-                'guest identity, ID and stay sections render' => str_contains($html, 'Guest identity &amp; contact')
-                    && str_contains($html, 'Identity documents') && str_contains($html, 'Reservation &amp; stay'),
-                'declaration and signature lines render' => str_contains($html, 'Guest declaration &amp; terms')
-                    && str_contains($html, 'Guest signature') && str_contains($html, 'Front-office representative'),
+                'guest identity, ID and stay sections render' => str_contains($html, 'id="grcGuestTitle"')
+                    && str_contains($html, 'id="grcIdTitle"') && str_contains($html, 'id="grcStayTitle"'),
+                'declaration and signature lines render' => str_contains($html, 'id="grcTermsTitle"')
+                    && str_contains($html, 'Guest declaration') && str_contains($html, 'Guest signature') && str_contains($html, 'Front-office representative'),
                 'GRC stylesheet is emitted into document head' => $headEnd !== false && $stylePosition !== false && $stylePosition < $headEnd,
                 'print page includes the browser print action' => str_contains($html, 'window.print()'),
             ];

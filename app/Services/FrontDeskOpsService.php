@@ -123,22 +123,34 @@ class FrontDeskOpsService
 
     // ───────────────────────── counters ─────────────────────────
 
+    /** parcels held for guests who already checked out / no-showed (the only key that joins stay rows) */
+    public static function departedParcels(): int
+    {
+        // The stay join is guest-flow data – viewers without reservation or front-desk access do not pay for it.
+        if (! can_do('reservations.view') && ! can_do('frontdesk.view')) {
+            return 0;
+        }
+
+        return GuestMessage::whereIn('status', GuestMessage::OPEN)
+            ->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))
+            ->count();
+    }
+
     /** the numbers behind dashboard lines, nav badges and the hand-over snapshot (cheap queries only) */
-    public static function counts(?int $userId = null): array
+    public static function counts(?int $userId = null, bool $includeDepartedParcels = true): array
     {
         $c = self::cfg();
         $userId ??= auth()->id();
         $today = bdate()->toDateString();
         $wake = WakeupCall::where('status', 'scheduled');
 
-        return [
+        return array_merge([
             'wakeups_due' => (clone $wake)->where('call_at', '<=', now()->addMinutes($c['wakeup_lead']))->count(),
             'wakeups_late' => (clone $wake)->where('call_at', '<', now()->subMinutes($c['wakeup_grace']))->count(),
             'wakeups_next12' => (clone $wake)->whereBetween('call_at', [now(), now()->addHours(12)])->count(),
             'messages' => GuestMessage::whereIn('status', GuestMessage::OPEN)->where('kind', 'message')->count(),
             'parcels' => GuestMessage::whereIn('status', GuestMessage::OPEN)->where('kind', 'parcel')->count(),
             'messages_old' => GuestMessage::whereIn('status', GuestMessage::OPEN)->where('created_at', '<', now()->subMinutes(max(1, $c['msg_remind_minutes'])))->count(),
-            'departed_parcels' => GuestMessage::whereIn('status', GuestMessage::OPEN)->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count(),
             'traces_today' => Trace::where('status', 'open')->whereDate('trace_date', '<=', $today)->count(),
             'log_unread' => $userId ? LogBookService::unreadCount($userId) : 0,
             'shift_handover_pending' => FrontDeskShiftSessionService::pendingCount($userId),
@@ -148,7 +160,7 @@ class FrontDeskOpsService
             'lf_stored' => LostFoundItem::where('status', 'stored')->count(),
             'lf_due' => LostFoundItem::where('status', 'stored')->whereNotNull('retain_until')->whereDate('retain_until', '<=', $today)->count(),
             'lf_reports' => LostReport::where('status', 'open')->count(),
-        ];
+        ], $includeDepartedParcels ? ['departed_parcels' => static::departedParcels()] : []);
     }
 
     /** operational snapshot for the shift hand-over page */

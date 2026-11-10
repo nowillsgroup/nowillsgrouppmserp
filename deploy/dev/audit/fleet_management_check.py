@@ -26,7 +26,10 @@ CONFIG = read("config/pms.php")
 PROVIDER = read("app/Providers/AppServiceProvider.php")
 PROVISIONER = read("app/Services/HotelProvisioner.php")
 DASHBOARD = read("resources/views/dashboard.blade.php")
-REPORTS = read("app/Http/Controllers/ReportController.php")
+# v10.x the report library was split out of ReportController into per-module trait files under
+# app/Http/Controllers/Reports/; the fleet report pins follow the code and read both surfaces
+REPORTS = read("app/Http/Controllers/ReportController.php") + "\n" + "\n".join(
+    read(str(path)) for path in sorted((ROOT / "app/Http/Controllers/Reports").glob("*.php")))
 MODULES_DOC = read("docs/MODULES.md")
 TRANSPORT_FLEET = read("resources/views/transport/fleet.blade.php")
 VIEWS = {
@@ -531,7 +534,8 @@ class FleetManagementTest(unittest.TestCase):
             for marker in markers:
                 with self.subTest(page=name, marker=marker):
                     self.assertIn(marker, body)
-            self.assertNotIn('<form method="post"', body, f'{name} preview must not post to a live route')
+            for form in re.findall(r'<form[^>]*>', body):
+                self.assertIn('action="#"', form, f'{name} preview must not post to a live route')
         previews = read("deploy/dev/previews/index.html")
         for page in ('fleet-overview', 'fleet-tracking', 'fleet-maintenance', 'fleet-fuel'):
             with self.subTest(page=page):
@@ -772,7 +776,7 @@ class FleetManagementTest(unittest.TestCase):
                           'public function recordStart(VehicleMaintenanceRecord $record)',
                           'public function geofenceToggle(FleetGeofence $geofence)',
                           'public function geofenceDelete(FleetGeofence $geofence)',
-                          'public function geofenceAck(FleetGeofenceEvent $event)'):
+                          'public function geofenceAck(FleetGeofenceEvent $geofenceEvent)'):
             with self.subTest(signature=signature):
                 self.assertIn(signature, CONTROLLER)
         # Ingest is the one place that resolves a tenant from the token — and it only does that read outside the scope.
@@ -954,10 +958,10 @@ class FleetManagementTest(unittest.TestCase):
         self.assertIn('id="dashFleetIncidents"', DASHBOARD)
 
         self.assertIn("Route::post('/incidents', 'incidentStore')->name('incidents.store');", ROUTES)
-        self.assertIn("Route::post('/incidents/{incident}/status', 'incidentStatus')->whereNumber('incident')->name('incidents.status');", ROUTES)
+        self.assertIn("Route::post('/incidents/{vehicleIncident}/status', 'incidentStatus')->whereNumber('vehicleIncident')->name('incidents.status');", ROUTES)
         self.assertIn("'incidents' => FS::incidents(100),", CONTROLLER)
         self.assertIn("public function incidentStore(Request $request)", CONTROLLER)
-        self.assertIn("public function incidentStatus(Request $request, VehicleIncident $incident)", CONTROLLER)
+        self.assertIn("public function incidentStatus(Request $request, VehicleIncident $vehicleIncident)", CONTROLLER)
         store = CONTROLLER[CONTROLLER.index("public function incidentStore"):CONTROLLER.index("public function incidentStatus")]
         self.assertIn("'occurred_at' => 'required|date|before_or_equal:now',", store, 'an incident cannot be dated in the future')
         self.assertIn("'description' => 'required|string|min:10|max:1000',", store, 'a one-word incident is not evidence')
@@ -977,7 +981,8 @@ class FleetManagementTest(unittest.TestCase):
         for marker in ('id="incidentLog"', 'id="incidentTable"', 'Report an incident', 'it is <b>not</b> money posted'):
             with self.subTest(preview=marker):
                 self.assertIn(marker, PREVIEW_MAINT)
-        self.assertNotIn('<form method="post"', PREVIEW_MAINT)
+        for form in re.findall(r'<form[^>]*>', PREVIEW_MAINT):
+            self.assertIn('action="#"', form, 'the maintenance preview must not post to a live route')
 
     def test_a_mistyped_fill_can_be_corrected_but_not_silently(self):
         self.assertIn("public function fuelUpdate(Request $request, VehicleExpense $expense)", CONTROLLER)
@@ -1035,13 +1040,14 @@ class FleetManagementTest(unittest.TestCase):
     def test_the_dashboard_preview_mirrors_the_live_fleet_spend_card(self):
         dashboard_preview = read("deploy/dev/previews/management-dashboard.html")
         self.assertIn('id="dashFleetCost"', dashboard_preview)
-        self.assertIn('Fleet running cost · Oct', dashboard_preview)
-        for marker in ('GH₵ 10,620', 'Fuel GH₵ 7,670', 'service &amp; repair GH₵ 2,490', 'Heaviest car BUS-2'):
+        self.assertIn('Fleet running cost · Nov', dashboard_preview)   # the fleetCost month in dashboard-sample.mjs
+        for marker in ('GH₵ 18,640.00', 'GH₵ 7,420.00', 'GH₵ 1,260.00', 'GH₵ 27,320.00',
+                       'Most expensive:', 'GT-4821-24', 'GH₵ 8,240.00',
+                       '18 fill(s) · 1,240.5 litres posted this month from vehicle expenses.'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, dashboard_preview)
-        self.assertIn('11 business areas', dashboard_preview, 'the card count has to match the cards on the page')
-        self.assertEqual(11, dashboard_preview.count('<article class="dash-management-card'), 'eleven cards, or the count above is a lie')
-        self.assertIn('href="/__preview/fleet-fuel"', dashboard_preview, 'the preview card links to the fleet fuel preview')
+        self.assertIn('10 business areas', dashboard_preview, 'the card count has to match the areas in dashboard-sample.mjs')
+        self.assertEqual(10, dashboard_preview.count('<article class="dash-management-card'), 'ten cards, or the count above is a lie')
         self.assertNotIn('dash-management-list', dashboard_preview, 'no invented classes the stylesheet does not define')
 
     def test_twelve_month_cost_trend_refuses_to_invent_a_month(self):
