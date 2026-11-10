@@ -78,7 +78,8 @@ const pickerElements = {
   sideDishModal: sideModal,
   sideDishContinue: {addEventListener(_event, handler) {onSideContinue = handler;}},
 };
-const selectedInputs = sides.map(v => ({dataset: {sideVariantId: String(v.id), sideVariantName: v.name, sideVariantRate: String(v.rate)}}));
+const rowFor = () => ({querySelector: () => ({textContent: '1'})});
+const selectedInputs = sides.map(v => ({dataset: {sideVariantId: String(v.id), sideVariantName: v.name, sideVariantRate: String(v.rate)}, closest: rowFor}));
 const pickerContext = {
   cart: {}, guestAllergies: [], allergenNames: {}, confirm: () => true,
   render() {}, window: {setTimeout() {}},
@@ -88,6 +89,8 @@ const pickerContext = {
   document: {
     getElementById: id => pickerElements[id],
     querySelectorAll: selector => selector.includes('data-side-variant-id') ? selectedInputs : [],
+    // The extracted region wires a delegated click handler through document.addEventListener.
+    addEventListener: () => {},
   },
 };
 vm.createContext(pickerContext);

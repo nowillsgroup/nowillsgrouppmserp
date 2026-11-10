@@ -90,7 +90,7 @@ class RevenueRulesPolishTest(unittest.TestCase):
     def test_adjustment_form_keeps_error_context_and_describes_math(self):
         self.assertIn('Rate adjustment', FORM)
         self.assertIn('Positive raises the current price; negative lowers it.', FORM)
-        self.assertIn('Percent changes are limited to −90% through +300%.', FORM)
+        self.assertIn('Percent changes are limited to −90% through +300%, fixed amounts to ±9,999,999.', FORM)
         self.assertIn("@error('adjust_type')", FORM)
         self.assertIn("@error('adjust_value')", FORM)
         self.assertIn('Matching rules stack in priority order.', FORM)

@@ -1,7 +1,7 @@
 {
     "pages": [
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Room View",
             "route": "frontdesk.rooms",
             "perm": "frontdesk.view",
@@ -9,7 +9,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Tape Chart",
             "route": "frontdesk.tapechart",
             "perm": "frontdesk.view",
@@ -17,7 +17,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Walk-in Check-in",
             "route": "frontdesk.walkin",
             "perm": "frontdesk.checkin",
@@ -25,7 +25,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Arrivals",
             "route": "frontdesk.arrivals",
             "perm": "frontdesk.view",
@@ -33,7 +33,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "In-House Guests",
             "route": "frontdesk.inhouse",
             "perm": "frontdesk.view",
@@ -41,7 +41,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Departures",
             "route": "frontdesk.departures",
             "perm": "frontdesk.view",
@@ -49,7 +49,7 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Guest Requests",
             "route": "requests.index",
             "perm": "requests.view",
@@ -57,7 +57,15 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
+            "label": "Offline POS Terminal",
+            "route": "offline.pos",
+            "perm": "pos.order",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Front Desk",
             "label": "Offline Request Capture",
             "route": "offline.guest_requests",
             "perm": "requests.view",
@@ -65,10 +73,18 @@
             "params": null
         },
         {
-            "module": "Front Office",
+            "module": "Front Desk",
             "label": "Desktop Sync",
             "route": "offline.desktop.workspace",
             "perm": "offline.desktop.view",
+            "badge": null,
+            "params": null
+        },
+        {
+            "module": "Desk Operations",
+            "label": "My Shift",
+            "route": "desk.shift",
+            "perm": "logbook.view",
             "badge": null,
             "params": null
         },
@@ -150,7 +166,9 @@
             "route": "reservations.index",
             "perm": "reservations.view",
             "badge": null,
-            "params": null
+            "params": {
+                "view": "list"
+            }
         },
         {
             "module": "Reservations",
@@ -523,7 +541,7 @@
             "params": null
         }
     ],
-    "perm_registry_size": 285,
+    "perm_registry_size": 306,
     "perm_missing": [],
     "badge_missing": [],
     "model_rows": {
@@ -596,14 +614,14 @@
         "Reservation": {
             "module": "Front Office",
             "table": "reservations",
-            "rows": 210,
-            "rows_hotel_1": 210
+            "rows": 205,
+            "rows_hotel_1": 205
         },
         "ReservationRoom": {
             "module": "Front Office",
             "table": "reservation_rooms",
-            "rows": 219,
-            "rows_hotel_1": 219
+            "rows": 214,
+            "rows_hotel_1": 214
         },
         "Room": {
             "module": "Front Office",
@@ -698,14 +716,14 @@
         "EmailLog": {
             "module": "Reservations",
             "table": "email_logs",
-            "rows": 128,
-            "rows_hotel_1": 128
+            "rows": 127,
+            "rows_hotel_1": 127
         },
         "Folio": {
             "module": "Reservations",
             "table": "folios",
-            "rows": 162,
-            "rows_hotel_1": 162
+            "rows": 161,
+            "rows_hotel_1": 161
         },
         "Hotel": {
             "module": "Reservations",
@@ -715,8 +733,8 @@
         "MessageLog": {
             "module": "Reservations",
             "table": "message_logs",
-            "rows": 72,
-            "rows_hotel_1": 72
+            "rows": 71,
+            "rows_hotel_1": 71
         },
         "OnlinePayment": {
             "module": "Reservations",
@@ -787,8 +805,8 @@
         "Setting": {
             "module": "Reservations",
             "table": "settings",
-            "rows": 519,
-            "rows_hotel_1": 519
+            "rows": 520,
+            "rows_hotel_1": 520
         },
         "TransportTrip": {
             "module": "Reservations",
@@ -829,8 +847,8 @@
         "ActivityLog": {
             "module": "Concierge",
             "table": "activity_logs",
-            "rows": 2418,
-            "rows_hotel_1": 2418
+            "rows": 2416,
+            "rows_hotel_1": 2416
         },
         "ActivitySettlement": {
             "module": "Concierge",
@@ -859,8 +877,8 @@
         "ConversationMessage": {
             "module": "Guest Messaging",
             "table": "conversation_messages",
-            "rows": 51,
-            "rows_hotel_1": 51
+            "rows": 48,
+            "rows_hotel_1": 48
         },
         "InboxBroadcast": {
             "module": "Guest Messaging",
@@ -913,8 +931,8 @@
         "TvEvent": {
             "module": "IPTV & Guest Welcome",
             "table": "tv_events",
-            "rows": 653,
-            "rows_hotel_1": 653
+            "rows": 692,
+            "rows_hotel_1": 692
         },
         "TvMessage": {
             "module": "IPTV & Guest Welcome",
@@ -1021,144 +1039,149 @@
     },
     "roles": {
         "Accountant": {
-            "perms": 101,
+            "perms": 102,
             "fo_perms": 7,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Administrator": {
-            "perms": 285,
-            "fo_perms": 33,
-            "fo_total": 33
+            "perms": 306,
+            "fo_perms": 34,
+            "fo_total": 34
         },
         "Banquet Manager": {
             "perms": 25,
             "fo_perms": 1,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Business Development Manager": {
             "perms": 17,
             "fo_perms": 1,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Chief Engineer": {
             "perms": 38,
             "fo_perms": 4,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Cost Controller": {
             "perms": 10,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Digital Marketing Executive": {
             "perms": 9,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Driver": {
             "perms": 3,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "F&B Manager": {
-            "perms": 56,
-            "fo_perms": 0,
-            "fo_total": 33
+            "perms": 57,
+            "fo_perms": 1,
+            "fo_total": 34
         },
         "Front Office Manager": {
-            "perms": 170,
+            "perms": 173,
             "fo_perms": 33,
-            "fo_total": 33
+            "fo_total": 34
         },
         "HR Manager": {
-            "perms": 27,
+            "perms": 28,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Health & Safety Officer": {
             "perms": 17,
             "fo_perms": 2,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Housekeeping Supervisor": {
             "perms": 45,
             "fo_perms": 5,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Kitchen / Chef": {
             "perms": 28,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Laundry Attendant": {
             "perms": 9,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Owner's Representative": {
             "perms": 6,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Quality Manager": {
             "perms": 16,
             "fo_perms": 1,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Receptionist": {
-            "perms": 79,
+            "perms": 81,
             "fo_perms": 22,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Reservations Agent (CRO)": {
             "perms": 14,
             "fo_perms": 4,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Restaurant Cashier": {
-            "perms": 23,
-            "fo_perms": 0,
-            "fo_total": 33
+            "perms": 24,
+            "fo_perms": 1,
+            "fo_total": 34
+        },
+        "Restaurant Waiter": {
+            "perms": 10,
+            "fo_perms": 1,
+            "fo_total": 34
         },
         "Room Attendant": {
             "perms": 3,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Sales & Marketing": {
             "perms": 44,
             "fo_perms": 4,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Security Officer": {
             "perms": 19,
             "fo_perms": 3,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Spa Desk / Therapist": {
             "perms": 14,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Store Keeper": {
             "perms": 14,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Sustainability Manager": {
             "perms": 13,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Transport Desk / Concierge": {
-            "perms": 25,
+            "perms": 27,
             "fo_perms": 8,
-            "fo_total": 33
+            "fo_total": 34
         },
         "Valet / Parking Attendant": {
             "perms": 4,
             "fo_perms": 0,
-            "fo_total": 33
+            "fo_total": 34
         }
     },
     "commands": [
@@ -1174,5 +1197,5 @@
         "pms:interfaces",
         "pms:pre-arrival"
     ],
-    "business_date": "2026-10-26"
+    "business_date": "2026-11-10"
 }

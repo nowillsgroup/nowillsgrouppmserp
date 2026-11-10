@@ -54,6 +54,16 @@ def bdate(days):
     return out[-10:]
 
 
+def fx_board(currency, basis):
+    """The rate the app would use right now, read from the board itself — never a day-rotted literal."""
+    code = ('$b = App\\Services\\ForexService::boardRate("' + currency + '", null, ["basis" => "' + basis + '"]);'
+            'printf("%s|%s", number_format($b["rate"], 4), dmy($b["date"]));')
+    out = subprocess.run(["deploy/dev/bin/php", "-f", "deploy/dev/tinker.php"],
+                         env=dict(os.environ, TINKER=code), capture_output=True, text=True).stdout.strip()
+    rate, _, date = out.rpartition("|")
+    return rate.strip(), date.strip()
+
+
 def follow(p, loc, fallback="/"):
     """Laravel redirects to an absolute URL built on APP_URL, which does not resolve here — strip the origin."""
     return p.get(re.sub(r"^https?://[^/]+", "", loc) if loc else fallback)
@@ -186,12 +196,13 @@ print()
 
 print("3. A USD booking, converted at the buy board")
 forex_settings(p, {"channel_basis": "buy"})          # the buy rate is what the desk would actually give
+usd_buy_rate, usd_buy_date = fx_board("USD", "buy")
 code, loc, flash, page, data = simulate(p, "USD", ("Kwame", "Boateng"))
 ok("  the simulator form posted", code, 302)
 print("        flash: “%s”" % flash[:300])
 contains("  the flash reports the booking", flash, "RES-")
 contains("  …and how it was converted", flash, "the channel sent USD")
-contains("  …at the buy rate the setting chose", flash, "buy rate 11.4500")
+contains("  …at the buy rate the setting chose", flash, "buy rate " + usd_buy_rate)
 contains("  …and which board it came from", flash, "board")
 no = res_no_of(flash)
 ok("  a reservation was made", bool(no), True)
@@ -207,8 +218,8 @@ line = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fx.group(1))).strip() if fx e
 print("        “%s”" % line)
 ok("  the audit line renders", bool(fx), True)
 contains("  it names the currency and amount sent", line, "Sent as USD")
-contains("  it names the rate and basis board", line, "11.4500")
-contains("  it names the board date", line, "14 Oct 2026")
+contains("  it names the rate and basis board", line, usd_buy_rate)
+contains("  it names the board date", line, usd_buy_date)
 contains("  the gross is in cedis", rhtml, "gross")
 print()
 
@@ -216,13 +227,16 @@ print("5. Channel Manager › bookings — the row keeps both figures")
 idx = p.get("/channel-manager")
 row = idx[idx.find("/reservations/%d" % rid) - 200:idx.find("/reservations/%d" % rid) + 900]
 contains("  …the figure the OTA sent", row, "sent USD")
-contains("  …and the rate used", row, "11.4500")
+contains("  …and the rate used", row, usd_buy_rate)
 print()
 
 print("6. An EUR booking at the reference board")
 forex_settings(p, {"channel_basis": "reference"})
-code, loc, flash, page, data = simulate(p, "EUR", ("Amara", "Nwosu"))
-contains("  the basis really changes the rate used", flash, "reference rate 13.6184")
+eur_ref_rate, _ = fx_board("EUR", "reference")
+# the USD booking above has the first Deluxe units for its dates; the simulator accepts OTA overbookings whose
+# flash carries no conversion detail at all, so book the EUR reference check clear of that window
+code, loc, flash, page, data = simulate(p, "EUR", ("Amara", "Nwosu"), bdate(28), bdate(31))
+contains("  the basis really changes the rate used", flash, "reference rate " + eur_ref_rate)
 no2 = res_no_of(flash)
 rid2 = booking_link(p.get("/channel-manager/connections/3"), no2)
 created["eur"] = (rid2, no2)

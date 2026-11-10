@@ -1405,9 +1405,11 @@ class IptvService
         if (! can_do('iptv.view') && ! can_do('iptv.manage') && ! can_do('iptv.message') && ! can_do('iptv.emergency')) {
             return 0;
         }
-        $a = self::alerts();
+        // The badge needs offline screens and an emergency alert only – deliberately not the no-TV count, which reads stays.
+        $cut = now()->subMinutes(self::cfg()['offline_min']);
+        $offline = TvDevice::where('status', 'active')->where(fn ($q) => $q->whereNull('last_seen_at')->orWhere('last_seen_at', '<', $cut))->count();
 
-        return $a['offline'] + ($a['emergency'] ? 1 : 0);
+        return $offline + (self::emergency() ? 1 : 0);
     }
 
     public static function stats(): array

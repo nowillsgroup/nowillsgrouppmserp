@@ -65,7 +65,7 @@ class PosComplimentaryDetailsTest(unittest.TestCase):
         self.assertIn("$t->source_type === 'pos_complimentary' ? $t->description", COMPANY_LEDGER)
 
     def test_zero_value_record_is_read_only_in_the_guest_ledger(self):
-        self.assertIn("$tx->source_type === 'pos_complimentary'", FOLIO_SERVICE)
+        self.assertIn("$current->source_type === 'pos_complimentary'", FOLIO_SERVICE)
         self.assertIn("$line->source_type === 'pos_complimentary'", FOLIO_CONTROLLER)
         self.assertIn("$t->source_type !== 'pos_complimentary'", FOLIO_VIEW)
         self.assertIn("'online_payment', 'online_refund', 'pos_complimentary'", FOLIO_VIEW)

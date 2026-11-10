@@ -692,16 +692,21 @@ class ParkingService
         return $out;
     }
 
-    public static function alerts(): array
+    public static function alerts(bool $withDeparted = true): array
     {
-        return self::$memo['alerts'.Tenant::id()] ??= (function () {
+        $key = 'alerts'.Tenant::id().($withDeparted ? '' : ':nodep');
+
+        return self::$memo[$key] ??= (function () use ($withDeparted) {
             $c = self::cfg();
             $occ = self::occupancy();
 
             return [
                 'overdue' => ParkingSession::where('status', 'requested')->where('requested_at', '<', now()->subMinutes($c['sla_minutes']))->count(),
                 'overstay' => ParkingSession::whereIn('status', ParkingSession::ACTIVE)->where('kind', 'visitor')->where('entered_at', '<', now()->subHours($c['overstay_hours']))->count(),
-                'departed' => ParkingSession::whereIn('status', ParkingSession::ACTIVE)->where('kind', 'guest')->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count(),
+                // guest vehicles of checked-out stays still parked; skipped when the viewer cannot see reservation data
+                'departed' => $withDeparted
+                    ? ParkingSession::whereIn('status', ParkingSession::ACTIVE)->where('kind', 'guest')->whereHas('stay', fn ($q) => $q->whereIn('status', ['checked_out', 'cancelled', 'no_show']))->count()
+                    : 0,
                 'full' => $occ->whereIn('state', ['full', 'nearly'])->map(fn ($o) => $o['zone']->name.' '.$o['pct'].'%')->values()->all(),
                 'permits_expiring' => ParkingPermit::where('status', 'active')->whereDate('valid_to', '>=', bdate()->toDateString())->whereDate('valid_to', '<=', bdate()->copy()->addDays(7)->toDateString())->count(),
             ];
@@ -715,7 +720,8 @@ class ParkingService
             return 0;
         }
         try {
-            $a = self::alerts();
+            // The stay join is guest-flow data; viewers without reservation or front-desk access get the badge without it.
+            $a = self::alerts(can_do('reservations.view') || can_do('frontdesk.view'));
 
             return ParkingSession::where('status', 'requested')->count() + $a['departed'] + $a['overstay'];
         } catch (\Throwable) {

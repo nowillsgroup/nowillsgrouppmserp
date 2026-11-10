@@ -37,7 +37,7 @@ try {
             'actual room availability table renders' => str_contains($page, 'class="tape-chart-table"'),
             'date window controls render' => str_contains($page, 'id="tape-from"') && str_contains($page, 'id="tape-days"'),
             'room move/assignment controls follow editor or move permission' => str_contains($page, 'Move / assign:') === ($canMove || $canEdit),
-            'housekeeping detail follows housekeeping role permissions' => str_contains($page, 'Clean room</span>') === $canViewHousekeeping,
+            'housekeeping detail follows housekeeping role permissions' => str_contains($page, 'title="Housekeeping: ') === $canViewHousekeeping,
             'reservation links are omitted when user lacks reservation view' => $user->hasPermission('reservations.view') || ! preg_match('~href="/reservations/[0-9]+"~', $page),
             'in-house bars are draggable only with front-desk move permission' => $canMove || ! preg_match('/data-inhouse="1"/', $page),
         ];

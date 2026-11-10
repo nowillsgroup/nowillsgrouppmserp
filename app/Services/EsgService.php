@@ -1072,9 +1072,14 @@ class EsgService
         if (! can_do('esg.view')) {
             return 0;
         }
-        $a = self::alerts();
+        // Deliberately cheap: the badge only shows these three alerts. self::alerts()
+        // also computes the whole targets model (carbon / waste / HCMI), which reads
+        // stay rows over long windows – far too heavy and far too broad for a sidebar count.
+        $leaks = collect(self::leakRates())->where('flag', true)->count();
+        $policiesOverdue = EsgPolicy::where('status', 'active')->whereNotNull('next_review_on')->whereDate('next_review_on', '<', self::today())->count();
+        $initiativesPending = can_do('esg.manage') ? EsgInitiative::where('status', 'idea')->count() : 0;
 
-        return $a['policies_overdue'] + (can_do('esg.manage') ? $a['initiatives_pending'] : 0) + $a['leaks'];
+        return $policiesOverdue + $initiativesPending + $leaks;
     }
 
     /** carbon by scope per month for the last 12 months */

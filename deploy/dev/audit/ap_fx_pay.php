@@ -69,6 +69,9 @@ $throws = function (string $what, callable $fn, string $needle) use (&$ok) {
 
 $home = strtoupper((string) (Tenant::hotel()->currency ?: 'GHS'));
 $today = bdate()->toDateString();
+// The seeded board rolls forward with the nightly seed, so probe a date the board
+// actually covers instead of a calendar day that eventually falls out of its window.
+$probe = substr((string) (DB::table('forex_rates')->orderBy('date')->value('date') ?: $today), 0, 10);
 $cutoff = setting('gl_cutoff');
 // the latest date whose journal would actually post, so the ledger side of this can be proven rather than assumed
 $payDate = $cutoff && $cutoff < $today ? $cutoff : $today;
@@ -91,9 +94,9 @@ try {
     $ok('with no rate typed, the board for the payment date is used', [$r['basis'], $r['date']], ['reference', $payDate]);
     $ok('and it is quoted in the property’s own currency', round((float) $r['rate'], 4), round((float) ForexService::boardRate('EUR', $payDate)['rate'], 4));
     ForexService::saveSettings(['ap_rate_date' => 'business']);
-    $paymentDayRate = ForexService::apPayRate('EUR', '2026-10-13');
-    $ok('even when invoice booking uses today, a settlement reads its own date', $paymentDayRate['date'], '2026-10-13');
-    $ok('and the rate follows that payment-date board', round((float) $paymentDayRate['rate'], 4), round((float) ForexService::boardRate('EUR', '2026-10-13')['rate'], 4));
+    $paymentDayRate = ForexService::apPayRate('EUR', $probe);
+    $ok('even when invoice booking uses today, a settlement reads its own date', $paymentDayRate['date'], $probe);
+    $ok('and the rate follows that payment-date board', round((float) $paymentDayRate['rate'], 4), round((float) ForexService::boardRate('EUR', $probe)['rate'], 4));
     ForexService::saveSettings(['ap_rate_date' => 'document']);
     $d = ForexService::apPayRate('EUR', $payDate, 13.9);
     $ok('a typed rate becomes the deal rate', [$d['basis'], (float) $d['rate']], ['deal', 13.9]);
@@ -109,7 +112,7 @@ try {
     printf("%s", PHP_EOL);
 
     // ── 2. the fixture: two bills in the supplier’s own currency ──
-    $eurBillDate = '2026-10-05';
+    $eurBillDate = $probe;
     $eurBoard = ForexService::boardRate('EUR', $eurBillDate);
     if (! $eurBoard) {
         throw new RuntimeException("no EUR rate on the board for $eurBillDate — the fixture cannot be built");
@@ -321,7 +324,19 @@ $cols = array_map(fn ($c) => $c->name, DB::select('PRAGMA table_info(supplier_pa
 foreach (['currency', 'fx_amount', 'fx_rate', 'fx_date', 'fx_basis', 'fx_diff'] as $c) {
     $ok("supplier_payments.$c exists", in_array($c, $cols, true), true);
 }
-$curl = fn (string $path) => (string) shell_exec('curl -s -m 20 '.escapeshellarg('http://127.0.0.1:8000/'.$path));
+/* Fetch a page from the dev server the way a browser would: PMS_BASE_URL decides where it lives
+ * (default 127.0.0.1:8000), a throwaway cookie jar holds the dev sign-in the server itself performs,
+ * and an http:// base announces X-Forwarded-Proto: http as the TLS-terminating proxy would. */
+$pmsBase = rtrim(getenv('PMS_BASE_URL') ?: 'http://127.0.0.1:8000', '/');
+$pmsProto = (string) parse_url($pmsBase, PHP_URL_SCHEME) ?: 'http';
+$pmsHdr = $pmsProto === 'https' ? '' : ' -H '.escapeshellarg('X-Forwarded-Proto: http');
+$pmsJar = (string) tempnam(sys_get_temp_dir(), 'pms-fx-jar');
+$pmsLogin = (string) shell_exec('curl -s -m 30'.$pmsHdr.' -c '.escapeshellarg($pmsJar).' '.escapeshellarg($pmsBase.'/login'));
+if (preg_match('/name="_token" value="([^"]+)"/', $pmsLogin, $pmsM)) {
+    $pmsPost = http_build_query(['_token' => $pmsM[1], 'hotel_code' => getenv('PMS_DEV_HOTEL') ?: 'NOWILLS', 'username' => getenv('PMS_DEV_USER') ?: 'admin', 'password' => getenv('PMS_DEV_PASS') ?: 'Admin@123']);
+    shell_exec('curl -s -m 30'.$pmsHdr.' -b '.escapeshellarg($pmsJar).' -c '.escapeshellarg($pmsJar).' -o /dev/null -d '.escapeshellarg($pmsPost).' '.escapeshellarg($pmsBase.'/login'));
+}
+$curl = fn (string $path) => (string) shell_exec('curl -s -m 30'.$pmsHdr.' -b '.escapeshellarg($pmsJar).' '.escapeshellarg($pmsBase.'/'.$path));
 $demo = SupplierInvoice::whereNotNull('currency')->where('currency', '!=', $home)->whereNull('cancelled_at')
     ->whereIn('status', ['open', 'partial'])->first();
 if ($demo) {

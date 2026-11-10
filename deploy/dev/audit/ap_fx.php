@@ -63,6 +63,11 @@ $throws = function (string $what, callable $fn, string $needle) use (&$ok) {
 
 $home = strtoupper((string) (Tenant::hotel()->currency ?: 'GHS'));
 $today = bdate()->toDateString();
+// The seeded board rolls forward with the nightly seed, so probe a date the board
+// actually covers instead of a calendar day that eventually falls out of its window.
+$probe = substr((string) (DB::table('forex_rates')->orderBy('date')->value('date') ?: $today), 0, 10);
+$probeNext = Carbon::parse($probe)->addDay()->toDateString();
+$probeLabel = Carbon::parse($probe)->format('j M Y');
 $heads = AccountHead::pluck('id', 'name');
 $ota = Supplier::where('name', 'like', '%Booking%')->orWhere('name', 'like', '%OTA%')->first()
     ?? Supplier::inRandomOrder()->first();
@@ -80,21 +85,21 @@ try {
     // ── 1. the policy ──
     printf("%s — the switches that decide which rate a bill is booked at%s", 'The policy', PHP_EOL);
     $ok('foreign-currency bills are converted by default', ForexService::apConvert(), true);
-    $p = ForexService::apPolicy('2026-10-11');
+    $p = ForexService::apPolicy($probe);
     $ok('the default basis is the published board', $p['basis'], 'reference');
     $ok('a board may be carried forward up to 7 days', $p['stale_days'], 7);
-    $ok('the board is read at the invoice date', [$p['rate_date'], $p['date']], ['document', '2026-10-11']);
+    $ok('the board is read at the invoice date', [$p['rate_date'], $p['date']], ['document', $probe]);
     ForexService::saveSettings(['ap_rate_date' => 'business']);
-    $ok('or at the business date, whatever the invoice says', ForexService::apPolicy('2026-10-11')['date'], $today);
+    $ok('or at the business date, whatever the invoice says', ForexService::apPolicy($probe)['date'], $today);
     ForexService::saveSettings(['ap_rate_date' => 'document', 'ap_basis' => 'buy', 'ap_stale_days' => '0']);
-    $buy = ForexService::apPolicy('2026-10-11');
+    $buy = ForexService::apPolicy($probe);
     $ok('the buy side is available too', [$buy['basis'], $buy['stale_days']], ['buy', 0]);
-    $ok('a stale board is refused when the window is 0 days', ForexService::boardRate('USD', '2026-10-11', ['basis' => 'buy', 'stale_days' => 0])['stale'] ?? null, false);
+    $ok('a stale board is refused when the window is 0 days', ForexService::boardRate('USD', $probe, ['basis' => 'buy', 'stale_days' => 0])['stale'] ?? null, false);
     ForexService::saveSettings(['ap_basis' => 'reference', 'ap_stale_days' => '7']);
-    $board = ForexService::apBoard('2026-10-11');
+    $board = ForexService::apBoard($probe);
     $ok('the board quotes every currency it has a rate for', count($board) >= 12, true);
     $ok('each quote carries the rate, basis, board date and name', array_keys($board['USD']), ['rate', 'basis', 'date', 'stale', 'carried', 'name', 'symbol']);
-    $ok('the quote for a euro bill on 11 Oct is the 11 Oct board', $board['EUR']['date'], '2026-10-11');
+    $ok('the quote for a euro bill is the board for that date', $board['EUR']['date'], $probe);
     ForexService::saveSettings(['ap_convert' => '0']);
     $ok('conversion can be switched off', ForexService::apConvert(), false);
     ForexService::saveSettings(['ap_convert' => '1']);
@@ -102,46 +107,46 @@ try {
 
     // ── 2. the conversion maths ──
     printf("%s — ApService::convertLines()%s", 'The maths', PHP_EOL);
-    $own = $convert([['description' => 'Laundry', 'amount' => 100, 'tax_rate' => 0]], $home, '2026-10-11');
+    $own = $convert([['description' => 'Laundry', 'amount' => 100, 'tax_rate' => 0]], $home, $probe);
     $ok('a bill in our own currency is not converted', [$own['fx'], $own['board']], [null, null]);
     $ok('and its lines are untouched', $own['lines'][0]['amount'], 100.0);
-    $lower = $convert([['description' => 'Laundry', 'amount' => 100, 'tax_rate' => 0]], strtolower($home), '2026-10-11');
+    $lower = $convert([['description' => 'Laundry', 'amount' => 100, 'tax_rate' => 0]], strtolower($home), $probe);
     $ok('the currency is read case-insensitively', $lower['fx'], null);
 
-    $rate = (float) ForexService::boardRate('USD', '2026-10-11')['rate'];
-    $one = $convert([['description' => 'Reservation platform licence', 'amount' => 480, 'tax_rate' => 0]], 'USD', '2026-10-11');
+    $rate = (float) ForexService::boardRate('USD', $probe)['rate'];
+    $one = $convert([['description' => 'Reservation platform licence', 'amount' => 480, 'tax_rate' => 0]], 'USD', $probe);
     $ok('one line converts at the board for the invoice date', $one['lines'][0]['amount'], round(480 * $rate, 2));
     $ok('the supplier’s own figures are kept', [$one['fx']['fx_subtotal'], $one['fx']['fx_total'], $one['fx']['currency']], [480.0, 480.0, 'USD']);
-    $ok('and so is the rate and the board it came from', [$one['fx']['fx_rate'], $one['fx']['fx_date'], $one['fx']['fx_basis']], [$rate, '2026-10-11', 'reference']);
+    $ok('and so is the rate and the board it came from', [$one['fx']['fx_rate'], $one['fx']['fx_date'], $one['fx']['fx_basis']], [$rate, $probe, 'reference']);
 
-    $tiny = $convert(array_map(fn ($i) => ['description' => "line $i", 'amount' => 0.01, 'tax_rate' => 0], range(1, 3)), 'USD', '2026-10-11');
+    $tiny = $convert(array_map(fn ($i) => ['description' => "line $i", 'amount' => 0.01, 'tax_rate' => 0], range(1, 3)), 'USD', $probe);
     $ok('each line is rounded on its own, not the total once', $tiny['subtotal'], round(0.01 * $rate, 2) * 3);
     $ok('so the lines always sum to what is posted', round(array_sum(array_column($tiny['lines'], 'amount')), 2), $tiny['subtotal']);
     $ok('and that is not the same as rounding the total', $tiny['subtotal'] === round(0.03 * $rate, 2), false);
 
-    $taxed = $convert([['description' => 'Chiller service', 'amount' => 1000, 'tax_rate' => 20]], 'USD', '2026-10-11');
+    $taxed = $convert([['description' => 'Chiller service', 'amount' => 1000, 'tax_rate' => 20]], 'USD', $probe);
     $ok('tax is converted with the line', $taxed['tax'], round(200 * $rate, 2));
     $ok('the supplier’s tax is kept in its own currency', $taxed['fx']['fx_tax'], 200.0);
     $ok('the cedi total is net plus tax', $taxed['subtotal'] + $taxed['tax'], round($taxed['subtotal'] + $taxed['tax'], 2));
 
-    $throws('a currency the board has never heard of is refused', fn () => $convert([['description' => 'x', 'amount' => 5, 'tax_rate' => 0]], 'ZZZ', '2026-10-11'), 'no ZZZ rate on the forex board');
+    $throws('a currency the board has never heard of is refused', fn () => $convert([['description' => 'x', 'amount' => 5, 'tax_rate' => 0]], 'ZZZ', $probe), 'no ZZZ rate on the forex board');
     $throws('and so is a date the board cannot reach', fn () => $convert([['description' => 'x', 'amount' => 5, 'tax_rate' => 0]], 'USD', '2026-08-01'), 'no USD rate on the forex board');
     ForexService::saveSettings(['ap_convert' => '0']);
-    $throws('switching conversion off refuses the bill rather than guessing', fn () => $convert([['description' => 'x', 'amount' => 5, 'tax_rate' => 0]], 'USD', '2026-10-11'), 'switched off');
+    $throws('switching conversion off refuses the bill rather than guessing', fn () => $convert([['description' => 'x', 'amount' => 5, 'tax_rate' => 0]], 'USD', $probe), 'switched off');
     ForexService::saveSettings(['ap_convert' => '1']);
-    $throws('the old line validation still applies in the supplier’s currency', fn () => $convert([['description' => 'x', 'amount' => -5, 'tax_rate' => 0]], 'USD', '2026-10-11'), '');
+    $throws('the old line validation still applies in the supplier’s currency', fn () => $convert([['description' => 'x', 'amount' => -5, 'tax_rate' => 0]], 'USD', $probe), '');
     printf("%s", PHP_EOL);
 
     // ── 3. a real bill ──
     printf("%s — a foreign bill through the real expenseBill()%s", 'A bill', PHP_EOL);
-    $eur = (float) ForexService::boardRate('EUR', '2026-10-11')['rate'];
-    $bill = ApService::expenseBill($ota, ['supplier_ref' => 'FXH-EUR-1', 'currency' => 'EUR', 'doc_date' => '2026-10-11',
+    $eur = (float) ForexService::boardRate('EUR', $probe)['rate'];
+    $bill = ApService::expenseBill($ota, ['supplier_ref' => 'FXH-EUR-1', 'currency' => 'EUR', 'doc_date' => $probe,
         'lines' => [['account_head_id' => $heads['Marketing & OTA Commission'], 'description' => 'Commission on 41 reservations', 'amount' => 4180.55, 'tax_rate' => 0],
             ['account_head_id' => $heads['Internet & Telephone'] ?? $heads['Marketing & OTA Commission'], 'description' => 'Connectivity fee', 'amount' => 99.45, 'tax_rate' => 0]],
         'notes' => 'FX harness']);
     $ok('the header keeps the supplier’s currency', $bill->currency, 'EUR');
     $ok('and the supplier’s own net, tax and total', [(float) $bill->fx_subtotal, (float) $bill->fx_tax, (float) $bill->fx_total], [4280.0, 0.0, 4280.0]);
-    $ok('and the rate, the board it came from and the basis', [(float) $bill->fx_rate, $bill->fx_date->toDateString(), $bill->fx_basis], [$eur, '2026-10-11', 'reference']);
+    $ok('and the rate, the board it came from and the basis', [(float) $bill->fx_rate, $bill->fx_date->toDateString(), $bill->fx_basis], [$eur, $probe, 'reference']);
     $ok('the bill is posted in our own currency', (float) $bill->total, round(round(4180.55 * $eur, 2) + round(99.45 * $eur, 2), 2));
     $ok('the lines are in cedis', round((float) $bill->lines[0]->amount, 2), round(4180.55 * $eur, 2));
     $ok('nothing is outstanding until it is paid', round($bill->outstanding(), 2), round((float) $bill->total, 2));
@@ -152,16 +157,16 @@ try {
         'fx_total' => $bill->fx_total, 'fx_rate' => $bill->fx_rate, 'fx_date' => $bill->fx_date->toDateString(), 'fx_basis' => $bill->fx_basis]);
     $has('the note quotes the supplier’s figure', $note, 'EUR 4,280.00');
     $has('the rate it was booked at', $note, number_format($eur, 4));
-    $has('which side of the board, and which day', $note, 'reference, board of 11 Oct 2026');
+    $has('which side of the board, and which day', $note, 'reference, board of '.$probeLabel);
     $has('a stale board is called carried forward', ApService::fxNote(['currency' => 'USD', 'fx_subtotal' => 10, 'fx_tax' => 0, 'fx_total' => 10,
         'fx_rate' => 11.6, 'fx_date' => '2026-10-10', 'fx_basis' => 'reference'], ['stale' => true]), 'carried forward');
     $has('the audit note reports per-line rounding against the posted cedi total', ApService::fxNote([
         'currency' => 'USD', 'fx_subtotal' => 0.03, 'fx_tax' => 0, 'fx_total' => 0.03,
-        'fx_rate' => 11.6359, 'fx_date' => '2026-10-11', 'fx_basis' => 'reference',
+        'fx_rate' => 11.6359, 'fx_date' => $probe, 'fx_basis' => 'reference',
     ], null, 0.36), '0.01 rounding');
     $ok('a cedi bill produces no note at all', ApService::fxNote(null), '');
 
-    $ghs = ApService::expenseBill($ota, ['supplier_ref' => 'FXH-GHS-1', 'doc_date' => '2026-10-11',
+    $ghs = ApService::expenseBill($ota, ['supplier_ref' => 'FXH-GHS-1', 'doc_date' => $probe,
         'lines' => [['account_head_id' => $heads['Marketing & OTA Commission'], 'description' => 'Sundry', 'amount' => 250, 'tax_rate' => 0]]]);
     $ok('a bill in our own currency carries no fx columns', [$ghs->currency, $ghs->fx_rate, $ghs->fx_total], [null, null, null]);
     $ok('and is not foreign', $ghs->isForeign(), false);
@@ -184,21 +189,21 @@ try {
     }
     ForexService::saveSettings(['ap_convert' => '0']);
     $throws('with conversion off, no foreign bill is accepted',
-        fn () => ApService::expenseBill($ota, ['supplier_ref' => 'FXH-OFF', 'currency' => 'USD', 'doc_date' => '2026-10-11',
+        fn () => ApService::expenseBill($ota, ['supplier_ref' => 'FXH-OFF', 'currency' => 'USD', 'doc_date' => $probe,
             'lines' => [['account_head_id' => $heads['Marketing & OTA Commission'], 'description' => 'x', 'amount' => 10, 'tax_rate' => 0]]]), 'switched off');
     ForexService::saveSettings(['ap_convert' => '1']);
 
     // ── 5. a debit note inherits the bill it is raised against ──
     printf("%s — a debit note against a foreign bill%s", 'Credit', PHP_EOL);
-    $dn = ApService::debitNote($ota, ['against_invoice_id' => $bill->id, 'supplier_ref' => 'FXH-DN-1', 'doc_date' => '2026-10-12',
+    $dn = ApService::debitNote($ota, ['against_invoice_id' => $bill->id, 'supplier_ref' => 'FXH-DN-1', 'doc_date' => $probeNext,
         'lines' => [['description' => 'Commission reversed – cancelled reservation', 'amount' => 120.5, 'tax_rate' => 0]],
         'notes' => 'FX harness']);
     $ok('it inherits the bill’s currency when none is given', $dn->currency, 'EUR');
-    $ok('and converts at its own document date', $dn->fx_date->toDateString(), '2026-10-12');
-    $ok('its credit is held in cedis', (float) $dn->total, round(120.5 * (float) ForexService::boardRate('EUR', '2026-10-12')['rate'], 2));
+    $ok('and converts at its own document date', $dn->fx_date->toDateString(), $probeNext);
+    $ok('its credit is held in cedis', (float) $dn->total, round(120.5 * (float) ForexService::boardRate('EUR', $probeNext)['rate'], 2));
     $ok('the supplier’s own credit is kept', (float) $dn->fx_total, 120.5);
     $throws('but not in a third currency',
-        fn () => ApService::debitNote($ota, ['against_invoice_id' => $bill->id, 'supplier_ref' => 'FXH-DN-2', 'currency' => 'USD', 'doc_date' => '2026-10-12',
+        fn () => ApService::debitNote($ota, ['against_invoice_id' => $bill->id, 'supplier_ref' => 'FXH-DN-2', 'currency' => 'USD', 'doc_date' => $probeNext,
             'lines' => [['description' => 'x', 'amount' => 10, 'tax_rate' => 0]]]), 'billed in '.$bill->currency);
     $bill->refresh();
     $ok('the note is allocated against the bill it corrects', round((float) $bill->allocated, 2), round((float) $dn->total, 2));
@@ -249,7 +254,19 @@ $ok('nothing was left behind', SupplierInvoice::where('supplier_ref', 'like', 'F
 $ok('the forex settings are back to the defaults', [ForexService::cfg()['ap_basis'], ForexService::cfg()['ap_stale_days'],
     ForexService::cfg()['ap_rate_date'], ForexService::apConvert()], ['reference', 7, 'document', true]);
 
-$curl = fn (string $path) => (string) shell_exec('curl -s -m 20 '.escapeshellarg('http://127.0.0.1:8000/'.$path));
+/* Fetch a page from the dev server the way a browser would: PMS_BASE_URL decides where it lives
+ * (default 127.0.0.1:8000), a throwaway cookie jar holds the dev sign-in the server itself performs,
+ * and an http:// base announces X-Forwarded-Proto: http as the TLS-terminating proxy would. */
+$pmsBase = rtrim(getenv('PMS_BASE_URL') ?: 'http://127.0.0.1:8000', '/');
+$pmsProto = (string) parse_url($pmsBase, PHP_URL_SCHEME) ?: 'http';
+$pmsHdr = $pmsProto === 'https' ? '' : ' -H '.escapeshellarg('X-Forwarded-Proto: http');
+$pmsJar = (string) tempnam(sys_get_temp_dir(), 'pms-fx-jar');
+$pmsLogin = (string) shell_exec('curl -s -m 30'.$pmsHdr.' -c '.escapeshellarg($pmsJar).' '.escapeshellarg($pmsBase.'/login'));
+if (preg_match('/name="_token" value="([^"]+)"/', $pmsLogin, $pmsM)) {
+    $pmsPost = http_build_query(['_token' => $pmsM[1], 'hotel_code' => getenv('PMS_DEV_HOTEL') ?: 'NOWILLS', 'username' => getenv('PMS_DEV_USER') ?: 'admin', 'password' => getenv('PMS_DEV_PASS') ?: 'Admin@123']);
+    shell_exec('curl -s -m 30'.$pmsHdr.' -b '.escapeshellarg($pmsJar).' -c '.escapeshellarg($pmsJar).' -o /dev/null -d '.escapeshellarg($pmsPost).' '.escapeshellarg($pmsBase.'/login'));
+}
+$curl = fn (string $path) => (string) shell_exec('curl -s -m 30'.$pmsHdr.' -b '.escapeshellarg($pmsJar).' '.escapeshellarg($pmsBase.'/'.$path));
 $form = $curl('ap/bills/create?mode=expense&supplier='.$ota->id);
 $has('the entry form offers the property’s own currency', $form, 'value="'.$home.'"');
 $has('and every currency the board quotes', $form, 'value="USD" data-rate="');

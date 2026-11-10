@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Pure-PHP SQL dump (no mysqldump binary required — works on shared hosting).
+ * Pure-PHP SQL export (works on shared hosting, no mysqldump binary required).
  *  - full():  schema + data of the whole database (group admin / CLI only).
  *  - hotel(): INSERT-only export of one property's rows (tenant-safe).
  */

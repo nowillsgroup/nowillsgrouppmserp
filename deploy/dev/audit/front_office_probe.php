@@ -13,7 +13,7 @@ $map = json_decode(file_get_contents('/app/deploy/dev/audit/fo_models.json'), tr
 $menu = config('pms.menu');
 $pages = [];
 foreach ($menu as $sec) {
-    if (($sec['label'] ?? '') !== 'Front Office & Guest Services') continue;
+    if (($sec['label'] ?? '') !== 'Front Office') continue;   // renamed from 'Front Office & Guest Services' in the ops re-map – same modules, same scope
     foreach ($sec['children'] as $mod) {
         foreach (($mod['children'] ?? []) as $pg) {
             $pages[] = ['module' => $mod['label'], 'label' => $pg['label'],

@@ -60,7 +60,7 @@ class BanquetFunctionSheetPolishTest(unittest.TestCase):
             'aria-label="Service and equipment line totals by department and status"',
             'Service &amp; equipment lines by booking status',
             'includes tentative holds',
-            'Guaranteed or expected@if(($statusCounts->get(\'tentative\') ?? 0) > 0)',
+            'Guaranteed or expected @if(($statusCounts->get(\'tentative\') ?? 0) > 0)',
             'class="sheet-department-chip"',
             '$f->event->optionExpired()',
             '$f->event->option_date?->format',
